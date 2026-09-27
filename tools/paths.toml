@@ -74,9 +74,3 @@ by = "make fixtures"
 
 [tests]
 paths = ["tools/tests/**", "backend/tests/**", "fixtures/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/e2e/**"]
-
-# Paths excepted from the rules of sources (no suppression comment, 1,000 lines at most),
-# each with its reason. An exception is temporary, and names what lifts it.
-[[exceptions]]
-paths = ["docs/spec/tools/build.py"]
-reason = "written before the rules; brought up to them by the lots that follow EP-01/L2 (#29)"
