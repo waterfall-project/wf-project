@@ -29,7 +29,7 @@ tout l'horizon, ce sont les 203 exigences — pas leur découpage en travaux.
 |---|---|
 | `README.md` | ce fichier : les règles, et la liste ordonnée des EPIC |
 | `MODELE.md` | la forme d'un EPIC et celle d'une US |
-| `EP-nn-<intitulé>.md` | un EPIC, **ses US comprises** |
+| `EP-nn-<intitulé>.md` | un EPIC, **ses US et sa conception comprises** |
 
 Les US ne sont pas un fichier chacune : un EPIC est l'unité de travail — c'est lui qu'on
 démarre, lui dont on ouvre les issues — et cinquante fichiers de vingt lignes se
@@ -69,10 +69,10 @@ D'un EPIC, cinq valeurs et aucune autre :
 
 | Statut | Signification |
 |---|---|
-| `à planifier` | l'EPIC est écrit, ses US ne sont pas détaillées ; la colonne US de son tableau porte « — » |
-| `prêt` | ses US sont détaillées, rien n'empêche de l'ouvrir |
-| `en cours` | ses issues sont ouvertes sur GitHub |
-| `livré` | toutes ses US sont finies et sa définition de fini est vérifiée |
+| `à planifier` | l'EPIC est écrit, mais ses US ou sa conception ne sont pas arrêtées ; tant que ses US ne sont pas écrites, la colonne US de son tableau porte « — » |
+| `prêt` | ses US sont détaillées et sa conception est validée ; rien n'empêche d'en découper les lots |
+| `en cours` | son plan de lots est validé, et ses issues sont ouvertes sur GitHub |
+| `livré` | toutes ses US sont finies, sa définition de fini est vérifiée sur `develop`, et `develop` est fusionnée dans `main` |
 | `abandonné : <pourquoi>` | reconnu, puis écarté ; le fichier reste |
 
 D'une US, cinq également :
@@ -93,8 +93,8 @@ Lire ce répertoire doit suffire à savoir où en est le projet, sans ouvrir Git
 
 | EPIC | Titre | Statut | Dépend de |
 |---|---|---|---|
-| [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | prêt | rien |
-| [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | prêt | EP-01 |
+| [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | à planifier | rien |
+| [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | à planifier | EP-01 |
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | à planifier | EP-01 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
@@ -122,11 +122,54 @@ c'est précisément ce que la maquette sur contrat simulé sert à éviter.
 
 ## Démarrer un EPIC
 
-1. détailler ses US, jusqu'à ce que chacune porte des critères d'acceptation repris des
-   champs Vérif ; l'EPIC passe `prêt` ;
-2. ouvrir une issue pour l'EPIC, puis une par US, avec l'identifiant en tête du titre ;
-3. reporter les numéros d'issue dans le fichier, en regard de chaque identifiant ;
-4. l'EPIC passe `en cours`.
+Cinq étapes, et un arrêt pour validation à la fin de chacune des trois premières : c'est ce
+qui permet de confier le reste à un agent.
+
+1. **Détailler les US**, jusqu'à ce que chacune porte des critères d'acceptation repris des
+   champs Vérif. *Validation.*
+2. **Écrire la conception** dans la section « Conception » du fichier de l'EPIC : les tables
+   et les migrations, les modules du noyau touchés, les modifications du contrat, l'ordre de
+   construction, et les décisions prises avec les options écartées. Une US dit ce qui doit
+   être vrai ; la conception dit comment les pièces s'emboîtent, et sans elle chaque lot
+   prendrait ses propres décisions de schéma. *Validation* ; l'EPIC passe `prêt`.
+3. **Établir le plan de lots** : pour chaque lot, son périmètre, les critères d'acceptation
+   qu'il ferme, les lots dont il dépend et sa taille estimée. *Validation.*
+4. **Ouvrir les issues** : une pour l'EPIC, une par US, une par lot en sous-issue de son US ;
+   reporter dans le fichier les numéros des issues de l'EPIC et des US. L'EPIC passe
+   `en cours`.
+5. **Livrer** : quand toutes les US sont finies, constater la définition de fini sur
+   `develop`, puis fusionner `develop` dans `main`. L'EPIC passe `livré`.
 
 Une proposition de fonctionnalité n'est pas une US : elle passe par le gabarit d'issue
 « Question or proposal », et ne devient une US que lorsqu'elle entre dans un EPIC.
+
+## Lots
+
+Un lot est l'unité de revue : **un lot, une issue, une branche, une pull request**. Une US
+tient en un lot ou en plusieurs ; un lot qui ne ferme aucun critère d'acceptation se déclare
+lot technique et nomme les US qu'il prépare.
+
+| Règle | Pourquoi |
+|---|---|
+| 1 000 à 1 500 lignes de diff, tests compris, dont 600 à 800 de code de production au plus | au-delà, une revue attentive décroche |
+| le code engendré n'est pas compté : client du contrat, verrous de dépendances, fixtures extraites, migrations produites par l'outil | un lot qui régénère le client dépasserait le budget sans rien contenir à relire |
+| la pull request met chaque critère fermé en regard du test qui le porte | c'est ce que la revue vérifie en premier |
+| un lot se fusionne seul, la chaîne au vert | `develop` n'est jamais à moitié construite |
+| un lot qui dépasse son budget s'arrête, et son découpage est revu | l'estimation se trompe ; la règle d'arrêt corrige, pas la revue |
+
+Un lot porte le titre `[US-nnnn/Ln] …` ou, pour un lot technique, `[EP-nn/Ln] …` ; `Ln`
+numérote les lots d'une même US ou d'un même EPIC, sans réemploi. Les lots vivent sur GitHub
+et nulle part ailleurs : ils sont une façon de faire le travail, pas son intention, et le
+fichier de l'EPIC ne les recopie pas.
+
+## Branches
+
+| Branche | Reçoit | Depuis |
+|---|---|---|
+| `main` | la fusion de `develop` à la livraison d'un EPIC, et rien d'autre | `develop` |
+| `develop` | les pull requests des lots, et toute modification de la spécification, du contrat ou de la roadmap | une branche de lot ou de travail |
+| une branche de lot | le travail d'un lot, et lui seul | `develop` |
+
+`main` ne change donc qu'à la fin d'un EPIC, et chaque état qu'elle a connu est un EPIC livré.
+La chaîne s'exécute sur toute pull request, vers `develop` comme vers `main`, et aucune n'est
+fusionnée si elle échoue.

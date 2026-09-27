@@ -56,6 +56,19 @@ installé. « rien » est une réponse.>
 <Ce qui se constate, pas ce qui se déclare : les commandes qui passent, ce qu'un tiers
 peut faire tourner et voir. C'est cette liste qui autorise le statut « livré ».>
 
+## Conception
+
+<Écrite après les US, validée avant le plan de lots ; c'est elle qui fait passer l'EPIC
+`prêt`. Ce qu'un développeur ou un agent devrait sinon décider seul, lot par lot :
+
+- les tables et les migrations, avec leurs contraintes (§4.4.1) ;
+- les modules du noyau touchés, et ce que chacun expose aux autres ;
+- les modifications du contrat, faites avant le code qui les consomme ;
+- l'ordre de construction : ce qui doit exister avant quoi ;
+- les décisions prises, chacune avec l'option écartée et la raison.
+
+Pas de code, pas de pseudo-code d'algorithme : ce qui relève d'un lot reste au lot.>
+
 ---
 
 ## US-nnnn — <titre court>

@@ -1,7 +1,7 @@
 ---
 id: EP-01
 titre: Rendre le dépôt capable de porter du code, sans en écrire une ligne de métier
-statut: prêt
+statut: à planifier
 depend_de: rien
 issue:
 ---
@@ -21,8 +21,15 @@ et la première chose qu'on ferait serait de les assouplir.
 
 Les US de cet EPIC n'ont pas d'acteur du §3.1.3 : leur bénéficiaire est celui qui développe.
 
+Il se mène de près, et non en autonomie : ses premiers lots fixent les conventions par
+l'exemple — l'arborescence, le premier test, la première règle d'analyse —, et tout ce qui
+suivra les imitera. Les agents de l'US-0280 prennent le relais à partir d'EP-02.
+
 ## Ce qui en fait partie
 
+- le guide de développement, que les personnes comme les agents lisent avant d'écrire ;
+- la chaîne sur toute pull request vers `develop` et vers `main`, et la mesure de la taille
+  d'un lot ;
 - la structure du dépôt : front (PBS-1), service d'API et worker (PBS-2.1, PBS-2.2), noyau
   métier (PBS-2.3), et le contrôle qui interdit à un module du noyau de lire les tables d'un
   autre ;
@@ -90,12 +97,43 @@ Rien. Le contrat est écrit et `make lint-openapi` passe.
 - le parcours témoin de bout en bout aboutit contre le faux back ;
 - la chaîne exécute tout ce qui précède sur une pull request, et échoue sur chacun de ces
   points ;
+- une pull request vers `develop` dont la chaîne échoue ne peut pas être fusionnée, et un
+  lot au-delà du budget fait échouer la chaîne tant qu'une personne ne l'a pas autorisé ;
+- le guide de développement existe, et chacune de ses règles qu'un outil peut contrôler
+  nomme ce contrôle ;
 - l'agent de revue, lancé sur une pull request piégée, relève chacun des pièges ; l'agent
-  d'EPIC, lancé à blanc sur EP-02, rend les issues qu'il ouvrirait et l'ordre des US sans
-  rien publier. Ces deux essais se jouent à la main : la chaîne n'exécute
-  pas d'agent.
+  d'EPIC, lancé à blanc sur EP-02, rend la conception et le plan de lots qu'il proposerait,
+  sans rien publier. Ces deux essais se jouent à la main : la chaîne n'exécute pas d'agent.
 
 ---
+
+## US-0300 — Guide de développement
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** un guide qui fixe l'arborescence, les conventions et
+la forme des pièces qui se répètent, **afin que** le premier lot et le centième se
+ressemblent, qu'une personne ou un agent les ait écrits.
+
+**Critères d'acceptation.**
+
+- propre à l'US : le guide couvre au moins l'arborescence et le rôle de chaque répertoire ; le
+  nommage, en anglais et selon le tableau du §4.4.1 ; la forme d'un test qui cite son
+  exigence, et celle d'un test qui reprend un exemple chiffré ; l'enveloppe d'erreur et
+  l'ajout d'un code ; l'ajout d'une clé de traduction ; l'écriture d'une migration ; les
+  branches, les lots et les pull requests ;
+- propre à l'US : chaque règle qu'un outil peut contrôler l'est, et le guide nomme le
+  contrôle ; une règle que rien ne contrôle le dit ;
+- propre à l'US : le guide ne recopie ni la spécification, ni le contrat, ni CONTRIBUTING, ni
+  la roadmap : il y renvoie ; et les règles communes des agents (US-0280) renvoient au guide
+  au lieu de le répéter.
+
+**Notes de réalisation.** Le guide vit dans `docs/dev/`, et la section « Changing the code »
+de CONTRIBUTING y renvoie. Il s'ouvre avant le premier lot, en squelette, et chaque US de cet
+EPIC y écrit la section qu'elle établit : une convention se fixe en l'appliquant, pas avant.
 
 ## US-0010 — Structure du dépôt et frontières du noyau
 
@@ -123,6 +161,34 @@ règle « une seule implémentation » ne repose pas sur la vigilance de chacun.
 **Notes de réalisation.** Le contrôle des frontières est une règle d'analyse statique, donc
 bloquante au même titre que le reste (WF-QUA-0030) : les modules du noyau ne s'importent
 entre eux que par leur interface publique.
+
+## US-0310 — Chaîne sur les pull requests, branches protégées, taille des lots
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que la chaîne s'exécute sur toute pull request vers
+`develop` et vers `main`, qu'aucune de ces deux branches n'accepte ce qu'elle n'a pas validé,
+et qu'elle mesure la taille d'un lot, **afin que** `develop` soit constructible à tout
+moment, et qu'un lot trop gros se voie avant la revue et non pendant.
+
+**Critères d'acceptation.**
+
+- propre à l'US : la chaîne s'exécute sur toute pull request vers `develop` ou `main`, et une
+  pull request dont la chaîne échoue ne peut pas être fusionnée ;
+- propre à l'US : aucune poussée directe n'est acceptée sur `develop` ni sur `main` ;
+- propre à l'US : la chaîne mesure le diff d'une pull request hors code engendré, et échoue
+  au-delà de 1 500 lignes, ou de 800 lignes de code de production, sauf si une personne pose
+  sur la pull request l'étiquette qui l'autorise ;
+- propre à l'US : les chemins engendrés et ceux des tests sont déclarés dans un fichier du
+  dépôt, chacun avec ce qui l'engendre ou ce qui le reconnaît comme test.
+
+**Notes de réalisation.** La protection des branches est un réglage de GitHub que seul le
+propriétaire du dépôt peut faire : la chaîne ne se l'accorde pas, et l'US n'est finie que
+lorsqu'il est fait. Le budget et la règle d'arrêt viennent de la section « Lots » du README
+de la roadmap ; la chaîne les applique, elle ne les redéfinit pas.
 
 ## US-0020 — Client d'API engendré du contrat
 
@@ -290,8 +356,8 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
 - **issue** :
 
 **En tant que** développeur, **je veux** trois agents versionnés dans le dépôt — un qui
-réalise une US, un qui relit une pull request, un qui mène un EPIC `prêt` jusqu'à `livré` en
-confiant chaque US au premier et chaque pull request au second —, **afin que** les règles de
+réalise un lot, un qui relit une pull request, un qui mène un EPIC de `à planifier` jusqu'à
+`livré` en confiant chaque lot au premier et chaque pull request au second —, **afin que** les règles de
 ce dépôt soient appliquées par construction à chaque travail, et non redécouvertes à chaque
 conversation.
 
@@ -303,11 +369,13 @@ conversation.
   le Vérif mot pour mot ; chaque test cite l'exigence qu'il couvre (WF-QUA-0010) ; le
   contrat d'abord, et une opération qui manque est une modification du contrat qui précède ;
   aucun mock ni client écrit à la main ; les modules du noyau ne se lisent que par leur
-  interface ; le code en anglais, la documentation en français ;
-- propre à l'US : l'agent de développement prend une US par son identifiant, travaille sur
-  une branche qui le porte, et ne rend la main que lorsque les commandes de contrôle du
-  Makefile passent ; il ne modifie ni la spécification, ni le contrat hors de ce que l'US
-  prévoit, ni les critères d'acceptation ;
+  interface ; le code en anglais, la documentation en français ; un lot par pull request,
+  dans son budget, vers `develop`. Pour le reste, elles renvoient au guide de l'US-0300 ;
+- propre à l'US : l'agent de développement prend un lot par son issue, travaille sur une
+  branche tirée de `develop` qui porte son identifiant, et n'ouvre sa pull request vers
+  `develop` que lorsque les commandes de contrôle du Makefile passent. Il ne modifie ni la
+  spécification, ni le contrat hors de ce que la conception prévoit, ni les critères
+  d'acceptation ; s'il dépasse le budget du lot, il s'arrête et propose un redécoupage ;
 - propre à l'US : l'agent de revue relit une pull request contre l'US qu'elle cite, les
   exigences et leur Vérif, le contrat et les règles communes ; chaque constat porte un
   emplacement et une proposition, et il ne modifie aucun fichier. Lancé sur une pull request
@@ -315,14 +383,16 @@ conversation.
   critère d'acceptation reformulé, un module qui lit la table d'un autre —, il relève
   chacun des pièges ;
 - propre à l'US : l'agent d'EPIC suit la procédure « Démarrer un EPIC » du README de la
-  roadmap : issues au titre `[US-nnnn]`, numéros reportés dans le fichier, statuts pris
-  parmi ceux du README et aucun autre, et la définition de fini constatée avant `livré`.
-  Lancé à blanc sur EP-02, il rend les issues qu'il ouvrirait et l'ordre des US, sans rien
-  publier ;
+  roadmap : il détaille les US, écrit la conception, établit le plan de lots, et s'arrête
+  pour validation après chacune de ces trois étapes ; il ouvre ensuite les issues — EPIC, US,
+  et lots en sous-issues —, reporte les numéros dans le fichier, prend les statuts parmi ceux
+  du README et aucun autre, et constate la définition de fini sur `develop` avant `livré`.
+  Lancé à blanc sur EP-02, il rend la conception et le plan de lots qu'il proposerait, sans
+  rien publier ;
 - propre à l'US : chaque agent dit où il s'arrête et rend la main plutôt que de trancher —
   une exigence ambiguë devient une issue « Specification finding », un écart au contrat une
-  issue « Contract issue » ; aucun agent ne fusionne une pull request ni ne pousse sur
-  `main` ;
+  issue « Contract issue » ; aucun agent ne fusionne une pull request, et aucun ne pousse
+  sur `develop` ni sur `main` ;
 - propre à l'US : chaque commande qu'un agent exécute existe dans le Makefile ; une cible
   renommée qui laisserait un agent appeler une commande disparue fait échouer
   `make roadmap`.
@@ -330,8 +400,9 @@ conversation.
 **Notes de réalisation.** Les agents vivent dans `.claude/agents/`. Des agents de ce type
 existent déjà hors du dépôt : ils sont repris et adaptés plutôt que réécrits. La revue de la
 spécification (`docs/spec/revue/PROMPT.md`) reste à part — elle relit le document, celui-ci
-relit du code. Les commandes que les agents citent viennent des US-0050 à US-0070 : cette
-US se termine après elles, mais rien n'empêche de la commencer plus tôt.
+relit du code. Les commandes que les agents citent viennent des US-0050 à US-0070, et leurs
+règles du guide de l'US-0300 : cette US se termine après elles, mais rien n'empêche de la
+commencer plus tôt.
 
 **Hors périmètre.** Le choix du modèle et le coût d'une exécution : ils se règlent dans
 la définition de chaque agent et changeront plus vite que ce fichier.
