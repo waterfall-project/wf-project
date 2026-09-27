@@ -27,6 +27,8 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
   suppression, intégrité déclarée, types des grandeurs ;
 - les règles de codage du SQL et des migrations, troisième fichier de règles de codage à
   côté de ceux de Python et de TypeScript (US-0300), fixées en écrivant la première table ;
+  et les sections du guide de développement qu'EP-01 a ouvertes pour lui : l'écriture d'une
+  migration, l'ajout d'un code d'erreur côté service ;
 - l'authentification locale, par l'annuaire et par OIDC ; la session en base, son expiration et
   sa révocation ;
 - les comptes : attributs, cycle de vie, avatar, import et resynchronisation depuis l'annuaire ;

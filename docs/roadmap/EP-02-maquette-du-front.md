@@ -22,6 +22,8 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 
 ## Ce qui en fait partie
 
+- les dépendances d'affichage de l'annexe C — Tailwind CSS, shadcn/ui, les icônes Lucide,
+  TanStack Table, Apache ECharts —, installées avec le premier écran qui s'en sert ;
 - la coquille : navigation, projet ouvert qui le reste d'un écran à l'autre, bandeau de
   contexte de lecture ;
 - la grille dense — le composant qui porte le planning, le devis, le reste à engager et les
@@ -387,7 +389,9 @@ que mes collègues.
 - `WF-QUA-0070-A` — « Le parcours de bout en bout s'exécute et aboutit en français comme en
   anglais. »
 
-**Notes de réalisation.** L'API ne renvoie aucune phrase (WF-ARC-0110) : les messages
+**Notes de réalisation.** Cette US écrit les sections du guide de développement qu'EP-01 a
+ouvertes sans pouvoir les remplir : l'ajout d'une clé de traduction, et l'ajout d'un code
+d'erreur côté front (US-0300). L'API ne renvoie aucune phrase (WF-ARC-0110) : les messages
 d'erreur et les comptes rendus sont des codes que le front rend par son catalogue. C'est
 cette US qui fixe le catalogue de codes d'erreur, et tout EPIC ultérieur y ajoute les siens.
 

@@ -1,7 +1,7 @@
 ---
 id: EP-01
 titre: Rendre le dépôt capable de porter du code, sans en écrire une ligne de métier
-statut: à planifier
+statut: prêt
 depend_de: rien
 issue:
 ---
@@ -81,8 +81,10 @@ par cet EPIC.
 
 ## Opérations du contrat
 
-Aucune n'est servie ni consommée : le faux back sert le contrat entier tel qu'il est, sans
-en choisir. `make build-openapi` produit le bundle dont prism part.
+Aucune n'est servie : le faux back sert le contrat entier tel qu'il est, sans en choisir.
+`make build-openapi` produit le bundle dont prism part. Le parcours témoin (US-0080) consomme
+`listProjects`, `getProject`, `listRevisions` et `listNodes`, et ce sont les seules
+opérations auxquelles EP-01 ajoute des exemples : c'est sa seule modification du contrat.
 
 ## Préalables
 
@@ -114,6 +116,196 @@ Rien. Le contrat est écrit et `make lint-openapi` passe.
   qu'il proposerait, sans rien publier. Ces deux essais se jouent à la main : la chaîne
   n'exécute pas d'agent.
 
+## Conception
+
+EP-01 n'a ni table ni migration, ni module métier : sa conception est celle de l'outillage.
+Elle fixe où chaque chose vit, quel outil tient quel contrôle, et comment la chaîne les
+enchaîne. Les versions ne sont pas fixées ici : elles vivent dans les fichiers de
+dépendances et leurs verrous.
+
+### Arborescence
+
+| Chemin | Contenu | PBS |
+|---|---|---|
+| `backend/` | un seul projet Python, un seul paquet `waterfall` | PBS-2 |
+| `backend/src/waterfall/core/` | le noyau : un sous-paquet par module, calqué sur un bloc FBS | PBS-2.3 |
+| `backend/src/waterfall/api/` | le service d'API | PBS-2.1 |
+| `backend/src/waterfall/worker/` | le worker | PBS-2.2 |
+| `backend/tests/` | les tests du back, rangés comme le code qu'ils éprouvent | — |
+| `frontend/` | l'application Next.js et ses tests | PBS-1.1, PBS-1.3 |
+| `frontend/src/api/` | le client engendré, versionné, jamais retouché | PBS-1.2 |
+| `frontend/e2e/` | les parcours de bout en bout | — |
+| `fixtures/` | le relevé engendré des exemples chiffrés, et les fixtures qui s'y rattachent | — |
+| `tools/` | les outils du dépôt, en Python, avec leurs tests | PBS-5.2 |
+| `.github/workflows/` | la chaîne | PBS-5.2 |
+| `docs/dev/` | le guide et les règles de codage | — |
+| `deploy/compose/` | les fichiers Compose : celui du développement dès EP-01, celui d'une installation sur une machine seule en EP-13 | PBS-5.1 |
+| `deploy/helm/` | le chart Helm, en EP-13 | PBS-5.1 |
+
+À la racine : le Makefile, `REUSE.toml`, et `tools/paths.toml`, qui déclare les chemins
+engendrés et les tests (US-0310). Un Dockerfile reste à côté du composant qu'il construit,
+qui est son contexte de construction.
+
+Décisions :
+
+- **Un seul paquet Python pour l'API, le worker et le noyau**, avec deux points d'entrée.
+  L'API et le worker portent ainsi la même version par construction, ce que demande la
+  troisième phrase du Vérif de WF-ARC-0010 : il n'existe qu'un numéro de version à publier.
+  Écarté : un paquet par processus et un paquet partagé pour le noyau — trois versions à
+  tenir alignées, et un alignement qui se vérifie au lieu d'être impossible à rompre.
+- **Les modules du noyau naissent avec l'EPIC qui les remplit**, et non en squelette vide
+  dès EP-01. Leur nom est celui du bloc FBS de second niveau, en anglais. Écarté : créer
+  aujourd'hui une vingtaine de paquets vides, qui figeraient un découpage que seul le
+  premier code éprouvera.
+- **Les outils du dépôt vivent dans `tools/`**, un paquet Python unique dont un module lit la
+  projection de la spécification pour tous : couverture des exigences, couverture de la
+  roadmap, relevé des exemples chiffrés, taille des fichiers, taille d'un lot. `inventory.py`
+  s'y rallie pour lire les exigences, au lieu d'avoir son propre lecteur. Écarté : un script
+  par contrôle, chacun avec sa lecture du Markdown — cinq lecteurs divergeraient.
+- **L'empaquetage vit dans `deploy/`**, un sous-répertoire par empaquetage du PBS-5.1 —
+  Compose et Helm. Le Makefile porte le chemin des fichiers, et personne n'a à le retenir.
+  Écarté : le fichier Compose à la racine, qui mêlerait l'empaquetage aux sources, et
+  `infra/`, qui désigne d'habitude le provisionnement des machines, que Waterfall ne fait
+  pas.
+- **Les outils sont du code, et les règles de l'US-0050 s'y appliquent** : un contrôle qui
+  échoue à ses propres règles ne peut pas les faire tenir aux autres. Les outils de
+  `docs/spec/tools` et `docs/api/tools` y sont mis à niveau dans un lot à part, sans rien
+  changer à ce qu'ils produisent — la projection et l'inventaire restent identiques.
+
+### Back
+
+- **uv** gère le projet Python, son environnement et son verrou. Écarté : Poetry et
+  pip-tools, plus lents, alors que la durée de la chaîne est une contrainte (US-0310).
+- Ruff pour le lint et le format, Pyright en mode strict, Pytest et pytest-cov : les outils
+  de l'annexe C, et rien d'autre dans EP-01 — FastAPI, SQLAlchemy et le reste arrivent en
+  EP-03 avec le premier service.
+- **Frontières du noyau : import-linter.** Chaque module n'est importable par un autre que
+  par son interface publique ; ses tables et son accès aux données sont privés ; le noyau
+  n'importe ni l'API ni le worker. Les contrats sont déclaratifs et se lisent dans la
+  configuration. Écarté : un contrôle écrit pour le dépôt, qui referait mal ce que l'outil
+  fait. Limite : une requête SQL écrite en texte, qui nommerait la table d'un autre module,
+  échappe à l'analyse des imports ; elle est interdite par les règles SQL d'EP-03 et
+  cherchée par la revue. Faute de module en EP-01, le contrôle s'éprouve sur un paquet
+  d'essai dans les tests de `tools/` : un module qui lit les tables d'un autre y est rejeté.
+- Coverage.py n'applique qu'un seuil unique, qui mêle lignes et branches : les deux seuils
+  de l'US-0060 sont appliqués par l'outil de couverture de `tools/`, qui lit le relevé de
+  coverage.py.
+
+### Front
+
+- **pnpm** gère le projet et son verrou. Écarté : npm, plus lent à installer et plus
+  permissif sur les dépendances non déclarées.
+- Next.js et TypeScript en mode strict ; ESLint et Prettier ; **Vitest** et son module de
+  couverture pour les tests unitaires, que l'annexe C ne nomme pas et qu'il faut pour
+  l'US-0060 ; Playwright pour le bout en bout.
+- **Les dépendances d'affichage de l'annexe C** — Tailwind CSS, shadcn/ui, les icônes
+  Lucide, TanStack Table et Apache ECharts — ne sont pas du code du dépôt, mais ce sont des
+  dépendances : elles se déclarent et se verrouillent comme les autres, et suivent les mêmes
+  mises à jour. Elles s'installent en EP-02, avec le premier écran qui s'en sert, et non en
+  EP-01 : une dépendance que rien n'importe n'est éprouvée par rien, et l'analyse du front la
+  signalerait comme inutilisée. Les pages du parcours témoin n'en ont pas besoin.
+- **Client : openapi-typescript et openapi-fetch.** Le premier engendre les seuls types, le
+  second est un appel typé de quelques lignes. Écarté : orval et hey-api, qui engendrent une
+  fonction par opération — beaucoup de code engendré, et la tentation de l'envelopper à la
+  main, ce qui recrée le client écrit à la main que WF-ARC-0020 interdit.
+- **Aucun appel réseau hors du client** : une règle ESLint refuse `fetch` hors de
+  `frontend/src/api/`. Elle prépare WF-ARC-0020, qu'EP-02 réalise, pour un coût nul
+  aujourd'hui.
+- **Le parcours témoin s'appuie sur trois pages minimales** — liste des projets, projet,
+  grille —, sans mise en forme ni texte propre, qu'EP-02 remplace en gardant le test. Écarté :
+  un parcours qui ne touche aucune page, qui n'éprouverait pas le harnais.
+
+### Contrat, faux back et fixtures
+
+- Le contrat ne porte aujourd'hui aucun exemple : prism, sans exemple, ne répond que des
+  valeurs tirées des types. **Les jeux de données du faux back sont des exemples du
+  contrat**, comme le prévoit l'US-0030 ; EP-01 en ajoute aux seules opérations du parcours
+  témoin, EP-02 aux autres. C'est la seule modification du contrat que prévoit EP-01.
+- **Relevé des exemples chiffrés.** L'outil relève dans la projection chaque phrase de Vérif
+  qui porte un exemple chiffré, et l'écrit dans `fixtures/` avec une clé stable — l'exigence
+  et le rang de la phrase — et l'empreinte de son texte. Ce relevé est engendré. Une fixture
+  est un fichier de données écrit à la main qui cite la clé de sa phrase : l'outil signale
+  une phrase qu'aucune fixture ne cite, et fait échouer la chaîne sur une fixture dont la
+  phrase a changé ou disparu. Écarté : tirer les valeurs de la prose automatiquement —
+  « deux projets de valeur acquise 100 et 1 000… » ne se structure pas sans le comprendre,
+  et un analyseur de phrases se tromperait en silence.
+- Un exemple du contrat reprend une fixture par référence, et le bundle l'embarque : les
+  nombres que sert le faux back sont alors ceux du document, sans copie.
+- **Compose de développement**, dans `deploy/compose/` : deux services, le faux back servi par prism depuis le
+  bundle et le front en mode développement, leurs images épinglées par empreinte ; le front
+  ne connaît que l'adresse de l'API, qui désignera le vrai service en EP-03 sans autre
+  changement.
+
+### Citation des exigences par les tests
+
+- Pytest : un marqueur `requirement` qui porte l'identifiant complet, indice de révision
+  compris, déclaré pour que Pytest refuse un marqueur mal écrit.
+- Vitest et Playwright : l'identifiant entre crochets dans le titre du test,
+  `[WF-QUA-0050-A]` ; Playwright en fait aussi une étiquette de sélection.
+- Un seul outil de rapport lit les trois relevés — la collecte de Pytest, les relevés JSON de
+  Vitest et de Playwright — et les confronte aux exigences F0 de la projection. Un
+  identifiant inconnu, ou d'un indice de révision périmé, le fait échouer, comme l'outil de la
+  roadmap. Écarté : une étiquette différente par outil, lue par trois rapports.
+
+### Chaîne
+
+- Un workflow par famille — back, front, contrat, spécification, roadmap, dépôt (REUSE,
+  actionlint, shellcheck, hadolint, taille des fichiers). Chaque étape appelle une commande du
+  Makefile.
+- **Déclencheurs** : `pull_request` pour le palier rapide, `merge_group` — la file de fusion
+  de GitHub — pour le palier complet. La file de fusion éprouve la pull request fusionnée
+  avant d'accepter la fusion, ce qui est exactement « au moment de fusionner ». Elle se règle
+  par un jeu de règles qui vise `main` et `epic/*` ; que ce jeu couvre bien les branches
+  `epic/*` se vérifie au premier lot de la chaîne. S'il ne le fait pas, l'agent de livraison
+  déclenche le palier complet sur la pull request avant de fusionner.
+- **Sélection par côté** : un premier travail calcule ce que la pull request touche, par
+  une commande du Makefile qui lit `tools/paths.toml`, et les travaux suivants ne
+  s'exécutent que pour ce qui est touché. Un dernier travail, **toujours exécuté**, réunit
+  les résultats, et c'est le seul que la protection des branches exige. Écarté : filtrer par
+  chemins au déclenchement des workflows — un contrôle exigé qui ne s'exécute pas faute de
+  fichier touché reste « en attente » et bloque la fusion, défaut connu de GitHub.
+- Actions tierces épinglées par empreinte, et **Dependabot** pour les tenir à jour, une fois
+  par mois, les actions seulement : une action épinglée qu'on ne met jamais à jour garde ses
+  failles.
+- Cache des dépendances d'uv et de pnpm, et des navigateurs de Playwright ; annulation de
+  l'exécution en cours d'une pull request à chaque nouvelle poussée.
+
+### Makefile
+
+Les commandes se nomment `<action>-<côté>` : `lint-back`, `test-front`, `e2e`… Deux
+commandes composées servent les agents et les personnes : `check` lance le palier rapide de
+ce que le diff touche, `check-all` les deux paliers de tout. Les noms exacts sont fixés par
+le premier lot de chaque US et consignés au guide : `make roadmap` vérifie ensuite que les
+agents n'en citent aucun qui n'existe pas (US-0280).
+
+### Ordre de construction
+
+1. Le squelette du guide, l'arborescence, `tools/` et son lecteur de la projection,
+   `REUSE.toml` et les en-têtes.
+2. La chaîne minimale : le workflow du dépôt, ceux de la spécification et du contrat avec
+   les contrôles qui existent déjà, le travail de sélection et le travail de synthèse, la
+   protection des branches.
+3. Le back vide et ses contrôles — lint, typage, format, complexité, frontières.
+4. Le front vide et ses contrôles, et Vitest.
+5. Le client engendré.
+6. Le faux back, les exemples du parcours témoin et le Compose.
+7. Le relevé des exemples chiffrés et les premières fixtures.
+8. La couverture des exigences et du code.
+9. L'outil de la roadmap.
+10. Le harnais de bout en bout et le parcours témoin, au palier complet.
+11. `make lot-size` et la mise à niveau des outils existants.
+12. Les règles de codage, puis les agents.
+
+Le guide s'écrit tout du long : chaque étape y ajoute la section qu'elle établit.
+
+### Sections du guide qu'EP-01 ne peut pas écrire
+
+Trois sujets que l'US-0300 demande au guide n'ont pas encore de matière en EP-01, et c'est
+l'EPIC qui les établit qui en écrit la section : l'ajout d'une clé de traduction (US-0190,
+EP-02, qui choisit la bibliothèque et crée les catalogues), l'ajout d'un code d'erreur côté
+front (US-0190 également) et côté service (EP-03), l'écriture d'une migration (EP-03). EP-01
+ouvre ces sections, avec le renvoi à l'US qui les écrira.
+
 ---
 
 ## US-0300 — Guide de développement et règles de codage
@@ -135,6 +327,11 @@ agent les ait écrits.
   exigence, et celle d'un test qui reprend un exemple chiffré ; l'enveloppe d'erreur et
   l'ajout d'un code ; l'ajout d'une clé de traduction ; les branches, les lots et les pull
   requests ;
+- écart : l'ajout d'une clé de traduction et l'ajout d'un code d'erreur côté front
+  s'écrivent avec l'US-0190 (EP-02), qui choisit la bibliothèque et crée les catalogues ;
+  l'ajout d'un code d'erreur côté service, avec EP-03, qui crée le service. EP-01 ouvre ces
+  sections dans le guide, chacune avec le renvoi à l'US ou à l'EPIC qui l'écrira ; une
+  section vide sans renvoi laisse l'US inachevée ;
 - propre à l'US : `docs/dev/` porte un fichier de règles de codage par langage, l'un pour
   Python, l'autre pour TypeScript. Chacun nomme d'abord les jeux de règles d'analyse, de
   typage et de format activés, en renvoyant à leur configuration sans la recopier ; puis il

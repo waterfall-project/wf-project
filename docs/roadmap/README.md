@@ -93,7 +93,7 @@ Lire ce répertoire doit suffire à savoir où en est le projet, sans ouvrir Git
 
 | EPIC | Titre | Statut | Dépend de |
 |---|---|---|---|
-| [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | à planifier | rien |
+| [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | prêt | rien |
 | [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | à planifier | EP-01 |
 | [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | à planifier | EP-01 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
