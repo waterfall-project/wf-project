@@ -164,7 +164,8 @@ Un commentaire dit pourquoi, pas ce que fait le code : la raison d'un choix, un 
 un cas limite. Il est en anglais, comme le code.
 
 *Contrôle* : aucun outil ne juge ce qu'un commentaire dit ; la revue le fait. La forme des
-docstrings, le code commenté et les `TODO` sont contrôlés : voir « Lint, typage et format ».
+docstrings, le code commenté et les `TODO` — toujours `TODO(#12): …`, avec le numéro de
+l'issue — sont contrôlés : voir « Lint, typage et format ».
 
 ## Lint, typage et format
 
@@ -193,8 +194,26 @@ fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tool
 avant ces règles, en sont exceptés dans `tools/paths.toml` jusqu'au lot
 [EP-01/L2](https://github.com/waterfall-project/wf-project/issues/29).
 
-**TypeScript** — *à écrire*, lot
-[US-0050/L2](https://github.com/waterfall-project/wf-project/issues/20).
+**TypeScript** — le front a son jeu de règles dans `frontend/eslint.config.mjs` :
+
+- les configurations recommandées d'ESLint, de Next.js (`core-web-vitals`) et de
+  typescript-eslint en mode strict, avec les informations de type ; ce qui leur est ajouté
+  ou retiré est écrit dans le fichier, avec sa raison ;
+- complexité cyclomatique inférieure à 15 (`complexity`, maximum 14) ; 1 000 lignes au plus
+  par fichier (`max-lines`) ;
+- une docstring JSDoc pour ce qui est exporté, sans type — TypeScript les porte
+  (`jsdoc/no-types`) — et sans section par paramètre, qui répéterait la signature ;
+- aucun `fetch` hors de `src/api/` : l'API ne s'appelle que par le client engendré
+  (WF-ARC-0020) ;
+- Prettier pour le format (`frontend/.prettierrc.json`) ; ESLint s'exécute avec
+  `--max-warnings 0`.
+
+Les commentaires de configuration dans le code ne sont pas honorés (`noInlineConfig`) et
+`make sources` les refuse. Un `TODO` cite son issue, sous la même forme qu'en Python :
+`TODO(#12): …` ; les autres étiquettes d'attente sont refusées — c'est `make sources` qui le
+vérifie, ESLint n'ayant pas d'équivalent aux règles `TD` et `FIX` de Ruff.
+
+*Contrôles* : `make lint-front` (ESLint, Prettier), `make typecheck-front`, `make sources`.
 
 ## Règles de codage
 

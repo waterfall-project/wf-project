@@ -22,6 +22,7 @@ path = [
     "frontend/tsconfig.json",
     "frontend/pnpm-lock.yaml",
     "frontend/.dockerignore",
+    "frontend/.prettierrc.json",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"

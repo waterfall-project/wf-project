@@ -35,6 +35,12 @@ _SLASH_SUPPRESSION = re.compile(
     r"(?://|/\*|\{/\*)\s*(?:eslint-disable|@ts-(?:ignore|expect-error|nocheck)"
     r"|prettier-ignore|(?:v8|c8|istanbul)\s+ignore)",
 )
+# Ruff holds the Python side (TD003, FIX001 to FIX004); ESLint has no equivalent, so the
+# TypeScript side is held here, the same way: a to-do cites its issue, `TODO(#12): …`, and
+# the other tags Ruff refuses are refused too — each is a to-do without an issue.
+_SLASH_COMMENT = re.compile(r"(?://|/\*|\{/\*|^\s*\*)(?P<comment>.*)")
+_TODO_WITHOUT_ISSUE = re.compile(r"\bTODO\b(?!\(#\d+\))")
+_OTHER_TAGS = re.compile(r"\b(?:FIXME|XXX|HACK)\b")
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,8 +65,24 @@ def breaches(path: str, text: str) -> list[Breach]:
         for number, line in enumerate(lines, start=1)
         if (match := pattern.search(line))
     ]
+    if suffix in _SLASH:
+        found.extend(_tags(path, lines))
     if len(lines) > MAX_LINES:
         found.append(Breach(path, len(lines), f"{len(lines)} lines, {MAX_LINES} at most"))
+    return found
+
+
+def _tags(path: str, lines: list[str]) -> list[Breach]:
+    found: list[Breach] = []
+    for number, line in enumerate(lines, start=1):
+        comment = _SLASH_COMMENT.search(line)
+        if comment is None:
+            continue
+        text = comment.group("comment")
+        if _TODO_WITHOUT_ISSUE.search(text):
+            found.append(Breach(path, number, "TODO without its issue: write TODO(#12): …"))
+        if tag := _OTHER_TAGS.search(text):
+            found.append(Breach(path, number, f"{tag.group(0)}: open an issue, cite it in a TODO"))
     return found
 
 
