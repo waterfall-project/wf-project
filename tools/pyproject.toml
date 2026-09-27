@@ -32,6 +32,7 @@ include = [
     "../docs/api/tools",
     "../docs/spec/tools/pbs.py",
     "../docs/spec/tools/allocate_pbs.py",
+    "../docs/spec/tools/drawio2mermaid.py",
 ]
 # The tools of the specification and of the contract run as scripts, from their directory.
 extraPaths = ["../docs/spec/tools"]

@@ -13,7 +13,8 @@ MOCK_SPEC := $(API)/waterfall.mock.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 TOOLS   := tools
 # The tools of the specification and of the contract, held to the same rules (EP-01/L2).
-DOC_TOOLS := ../docs/api/tools ../docs/spec/tools/pbs.py ../docs/spec/tools/allocate_pbs.py
+DOC_TOOLS := ../docs/api/tools ../docs/spec/tools/pbs.py ../docs/spec/tools/allocate_pbs.py \
+	../docs/spec/tools/drawio2mermaid.py
 BACK    := backend
 FRONT   := frontend
 PNPM    := cd $(FRONT) && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1 pnpm

@@ -68,4 +68,5 @@ convention = "pep257"
     "S603",   # they run pandoc and mmdc on the repository's own files
     "S607",
     "INP001", # scripts, run from their own directory: not a package
+    "S314",   # they parse the repository's own draw.io and Word files, never untrusted XML
 ]
