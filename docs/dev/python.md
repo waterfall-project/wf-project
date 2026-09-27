@@ -62,13 +62,13 @@ revue.
 
 ### Une erreur est un code, jamais une phrase
 
-Une règle métier refusée lève une exception typée du noyau, qui porte un code machine et
-ses paramètres. Seule l'API la traduit dans l'enveloppe d'erreur du contrat — `code`,
-`status`, `params`, `fields`, `correlation_id` —, et le front en fait une phrase dans la
-langue de l'utilisateur, avec l'identifiant de corrélation qui permet de suivre l'erreur
-dans les journaux (WF-OBS-0020). Le statut suit le contrat : `404` quand la lecture est interdite, `403`
-quand c'est l'écriture ou la qualité de contributeur, `409` pour un conflit d'état, `412`
-pour un `lock_version` périmé.
+Une règle métier refusée lève une exception typée du noyau, qui porte un code machine et ses
+paramètres. Seule l'API la traduit dans l'enveloppe d'erreur du contrat — `code`, `status`,
+`params`, `fields`, `correlation_id` —, et le front en fait une phrase dans la langue de
+l'utilisateur, avec l'identifiant de corrélation qui permet de suivre l'erreur dans les
+journaux (WF-OBS-0020). Le statut suit le contrat : `404` quand la lecture est interdite,
+`403` quand c'est l'écriture ou la qualité de contributeur, `409` pour un conflit d'état,
+`412` pour un `lock_version` périmé.
 
 *Pourquoi* : l'API ne localise rien (WF-ARC-0110), et une phrase ne se teste pas ;
 le détail des statuts est dans `docs/api/DECISIONS.md`, « Session et erreurs ».
@@ -115,8 +115,9 @@ s'il y en a un, et la gravité. Aucun journal ne contient de mot de passe, de je
 session ni de secret : un objet qui en porte ne se journalise pas entier.
 
 *Pourquoi* : WF-OBS-0020, que la roadmap fait commencer en EP-03 (#51), pour que le premier
-code l'applique au lieu d'être repris en EP-13. *Contrôle* : la règle `T201` de Ruff refuse `print` dans le back ;
-les champs et l'absence de secrets, la revue, puis la recherche des secrets de WF-OBS-0020.
+code l'applique au lieu d'être repris en EP-13. *Contrôle* : la règle `T201` de Ruff refuse
+`print` dans le back ; les champs et l'absence de secrets, la revue, puis la recherche des
+secrets de WF-OBS-0020.
 
 ### Les tests
 
