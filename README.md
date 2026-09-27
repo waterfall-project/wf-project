@@ -49,7 +49,7 @@ fifty-thousand deal the same weight as a million-euro one, and measures nothing.
 
 | Path | Contents |
 |---|---|
-| `docs/spec` | the specification: **203 requirements**, its Word and draw.io sources, the generated Markdown projection, the pipeline tools, and the nine reviews that shaped it |
+| `docs/spec` | the specification: **203 requirements**, its Word and draw.io sources, the generated Markdown projection, the pipeline tools, and the reviews that shaped it |
 | `docs/api` | the interface contract: **150 operations** over 116 paths and 147 schemas, hand-written OpenAPI, with the endpoint inventory and the design decisions |
 
 **The specification is in French.** It is a formal requirements document — every
@@ -59,12 +59,12 @@ English. [README-fr.md](README-fr.md) says all of this in French.
 
 ### Where to start reading
 
-- [`docs/api/INVENTAIRE.md`](docs/api/INVENTAIRE.md) — every endpoint, and which requirement
+- [`docs/api/INVENTORY.md`](docs/api/INVENTORY.md) — every endpoint, and which requirement
   it serves. The fastest way to see what the product does.
 - [`docs/api/DECISIONS.md`](docs/api/DECISIONS.md) — what the contract had to decide, and why.
 - [`docs/spec/waterfall-spec.md`](docs/spec/waterfall-spec.md) — the whole specification,
   generated from Word so that a machine can read it.
-- [`docs/spec/revue/constats/`](docs/spec/revue/constats/) — the nine reviews. This is where
+- [`docs/spec/revue/constats/`](docs/spec/revue/constats/) — the reviews. This is where
   the reasoning lives: what was wrong, what replaced it, and why.
 
 ## Commands

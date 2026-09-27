@@ -43,19 +43,23 @@ Trois choses, qui sont ce qui rend le retour de revue possible :
 
 1. **La numérotation de section sur chaque titre.** Word l'affiche mais ne la
    stocke pas dans le texte ; sans elle, un constat de revue ne serait pas
-   localisable dans le document. `§3.3.4.2` dans un constat désigne exactement la
-   section `3.3.4.2` de Word.
+   localisable dans le document. `§3.4.5.1` dans un constat désigne exactement la
+   section `3.4.5.1` de Word.
 2. **Les exigences en blocs YAML**, avec leur numéro de section. Un agent peut
    alors les citer et les filtrer (par domaine, par flexibilité) au lieu de
    reformuler un tableau.
-3. **Les diagrammes en Mermaid**, donc lisibles. Deux origines possibles :
+3. **Les diagrammes en Mermaid**, donc lisibles. Trois origines possibles :
    - le **texte alternatif** de l'image dans Word, s'il contient déjà du Mermaid —
      c'est le cas de la figure 2, dont le diagramme draw.io a été créé à partir
      d'un source Mermaid conservé dans le texte alternatif ;
    - le fichier **draw.io**, via `tools/figures.toml` qui associe une légende de
-     figure à une page du fichier.
+     figure à une page du fichier ;
+   - un **fichier `.mmd` du dépôt**, via la clé `source` de `tools/figures.toml`.
+     C'est la seule voie pour un `sequenceDiagram` : Word aplatit le texte
+     alternatif sur une ligne, et une séquence ne se re-segmente pas sans
+     ambiguïté. Les figures 18 et 19 viennent de là.
 
-   Une figure sans l'une ni l'autre est conservée en image, et signalée.
+   Une figure sans aucune des trois est conservée en image, et signalée.
 
 L'index des exigences est reconstruit à la génération : les numéros de page de
 Word n'ont pas de sens dans un Markdown.
@@ -73,9 +77,22 @@ Word n'ont pas de sens dans un Markdown.
    direction = "LR"
    ```
 
-Variante : si le diagramme vient d'un source Mermaid, le coller dans le **texte
-alternatif** de l'image dans Word. Aucune entrée dans `figures.toml` n'est alors
-nécessaire, et le source reste attaché à l'image.
+Deux variantes :
+
+- si le diagramme vient d'un source Mermaid simple — un `flowchart`, un
+  `classDiagram`, un `stateDiagram` —, le coller dans le **texte alternatif** de
+  l'image dans Word. Aucune entrée dans `figures.toml` n'est alors nécessaire, et
+  le source reste attaché à l'image ;
+- si c'est un `sequenceDiagram`, ou tout diagramme que l'aplatissement de Word
+  abîmerait, écrire le source dans `figures/<nom>.mmd`, engendrer l'image
+  (`mmdc -i figures/<nom>.mmd -o figures/<nom>.png -b white -s 2`), l'insérer dans
+  Word **sans texte alternatif**, et déclarer la source :
+
+  ```toml
+  [[figure]]
+  legende = "<fragment de la légende Word>"
+  source = "figures/<nom>.mmd"
+  ```
 
 Dans draw.io, relier les flèches **aux formes** plutôt que de les poser librement :
 une flèche non reliée n'a pas de source ni de cible dans le fichier, et le
@@ -102,18 +119,19 @@ Word + draw.io  ──►  ./build.sh  ──►  waterfall-spec.md
                                                   ce qui a effectivement changé)
 ```
 
-Lancer une revue :
+Lancer une revue, depuis la racine du dépôt :
 
 ```
-Lis revue/PROMPT.md et applique-le à waterfall-spec.md.
+Lis docs/spec/revue/PROMPT.md et applique-le à docs/spec/waterfall-spec.md.
 Périmètre : <sections, ou « document complet »>.
 ```
 
 Les constats sont **appliqués dans Word**, jamais dans le Markdown. Chaque
 constat porte une section, un identifiant d'exigence et une citation exacte,
 pour être retrouvé par recherche dans le document. Après intégration, mettre à
-jour la ligne `Statut` du constat (`intégré`, `intégré avec écart`, `rejeté`) :
-c'est ce qui distingue un constat traité d'un constat oublié.
+jour la ligne `Statut` du constat : les cinq statuts possibles sont définis dans
+`revue/constats/MODELE.md`, et c'est cette ligne qui distingue un constat traité
+d'un constat oublié.
 
 Relancer `./build.sh` après les corrections : le diff affiché vérifie que les
 modifications Word ont bien atterri là où on les attendait.

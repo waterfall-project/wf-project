@@ -10,6 +10,13 @@ nombre_exigences: 203
      Les sources sont stb-waterfall.docx (Word) et waterfall.visuels.drawio (draw.io).
      Toute correction se fait dans ces fichiers, puis ./build.sh. -->
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/waterfall_logo-dark.svg">
+    <img src="../assets/waterfall_logo.svg" alt="Waterfall" width="280">
+  </picture>
+</p>
+
 Révision A
 
 Historique des modifications

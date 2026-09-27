@@ -34,17 +34,19 @@ So a specification change is a change to a binary file, which a pull request can
 usefully. The workflow that replaces the diff is a **review**:
 
 1. open an issue, or write a findings file in `docs/spec/revue/constats/`, following
-   `MODELE.md` and the instructions in `docs/spec/revue/PROMPT.md`;
+   `docs/spec/revue/constats/MODELE.md` and the instructions in
+   `docs/spec/revue/PROMPT.md`;
 2. each finding carries a **location** (`§3.4.5.1`, `WF-REV-0050-A`), an **exact quotation**
    so it can be found by searching the Word document, and a **proposed replacement wording**
    — a finding without a proposal is a finding someone else has to write again;
 3. the author applies the correction in Word, runs `make build-doc`, and the diff of the
    generated Markdown shows what actually landed;
-4. the finding's `Statut` becomes `intégré`, `sans objet` or `reporté`. That line is what
-   distinguishes a treated finding from a forgotten one.
+4. the finding's `Statut` is updated. The five possible values are defined in
+   `docs/spec/revue/constats/MODELE.md`, and that line is what distinguishes a treated
+   finding from a forgotten one.
 
-Nine reviews have gone through this cycle; read one before writing your first, and read the
-existing findings before raising a new one — a finding already settled is not raised twice.
+The reviews in `docs/spec/revue/constats/` have all gone through this cycle; read one before
+writing your first, and read the existing findings before raising a new one — a finding already settled is not raised twice.
 
 ### Requirement conventions
 

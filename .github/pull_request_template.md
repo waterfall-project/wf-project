@@ -16,8 +16,8 @@
 Tick what applies; delete the sections that do not.
 
 **Specification** (`docs/spec`)
-- [ ] the change was made in `stb-waterfall.docx` or `waterfall.visuels.drawio`, never in the generated Markdown
-- [ ] `make build-doc` was run, and the diff of `waterfall-spec.md` shows exactly what was expected
+- [ ] the change was made in `docs/spec/stb-waterfall.docx` or `docs/spec/waterfall.visuels.drawio`, never in the generated Markdown
+- [ ] `make build-doc` was run, and the diff of `docs/spec/waterfall-spec.md` shows exactly what was expected
 - [ ] the build emits no warning
 - [ ] the findings integrated have their `Statut` updated in `docs/spec/revue/constats/`
 - [ ] new requirements carry a Motif and an observable Vérif, and no identifier was reused or renumbered

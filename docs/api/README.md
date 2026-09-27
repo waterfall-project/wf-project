@@ -18,7 +18,7 @@ réalise : c'est ce qui rend la traçabilité vérifiable dans les deux sens.
 | `components/parameters.yaml` | paramètres partagés |
 | `components/responses.yaml` | réponses d'erreur partagées |
 | `components/schemas/<famille>.yaml` | schémas, plusieurs par fichier |
-| `INVENTAIRE.md` | inventaire des endpoints et couverture des exigences, régénérable |
+| `INVENTORY.md` | inventaire des endpoints et couverture des exigences, régénérable |
 
 Les schémas sont groupés par famille plutôt qu'un fichier par schéma : cent
 quarante-sept fichiers d'une douzaine de lignes se relisent moins bien qu'une douzaine de
@@ -49,7 +49,7 @@ Depuis la racine du dépôt :
 make lint-openapi     # contrôles, bloquants en CI
 make build-openapi    # contrôle puis assemble en un fichier
 make mock             # sert un faux back depuis le contrat
-make inventory        # régénère INVENTAIRE.md
+make inventory        # régénère INVENTORY.md
 ```
 
 Le fichier assemblé n'est pas versionné : il se régénère. Les mocks de la maquette sont
@@ -59,6 +59,7 @@ spécification (WF-QUA-0020), aux volumes du §4.6.2.
 
 ## Ce que le contrat ne porte pas
 
-Vingt-six exigences n'ont pas de surface d'API, et il vaut mieux qu'elles n'en aient pas :
+Une partie des exigences n'a pas de surface d'API, et il vaut mieux qu'elles n'en aient pas :
 architecture interne, exploitation, migrations, invariants d'interface, chaîne de
-vérification. `INVENTAIRE.md` les liste avec leur raison.
+vérification. `INVENTORY.md` les compte et les liste avec leur raison, à chaque
+`make inventory`.

@@ -52,7 +52,7 @@ elle ne mesure rien.
 
 | Chemin | Contenu |
 |---|---|
-| `docs/spec` | la spécification : **203 exigences**, ses sources Word et draw.io, la projection Markdown engendrée, les outils du pipeline et les neuf revues qui l'ont établie |
+| `docs/spec` | la spécification : **203 exigences**, ses sources Word et draw.io, la projection Markdown engendrée, les outils du pipeline et les revues qui l'ont établie |
 | `docs/api` | le contrat d'interface : **150 opérations** sur 116 chemins et 147 schémas, en OpenAPI écrit à la main, avec l'inventaire des endpoints et les décisions de conception |
 
 **La spécification est en français.** C'est un document d'exigences formel — chacune porte un
@@ -62,13 +62,13 @@ source de vérité. Le contrat, le code et le README principal sont en anglais.
 
 ### Par où commencer
 
-- [`docs/api/INVENTAIRE.md`](docs/api/INVENTAIRE.md) — chaque endpoint, et l'exigence qu'il
+- [`docs/api/INVENTORY.md`](docs/api/INVENTORY.md) — chaque endpoint, et l'exigence qu'il
   sert. La façon la plus rapide de voir ce que le produit fait.
 - [`docs/api/DECISIONS.md`](docs/api/DECISIONS.md) — ce que le contrat a dû trancher, et
   pourquoi.
 - [`docs/spec/waterfall-spec.md`](docs/spec/waterfall-spec.md) — la spécification entière,
   engendrée depuis Word pour qu'une machine puisse la lire.
-- [`docs/spec/revue/constats/`](docs/spec/revue/constats/) — les neuf revues. C'est là que
+- [`docs/spec/revue/constats/`](docs/spec/revue/constats/) — les revues. C'est là que
   vit le raisonnement : ce qui n'allait pas, ce qui l'a remplacé, et pourquoi.
 
 ## Commandes

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate INVENTAIRE.md from the contract.
+"""Regenerate INVENTORY.md from the contract.
 
 One row per operation, with the requirements its description cites, then the
 coverage: how many requirements of the specification the contract cites, and
@@ -138,8 +138,8 @@ def main():
         f"{REASONS.get(domain, 'à expliquer')} |" for domain in sorted(missing)
     ]
 
-    (ROOT / "INVENTAIRE.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"INVENTAIRE.md — {len(ops)} operations, "
+    (ROOT / "INVENTORY.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"INVENTORY.md — {len(ops)} operations, "
           f"{len(cited & set(everything))}/{len(everything)} requirements cited")
     for domain in undeclared:
         print(f"  ! domain with no declared reason: {domain}", file=sys.stderr)

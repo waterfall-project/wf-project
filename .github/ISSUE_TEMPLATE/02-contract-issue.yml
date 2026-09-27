@@ -7,7 +7,7 @@ body:
     attributes:
       value: >-
         The contract in `docs/api` is hand-written and authoritative: the front's client is
-        generated from it. `docs/api/INVENTAIRE.md` lists every operation with the
+        generated from it. `docs/api/INVENTORY.md` lists every operation with the
         requirements it serves. French or English, as you prefer.
   - type: input
     id: operation

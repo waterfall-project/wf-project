@@ -605,6 +605,16 @@ def front_matter(docx, drawio, requirement_count):
         f"     Les sources sont {docx.name} (Word) et {drawio.name} (draw.io).",
         "     Toute correction se fait dans ces fichiers, puis ./build.sh. -->",
         "",
+        # The logo is not in the Word document: it belongs to the repository, and the
+        # projection is where a reader meets the product. The path is relative to this
+        # file, so it follows branches and forks.
+        '<p align="center">',
+        '  <picture>',
+        '    <source media="(prefers-color-scheme: dark)" srcset="../assets/waterfall_logo-dark.svg">',
+        '    <img src="../assets/waterfall_logo.svg" alt="Waterfall" width="280">',
+        '  </picture>',
+        "</p>",
+        "",
     ]
 
 
