@@ -1,0 +1,59 @@
+name: Epic — open the execution front
+description: Start an epic already written in docs/roadmap. Not a place to propose one.
+title: "[EP-nn] "
+labels: ["epic", "roadmap"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The epic itself lives in `docs/roadmap/EP-nn-….md`, and that file is authoritative
+        for what the work is: scope, requirements realised, acceptance criteria. This issue
+        is authoritative only for its state — who takes it, where it stands, what gets
+        discussed. So do not copy the file here; point at it. An epic that is not written
+        in `docs/roadmap` is not ready to be opened: write it there first.
+  - type: input
+    id: identifier
+    attributes:
+      label: Identifier
+      description: The epic's identifier, which is also the prefix of this issue's title.
+      placeholder: "EP-01"
+    validations:
+      required: true
+  - type: input
+    id: file
+    attributes:
+      label: File
+      description: Path of the epic in the repository.
+      placeholder: "docs/roadmap/EP-01-socle-de-developpement.md"
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What this epic makes possible
+      description: >-
+        One or two sentences, from the point of view of whoever uses the result. The
+        reasoning stays in the file.
+    validations:
+      required: true
+  - type: textarea
+    id: stories
+    attributes:
+      label: Stories
+      description: >-
+        One line per story, as a checklist, each with its identifier and the number of its
+        own issue once opened. This list is how the epic's progress is read.
+      value: |
+        - [ ] US-0010 — #
+        - [ ] US-0020 — #
+    validations:
+      required: true
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before opening
+      options:
+        - label: >-
+            The file's status is `prêt`: every story carries acceptance criteria taken from
+            the Vérif fields of the requirements it cites.
+          required: true

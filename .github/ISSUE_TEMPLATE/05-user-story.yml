@@ -1,0 +1,60 @@
+name: User story — open the execution front
+description: Start a story belonging to an epic being opened. Not a place to propose one.
+title: "[US-nnnn] "
+labels: ["user story", "roadmap"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The story lives in the epic's file, under `docs/roadmap`, and that file is
+        authoritative for its acceptance criteria. This issue carries its state. Copying the
+        criteria here would give two versions of them, and they would diverge. To propose a
+        feature that is in no epic yet, use « Question or proposal » instead.
+  - type: input
+    id: identifier
+    attributes:
+      label: Identifier
+      description: The story's identifier, which is also the prefix of this issue's title.
+      placeholder: "US-0130"
+    validations:
+      required: true
+  - type: input
+    id: epic
+    attributes:
+      label: Epic
+      description: The epic it belongs to, and the number of the epic's issue.
+      placeholder: "EP-02, #42"
+    validations:
+      required: true
+  - type: input
+    id: file
+    attributes:
+      label: File
+      description: Path of the epic's file, where the story and its criteria are written.
+      placeholder: "docs/roadmap/EP-02-maquette-du-front.md"
+    validations:
+      required: true
+  - type: input
+    id: statement
+    attributes:
+      label: Story
+      description: The « en tant que… je veux… afin de… » line, copied from the file.
+      placeholder: "En tant que chef de projet, je veux… afin de…"
+    validations:
+      required: true
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirements realised
+      description: >-
+        The identifiers, as the file cites them. The tests that close this story cite them
+        too (WF-QUA-0010).
+      placeholder: "WF-IHM-0010-A, WF-IHM-0020-A"
+    validations:
+      required: true
+  - type: input
+    id: operations
+    attributes:
+      label: Contract operations
+      description: The operationIds this story consumes or serves, if any.
+      placeholder: "listProjects, getProject"
