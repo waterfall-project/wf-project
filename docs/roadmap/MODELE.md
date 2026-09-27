@@ -36,9 +36,9 @@ vient à ce rang plutôt qu'à un autre. Deux paragraphes au plus.>
 <Les identifiants, groupés par domaine. C'est de cette liste que se déduit la couverture,
 et une exigence citée ici doit l'être par au moins une US ci-dessous.>
 
-| Exigence | Titre | US |
-|---|---|---|
-| `WF-CODE-0010-A` | <titre de l'exigence> | US-nnnn |
+| Exigence | Titre | Portée | US |
+|---|---|---|---|
+| `WF-CODE-0010-A` | <titre de l'exigence> | <entière, début — close en EP-nn, ou fin — amorcée en EP-nn> | US-nnnn |
 
 ## Opérations du contrat
 

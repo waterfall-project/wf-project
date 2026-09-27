@@ -52,6 +52,12 @@ pour mot**, exemples chiffrés compris : ce sont eux qui deviendront les cas de 
 (WF-QUA-0020), et un critère réécrit est un critère qui s'écarte de ce qui sera vérifié. Un
 écart délibéré se note comme tel, avec sa raison.
 
+Une exigence peut être réalisée par plusieurs EPIC : l'un la commence, un autre la finit,
+parce que son Vérif cite ce qu'un EPIC ultérieur construit. Le tableau d'un EPIC le dit dans sa
+colonne « Portée » — `entière`, `début — close en EP-nn` ou `fin — amorcée en EP-nn` —, et
+chaque US dit laquelle de ses phrases de Vérif attend un autre EPIC. **Une exigence n'est close
+que par un seul EPIC** : c'est lui qui la vérifie en entier.
+
 Une exigence F0 que nulle US ne cite est soit un travail oublié, soit une exigence sans
 surface — et dans ce cas la raison s'écrit. C'est la même mécanique que la couverture de
 `make inventory` pour le contrat, et le pendant du rapport de couverture des exigences que
@@ -63,7 +69,7 @@ D'un EPIC, cinq valeurs et aucune autre :
 
 | Statut | Signification |
 |---|---|
-| `à planifier` | l'EPIC est écrit, ses US ne sont pas détaillées |
+| `à planifier` | l'EPIC est écrit, ses US ne sont pas détaillées ; la colonne US de son tableau porte « — » |
 | `prêt` | ses US sont détaillées, rien n'empêche de l'ouvrir |
 | `en cours` | ses issues sont ouvertes sur GitHub |
 | `livré` | toutes ses US sont finies et sa définition de fini est vérifiée |
@@ -89,21 +95,26 @@ Lire ce répertoire doit suffire à savoir où en est le projet, sans ouvrir Git
 |---|---|---|---|
 | [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | prêt | rien |
 | [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | prêt | EP-01 |
-| EP-03 | Comptes, authentification et habilitations | à écrire | EP-01 |
-| EP-04 | Projets, révisions et cycle de vie | à écrire | EP-03 |
-| EP-05 | Référentiel de l'entreprise | à écrire | EP-04 |
-| EP-06 | Planification | à écrire | EP-04, EP-05 |
-| EP-07 | Chiffrage et devis | à écrire | EP-04, EP-05 |
-| EP-08 | Risques et provisions | à écrire | EP-07 |
-| EP-09 | Coûts réels et reste à engager | à écrire | EP-07 |
-| EP-10 | Indicateurs de projet | à écrire | EP-06, EP-07, EP-08, EP-09 |
-| EP-11 | Portefeuille | à écrire | EP-10 |
-| EP-12 | Échanges de fichiers (FLX-01 à FLX-07) | à écrire | EP-06, EP-07, EP-09 |
-| EP-13 | Exploitation et mise en production | à écrire | EP-04 |
+| [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | à planifier | EP-01 |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-03 |
+| [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
+| [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
+| [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
+| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | à planifier | EP-07 |
+| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-09 |
+| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | à planifier | EP-08 |
+| [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-10 |
+| [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | à planifier | EP-09 |
+| [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
 
-`à écrire` n'est pas un statut d'EPIC : c'est l'absence de fichier. Le périmètre de ces onze
-EPIC est arrêté — leur rang et les domaines d'exigences qu'ils portent — mais leur objet,
-leurs exigences et leur définition de fini restent à rédiger.
+L'ordre de la liste n'est pas celui des numéros, et c'est voulu : un identifiant ne se
+renumérote pas. La répartition des exigences a fait passer le référentiel avant les projets —
+un projet ne se crée pas sans lui (WF-CYC-0120) —, l'import des coûts réels dans EP-09 — une
+ligne de coût n'existe que par import (WF-CRE-0010) —, et les risques après le reste à
+engager — la survenance se chiffre par lui, et fusionne comme un avenant.
+
+EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
+dont la dernière action arrive tard, et il finit en dernier.
 
 Après EP-02, **un EPIC est une tranche verticale** : contrat, noyau, API, écran, tests.
 Livrer « tout le back » puis « tout le front » ne donnerait rien à regarder avant la fin, et

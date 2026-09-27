@@ -42,7 +42,7 @@ Les US de cet EPIC n'ont pas d'acteur du §3.1.3 : leur bénéficiaire est celui
 
 ## Ce qui n'en fait pas partie
 
-- toute règle métier, tout calcul, toute table : il n'y a pas encore de base — EP-04 ;
+- toute règle métier, tout calcul, toute table : il n'y a pas encore de base — EP-03 ;
 - les écrans — EP-02 ; seul le parcours témoin du harnais touche le front ;
 - le jeu de données de référence de WF-QUA-0040, qui demande le modèle : il naît en EP-04 et
   grossit avec chaque EPIC ;
@@ -53,14 +53,14 @@ Les US de cet EPIC n'ont pas d'acteur du §3.1.3 : leur bénéficiaire est celui
 
 ## Exigences réalisées
 
-| Exigence | Titre | US |
-|---|---|---|
-| `WF-ARC-0010-A` | Un noyau, un service, un worker | US-0010 |
-| `WF-ARC-0060-A` | Contrat OpenAPI | US-0020 |
-| `WF-QUA-0010-A` | Traçabilité des exigences par les tests | US-0060 |
-| `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | US-0040 |
-| `WF-QUA-0030-A` | Typage et analyse statique bloquants | US-0050 |
-| `WF-QUA-0050-A` | Tests de bout en bout | US-0080 |
+| Exigence | Titre | Portée | US |
+|---|---|---|---|
+| `WF-ARC-0010-A` | Un noyau, un service, un worker | début — close en EP-11 | US-0010 |
+| `WF-ARC-0060-A` | Contrat OpenAPI | début — close en EP-03 | US-0020 |
+| `WF-QUA-0010-A` | Traçabilité des exigences par les tests | entière | US-0060 |
+| `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | début — close en EP-11 | US-0040 |
+| `WF-QUA-0030-A` | Typage et analyse statique bloquants | entière | US-0050 |
+| `WF-QUA-0050-A` | Tests de bout en bout | début — close en EP-13 | US-0080 |
 
 Quatre de ces six ne sont réalisées qu'en partie, et chaque US dit laquelle de ses phrases
 de Vérif attend un autre EPIC : il n'y a ici ni règle métier à tester (WF-ARC-0010,
@@ -255,7 +255,8 @@ qu'on s'aperçoive, à la fin, qu'elle n'a jamais été prévue.
 - propre à l'US : une US qui cite un identifiant inexistant, ou un indice de révision périmé,
   fait échouer l'outil ;
 - propre à l'US : une exigence citée dans le tableau d'un EPIC mais par aucune de ses US fait
-  échouer l'outil ;
+  échouer l'outil, sauf dans un EPIC `à planifier`, dont les US ne sont pas encore écrites ;
+- propre à l'US : une exigence close par aucun EPIC, ou par plus d'un, fait échouer l'outil ;
 - propre à l'US : `make roadmap` produit le relevé, et la chaîne l'exécute.
 
 **Hors périmètre.** Aucun rapprochement avec les issues GitHub : l'outil ne lit que le
@@ -281,7 +282,7 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
   sur le jeu de données de référence » attend EP-13, et la couverture des sept flux FLX-01 à
   FLX-07 et des trois parcours d'acteurs attend EP-12.
 
-## US-0090 — Agents de développement, de revue et de conduite d'un EPIC
+## US-0280 — Agents de développement, de revue et de conduite d'un EPIC
 
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt

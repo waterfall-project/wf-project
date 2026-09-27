@@ -42,38 +42,40 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 - le comportement réel des écrans, qui arrive avec l'EPIC de leur domaine : ici, une commande
   aboutit parce que le mock répond, pas parce qu'une règle a été évaluée ;
 - l'authentification réelle — EP-03 : la maquette part d'une session que le mock accorde ;
-- les imports et exports réels — EP-12 : l'écran d'import en deux temps est maquetté, le
-  traitement ne l'est pas ;
+- les imports et exports réels — EP-09 pour les coûts réels, EP-12 pour les autres flux :
+  l'écran d'import en deux temps est maquetté, le traitement ne l'est pas ;
 - le diagramme de Gantt et l'arborescence de tâches sont rendus en lecture seule, ce qui est
   définitif et non un provisoire de maquette.
 
 ## Exigences réalisées
 
-| Exigence | Titre | US |
-|---|---|---|
-| `WF-ARC-0020-A` | Le contrat est le seul contrat | US-0270 |
-| `WF-IHM-0010-A` | Navigation et contexte du projet | US-0090 |
-| `WF-IHM-0020-A` | Contexte de lecture affiché | US-0100 |
-| `WF-IHM-0030-A` | Valeur calculée et valeur saisie | US-0150 |
-| `WF-IHM-0040-A` | Saisie au clavier dans les grilles | US-0120 |
-| `WF-IHM-0050-A` | Collage depuis un tableur | US-0130 |
-| `WF-IHM-0060-A` | Lecture d'une grille | US-0110 |
-| `WF-IHM-0070-A` | Une échelle de signalement commune, lisible sans couleur | US-0160 |
-| `WF-IHM-0080-A` | Traitements longs | US-0180 |
-| `WF-IHM-0090-A` | Refus et commandes indisponibles | US-0170 |
-| `WF-IHM-0100-A` | Accessibilité minimale | US-0200 |
-| `WF-IHM-0110-A` | Annulation et rétablissement des saisies | US-0140 |
-| `WF-INTF-0160-A` | Choix de la langue de l'interface | US-0190 |
-| `WF-INTF-0170-A` | Ce qui est traduit et ce qui ne l'est pas | US-0190 |
-| `WF-INTF-0180-A` | Formats indépendants de la langue | US-0190 |
-| `WF-ADM-0040-A` | Préférences d'affichage | US-0110, US-0190 |
-| `WF-QUA-0070-A` | Complétude des traductions | US-0190 |
+| Exigence | Titre | Portée | US |
+|---|---|---|---|
+| `WF-ARC-0020-A` | Le contrat est le seul contrat | entière | US-0270 |
+| `WF-IHM-0010-A` | Navigation et contexte du projet | entière | US-0090 |
+| `WF-IHM-0020-A` | Contexte de lecture affiché | entière | US-0100 |
+| `WF-IHM-0030-A` | Valeur calculée et valeur saisie | entière | US-0150 |
+| `WF-IHM-0040-A` | Saisie au clavier dans les grilles | entière | US-0120 |
+| `WF-IHM-0050-A` | Collage depuis un tableur | entière | US-0130 |
+| `WF-IHM-0060-A` | Lecture d'une grille | entière | US-0110 |
+| `WF-IHM-0070-A` | Une échelle de signalement commune, lisible sans couleur | entière | US-0160 |
+| `WF-IHM-0080-A` | Traitements longs | entière | US-0180 |
+| `WF-IHM-0090-A` | Refus et commandes indisponibles | entière | US-0170 |
+| `WF-IHM-0100-A` | Accessibilité minimale | entière | US-0200 |
+| `WF-IHM-0110-A` | Annulation et rétablissement des saisies | début — close en EP-06 | US-0140 |
+| `WF-INTF-0160-A` | Choix de la langue de l'interface | début — close en EP-03 | US-0190 |
+| `WF-INTF-0170-A` | Ce qui est traduit et ce qui ne l'est pas | entière | US-0190 |
+| `WF-INTF-0180-A` | Formats indépendants de la langue | début — close en EP-12 | US-0190 |
+| `WF-ADM-0040-A` | Préférences d'affichage | début — close en EP-03 | US-0110, US-0190 |
+| `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
+| `WF-CMP-0010-A` | Navigateurs et affichage | entière | US-0290 |
 
-Les onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface, et
-l'interface existe ici pour de bon. Trois ne le sont qu'en partie, et leurs US le disent :
-WF-IHM-0110 (l'annulation porte sur des saisies que le mock accepte sans les conserver),
-WF-ADM-0040 (la conservation des préférences dans le compte attend EP-03) et WF-INTF-0180
-(le format des fichiers d'échange attend EP-12 ; seul l'affichage est ici).
+Dix des onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface, et
+l'interface existe ici pour de bon. Quatre exigences ne le sont qu'en partie, et leurs US le
+disent : WF-IHM-0110 (l'annulation porte sur des saisies que le mock accepte sans les
+conserver ; close en EP-06, première grille dont les saisies le sont), WF-ADM-0040 et
+WF-INTF-0160 (la conservation des préférences et de la langue dans le compte attend EP-03),
+et WF-INTF-0180 (le format des fichiers d'échange attend EP-12 ; seul l'affichage est ici).
 
 ## Opérations du contrat
 
@@ -250,7 +252,7 @@ WF-ARC-0070 impose. Le front ne fait qu'appeler et rafraîchir.
 
 - écart : le conflit entre contributeurs et le refus qu'il déclenche ne se constatent qu'avec
   un serveur réel — le mock répond ce qu'on lui demande de répondre. La vérification complète
-  revient à EP-04.
+  revient à EP-06, où la grille de planning conserve ses saisies.
 
 ## US-0150 — Valeur calculée contre valeur saisie
 
@@ -526,7 +528,7 @@ ouvert et que la matrice des permissions se lit.
 ## US-0260 — Écran d'import en deux temps
 
 - **statut** : à faire
-- **exigences** : aucune en propre — EP-12
+- **exigences** : aucune en propre — EP-09 et EP-12
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
   `listImports`, `requestExport`
 - **issue** :
@@ -567,3 +569,28 @@ de la relecture.
 d'outil : elle se tient par la revue, et par le fait qu'aucun écran de cet EPIC n'a de raison
 de calculer — le mock répond déjà les valeurs. Les constats de l'EPIC sont l'endroit où se
 note un écran qui aurait été tenté de le faire.
+
+## US-0290 — Navigateurs et largeurs d'affichage
+
+- **statut** : à faire
+- **exigences** : `WF-CMP-0010-A`
+- **opérations** : aucune en propre
+- **issue** :
+
+**En tant que** chef de projet, **je veux** que les grilles, le Gantt et les courbes
+fonctionnent sur le navigateur de mon poste, et consulter les indicateurs depuis mon
+téléphone, **afin de** ne rien installer et de répondre à une question sur un projet loin de
+mon bureau.
+
+**Critères d'acceptation.**
+
+- `WF-CMP-0010-A` — « Les grilles, le diagramme de Gantt et les courbes s'affichent et
+  s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures,
+  à 1366 points de large. »
+- `WF-CMP-0010-A` — « Les vues d'indicateurs se lisent sur un écran de 360 points de large et
+  n'y proposent aucune saisie. »
+- `WF-CMP-0010-A` — « Aucune fonction n'exige une installation sur le poste. »
+
+**Notes de réalisation.** La matrice des navigateurs est celle du harnais de bout en bout
+d'EP-01 (US-0080) : le parcours témoin et ceux de cet EPIC s'y jouent sur les quatre
+navigateurs, à 1366 points, puis les vues d'indicateurs à 360.
