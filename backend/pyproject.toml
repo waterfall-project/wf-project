@@ -23,6 +23,7 @@ dev = [
     "import-linter>=2.15",
     "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
     "pytest-socket>=0.8.1",
     "ruff>=0.16.9",
 ]
@@ -33,6 +34,15 @@ addopts = ["--strict-markers", "--strict-config"]
 markers = ["requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)"]
 xfail_strict = true
 filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["waterfall"]
+
+[tool.coverage.report]
+# The guard that runs a module as a script is run by the entry points, in their own
+# process, which the measure does not see; what they call is tested in-process.
+exclude_also = ["if __name__ == .__main__.:"]
 
 [tool.pyright]
 typeCheckingMode = "strict"

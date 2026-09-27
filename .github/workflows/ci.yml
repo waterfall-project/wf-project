@@ -14,6 +14,15 @@ on:
   pull_request:
     branches: [main, "epic/**"]
   merge_group:
+  # Run by hand on a branch, every family and the full tier by default: what the merge
+  # queue runs, for a branch whose merge queue is not set yet.
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: Tier of the chain
+        type: choice
+        options: [full, fast]
+        default: full
 
 permissions:
   contents: read
@@ -42,6 +51,7 @@ jobs:
           cache-dependency-glob: tools/uv.lock
       - id: families
         env:
+          # Empty when run by hand: every family is then run.
           BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           HEAD: ${{ github.sha }}
         run: make changes >> "$GITHUB_OUTPUT"
@@ -63,11 +73,15 @@ jobs:
     needs: changes
     if: needs.changes.outputs.back == 'true'
     uses: ./.github/workflows/back.yml
+    with:
+      tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
 
   front:
     needs: changes
     if: needs.changes.outputs.front == 'true'
     uses: ./.github/workflows/front.yml
+    with:
+      tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
 
   gate:
     needs: [changes, repo, spec, contract, back, front]

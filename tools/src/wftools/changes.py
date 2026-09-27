@@ -52,7 +52,13 @@ def main(arguments: list[str]) -> int:
     parser.add_argument("--targets", action="store_true", help="print Makefile targets")
     options = parser.parse_args(arguments)
     declaration = paths.read()
-    touched = declaration.touched(changed_paths(options.base, options.head))
+    # No base — a run by hand — means no change to compare: every family runs.
+    everything = not options.base
+    touched = (
+        declaration.families
+        if everything
+        else declaration.touched(changed_paths(options.base, options.head))
+    )
     if options.targets:
         for family in touched:
             print(family.target)

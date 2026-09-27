@@ -13,3 +13,5 @@ coverage/
 next-env.d.ts
 *.tsbuildinfo
 docs/api/waterfall.mock.json
+backend/coverage.json
+.coverage

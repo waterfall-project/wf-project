@@ -6,6 +6,11 @@ name: back
 
 on:
   workflow_call:
+    inputs:
+      tier:
+        description: fast on every push, full when merging (coverage)
+        type: string
+        default: fast
 
 permissions:
   contents: read
@@ -23,3 +28,5 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
       - run: make check-back
+        env:
+          TIER: ${{ inputs.tier }}

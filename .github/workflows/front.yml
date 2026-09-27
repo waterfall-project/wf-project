@@ -6,6 +6,11 @@ name: front
 
 on:
   workflow_call:
+    inputs:
+      tier:
+        description: fast on every push, full when merging (coverage)
+        type: string
+        default: fast
 
 permissions:
   contents: read
@@ -26,3 +31,5 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: make check-front
+        env:
+          TIER: ${{ inputs.tier }}

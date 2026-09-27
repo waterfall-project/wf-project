@@ -28,4 +28,9 @@ describe("createApiClient", () => {
     await client.GET("/health");
     expect(urls).toEqual([`http://api.example${API_PREFIX}/health`]);
   });
+
+  it("uses the platform's fetch when none is given", () => {
+    const client = createApiClient({ address: "http://localhost:4010" });
+    expect(typeof client.GET).toBe("function");
+  });
 });
