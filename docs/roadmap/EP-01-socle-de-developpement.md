@@ -1,9 +1,9 @@
 ---
 id: EP-01
 titre: Rendre le dépôt capable de porter du code, sans en écrire une ligne de métier
-statut: prêt
+statut: en cours
 depend_de: rien
-issue:
+issue: 3
 ---
 
 # EP-01 — Socle de développement
@@ -313,8 +313,7 @@ ouvre ces sections, avec le renvoi à l'US qui les écrira.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
-
+- **issue** : #4
 **En tant que** développeur, **je veux** un guide qui fixe l'arborescence et les conventions
 du dépôt, et des règles de codage qui disent comment s'écrit le Python et comment s'écrit le
 TypeScript, **afin que** le premier lot et le centième se ressemblent, qu'une personne ou un
@@ -372,8 +371,7 @@ première table, en EP-03, dans un troisième fichier de règles de codage.
 - **statut** : à faire
 - **exigences** : `WF-ARC-0010-A`
 - **opérations** : aucune
-- **issue** :
-
+- **issue** : #5
 **En tant que** développeur, **je veux** un dépôt où chaque composant du PBS a sa place et
 où les frontières entre modules du noyau sont contrôlées par la chaîne, **afin que** la
 règle « une seule implémentation » ne repose pas sur la vigilance de chacun.
@@ -400,8 +398,7 @@ entre eux que par leur interface publique.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
-
+- **issue** : #6
 **En tant que** développeur, **je veux** une chaîne d'intégration sur GitHub Actions qui
 s'exécute sur toute pull request,
 vers une branche d'EPIC comme vers `main`, qu'aucune de ces branches n'accepte ce qu'elle n'a
@@ -471,8 +468,7 @@ EPIC, et un seuil se fixera quand il y aura de quoi le fonder.
 - **statut** : à faire
 - **exigences** : `WF-ARC-0060-A`
 - **opérations** : toutes, par engendrement
-- **issue** :
-
+- **issue** : #7
 **En tant que** développeur, **je veux** que le client TypeScript du front soit engendré du
 contrat par une commande, **afin qu'**aucun écart entre le contrat et ce que le front appelle
 ne puisse s'installer.
@@ -492,8 +488,7 @@ ne puisse s'installer.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : toutes, servies par prism depuis le bundle
-- **issue** :
-
+- **issue** : #8
 **En tant que** développeur, **je veux** un faux back servi depuis le bundle du contrat,
 démarré avec le front par un fichier Compose, **afin de** construire les écrans avant qu'il
 existe un service, et d'éprouver le contrat pendant qu'il est encore gratuit de le corriger.
@@ -518,8 +513,7 @@ contre le contrat (WF-ARC-0060).
 - **statut** : à faire
 - **exigences** : `WF-QUA-0020-A`
 - **opérations** : aucune
-- **issue** :
-
+- **issue** : #9
 **En tant que** développeur, **je veux** un outil qui relève les exemples chiffrés des champs
 Vérif et les écrit en fixtures, **afin que** les jeux de données du faux back et des tests
 soient ceux du document, et non des nombres inventés pour la circonstance.
@@ -540,8 +534,7 @@ soient ceux du document, et non des nombres inventés pour la circonstance.
 - **statut** : à faire
 - **exigences** : `WF-QUA-0030-A`
 - **opérations** : aucune
-- **issue** :
-
+- **issue** : #10
 **En tant que** développeur, **je veux** que le typage strict, le lint et le format soient
 contrôlés par la chaîne et bloquants des deux côtés, **afin qu'**aucun
 avertissement ne s'accumule jusqu'à ne plus rien signifier.
@@ -621,8 +614,7 @@ comme le code — est au guide (US-0300).
 - **statut** : à faire
 - **exigences** : `WF-QUA-0010-A`
 - **opérations** : aucune
-- **issue** :
-
+- **issue** : #11
 **En tant que** développeur, **je veux** que chaque test cite par identifiant l'exigence
 qu'il couvre, que la chaîne en publie le relevé, et qu'elle mesure la part du code que les
 tests exécutent, **afin qu'**une exigence F0 sans test, ou du code qu'aucun test n'exécute,
@@ -663,8 +655,7 @@ règles de codage des deux langages (US-0300), que les agents de revue cherchent
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
-
+- **issue** : #12
 **En tant que** développeur, **je veux** un outil qui confronte les US de `docs/roadmap` aux
 exigences du document, **afin qu'**une exigence qu'aucun travail ne porte se voie avant
 qu'on s'aperçoive, à la fin, qu'elle n'a jamais été prévue.
@@ -694,8 +685,7 @@ dépôt, et l'état des travaux n'est pas son affaire.
 - **statut** : à faire
 - **exigences** : `WF-QUA-0050-A`
 - **opérations** : celles que le parcours témoin traverse
-- **issue** :
-
+- **issue** : #13
 **En tant que** développeur, **je veux** un harnais de bout en bout qui sache démarrer le
 front contre le faux back et jouer un parcours, **afin que** les EPIC suivants aient où
 écrire leurs parcours au lieu d'en inventer le cadre chacun.
@@ -718,8 +708,7 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
-
+- **issue** : #14
 **En tant que** développeur, **je veux** des agents versionnés dans le dépôt — un agent de
 cadrage qui mène un EPIC jusqu'à ses issues, un agent de livraison qui part de ces issues, et
 pour chaque langage un agent qui réalise un lot et un agent qui le relit —, **afin que** les
