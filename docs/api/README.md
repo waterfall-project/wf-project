@@ -5,8 +5,9 @@ fait foi** : tout endpoint, tout schéma et toute erreur qu'un client peut renco
 figurent, le client du front en est engendré, et la chaîne rejette une version des
 services dont une réponse s'en écarte (WF-ARC-0060, annexe C de la spécification).
 
-La spécification est dans `../spec`. Chaque description cite les exigences qu'elle
-réalise : c'est ce qui rend la traçabilité vérifiable dans les deux sens.
+La spécification est dans `../spec`. Chaque opération cite dans ses propres mots — résumé
+ou description — les exigences qu'elle réalise : c'est ce qui rend la traçabilité vérifiable
+dans les deux sens, et `make inventory` échoue sur une opération qui n'en cite aucune.
 
 ## Organisation
 
@@ -20,9 +21,9 @@ réalise : c'est ce qui rend la traçabilité vérifiable dans les deux sens.
 | `components/schemas/<famille>.yaml` | schémas, plusieurs par fichier |
 | `INVENTORY.md` | inventaire des endpoints et couverture des exigences, régénérable |
 
-Les schémas sont groupés par famille plutôt qu'un fichier par schéma : cent
-quarante-sept fichiers d'une douzaine de lignes se relisent moins bien qu'une douzaine de
-fichiers cohérents.
+Les schémas sont groupés par famille plutôt qu'un fichier par schéma : autant de
+fichiers d'une douzaine de lignes que de schémas se reliraient moins bien que la douzaine
+de fichiers cohérents que voici.
 
 ## Conventions
 
@@ -31,7 +32,8 @@ Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
 | Convention | Exigence |
 |---|---|
 | Identifiants UUID engendrés par le serveur, jamais séquentiels dans une URL | WF-DAT-0060 |
-| `snake_case` partout, sans exception | — |
+| `snake_case` pour les chemins, les champs et les paramètres | — |
+| `camelCase` pour l'`operationId`, qui devient un nom de méthode dans les clients générés | `listProjects` |
 | Les noms du tableau de correspondance du §4.4.1 : `estimate_line` est une ligne de devis, `cost_line` une ligne de coût réel | §4.4.1 |
 | Décimaux exacts transportés en chaîne, dates de planning sans heure, horodatages en temps universel | WF-DAT-0100 |
 | Une seule enveloppe d'erreur, portant un code machine et ses paramètres, jamais une phrase | WF-ARC-0110 |

@@ -57,6 +57,9 @@
   get:
     operationId: getProject
     summary: Un projet
+    description: >-
+      Attributs du projet, son code et son état de cycle de vie (WF-PRJ-0080, WF-PRJ-0010,
+      WF-CYC-0010).
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -188,6 +191,8 @@
     operationId: setWorkBreakdown
     tags: [projects]
     summary: Saisir le lotissement
+    description: >-
+      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -210,6 +215,8 @@
     operationId: listSubprojects
     tags: [projects]
     summary: Sous-projets
+    description: >-
+      Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
@@ -224,6 +231,8 @@
   post:
     operationId: createSubproject
     summary: Créer un sous-projet
+    description: >-
+      Un sous-projet du projet courant (WF-PRJ-0050).
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -249,6 +258,8 @@
   patch:
     operationId: updateSubproject
     summary: Modifier un sous-projet
+    description: >-
+      Un sous-projet du projet courant (WF-PRJ-0050).
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -257,7 +268,7 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/projects.yaml#/SubprojectWrite }
+          schema: { $ref: ../components/schemas/projects.yaml#/SubprojectUpdate }
     responses:
       '200':
         description: Sous-projet modifié.
@@ -311,6 +322,8 @@
     operationId: setContributors
     tags: [projects]
     summary: Inscrire ou retirer des contributeurs
+    description: >-
+      La liste vaut habilitation à saisir sur le projet (WF-PRJ-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -370,6 +383,9 @@
   post:
     operationId: createTimeline
     summary: Créer une chronologie
+    description: >-
+      Une chronologie nommée, qui date un jeu de tâches sans toucher aux autres
+      (WF-PLA-0140).
     tags: [planning]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -395,6 +411,8 @@
   delete:
     operationId: deleteTimeline
     summary: Supprimer une chronologie
+    description: >-
+      Retire la chronologie ; les tâches conservent leurs dates courantes (WF-PLA-0140).
     tags: [planning]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId

@@ -91,6 +91,9 @@
     tags: [session]
     security: []
     summary: Retour du fournisseur d'identité
+    description: >-
+      Le fournisseur y renvoie l'utilisateur après authentification ; la session est
+      ouverte et le compte créé s'il ne l'était pas encore (WF-ADM-0180, WF-SEC-0020).
     parameters:
       - name: code
         in: query
@@ -155,6 +158,9 @@
     operationId: getMe
     tags: [me]
     summary: Mon compte et mes préférences
+    description: >-
+      Le compte connecté, ses rôles et ses préférences d'affichage (WF-ADM-0050,
+      WF-ADM-0040).
     responses:
       '200':
         description: Compte courant.
@@ -230,6 +236,8 @@
     operationId: deleteMyAvatar
     tags: [me]
     summary: Retirer mon avatar
+    description: >-
+      Le compte retrouve son avatar par défaut (WF-ADM-0080).
     responses:
       '204':
         description: Avatar retiré ; le compte s'affiche avec une image par défaut (WF-ADM-0080).

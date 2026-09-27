@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Regenerate INVENTORY.md from the contract.
 
-One row per operation, with the requirements its description cites, then the
+One row per operation, with the requirements its own summary and description cite
+— not those its parameters, bodies or responses happen to mention — then the
 coverage: how many requirements of the specification the contract cites, and
-which ones it does not — with, for each domain, the reason it has no reason to.
+which ones it does not, with for each domain the reason it has no reason to.
+
+Fails when an operation cites no requirement and is not declared below as one
+that realises none, so that the traceability rule is checked and not merely asked
+for in CONTRIBUTING.
 
 The document itself is written in French, like the specification it mirrors; only
 this program and its console output are in English.
@@ -48,6 +53,15 @@ REASONS = {
            "s'exerce sur le contrat, elle n'y figure pas.",
 }
 
+# Operations that legitimately realise no requirement: they exist because HTTP or a
+# supervision tool needs them, not because the specification asked for them.
+NO_REQUIREMENT = {
+    "getLiveness": "Sonde de vivacité : elle ne touche à rien et ne réalise rien.",
+}
+
+# Where an operation stops describing itself and starts describing its interface.
+RE_HEAD = re.compile(r"\n    (?:parameters|requestBody|responses|security|tags):")
+
 RE_OPERATION = re.compile(
     r"^  (get|post|put|patch|delete):\n(.*?)(?=\n  [a-z]+:\n|\Z)", re.S | re.M
 )
@@ -64,13 +78,22 @@ def operations():
             for found in RE_OPERATION.finditer(block):
                 body = found.group(2)
                 read = lambda pattern: (re.search(pattern, body) or [None, ""])[1]
+                # Only the operation's own words count: a requirement cited by a shared
+                # response or schema says nothing about what this operation realises.
+                head = "".join(
+                    RE_HEAD.split("\n" + body)[:1] + [
+                        piece for piece in re.findall(
+                            r"\n    (?:summary|description): [^\n]*(?:\n      [^\n]*)*", body)
+                    ]
+                )
                 yield {
                     "family": family,
                     "path": header.group(1),
                     "method": found.group(1).upper(),
+                    "identifier": read(r"operationId: (\w+)"),
                     "operation": read(r"summary: (.*)").strip().strip("'")
                     or read(r"operationId: (\w+)"),
-                    "requirements": sorted(set(re.findall(r"WF-[A-Z]+-\d{4}", body))),
+                    "requirements": sorted(set(re.findall(r"WF-[A-Z]+-\d{4}", head))),
                 }
 
 
@@ -102,9 +125,10 @@ def main():
         "# Inventaire des endpoints",
         "",
         "Établi depuis `openapi.yaml` par `tools/inventory.py`, et régénérable par",
-        "`make inventory`. La colonne « Exigences » donne celles que la description de",
-        "l'opération cite ; les schémas en citent d'autres, comptées dans la couverture",
-        "ci-dessous mais pas dans le tableau.",
+        "`make inventory`. La colonne « Exigences » ne donne que celles que l'opération",
+        "cite dans ses propres mots, résumé ou description ; les paramètres, les corps et",
+        "les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas",
+        "dans le tableau.",
         "",
         f"**{len(ops)} opérations sur {len({o['path'] for o in ops})} chemins, "
         f"dans {len(FAMILIES)} familles.**",
@@ -132,6 +156,7 @@ def main():
         "",
         "| Domaine | Exigences | Pourquoi aucune surface d'API |", "|---|---|---|",
     ]
+    silent = [o for o in ops if not o["requirements"] and o["identifier"] not in NO_REQUIREMENT]
     undeclared = [domain for domain in missing if domain not in REASONS]
     lines += [
         f"| {domain} | {', '.join(missing[domain])} | "
@@ -143,7 +168,10 @@ def main():
           f"{len(cited & set(everything))}/{len(everything)} requirements cited")
     for domain in undeclared:
         print(f"  ! domain with no declared reason: {domain}", file=sys.stderr)
-    return 1 if undeclared else 0
+    for o in silent:
+        print(f"  ! operation citing no requirement: {o['identifier']} "
+              f"({o['method']} {o['path']})", file=sys.stderr)
+    return 1 if undeclared or silent else 0
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ Decimal:
 Money:
   allOf:
     - $ref: '#/Decimal'
+  pattern: '^-?\d+(\.\d{1,2})?$'
   description: Montant dans la devise unique de l'installation (WF-REF-0140), à deux décimales.
 
 Hours:
@@ -49,9 +50,9 @@ LockVersion:
   type: integer
   minimum: 0
   description: >-
-    Compteur d'écriture de l'objet. Toute écriture le porte ; une valeur périmée
-    est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs
-    (WF-IHM-0110, WF-PRJ-0060).
+    Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une
+    création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend
+    l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060).
 
 Audit:
   type: object

@@ -77,7 +77,8 @@ Conventions, each of them dictated by a requirement rather than by taste:
 | Convention | Requirement |
 |---|---|
 | Server-generated UUIDs, never a sequential identifier in a URL | `WF-DAT-0060` |
-| `snake_case` everywhere, no exception | — |
+| `snake_case` for paths, fields and parameters | — |
+| `camelCase` for `operationId`, which becomes a method name in generated clients | `listProjects` |
 | The names from the object-to-table mapping in §4.4.1: `estimate_line` is an estimate line, `cost_line` an actual cost line | §4.4.1 |
 | Exact decimals carried as strings, planning dates without time, timestamps in UTC | `WF-DAT-0100` |
 | One error envelope, carrying a machine code and its parameters, never a sentence | `WF-ARC-0110` |
@@ -85,9 +86,11 @@ Conventions, each of them dictated by a requirement rather than by taste:
 | `lock_version` on concurrent writes, refused with 412 | `WF-IHM-0110` |
 | A long operation returns a background task, never a result | `WF-ARC-0090` |
 
-Every operation cites, in its description, the requirements it realises. `make inventory`
-turns that into a coverage table — and fails if a requirement domain escapes the contract
-without a declared reason.
+Every operation cites, in its own summary or description, the requirements it realises — a
+requirement cited by a shared response says nothing about what the operation does.
+`make inventory` turns that into a coverage table, and fails on an operation that cites
+nothing, or on a requirement domain that escapes the contract, unless the reason is declared
+in `tools/inventory.py`.
 
 ## Changing the code
 

@@ -12,7 +12,7 @@ RevisionStatus:
 
 Revision:
   type: object
-  required: [revision_id, project_id, status, is_reference, audit]
+  required: [revision_id, project_id, status, is_reference, audit, lock_version]
   properties:
     revision_id: { $ref: ../common.yaml#/Uuid }
     project_id: { $ref: ../common.yaml#/Uuid }
@@ -81,7 +81,7 @@ RevisionCreate:
 
 RevisionMark:
   type: object
-  required: [version_name]
+  required: [version_name, lock_version]
   description: >-
     Marque la révision. Le marquage fige la révision et calcule ses indicateurs
     dans la même transaction (WF-REV-0020, WF-DAT-0040) ; il est confié au worker
@@ -136,7 +136,7 @@ StructureKind:
 
 CostStructure:
   type: object
-  required: [structure_id, revision_id, kind, label, is_merged]
+  required: [structure_id, revision_id, kind, label, is_merged, lock_version]
   properties:
     structure_id: { $ref: ../common.yaml#/Uuid }
     revision_id: { $ref: ../common.yaml#/Uuid }
@@ -153,8 +153,13 @@ CostStructure:
 StructureCreate:
   type: object
   required: [kind, label]
+  description: >-
+    Crée un différentiel ou le devis propre d'un risque. La structure principale n'est
+    jamais créée ici : elle existe dès la création de la révision (WF-REV-0100).
   properties:
-    kind: { $ref: '#/StructureKind' }
+    kind:
+      allOf: [{ $ref: '#/StructureKind' }]
+      enum: [amendment, risk]
     label: { type: string, minLength: 1, maxLength: 300 }
     risk_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
@@ -182,7 +187,7 @@ NodeKind:
 
 Node:
   type: object
-  required: [node_id, lineage_id, kind, parent_id, position, row_number, level]
+  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, lock_version]
   description: >-
     `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable
     d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et
@@ -334,7 +339,7 @@ Predecessor:
 
 PredecessorsReplace:
   type: object
-  required: [predecessors]
+  required: [predecessors, lock_version]
   properties:
     predecessors:
       type: array
@@ -373,7 +378,7 @@ NodeCreate:
 
 TaskFacetWrite:
   type: object
-  required: [label]
+  required: [label, lock_version]
   description: Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées.
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -389,7 +394,7 @@ TaskFacetWrite:
 
 EstimateLineWrite:
   type: object
-  required: [label, cost_category_id, quantity]
+  required: [label, cost_category_id, quantity, lock_version]
   description: Champs saisissables d'une ligne de devis (WF-DEV-0020).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -409,7 +414,7 @@ EstimateLineWrite:
 
 NodeMove:
   type: object
-  required: [node_ids, parent_id]
+  required: [node_ids, parent_id, lock_version]
   properties:
     node_ids:
       type: array
@@ -423,19 +428,24 @@ NodeMove:
 
 ProgressUpdate:
   type: object
-  required: [progress]
+  required: [progress, lock_version]
   description: >-
     Démarre ou termine une tâche. La date est celle du geste par défaut, et la
-    terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030). Refusée sur une
-    récapitulative, dont l'état est dérivé (WF-PLA-0040).
+    terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030). Une tâche terminée
+    se rouvre en la repassant à « démarrée » ; aucun geste ne la ramène à « non
+    démarrée », que le Kanban n'offre pas (WF-RAE-0030). Le passage direct de non
+    démarrée à terminée n'est ouvert qu'à un jalon, et l'opération est refusée sur une
+    récapitulative, dont l'état est dérivé (WF-PLA-0040, WF-PLA-0050).
   properties:
-    progress: { $ref: '#/TaskProgress' }
+    progress:
+      allOf: [{ $ref: '#/TaskProgress' }]
+      enum: [started, completed]
     occurred_on: { $ref: ../common.yaml#/PlanningDate }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 RemainingUpdate:
   type: object
-  required: [reestimated_amount_basis]
+  required: [reestimated_amount_basis, lock_version]
   description: >-
     Réestime une ligne portée par une tâche démarrée ; un reste à engager nul
     termine la tâche (WF-RAE-0040, WF-RAE-0010).
@@ -506,7 +516,7 @@ PastePlan:
 
 PasteApply:
   type: object
-  required: [paste_id, confirmed]
+  required: [paste_id, confirmed, lock_version]
   properties:
     paste_id: { $ref: ../common.yaml#/Uuid }
     confirmed:

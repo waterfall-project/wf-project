@@ -21,6 +21,9 @@
     operationId: getReferenceSettings
     tags: [reference]
     summary: Devise, langue par défaut, matrice de risques, seuils et délai de revue
+    description: >-
+      Les réglages que tout projet hérite de l'installation (WF-REF-0140, WF-REF-0160,
+      WF-REF-0170, WF-REF-0180).
     responses:
       '200':
         description: Paramètres (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180, WF-INTF-0160).
@@ -73,6 +76,8 @@
   post:
     operationId: createOrgNode
     summary: Créer un nœud d'organisation
+    description: >-
+      Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070).
     tags: [reference]
     requestBody:
       required: true
@@ -92,6 +97,9 @@
   patch:
     operationId: updateOrgNode
     summary: Modifier un nœud d'organisation
+    description: >-
+      La modification vaut pour la suite et ne retouche aucune révision marquée
+      (WF-REF-0070, WF-REF-0130).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/OrgNodeId
@@ -99,7 +107,7 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/reference.yaml#/OrgNodeWrite }
+          schema: { $ref: ../components/schemas/reference.yaml#/OrgNodeUpdate }
     responses:
       '200':
         description: Nœud modifié ; les révisions marquées sont inchangées (WF-REF-0130).
@@ -126,7 +134,7 @@
         application/json:
           schema:
             type: object
-            required: [is_active]
+            required: [is_active, lock_version]
             properties:
               is_active: { type: boolean }
               lock_version: { $ref: ../components/common.yaml#/LockVersion }
@@ -153,6 +161,9 @@
     operationId: listResourceRoles
     tags: [reference]
     summary: Rôles de ressources
+    description: >-
+      Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris
+      (WF-REF-0090, WF-REF-0100, WF-REF-0150).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - name: org_node_id
@@ -171,6 +182,8 @@
   post:
     operationId: createResourceRole
     summary: Créer un rôle de ressource
+    description: >-
+      Rattachements dans l'organisation et capacité du rôle (WF-REF-0090, WF-REF-0100).
     tags: [reference]
     requestBody:
       required: true
@@ -190,6 +203,8 @@
   patch:
     operationId: updateResourceRole
     summary: Modifier un rôle de ressource
+    description: >-
+      Sans effet rétroactif sur les révisions marquées (WF-REF-0090, WF-REF-0130).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/ResourceRoleId
@@ -197,7 +212,7 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/reference.yaml#/ResourceRoleWrite }
+          schema: { $ref: ../components/schemas/reference.yaml#/ResourceRoleUpdate }
     responses:
       '200':
         description: Rôle modifié.
@@ -213,6 +228,9 @@
     operationId: setResourceRoleActivation
     tags: [reference]
     summary: Désactiver ou réactiver un rôle de ressource
+    description: >-
+      Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
+      (WF-REF-0010, WF-REF-0020).
     parameters:
       - $ref: ../components/parameters.yaml#/ResourceRoleId
     requestBody:
@@ -221,7 +239,7 @@
         application/json:
           schema:
             type: object
-            required: [is_active]
+            required: [is_active, lock_version]
             properties:
               is_active: { type: boolean }
               lock_version: { $ref: ../components/common.yaml#/LockVersion }
@@ -239,6 +257,8 @@
     operationId: listCalendars
     tags: [reference]
     summary: Calendriers
+    description: >-
+      Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
     responses:
@@ -254,6 +274,8 @@
   post:
     operationId: createCalendar
     summary: Créer un calendrier
+    description: >-
+      Jours ouvrés, heures par jour et jours chômés (WF-REF-0110).
     tags: [reference]
     requestBody:
       required: true
@@ -273,6 +295,8 @@
   patch:
     operationId: updateCalendar
     summary: Modifier un calendrier
+    description: >-
+      Sans effet rétroactif sur les révisions marquées (WF-REF-0110, WF-REF-0130).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CalendarId
@@ -280,7 +304,7 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/reference.yaml#/CalendarWrite }
+          schema: { $ref: ../components/schemas/reference.yaml#/CalendarUpdate }
     responses:
       '200':
         description: Calendrier modifié.
@@ -327,7 +351,7 @@
         application/json:
           schema:
             type: object
-            required: [is_active]
+            required: [is_active, lock_version]
             properties:
               is_active: { type: boolean }
               lock_version: { $ref: ../components/common.yaml#/LockVersion }
@@ -346,6 +370,8 @@
     operationId: listCostTypes
     tags: [reference]
     summary: Natures de coût
+    description: >-
+      Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
     responses:
@@ -361,6 +387,8 @@
   post:
     operationId: createCostType
     summary: Créer une nature de coût
+    description: >-
+      Nature de coût de l'installation (WF-REF-0030).
     tags: [reference]
     requestBody:
       required: true
@@ -391,7 +419,7 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/reference.yaml#/CostTypeWrite }
+          schema: { $ref: ../components/schemas/reference.yaml#/CostTypeUpdate }
     responses:
       '200':
         description: Nature modifiée.
@@ -407,6 +435,9 @@
   put:
     operationId: setCostTypeActivation
     summary: Désactiver ou réactiver une nature de coût
+    description: >-
+      Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
+      (WF-REF-0010, WF-REF-0020).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostTypeId
@@ -416,7 +447,7 @@
         application/json:
           schema:
             type: object
-            required: [is_active]
+            required: [is_active, lock_version]
             properties:
               is_active: { type: boolean }
               lock_version: { $ref: ../components/common.yaml#/LockVersion }
@@ -434,6 +465,9 @@
     operationId: listCostCategories
     tags: [reference]
     summary: Catégories de coût
+    description: >-
+      Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040,
+      WF-REF-0150).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
@@ -450,6 +484,8 @@
   post:
     operationId: createCostCategory
     summary: Créer une catégorie de coût
+    description: >-
+      La catégorie se rattache à une nature de coût (WF-REF-0040).
     tags: [reference]
     requestBody:
       required: true
@@ -470,6 +506,8 @@
   patch:
     operationId: updateCostCategory
     summary: Modifier une catégorie de coût
+    description: >-
+      Sans effet rétroactif sur les révisions marquées (WF-REF-0040, WF-REF-0130).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
@@ -477,7 +515,7 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/reference.yaml#/CostCategoryWrite }
+          schema: { $ref: ../components/schemas/reference.yaml#/CostCategoryUpdate }
     responses:
       '200':
         description: Catégorie modifiée.
@@ -492,6 +530,9 @@
   put:
     operationId: setCostCategoryActivation
     summary: Désactiver ou réactiver une catégorie de coût
+    description: >-
+      Aucune suppression n'est offerte, et la désactivation laisse les projets intacts
+      (WF-REF-0010, WF-REF-0020).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
@@ -501,7 +542,7 @@
         application/json:
           schema:
             type: object
-            required: [is_active]
+            required: [is_active, lock_version]
             properties:
               is_active: { type: boolean }
               lock_version: { $ref: ../components/common.yaml#/LockVersion }

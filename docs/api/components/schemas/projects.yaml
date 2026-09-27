@@ -17,6 +17,7 @@ Project:
     - inflation_rate
     - win_probability
     - audit
+    - lock_version
   properties:
     project_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -69,6 +70,7 @@ ProjectCreate:
 
 ProjectUpdate:
   type: object
+  required: [lock_version]
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
@@ -137,7 +139,7 @@ ProjectExit:
 
 WorkBreakdown:
   type: object
-  required: [order_items]
+  required: [order_items, lock_version]
   description: >-
     Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son
     absence, un poste, un lot, aucun livrable (WF-PRJ-0020).
@@ -176,7 +178,7 @@ Deliverable:
 
 Subproject:
   type: object
-  required: [subproject_id, code, label, has_actual_costs, audit]
+  required: [subproject_id, code, label, has_actual_costs, audit, lock_version]
   description: >-
     Sous-projet, identifié par le code sous lequel l'ERP le connaît, unique dans
     le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050).
@@ -194,7 +196,17 @@ SubprojectWrite:
   properties:
     code: { type: string, minLength: 1, maxLength: 50 }
     label: { type: string, minLength: 1, maxLength: 300 }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+SubprojectUpdate:
+  description: >-
+    Modification d'un sous-projet : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/SubprojectWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
 
 Contributor:
   type: object
@@ -209,7 +221,7 @@ Contributor:
 
 ContributorsWrite:
   type: object
-  required: [user_ids]
+  required: [user_ids, lock_version]
   properties:
     user_ids:
       type: array

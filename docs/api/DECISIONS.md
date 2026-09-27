@@ -58,7 +58,7 @@ un dénominateur peut être nul. C'est verbeux et c'est le prix de l'exigence.
 
 ## Traitements longs
 
-**Sept opérations renvoient une tâche de fond, jamais un résultat** : marquage, fusion d'un
+**Neuf opérations renvoient une tâche de fond, jamais un résultat** : marquage, fusion d'un
 différentiel, survenance d'un risque, analyse et application d'un import, export,
 sauvegarde, restauration, synchronisation de l'annuaire. Toutes répondent `202` avec une
 référence de tâche, et le front suit l'avancement par `GET /tasks/{id}` (WF-ARC-0090,

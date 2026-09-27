@@ -33,6 +33,9 @@
     operationId: listImports
     tags: [exchanges]
     summary: Imports du projet
+    description: >-
+      Les imports du projet, en cours et passés, avec l'état où chacun s'est arrêté
+      (WF-INTF-0080, WF-ARC-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit

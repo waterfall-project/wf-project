@@ -91,6 +91,7 @@ User:
     - origin
     - access_role_ids
     - audit
+    - lock_version
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
     last_name: { type: string, minLength: 1, maxLength: 100 }
@@ -137,6 +138,7 @@ UserCreate:
 
 UserUpdate:
   type: object
+  required: [lock_version]
   description: >-
     Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne
     sont pas modifiables ici (WF-ADM-0050).
@@ -150,7 +152,7 @@ UserUpdate:
 
 UserRolesWrite:
   type: object
-  required: [access_role_ids]
+  required: [access_role_ids, lock_version]
   properties:
     access_role_ids:
       type: array
@@ -216,7 +218,7 @@ Permission:
 
 AccessRole:
   type: object
-  required: [access_role_id, label, permissions, is_predefined, holder_count, audit]
+  required: [access_role_id, label, permissions, is_predefined, holder_count, audit, lock_version]
   description: >-
     Ensemble nommé de permissions (WF-ADM-0090). Les trois rôles prédéfinis sont
     modifiables et supprimables (WF-ADM-0010) ; au moins un compte actif garde
@@ -240,4 +242,15 @@ AccessRoleWrite:
     permissions:
       type: array
       items: { $ref: '#/PermissionCode' }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+AccessRoleUpdate:
+  description: >-
+    Modification d'un rôle d'accès : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/AccessRoleWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
+

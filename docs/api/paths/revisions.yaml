@@ -60,6 +60,8 @@
     operationId: getRevision
     tags: [revisions]
     summary: Une révision et son instantané
+    description: >-
+      Attributs de la révision et contenu de son instantané (WF-REV-0090, WF-REV-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -177,6 +179,8 @@
     operationId: applyRateUpdate
     tags: [revisions]
     summary: Appliquer la mise à jour des taux
+    description: >-
+      Reporte les taux de l'année sur les lignes de la révision en cours (WF-REV-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -571,7 +575,7 @@
         application/json:
           schema:
             type: object
-            required: [entries]
+            required: [entries, lock_version]
             properties:
               entries:
                 type: array
@@ -593,7 +597,8 @@
     summary: Déplacer des nœuds dans l'arbre
     description: >-
       Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui
-      est résolue à la lecture (§3.5.1).
+      est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de
+      tâches et de récapitulatives (WF-PLA-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -704,6 +709,8 @@
     operationId: redoLastUndo
     tags: [revisions]
     summary: Rétablir la dernière annulation
+    description: >-
+      Rétablit la saisie que la dernière annulation avait défaite (WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

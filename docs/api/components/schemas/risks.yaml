@@ -18,6 +18,7 @@ Risk:
     - state
     - structure_id
     - audit
+    - lock_version
   description: >-
     La gravité est le total de la structure propre du risque et la provision cette
     gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies
@@ -59,7 +60,17 @@ RiskWrite:
     mitigation_notes:
       anyOf: [{ type: string }, { type: 'null' }]
     probability: { $ref: ../common.yaml#/Percent }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskUpdate:
+  description: >-
+    Modification d'un risque : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/RiskWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
 
 RiskReview:
   type: object
@@ -76,7 +87,7 @@ RiskReview:
 
 RiskReviewWrite:
   type: object
-  required: [probability, state]
+  required: [probability, state, lock_version]
   description: La confirmation sans modification produit un réexamen daté (WF-RIS-0010).
   properties:
     probability: { $ref: ../common.yaml#/Percent }
@@ -87,7 +98,7 @@ RiskReviewWrite:
 
 RiskOccurrence:
   type: object
-  required: [confirmed]
+  required: [confirmed, version_name]
   description: >-
     Déclare le risque survenu : fusionne son devis propre dans la structure
     principale, les lignes fusionnées portant un montant budgété nul, et la

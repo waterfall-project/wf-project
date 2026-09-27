@@ -20,7 +20,6 @@ import sys
 import tempfile
 import tomllib
 import zipfile
-from datetime import date
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
@@ -594,7 +593,6 @@ def tidy(lines):
 def front_matter(docx, drawio, requirement_count):
     return [
         "---",
-        f"genere_le: {date.today().isoformat()}",
         "genere_par: tools/build.py",
         f"source_texte: {docx.name}",
         f"source_diagrammes: {drawio.name}",

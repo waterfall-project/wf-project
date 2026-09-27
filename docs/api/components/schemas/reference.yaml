@@ -13,7 +13,7 @@ ActiveFlag:
 
 OrgNode:
   type: object
-  required: [org_node_id, label, parent_id, is_active, audit]
+  required: [org_node_id, label, parent_id, is_active, audit, lock_version]
   description: Nœud de l'arbre d'organisation. Il ne porte aucune habilitation (WF-REF-0070).
   properties:
     org_node_id: { $ref: ../common.yaml#/Uuid }
@@ -35,11 +35,21 @@ OrgNodeWrite:
       anyOf:
         - $ref: ../common.yaml#/Uuid
         - type: 'null'
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+OrgNodeUpdate:
+  description: >-
+    Modification d'un nœud d'organisation : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/OrgNodeWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ResourceRole:
   type: object
-  required: [resource_role_id, label, org_node_id, cost_category_id, calendar_id, capacity, is_active, audit]
+  required: [resource_role_id, label, org_node_id, cost_category_id, calendar_id, capacity, is_active, audit, lock_version]
   description: >-
     Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût
     et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100).
@@ -71,11 +81,21 @@ ResourceRoleWrite:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
     capacity: { $ref: '#/RoleCapacity' }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ResourceRoleUpdate:
+  description: >-
+    Modification d'un rôle de ressource : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/ResourceRoleWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
 
 Calendar:
   type: object
-  required: [calendar_id, label, weekly_hours, is_default, is_active, audit]
+  required: [calendar_id, label, weekly_hours, is_default, is_active, audit, lock_version]
   description: >-
     Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni
     temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut
@@ -107,7 +127,17 @@ CalendarWrite:
   properties:
     label: { type: string, minLength: 1, maxLength: 200 }
     weekly_hours: { $ref: '#/WeeklyHours' }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+CalendarUpdate:
+  description: >-
+    Modification d'un calendrier : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/CalendarWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
 
 CostTypeKind:
   type: string
@@ -118,7 +148,7 @@ CostTypeKind:
 
 CostType:
   type: object
-  required: [cost_type_id, code, label, kind, is_active, audit]
+  required: [cost_type_id, code, label, kind, is_active, audit, lock_version]
   description: Nature de coût (WF-REF-0030).
   properties:
     cost_type_id: { $ref: ../common.yaml#/Uuid }
@@ -136,11 +166,21 @@ CostTypeWrite:
     code: { type: string, minLength: 1, maxLength: 20 }
     label: { type: string, minLength: 1, maxLength: 200 }
     kind: { $ref: '#/CostTypeKind' }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+CostTypeUpdate:
+  description: >-
+    Modification d'un type de coût : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/CostTypeWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
 
 CostCategory:
   type: object
-  required: [cost_category_id, code, label, cost_type_id, is_active, audit]
+  required: [cost_category_id, code, label, cost_type_id, is_active, audit, lock_version]
   description: Catégorie de coût, rattachée à une nature (WF-REF-0040).
   properties:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
@@ -167,11 +207,21 @@ CostCategoryWrite:
       anyOf:
         - type: string
         - type: 'null'
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+CostCategoryUpdate:
+  description: >-
+    Modification d'une catégorie de coût : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/CostCategoryWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
 
 HourlyRate:
   type: object
-  required: [cost_category_id, year, amount, audit]
+  required: [cost_category_id, year, amount, audit, lock_version]
   description: >-
     Taux horaire d'une catégorie de main-d'œuvre, au plus un par année
     (WF-REF-0050). Sa correction n'affecte aucune révision marquée (WF-REF-0130).
@@ -183,6 +233,9 @@ HourlyRate:
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 HourlyRateWrite:
+  description: >-
+    Le compteur est absent à la première saisie de l'année, où le taux n'existe
+    pas encore, et obligatoire pour corriger un taux déjà saisi.
   type: object
   required: [amount]
   properties:
@@ -197,6 +250,7 @@ ReferenceSettings:
     - risk_matrix
     - index_thresholds
     - max_weeks_between_reviews
+    - lock_version
   description: >-
     Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140),
     langue par défaut (WF-INTF-0160), matrice de risques (WF-REF-0160), seuils
@@ -216,6 +270,7 @@ ReferenceSettings:
 
 ReferenceSettingsWrite:
   type: object
+  required: [lock_version]
   properties:
     default_language: { type: string, pattern: '^[a-z]{2}$' }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }

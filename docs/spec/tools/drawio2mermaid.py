@@ -45,6 +45,8 @@ def label_of(cell):
     value = re.sub(r"<br\s*/?>|</?(?:div|p|li)[^>]*>", "\n", value, flags=re.I)
     value = re.sub(r"<[^>]+>", "", value)
     value = html.unescape(value).replace("\xa0", " ")
+    # Every caller wraps the label in quotes, so a quote of its own must be escaped.
+    value = value.replace('"', "#quot;")
     lines = [re.sub(r"\s+", " ", line).strip() for line in value.split("\n")]
     return "<br>".join(line for line in lines if line)
 

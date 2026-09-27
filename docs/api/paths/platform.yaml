@@ -42,6 +42,8 @@
   get:
     operationId: getBackup
     summary: Une sauvegarde
+    description: >-
+      État, date et taille d'une sauvegarde (WF-ADM-0150).
     tags: [platform]
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
@@ -95,6 +97,8 @@
     operationId: getBackupSchedule
     tags: [platform]
     summary: Planification et rétention des sauvegardes
+    description: >-
+      Fréquence, heure et nombre de sauvegardes conservées (WF-ADM-0170).
     responses:
       '200':
         description: Planification courante (WF-ADM-0170).

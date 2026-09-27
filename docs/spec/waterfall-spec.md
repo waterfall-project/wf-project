@@ -1,5 +1,4 @@
 ---
-genere_le: 2026-09-27
 genere_par: tools/build.py
 source_texte: stb-waterfall.docx
 source_diagrammes: waterfall.visuels.drawio

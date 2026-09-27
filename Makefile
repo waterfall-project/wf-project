@@ -7,8 +7,12 @@
 SPEC    := docs/spec
 API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
-REDOCLY := npx --yes @redocly/cli@latest
-PRISM   := npx --yes @stoplight/prism-cli@latest
+# Pinned so that a check passes or fails on what this repository contains, never on
+# what a tool released overnight. Raise a version here and nowhere else.
+REDOCLY_VERSION := 2.54.3
+PRISM_VERSION   := 5.16.0
+REDOCLY := npx --yes @redocly/cli@$(REDOCLY_VERSION)
+PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock check-tools clean

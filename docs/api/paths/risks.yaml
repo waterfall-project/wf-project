@@ -58,6 +58,8 @@
   get:
     operationId: getRisk
     summary: Un risque
+    description: >-
+      Attributs du risque et état où il se trouve (WF-RIS-0010, WF-RIS-0020).
     tags: [risks]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -84,7 +86,7 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/risks.yaml#/RiskWrite }
+          schema: { $ref: ../components/schemas/risks.yaml#/RiskUpdate }
     responses:
       '200':
         description: Risque modifié.

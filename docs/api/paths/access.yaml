@@ -3,6 +3,9 @@
     operationId: listUsers
     tags: [users]
     summary: Comptes utilisateurs
+    description: >-
+      Les comptes de l'installation, avec leur état et leur rattachement à l'organisation
+      (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -55,6 +58,8 @@
   get:
     operationId: getUser
     summary: Un compte utilisateur
+    description: >-
+      Attributs, état et rattachement d'un compte (WF-ADM-0050, WF-ADM-0030).
     tags: [users]
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
@@ -110,7 +115,7 @@
         application/json:
           schema:
             type: object
-            required: [is_active]
+            required: [is_active, lock_version]
             properties:
               is_active: { type: boolean }
               lock_version: { $ref: ../components/common.yaml#/LockVersion }
@@ -160,6 +165,8 @@
     operationId: getUserAvatar
     tags: [users]
     summary: Avatar d'un compte
+    description: >-
+      Image du compte, servie telle qu'elle a été déposée (WF-ADM-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     responses:
@@ -201,6 +208,9 @@
     operationId: getLatestDirectorySync
     tags: [users]
     summary: Résultat de la dernière synchronisation
+    description: >-
+      Comptes créés, mis à jour et désactivés lors du dernier import depuis l'annuaire
+      (WF-ADM-0070).
     responses:
       '200':
         description: Compte rendu de la dernière synchronisation (WF-ADM-0070, WF-ADM-0130).
@@ -233,6 +243,9 @@
     operationId: listAccessRoles
     tags: [access]
     summary: Rôles d'habilitation
+    description: >-
+      Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010,
+      WF-ADM-0090).
     responses:
       '200':
         description: Rôles, dont les trois prédéfinis (WF-ADM-0010).
@@ -269,6 +282,9 @@
   get:
     operationId: getAccessRole
     summary: Un rôle d'habilitation
+    description: >-
+      Un rôle et les permissions qu'il porte, prises au catalogue (WF-ADM-0090,
+      WF-ADM-0100).
     tags: [access]
     parameters:
       - $ref: ../components/parameters.yaml#/AccessRoleId
@@ -290,7 +306,7 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/access.yaml#/AccessRoleWrite }
+          schema: { $ref: ../components/schemas/access.yaml#/AccessRoleUpdate }
     responses:
       '200':
         description: Rôle modifié.
