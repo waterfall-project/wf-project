@@ -398,6 +398,12 @@ ses paramètres, jamais une phrase.
 
 *À écrire* — EP-03, avec la première table et les règles de codage du SQL.
 
+## Agents
+
+Les agents de `.claude/agents/` — développement et revue par langage, puis cadrage et
+livraison avec le lot US-0280/L2 — suivent ce guide comme une personne, et leurs règles propres sont dans
+[agents.md](agents.md) : ce qui fait foi, comment un lot se fait, où un agent s'arrête.
+
 ## Branches, lots et pull requests
 
 Les règles sont dans le [README de la roadmap](../roadmap/README.md), sections « Lots » et
