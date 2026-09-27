@@ -31,7 +31,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	install-front lint-front typecheck-front test-front generate-client client-up-to-date \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-browsers \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-browsers lot-size \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -194,6 +194,9 @@ e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 
 e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080)
 	@$(PNPM) exec playwright test
+
+lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
+	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)
