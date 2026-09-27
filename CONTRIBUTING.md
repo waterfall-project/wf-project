@@ -11,7 +11,7 @@ for renegotiation file by file.
 ## Getting set up
 
 ```bash
-make outils           # tells you what is missing
+make check-tools      # tells you what is missing
 make build-doc        # regenerate the specification projection
 make lint-openapi     # check the contract
 ```
@@ -66,7 +66,7 @@ existing findings before raising a new one — a finding already settled is not 
 
 ```bash
 make lint-openapi     # must pass with no error
-make inventaire       # regenerates the inventory and the coverage
+make inventory        # regenerates the inventory and the coverage
 ```
 
 Conventions, each of them dictated by a requirement rather than by taste:
@@ -82,7 +82,7 @@ Conventions, each of them dictated by a requirement rather than by taste:
 | `lock_version` on concurrent writes, refused with 412 | `WF-IHM-0110` |
 | A long operation returns a background task, never a result | `WF-ARC-0090` |
 
-Every operation cites, in its description, the requirements it realises. `make inventaire`
+Every operation cites, in its description, the requirements it realises. `make inventory`
 turns that into a coverage table — and fails if a requirement domain escapes the contract
 without a declared reason.
 
@@ -113,7 +113,7 @@ months later. Look at `git log` before writing your first one.
 
 A pull request states what it changes and what it leaves alone. If it touches the
 specification, it names the findings it integrates; if it touches the contract, it says
-whether `make lint-openapi` and `make inventaire` were run.
+whether `make lint-openapi` and `make inventory` were run.
 
 ## Licence
 

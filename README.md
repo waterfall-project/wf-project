@@ -70,8 +70,8 @@ make build-doc        # regenerate the Markdown projection from Word and draw.io
 make lint-openapi     # check the contract
 make build-openapi    # check, then bundle the contract into one file
 make mock             # serve a fake backend from the contract
-make inventaire       # regenerate the endpoint inventory and requirement coverage
-make outils           # tell me what is missing
+make inventory        # regenerate the endpoint inventory and requirement coverage
+make check-tools      # tell me what is missing
 ```
 
 Prerequisites: Python 3.11+, `pandoc`, Node with `npx`, and `mmdc`

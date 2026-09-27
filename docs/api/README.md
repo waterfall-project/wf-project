@@ -49,7 +49,7 @@ Depuis la racine du dépôt :
 make lint-openapi     # contrôles, bloquants en CI
 make build-openapi    # contrôle puis assemble en un fichier
 make mock             # sert un faux back depuis le contrat
-make inventaire       # régénère INVENTAIRE.md
+make inventory        # régénère INVENTAIRE.md
 ```
 
 Le fichier assemblé n'est pas versionné : il se régénère. Les mocks de la maquette sont

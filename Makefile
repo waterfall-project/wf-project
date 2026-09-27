@@ -1,8 +1,8 @@
-# Waterfall — commandes du dépôt.
+# Waterfall — repository commands.
 #
-# La spécification est dans docs/spec, le contrat d'interface dans docs/api.
-# Prérequis : python3, pandoc (projection du document), node avec npx
-# (contrôle et assemblage du contrat), mmdc pour valider les diagrammes.
+# The specification lives in docs/spec, the interface contract in docs/api.
+# Requirements: python3, pandoc (document projection), node with npx (contract
+# linting and bundling), and mmdc to validate the diagrams.
 
 SPEC    := docs/spec
 API     := docs/api
@@ -11,39 +11,39 @@ REDOCLY := npx --yes @redocly/cli@latest
 PRISM   := npx --yes @stoplight/prism-cli@latest
 
 .DEFAULT_GOAL := help
-.PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventaire pbs mock outils clean
+.PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock check-tools clean
 
-help: ## Liste les commandes
+help: ## List the commands
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2}'
 
-build-doc: ## Régénère la projection Markdown depuis Word et draw.io
+build-doc: ## Regenerate the Markdown projection from Word and draw.io
 	@$(SPEC)/build.sh
 
-build-doc-strict: ## Comme build-doc, mais échoue au moindre avertissement (CI)
+build-doc-strict: ## Same, but fail on any warning (for CI)
 	@$(SPEC)/build.sh --strict
 
-lint-openapi: ## Contrôle le contrat d'interface
+lint-openapi: ## Check the interface contract
 	@cd $(API) && $(REDOCLY) lint openapi.yaml
 
-build-openapi: lint-openapi ## Contrôle puis assemble le contrat en un fichier
+build-openapi: lint-openapi ## Check, then bundle the contract into a single file
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml -o $(notdir $(BUNDLE))
-	@echo "  → $(BUNDLE)"
+	@echo "  -> $(BUNDLE)"
 
-inventaire: ## Régénère l'inventaire des endpoints et la couverture des exigences
-	@python3 $(API)/tools/inventaire.py
+inventory: ## Regenerate the endpoint inventory and the requirement coverage
+	@python3 $(API)/tools/inventory.py
 
-pbs: ## Écrit les champs PBS des exigences dans le document Word
-	@python3 $(SPEC)/tools/appliquer_pbs.py
+allocate-pbs: ## Write the PBS field of every requirement into the Word document
+	@python3 $(SPEC)/tools/allocate_pbs.py
 
-mock: build-openapi ## Sert un faux back depuis le contrat, pour la maquette
+mock: build-openapi ## Serve a fake backend from the contract, for the mockup
 	@$(PRISM) mock $(BUNDLE)
 
-outils: ## Vérifie les prérequis
-	@for o in python3 pandoc npx; do \
-		command -v $$o >/dev/null && echo "  ok      $$o" || echo "  manque  $$o"; \
+check-tools: ## Report which prerequisites are missing
+	@for t in python3 pandoc npx; do \
+		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
-	@command -v mmdc >/dev/null && echo "  ok      mmdc" || echo "  absent  mmdc (les diagrammes ne seront pas validés)"
+	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
-clean: ## Supprime ce que les commandes engendrent
+clean: ## Remove everything the commands generate
 	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE)
-	@echo "  nettoyé"
+	@echo "  cleaned"

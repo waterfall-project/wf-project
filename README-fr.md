@@ -74,8 +74,8 @@ make build-doc        # régénère la projection Markdown depuis Word et draw.i
 make lint-openapi     # contrôle le contrat
 make build-openapi    # contrôle puis assemble le contrat en un fichier
 make mock             # sert un faux back depuis le contrat
-make inventaire       # régénère l'inventaire des endpoints et la couverture
-make outils           # dit ce qui manque
+make inventory        # régénère l'inventaire des endpoints et la couverture
+make check-tools      # dit ce qui manque
 ```
 
 Prérequis : Python 3.11 ou plus, `pandoc`, Node avec `npx`, et `mmdc`

@@ -1,7 +1,7 @@
 # Inventaire des endpoints
 
-Établi depuis `openapi.yaml` par `tools/inventaire.py`, et régénérable par
-`make inventaire`. La colonne « Exigences » donne celles que la description de
+Établi depuis `openapi.yaml` par `tools/inventory.py`, et régénérable par
+`make inventory`. La colonne « Exigences » donne celles que la description de
 l'opération cite ; les schémas en citent d'autres, comptées dans la couverture
 ci-dessous mais pas dans le tableau.
 
