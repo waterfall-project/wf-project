@@ -56,7 +56,17 @@ avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `
 L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
 empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
 
-*Contrôles* : `make typecheck-front`, `make test-front` ; `make lint-docker` (hadolint).
+Le client de l'API est engendré du contrat (PBS-1.2, WF-ARC-0060) : `make generate-client`
+écrit ses types dans `frontend/src/api/generated/schema.d.ts`, que personne ne retouche, et
+`frontend/src/api/client.ts` en fait des appels typés par openapi-fetch. Une opération qui
+manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
+fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors de
+`frontend/src/api/`.
+
+*Contrôles* : `make client-up-to-date` échoue si le client versionné n'est pas celui que le
+contrat produit ; une modification du contrat réveille donc la famille front. ESLint refuse
+`fetch` hors de `src/api/`. `make typecheck-front`, `make test-front` ; `make lint-docker`
+(hadolint).
 
 ## Commandes
 
