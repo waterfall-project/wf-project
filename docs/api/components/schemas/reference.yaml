@@ -1,0 +1,279 @@
+# Référentiel commun de l'entreprise (FBS-3). Un objet du référentiel ne se
+# supprime pas : il se désactive (WF-REF-0010), reste lisible partout où il est
+# employé (WF-REF-0150), et sa modification n'affecte aucune révision marquée
+# (WF-REF-0130).
+
+ActiveFlag:
+  type: object
+  required: [is_active]
+  properties:
+    is_active:
+      type: boolean
+      description: Faux pour un objet désactivé, qui n'est plus proposé à la saisie (WF-REF-0010).
+
+OrgNode:
+  type: object
+  required: [org_node_id, label, parent_id, is_active, audit]
+  description: Nœud de l'arbre d'organisation. Il ne porte aucune habilitation (WF-REF-0070).
+  properties:
+    org_node_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    parent_id:
+      anyOf:
+        - $ref: ../common.yaml#/Uuid
+        - type: 'null'
+    is_active: { type: boolean }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+OrgNodeWrite:
+  type: object
+  required: [label]
+  properties:
+    label: { type: string, minLength: 1, maxLength: 200 }
+    parent_id:
+      anyOf:
+        - $ref: ../common.yaml#/Uuid
+        - type: 'null'
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ResourceRole:
+  type: object
+  required: [resource_role_id, label, org_node_id, cost_category_id, calendar_id, capacity, is_active, audit]
+  description: >-
+    Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût
+    et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100).
+  properties:
+    resource_role_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    org_node_id: { $ref: ../common.yaml#/Uuid }
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    calendar_id: { $ref: ../common.yaml#/Uuid }
+    capacity: { $ref: '#/RoleCapacity' }
+    is_active: { type: boolean }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RoleCapacity:
+  type: object
+  required: [monthly_hours, headcount]
+  description: Capacité unique, sans date de validité (WF-REF-0100).
+  properties:
+    monthly_hours: { $ref: ../common.yaml#/Hours }
+    headcount: { $ref: ../common.yaml#/Decimal }
+
+ResourceRoleWrite:
+  type: object
+  required: [label, org_node_id, cost_category_id, calendar_id, capacity]
+  properties:
+    label: { type: string, minLength: 1, maxLength: 200 }
+    org_node_id: { $ref: ../common.yaml#/Uuid }
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    calendar_id: { $ref: ../common.yaml#/Uuid }
+    capacity: { $ref: '#/RoleCapacity' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+Calendar:
+  type: object
+  required: [calendar_id, label, weekly_hours, is_default, is_active, audit]
+  description: >-
+    Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni
+    temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut
+    (WF-REF-0120).
+  properties:
+    calendar_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    weekly_hours: { $ref: '#/WeeklyHours' }
+    is_default: { type: boolean }
+    is_active: { type: boolean }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+WeeklyHours:
+  type: object
+  required: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+  properties:
+    monday: { $ref: ../common.yaml#/Hours }
+    tuesday: { $ref: ../common.yaml#/Hours }
+    wednesday: { $ref: ../common.yaml#/Hours }
+    thursday: { $ref: ../common.yaml#/Hours }
+    friday: { $ref: ../common.yaml#/Hours }
+    saturday: { $ref: ../common.yaml#/Hours }
+    sunday: { $ref: ../common.yaml#/Hours }
+
+CalendarWrite:
+  type: object
+  required: [label, weekly_hours]
+  properties:
+    label: { type: string, minLength: 1, maxLength: 200 }
+    weekly_hours: { $ref: '#/WeeklyHours' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+CostTypeKind:
+  type: string
+  enum: [labor, non_labor, provision]
+  description: >-
+    Type d'une nature de coût (WF-REF-0030). Il ne change plus dès qu'une
+    catégorie rattachée est employée.
+
+CostType:
+  type: object
+  required: [cost_type_id, code, label, kind, is_active, audit]
+  description: Nature de coût (WF-REF-0030).
+  properties:
+    cost_type_id: { $ref: ../common.yaml#/Uuid }
+    code: { type: string, minLength: 1, maxLength: 20 }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    kind: { $ref: '#/CostTypeKind' }
+    is_active: { type: boolean }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+CostTypeWrite:
+  type: object
+  required: [code, label, kind]
+  properties:
+    code: { type: string, minLength: 1, maxLength: 20 }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    kind: { $ref: '#/CostTypeKind' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+CostCategory:
+  type: object
+  required: [cost_category_id, code, label, cost_type_id, is_active, audit]
+  description: Catégorie de coût, rattachée à une nature (WF-REF-0040).
+  properties:
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    code: { type: string, minLength: 1, maxLength: 20 }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    cost_type_id: { $ref: ../common.yaml#/Uuid }
+    accounting_code:
+      anyOf:
+        - type: string
+        - type: 'null'
+      description: Code comptable, documentaire (WF-REF-0040).
+    is_active: { type: boolean }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+CostCategoryWrite:
+  type: object
+  required: [code, label, cost_type_id]
+  properties:
+    code: { type: string, minLength: 1, maxLength: 20 }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    cost_type_id: { $ref: ../common.yaml#/Uuid }
+    accounting_code:
+      anyOf:
+        - type: string
+        - type: 'null'
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+HourlyRate:
+  type: object
+  required: [cost_category_id, year, amount, audit]
+  description: >-
+    Taux horaire d'une catégorie de main-d'œuvre, au plus un par année
+    (WF-REF-0050). Sa correction n'affecte aucune révision marquée (WF-REF-0130).
+  properties:
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    year: { $ref: ../common.yaml#/Year }
+    amount: { $ref: ../common.yaml#/Money }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+HourlyRateWrite:
+  type: object
+  required: [amount]
+  properties:
+    amount: { $ref: ../common.yaml#/Money }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ReferenceSettings:
+  type: object
+  required:
+    - currency_code
+    - default_language
+    - risk_matrix
+    - index_thresholds
+    - max_weeks_between_reviews
+  description: >-
+    Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140),
+    langue par défaut (WF-INTF-0160), matrice de risques (WF-REF-0160), seuils
+    d'alerte (WF-REF-0170) et délai maximal entre deux revues (WF-REF-0180).
+  properties:
+    currency_code:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      description: Devise unique, choisie à l'installation et non modifiable (WF-REF-0140).
+    default_language:
+      type: string
+      pattern: '^[a-z]{2}$'
+    risk_matrix: { $ref: '#/RiskMatrixSettings' }
+    index_thresholds: { $ref: '#/IndexThresholds' }
+    max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ReferenceSettingsWrite:
+  type: object
+  properties:
+    default_language: { type: string, pattern: '^[a-z]{2}$' }
+    risk_matrix: { $ref: '#/RiskMatrixSettings' }
+    index_thresholds: { $ref: '#/IndexThresholds' }
+    max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskMatrixSettings:
+  type: object
+  required: [probability_bounds, severity_bounds, zones]
+  description: >-
+    Matrice à quatre niveaux de probabilité et quatre de gravité (WF-REF-0160,
+    WF-RIS-0040). Les bornes de gravité sont exprimées en pourcentage du budget de
+    référence.
+  properties:
+    probability_bounds:
+      type: array
+      minItems: 3
+      maxItems: 3
+      items: { $ref: ../common.yaml#/Percent }
+    severity_bounds:
+      type: array
+      minItems: 3
+      maxItems: 3
+      items: { $ref: ../common.yaml#/Percent }
+    zones:
+      type: array
+      minItems: 16
+      maxItems: 16
+      items: { $ref: '#/AlertZone' }
+
+IndexThresholds:
+  type: object
+  required: [cost_watch, cost_alert, schedule_watch, schedule_alert]
+  description: Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170).
+  properties:
+    cost_watch: { $ref: ../common.yaml#/Decimal }
+    cost_alert: { $ref: ../common.yaml#/Decimal }
+    schedule_watch: { $ref: ../common.yaml#/Decimal }
+    schedule_alert: { $ref: ../common.yaml#/Decimal }
+
+AlertZone:
+  type: string
+  enum: [nominal, watch, alert]
+  description: >-
+    Zone d'un signalement, employée par tous les indicateurs et doublée d'un
+    indice non coloré à l'affichage (WF-REF-0170, WF-IHM-0070).
+
+ReferenceReadiness:
+  type: object
+  required: [is_complete, missing]
+  description: >-
+    Référentiel minimal exigé pour créer un projet (WF-CYC-0120). Le refus nomme
+    chaque prérequis manquant.
+  properties:
+    is_complete: { type: boolean }
+    missing:
+      type: array
+      items:
+        type: string
+        enum: [default_calendar_with_hours, active_cost_category, active_resource_role]

@@ -1,0 +1,197 @@
+/projects/{project_id}/risks:
+  get:
+    operationId: listRisks
+    tags: [risks]
+    summary: Registre des risques
+    description: >-
+      Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la
+      case de matrice et les totaux de provisions (WF-RIS-0040).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - name: states
+        in: query
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/risks.yaml#/RiskState }
+        explode: false
+    responses:
+      '200':
+        description: Risques et totaux.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, totals]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/risks.yaml#/Risk }
+                totals: { $ref: ../components/schemas/risks.yaml#/ProvisionTotals }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createRisk
+    tags: [risks]
+    summary: Déclarer un risque
+    description: >-
+      La création ouvre la structure de coûts propre du risque et sa ligne de provision
+      dans la structure principale (WF-RIS-0010, WF-RIS-0030). La provision d'un risque
+      identifié ne fait pas partie du budget de référence (WF-RIS-0050).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/risks.yaml#/RiskWrite }
+    responses:
+      '201':
+        description: Risque créé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/projects/{project_id}/risks/{risk_id}:
+  get:
+    operationId: getRisk
+    summary: Un risque
+    tags: [risks]
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    responses:
+      '200':
+        description: Risque.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  patch:
+    operationId: updateRisk
+    tags: [risks]
+    summary: Modifier un risque
+    description: >-
+      La gravité et la provision ne sont pas saisissables : elles suivent la structure
+      propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au
+      long du projet (WF-RIS-0030).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/risks.yaml#/RiskWrite }
+    responses:
+      '200':
+        description: Risque modifié.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/projects/{project_id}/risks/{risk_id}/reviews:
+  get:
+    operationId: listRiskReviews
+    tags: [risks]
+    summary: Historique des réexamens
+    description: >-
+      Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus
+      (WF-RIS-0010).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    responses:
+      '200':
+        description: Réexamens, du plus récent au plus ancien.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/risks.yaml#/RiskReview }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: reviewRisk
+    tags: [risks]
+    summary: Réexaminer un risque
+    description: >-
+      La confirmation sans modification produit un réexamen daté ; un risque identifié
+      peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010,
+      WF-RIS-0020). Lorsque plus aucun risque n'est identifié, les provisions des
+      risques écartés entrent au budget de référence (WF-RIS-0050).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/risks.yaml#/RiskReviewWrite }
+    responses:
+      '201':
+        description: Réexamen enregistré.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: 'Le risque est survenu : aucune transition n''en part (WF-RIS-0020).'
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/projects/{project_id}/risks/{risk_id}/occurrence:
+  post:
+    operationId: declareRiskOccurrence
+    tags: [risks]
+    summary: Déclarer un risque survenu
+    description: >-
+      Fusionne les tâches et les lignes du devis propre dans la structure principale,
+      avec un montant budgété nul, et la révision marquée qui en résulte devient la
+      référence ; la provision retenue est celle de la révision de référence
+      (WF-RIS-0060, WF-RIS-0050). Définitif, confié au worker, inscrit au journal
+      d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/risks.yaml#/RiskOccurrence }
+    responses:
+      '202':
+        description: Survenance mise en file.
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+
+/projects/{project_id}/risks/matrix:
+  get:
+    operationId: getProjectRiskMatrix
+    tags: [risks]
+    summary: Matrice de risques du projet
+    description: >-
+      Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel
+      (WF-REF-0160, WF-RIS-0040). Chaque case porte sa zone, doublée d'un indice non
+      coloré à l'affichage (WF-IHM-0070).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Matrice remplie et totaux.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/RiskMatrix }
+      '404': { $ref: ../components/responses.yaml#/NotFound }

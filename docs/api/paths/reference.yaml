@@ -1,0 +1,561 @@
+# Référentiel commun (FBS-3). Un objet ne se supprime jamais : il se désactive
+# (WF-REF-0010) et reste lisible partout où il est employé (WF-REF-0150).
+# Une modification n'affecte aucune révision marquée (WF-REF-0130).
+
+/reference/readiness:
+  get:
+    operationId: getReferenceReadiness
+    tags: [reference]
+    summary: Référentiel minimal exigé pour créer un projet
+    description: Nomme chaque prérequis manquant (WF-CYC-0120).
+    responses:
+      '200':
+        description: État du référentiel minimal.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ReferenceReadiness }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
+/reference/settings:
+  get:
+    operationId: getReferenceSettings
+    tags: [reference]
+    summary: Devise, langue par défaut, matrice de risques, seuils et délai de revue
+    responses:
+      '200':
+        description: Paramètres (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180, WF-INTF-0160).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettings }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  patch:
+    operationId: updateReferenceSettings
+    tags: [reference]
+    summary: Régler les paramètres communs
+    description: >-
+      La devise est choisie à l'installation et n'est pas modifiable (WF-REF-0140).
+      Le seuil d'alerte de chaque indice reste inférieur à son seuil de vigilance
+      (WF-REF-0170).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettingsWrite }
+    responses:
+      '200':
+        description: Paramètres enregistrés.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettings }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/reference/org-nodes:
+  get:
+    operationId: listOrgNodes
+    tags: [reference]
+    summary: Arbre d'organisation
+    description: Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070).
+    parameters:
+      - $ref: ../components/parameters.yaml#/IncludeInactive
+    responses:
+      '200':
+        description: Nœuds, sans limite de profondeur.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createOrgNode
+    summary: Créer un nœud d'organisation
+    tags: [reference]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/OrgNodeWrite }
+    responses:
+      '201':
+        description: Nœud créé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/reference/org-nodes/{org_node_id}:
+  patch:
+    operationId: updateOrgNode
+    summary: Modifier un nœud d'organisation
+    tags: [reference]
+    parameters:
+      - $ref: ../components/parameters.yaml#/OrgNodeId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/OrgNodeWrite }
+    responses:
+      '200':
+        description: Nœud modifié ; les révisions marquées sont inchangées (WF-REF-0130).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/reference/org-nodes/{org_node_id}/activation:
+  put:
+    operationId: setOrgNodeActivation
+    tags: [reference]
+    summary: Désactiver ou réactiver un nœud
+    description: >-
+      La désactivation d'un nœud désactive ses sous-nœuds et les rôles qui lui sont
+      rattachés (WF-REF-0080). Aucune suppression n'est offerte (WF-REF-0010).
+    parameters:
+      - $ref: ../components/parameters.yaml#/OrgNodeId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [is_active]
+            properties:
+              is_active: { type: boolean }
+              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+    responses:
+      '200':
+        description: Activation modifiée, avec la cascade appliquée.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [org_nodes, resource_roles]
+              properties:
+                org_nodes:
+                  type: array
+                  items: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+                resource_roles:
+                  type: array
+                  items: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/reference/resource-roles:
+  get:
+    operationId: listResourceRoles
+    tags: [reference]
+    summary: Rôles de ressources
+    parameters:
+      - $ref: ../components/parameters.yaml#/IncludeInactive
+      - name: org_node_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+    responses:
+      '200':
+        description: Rôles et leur capacité (WF-REF-0090, WF-REF-0100).
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createResourceRole
+    summary: Créer un rôle de ressource
+    tags: [reference]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/ResourceRoleWrite }
+    responses:
+      '201':
+        description: Rôle créé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/reference/resource-roles/{resource_role_id}:
+  patch:
+    operationId: updateResourceRole
+    summary: Modifier un rôle de ressource
+    tags: [reference]
+    parameters:
+      - $ref: ../components/parameters.yaml#/ResourceRoleId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/ResourceRoleWrite }
+    responses:
+      '200':
+        description: Rôle modifié.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/reference/resource-roles/{resource_role_id}/activation:
+  put:
+    operationId: setResourceRoleActivation
+    tags: [reference]
+    summary: Désactiver ou réactiver un rôle de ressource
+    parameters:
+      - $ref: ../components/parameters.yaml#/ResourceRoleId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [is_active]
+            properties:
+              is_active: { type: boolean }
+              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+    responses:
+      '200':
+        description: Activation modifiée (WF-REF-0010, WF-REF-0020).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/reference/calendars:
+  get:
+    operationId: listCalendars
+    tags: [reference]
+    summary: Calendriers
+    parameters:
+      - $ref: ../components/parameters.yaml#/IncludeInactive
+    responses:
+      '200':
+        description: Calendriers, dont celui par défaut (WF-REF-0110, WF-REF-0120).
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createCalendar
+    summary: Créer un calendrier
+    tags: [reference]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/CalendarWrite }
+    responses:
+      '201':
+        description: Calendrier créé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/reference/calendars/{calendar_id}:
+  patch:
+    operationId: updateCalendar
+    summary: Modifier un calendrier
+    tags: [reference]
+    parameters:
+      - $ref: ../components/parameters.yaml#/CalendarId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/CalendarWrite }
+    responses:
+      '200':
+        description: Calendrier modifié.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/reference/calendars/{calendar_id}/default:
+  put:
+    operationId: setDefaultCalendar
+    tags: [reference]
+    summary: Désigner le calendrier par défaut
+    description: >-
+      Un et un seul calendrier actif est par défaut ; la désignation la retire au
+      précédent (WF-REF-0120).
+    parameters:
+      - $ref: ../components/parameters.yaml#/CalendarId
+    responses:
+      '200':
+        description: Calendrier désigné par défaut.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+
+/reference/calendars/{calendar_id}/activation:
+  put:
+    operationId: setCalendarActivation
+    tags: [reference]
+    summary: Désactiver ou réactiver un calendrier
+    description: >-
+      La désactivation du calendrier par défaut est refusée tant qu'un autre n'a pas
+      été désigné (WF-REF-0120).
+    parameters:
+      - $ref: ../components/parameters.yaml#/CalendarId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [is_active]
+            properties:
+              is_active: { type: boolean }
+              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+    responses:
+      '200':
+        description: Activation modifiée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+
+/reference/cost-types:
+  get:
+    operationId: listCostTypes
+    tags: [reference]
+    summary: Natures de coût
+    parameters:
+      - $ref: ../components/parameters.yaml#/IncludeInactive
+    responses:
+      '200':
+        description: Natures et leur type (WF-REF-0030).
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createCostType
+    summary: Créer une nature de coût
+    tags: [reference]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/CostTypeWrite }
+    responses:
+      '201':
+        description: Nature créée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/reference/cost-types/{cost_type_id}:
+  patch:
+    operationId: updateCostType
+    tags: [reference]
+    summary: Modifier une nature de coût
+    description: >-
+      Le type ne peut plus être modifié dès qu'une catégorie rattachée est employée
+      (WF-REF-0030).
+    parameters:
+      - $ref: ../components/parameters.yaml#/CostTypeId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/CostTypeWrite }
+    responses:
+      '200':
+        description: Nature modifiée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/reference/cost-types/{cost_type_id}/activation:
+  put:
+    operationId: setCostTypeActivation
+    summary: Désactiver ou réactiver une nature de coût
+    tags: [reference]
+    parameters:
+      - $ref: ../components/parameters.yaml#/CostTypeId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [is_active]
+            properties:
+              is_active: { type: boolean }
+              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+    responses:
+      '200':
+        description: Activation modifiée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/reference/cost-categories:
+  get:
+    operationId: listCostCategories
+    tags: [reference]
+    summary: Catégories de coût
+    parameters:
+      - $ref: ../components/parameters.yaml#/IncludeInactive
+      - $ref: ../components/parameters.yaml#/Search
+    responses:
+      '200':
+        description: Catégories rattachées à leur nature (WF-REF-0040).
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createCostCategory
+    summary: Créer une catégorie de coût
+    tags: [reference]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/CostCategoryWrite }
+    responses:
+      '201':
+        description: Catégorie créée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/reference/cost-categories/{cost_category_id}:
+  patch:
+    operationId: updateCostCategory
+    summary: Modifier une catégorie de coût
+    tags: [reference]
+    parameters:
+      - $ref: ../components/parameters.yaml#/CostCategoryId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/CostCategoryWrite }
+    responses:
+      '200':
+        description: Catégorie modifiée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/reference/cost-categories/{cost_category_id}/activation:
+  put:
+    operationId: setCostCategoryActivation
+    summary: Désactiver ou réactiver une catégorie de coût
+    tags: [reference]
+    parameters:
+      - $ref: ../components/parameters.yaml#/CostCategoryId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [is_active]
+            properties:
+              is_active: { type: boolean }
+              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+    responses:
+      '200':
+        description: Activation modifiée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/reference/cost-categories/{cost_category_id}/hourly-rates:
+  get:
+    operationId: listHourlyRates
+    tags: [reference]
+    summary: Taux horaires annuels d'une catégorie
+    description: Au plus un taux par année (WF-REF-0050). Le taux de l'année en cours est exigé au chiffrage (WF-REF-0060).
+    parameters:
+      - $ref: ../components/parameters.yaml#/CostCategoryId
+    responses:
+      '200':
+        description: Taux par année.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/reference.yaml#/HourlyRate }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/reference/cost-categories/{cost_category_id}/hourly-rates/{year}:
+  put:
+    operationId: setHourlyRate
+    tags: [reference]
+    summary: Fixer le taux horaire d'une année
+    description: >-
+      Réservé aux catégories de main-d'œuvre. La correction d'un taux n'affecte aucune
+      révision marquée (WF-REF-0050, WF-REF-0130).
+    parameters:
+      - $ref: ../components/parameters.yaml#/CostCategoryId
+      - $ref: ../components/parameters.yaml#/RateYear
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/HourlyRateWrite }
+    responses:
+      '200':
+        description: Taux enregistré.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/HourlyRate }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

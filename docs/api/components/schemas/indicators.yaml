@@ -1,0 +1,281 @@
+# Indicateurs de projet (FBS-4.8), de devis (FBS-4.4.1) et de reste à engager
+# (FBS-4.5.1). Un indicateur se calcule à une date et pour une maille
+# (WF-IND-0010, WF-IND-0020) ; une grandeur nulle au dénominateur le rend non
+# calculable, jamais zéro ni infini.
+
+Computable:
+  type: object
+  required: [is_computable]
+  description: Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010).
+  properties:
+    is_computable: { type: boolean }
+    value:
+      anyOf: [{ $ref: ../common.yaml#/Decimal }, { type: 'null' }]
+    reason:
+      anyOf: [{ type: string }, { type: 'null' }]
+
+CalculationContext:
+  type: object
+  required: [revision_id, computed_at, scope]
+  description: >-
+    Contexte du calcul, que tout écran doit pouvoir afficher (WF-IHM-0020).
+  properties:
+    revision_id: { $ref: ../common.yaml#/Uuid }
+    revision_status: { $ref: revisions.yaml#/RevisionStatus }
+    computed_at: { $ref: ../common.yaml#/Timestamp }
+    scope:
+      type: string
+      description: '`project`, `unassigned`, ou l''identifiant d''un sous-projet (WF-IND-0020).'
+    is_stored:
+      type: boolean
+      description: >-
+        Vrai pour les indicateurs conservés d'une révision marquée, invariables
+        depuis son marquage (WF-DAT-0040).
+
+EstimateIndicators:
+  type: object
+  required: [context, total, by_cost_type, by_subproject]
+  description: Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010).
+  properties:
+    context: { $ref: '#/CalculationContext' }
+    total: { $ref: ../common.yaml#/Money }
+    by_cost_type:
+      type: array
+      items: { $ref: '#/AmountByKey' }
+    by_subproject:
+      type: array
+      items: { $ref: '#/AmountByKey' }
+    provisions_identified: { $ref: ../common.yaml#/Money }
+    delta_to_previous_revision:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+
+RemainingIndicators:
+  type: object
+  required: [context, total, by_cost_type, by_subproject]
+  description: Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010).
+  properties:
+    context: { $ref: '#/CalculationContext' }
+    total: { $ref: ../common.yaml#/Money }
+    by_cost_type:
+      type: array
+      items: { $ref: '#/AmountByKey' }
+    by_subproject:
+      type: array
+      items: { $ref: '#/SubprojectBalance' }
+    delta_to_reference:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+    delta_to_previous_revision:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+
+SubprojectBalance:
+  type: object
+  required: [key, budget, actual_cost, remaining, variance, is_over_budget]
+  description: >-
+    Écart entre le budget d'un sous-projet et la somme de son coût réel et de son
+    reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors
+    sous-projet » (WF-IND-0020).
+  properties:
+    key: { type: string }
+    label: { type: string }
+    budget: { $ref: ../common.yaml#/Money }
+    actual_cost: { $ref: ../common.yaml#/Money }
+    remaining: { $ref: ../common.yaml#/Money }
+    variance: { $ref: ../common.yaml#/Money }
+    is_over_budget: { type: boolean }
+
+AmountByKey:
+  type: object
+  required: [key, amount]
+  properties:
+    key: { type: string }
+    label: { type: string }
+    amount: { $ref: ../common.yaml#/Money }
+    share: { $ref: ../common.yaml#/Percent }
+
+ProjectIndicators:
+  type: object
+  required:
+    - context
+    - reference_budget
+    - planned_value
+    - earned_value
+    - actual_cost
+    - remaining
+    - cost_index
+    - schedule_index
+    - projections
+  description: >-
+    Les indicateurs de valeur acquise. Calculés à partir de l'état En cours
+    seulement ; avant, seuls les indicateurs de devis existent (WF-IND-0010).
+  properties:
+    context: { $ref: '#/CalculationContext' }
+    reference_budget: { $ref: ../common.yaml#/Money }
+    planned_value:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Lignes comptées au budget de référence, étalées linéairement sur la durée de
+        leur tâche dans la révision de référence (WF-DEV-0080).
+    earned_value:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: Montants budgétés des tâches terminées, à leur date de terminaison (WF-IND-0030).
+    actual_cost:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: Lignes du périmètre suivi dont la date de pièce est antérieure à la date de calcul (WF-IND-0010).
+    remaining: { $ref: ../common.yaml#/Money }
+    financial_progress:
+      allOf: [{ $ref: '#/Computable' }]
+      description: >-
+        Rapport du coût réel à la somme du coût réel et du reste à engager ; non
+        calculable lorsque les deux sont nuls (WF-IND-0040).
+    budget_consumption: { $ref: '#/Computable' }
+    physical_progress: { $ref: '#/Computable' }
+    cost_index: { $ref: '#/IndexValue' }
+    schedule_index: { $ref: '#/IndexValue' }
+    cost_variance: { $ref: ../common.yaml#/Money }
+    schedule_variance: { $ref: ../common.yaml#/Money }
+    projections: { $ref: '#/Projections' }
+
+IndexValue:
+  type: object
+  required: [value, zone]
+  description: Indice et sa zone d'après les seuils du référentiel (WF-IND-0070, WF-IND-0080, WF-REF-0170).
+  properties:
+    value: { $ref: '#/Computable' }
+    zone:
+      anyOf: [{ $ref: reference.yaml#/AlertZone }, { type: 'null' }]
+
+Projections:
+  type: object
+  required: [at_budget, project_manager, at_observed_rate]
+  description: >-
+    Les trois projections à terminaison, nommées par leur hypothèse sur le travail
+    restant, présentées ensemble avec leur écart au budget (WF-IND-0050).
+  properties:
+    at_budget: { $ref: ../common.yaml#/Money }
+    project_manager: { $ref: ../common.yaml#/Money }
+    at_observed_rate: { $ref: '#/Computable' }
+    variance_at_budget: { $ref: ../common.yaml#/Money }
+    variance_project_manager: { $ref: ../common.yaml#/Money }
+    variance_at_observed_rate:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+
+WorkloadPlan:
+  type: object
+  required: [context, basis, roles]
+  description: >-
+    Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la
+    durée de sa tâche par interpolation linéaire (WF-DEV-0070).
+  properties:
+    context: { $ref: '#/CalculationContext' }
+    basis:
+      type: string
+      enum: [estimate, remaining]
+    roles:
+      type: array
+      items:
+        type: object
+        required: [resource_role_id, label, months]
+        properties:
+          resource_role_id: { $ref: ../common.yaml#/Uuid }
+          label: { type: string }
+          org_node_id: { $ref: ../common.yaml#/Uuid }
+          capacity_monthly_hours: { $ref: ../common.yaml#/Hours }
+          months:
+            type: array
+            items:
+              type: object
+              required: [month, hours]
+              properties:
+                month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+                hours: { $ref: ../common.yaml#/Hours }
+                load_ratio: { $ref: '#/Computable' }
+                zone: { $ref: reference.yaml#/AlertZone }
+
+MilestoneTracking:
+  type: object
+  required: [context, milestones]
+  description: >-
+    Diagramme temps/temps : pour chaque jalon inscrit, la date que chaque révision
+    marquée prévoyait, en fonction de sa date de marquage (WF-IND-0090).
+  properties:
+    context: { $ref: '#/CalculationContext' }
+    milestones:
+      type: array
+      items:
+        type: object
+        required: [lineage_id, label, points]
+        properties:
+          lineage_id: { $ref: ../common.yaml#/Uuid }
+          label: { type: string }
+          completed_on:
+            anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+          points:
+            type: array
+            items:
+              type: object
+              required: [marked_at, forecast_date]
+              properties:
+                marked_at: { $ref: ../common.yaml#/Timestamp }
+                forecast_date: { $ref: ../common.yaml#/PlanningDate }
+
+CurveSeries:
+  type: object
+  required: [context, series]
+  description: >-
+    Séries temporelles cumulées. Les changements du budget de référence y
+    apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110).
+  properties:
+    context: { $ref: '#/CalculationContext' }
+    series:
+      type: array
+      items:
+        type: object
+        required: [name, points]
+        properties:
+          name:
+            type: string
+            enum:
+              - reference_budget
+              - planned_value
+              - earned_value
+              - actual_cost
+              - project_manager_projection
+          points:
+            type: array
+            items:
+              type: object
+              required: [date, amount]
+              properties:
+                date: { $ref: ../common.yaml#/PlanningDate }
+                amount: { $ref: ../common.yaml#/Money }
+    steps:
+      type: array
+      description: Marches du budget de référence, datées et motivées (WF-IND-0100).
+      items:
+        type: object
+        required: [date, amount, cause]
+        properties:
+          date: { $ref: ../common.yaml#/PlanningDate }
+          amount: { $ref: ../common.yaml#/Money }
+          cause:
+            type: string
+            enum: [amendment, risk_occurred, last_risk_dismissed]
+
+CashOut:
+  type: object
+  required: [context, months]
+  description: >-
+    Projection de décaissement : le passé par mois de date de pièce, l'avenir en
+    étalant le reste à engager puis en décalant chaque part de son délai de
+    paiement (WF-IND-0120).
+  properties:
+    context: { $ref: '#/CalculationContext' }
+    months:
+      type: array
+      items:
+        type: object
+        required: [month, past, forecast]
+        properties:
+          month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+          past: { $ref: ../common.yaml#/Money }
+          forecast: { $ref: ../common.yaml#/Money }

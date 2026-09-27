@@ -1,0 +1,311 @@
+openapi: 3.1.0
+info:
+  title: Waterfall API
+  version: 1.0.0-draft
+  summary: Contrat de l'interface entre le front et les services de Waterfall
+  description: >-
+    Contrat écrit à la main, qui fait foi : tout endpoint, tout schéma et toute erreur
+    qu'un client peut rencontrer y figurent, le client du front en est engendré, et la
+    chaîne rejette une version des services dont une réponse s'en écarte (WF-ARC-0060).
+    Aucun composant ne s'interpose entre le front et l'API (WF-ARC-0020).
+
+    Conventions, toutes dictées par une exigence : identifiants UUID engendrés par le
+    serveur, jamais séquentiels dans une URL (WF-DAT-0060) ; `snake_case` partout ;
+    décimaux exacts transportés en chaîne, dates de planning sans heure, horodatages en
+    temps universel (WF-DAT-0100) ; noms de la table de correspondance du §4.4.1, où
+    `estimate_line` est une ligne de devis et `cost_line` une ligne de coût réel ; une
+    seule enveloppe d'erreur portant un code machine et ses paramètres, jamais une
+    phrase (WF-ARC-0110) ; 404 lorsque la permission de consultation manque, 403
+    lorsque c'est l'écriture ou la qualité de contributeur (WF-ADM-0110) ;
+    `lock_version` sur les écritures concurrentes (WF-IHM-0110) ; un seul préfixe de
+    version. L'API ne localise rien : seuls les documents qu'elle engendre suivent la
+    langue du destinataire (WF-ARC-0110, WF-INTF-0180).
+
+    Les exigences citées sont celles de la spécification, dans docs/spec.
+  license:
+    name: GNU Affero General Public License v3.0 only
+    identifier: AGPL-3.0-only
+servers:
+  - url: /api/v1
+    description: Préfixe unique de version, pour toutes les familles.
+tags:
+  - name: system
+    description: Sondes, métriques et écran d'état (FBS-1.3).
+  - name: tasks
+    description: Traitements de fond confiés au worker (WF-ARC-0090).
+  - name: session
+    description: Ouverture, révocation et fournisseurs d'authentification (FBS-1.1).
+  - name: me
+    description: Compte courant, préférences et avatar (FBS-1.1).
+  - name: users
+    description: Comptes utilisateurs et annuaire (FBS-1.1).
+  - name: access
+    description: Rôles d'habilitation et catalogue des permissions (FBS-1.2).
+  - name: platform
+    description: Sauvegarde et restauration (FBS-1.4).
+  - name: reference
+    description: Référentiel commun de l'entreprise (FBS-3).
+  - name: projects
+    description: Projets, cycle de vie, lotissement, sous-projets, contributeurs (FBS-4.2, FBS-4.9).
+  - name: revisions
+    description: Révisions, structures de coûts et arbre commun (FBS-4.1).
+  - name: planning
+    description: Planification, liaisons, chronologies, arborescence (FBS-4.3).
+  - name: estimate
+    description: Chiffrage, devis et plan de charge (FBS-4.4).
+  - name: remaining
+    description: Estimation du reste à engager et démarrage des tâches (FBS-4.5).
+  - name: risks
+    description: Risques et provisions (FBS-4.6).
+  - name: actual-costs
+    description: Coûts réels importés de l'ERP (FBS-4.7).
+  - name: indicators
+    description: Indicateurs projets, courbes et décaissements (FBS-4.8).
+  - name: portfolio
+    description: Vues multi-projets, en consultation seule (FBS-2).
+  - name: exchanges
+    description: Échanges par fichier, FLX-01 à FLX-07 (FBS-4.3.4, FBS-4.4, FBS-4.5, FBS-4.7).
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: wf_session
+      description: >-
+        Session conservée en base et révocable immédiatement (WF-SEC-0020). Le témoin est
+        httpOnly et transmis sur une connexion chiffrée (WF-SEC-0010).
+security:
+  - session: []
+paths:
+  /health:
+    $ref: ./paths/system.yaml#/~1health
+  /health/ready:
+    $ref: ./paths/system.yaml#/~1health~1ready
+  /metrics:
+    $ref: ./paths/system.yaml#/~1metrics
+  /system/status:
+    $ref: ./paths/system.yaml#/~1system~1status
+  /tasks/{task_id}:
+    $ref: ./paths/system.yaml#/~1tasks~1{task_id}
+  /tasks/{task_id}/result:
+    $ref: ./paths/system.yaml#/~1tasks~1{task_id}~1result
+  /session/providers:
+    $ref: ./paths/session.yaml#/~1session~1providers
+  /session:
+    $ref: ./paths/session.yaml#/~1session
+  /session/oidc/start:
+    $ref: ./paths/session.yaml#/~1session~1oidc~1start
+  /session/oidc/callback:
+    $ref: ./paths/session.yaml#/~1session~1oidc~1callback
+  /session/password-reset:
+    $ref: ./paths/session.yaml#/~1session~1password-reset
+  /session/password-reset/confirm:
+    $ref: ./paths/session.yaml#/~1session~1password-reset~1confirm
+  /me:
+    $ref: ./paths/session.yaml#/~1me
+  /me/preferences:
+    $ref: ./paths/session.yaml#/~1me~1preferences
+  /me/password:
+    $ref: ./paths/session.yaml#/~1me~1password
+  /me/avatar:
+    $ref: ./paths/session.yaml#/~1me~1avatar
+  /users:
+    $ref: ./paths/access.yaml#/~1users
+  /users/{user_id}:
+    $ref: ./paths/access.yaml#/~1users~1{user_id}
+  /users/{user_id}/activation:
+    $ref: ./paths/access.yaml#/~1users~1{user_id}~1activation
+  /users/{user_id}/access-roles:
+    $ref: ./paths/access.yaml#/~1users~1{user_id}~1access-roles
+  /users/{user_id}/avatar:
+    $ref: ./paths/access.yaml#/~1users~1{user_id}~1avatar
+  /directory-syncs:
+    $ref: ./paths/access.yaml#/~1directory-syncs
+  /directory-syncs/latest:
+    $ref: ./paths/access.yaml#/~1directory-syncs~1latest
+  /permissions:
+    $ref: ./paths/access.yaml#/~1permissions
+  /access-roles:
+    $ref: ./paths/access.yaml#/~1access-roles
+  /access-roles/{access_role_id}:
+    $ref: ./paths/access.yaml#/~1access-roles~1{access_role_id}
+  /backups:
+    $ref: ./paths/platform.yaml#/~1backups
+  /backups/{backup_id}:
+    $ref: ./paths/platform.yaml#/~1backups~1{backup_id}
+  /backups/{backup_id}/content:
+    $ref: ./paths/platform.yaml#/~1backups~1{backup_id}~1content
+  /backup-schedule:
+    $ref: ./paths/platform.yaml#/~1backup-schedule
+  /restores:
+    $ref: ./paths/platform.yaml#/~1restores
+  /reference/readiness:
+    $ref: ./paths/reference.yaml#/~1reference~1readiness
+  /reference/settings:
+    $ref: ./paths/reference.yaml#/~1reference~1settings
+  /reference/org-nodes:
+    $ref: ./paths/reference.yaml#/~1reference~1org-nodes
+  /reference/org-nodes/{org_node_id}:
+    $ref: ./paths/reference.yaml#/~1reference~1org-nodes~1{org_node_id}
+  /reference/org-nodes/{org_node_id}/activation:
+    $ref: ./paths/reference.yaml#/~1reference~1org-nodes~1{org_node_id}~1activation
+  /reference/resource-roles:
+    $ref: ./paths/reference.yaml#/~1reference~1resource-roles
+  /reference/resource-roles/{resource_role_id}:
+    $ref: ./paths/reference.yaml#/~1reference~1resource-roles~1{resource_role_id}
+  /reference/resource-roles/{resource_role_id}/activation:
+    $ref: ./paths/reference.yaml#/~1reference~1resource-roles~1{resource_role_id}~1activation
+  /reference/calendars:
+    $ref: ./paths/reference.yaml#/~1reference~1calendars
+  /reference/calendars/{calendar_id}:
+    $ref: ./paths/reference.yaml#/~1reference~1calendars~1{calendar_id}
+  /reference/calendars/{calendar_id}/default:
+    $ref: ./paths/reference.yaml#/~1reference~1calendars~1{calendar_id}~1default
+  /reference/calendars/{calendar_id}/activation:
+    $ref: ./paths/reference.yaml#/~1reference~1calendars~1{calendar_id}~1activation
+  /reference/cost-types:
+    $ref: ./paths/reference.yaml#/~1reference~1cost-types
+  /reference/cost-types/{cost_type_id}:
+    $ref: ./paths/reference.yaml#/~1reference~1cost-types~1{cost_type_id}
+  /reference/cost-types/{cost_type_id}/activation:
+    $ref: ./paths/reference.yaml#/~1reference~1cost-types~1{cost_type_id}~1activation
+  /reference/cost-categories:
+    $ref: ./paths/reference.yaml#/~1reference~1cost-categories
+  /reference/cost-categories/{cost_category_id}:
+    $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}
+  /reference/cost-categories/{cost_category_id}/activation:
+    $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}~1activation
+  /reference/cost-categories/{cost_category_id}/hourly-rates:
+    $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}~1hourly-rates
+  /reference/cost-categories/{cost_category_id}/hourly-rates/{year}:
+    $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}~1hourly-rates~1{year}
+  /projects:
+    $ref: ./paths/projects.yaml#/~1projects
+  /projects/{project_id}:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}
+  /projects/{project_id}/state-transitions:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1state-transitions
+  /projects/{project_id}/next-state:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1next-state
+  /projects/{project_id}/exit:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1exit
+  /projects/{project_id}/work-breakdown:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1work-breakdown
+  /projects/{project_id}/subprojects:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1subprojects
+  /projects/{project_id}/subprojects/{subproject_id}:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1subprojects~1{subproject_id}
+  /projects/{project_id}/contributors:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1contributors
+  /projects/{project_id}/contributors/suggestions:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1contributors~1suggestions
+  /projects/{project_id}/timelines:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1timelines
+  /projects/{project_id}/timelines/{timeline_id}:
+    $ref: ./paths/projects.yaml#/~1projects~1{project_id}~1timelines~1{timeline_id}
+  /projects/{project_id}/revisions:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions
+  /projects/{project_id}/revisions/{revision_id}:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}
+  /projects/{project_id}/revisions/{revision_id}/mark:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1mark
+  /projects/{project_id}/reference-revision:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1reference-revision
+  /projects/{project_id}/revisions/{revision_id}/rate-update:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1rate-update
+  /projects/{project_id}/revisions/comparison:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1comparison
+  /projects/{project_id}/revisions/{revision_id}/structures:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1merge
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1{node_id}
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1{node_id}~1task
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1{node_id}~1estimate-line
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1{node_id}~1predecessors
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1{node_id}~1progress
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1{node_id}~1remaining
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1{node_id}~1tracking
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1move
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1paste-preview
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1nodes~1paste
+  /projects/{project_id}/revisions/{revision_id}/undo:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1undo
+  /projects/{project_id}/revisions/{revision_id}/redo:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1redo
+  /projects/{project_id}/revisions/{revision_id}/skeleton:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1skeleton
+  /projects/{project_id}/estimate-indicators:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1estimate-indicators
+  /projects/{project_id}/estimate-indicators/missing-rates:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1estimate-indicators~1missing-rates
+  /projects/{project_id}/workload:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1workload
+  /projects/{project_id}/remaining-indicators:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1remaining-indicators
+  /projects/{project_id}/remaining-indicators/startable-tasks:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1remaining-indicators~1startable-tasks
+  /projects/{project_id}/indicators:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators
+  /projects/{project_id}/indicators/milestone-tracking:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators~1milestone-tracking
+  /projects/{project_id}/indicators/cost-curve:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators~1cost-curve
+  /projects/{project_id}/indicators/earned-value-curves:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators~1earned-value-curves
+  /projects/{project_id}/indicators/cash-out:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators~1cash-out
+  /projects/{project_id}/risks:
+    $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks
+  /projects/{project_id}/risks/{risk_id}:
+    $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1{risk_id}
+  /projects/{project_id}/risks/{risk_id}/reviews:
+    $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1{risk_id}~1reviews
+  /projects/{project_id}/risks/{risk_id}/occurrence:
+    $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1{risk_id}~1occurrence
+  /projects/{project_id}/risks/matrix:
+    $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1matrix
+  /projects/{project_id}/actual-costs:
+    $ref: ./paths/costs.yaml#/~1projects~1{project_id}~1actual-costs
+  /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope:
+    $ref: ./paths/costs.yaml#/~1projects~1{project_id}~1actual-costs~1{cost_line_id}~1tracked-scope
+  /projects/{project_id}/cost-imports:
+    $ref: ./paths/costs.yaml#/~1projects~1{project_id}~1cost-imports
+  /file-uploads:
+    $ref: ./paths/exchanges.yaml#/~1file-uploads
+  /projects/{project_id}/imports:
+    $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1imports
+  /projects/{project_id}/imports/{import_id}:
+    $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1imports~1{import_id}
+  /projects/{project_id}/imports/{import_id}/apply:
+    $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1imports~1{import_id}~1apply
+  /projects/{project_id}/exports:
+    $ref: ./paths/exchanges.yaml#/~1projects~1{project_id}~1exports
+  /portfolio/projects:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1projects
+  /portfolio/value:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1value
+  /portfolio/workload:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1workload
+  /portfolio/performance:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1performance
+  /portfolio/cost-structure:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1cost-structure
+  /portfolio/risks:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1risks
+  /portfolio/cash-out:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1cash-out
+  /portfolio/pilot-health:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1pilot-health

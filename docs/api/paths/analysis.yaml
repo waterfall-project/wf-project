@@ -1,0 +1,242 @@
+# Indicateurs de devis, de reste à engager et de projet, et vues dérivées.
+# Un indicateur se calcule à une date et pour une maille (WF-IND-0010, WF-IND-0020) ;
+# ceux d'une révision marquée sont conservés et invariables (WF-DAT-0040).
+
+/projects/{project_id}/estimate-indicators:
+  get:
+    operationId: getEstimateIndicators
+    tags: [estimate]
+    summary: Indicateurs de devis
+    description: >-
+      Total, ventilations par nature et par sous-projet, provisions, et écart avec la
+      révision marquée précédente (WF-DEV-0060). Disponibles dès le chiffrage
+      (WF-IND-0010).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - name: revision_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - $ref: ../components/parameters.yaml#/Scope
+    responses:
+      '200':
+        description: Indicateurs de devis.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/EstimateIndicators }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/estimate-indicators/missing-rates:
+  get:
+    operationId: getMissingRates
+    tags: [estimate]
+    summary: Taux horaires manquants pour le calcul
+    description: >-
+      Les taux ne sont exigés que pour les catégories qu'un devis emploie réellement, et
+      pour son année de référence (WF-DEV-0010, WF-CYC-0120).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - name: revision_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+    responses:
+      '200':
+        description: Catégories et années sans taux.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required: [cost_category_id, year]
+                properties:
+                  cost_category_id: { $ref: ../components/common.yaml#/Uuid }
+                  label: { type: string }
+                  year: { $ref: ../components/common.yaml#/Year }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/workload:
+  get:
+    operationId: getProjectWorkload
+    tags: [estimate]
+    summary: Plan de charge du projet
+    description: >-
+      Par rôle et par mois, sur le devis d'une révision ou sur le reste à engager
+      courant, avec la capacité de chaque rôle en regard (WF-DEV-0070).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - name: basis
+        in: query
+        required: true
+        schema: { type: string, enum: [estimate, remaining] }
+      - name: revision_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: org_node_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+    responses:
+      '200':
+        description: Plan de charge.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/WorkloadPlan }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/remaining-indicators:
+  get:
+    operationId: getRemainingIndicators
+    tags: [remaining]
+    summary: Indicateurs de reste à engager
+    description: >-
+      Total, ventilations, écarts avec la référence et avec la revue précédente, et
+      dépassement par sous-projet, l'ensemble « hors sous-projet » compris
+      (WF-RAE-0020, WF-IND-0020).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - name: revision_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+    responses:
+      '200':
+        description: Indicateurs de reste à engager.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/RemainingIndicators }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/remaining-indicators/startable-tasks:
+  get:
+    operationId: listStartableTasks
+    tags: [remaining]
+    summary: Tâches à démarrer, pour le Kanban
+    description: >-
+      Les tâches non démarrées dont les prédécesseurs sont terminés, et les tâches
+      démarrées dont le reste à engager est à réestimer (WF-RAE-0030).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Tâches par état.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [not_started, started]
+              properties:
+                not_started:
+                  type: array
+                  items: { $ref: ../components/schemas/revisions.yaml#/Node }
+                started:
+                  type: array
+                  items: { $ref: ../components/schemas/revisions.yaml#/Node }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/indicators:
+  get:
+    operationId: getProjectIndicators
+    tags: [indicators]
+    summary: Indicateurs de valeur acquise
+    description: >-
+      Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager,
+      avancements, indices avec leur zone, écarts et trois projections. Calculés à partir
+      de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les
+      valeurs conservées de la dernière révision marquée antérieure (WF-DAT-0040).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/AsOf
+      - $ref: ../components/parameters.yaml#/Scope
+    responses:
+      '200':
+        description: Indicateurs.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/ProjectIndicators }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: 'Projet antérieur à l''état En cours : seuls les indicateurs de devis existent (WF-IND-0010).'
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+
+/projects/{project_id}/indicators/milestone-tracking:
+  get:
+    operationId: getMilestoneTracking
+    tags: [indicators]
+    summary: Diagramme temps/temps
+    description: >-
+      Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait,
+      en fonction de sa date de marquage ; la courbe s'arrête à la terminaison
+      (WF-IND-0090).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Séries par jalon.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/MilestoneTracking }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/indicators/cost-curve:
+  get:
+    operationId: getCostCurve
+    tags: [indicators]
+    summary: Courbe de coûts cumulés
+    description: >-
+      Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la
+      projection du chef de projet. Les changements du budget apparaissent comme des
+      marches datées (WF-IND-0100).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/AsOf
+    responses:
+      '200':
+        description: Séries cumulées.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/CurveSeries }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/indicators/earned-value-curves:
+  get:
+    operationId: getEarnedValueCurves
+    tags: [indicators]
+    summary: Courbes de valeur acquise
+    description: >-
+      Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon
+      les dates de pièce (WF-IND-0110).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/AsOf
+      - $ref: ../components/parameters.yaml#/Scope
+    responses:
+      '200':
+        description: Séries cumulées.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/CurveSeries }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/indicators/cash-out:
+  get:
+    operationId: getProjectCashOut
+    tags: [indicators]
+    summary: Projection de décaissement
+    description: >-
+      Le passé par mois de date de pièce, l'avenir en étalant le reste à engager puis en
+      décalant chaque part de son délai de paiement ; les provisions des risques
+      identifiés y figurent (WF-IND-0120).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - name: horizon_months
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 240 }
+    responses:
+      '200':
+        description: Décaissements par mois.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/indicators.yaml#/CashOut }
+      '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -1,0 +1,231 @@
+# Projet, cycle de vie, lotissement, sous-projets et contributeurs (FBS-4.2, FBS-4.9).
+
+ProjectState:
+  type: string
+  enum: [created, pricing, in_progress, completed, lost, abandoned]
+  description: >-
+    Les six états du cycle de vie, et aucun autre (WF-CYC-0010). Les libellés sont
+    rendus par le front dans la langue du lecteur (WF-ARC-0110).
+
+Project:
+  description: Attributs d'un projet (WF-PRJ-0080).
+  type: object
+  required:
+    - project_id
+    - label
+    - state
+    - inflation_rate
+    - win_probability
+    - audit
+  properties:
+    project_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    code:
+      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      description: >-
+        Code sous lequel l'ERP connaît le projet, unique dans l'installation et
+        exigé pour le passage à En cours (WF-PRJ-0010).
+    state: { $ref: '#/ProjectState' }
+    inflation_rate:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: Taux d'inflation annuel, 0 par défaut (WF-PRJ-0040).
+    win_probability:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: >-
+        Probabilité de gain, 0 par défaut, figée à partir de En cours et sans effet
+        sur aucun calcul du projet (WF-PRJ-0090).
+    order_received_on:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    reference_revision_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Révision de référence, désignée une fois à la contractualisation (WF-REV-0040).
+    current_revision_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Révision en cours d'élaboration, s'il en existe une (WF-REV-0010).
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ProjectSummary:
+  type: object
+  required: [project_id, label, state]
+  properties:
+    project_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
+    code:
+      anyOf: [{ type: string }, { type: 'null' }]
+    state: { $ref: '#/ProjectState' }
+
+ProjectCreate:
+  type: object
+  required: [label]
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    code:
+      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+
+ProjectUpdate:
+  type: object
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    code:
+      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+    inflation_rate: { $ref: ../common.yaml#/Percent }
+    win_probability: { $ref: ../common.yaml#/Percent }
+    order_received_on:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+StateTransition:
+  type: object
+  required: [from_state, to_state, occurred_at, actor]
+  description: >-
+    Transition datée du jour où elle s'est produite, non modifiable (WF-CYC-0130).
+  properties:
+    from_state:
+      anyOf: [{ $ref: '#/ProjectState' }, { type: 'null' }]
+    to_state: { $ref: '#/ProjectState' }
+    occurred_at: { $ref: ../common.yaml#/Timestamp }
+    actor: { $ref: ../common.yaml#/ActorRef }
+
+NextState:
+  type: object
+  required: [current_state, next_state, trigger, missing_conditions]
+  description: >-
+    Prochain état, son fait déclencheur et les conditions restantes, consultables
+    à tout moment avant En cours (WF-CYC-0050).
+  properties:
+    current_state: { $ref: '#/ProjectState' }
+    next_state:
+      anyOf: [{ $ref: '#/ProjectState' }, { type: 'null' }]
+    trigger:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: Code du fait déclencheur, rendu par le front (WF-ARC-0110).
+    missing_conditions:
+      type: array
+      description: Codes des conditions restantes, une par une (WF-CYC-0030, WF-CYC-0050).
+      items:
+        type: string
+        enum:
+          - reference_revision_designated
+          - at_least_one_task
+          - at_least_one_estimate_line
+          - project_code_set
+
+ProjectExit:
+  type: object
+  required: [to_state, confirmed]
+  description: >-
+    Sortie manuelle : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné
+    depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), et
+    appliquée après confirmation explicite (WF-CYC-0090).
+  properties:
+    to_state:
+      type: string
+      enum: [completed, lost, abandoned]
+    confirmed:
+      type: boolean
+      const: true
+      description: 'Faux ou absent, la sortie est refusée : la confirmation est la garde de WF-CYC-0090.'
+    reason:
+      anyOf: [{ type: string }, { type: 'null' }]
+
+WorkBreakdown:
+  type: object
+  required: [order_items]
+  description: >-
+    Lotissement : postes, lots, livrables. Sa saisie est facultative ; en son
+    absence, un poste, un lot, aucun livrable (WF-PRJ-0020).
+  properties:
+    order_items:
+      type: array
+      items: { $ref: '#/OrderItem' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+OrderItem:
+  type: object
+  required: [order_item_id, label, work_packages]
+  properties:
+    order_item_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    work_packages:
+      type: array
+      items: { $ref: '#/WorkPackage' }
+
+WorkPackage:
+  type: object
+  required: [work_package_id, label, deliverables]
+  properties:
+    work_package_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    deliverables:
+      type: array
+      items: { $ref: '#/Deliverable' }
+
+Deliverable:
+  type: object
+  required: [deliverable_id, label]
+  properties:
+    deliverable_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+
+Subproject:
+  type: object
+  required: [subproject_id, code, label, has_actual_costs, audit]
+  description: >-
+    Sous-projet, identifié par le code sous lequel l'ERP le connaît, unique dans
+    le projet. Non supprimable dès qu'un coût réel lui est imputé (WF-PRJ-0050).
+  properties:
+    subproject_id: { $ref: ../common.yaml#/Uuid }
+    code: { type: string, minLength: 1, maxLength: 50 }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    has_actual_costs: { type: boolean }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+SubprojectWrite:
+  type: object
+  required: [code, label]
+  properties:
+    code: { type: string, minLength: 1, maxLength: 50 }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+Contributor:
+  type: object
+  required: [user_id, display_name]
+  description: >-
+    Contributeur d'un projet. Toute saisie y est réservée aux contributeurs ; la
+    consultation ne dépend que des habilitations (WF-PRJ-0060).
+  properties:
+    user_id: { $ref: ../common.yaml#/Uuid }
+    display_name: { type: string }
+    is_active: { type: boolean }
+
+ContributorsWrite:
+  type: object
+  required: [user_ids]
+  properties:
+    user_ids:
+      type: array
+      items: { $ref: ../common.yaml#/Uuid }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ContributorSuggestion:
+  type: object
+  required: [user_id, display_name, org_node_id, resource_role_ids]
+  description: >-
+    Proposition fondée sur les nœuds d'organisation des rôles employés par le
+    planning ; jamais appliquée sans confirmation (WF-PRJ-0070).
+  properties:
+    user_id: { $ref: ../common.yaml#/Uuid }
+    display_name: { type: string }
+    org_node_id: { $ref: ../common.yaml#/Uuid }
+    resource_role_ids:
+      type: array
+      items: { $ref: ../common.yaml#/Uuid }

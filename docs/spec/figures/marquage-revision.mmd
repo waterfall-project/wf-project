@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    actor U as Utilisateur
+    participant A as Service d'API
+    participant F as File de tâches
+    participant W as Worker
+    participant B as PostgreSQL
+    participant C as Cache
+
+    U->>A: marque la révision
+    A->>B: vérifie le nom de version et les permissions
+    A->>F: met en file la tâche de marquage
+    A-->>U: tâche créée
+    W->>F: prend la tâche
+    rect rgb(240, 240, 240)
+        Note over W,B: transaction unique
+        W->>B: fige la révision
+        W->>B: calcule et conserve les indicateurs
+    end
+    W->>C: invalide les entrées du projet
+    W-->>U: révision marquée
+    Note over U,B: la révision suivante n'est créée qu'à la demande,<br/>ou par le premier import : c'est alors qu'a lieu la copie

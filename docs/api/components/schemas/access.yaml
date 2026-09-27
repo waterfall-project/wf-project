@@ -1,0 +1,243 @@
+# Session, comptes, rôles d'habilitation et permissions (FBS-1.1, FBS-1.2).
+# Il n'existe aucune inscription libre : un compte est créé par un utilisateur
+# habilité, importé de l'annuaire, ou créé à sa première connexion par le
+# fournisseur d'identité (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
+
+AuthProviderKind:
+  type: string
+  enum: [local, ldap, oidc]
+
+AuthProvider:
+  type: object
+  required: [kind, is_enabled]
+  description: >-
+    Fournisseur d'authentification. Les comptes locaux sont toujours actifs ;
+    l'annuaire et le fournisseur d'identité s'activent dans l'administration
+    (WF-ADM-0180, WF-ARC-0030).
+  properties:
+    kind: { $ref: '#/AuthProviderKind' }
+    is_enabled: { type: boolean }
+    label:
+      anyOf: [{ type: string }, { type: 'null' }]
+    start_url:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: Point de départ des redirections, pour un fournisseur OIDC (TFX-07).
+
+LocalCredentials:
+  type: object
+  required: [email, password]
+  properties:
+    email: { type: string, format: email }
+    password: { type: string, minLength: 12, maxLength: 200 }
+
+Session:
+  type: object
+  required: [user, permissions, language, expires_at]
+  description: >-
+    Session conservée en base, révocable immédiatement (WF-SEC-0020). Les
+    permissions effectives sont évaluées à chaque requête et renvoyées ici pour que
+    le front sache quoi présenter (WF-ADM-0110, WF-IHM-0090).
+  properties:
+    user: { $ref: '#/UserSelf' }
+    permissions:
+      type: array
+      items: { $ref: '#/PermissionCode' }
+    language:
+      type: string
+      pattern: '^[a-z]{2}$'
+      description: Langue retenue pour cette session (WF-INTF-0160).
+    expires_at: { $ref: ../common.yaml#/Timestamp }
+    idle_expires_at: { $ref: ../common.yaml#/Timestamp }
+
+PasswordResetRequest:
+  type: object
+  required: [email]
+  description: >-
+    Demande un lien de réinitialisation, valable une heure et à usage unique
+    (WF-ADM-0140). Le courriel part dans la langue du compte si elle est connue,
+    sinon dans celle de la requête (WF-ARC-0110).
+  properties:
+    email: { type: string, format: email }
+
+PasswordResetConfirm:
+  type: object
+  required: [token, password]
+  properties:
+    token: { type: string, minLength: 20 }
+    password: { type: string, minLength: 12, maxLength: 200 }
+
+PasswordChange:
+  type: object
+  required: [current_password, new_password]
+  properties:
+    current_password: { type: string }
+    new_password: { type: string, minLength: 12, maxLength: 200 }
+
+UserOrigin:
+  type: string
+  enum: [local, directory, identity_provider]
+  description: >-
+    Origine du compte : créé dans Waterfall, importé de l'annuaire, ou créé à sa
+    première connexion par le fournisseur d'identité (WF-ADM-0050).
+
+User:
+  type: object
+  required:
+    - user_id
+    - last_name
+    - first_name
+    - email
+    - is_active
+    - origin
+    - access_role_ids
+    - audit
+  properties:
+    user_id: { $ref: ../common.yaml#/Uuid }
+    last_name: { type: string, minLength: 1, maxLength: 100 }
+    first_name: { type: string, minLength: 1, maxLength: 100 }
+    email:
+      type: string
+      format: email
+      description: Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050).
+    is_active: { type: boolean }
+    origin: { $ref: '#/UserOrigin' }
+    org_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Rattachement facultatif, qui n'accorde aucune permission (WF-ADM-0030).
+    access_role_ids:
+      type: array
+      description: Un ou plusieurs rôles ; l'utilisateur dispose de l'union de leurs permissions (WF-ADM-0090).
+      items: { $ref: ../common.yaml#/Uuid }
+    language:
+      type: string
+      pattern: '^[a-z]{2}$'
+    has_avatar: { type: boolean }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+UserSelf:
+  allOf:
+    - $ref: '#/User'
+    - type: object
+      properties:
+        display_preferences: { $ref: '#/DisplayPreferences' }
+
+UserCreate:
+  type: object
+  required: [last_name, first_name, email]
+  properties:
+    last_name: { type: string, minLength: 1, maxLength: 100 }
+    first_name: { type: string, minLength: 1, maxLength: 100 }
+    email: { type: string, format: email }
+    org_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    access_role_ids:
+      type: array
+      items: { $ref: ../common.yaml#/Uuid }
+
+UserUpdate:
+  type: object
+  description: >-
+    Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne
+    sont pas modifiables ici (WF-ADM-0050).
+  properties:
+    last_name: { type: string, minLength: 1, maxLength: 100 }
+    first_name: { type: string, minLength: 1, maxLength: 100 }
+    email: { type: string, format: email }
+    org_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+UserRolesWrite:
+  type: object
+  required: [access_role_ids]
+  properties:
+    access_role_ids:
+      type: array
+      items: { $ref: ../common.yaml#/Uuid }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+DisplayPreferences:
+  type: object
+  description: >-
+    Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les
+    réglages de grille y sont conservés par grille (WF-IHM-0060).
+  properties:
+    language:
+      type: string
+      pattern: '^[a-z]{2}$'
+    highlight_tasks_added_after_reference: { type: boolean }
+    grids:
+      type: object
+      additionalProperties: { $ref: '#/GridPreferences' }
+
+GridPreferences:
+  type: object
+  properties:
+    hidden_columns:
+      type: array
+      items: { type: string }
+    column_widths:
+      type: object
+      additionalProperties: { type: integer, minimum: 20 }
+    sort:
+      type: array
+      items:
+        type: object
+        required: [column, direction]
+        properties:
+          column: { type: string }
+          direction:
+            type: string
+            enum: [asc, desc]
+    filters:
+      type: object
+      additionalProperties: true
+
+PermissionCode:
+  type: string
+  pattern: '^[a-z0-9_]+\.(read|write)$|^[a-z0-9_]+$'
+  description: >-
+    Code du catalogue, livré et non modifiable : deux permissions par fonction de
+    second niveau, plus une permission propre par action irréversible ou
+    structurante (WF-ADM-0100).
+
+Permission:
+  type: object
+  required: [code, kind]
+  properties:
+    code: { $ref: '#/PermissionCode' }
+    kind:
+      type: string
+      enum: [function_read, function_write, irreversible]
+    fbs_code:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: Fonction de second niveau couverte, pour les deux premières natures.
+
+AccessRole:
+  type: object
+  required: [access_role_id, label, permissions, is_predefined, holder_count, audit]
+  description: >-
+    Ensemble nommé de permissions (WF-ADM-0090). Les trois rôles prédéfinis sont
+    modifiables et supprimables (WF-ADM-0010) ; au moins un compte actif garde
+    toujours les permissions d'administration (WF-ADM-0120).
+  properties:
+    access_role_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 100 }
+    permissions:
+      type: array
+      items: { $ref: '#/PermissionCode' }
+    is_predefined: { type: boolean }
+    holder_count: { type: integer, minimum: 0 }
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+AccessRoleWrite:
+  type: object
+  required: [label, permissions]
+  properties:
+    label: { type: string, minLength: 1, maxLength: 100 }
+    permissions:
+      type: array
+      items: { $ref: '#/PermissionCode' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }

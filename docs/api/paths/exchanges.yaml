@@ -1,0 +1,186 @@
+# Échanges par fichier. Waterfall n'échange que par les flux FLX-01 à FLX-07
+# (WF-INTF-0150), et tout import se déroule en deux temps (WF-ARC-0100).
+
+/file-uploads:
+  post:
+    operationId: uploadFile
+    tags: [exchanges]
+    summary: Déposer un fichier
+    description: >-
+      Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import :
+      il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120).
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file: { type: string, format: binary }
+    responses:
+      '201':
+        description: Fichier déposé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/projects/{project_id}/imports:
+  get:
+    operationId: listImports
+    tags: [exchanges]
+    summary: Imports du projet
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+    responses:
+      '200':
+        description: Imports, analysés, appliqués ou abandonnés.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/exchanges.yaml#/Import }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: openImport
+    tags: [exchanges]
+    summary: Ouvrir un import et lancer son analyse
+    description: >-
+      L'analyse lit le fichier, contrôle son format et sa version, compare aux données
+      existantes et produit le compte rendu, sans rien modifier (WF-ARC-0100,
+      WF-INTF-0070, WF-INTF-0080). Les imports de planning, de devis et de reste à
+      engager s'appliquent à la révision en cours, créée au besoin (WF-INTF-0090).
+      Selon le flux : planning MS Project (WF-INTF-0040), devis (WF-INTF-0100), reste à
+      engager (WF-INTF-0120), coûts réels (WF-INTF-0140). Confiée au worker (WF-ARC-0090).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/exchanges.yaml#/ImportRequest }
+    responses:
+      '202':
+        description: Analyse mise en file.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: Projet terminal, ou fichier déjà consommé (WF-CYC-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '422':
+        description: Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+
+/projects/{project_id}/imports/{import_id}:
+  get:
+    operationId: getImport
+    tags: [exchanges]
+    summary: Compte rendu d'un import
+    description: >-
+      Lignes lues, lignes rejetées avec leur motif, et écarts avec les données
+      existantes. Le compte rendu est conservé sous forme de codes et rendu dans la
+      langue du lecteur (WF-INTF-0080, WF-ARC-0110).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/ImportId
+    responses:
+      '200':
+        description: Import et son compte rendu.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  delete:
+    operationId: abandonImport
+    tags: [exchanges]
+    summary: Abandonner un import
+    description: >-
+      Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/ImportId
+    responses:
+      '204':
+        description: Import abandonné.
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/imports/{import_id}/apply:
+  post:
+    operationId: applyImport
+    tags: [exchanges]
+    summary: Appliquer un import
+    description: >-
+      Écrit en une seule transaction ; un import interrompu laisse le projet inchangé
+      (WF-INTF-0080). Les droits, la qualité de contributeur et l'état du projet sont
+      revérifiés au moment de l'exécution (WF-ARC-0100). Un import de coûts réels
+      insère ou met à jour sur le numéro de pièce, sans toucher aux exclusions
+      (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/ImportId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/exchanges.yaml#/ImportApply }
+    responses:
+      '202':
+        description: Application mise en file.
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Compte rendu expiré, déjà appliqué, ou condition de droits ou d'état qui a
+          cessé d'être vraie depuis l'analyse (WF-ARC-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+
+/projects/{project_id}/exports:
+  post:
+    operationId: requestExport
+    tags: [exchanges]
+    summary: Demander un export
+    description: >-
+      Planning MS Project avec ses calendriers (WF-INTF-0050), devis (WF-INTF-0110),
+      reste à engager (WF-INTF-0130) — un planning exporté puis réimporté sans
+      modification restitue les mêmes tâches (WF-INTF-0060) —, ou image de l'arborescence de tâches
+      (WF-PLA-0120). Le fichier est engendré à la demande et n'est pas stocké
+      (WF-DAT-0120) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/exchanges.yaml#/ExportRequest }
+    responses:
+      '202':
+        description: Export mis en file ; le résultat se télécharge par la tâche.
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }

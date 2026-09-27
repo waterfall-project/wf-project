@@ -1,0 +1,186 @@
+# Paramètres partagés. Tous les identifiants de chemin sont des UUID (WF-DAT-0060).
+
+Limit:
+  name: limit
+  in: query
+  schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+
+Offset:
+  name: offset
+  in: query
+  schema: { type: integer, minimum: 0, default: 0 }
+
+Search:
+  name: search
+  in: query
+  description: Recherche sur le libellé.
+  schema: { type: string, minLength: 1, maxLength: 200 }
+
+IncludeInactive:
+  name: include_inactive
+  in: query
+  description: Inclut les objets désactivés, qui restent lisibles (WF-REF-0150).
+  schema: { type: boolean, default: false }
+
+ProjectId:
+  name: project_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+RevisionId:
+  name: revision_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+StructureId:
+  name: structure_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+NodeId:
+  name: node_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+UserId:
+  name: user_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+AccessRoleId:
+  name: access_role_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+OrgNodeId:
+  name: org_node_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+ResourceRoleId:
+  name: resource_role_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+CalendarId:
+  name: calendar_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+CostTypeId:
+  name: cost_type_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+CostCategoryId:
+  name: cost_category_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+SubprojectId:
+  name: subproject_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+RiskId:
+  name: risk_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+TimelineId:
+  name: timeline_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+ImportId:
+  name: import_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+CostLineId:
+  name: cost_line_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+BackupId:
+  name: backup_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+TaskId:
+  name: task_id
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Uuid }
+
+RateYear:
+  name: year
+  in: path
+  required: true
+  schema: { $ref: common.yaml#/Year }
+
+AsOf:
+  name: as_of
+  in: query
+  description: >-
+    Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au
+    jour courant ; présente, ceux de la dernière révision marquée antérieure, tels
+    qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+Scope:
+  name: scope
+  in: query
+  description: >-
+    Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors
+    sous-projet » compris (WF-IND-0020).
+  schema:
+    anyOf:
+      - type: string
+        enum: [project, unassigned]
+      - $ref: common.yaml#/Uuid
+
+PortfolioStates:
+  name: states
+  in: query
+  description: États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours.
+  schema:
+    type: array
+    items: { $ref: schemas/projects.yaml#/ProjectState }
+  explode: false
+
+PortfolioFrom:
+  name: from
+  in: query
+  description: Début de la période, pour les projets terminés et les statistiques de période.
+  schema: { $ref: common.yaml#/PlanningDate }
+
+PortfolioTo:
+  name: to
+  in: query
+  schema: { $ref: common.yaml#/PlanningDate }
+
+PortfolioOrgNode:
+  name: org_node_id
+  in: query
+  description: >-
+    Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un
+    projet n'appartient à aucun service (WF-PTF-0010).
+  schema: { $ref: common.yaml#/Uuid }

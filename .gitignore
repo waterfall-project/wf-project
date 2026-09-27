@@ -1,0 +1,8 @@
+.build/
+__pycache__/
+# Fichiers de verrou et sauvegardes de Word et draw.io
+~$*
+.$*.bkp
+images/
+stb-waterfall.docx.avant*
+docs/api/*.bundle.yaml

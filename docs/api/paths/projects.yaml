@@ -1,0 +1,406 @@
+/projects:
+  get:
+    operationId: listProjects
+    tags: [projects]
+    summary: Projets
+    description: >-
+      La consultation ne dépend que des habilitations, jamais de la qualité de
+      contributeur (WF-PRJ-0060, WF-PTF-0030).
+    parameters:
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+      - $ref: ../components/parameters.yaml#/Search
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+    responses:
+      '200':
+        description: Projets.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/projects.yaml#/Project }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createProject
+    tags: [projects]
+    summary: Créer un projet
+    description: >-
+      Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque
+      prérequis manquant (WF-CYC-0120). Le créateur est inscrit contributeur
+      (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/projects.yaml#/ProjectCreate }
+    responses:
+      '201':
+        description: Projet créé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409':
+        description: Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/projects/{project_id}:
+  get:
+    operationId: getProject
+    summary: Un projet
+    tags: [projects]
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Projet, y compris dans un état terminal où il reste consultable (WF-CYC-0110).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  patch:
+    operationId: updateProject
+    tags: [projects]
+    summary: Modifier les paramètres d'un projet
+    description: >-
+      Réservé aux contributeurs (WF-PRJ-0060) et refusé sur un projet terminal
+      (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours
+      (WF-PRJ-0090) ; le taux d'inflation l'est à tout moment et n'affecte aucune
+      révision marquée (WF-PRJ-0040).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/projects.yaml#/ProjectUpdate }
+    responses:
+      '200':
+        description: Projet modifié.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/projects/{project_id}/state-transitions:
+  get:
+    operationId: listProjectStateTransitions
+    tags: [projects]
+    summary: Historique daté des états
+    description: >-
+      Chaque transition est datée du jour où elle s'est produite et n'est pas
+      modifiable (WF-CYC-0130). C'est d'elle que dépendent les statistiques de
+      portefeuille par période (WF-PTF-0050).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Transitions, de la création à l'état courant.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/projects.yaml#/StateTransition }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/next-state:
+  get:
+    operationId: getProjectNextState
+    tags: [projects]
+    summary: Prochain état, déclencheur et conditions restantes
+    description: >-
+      Consultable à tout moment avant En cours, sans avoir tenté d'action
+      (WF-CYC-0050). Les transitions vers Chiffrage et En cours ne sont jamais des
+      commandes (WF-CYC-0020).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Prochain état et ce qui manque pour l'atteindre.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/NextState }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/exit:
+  post:
+    operationId: exitProject
+    tags: [projects]
+    summary: Sortie manuelle du cycle de vie
+    description: >-
+      Les trois seules transitions commandées : Terminé depuis En cours, Perdu depuis
+      Chiffrage, Abandonné depuis tout état non terminal (WF-CYC-0060). Irréversible
+      (WF-CYC-0080), appliquée après une confirmation qui énonce ce qu'elle rend non
+      modifiable (WF-CYC-0090), et inscrite au journal d'audit (WF-SEC-0030).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/projects.yaml#/ProjectExit }
+    responses:
+      '200':
+        description: Sortie appliquée ; le projet passe en lecture seule (WF-CYC-0100).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: Sortie non permise depuis l'état courant (WF-CYC-0060, WF-CYC-0080).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/projects/{project_id}/work-breakdown:
+  get:
+    operationId: getWorkBreakdown
+    tags: [projects]
+    summary: Lotissement
+    description: >-
+      En l'absence de saisie, un poste comprenant un lot sans livrable (WF-PRJ-0020).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Lotissement du projet.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  put:
+    operationId: setWorkBreakdown
+    tags: [projects]
+    summary: Saisir le lotissement
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+    responses:
+      '200':
+        description: Lotissement enregistré ; il ne crée aucun lien durable avec le planning (WF-PRJ-0030).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/projects/{project_id}/subprojects:
+  get:
+    operationId: listSubprojects
+    tags: [projects]
+    summary: Sous-projets
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Sous-projets, identifiés par leur code ERP (WF-PRJ-0050).
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createSubproject
+    summary: Créer un sous-projet
+    tags: [projects]
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/projects.yaml#/SubprojectWrite }
+    responses:
+      '201':
+        description: Sous-projet créé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409':
+        description: Code déjà employé dans ce projet (WF-PRJ-0050).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+
+/projects/{project_id}/subprojects/{subproject_id}:
+  patch:
+    operationId: updateSubproject
+    summary: Modifier un sous-projet
+    tags: [projects]
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/SubprojectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/projects.yaml#/SubprojectWrite }
+    responses:
+      '200':
+        description: Sous-projet modifié.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+  delete:
+    operationId: deleteSubproject
+    tags: [projects]
+    summary: Supprimer un sous-projet
+    description: >-
+      Refusée dès qu'un coût réel lui est imputé (WF-PRJ-0050) ou qu'une révision
+      marquée le référence, auquel cas il est conservé et marqué supprimé (WF-DAT-0080).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/SubprojectId
+    responses:
+      '204':
+        description: Sous-projet supprimé.
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: Sous-projet portant des coûts réels ou cité par une révision marquée.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+
+/projects/{project_id}/contributors:
+  get:
+    operationId: listContributors
+    tags: [projects]
+    summary: Contributeurs du projet
+    description: >-
+      Toute saisie est réservée aux contributeurs ; la consultation ne dépend que des
+      habilitations (WF-PRJ-0060).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Contributeurs.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/projects.yaml#/Contributor }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  put:
+    operationId: setContributors
+    tags: [projects]
+    summary: Inscrire ou retirer des contributeurs
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/projects.yaml#/ContributorsWrite }
+    responses:
+      '200':
+        description: Liste enregistrée.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/projects.yaml#/Contributor }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/projects/{project_id}/contributors/suggestions:
+  get:
+    operationId: listContributorSuggestions
+    tags: [projects]
+    summary: Contributeurs proposés
+    description: >-
+      Proposés d'après les nœuds d'organisation des rôles employés par le planning ;
+      jamais appliqués sans confirmation (WF-PRJ-0070).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Propositions.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/projects.yaml#/ContributorSuggestion }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/timelines:
+  get:
+    operationId: listTimelines
+    tags: [planning]
+    summary: Chronologies du projet
+    description: Chronologies nommées, auxquelles des tâches sont inscrites (WF-PLA-0140).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Chronologies.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createTimeline
+    summary: Créer une chronologie
+    tags: [planning]
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [label]
+            properties:
+              label: { type: string, minLength: 1, maxLength: 200 }
+    responses:
+      '201':
+        description: Chronologie créée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/timelines/{timeline_id}:
+  delete:
+    operationId: deleteTimeline
+    summary: Supprimer une chronologie
+    tags: [planning]
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/TimelineId
+    responses:
+      '204':
+        description: Chronologie supprimée ; les inscriptions le sont avec elle.
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }

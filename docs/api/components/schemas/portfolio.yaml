@@ -1,0 +1,212 @@
+# Portefeuille (FBS-2). Aucune donnée en propre : ces vues somment ce que les
+# projets portent déjà, lisent les indicateurs conservés (WF-DAT-0040) et ne
+# permettent aucune saisie (WF-PTF-0030). Un indice de portefeuille est un rapport
+# de sommes, jamais une moyenne d'indices (WF-PTF-0020).
+
+PortfolioScope:
+  type: object
+  required: [states, as_of, project_count]
+  description: Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010).
+  properties:
+    states:
+      type: array
+      items: { $ref: projects.yaml#/ProjectState }
+    as_of: { $ref: ../common.yaml#/PlanningDate }
+    from:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    to:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    org_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    project_count: { type: integer, minimum: 0 }
+
+PortfolioProjectRow:
+  type: object
+  required: [project_id, label, state, last_marked_at]
+  description: Ligne de la liste des projets (WF-PTF-0040).
+  properties:
+    project_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
+    code:
+      anyOf: [{ type: string }, { type: 'null' }]
+    state: { $ref: projects.yaml#/ProjectState }
+    reference_budget:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+    current_estimate:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: Devis courant, présenté à la place du budget pour un projet en chiffrage.
+    win_probability:
+      anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
+    project_manager_projection:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+    cost_index:
+      anyOf: [{ $ref: indicators.yaml#/IndexValue }, { type: 'null' }]
+    schedule_index:
+      anyOf: [{ $ref: indicators.yaml#/IndexValue }, { type: 'null' }]
+    last_marked_at:
+      anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+
+PortfolioValue:
+  type: object
+  required: [scope, order_book, pipeline_gross, pipeline_weighted, delivered, conversion_rate]
+  description: >-
+    Carnet, pipeline brut et pondéré, réalisé, et taux de transformation
+    (WF-PTF-0050).
+  properties:
+    scope: { $ref: '#/PortfolioScope' }
+    order_book: { $ref: ../common.yaml#/Money }
+    pipeline_gross: { $ref: ../common.yaml#/Money }
+    pipeline_weighted: { $ref: ../common.yaml#/Money }
+    delivered: { $ref: ../common.yaml#/Money }
+    conversion_rate: { $ref: indicators.yaml#/Computable }
+
+PortfolioWorkload:
+  type: object
+  required: [scope, roles]
+  description: >-
+    Charges sommées par rôle et par mois : sur le reste à engager pour les projets
+    en cours, sur le devis pondéré pour les projets en chiffrage inclus
+    (WF-PTF-0060).
+  properties:
+    scope: { $ref: '#/PortfolioScope' }
+    under_load_threshold: { $ref: ../common.yaml#/Percent }
+    roles:
+      type: array
+      items:
+        type: object
+        required: [resource_role_id, label, months]
+        properties:
+          resource_role_id: { $ref: ../common.yaml#/Uuid }
+          label: { type: string }
+          capacity_monthly_hours: { $ref: ../common.yaml#/Hours }
+          months:
+            type: array
+            items:
+              type: object
+              required: [month, hours, load_ratio]
+              properties:
+                month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+                hours: { $ref: ../common.yaml#/Hours }
+                load_ratio: { $ref: indicators.yaml#/Computable }
+                zone: { $ref: reference.yaml#/AlertZone }
+
+PortfolioPerformance:
+  type: object
+  required: [scope, cost_index, schedule_index, projections, zone_distribution, quarterly]
+  description: Indices agrégés, répartition par zone et évolution trimestrielle (WF-PTF-0070).
+  properties:
+    scope: { $ref: '#/PortfolioScope' }
+    reference_budget: { $ref: ../common.yaml#/Money }
+    cost_index: { $ref: indicators.yaml#/IndexValue }
+    schedule_index: { $ref: indicators.yaml#/IndexValue }
+    cost_variance: { $ref: ../common.yaml#/Money }
+    schedule_variance: { $ref: ../common.yaml#/Money }
+    projections: { $ref: indicators.yaml#/Projections }
+    zone_distribution:
+      type: array
+      items:
+        type: object
+        required: [index, zone, project_count]
+        properties:
+          index:
+            type: string
+            enum: [cost, schedule]
+          zone: { $ref: reference.yaml#/AlertZone }
+          project_count: { type: integer, minimum: 0 }
+    quarterly:
+      type: array
+      items:
+        type: object
+        required: [quarter, cost_index, schedule_index]
+        properties:
+          quarter: { type: string, pattern: '^\d{4}-Q[1-4]$' }
+          cost_index: { $ref: indicators.yaml#/Computable }
+          schedule_index: { $ref: indicators.yaml#/Computable }
+
+PortfolioCostStructure:
+  type: object
+  required: [scope, budget_by_cost_type, remaining_by_cost_type, labor_by_org_node]
+  description: >-
+    Ventilation par nature du budget de référence et du reste à engager, et
+    main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par
+    nature (WF-PTF-0080).
+  properties:
+    scope: { $ref: '#/PortfolioScope' }
+    budget_by_cost_type:
+      type: array
+      items: { $ref: indicators.yaml#/AmountByKey }
+    remaining_by_cost_type:
+      type: array
+      items: { $ref: indicators.yaml#/AmountByKey }
+    labor_by_org_node:
+      type: array
+      items: { $ref: indicators.yaml#/AmountByKey }
+
+PortfolioRisks:
+  type: object
+  required: [scope, identified_total, heaviest, matrix, period_outcome]
+  description: Risques tous projets confondus (WF-PTF-0090).
+  properties:
+    scope: { $ref: '#/PortfolioScope' }
+    identified_total: { $ref: ../common.yaml#/Money }
+    heaviest:
+      type: array
+      items:
+        type: object
+        required: [risk_id, label, project_id, project_label, provision_amount]
+        properties:
+          risk_id: { $ref: ../common.yaml#/Uuid }
+          label: { type: string }
+          project_id: { $ref: ../common.yaml#/Uuid }
+          project_label: { type: string }
+          provision_amount: { $ref: ../common.yaml#/Money }
+    matrix: { $ref: risks.yaml#/RiskMatrix }
+    period_outcome:
+      type: object
+      required: [occurred_provisions, dismissed_provisions]
+      properties:
+        occurred_provisions: { $ref: ../common.yaml#/Money }
+        dismissed_provisions: { $ref: ../common.yaml#/Money }
+
+PortfolioCashOut:
+  type: object
+  required: [scope, months]
+  description: Somme des projections de décaissement des projets du périmètre (WF-PTF-0100).
+  properties:
+    scope: { $ref: '#/PortfolioScope' }
+    months:
+      type: array
+      items:
+        type: object
+        required: [month, past, forecast]
+        properties:
+          month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+          past: { $ref: ../common.yaml#/Money }
+          forecast: { $ref: ../common.yaml#/Money }
+
+PilotHealth:
+  type: object
+  required: [scope, signals]
+  description: >-
+    Quatre signaux qui se constatent sans jugement, et dont l'absence rend les
+    autres vues trompeuses (WF-PTF-0110).
+  properties:
+    scope: { $ref: '#/PortfolioScope' }
+    signals:
+      type: array
+      items:
+        type: object
+        required: [project_id, project_label, code]
+        properties:
+          project_id: { $ref: ../common.yaml#/Uuid }
+          project_label: { type: string }
+          code:
+            type: string
+            enum:
+              - review_overdue
+              - risks_not_reviewed
+              - no_actual_cost_since_last_review
+              - contractual_milestone_overdue
+          params:
+            type: object
+            additionalProperties: true

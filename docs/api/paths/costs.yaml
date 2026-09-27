@@ -1,0 +1,104 @@
+/projects/{project_id}/actual-costs:
+  get:
+    operationId: listActualCosts
+    tags: [actual-costs]
+    summary: Coûts réels du projet
+    description: >-
+      Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du
+      périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes
+      conservées du fichier sont restituées (WF-CRE-0010).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+      - name: subproject_id
+        in: query
+        description: '`unassigned` pour les lignes imputées au seul projet (WF-CRE-0020).'
+        schema:
+          anyOf:
+            - type: string
+              enum: [unassigned]
+            - $ref: ../components/common.yaml#/Uuid
+      - name: from
+        in: query
+        schema: { $ref: ../components/common.yaml#/PlanningDate }
+      - name: to
+        in: query
+        schema: { $ref: ../components/common.yaml#/PlanningDate }
+      - name: in_tracked_scope
+        in: query
+        schema: { type: boolean }
+    responses:
+      '200':
+        description: Lignes de coût et les trois totaux.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, totals, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/costs.yaml#/ActualCostLine }
+                totals: { $ref: ../components/schemas/costs.yaml#/ActualCostTotals }
+                last_import_at:
+                  anyOf:
+                    - $ref: ../components/common.yaml#/Timestamp
+                    - type: 'null'
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope:
+  put:
+    operationId: setActualCostTrackedScope
+    tags: [actual-costs]
+    summary: Exclure une ligne du périmètre suivi, ou la réintégrer
+    description: >-
+      Une ligne exclue reste consultable et n'entre dans aucun indicateur ; l'exclusion
+      est conservée lors des imports ultérieurs, même quand les périodes se recouvrent
+      (WF-CRE-0030). L'exclusion est une action irréversible au sens du journal d'audit
+      (WF-SEC-0030) et demande sa propre permission (WF-ADM-0100).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/CostLineId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/costs.yaml#/ScopeExclusion }
+    responses:
+      '200':
+        description: Ligne exclue ou réintégrée ; les totaux suivent immédiatement.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/costs.yaml#/ActualCostLine }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/projects/{project_id}/cost-imports:
+  get:
+    operationId: listCostImports
+    tags: [actual-costs]
+    summary: Journal des imports de coûts réels
+    description: >-
+      Date, auteur, période extraite et nombre de lignes créées, mises à jour et
+      ignorées : de quand datent les chiffres qu'on lit (WF-CRE-0050).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+    responses:
+      '200':
+        description: Entrées du journal, de la plus récente à la plus ancienne.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/costs.yaml#/CostImport }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '404': { $ref: ../components/responses.yaml#/NotFound }

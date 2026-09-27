@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor U as Utilisateur
+    participant A as Service d'API
+    participant S as Stockage objet
+    participant F as File de tâches
+    participant W as Worker
+    participant B as PostgreSQL
+
+    U->>A: dépose le fichier
+    A->>S: écrit le fichier
+    A->>F: met en file la tâche d'analyse
+    A-->>U: tâche créée
+    W->>F: prend la tâche
+    W->>S: lit le fichier
+    W->>B: compare aux données existantes
+    W->>B: conserve le compte rendu
+    W-->>U: compte rendu disponible
+    alt L'utilisateur confirme
+        U->>A: demande l'application
+        A->>F: met en file la tâche d'application
+        W->>F: prend la tâche
+        W->>B: applique en une transaction unique
+        W->>S: supprime le fichier
+        W-->>U: import appliqué
+    else L'utilisateur abandonne ou laisse expirer
+        W->>S: supprime le fichier
+        Note over B: le projet est inchangé
+    end

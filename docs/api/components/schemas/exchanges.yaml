@@ -1,0 +1,152 @@
+# Échanges par fichier (FLX-01 à FLX-07) et traitements de fond.
+# Waterfall n'échange que par ces sept flux (WF-INTF-0150). Un import se déroule
+# en deux temps séparés par la décision de l'utilisateur (WF-ARC-0100), et son
+# analyse comme son application sont exécutées par le worker (WF-ARC-0090).
+
+FileUpload:
+  type: object
+  required: [upload_id, filename, size_bytes, uploaded_at, expires_at]
+  description: >-
+    Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué,
+    abandonné ou expiré (WF-DAT-0120, WF-ARC-0100).
+  properties:
+    upload_id: { $ref: ../common.yaml#/Uuid }
+    filename: { type: string }
+    size_bytes: { type: integer, minimum: 1 }
+    uploaded_at: { $ref: ../common.yaml#/Timestamp }
+    expires_at: { $ref: ../common.yaml#/Timestamp }
+
+ExchangeKind:
+  type: string
+  enum:
+    - ms_project_schedule
+    - estimate
+    - remaining
+    - actual_costs
+  description: >-
+    FLX-01 et FLX-02 pour le planning MS Project, FLX-03 et FLX-04 pour le devis,
+    FLX-05 et FLX-06 pour le reste à engager, FLX-07 pour les coûts réels.
+
+ImportRequest:
+  type: object
+  required: [kind, upload_id]
+  description: >-
+    Ouvre un import : l'analyse lit le fichier, contrôle son format et sa version,
+    compare aux données existantes et produit un compte rendu, sans rien modifier
+    (WF-ARC-0100, WF-INTF-0070, WF-INTF-0080). L'import s'applique à la révision en
+    cours, créée au besoin (WF-INTF-0090).
+  properties:
+    kind: { $ref: '#/ExchangeKind' }
+    upload_id: { $ref: ../common.yaml#/Uuid }
+    structure_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Structure visée ; la structure principale par défaut.
+    period_from:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    period_to:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+
+Import:
+  type: object
+  required: [import_id, kind, status, created_at, expires_at]
+  properties:
+    import_id: { $ref: ../common.yaml#/Uuid }
+    kind: { $ref: '#/ExchangeKind' }
+    status:
+      type: string
+      enum: [analysing, analysed, applying, applied, abandoned, expired, failed]
+    created_at: { $ref: ../common.yaml#/Timestamp }
+    expires_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: Vingt-quatre heures après l'analyse ; au-delà le compte rendu ne s'applique plus (WF-ARC-0100).
+    report:
+      anyOf: [{ $ref: '#/ImportReport' }, { type: 'null' }]
+    task: { $ref: ../common.yaml#/BackgroundTaskRef }
+
+ImportReport:
+  type: object
+  required: [read_count, rejected, differences]
+  description: >-
+    Compte rendu présenté avant application : lignes lues, lignes rejetées avec
+    leur motif, et écarts avec les données existantes (WF-INTF-0080).
+  properties:
+    format_version:
+      anyOf: [{ type: string }, { type: 'null' }]
+    read_count: { type: integer, minimum: 0 }
+    rejected:
+      type: array
+      items: { $ref: '#/ImportRejection' }
+    differences:
+      type: array
+      items: { $ref: '#/ImportDifference' }
+    requires_confirmation_reasons:
+      type: array
+      description: >-
+        Motifs d'une confirmation explicite, dont l'écart entre les dates du fichier
+        et celles recalculées par Waterfall (WF-INTF-0040).
+      items:
+        type: string
+        enum: [date_or_duration_mismatch, lines_outside_project, unknown_subproject]
+
+ImportRejection:
+  type: object
+  required: [row, code]
+  properties:
+    row: { type: integer, minimum: 1 }
+    code: { type: string }
+    params:
+      type: object
+      additionalProperties: true
+
+ImportDifference:
+  type: object
+  required: [change, target]
+  properties:
+    change:
+      type: string
+      enum: [added, removed, updated]
+    target:
+      type: string
+      enum: [task, estimate_line, link, actual_cost_line]
+    lineage_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    label:
+      anyOf: [{ type: string }, { type: 'null' }]
+    fields:
+      type: array
+      items: { type: string }
+
+ImportApply:
+  type: object
+  required: [confirmed]
+  description: >-
+    Applique l'import en une seule transaction. Les droits et l'état du projet sont
+    revérifiés au moment de l'exécution : un import confirmé n'est pas appliqué si
+    l'une des conditions a cessé d'être vraie depuis l'analyse (WF-ARC-0100).
+  properties:
+    confirmed:
+      type: boolean
+      const: true
+
+ExportRequest:
+  type: object
+  required: [kind]
+  description: >-
+    Demande un export. Le fichier est engendré à la demande et transmis sans être
+    stocké (WF-DAT-0120). Les en-têtes des formats Excel ne dépendent pas de la
+    langue (WF-INTF-0180).
+  properties:
+    kind:
+      type: string
+      enum:
+        - ms_project_schedule
+        - estimate
+        - remaining
+        - task_tree_image
+    revision_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    structure_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    depth:
+      anyOf: [{ type: integer, minimum: 1 }, { type: 'null' }]
+      description: Niveau retenu pour l'image d'arborescence (WF-PLA-0120).

@@ -1,0 +1,326 @@
+/users:
+  get:
+    operationId: listUsers
+    tags: [users]
+    summary: Comptes utilisateurs
+    parameters:
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+      - $ref: ../components/parameters.yaml#/Search
+      - $ref: ../components/parameters.yaml#/IncludeInactive
+    responses:
+      '200':
+        description: Comptes, les désactivés restant lisibles (WF-ADM-0060).
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/access.yaml#/User }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createUser
+    tags: [users]
+    summary: Créer un compte local
+    description: >-
+      Il n'existe aucune inscription libre : un compte est créé ici, importé de
+      l'annuaire, ou créé à sa première connexion par le fournisseur d'identité
+      (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180). Le mot de passe est fixé par
+      l'utilisateur au premier accès.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/UserCreate }
+    responses:
+      '201':
+        description: Compte créé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/User }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409':
+        description: Adresse électronique déjà portée par un autre compte (WF-ADM-0050).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+
+/users/{user_id}:
+  get:
+    operationId: getUser
+    summary: Un compte utilisateur
+    tags: [users]
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    responses:
+      '200':
+        description: Compte.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/User }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  patch:
+    operationId: updateUser
+    tags: [users]
+    summary: Modifier un compte
+    description: >-
+      Le nom, le prénom et l'adresse d'un compte venu d'un fournisseur externe ne sont
+      pas modifiables ici (WF-ADM-0050). Aucun écran ne propose de supprimer un compte
+      (WF-ADM-0060).
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/UserUpdate }
+    responses:
+      '200':
+        description: Compte modifié.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/User }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/users/{user_id}/activation:
+  put:
+    operationId: setUserActivation
+    tags: [users]
+    summary: Désactiver ou réactiver un compte
+    description: >-
+      Un compte se désactive, jamais ne se supprime : ses actes doivent rester
+      attribuables (WF-ADM-0060). La désactivation révoque toutes ses sessions
+      (WF-SEC-0020) et est refusée s'il est le dernier à porter les permissions
+      d'administration (WF-ADM-0120).
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [is_active]
+            properties:
+              is_active: { type: boolean }
+              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+    responses:
+      '200':
+        description: Compte activé ou désactivé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/User }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: Dernier compte portant les permissions d'administration (WF-ADM-0120).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+
+/users/{user_id}/access-roles:
+  put:
+    operationId: setUserAccessRoles
+    tags: [users]
+    summary: Attribuer les rôles d'habilitation d'un compte
+    description: >-
+      Un utilisateur porte un ou plusieurs rôles et dispose de l'union de leurs
+      permissions ; la modification s'applique immédiatement, sans reconnexion
+      (WF-ADM-0090). Le retrait de tous ses rôles révoque ses sessions (WF-SEC-0020).
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/UserRolesWrite }
+    responses:
+      '200':
+        description: Rôles attribués.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/User }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/users/{user_id}/avatar:
+  get:
+    operationId: getUserAvatar
+    tags: [users]
+    summary: Avatar d'un compte
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    responses:
+      '200':
+        description: Image de l'avatar.
+        content:
+          image/png:
+            schema: { type: string, format: binary }
+          image/jpeg:
+            schema: { type: string, format: binary }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/directory-syncs:
+  post:
+    operationId: startDirectorySync
+    tags: [users]
+    summary: Resynchroniser les comptes depuis l'annuaire
+    description: >-
+      Crée les comptes absents, met à jour les trois attributs d'identité des comptes
+      importés, et désactive les comptes importés que l'annuaire ne connaît plus. Les
+      comptes créés dans Waterfall ne sont pas concernés, et aucun rôle n'est attribué
+      (WF-ADM-0070). Confiée au worker (WF-ARC-0090).
+    responses:
+      '202':
+        description: Synchronisation mise en file.
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409':
+        description: Aucun annuaire activé (WF-ADM-0180).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/directory-syncs/latest:
+  get:
+    operationId: getLatestDirectorySync
+    tags: [users]
+    summary: Résultat de la dernière synchronisation
+    responses:
+      '200':
+        description: Compte rendu de la dernière synchronisation (WF-ADM-0070, WF-ADM-0130).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/DirectorySyncResult }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/permissions:
+  get:
+    operationId: listPermissions
+    tags: [access]
+    summary: Catalogue des permissions
+    description: >-
+      Deux permissions par fonction de second niveau, plus une permission propre par
+      action irréversible ou structurante. Le catalogue est livré et non modifiable :
+      aucun écran ne permet d'en créer une (WF-ADM-0100).
+    responses:
+      '200':
+        description: Catalogue complet.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/access.yaml#/Permission }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
+/access-roles:
+  get:
+    operationId: listAccessRoles
+    tags: [access]
+    summary: Rôles d'habilitation
+    responses:
+      '200':
+        description: Rôles, dont les trois prédéfinis (WF-ADM-0010).
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/access.yaml#/AccessRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: createAccessRole
+    tags: [access]
+    summary: Composer un rôle d'habilitation
+    description: >-
+      Tout jeu de permissions peut être composé : aucune action n'est réservée à un
+      acteur (WF-ADM-0020).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/AccessRoleWrite }
+    responses:
+      '201':
+        description: Rôle créé.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/access-roles/{access_role_id}:
+  get:
+    operationId: getAccessRole
+    summary: Un rôle d'habilitation
+    tags: [access]
+    parameters:
+      - $ref: ../components/parameters.yaml#/AccessRoleId
+    responses:
+      '200':
+        description: Rôle.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  patch:
+    operationId: updateAccessRole
+    tags: [access]
+    summary: Modifier un rôle
+    description: La modification s'applique immédiatement à tous ses porteurs (WF-ADM-0090).
+    parameters:
+      - $ref: ../components/parameters.yaml#/AccessRoleId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/AccessRoleWrite }
+    responses:
+      '200':
+        description: Rôle modifié.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Le rôle est le dernier à porter les permissions d'administration
+          (WF-ADM-0120).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+  delete:
+    operationId: deleteAccessRole
+    tags: [access]
+    summary: Supprimer un rôle
+    description: Refusé tant qu'un compte le porte (WF-ADM-0090, WF-ADM-0120).
+    parameters:
+      - $ref: ../components/parameters.yaml#/AccessRoleId
+    responses:
+      '204':
+        description: Rôle supprimé.
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: Rôle encore porté par un compte (WF-ADM-0090).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }

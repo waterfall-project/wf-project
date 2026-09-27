@@ -1,0 +1,18 @@
+# Contrôles appliqués au contrat. La chaîne CI/CD les exécute et ils sont
+# bloquants (WF-QUA-0030, WF-ARC-0060).
+extends:
+  - recommended
+apis:
+  waterfall:
+    root: openapi.yaml
+rules:
+  # Deux règles de style ne s'appliquent pas à ce contrat et restent des
+  # avertissements assumés : une sonde de vivacité n'a pas de réponse 4xx, et un
+  # départ de redirection OIDC n'a pas de réponse 2xx.
+  operation-4xx-response: warn
+  operation-2xx-response: warn
+  operation-operationId: error
+  operation-summary: error
+  operation-description: warn
+  no-unresolved-refs: error
+  security-defined: error

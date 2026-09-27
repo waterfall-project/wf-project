@@ -1,0 +1,558 @@
+# Révisions, structures de coûts et arbre commun (FBS-4.1, FBS-4.3, FBS-4.4, FBS-4.5).
+#
+# Une révision est un instantané complet (WF-REV-0030) ; elle possède en propre
+# toutes les lignes qui la décrivent (WF-DAT-0010). L'arbre est commun au planning
+# et au devis : les mêmes tâches, vues du côté du temps ou du côté de l'argent
+# (§3.5.1). Une tâche porte ses lignes de devis (WF-DEV-0020).
+
+RevisionStatus:
+  type: string
+  enum: [draft, marked]
+  description: En cours d'élaboration, ou marquée — et alors immuable (WF-REV-0020, WF-REV-0090).
+
+Revision:
+  type: object
+  required: [revision_id, project_id, status, is_reference, audit]
+  properties:
+    revision_id: { $ref: ../common.yaml#/Uuid }
+    project_id: { $ref: ../common.yaml#/Uuid }
+    version_name:
+      anyOf: [{ type: string, maxLength: 100 }, { type: 'null' }]
+      description: >-
+        Nom de version saisi au marquage, unique parmi les révisions marquées du
+        projet (WF-REV-0020). Nul tant que la révision est en cours.
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    status: { $ref: '#/RevisionStatus' }
+    marked_at:
+      anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+    is_reference:
+      type: boolean
+      description: Caractère de révision de référence (WF-REV-0040, WF-REV-0090).
+    snapshot:
+      anyOf: [{ $ref: '#/RevisionSnapshot' }, { type: 'null' }]
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RevisionSnapshot:
+  type: object
+  required: [inflation_rate, win_probability, employed_reference]
+  description: >-
+    Ce que la révision conserve de son contexte : les paramètres du projet qui ont
+    servi à la calculer et les seules valeurs du référentiel qu'elle emploie
+    (WF-REV-0030).
+  properties:
+    inflation_rate: { $ref: ../common.yaml#/Percent }
+    win_probability: { $ref: ../common.yaml#/Percent }
+    employed_reference: { $ref: '#/EmployedReference' }
+
+EmployedReference:
+  type: object
+  required: [resource_roles, calendars, cost_categories, hourly_rates]
+  description: Images des objets du référentiel employés, figées au marquage (WF-REV-0030, WF-REF-0130).
+  properties:
+    resource_roles:
+      type: array
+      items: { $ref: reference.yaml#/ResourceRole }
+    calendars:
+      type: array
+      items: { $ref: reference.yaml#/Calendar }
+    cost_categories:
+      type: array
+      items: { $ref: reference.yaml#/CostCategory }
+    hourly_rates:
+      type: array
+      items: { $ref: reference.yaml#/HourlyRate }
+
+RevisionCreate:
+  type: object
+  description: >-
+    Crée la révision en cours par copie de la dernière révision marquée
+    (WF-REV-0010, WF-DAT-0010). Un projet n'en comporte qu'une à la fois.
+  properties:
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    apply_rate_update:
+      type: boolean
+      default: false
+      description: >-
+        Applique la mise à jour des taux proposée par WF-REV-0060. Jamais imposée :
+        la valeur par défaut conserve les taux de la révision source.
+
+RevisionMark:
+  type: object
+  required: [version_name]
+  description: >-
+    Marque la révision. Le marquage fige la révision et calcule ses indicateurs
+    dans la même transaction (WF-REV-0020, WF-DAT-0040) ; il est confié au worker
+    et renvoie une tâche de fond (WF-ARC-0090).
+  properties:
+    version_name: { type: string, minLength: 1, maxLength: 100 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ReferenceDesignation:
+  type: object
+  required: [revision_id, confirmed]
+  description: >-
+    Désigne la révision de référence parmi les révisions marquées. Corrigible tant
+    que le projet n'a ni coût réel ni révision marquée postérieure ; au-delà, la
+    référence ne se déplace plus que par avenant ou risque survenu (WF-REV-0040).
+  properties:
+    revision_id: { $ref: ../common.yaml#/Uuid }
+    confirmed:
+      type: boolean
+      const: true
+
+RateUpdateProposal:
+  type: object
+  required: [categories]
+  description: >-
+    Écart de taux proposé catégorie par catégorie à la création d'une révision.
+    Une catégorie sans taux pour l'année retenue conserve son taux précédent,
+    projeté par le taux d'inflation (WF-REV-0060).
+  properties:
+    target_year: { $ref: ../common.yaml#/Year }
+    categories:
+      type: array
+      items:
+        type: object
+        required: [cost_category_id, previous_amount, proposed_amount, source]
+        properties:
+          cost_category_id: { $ref: ../common.yaml#/Uuid }
+          previous_amount: { $ref: ../common.yaml#/Money }
+          proposed_amount: { $ref: ../common.yaml#/Money }
+          source:
+            type: string
+            enum: [reference_rate, inflated_previous]
+
+StructureKind:
+  type: string
+  enum: [main, amendment, risk]
+  description: >-
+    Nature de la structure de coûts : principale, différentiel d'avenant, ou devis
+    propre d'un risque (WF-REV-0100, WF-REV-0050, WF-RIS-0030).
+
+CostStructure:
+  type: object
+  required: [structure_id, revision_id, kind, label, is_merged]
+  properties:
+    structure_id: { $ref: ../common.yaml#/Uuid }
+    revision_id: { $ref: ../common.yaml#/Uuid }
+    kind: { $ref: '#/StructureKind' }
+    label: { type: string, maxLength: 300 }
+    risk_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Renseigné pour une structure de nature `risk` (WF-RIS-0030).
+    is_merged:
+      type: boolean
+      description: Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050).
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+StructureCreate:
+  type: object
+  required: [kind, label]
+  properties:
+    kind: { $ref: '#/StructureKind' }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    risk_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+
+StructureMerge:
+  type: object
+  required: [confirmed, version_name]
+  description: >-
+    Fusionne le différentiel dans la structure principale : la fusion ne touche que
+    les montants budgétés des lignes qu'il désigne. Elle s'applique à la révision en
+    cours et la marque dans la même opération, d'où le nom de version exigé, et la
+    révision produite devient la référence (WF-REV-0050). Confiée au worker.
+  properties:
+    confirmed:
+      type: boolean
+      const: true
+    version_name: { type: string, minLength: 1, maxLength: 100 }
+
+NodeKind:
+  type: string
+  enum: [task, estimate_line]
+  description: >-
+    Un nœud de l'arbre est une tâche ou une ligne de devis. La ligne est portée par
+    la tâche sous laquelle elle est placée (WF-DEV-0020).
+
+Node:
+  type: object
+  required: [node_id, lineage_id, kind, parent_id, position, row_number, level]
+  description: >-
+    `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable
+    d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et
+    les inscriptions aux suivis (WF-DAT-0030).
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    lineage_id: { $ref: ../common.yaml#/Uuid }
+    kind: { $ref: '#/NodeKind' }
+    parent_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    position: { type: integer, minimum: 0 }
+    row_number: { type: integer, minimum: 1 }
+    level: { type: integer, minimum: 1 }
+    task:
+      anyOf: [{ $ref: '#/TaskFacet' }, { type: 'null' }]
+    estimate_line:
+      anyOf: [{ $ref: '#/EstimateLineFacet' }, { type: 'null' }]
+    predecessors:
+      type: array
+      items: { $ref: '#/Predecessor' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+TaskProgress:
+  type: string
+  enum: [not_started, started, completed]
+  description: État d'avancement d'une tâche (WF-PLA-0130, WF-RAE-0030).
+
+SchedulingMode:
+  type: string
+  enum: [automatic, manual]
+  description: >-
+    Mode de planification de la tâche : dates calculées depuis les liaisons, ou
+    saisies (WF-PLA-0020).
+
+TaskFacet:
+  type: object
+  required:
+    - label
+    - scheduling_mode
+    - duration_days
+    - start_date
+    - finish_date
+    - progress
+    - is_summary
+    - is_milestone
+  description: >-
+    Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique,
+    dates et durée d'une récapitulative, marge, criticité, avancement physique —
+    ne sont pas saisissables (WF-IHM-0030).
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    scheduling_mode: { $ref: '#/SchedulingMode' }
+    duration_days: { type: integer, minimum: 0 }
+    start_date:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    finish_date:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    progress: { $ref: '#/TaskProgress' }
+    started_on:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    completed_on:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030).
+    is_summary:
+      type: boolean
+      description: 'Récapitulative : son état est dérivé de ses subordonnées, non saisissable (WF-PLA-0040).'
+    is_milestone:
+      type: boolean
+      description: Jalon, tâche de durée nulle (WF-PLA-0050).
+    calendar_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Calendrier applicable, résolu à la lecture : intersection des calendriers
+        des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010).
+    total_float_days:
+      anyOf: [{ type: integer }, { type: 'null' }]
+    is_critical:
+      type: boolean
+      description: Appartenance au chemin critique, calculée (WF-PLA-0100).
+    physical_progress:
+      anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
+      description: Avancement physique d'une récapitulative, calculé (WF-IND-0060).
+    tracking:
+      type: array
+      description: Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060).
+      items: { $ref: '#/TrackingEntry' }
+
+EstimateLineFacet:
+  type: object
+  required:
+    - label
+    - cost_category_id
+    - quantity
+    - budgeted_amount
+    - reestimated_amount
+    - is_computed
+  description: >-
+    Facette argent d'un nœud. Les deux montants sont calculés et non saisissables :
+    le budgété est fixé par la révision de référence et nul pour une ligne ajoutée
+    après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-DEV-0030).
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    quantity: { $ref: ../common.yaml#/Decimal }
+    resource_role_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Exigé pour une catégorie de main-d'œuvre, absent sinon (WF-DEV-0020).
+    hours:
+      anyOf: [{ $ref: ../common.yaml#/Hours }, { type: 'null' }]
+    unit_disbursement:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: Débours unitaire d'une ligne hors main-d'œuvre (WF-DEV-0020).
+    payment_delay_days:
+      anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
+      description: Délai de paiement, employé par la projection de décaissement (WF-IND-0120).
+    subproject_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020).
+    budgeted_amount: { $ref: ../common.yaml#/Money }
+    reestimated_amount: { $ref: ../common.yaml#/Money }
+    consumption_year:
+      anyOf: [{ $ref: ../common.yaml#/Year }, { type: 'null' }]
+      description: Année de consommation, déduite du planning (WF-DEV-0040).
+    is_computed:
+      type: boolean
+      description: >-
+        Vrai pour une ligne de provision, dont le montant est calculé depuis le
+        risque et jamais saisi (WF-RIS-0010).
+    bearing_task_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Tâche porteuse, résolue à la lecture.
+    bearing_task_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+
+LinkType:
+  type: string
+  enum: [finish_to_start, start_to_start, finish_to_finish, start_to_finish]
+  description: Les quatre types de liaison (WF-PLA-0030).
+
+Predecessor:
+  type: object
+  required: [predecessor_node_id, link_type, lag_days]
+  properties:
+    predecessor_node_id: { $ref: ../common.yaml#/Uuid }
+    link_type: { $ref: '#/LinkType' }
+    lag_days: { type: integer }
+
+PredecessorsReplace:
+  type: object
+  required: [predecessors]
+  properties:
+    predecessors:
+      type: array
+      items: { $ref: '#/Predecessor' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+TrackingEntry:
+  type: object
+  required: [kind]
+  properties:
+    kind:
+      type: string
+      enum: [timeline, milestone_tracking]
+    timeline_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+
+Timeline:
+  type: object
+  required: [timeline_id, label]
+  description: Chronologie nommée, à laquelle des tâches sont inscrites (WF-PLA-0140, WF-PLA-0060).
+  properties:
+    timeline_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 200 }
+
+NodeCreate:
+  type: object
+  required: [kind, parent_id]
+  properties:
+    kind: { $ref: '#/NodeKind' }
+    parent_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    position:
+      anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
+    task: { $ref: '#/TaskFacetWrite' }
+    estimate_line: { $ref: '#/EstimateLineWrite' }
+
+TaskFacetWrite:
+  type: object
+  required: [label]
+  description: Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées.
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    scheduling_mode: { $ref: '#/SchedulingMode' }
+    duration_days: { type: integer, minimum: 0 }
+    start_date:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    finish_date:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+EstimateLineWrite:
+  type: object
+  required: [label, cost_category_id, quantity]
+  description: Champs saisissables d'une ligne de devis (WF-DEV-0020).
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    quantity: { $ref: ../common.yaml#/Decimal }
+    resource_role_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    hours:
+      anyOf: [{ $ref: ../common.yaml#/Hours }, { type: 'null' }]
+    unit_disbursement:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+    payment_delay_days:
+      anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
+    subproject_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+NodeMove:
+  type: object
+  required: [node_ids, parent_id]
+  properties:
+    node_ids:
+      type: array
+      minItems: 1
+      items: { $ref: ../common.yaml#/Uuid }
+    parent_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    position:
+      anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ProgressUpdate:
+  type: object
+  required: [progress]
+  description: >-
+    Démarre ou termine une tâche. La date est celle du geste par défaut, et la
+    terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030). Refusée sur une
+    récapitulative, dont l'état est dérivé (WF-PLA-0040).
+  properties:
+    progress: { $ref: '#/TaskProgress' }
+    occurred_on: { $ref: ../common.yaml#/PlanningDate }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RemainingUpdate:
+  type: object
+  required: [reestimated_amount_basis]
+  description: >-
+    Réestime une ligne portée par une tâche démarrée ; un reste à engager nul
+    termine la tâche (WF-RAE-0040, WF-RAE-0010).
+  properties:
+    reestimated_amount_basis:
+      type: object
+      description: Les grandeurs saisies dont le montant réestimé est recalculé.
+      properties:
+        quantity: { $ref: ../common.yaml#/Decimal }
+        hours:
+          anyOf: [{ $ref: ../common.yaml#/Hours }, { type: 'null' }]
+        unit_disbursement:
+          anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+    reason:
+      anyOf: [{ type: string }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+UndoResult:
+  type: object
+  required: [undone, remaining_depth]
+  description: >-
+    Annule ou rétablit la dernière modification de la session. Une annulation est
+    une modification comme une autre ; elle est refusée par 409 si une modification
+    postérieure porte sur le même objet (WF-IHM-0110).
+  properties:
+    undone:
+      type: object
+      properties:
+        kind: { type: string }
+        node_ids:
+          type: array
+          items: { $ref: ../common.yaml#/Uuid }
+    remaining_depth: { type: integer, minimum: 0 }
+
+PastePreview:
+  type: object
+  required: [rows]
+  description: >-
+    Bloc collé depuis un tableur. L'aperçu dit ce qui sera écrit et ce qui sera
+    refusé, avec le motif de chaque refus ; rien n'est écrit sans confirmation
+    (WF-IHM-0050).
+  properties:
+    target_node_id: { $ref: ../common.yaml#/Uuid }
+    target_column: { type: string }
+    rows:
+      type: array
+      items:
+        type: array
+        items: { type: string }
+
+PastePlan:
+  type: object
+  required: [paste_id, accepted, rejected]
+  properties:
+    paste_id: { $ref: ../common.yaml#/Uuid }
+    accepted: { type: integer, minimum: 0 }
+    rejected:
+      type: array
+      items:
+        type: object
+        required: [row, code]
+        properties:
+          row: { type: integer, minimum: 0 }
+          code: { type: string }
+          params:
+            type: object
+            additionalProperties: true
+
+PasteApply:
+  type: object
+  required: [paste_id, confirmed]
+  properties:
+    paste_id: { $ref: ../common.yaml#/Uuid }
+    confirmed:
+      type: boolean
+      const: true
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RevisionComparison:
+  type: object
+  required: [from_revision_id, to_revision_id, added, removed, changed, amount_deltas]
+  description: >-
+    Comparaison de deux révisions marquées, rapprochée par l'identifiant de lignée
+    (WF-REV-0080, WF-DAT-0030).
+  properties:
+    from_revision_id: { $ref: ../common.yaml#/Uuid }
+    to_revision_id: { $ref: ../common.yaml#/Uuid }
+    added:
+      type: array
+      items: { $ref: '#/ComparedNode' }
+    removed:
+      type: array
+      items: { $ref: '#/ComparedNode' }
+    changed:
+      type: array
+      items: { $ref: '#/ComparedNode' }
+    amount_deltas:
+      type: array
+      items:
+        type: object
+        required: [dimension, key, delta]
+        properties:
+          dimension:
+            type: string
+            enum: [cost_type, subproject]
+          key: { type: string }
+          delta: { $ref: ../common.yaml#/Money }
+
+ComparedNode:
+  type: object
+  required: [lineage_id, label, kind]
+  properties:
+    lineage_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
+    kind: { $ref: '#/NodeKind' }
+    changes:
+      type: array
+      items:
+        type: string
+        enum: [dates, duration, progress, budgeted_amount, reestimated_amount, parent]
