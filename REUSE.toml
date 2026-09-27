@@ -23,6 +23,7 @@ path = [
     "frontend/pnpm-lock.yaml",
     "frontend/.dockerignore",
     "frontend/.prettierrc.json",
+    "frontend/src/api/generated/**",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"

@@ -35,7 +35,8 @@ paths = ["backend/**"]
 target = "check-back"
 
 [families.front]
-paths = ["frontend/**"]
+# The client of the front is generated from the contract: a contract change checks it.
+paths = ["frontend/**", "docs/api/**"]
 target = "check-front"
 
 [[generated]]
@@ -57,6 +58,10 @@ by = "uv lock"
 [[generated]]
 paths = ["frontend/pnpm-lock.yaml"]
 by = "pnpm install"
+
+[[generated]]
+paths = ["frontend/src/api/generated/**"]
+by = "make generate-client"
 
 [tests]
 paths = ["tools/tests/**", "backend/tests/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/e2e/**"]
