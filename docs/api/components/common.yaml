@@ -1,0 +1,171 @@
+# Types élémentaires et enveloppes communes.
+# Conventions : snake_case, UUID en identifiant (WF-DAT-0060), décimaux exacts
+# transportés en chaîne (WF-DAT-0100), dates de planning sans heure et
+# horodatages en temps universel (WF-DAT-0100, WF-INTF-0180).
+
+Uuid:
+  type: string
+  format: uuid
+  description: Identifiant engendré par le serveur, ordonné dans le temps (WF-DAT-0060).
+
+Decimal:
+  type: string
+  pattern: '^-?\d+(\.\d+)?$'
+  description: >-
+    Décimal exact, jamais un flottant (WF-DAT-0100). Le séparateur est le point,
+    indépendamment de la langue de l'interface (WF-INTF-0180).
+
+Money:
+  allOf:
+    - $ref: '#/Decimal'
+  pattern: '^-?\d+(\.\d{1,2})?$'
+  description: Montant dans la devise unique de l'installation (WF-REF-0140), à deux décimales.
+
+Hours:
+  allOf:
+    - $ref: '#/Decimal'
+  description: Nombre d'heures, décimal exact.
+
+Percent:
+  allOf:
+    - $ref: '#/Decimal'
+  description: Pourcentage, décimal exact, non arrondi avant les calculs (WF-DAT-0100).
+
+PlanningDate:
+  type: string
+  format: date
+  description: Date sans heure, en ISO 8601 (WF-DAT-0100).
+
+Timestamp:
+  type: string
+  format: date-time
+  description: Horodatage en temps universel (WF-DAT-0100).
+
+Year:
+  type: integer
+  minimum: 2000
+  maximum: 2100
+
+LockVersion:
+  type: integer
+  minimum: 0
+  description: >-
+    Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une
+    création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend
+    l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060).
+
+Audit:
+  type: object
+  required: [created_at, created_by, updated_at, updated_by]
+  description: Colonnes d'audit de WF-DAT-0070. `platform` désigne un traitement automatique.
+  properties:
+    created_at: { $ref: '#/Timestamp' }
+    created_by: { $ref: '#/ActorRef' }
+    updated_at: { $ref: '#/Timestamp' }
+    updated_by: { $ref: '#/ActorRef' }
+
+ActorRef:
+  type: object
+  required: [kind]
+  properties:
+    kind:
+      type: string
+      enum: [user, platform]
+    user_id: { $ref: '#/Uuid' }
+    display_name:
+      type: string
+      description: Nom d'affichage du compte, conservé après sa désactivation (WF-ADM-0060).
+
+Problem:
+  type: object
+  required: [code, status]
+  description: >-
+    Enveloppe unique des refus et des erreurs. Elle ne porte aucune phrase
+    destinée à être lue : `code` et `params` suffisent au front pour rendre le
+    texte dans la langue du lecteur (WF-ARC-0110). `params` nomme la condition
+    manquante, ce que WF-ADM-0110 et WF-IHM-0090 exigent.
+  properties:
+    code:
+      type: string
+      pattern: '^[A-Z][A-Z0-9_]*$'
+      description: Code machine, stable, appartenant au catalogue des codes d'erreur.
+    status:
+      type: integer
+      minimum: 400
+      maximum: 599
+    params:
+      type: object
+      additionalProperties: true
+      description: >-
+        Paramètres du code : `missing_permission`, `missing_condition`,
+        `conflicting_object_id`, `expected_lock_version`, `component`, selon le cas.
+    fields:
+      type: array
+      description: Erreurs par champ, pour une entité refusée à la validation.
+      items: { $ref: '#/FieldProblem' }
+    correlation_id:
+      type: string
+      description: Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020).
+
+FieldProblem:
+  type: object
+  required: [pointer, code]
+  properties:
+    pointer:
+      type: string
+      description: Pointeur JSON vers le champ en défaut.
+    code:
+      type: string
+      pattern: '^[A-Z][A-Z0-9_]*$'
+    params:
+      type: object
+      additionalProperties: true
+
+PaginationMeta:
+  type: object
+  required: [limit, offset, total]
+  properties:
+    limit: { type: integer, minimum: 1, maximum: 500 }
+    offset: { type: integer, minimum: 0 }
+    total: { type: integer, minimum: 0 }
+
+BackgroundTaskRef:
+  type: object
+  required: [task_id, kind, status]
+  description: >-
+    Référence d'une tâche de fond. Une requête qui déclenche un traitement long
+    rend la main immédiatement en renvoyant cette référence (WF-ARC-0090, WF-IHM-0080).
+  properties:
+    task_id: { $ref: '#/Uuid' }
+    kind:
+      type: string
+      enum:
+        - import_analysis
+        - import_apply
+        - revision_mark
+        - export
+        - backup
+        - restore
+        - directory_sync
+    status:
+      type: string
+      enum: [queued, running, succeeded, failed]
+    progress:
+      type: integer
+      minimum: 0
+      maximum: 100
+    submitted_at: { $ref: '#/Timestamp' }
+    finished_at:
+      anyOf:
+        - $ref: '#/Timestamp'
+        - type: 'null'
+    problem:
+      anyOf:
+        - $ref: '#/Problem'
+        - type: 'null'
+      description: Motif de l'échec, absent tant que la tâche n'a pas échoué.
+    result_url:
+      anyOf:
+        - type: string
+        - type: 'null'
+      description: Où lire le résultat, lorsque la tâche en produit un.

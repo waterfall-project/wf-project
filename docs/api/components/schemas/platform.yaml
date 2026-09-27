@@ -1,0 +1,167 @@
+# État du système, sauvegardes et restauration (FBS-1.3, FBS-1.4).
+
+SystemStatus:
+  type: object
+  required: [version, components, storage, alerts]
+  description: >-
+    Écran d'état, accessible sans qu'aucun projet ne soit ouvert. Il ne présente
+    que des valeurs issues des métriques (WF-ADM-0130, WF-OBS-0010).
+  properties:
+    version: { type: string }
+    components:
+      type: array
+      items: { $ref: '#/ComponentHealth' }
+    storage: { $ref: '#/StorageUsage' }
+    last_directory_sync:
+      anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
+    last_backup:
+      anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
+    last_restore_test:
+      anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
+      description: Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130).
+    alerts:
+      type: array
+      items: { $ref: '#/Alert' }
+
+ComponentHealth:
+  type: object
+  required: [component, is_available, checked_at]
+  properties:
+    component:
+      type: string
+      enum: [api, worker, database, cache, object_storage, directory, metrics]
+    is_available: { type: boolean }
+    checked_at: { $ref: ../common.yaml#/Timestamp }
+    version:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: Version du composant employé, annoncée par WF-CMP-0020.
+
+StorageUsage:
+  type: object
+  required: [used_bytes, available_bytes]
+  properties:
+    used_bytes: { type: integer, minimum: 0 }
+    available_bytes: { type: integer, minimum: 0 }
+
+OperationOutcome:
+  type: object
+  required: [at, succeeded]
+  properties:
+    at: { $ref: ../common.yaml#/Timestamp }
+    succeeded: { type: boolean }
+    problem:
+      anyOf: [{ $ref: ../common.yaml#/Problem }, { type: 'null' }]
+
+Alert:
+  type: object
+  required: [code, since, severity]
+  description: >-
+    Alerte en cours, sur une situation qui a une conséquence pour les utilisateurs
+    (WF-OBS-0030). Elle disparaît dès que sa cause cesse.
+  properties:
+    code:
+      type: string
+      enum:
+        - component_unavailable
+        - task_queue_stalled
+        - scheduled_backup_failed
+        - directory_sync_failed
+        - storage_nearly_full
+        - error_rate_abnormal
+    since: { $ref: ../common.yaml#/Timestamp }
+    severity: { $ref: reference.yaml#/AlertZone }
+    params:
+      type: object
+      additionalProperties: true
+
+Backup:
+  type: object
+  required: [backup_id, taken_at, size_bytes, verification, is_retained, scope]
+  description: >-
+    Copie datée et vérifiée de la base, dans un état cohérent (WF-ADM-0150). Les
+    fichiers importés ne vivent que le temps de leur import et n'y figurent pas
+    (WF-DAT-0120).
+  properties:
+    backup_id: { $ref: ../common.yaml#/Uuid }
+    taken_at: { $ref: ../common.yaml#/Timestamp }
+    size_bytes: { type: integer, minimum: 0 }
+    verification:
+      type: string
+      enum: [pending, passed, failed]
+    is_retained:
+      type: boolean
+      description: Marquée à conserver, elle échappe à la rotation (WF-ADM-0170).
+    scope:
+      type: string
+      enum: [database]
+    origin:
+      type: string
+      enum: [manual, scheduled]
+
+BackupRetain:
+  type: object
+  required: [is_retained]
+  properties:
+    is_retained: { type: boolean }
+
+BackupSchedule:
+  type: object
+  required: [is_enabled, retained_count, lock_version]
+  description: Planification et rétention des sauvegardes (WF-ADM-0170).
+  properties:
+    is_enabled: { type: boolean }
+    frequency:
+      type: string
+      enum: [daily, weekly]
+    at_time:
+      type: string
+      pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+    weekday:
+      anyOf: [{ type: integer, minimum: 1, maximum: 7 }, { type: 'null' }]
+    retained_count: { type: integer, minimum: 1, maximum: 365 }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RestoreRequest:
+  type: object
+  required: [confirmed, acknowledged_backup_taken_at]
+  oneOf:
+    - required: [backup_id]
+    - required: [external_backup_upload_id]
+  description: >-
+    Restauration : elle remplace l'intégralité de la base, déconnecte les
+    utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui
+    énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160,
+    WF-DAT-0130).
+  properties:
+    backup_id: { $ref: ../common.yaml#/Uuid }
+    external_backup_upload_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: Sauvegarde copiée hors de la plateforme, déposée au préalable (WF-ADM-0160).
+    acknowledged_backup_taken_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: >-
+        Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit
+        correspondre à celle de la sauvegarde désignée (WF-ADM-0160).
+    confirmed:
+      type: boolean
+      const: true
+
+DirectorySyncResult:
+  type: object
+  required: [created, updated, deactivated, skipped]
+  description: >-
+    Résultat d'une resynchronisation de l'annuaire. Les comptes créés dans
+    Waterfall ne sont pas concernés, et un compte que WF-ADM-0120 interdit de
+    désactiver est conservé actif et signalé (WF-ADM-0070).
+  properties:
+    created: { type: integer, minimum: 0 }
+    updated: { type: integer, minimum: 0 }
+    deactivated: { type: integer, minimum: 0 }
+    skipped:
+      type: array
+      items:
+        type: object
+        required: [email, code]
+        properties:
+          email: { type: string }
+          code: { type: string }

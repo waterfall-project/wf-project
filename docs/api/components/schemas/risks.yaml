@@ -1,0 +1,144 @@
+# Risques et provisions (FBS-4.6).
+
+RiskState:
+  type: string
+  enum: [identified, occurred, dismissed]
+  description: >-
+    Identifié, survenu, écarté. Un risque écarté peut redevenir identifié ; la
+    survenance est définitive (WF-RIS-0020).
+
+Risk:
+  type: object
+  required:
+    - risk_id
+    - label
+    - probability
+    - severity
+    - provision_amount
+    - state
+    - structure_id
+    - audit
+    - lock_version
+  description: >-
+    La gravité est le total de la structure propre du risque et la provision cette
+    gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies
+    (WF-RIS-0010).
+  properties:
+    risk_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string, minLength: 1, maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    mitigation_notes:
+      anyOf: [{ type: string }, { type: 'null' }]
+    probability: { $ref: ../common.yaml#/Percent }
+    severity:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: Calculée, jamais saisie (WF-RIS-0010).
+    provision_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: Calculée ; celle retenue au budget est figée à la révision de référence (WF-RIS-0050).
+    state: { $ref: '#/RiskState' }
+    structure_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: Structure de coûts propre du risque, dans la révision en cours (WF-RIS-0030).
+    provision_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Ligne de provision portée par la structure principale (WF-RIS-0010).
+    matrix_cell: { $ref: '#/RiskMatrixCell' }
+    last_review_on:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    audit: { $ref: ../common.yaml#/Audit }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskWrite:
+  type: object
+  required: [label, probability]
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    mitigation_notes:
+      anyOf: [{ type: string }, { type: 'null' }]
+    probability: { $ref: ../common.yaml#/Percent }
+
+RiskUpdate:
+  description: >-
+    Modification d'un risque : porte le compteur lu,
+    qu'une création n'a pas.
+  allOf:
+    - $ref: '#/RiskWrite'
+    - type: object
+      required: [lock_version]
+      properties:
+        lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskReview:
+  type: object
+  required: [reviewed_on, probability, severity, state]
+  description: >-
+    Réexamen : l'acte par lequel un utilisateur confirme ou modifie la probabilité
+    et l'état d'un risque, daté du jour où il est fait (WF-RIS-0010, WF-RIS-0020).
+  properties:
+    reviewed_on: { $ref: ../common.yaml#/PlanningDate }
+    probability: { $ref: ../common.yaml#/Percent }
+    severity: { $ref: ../common.yaml#/Money }
+    state: { $ref: '#/RiskState' }
+    actor: { $ref: ../common.yaml#/ActorRef }
+
+RiskReviewWrite:
+  type: object
+  required: [probability, state, lock_version]
+  description: La confirmation sans modification produit un réexamen daté (WF-RIS-0010).
+  properties:
+    probability: { $ref: ../common.yaml#/Percent }
+    state:
+      type: string
+      enum: [identified, dismissed]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskOccurrence:
+  type: object
+  required: [confirmed, version_name]
+  description: >-
+    Déclare le risque survenu : fusionne son devis propre dans la structure
+    principale, les lignes fusionnées portant un montant budgété nul, et la
+    révision marquée qui en résulte devient la référence (WF-RIS-0060). Définitif.
+  properties:
+    confirmed:
+      type: boolean
+      const: true
+    version_name: { type: string, minLength: 1, maxLength: 100 }
+
+RiskMatrixCell:
+  type: object
+  required: [probability_level, severity_level, zone]
+  properties:
+    probability_level: { type: integer, minimum: 1, maximum: 4 }
+    severity_level: { type: integer, minimum: 1, maximum: 4 }
+    zone: { $ref: reference.yaml#/AlertZone }
+
+RiskMatrix:
+  type: object
+  required: [cells, totals]
+  description: Matrice remplie par les risques du projet (WF-RIS-0040, WF-REF-0160).
+  properties:
+    cells:
+      type: array
+      items:
+        type: object
+        required: [probability_level, severity_level, count, zone]
+        properties:
+          probability_level: { type: integer, minimum: 1, maximum: 4 }
+          severity_level: { type: integer, minimum: 1, maximum: 4 }
+          count: { type: integer, minimum: 0 }
+          zone: { $ref: reference.yaml#/AlertZone }
+    totals: { $ref: '#/ProvisionTotals' }
+
+ProvisionTotals:
+  type: object
+  required: [identified, occurred, dismissed]
+  description: Les trois totaux de provisions, distincts (WF-RIS-0040).
+  properties:
+    identified: { $ref: ../common.yaml#/Money }
+    occurred: { $ref: ../common.yaml#/Money }
+    dismissed: { $ref: ../common.yaml#/Money }

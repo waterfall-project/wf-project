@@ -1,0 +1,72 @@
+# Association entre une figure du document Word et une page du fichier draw.io.
+#
+# Une figure n'a besoin d'une entrée ici que si son texte alternatif Word ne
+# contient pas déjà un source Mermaid. `legende` est un fragment de la légende
+# telle qu'elle apparaît sous la figure dans Word ; `direction` est la direction
+# du flowchart Mermaid (LR, TD, RL, BT).
+
+[[figure]]
+legende = "Diagramme de contexte"
+page = "Contexte"
+direction = "LR"
+
+# Arborescence fonctionnelle : une page draw.io par figure.
+# Les fragments se recouvrent ; le build retient le plus long qui correspond.
+
+[[figure]]
+legende = "Arborescence fonctionnelle"
+page = "FBS"
+direction = "LR"
+
+[[figure]]
+legende = "Arborescence fonctionnelle des paramètres de projets"
+page = "FBS-4.2"
+direction = "LR"
+
+[[figure]]
+# « de la plan » couvre l'orthographe actuelle (« plannification ») et la corrigée.
+legende = "Arborescence fonctionnelle de la plan"
+page = "FBS-4.3"
+direction = "LR"
+
+[[figure]]
+legende = "Arborescence fonctionnelle des chiffrages et devis"
+page = "FBS-4.4"
+direction = "LR"
+
+[[figure]]
+legende = "Arborescence fonctionnelle de l'estimation du RAE"
+page = "FBS-4.5"
+direction = "LR"
+
+[[figure]]
+legende = "Arborescence fonctionnelle de la gestion des risques"
+page = "FBS-4.6"
+direction = "LR"
+
+[[figure]]
+legende = "Arborescence fonctionnelle des indicateurs projets"
+page = "FBS-4.8"
+direction = "LR"
+
+[[figure]]
+legende = "Diagramme d'état du cycle de vie d'un projet"
+page = "Cycle de vie projet"
+direction = "LR"
+
+[[figure]]
+legende = "Arborescence produit"
+page = "PBS"
+direction = "LR"
+
+# Diagrammes de séquence : la source est tenue dans le dépôt, car le texte
+# alternatif Word aplatit le diagramme sur une ligne et une séquence ne se
+# re-segmente pas sans ambiguïté.
+
+[[figure]]
+legende = "Diagramme de séquence des imports"
+source = "figures/import-deux-temps.mmd"
+
+[[figure]]
+legende = "Diagramme de séquence du marquage"
+source = "figures/marquage-revision.mmd"

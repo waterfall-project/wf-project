@@ -1,0 +1,77 @@
+# Coûts réels importés de l'ERP (FBS-4.7). Waterfall ne les produit pas (§2.2).
+
+ActualCostLine:
+  type: object
+  required:
+    - cost_line_id
+    - document_number
+    - document_date
+    - amount
+    - project_id
+    - is_in_tracked_scope
+    - audit
+  description: >-
+    Ligne de coût réel. Quatre attributs significatifs ; les autres colonnes du
+    fichier sont conservées à titre d'information et n'entrent dans aucun calcul
+    (WF-CRE-0010). L'imputation est déduite de l'élément d'OTP (WF-CRE-0020).
+  properties:
+    cost_line_id: { $ref: ../common.yaml#/Uuid }
+    document_number:
+      type: string
+      description: Numéro de pièce ; il identifie la ligne et fonde l'idempotence (WF-INTF-0140, WF-DAT-0110).
+    document_date: { $ref: ../common.yaml#/PlanningDate }
+    amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: Montant signé ; un montant négatif diminue le coût réel (WF-CRE-0010).
+    project_id: { $ref: ../common.yaml#/Uuid }
+    subproject_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Nul lorsque la ligne est imputée au seul projet, donc « hors sous-projet » (WF-CRE-0020).
+    is_in_tracked_scope:
+      type: boolean
+      description: Faux pour une ligne exclue, qui reste consultable et n'entre dans aucun indicateur (WF-CRE-0030).
+    excluded_reason:
+      anyOf: [{ type: string }, { type: 'null' }]
+    passthrough:
+      type: object
+      additionalProperties: { type: string }
+      description: Colonnes conservées du fichier, restituées à la consultation (WF-CRE-0010).
+    audit: { $ref: ../common.yaml#/Audit }
+
+ActualCostTotals:
+  type: object
+  required: [tracked, excluded, overall]
+  description: Les trois totaux de la consultation (WF-CRE-0040).
+  properties:
+    tracked: { $ref: ../common.yaml#/Money }
+    excluded: { $ref: ../common.yaml#/Money }
+    overall: { $ref: ../common.yaml#/Money }
+
+ScopeExclusion:
+  type: object
+  required: [is_in_tracked_scope]
+  description: >-
+    Exclut ou réintègre une ligne. L'exclusion est conservée lors des imports
+    ultérieurs, même quand les périodes se recouvrent (WF-CRE-0030).
+  properties:
+    is_in_tracked_scope: { type: boolean }
+    reason:
+      anyOf: [{ type: string }, { type: 'null' }]
+
+CostImport:
+  type: object
+  required: [cost_import_id, imported_at, actor, created_count, updated_count, ignored_count]
+  description: >-
+    Entrée du journal des imports de coûts réels : de quand datent les chiffres
+    qu'on lit (WF-CRE-0050).
+  properties:
+    cost_import_id: { $ref: ../common.yaml#/Uuid }
+    imported_at: { $ref: ../common.yaml#/Timestamp }
+    actor: { $ref: ../common.yaml#/ActorRef }
+    period_from:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    period_to:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    created_count: { type: integer, minimum: 0 }
+    updated_count: { type: integer, minimum: 0 }
+    ignored_count: { type: integer, minimum: 0 }

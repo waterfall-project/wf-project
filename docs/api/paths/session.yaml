@@ -1,0 +1,244 @@
+/session/providers:
+  get:
+    operationId: listAuthProviders
+    tags: [session]
+    security: []
+    summary: Fournisseurs d'authentification actifs
+    description: >-
+      Les comptes locaux sont toujours offerts ; l'annuaire et le fournisseur
+      d'identité s'ajoutent lorsqu'ils sont activés (WF-ADM-0180, WF-ARC-0030).
+    responses:
+      '200':
+        description: Fournisseurs offerts par cette installation.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/access.yaml#/AuthProvider }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/session:
+  get:
+    operationId: getCurrentSession
+    tags: [session]
+    summary: Session courante
+    description: >-
+      Le compte, ses permissions effectives — évaluées à chaque requête — et la langue
+      retenue (WF-SEC-0020, WF-ADM-0110, WF-INTF-0160).
+    responses:
+      '200':
+        description: Session valide.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/Session }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+  post:
+    operationId: openSession
+    tags: [session]
+    security: []
+    summary: Ouvrir une session par compte local ou par annuaire
+    description: >-
+      Un compte local s'authentifie auprès de Waterfall, un compte importé auprès de
+      l'annuaire (WF-ADM-0140, WF-ADM-0180). Après dix échecs consécutifs, le compte
+      est verrouillé quinze minutes. La session est conservée en base et révocable
+      immédiatement (WF-SEC-0020).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/LocalCredentials }
+    responses:
+      '201':
+        description: Session ouverte.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/Session }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '429':
+        description: Compte verrouillé après dix échecs consécutifs (WF-ADM-0140).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+  delete:
+    operationId: closeSession
+    tags: [session]
+    summary: Se déconnecter
+    description: Révoque la session courante (WF-SEC-0020).
+    responses:
+      '204':
+        description: Session révoquée.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
+/session/oidc/start:
+  get:
+    operationId: startOidcSession
+    tags: [session]
+    security: []
+    summary: Démarrer une authentification OIDC
+    description: >-
+      Redirige vers le fournisseur d'identité. Un compte inconnu est créé à sa
+      première connexion, sans aucun rôle (WF-ADM-0180).
+    responses:
+      '303':
+        description: Redirection vers le fournisseur.
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/session/oidc/callback:
+  get:
+    operationId: completeOidcSession
+    tags: [session]
+    security: []
+    summary: Retour du fournisseur d'identité
+    description: >-
+      Le fournisseur y renvoie l'utilisateur après authentification ; la session est
+      ouverte et le compte créé s'il ne l'était pas encore (WF-ADM-0180, WF-SEC-0020).
+    parameters:
+      - name: code
+        in: query
+        required: true
+        schema: { type: string }
+      - name: state
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '303':
+        description: Session ouverte, redirection vers l'application.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
+/session/password-reset:
+  post:
+    operationId: requestPasswordReset
+    tags: [session]
+    security: []
+    summary: Demander un lien de réinitialisation
+    description: >-
+      Envoie un lien valable une heure et à usage unique, dans la langue du compte si
+      elle est connue, sinon dans celle de la requête (WF-ADM-0140, WF-ARC-0110). La
+      réponse ne révèle pas si l'adresse existe.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/PasswordResetRequest }
+    responses:
+      '202':
+        description: Demande enregistrée.
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+
+/session/password-reset/confirm:
+  post:
+    operationId: confirmPasswordReset
+    tags: [session]
+    security: []
+    summary: Fixer un mot de passe avec un lien de réinitialisation
+    description: >-
+      Le mot de passe compte au moins douze caractères et ne peut être ni l'adresse
+      électronique ni le nom du compte (WF-ADM-0140).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/PasswordResetConfirm }
+    responses:
+      '204':
+        description: Mot de passe fixé.
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '409':
+        description: Lien expiré ou déjà employé (WF-ADM-0140).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/me:
+  get:
+    operationId: getMe
+    tags: [me]
+    summary: Mon compte et mes préférences
+    description: >-
+      Le compte connecté, ses rôles et ses préférences d'affichage (WF-ADM-0050,
+      WF-ADM-0040).
+    responses:
+      '200':
+        description: Compte courant.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/UserSelf }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
+/me/preferences:
+  patch:
+    operationId: updateMyPreferences
+    tags: [me]
+    summary: Modifier mes préférences d'affichage
+    description: >-
+      Préférences personnelles, cantonnées à la présentation ; nul ne modifie celles
+      d'un autre (WF-ADM-0040). La langue en fait partie et s'applique sans
+      reconnexion (WF-INTF-0160).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/DisplayPreferences }
+    responses:
+      '200':
+        description: Préférences enregistrées.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/DisplayPreferences }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
+/me/password:
+  put:
+    operationId: changeMyPassword
+    tags: [me]
+    summary: Changer mon mot de passe
+    description: >-
+      Réservé aux comptes locaux : un compte venu d'un fournisseur externe n'a pas de
+      mot de passe dans Waterfall (WF-ADM-0140).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/access.yaml#/PasswordChange }
+    responses:
+      '204':
+        description: Mot de passe changé.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
+/me/avatar:
+  put:
+    operationId: putMyAvatar
+    tags: [me]
+    summary: Déposer ou remplacer mon avatar
+    description: >-
+      L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base
+      avec le compte (WF-ADM-0080, §4.4.1).
+    requestBody:
+      required: true
+      content:
+        image/png:
+          schema: { type: string, format: binary }
+        image/jpeg:
+          schema: { type: string, format: binary }
+    responses:
+      '204':
+        description: Avatar enregistré.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+  delete:
+    operationId: deleteMyAvatar
+    tags: [me]
+    summary: Retirer mon avatar
+    description: >-
+      Le compte retrouve son avatar par défaut (WF-ADM-0080).
+    responses:
+      '204':
+        description: Avatar retiré ; le compte s'affiche avec une image par défaut (WF-ADM-0080).
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }

@@ -1,0 +1,23 @@
+name: Question or proposal
+description: A question about the product, or a proposal that is not yet a finding.
+title: "[discussion] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        For anything that is neither a located specification finding nor a contract issue:
+        a question about how the product is meant to work, a design idea, a use case you
+        think is not covered. French or English, as you prefer.
+  - type: textarea
+    id: subject
+    attributes:
+      label: Subject
+    validations:
+      required: true
+  - type: input
+    id: context
+    attributes:
+      label: Where in the documents, if anywhere
+      description: Section, requirement, endpoint — whatever you were reading.
+      placeholder: "§3.4.5.8, or docs/api/DECISIONS.md"

@@ -1,0 +1,118 @@
+/health:
+  get:
+    operationId: getLiveness
+    tags: [system]
+    security: []
+    summary: Sonde de vivacité
+    description: Répond dès que le processus est démarré, sans toucher aucun composant de données.
+    responses:
+      '200':
+        description: Le processus répond.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [ok] }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/health/ready:
+  get:
+    operationId: getReadiness
+    tags: [system]
+    security: []
+    summary: Sonde de préparation
+    description: >-
+      Vraie lorsque les composants dont l'instance a besoin répondent. Un composant
+      indisponible n'est jamais présenté comme disponible (WF-EXP-0040).
+    responses:
+      '200':
+        description: L'instance peut servir des requêtes.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, components]
+              properties:
+                status: { type: string, enum: [ready] }
+                components:
+                  type: array
+                  items: { $ref: ../components/schemas/platform.yaml#/ComponentHealth }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/metrics:
+  get:
+    operationId: getMetrics
+    tags: [system]
+    security: []
+    summary: Métriques au format Prometheus
+    description: >-
+      Métriques de requêtes, de tâches de fond et de composants de données, collectées
+      par Prometheus et reprises par l'écran d'état (WF-OBS-0010, WF-ADM-0130).
+    responses:
+      '200':
+        description: Exposition Prometheus.
+        content:
+          text/plain:
+            schema: { type: string }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/system/status:
+  get:
+    operationId: getSystemStatus
+    tags: [system]
+    summary: Écran d'état du système
+    description: >-
+      Disponibilité de chaque composant, espace de stockage, version installée,
+      dernières synchronisation, sauvegarde et test de restauration, et alertes en
+      cours. Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
+    responses:
+      '200':
+        description: État courant.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/SystemStatus }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/tasks/{task_id}:
+  get:
+    operationId: getBackgroundTask
+    tags: [tasks]
+    summary: Avancement d'une tâche de fond
+    description: >-
+      Une action confiée au worker rend la main immédiatement ; son avancement et son
+      résultat se lisent ici, y compris après un changement d'écran (WF-ARC-0090,
+      WF-IHM-0080).
+    parameters:
+      - $ref: ../components/parameters.yaml#/TaskId
+    responses:
+      '200':
+        description: État de la tâche.
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/tasks/{task_id}/result:
+  get:
+    operationId: getBackgroundTaskResult
+    tags: [tasks]
+    summary: Résultat d'une tâche de fond
+    description: >-
+      Télécharge le fichier qu'une tâche a produit — export MS Project, Excel ou image
+      d'arborescence. Le fichier est engendré à la demande et n'est pas stocké
+      (WF-DAT-0120).
+    parameters:
+      - $ref: ../components/parameters.yaml#/TaskId
+    responses:
+      '200':
+        description: Contenu du résultat.
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }

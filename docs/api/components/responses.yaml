@@ -1,0 +1,64 @@
+# Réponses d'erreur partagées. Toutes portent l'enveloppe Problem (WF-ARC-0110).
+
+BadRequest:
+  description: Requête mal formée.
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
+Unauthorized:
+  description: Aucune session valide, ou session révoquée (WF-SEC-0020).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
+Forbidden:
+  description: >-
+    Permission présente mais condition manquante : qualité de contributeur,
+    état du projet, révision marquée. `params` nomme la condition (WF-ADM-0110,
+    WF-CYC-0100, WF-DAT-0020).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
+NotFound:
+  description: >-
+    Objet inexistant, ou invisible faute de la permission de consultation : le
+    refus ne révèle pas son existence (Vérif de WF-ADM-0110).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
+Conflict:
+  description: L'état courant interdit l'opération, ou une unicité est violée.
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
+PreconditionFailed:
+  description: >-
+    `lock_version` périmé : l'objet a été modifié depuis sa lecture. `params`
+    porte l'objet en conflit (WF-IHM-0110).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
+PayloadTooLarge:
+  description: Fichier déposé au-delà de la taille admise (WF-CMP-0020, §4.6.2).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
+UnprocessableEntity:
+  description: Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus.
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
+ServiceUnavailable:
+  description: >-
+    Un composant indisponible empêche l'opération ; `params.component` le nomme et
+    l'opération n'est jamais présentée comme réussie (WF-EXP-0040).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }

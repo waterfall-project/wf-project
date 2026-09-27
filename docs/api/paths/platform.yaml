@@ -1,0 +1,152 @@
+/backups:
+  get:
+    operationId: listBackups
+    tags: [platform]
+    summary: Sauvegardes
+    description: Date, taille et résultat de vérification de chaque sauvegarde (WF-ADM-0150).
+    parameters:
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+    responses:
+      '200':
+        description: Liste des sauvegardes.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/platform.yaml#/Backup }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  post:
+    operationId: startBackup
+    tags: [platform]
+    summary: Déclencher une sauvegarde
+    description: >-
+      Sauvegarde complète de la base dans un état cohérent, vérifiée après sa
+      production (WF-ADM-0150). Confiée au worker (WF-ARC-0090).
+    responses:
+      '202':
+        description: Sauvegarde mise en file.
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/backups/{backup_id}:
+  get:
+    operationId: getBackup
+    summary: Une sauvegarde
+    description: >-
+      État, date et taille d'une sauvegarde (WF-ADM-0150).
+    tags: [platform]
+    parameters:
+      - $ref: ../components/parameters.yaml#/BackupId
+    responses:
+      '200':
+        description: Sauvegarde.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/Backup }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  patch:
+    operationId: retainBackup
+    tags: [platform]
+    summary: Marquer une sauvegarde à conserver
+    description: Une sauvegarde marquée échappe à la rotation (WF-ADM-0170).
+    parameters:
+      - $ref: ../components/parameters.yaml#/BackupId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform.yaml#/BackupRetain }
+    responses:
+      '200':
+        description: Marquage enregistré.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/Backup }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/backups/{backup_id}/content:
+  get:
+    operationId: downloadBackup
+    tags: [platform]
+    summary: Copier une sauvegarde hors de la plateforme
+    description: La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150).
+    parameters:
+      - $ref: ../components/parameters.yaml#/BackupId
+    responses:
+      '200':
+        description: Contenu de la sauvegarde.
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/backup-schedule:
+  get:
+    operationId: getBackupSchedule
+    tags: [platform]
+    summary: Planification et rétention des sauvegardes
+    description: >-
+      Fréquence, heure et nombre de sauvegardes conservées (WF-ADM-0170).
+    responses:
+      '200':
+        description: Planification courante (WF-ADM-0170).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+  put:
+    operationId: setBackupSchedule
+    tags: [platform]
+    summary: Régler la planification et la rétention
+    description: >-
+      Au-delà du nombre conservé, les plus anciennes sont supprimées, sauf celles
+      marquées à conserver. Un échec est signalé sur l'écran d'état (WF-ADM-0170).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
+    responses:
+      '200':
+        description: Planification enregistrée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/restores:
+  post:
+    operationId: startRestore
+    tags: [platform]
+    summary: Restaurer la plateforme
+    description: >-
+      Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les
+      utilisateurs, vide le cache, et n'est appliquée qu'après confirmation
+      (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform.yaml#/RestoreRequest }
+    responses:
+      '202':
+        description: Restauration mise en file.
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409': { $ref: ../components/responses.yaml#/Conflict }

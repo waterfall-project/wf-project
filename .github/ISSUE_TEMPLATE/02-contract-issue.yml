@@ -1,0 +1,41 @@
+name: Interface contract issue
+description: An endpoint or a schema is missing, wrong, or drifts from the specification.
+title: "[api] "
+labels: ["contract"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The contract in `docs/api` is hand-written and authoritative: the front's client is
+        generated from it. `docs/api/INVENTORY.md` lists every operation with the
+        requirements it serves. French or English, as you prefer.
+  - type: input
+    id: operation
+    attributes:
+      label: Operation or schema
+      description: Method and path, or the name of the schema.
+      placeholder: "PATCH /projects/{project_id}/revisions/{revision_id}/… — or EstimateLineFacet"
+    validations:
+      required: true
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirements concerned
+      description: Which requirements the operation realises, or should.
+      placeholder: "WF-DEV-0020, WF-DEV-0030"
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+      description: >-
+        What the contract says, what the specification says, and why they do not agree —
+        or what the contract does not cover at all.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The shape you would give it. A fragment of YAML is welcome.
+    validations:
+      required: true

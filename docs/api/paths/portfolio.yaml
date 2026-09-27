@@ -1,0 +1,197 @@
+# Portefeuille (FBS-2). Aucune saisie : ces vues consolident (WF-PTF-0030).
+# Elles sont accessibles à tout utilisateur qui en porte la permission, qu'il soit
+# ou non contributeur des projets qu'elles agrègent (WF-PRJ-0060).
+
+/portfolio/projects:
+  get:
+    operationId: getPortfolioProjects
+    tags: [portfolio]
+    summary: Liste des projets du portefeuille
+    description: >-
+      Libellé, code, état, budget de référence ou devis courant et probabilité, projection
+      du chef de projet, indices avec leur zone, et date de la dernière révision marquée
+      (WF-PTF-0040).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/PortfolioFrom
+      - $ref: ../components/parameters.yaml#/PortfolioTo
+      - $ref: ../components/parameters.yaml#/AsOf
+      - $ref: ../components/parameters.yaml#/PortfolioOrgNode
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+      - $ref: ../components/parameters.yaml#/Search
+    responses:
+      '200':
+        description: Projets du périmètre.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scope, items, meta]
+              properties:
+                scope: { $ref: ../components/schemas/portfolio.yaml#/PortfolioScope }
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/portfolio.yaml#/PortfolioProjectRow }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/portfolio/value:
+  get:
+    operationId: getPortfolioValue
+    tags: [portfolio]
+    summary: Carnet, pipeline et réalisé
+    description: >-
+      Carnet des projets en cours, pipeline des projets en chiffrage présenté brut et
+      pondéré par les probabilités de gain, réalisé des projets terminés de la période,
+      et taux de transformation (WF-PTF-0050, WF-PTF-0020).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/PortfolioFrom
+      - $ref: ../components/parameters.yaml#/PortfolioTo
+      - $ref: ../components/parameters.yaml#/AsOf
+      - $ref: ../components/parameters.yaml#/PortfolioOrgNode
+    responses:
+      '200':
+        description: Valeurs du portefeuille.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioValue }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/portfolio/workload:
+  get:
+    operationId: getPortfolioWorkload
+    tags: [portfolio]
+    summary: Plan de charge agrégé
+    description: >-
+      Somme des charges par rôle et par mois : reste à engager pour les projets en cours,
+      devis pondéré pour les projets en chiffrage inclus. La sous-charge est signalée
+      autant que la surcharge (WF-PTF-0060).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/AsOf
+      - $ref: ../components/parameters.yaml#/PortfolioOrgNode
+      - name: horizon_months
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 240 }
+      - name: under_load_threshold
+        in: query
+        description: Seuil de sous-charge, choisi par l'utilisateur (WF-PTF-0060).
+        schema: { $ref: ../components/common.yaml#/Percent }
+    responses:
+      '200':
+        description: Charges et capacités par rôle et par mois.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioWorkload }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/portfolio/performance:
+  get:
+    operationId: getPortfolioPerformance
+    tags: [portfolio]
+    summary: Indices, projections, répartition par zone et évolution trimestrielle
+    description: >-
+      Un indice de portefeuille est un rapport de sommes, jamais une moyenne d'indices
+      (WF-PTF-0020). L'évolution trimestrielle se calcule aux dates passées selon
+      WF-PTF-0010 (WF-PTF-0070).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/PortfolioFrom
+      - $ref: ../components/parameters.yaml#/PortfolioTo
+      - $ref: ../components/parameters.yaml#/AsOf
+      - $ref: ../components/parameters.yaml#/PortfolioOrgNode
+    responses:
+      '200':
+        description: Performance du portefeuille.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioPerformance }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/portfolio/cost-structure:
+  get:
+    operationId: getPortfolioCostStructure
+    tags: [portfolio]
+    summary: Structure des coûts du portefeuille
+    description: >-
+      Ventilation par nature du budget de référence et du reste à engager, et
+      main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par nature,
+      que l'ERP ne fournit pas (WF-PTF-0080).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/AsOf
+      - $ref: ../components/parameters.yaml#/PortfolioOrgNode
+    responses:
+      '200':
+        description: Ventilations.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostStructure }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/portfolio/risks:
+  get:
+    operationId: getPortfolioRisks
+    tags: [portfolio]
+    summary: Risques du portefeuille
+    description: >-
+      Total des provisions identifiées, risques les plus lourds tous projets confondus,
+      matrice remplie, et provisions survenues face aux provisions écartées sur la
+      période (WF-PTF-0090).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/PortfolioFrom
+      - $ref: ../components/parameters.yaml#/PortfolioTo
+      - $ref: ../components/parameters.yaml#/AsOf
+    responses:
+      '200':
+        description: Risques agrégés.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioRisks }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/portfolio/cash-out:
+  get:
+    operationId: getPortfolioCashOut
+    tags: [portfolio]
+    summary: Décaissements du portefeuille
+    description: >-
+      Somme des projections de décaissement des projets ; rien n'y est recalculé, de
+      sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/AsOf
+      - name: horizon_months
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 240 }
+    responses:
+      '200':
+        description: Décaissements par mois.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCashOut }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/portfolio/pilot-health:
+  get:
+    operationId: getPortfolioPilotHealth
+    tags: [portfolio]
+    summary: Santé du pilotage
+    description: >-
+      Revues en retard, risques non réexaminés, coûts non importés, jalons contractuels
+      dépassés : les quatre signaux dont l'absence rend les autres vues trompeuses
+      (WF-PTF-0110, WF-REF-0180).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/AsOf
+    responses:
+      '200':
+        description: Signaux par projet.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PilotHealth }
+      '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -1,0 +1,69 @@
+name: Specification finding
+description: Something in the specification is wrong, ambiguous, contradictory or missing.
+title: "[spec] "
+labels: ["specification"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The specification is a Word document; `docs/spec/waterfall-spec.md` is generated
+        from it and is never edited by hand. A finding is therefore located by section and
+        requirement identifier, and quoted, so that the author can find it by searching the
+        document. French or English, as you prefer.
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Section number and, where there is one, the requirement identifier.
+      placeholder: "§3.4.5.1, WF-REV-0050-A"
+    validations:
+      required: true
+  - type: textarea
+    id: quotation
+    attributes:
+      label: Exact quotation
+      description: >-
+        The text as it stands, long enough to be found by searching the document, short
+        enough to stay readable.
+      placeholder: "« La révision marquée qui en résulte devient la référence. »"
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: >-
+        Blocking — cannot be implemented or verified as it stands. Major — open to several
+        readings, a developer would get it wrong. Minor — improves clarity, no risk of a
+        wrong implementation.
+      options:
+        - blocking
+        - major
+        - minor
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: Finding
+      description: What is wrong, and what it would cost to leave it as it is.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed wording
+      description: >-
+        The replacement text, not just the problem. A finding without a proposal is a
+        finding someone else has to write again.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before opening
+      options:
+        - label: >-
+            I looked through `docs/spec/revue/constats/` and this finding is not one that
+            has already been settled.
+          required: true
