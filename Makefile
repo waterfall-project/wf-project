@@ -9,6 +9,8 @@
 SPEC    := docs/spec
 API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
+MOCK_SPEC := $(API)/waterfall.mock.json
+COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 TOOLS   := tools
 BACK    := backend
 FRONT   := frontend
@@ -22,6 +24,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
+	mock-spec dev dev-down lint-compose \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures reuse lint-workflows \
 	lint-shell check \
 	check-all check-repo check-spec \
@@ -56,8 +59,18 @@ inventory: ## Regenerate the endpoint inventory and the requirement coverage
 allocate-pbs: ## Write the PBS field of every requirement into the Word document
 	@python3 $(SPEC)/tools/allocate_pbs.py
 
-mock: build-openapi ## Serve a fake backend from the contract, for the mockup
-	@$(PRISM) mock $(BUNDLE)
+mock-spec: lint-openapi ## Derive from the contract the variant the fake back serves
+	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(MOCK_SPEC)) >/dev/null
+	@$(WFTOOLS).mock $(MOCK_SPEC)
+
+mock: mock-spec ## Serve the fake back on http://localhost:4010, from the contract's examples
+	@$(PRISM) mock $(MOCK_SPEC) --host 0.0.0.0 --port 4010
+
+dev: mock-spec ## Start the front against the fake back (http://localhost:3000)
+	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) up --build
+
+dev-down: ## Stop the development platform
+	@$(COMPOSE_DEV) down
 
 test-tools: ## Run the tests of the repository tools
 	@cd $(TOOLS) && uv run --frozen pytest
@@ -89,6 +102,9 @@ lint-shell: ## Lint the shell scripts
 lint-docker: ## Lint the Dockerfiles
 	@git ls-files '*Dockerfile' | xargs -r uv run --frozen --project $(TOOLS) hadolint
 
+lint-compose: ## Validate the Compose files
+	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) config --quiet
+
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------
 
 check: ## Run the checks of what the change touches (BASE=origin/main by default)
@@ -98,7 +114,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 
 check-all: check-repo check-spec check-contract check-back check-front ## Run every family of checks
 
-check-repo: reuse lint-workflows lint-shell lint-docker sources check-fixtures lint-tools typecheck-tools test-tools ## Checks that run on any change
+check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures lint-tools typecheck-tools test-tools ## Checks that run on any change
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
@@ -158,5 +174,5 @@ check-tools: ## Report which prerequisites are missing
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
 clean: ## Remove everything the commands generate
-	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE)
+	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(MOCK_SPEC)
 	@echo "  cleaned"

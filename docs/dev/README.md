@@ -68,6 +68,32 @@ contrat produit ; une modification du contrat réveille donc la famille front. E
 `fetch` hors de `src/api/`. `make typecheck-front`, `make test-front` ; `make lint-docker`
 (hadolint).
 
+## Le faux back
+
+Le faux back sert le contrat par prism, sans une ligne de réponse écrite à la main : ce qu'il
+répond, ce sont les **exemples du contrat**. Une réponse qui manque est un exemple ajouté au
+contrat, jamais un fichier dans le front ; un exemple invalide au regard de son schéma fait
+échouer `make lint-openapi`.
+
+Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summary`,
+`value`), et le contrat le cite par `$ref` ; le bundle l'embarque. Ses nombres reprennent
+ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
+
+`make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
+serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde
+celle dont part la maquette (EP-02). Rien d'autre ne change.
+
+- `make mock` : le faux back seul, sur `http://localhost:4010`.
+- `make dev` : le front (`http://localhost:3000`) contre le faux back, par
+  `deploy/compose/compose.dev.yaml`. Le front ne connaît que l'adresse de l'API,
+  `WATERFALL_API_ADDRESS` : à partir d'EP-03, la même variable désigne le vrai service.
+
+Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'apparaît pas dans
+la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
+front qui ne font que lire, jamais à éprouver une écriture.
+
+*Contrôles* : `make lint-openapi` (exemples conformes aux schémas), `make lint-compose`.
+
 ## Commandes
 
 Tout se lance par le Makefile, sur un poste comme dans la chaîne : `make help` les liste.

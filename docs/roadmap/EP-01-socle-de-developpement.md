@@ -82,9 +82,12 @@ par cet EPIC.
 ## Opérations du contrat
 
 Aucune n'est servie : le faux back sert le contrat entier tel qu'il est, sans en choisir.
-`make build-openapi` produit le bundle dont prism part. Le parcours témoin (US-0080) consomme
-`listProjects`, `getProject`, `listRevisions` et `listNodes`, et ce sont les seules
-opérations auxquelles EP-01 ajoute des exemples : c'est sa seule modification du contrat.
+`make mock-spec` en dérive la variante que prism sert. Le parcours témoin (US-0080) consomme
+`listProjects`, `getProject`, `listRevisions`, `listCostStructures` et `listNodes`, et ce sont
+les seules opérations auxquelles EP-01 ajoute des exemples : c'est sa seule modification du
+contrat. `listCostStructures`, absente de la conception, s'est révélée nécessaire en
+livrant l'US-0030 : les nœuds se lisent par structure, et aucune des quatre autres ne la
+donne.
 
 ## Préalables
 

@@ -24,6 +24,8 @@
                   type: array
                   items: { $ref: ../components/schemas/projects.yaml#/Project }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/projects.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -69,6 +71,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+            examples:
+              witness: { $ref: ../../../fixtures/api/project.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
