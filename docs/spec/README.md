@@ -28,7 +28,7 @@ Ou directement `./build.sh`, qui accepte les mêmes options.
 Le script affiche les avertissements, puis ce qui a changé depuis la génération
 précédente. Options utiles :
 
-- `--verbeux` : ajoute les messages de traçabilité (rattachement géométrique des
+- `--verbose` : ajoute les messages de traçabilité (rattachement géométrique des
   arêtes draw.io, validation des diagrammes) ;
 - `--strict` : code de retour non nul si un avertissement est émis, pour une
   intégration continue.

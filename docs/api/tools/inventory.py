@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
-"""Régénère INVENTAIRE.md depuis le contrat.
+"""Regenerate INVENTAIRE.md from the contract.
 
-Une ligne par opération, avec les exigences que sa description cite, puis la
-couverture : combien d'exigences de la spécification le contrat cite, et
-lesquelles il ne cite pas — avec, pour chaque domaine, la raison pour laquelle
-il n'a pas à les citer.
+One row per operation, with the requirements its description cites, then the
+coverage: how many requirements of the specification the contract cites, and
+which ones it does not — with, for each domain, the reason it has no reason to.
+
+The document itself is written in French, like the specification it mirrors; only
+this program and its console output are in English.
 """
 import collections
 import pathlib
 import re
 import sys
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
-SPEC = RACINE.parent / "spec" / "waterfall-spec.md"
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SPEC = ROOT.parent / "spec" / "waterfall-spec.md"
 
-FAMILLES = [
+FAMILIES = [
     ("system", "Système, métriques et traitements de fond"),
     ("session", "Session, compte courant et préférences"),
     ("access", "Comptes, rôles et permissions"),
@@ -29,7 +31,8 @@ FAMILLES = [
     ("portfolio", "Portefeuille"),
 ]
 
-RAISONS = {
+# Why a whole requirement domain legitimately has no surface in the contract.
+REASONS = {
     "ARC": "Choix d'architecture interne : noyau unique, rôles des composants de données, "
            "empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt "
            "et le déploiement.",
@@ -51,51 +54,51 @@ RE_OPERATION = re.compile(
 
 
 def operations():
-    """Chaque opération du contrat, dans l'ordre des familles puis des chemins."""
-    for famille, _ in FAMILLES:
-        fichier = RACINE / "paths" / f"{famille}.yaml"
-        for bloc in re.split(r"\n(?=/)", fichier.read_text(encoding="utf-8")):
-            entete = re.match(r"^(/[^\s:]*):", bloc)
-            if not entete:
+    """Every operation of the contract, by family then by path."""
+    for family, _ in FAMILIES:
+        path_file = ROOT / "paths" / f"{family}.yaml"
+        for block in re.split(r"\n(?=/)", path_file.read_text(encoding="utf-8")):
+            header = re.match(r"^(/[^\s:]*):", block)
+            if not header:
                 continue
-            for trouve in RE_OPERATION.finditer(bloc):
-                corps = trouve.group(2)
-                lire = lambda motif: (re.search(motif, corps) or [None, ""])[1]
+            for found in RE_OPERATION.finditer(block):
+                body = found.group(2)
+                read = lambda pattern: (re.search(pattern, body) or [None, ""])[1]
                 yield {
-                    "famille": famille,
-                    "chemin": entete.group(1),
-                    "methode": trouve.group(1).upper(),
-                    "operation": lire(r"summary: (.*)").strip().strip("'")
-                    or lire(r"operationId: (\w+)"),
-                    "exigences": sorted(set(re.findall(r"WF-[A-Z]+-\d{4}", corps))),
+                    "family": family,
+                    "path": header.group(1),
+                    "method": found.group(1).upper(),
+                    "operation": read(r"summary: (.*)").strip().strip("'")
+                    or read(r"operationId: (\w+)"),
+                    "requirements": sorted(set(re.findall(r"WF-[A-Z]+-\d{4}", body))),
                 }
 
 
-def exigences_du_document():
-    """Identifiant et titre de chaque exigence, l'exemple du §1.3.1 excepté."""
-    texte = SPEC.read_text(encoding="utf-8")
-    trouvees = {}
-    for bloc in re.findall(r"```yaml exigence\n(.*?)```", texte, re.S):
-        lire = lambda champ: (re.search(rf'^{champ}: "(.*)"$', bloc, re.M) or [None, ""])[1]
-        if lire("id") != "WF-EXAMP-0010-A":
-            trouvees[lire("id")[:-2]] = lire("titre")
-    return trouvees
+def requirements_of_the_document():
+    """Identifier and title of every requirement, the example of section 1.3.1 excepted."""
+    text = SPEC.read_text(encoding="utf-8")
+    found = {}
+    for block in re.findall(r"```yaml exigence\n(.*?)```", text, re.S):
+        read = lambda field: (re.search(rf'^{field}: "(.*)"$', block, re.M) or [None, ""])[1]
+        if read("id") != "WF-EXAMP-0010-A":
+            found[read("id")[:-2]] = read("titre")
+    return found
 
 
 def main():
     if not SPEC.exists():
-        print(f"spécification introuvable : {SPEC}", file=sys.stderr)
+        print(f"specification not found: {SPEC}", file=sys.stderr)
         return 1
 
     ops = list(operations())
-    citees = set(re.findall(r"WF-[A-Z]+-\d{4}", "".join(
-        f.read_text(encoding="utf-8") for f in RACINE.rglob("*.yaml"))))
-    toutes = exigences_du_document()
-    manquantes = collections.defaultdict(list)
-    for identifiant in sorted(set(toutes) - citees):
-        manquantes[identifiant.split("-")[1]].append(identifiant)
+    cited = set(re.findall(r"WF-[A-Z]+-\d{4}", "".join(
+        f.read_text(encoding="utf-8") for f in ROOT.rglob("*.yaml"))))
+    everything = requirements_of_the_document()
+    missing = collections.defaultdict(list)
+    for identifier in sorted(set(everything) - cited):
+        missing[identifier.split("-")[1]].append(identifier)
 
-    lignes = [
+    lines = [
         "# Inventaire des endpoints",
         "",
         "Établi depuis `openapi.yaml` par `tools/inventory.py`, et régénérable par",
@@ -103,44 +106,44 @@ def main():
         "l'opération cite ; les schémas en citent d'autres, comptées dans la couverture",
         "ci-dessous mais pas dans le tableau.",
         "",
-        f"**{len(ops)} opérations sur {len({o['chemin'] for o in ops})} chemins, "
-        f"dans {len(FAMILLES)} familles.**",
-        f"Le contrat cite **{len(citees & set(toutes))} des {len(toutes)} exigences** "
+        f"**{len(ops)} opérations sur {len({o['path'] for o in ops})} chemins, "
+        f"dans {len(FAMILIES)} familles.**",
+        f"Le contrat cite **{len(cited & set(everything))} des {len(everything)} exigences** "
         "de la spécification.",
         "",
     ]
-    for famille, titre in FAMILLES:
-        fam = [o for o in ops if o["famille"] == famille]
-        lignes += [
-            f"## {titre}", "", f"`paths/{famille}.yaml` — {len(fam)} opérations", "",
+    for family, title in FAMILIES:
+        of_family = [o for o in ops if o["family"] == family]
+        lines += [
+            f"## {title}", "", f"`paths/{family}.yaml` — {len(of_family)} opérations", "",
             "| Méthode | Chemin | Opération | Exigences citées |", "|---|---|---|---|",
         ]
-        lignes += [
-            f"| {o['methode']} | `{o['chemin']}` | {o['operation']} | "
-            f"{', '.join(o['exigences']) or '—'} |" for o in fam
+        lines += [
+            f"| {o['method']} | `{o['path']}` | {o['operation']} | "
+            f"{', '.join(o['requirements']) or '—'} |" for o in of_family
         ]
-        lignes.append("")
-    lignes += [
+        lines.append("")
+    lines += [
         "## Exigences que le contrat ne cite pas",
         "",
-        f"{sum(len(v) for v in manquantes.values())} sur {len(toutes)}. Aucune n'est un "
+        f"{sum(len(v) for v in missing.values())} sur {len(everything)}. Aucune n'est un "
         "oubli : ce sont celles qui n'ont pas de",
         "surface d'interface, et il vaut mieux qu'elles n'en aient pas.",
         "",
         "| Domaine | Exigences | Pourquoi aucune surface d'API |", "|---|---|---|",
     ]
-    inconnus = [d for d in manquantes if d not in RAISONS]
-    lignes += [
-        f"| {domaine} | {', '.join(manquantes[domaine])} | "
-        f"{RAISONS.get(domaine, 'à expliquer')} |" for domaine in sorted(manquantes)
+    undeclared = [domain for domain in missing if domain not in REASONS]
+    lines += [
+        f"| {domain} | {', '.join(missing[domain])} | "
+        f"{REASONS.get(domain, 'à expliquer')} |" for domain in sorted(missing)
     ]
 
-    (RACINE / "INVENTAIRE.md").write_text("\n".join(lignes) + "\n", encoding="utf-8")
-    print(f"INVENTAIRE.md — {len(ops)} opérations, "
-          f"{len(citees & set(toutes))}/{len(toutes)} exigences citées")
-    for domaine in inconnus:
-        print(f"  ! domaine sans raison déclarée : {domaine}", file=sys.stderr)
-    return 1 if inconnus else 0
+    (ROOT / "INVENTAIRE.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"INVENTAIRE.md — {len(ops)} operations, "
+          f"{len(cited & set(everything))}/{len(everything)} requirements cited")
+    for domain in undeclared:
+        print(f"  ! domain with no declared reason: {domain}", file=sys.stderr)
+    return 1 if undeclared else 0
 
 
 if __name__ == "__main__":

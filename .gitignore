@@ -4,5 +4,5 @@ __pycache__/
 ~$*
 .$*.bkp
 images/
-stb-waterfall.docx.avant*
+stb-waterfall.docx.before*
 docs/api/*.bundle.yaml

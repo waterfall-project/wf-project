@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Régénère waterfall-spec.md depuis les sources Word et draw.io,
-# et montre ce qui a changé depuis la génération précédente.
+# Regenerate waterfall-spec.md from the Word and draw.io sources, and show what
+# changed since the previous generation.
 set -euo pipefail
 
 cd "$(dirname "$0")"
-sortie="waterfall-spec.md"
-precedent=".build/waterfall-spec.precedent.md"
+output="waterfall-spec.md"
+previous=".build/waterfall-spec.previous.md"
 
 mkdir -p .build
-[[ -f "$sortie" ]] && cp "$sortie" "$precedent"
+[[ -f "$output" ]] && cp "$output" "$previous"
 
 python3 tools/build.py "$@"
 
-if [[ -f "$precedent" ]]; then
-  if diff -q "$precedent" "$sortie" >/dev/null; then
-    echo "  = inchangé depuis la génération précédente"
+if [[ -f "$previous" ]]; then
+  if diff -q "$previous" "$output" >/dev/null; then
+    echo "  = unchanged since the previous generation"
   else
-    ajouts=$(diff "$precedent" "$sortie" | grep -c '^>' || true)
-    retraits=$(diff "$precedent" "$sortie" | grep -c '^<' || true)
-    echo "  ~ ${ajouts} ligne(s) ajoutée(s), ${retraits} retirée(s) — détail : diff $precedent $sortie"
+    added=$(diff "$previous" "$output" | grep -c '^>' || true)
+    removed=$(diff "$previous" "$output" | grep -c '^<' || true)
+    echo "  ~ ${added} line(s) added, ${removed} removed — details: diff $previous $output"
   fi
 fi

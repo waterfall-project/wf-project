@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Projette la spécification Word + draw.io en Markdown destiné à un agent.
+"""Project the Word + draw.io specification into Markdown an agent can read.
 
-Word et draw.io restent les sources ; ce script régénère `waterfall-spec.md`,
-qui ne doit jamais être édité à la main. Le Markdown produit ajoute deux choses
-absentes du .docx et nécessaires au retour des revues : la numérotation de
-section sur chaque titre, et un ancrage explicite (section + identifiant) sur
-chaque exigence.
+Word and draw.io remain the sources; this script regenerates `waterfall-spec.md`,
+which must never be edited by hand. The Markdown it produces adds two things the
+.docx does not carry and reviews cannot do without: the section number on every
+heading, and an explicit anchor — section plus identifier — on every requirement.
+
+The document is written in French; this program and its console output are in
+English, and every literal that lands in the document is kept verbatim.
 """
 
 import argparse
@@ -19,12 +21,14 @@ import tempfile
 import tomllib
 from datetime import date
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(RACINE / "tools"))
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
 
 import drawio2mermaid  # noqa: E402
 
-CHAMPS_EXIGENCE = {
+# Word table label -> field name emitted in the projection. Both sides are part of
+# the document: the left as Word writes it, the right as agents read it.
+REQUIREMENT_FIELDS = {
     "ID": "id",
     "Titre": "titre",
     "Flex": "flexibilite",
@@ -35,545 +39,542 @@ CHAMPS_EXIGENCE = {
     "Vérif": "verification",
 }
 
-MOTS_CLES_MERMAID = (
+MERMAID_KEYWORDS = (
     "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
     "stateDiagram-v2", "erDiagram", "journey", "gantt", "pie", "mindmap",
     "timeline", "quadrantChart", "requirementDiagram", "C4Context",
 )
 
-RE_ENTREE_SOMMAIRE = re.compile(
+RE_TOC_ENTRY = re.compile(
     r"^\[(?:(\d+(?:\.\d+)*)\.\s+)?(.+?)\s+\[\d+\]\(#[^)]*\)\]\(#[^)]*\)$"
 )
-RE_ANCRE = re.compile(r'<span id="[^"]*" class="anchor"></span>')
-RE_LEGENDE = re.compile(r"^(Figure|Tableau)\s*(\d+)?\s*[:–—-]?\s*(.*)$")
+RE_ANCHOR = re.compile(r'<span id="[^"]*" class="anchor"></span>')
+RE_CAPTION = re.compile(r"^(Figure|Tableau)\s*(\d+)?\s*[:–—-]?\s*(.*)$")
 RE_IMG = re.compile(r'^<img\s+(?P<attrs>.*?)\s*/?>$', re.S)
 RE_ATTR = re.compile(r'(\w+)="([^"]*)"')
-RE_FLECHE = re.compile(r"(-{2,3}>|={2,3}>|-\.->|-{3,}|={3,}|--[ox])")
+RE_ARROW = re.compile(r"(-{2,3}>|={2,3}>|-\.->|-{3,}|={3,}|--[ox])")
 
 
-class Journal:
-    """Sépare ce qui demande une décision de ce qui relève de la traçabilité."""
+class BuildLog:
+    """Keeps what calls for a decision apart from what is mere traceability."""
 
-    def __init__(self, verbeux=False):
-        self.avertissements = []
-        self.details = []
-        self.verbeux = verbeux
+    def __init__(self, verbose=False):
+        self.warnings = []
+        self.traces = []
+        self.verbose = verbose
 
-    def avertir(self, message, niveau="attention"):
-        (self.details if niveau == "info" else self.avertissements).append(message)
+    def warn(self, message, level="warning"):
+        (self.traces if level == "info" else self.warnings).append(message)
 
-    def afficher(self):
-        for message in self.avertissements:
+    def report(self):
+        for message in self.warnings:
             print(f"  ! {message}", file=sys.stderr)
-        if self.verbeux:
-            for message in self.details:
+        if self.verbose:
+            for message in self.traces:
                 print(f"  - {message}", file=sys.stderr)
-        elif self.details:
-            print(f"  - {len(self.details)} message(s) de traçabilité "
-                  f"(relancer avec --verbeux)", file=sys.stderr)
+        elif self.traces:
+            print(f"  - {len(self.traces)} traceability message(s) "
+                  f"(run again with --verbose)", file=sys.stderr)
 
 
 # --------------------------------------------------------------------------- #
-# Étape 1 : extraction pandoc
+# Step 1: pandoc extraction
 # --------------------------------------------------------------------------- #
 
-def extraire_docx(docx, dossier_media):
-    resultat = subprocess.run(
+def extract_docx(docx, media_folder):
+    result = subprocess.run(
         ["pandoc", str(docx), "-t", "gfm", "--wrap=none",
-         f"--extract-media={dossier_media}"],
+         f"--extract-media={media_folder}"],
         capture_output=True, text=True, check=True,
     )
-    return resultat.stdout
+    return result.stdout
 
 
 # --------------------------------------------------------------------------- #
-# Étape 2 : sommaire, ancres, numérotation des titres
+# Step 2: table of contents, anchors, heading numbers
 # --------------------------------------------------------------------------- #
 
-def normaliser(titre):
-    titre = titre.replace("’", "'").replace("\xa0", " ")
-    return re.sub(r"\s+", " ", titre).strip().rstrip(":").lower()
+def normalise(heading):
+    heading = heading.replace("’", "'").replace("\xa0", " ")
+    return re.sub(r"\s+", " ", heading).strip().rstrip(":").lower()
 
 
-def lire_sommaire(lignes):
-    """Numéros de section tels que Word les a figés, indexés par titre normalisé.
+def read_table_of_contents(lines):
+    """Section numbers as Word froze them, indexed by normalised heading.
 
-    Sert uniquement à repérer les titres non numérotés et à détecter un sommaire
-    Word périmé ; la numérotation émise, elle, est recalculée depuis la structure.
+    Only used to spot unnumbered headings and to detect a stale Word table of
+    contents; the numbering actually emitted is recomputed from the structure.
     """
-    numeros, sans_numero = {}, set()
-    for ligne in lignes:
-        correspondance = RE_ENTREE_SOMMAIRE.match(ligne.strip())
-        if not correspondance:
+    numbers, unnumbered = {}, set()
+    for line in lines:
+        entry = RE_TOC_ENTRY.match(line.strip())
+        if not entry:
             continue
-        numero, titre = correspondance.group(1), normaliser(correspondance.group(2))
-        if titre.startswith(("figure ", "tableau ")):
+        number, heading = entry.group(1), normalise(entry.group(2))
+        if heading.startswith(("figure ", "tableau ")):
             continue
-        if numero:
-            numeros.setdefault(titre, numero)
+        if number:
+            numbers.setdefault(heading, number)
         else:
-            sans_numero.add(titre)
-    return numeros, sans_numero
+            unnumbered.add(heading)
+    return numbers, unnumbered
 
 
-def retirer_sommaire(lignes):
-    """Supprime les entrées de sommaire et leurs intertitres : un agent lit les titres."""
-    intertitres = {"sommaire", "liste des figures", "liste des tables",
-                   "liste des tableaux", "table des matières"}
-    gardees = []
-    for ligne in lignes:
-        depouillee = ligne.strip()
-        if RE_ENTREE_SOMMAIRE.match(depouillee):
+def drop_table_of_contents(lines):
+    """Remove the entries and their own headings: an agent reads the headings themselves."""
+    own_headings = {"sommaire", "liste des figures", "liste des tables",
+                    "liste des tableaux", "table des matières"}
+    kept = []
+    for line in lines:
+        stripped = line.strip()
+        if RE_TOC_ENTRY.match(stripped):
             continue
-        if normaliser(depouillee) in intertitres:
+        if normalise(stripped) in own_headings:
             continue
-        gardees.append(ligne)
-    return gardees
+        kept.append(line)
+    return kept
 
 
-def numeroter_titres(lignes, numeros_word, sans_numero, journal):
-    """Préfixe chaque titre de son numéro de section, recalculé depuis la structure."""
-    compteurs, sorties = [], []
-    for ligne in lignes:
-        correspondance = re.match(r"^(#{1,6})\s+(.*)$", ligne)
-        if not correspondance:
-            sorties.append(ligne)
+def number_headings(lines, word_numbers, unnumbered, log):
+    """Prefix every heading with its section number, recomputed from the structure."""
+    counters, output = [], []
+    for line in lines:
+        heading = re.match(r"^(#{1,6})\s+(.*)$", line)
+        if not heading:
+            output.append(line)
             continue
-        niveau, titre = len(correspondance.group(1)), correspondance.group(2).strip()
-        cle = normaliser(titre)
-        if cle in sans_numero:
-            sorties.append(f"{'#' * niveau} {titre}")
+        level, title = len(heading.group(1)), heading.group(2).strip()
+        key = normalise(title)
+        if key in unnumbered:
+            output.append(f"{'#' * level} {title}")
             continue
-        del compteurs[niveau:]
-        while len(compteurs) < niveau:
-            compteurs.append(0)
-        compteurs[niveau - 1] += 1
-        numero = ".".join(str(c) for c in compteurs)
-        attendu = numeros_word.get(cle)
-        if attendu and attendu != numero:
-            journal.avertir(
-                f"sommaire Word périmé : « {titre} » y est numéroté {attendu}, "
-                f"la structure du document donne {numero}"
+        del counters[level:]
+        while len(counters) < level:
+            counters.append(0)
+        counters[level - 1] += 1
+        number = ".".join(str(c) for c in counters)
+        expected = word_numbers.get(key)
+        if expected and expected != number:
+            log.warn(
+                f'stale Word table of contents: "{title}" is numbered {expected} there, '
+                f"the document structure gives {number}"
             )
-        sorties.append(f"{'#' * niveau} {numero}. {titre}")
-    return sorties
+        output.append(f"{'#' * level} {number}. {title}")
+    return output
 
 
-def section_courante(lignes, index):
-    for ligne in reversed(lignes[:index]):
-        correspondance = re.match(r"^#{1,6}\s+(\d+(?:\.\d+)*)\.", ligne)
-        if correspondance:
-            return correspondance.group(1)
+def current_section(lines, index):
+    for line in reversed(lines[:index]):
+        heading = re.match(r"^#{1,6}\s+(\d+(?:\.\d+)*)\.", line)
+        if heading:
+            return heading.group(1)
     return ""
 
 
 # --------------------------------------------------------------------------- #
-# Étape 3 : figures -> Mermaid
+# Step 3: figures -> Mermaid
 # --------------------------------------------------------------------------- #
 
-def decouper_mermaid(source):
-    """Restitue un source Mermaid écrit sur une seule ligne (texte alternatif Word).
+def resegment_mermaid(source):
+    """Restore a Mermaid source written on a single line (a Word alt text).
 
-    Word stocke le diagramme sans saut de ligne ; Mermaid, lui, exige une
-    instruction par ligne. On re-segmente en respectant guillemets et crochets.
+    Word stores the diagram without line breaks; Mermaid wants one statement per
+    line. We resegment while respecting quotes and brackets.
     """
-    jetons, courant, profondeur, dans_guillemets = [], [], 0, False
-    for caractere in source:
-        if caractere == '"':
-            dans_guillemets = not dans_guillemets
-        elif not dans_guillemets:
-            if caractere in "[{(":
-                profondeur += 1
-            elif caractere in "]})":
-                profondeur -= 1
-            elif caractere.isspace() and profondeur == 0:
-                if courant:
-                    jetons.append("".join(courant))
-                    courant = []
+    tokens, current, depth, in_quotes = [], [], 0, False
+    for character in source:
+        if character == '"':
+            in_quotes = not in_quotes
+        elif not in_quotes:
+            if character in "[{(":
+                depth += 1
+            elif character in "]})":
+                depth -= 1
+            elif character.isspace() and depth == 0:
+                if current:
+                    tokens.append("".join(current))
+                    current = []
                 continue
-        courant.append(caractere)
-    if courant:
-        jetons.append("".join(courant))
+        current.append(character)
+    if current:
+        tokens.append("".join(current))
 
-    if not jetons:
+    if not tokens:
         return ""
 
-    entete, jetons = jetons[0], jetons[1:]
-    if entete in MOTS_CLES_MERMAID and jetons and re.fullmatch(r"[A-Z]{2}", jetons[0]):
-        entete, jetons = f"{entete} {jetons[0]}", jetons[1:]
+    header, tokens = tokens[0], tokens[1:]
+    if header in MERMAID_KEYWORDS and tokens and re.fullmatch(r"[A-Z]{2}", tokens[0]):
+        header, tokens = f"{header} {tokens[0]}", tokens[1:]
 
-    if entete.startswith("classDiagram"):
-        return decouper_class_diagram(entete, jetons)
+    if header.startswith("classDiagram"):
+        return resegment_class_diagram(header, tokens)
 
-    arite_fixe = {"classDef": 3, "class": 3, "style": 3, "linkStyle": 3, "direction": 2}
-    instructions, i = [], 0
-    while i < len(jetons):
-        jeton = jetons[i]
-        if jeton in arite_fixe:
-            n = arite_fixe[jeton]
-            instructions.append(" ".join(jetons[i:i + n]))
+    fixed_arity = {"classDef": 3, "class": 3, "style": 3, "linkStyle": 3, "direction": 2}
+    statements, i = [], 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token in fixed_arity:
+            n = fixed_arity[token]
+            statements.append(" ".join(tokens[i:i + n]))
             i += n
             continue
-        if jeton in ("subgraph", "end"):
-            instructions.append(jeton if jeton == "end" else " ".join(jetons[i:i + 2]))
-            i += 1 if jeton == "end" else 2
+        if token in ("subgraph", "end"):
+            statements.append(token if token == "end" else " ".join(tokens[i:i + 2]))
+            i += 1 if token == "end" else 2
             continue
-        instruction = [jeton]
+        statement = [token]
         i += 1
-        while i < len(jetons) and RE_FLECHE.search(jetons[i]):
-            instruction.append(jetons[i])
+        while i < len(tokens) and RE_ARROW.search(tokens[i]):
+            statement.append(tokens[i])
             i += 1
-            if i < len(jetons):
-                instruction.append(jetons[i])
+            if i < len(tokens):
+                statement.append(tokens[i])
                 i += 1
-        # Libellé de transition à la manière des stateDiagram (« A --> B : texte ») :
-        # il court jusqu'au prochain jeton suivi d'une flèche, qui ouvre l'instruction suivante.
-        if i < len(jetons) and jetons[i].startswith(":"):
-            while i < len(jetons):
-                suivant_est_fleche = i + 1 < len(jetons) and RE_FLECHE.search(jetons[i + 1])
-                if jetons[i] in arite_fixe or (suivant_est_fleche and instruction[-1] != ":"):
+        # Transition label in the stateDiagram manner ("A --> B : text"): it runs
+        # until the next token followed by an arrow, which opens the next statement.
+        if i < len(tokens) and tokens[i].startswith(":"):
+            while i < len(tokens):
+                next_is_arrow = i + 1 < len(tokens) and RE_ARROW.search(tokens[i + 1])
+                if tokens[i] in fixed_arity or (next_is_arrow and statement[-1] != ":"):
                     break
-                instruction.append(jetons[i])
+                statement.append(tokens[i])
                 i += 1
-        instructions.append(" ".join(instruction))
+        statements.append(" ".join(statement))
 
-    return "\n".join([entete] + [f"    {i}" for i in instructions]) + "\n"
+    return "\n".join([header] + [f"    {s}" for s in statements]) + "\n"
 
 
-RE_FLECHE_CLASSE = re.compile(
+RE_CLASS_ARROW = re.compile(
     r"^(<\|--|--\|>|\*--|--\*|o--|--o|<--|-->|--|<\|\.\.|\.\.\|>|<\.\.|\.\.>|\.\.)$"
 )
 
 
-def decouper_class_diagram(entete, jetons):
-    """Re-segmente un classDiagram écrit sur une seule ligne.
+def resegment_class_diagram(header, tokens):
+    """Resegment a classDiagram written on a single line.
 
-    Une relation s'écrit « A "1" --> "*" B : libellé », avec des cardinalités
-    facultatives entre guillemets. Son libellé court jusqu'au début de
-    l'instruction suivante : un identifiant suivi d'une flèche, éventuellement
-    précédée d'une cardinalité, ou un mot-clé.
+    A relation reads `A "1" --> "*" B : label`, with optional cardinalities in
+    quotes. Its label runs until the beginning of the next statement: an identifier
+    followed by an arrow, possibly preceded by a cardinality, or a keyword.
     """
-    arite = {"class": 2, "direction": 2, "style": 3, "classDef": 3, "cssClass": 3}
-    fleche = lambda j: j < len(jetons) and RE_FLECHE_CLASSE.match(jetons[j]) is not None
-    guillemets = lambda j: j < len(jetons) and jetons[j].startswith('"')
+    arity = {"class": 2, "direction": 2, "style": 3, "classDef": 3, "cssClass": 3}
+    arrow = lambda j: j < len(tokens) and RE_CLASS_ARROW.match(tokens[j]) is not None
+    quoted = lambda j: j < len(tokens) and tokens[j].startswith('"')
 
-    def debut_relation(j):
-        return (not guillemets(j) and not fleche(j) and jetons[j] != ":"
-                and (fleche(j + 1) or (guillemets(j + 1) and fleche(j + 2))))
+    def starts_a_relation(j):
+        return (not quoted(j) and not arrow(j) and tokens[j] != ":"
+                and (arrow(j + 1) or (quoted(j + 1) and arrow(j + 2))))
 
-    instructions, i = [], 0
-    while i < len(jetons):
-        if jetons[i] in arite:
-            n = arite[jetons[i]]
-            instructions.append(" ".join(jetons[i:i + n]))
+    statements, i = [], 0
+    while i < len(tokens):
+        if tokens[i] in arity:
+            n = arity[tokens[i]]
+            statements.append(" ".join(tokens[i:i + n]))
             i += n
             continue
-        instruction = [jetons[i]]
+        statement = [tokens[i]]
         i += 1
-        # Cardinalité, flèche, cardinalité, cible.
-        while i < len(jetons) and (guillemets(i) or fleche(i)) and len(instruction) < 4:
-            instruction.append(jetons[i])
+        # Cardinality, arrow, cardinality, target.
+        while i < len(tokens) and (quoted(i) or arrow(i)) and len(statement) < 4:
+            statement.append(tokens[i])
             i += 1
-        if len(instruction) > 1 and i < len(jetons):
-            instruction.append(jetons[i])
+        if len(statement) > 1 and i < len(tokens):
+            statement.append(tokens[i])
             i += 1
-        if i < len(jetons) and jetons[i].startswith(":"):
-            while i < len(jetons) and jetons[i] not in arite and not (
-                    instruction[-1] != ":" and debut_relation(i)):
-                instruction.append(jetons[i])
+        if i < len(tokens) and tokens[i].startswith(":"):
+            while i < len(tokens) and tokens[i] not in arity and not (
+                    statement[-1] != ":" and starts_a_relation(i)):
+                statement.append(tokens[i])
                 i += 1
-        instructions.append(" ".join(instruction))
+        statements.append(" ".join(statement))
 
-    return "\n".join([entete] + [f"    {x}" for x in instructions]) + "\n"
+    return "\n".join([header] + [f"    {s}" for s in statements]) + "\n"
 
 
-def mermaid_depuis_alt(alt):
-    """Renvoie le source Mermaid si le texte alternatif en est un, sinon None."""
-    texte = html.unescape(alt or "").strip()
-    if not texte:
+def mermaid_from_alt_text(alt):
+    """Return the Mermaid source when the alt text is one, None otherwise."""
+    text = html.unescape(alt or "").strip()
+    if not text:
         return None
-    premier = texte.split(None, 1)[0]
-    if premier not in MOTS_CLES_MERMAID:
+    first = text.split(None, 1)[0]
+    if first not in MERMAID_KEYWORDS:
         return None
-    return decouper_mermaid(texte)
+    return resegment_mermaid(text)
 
 
-def charger_config_figures(chemin):
-    if not chemin.exists():
+def load_figure_config(path):
+    if not path.exists():
         return []
-    return tomllib.loads(chemin.read_text(encoding="utf-8")).get("figure", [])
+    return tomllib.loads(path.read_text(encoding="utf-8")).get("figure", [])
 
 
-def convertir_figures(lignes, drawio, config, dossier_images, journal):
-    """Remplace chaque <img> par un bloc Mermaid, ou conserve l'image à défaut."""
-    pages = drawio2mermaid.charger_pages(drawio) if drawio.exists() else {}
-    sorties, i = [], 0
-    while i < len(lignes):
-        ligne = lignes[i].strip()
-        correspondance = RE_IMG.match(ligne)
-        if not correspondance:
-            sorties.append(lignes[i])
+def convert_figures(lines, drawio, config, images_folder, log):
+    """Replace every <img> with a Mermaid block, or keep the image when there is none."""
+    pages = drawio2mermaid.load_pages(drawio) if drawio.exists() else {}
+    output, i = [], 0
+    while i < len(lines):
+        line = lines[i].strip()
+        image = RE_IMG.match(line)
+        if not image:
+            output.append(lines[i])
             i += 1
             continue
 
-        attributs = dict(RE_ATTR.findall(correspondance.group("attrs")))
-        legende, saut = lire_legende(lignes, i + 1)
+        attributes = dict(RE_ATTR.findall(image.group("attrs")))
+        caption, next_index = read_caption(lines, i + 1)
 
-        if legende and not re.search(r"\d", legende.split("—")[0]):
-            journal.avertir(
-                f"« {legende} » : légende sans numéro dans Word — un constat de revue "
-                "ne pourra désigner cette figure que par son titre"
+        if caption and not re.search(r"\d", caption.split("—")[0]):
+            log.warn(
+                f'"{caption}": caption without a number in Word — a review finding will '
+                "only be able to name this figure by its title"
             )
-        mermaid = mermaid_depuis_alt(attributs.get("alt"))
-        origine = "texte alternatif Word"
+        mermaid = mermaid_from_alt_text(attributes.get("alt"))
+        origin = "texte alternatif Word"
         if mermaid is None:
-            entree = trouver_config(config, legende)
-            if entree and entree.get("source"):
-                # Source Mermaid tenue dans le dépôt : aucune re-segmentation, donc
-                # tous les types de diagrammes sont permis, séquences comprises.
-                chemin = RACINE / entree["source"]
-                if chemin.exists():
-                    mermaid = chemin.read_text(encoding="utf-8")
-                    origine = entree["source"]
+            entry = find_config_entry(config, caption)
+            if entry and entry.get("source"):
+                # Mermaid source held in the repository: no resegmentation at all, so
+                # every kind of diagram is allowed, sequences included.
+                path = ROOT / entry["source"]
+                if path.exists():
+                    mermaid = path.read_text(encoding="utf-8")
+                    origin = entry["source"]
                 else:
-                    journal.avertir(
-                        f"{legende} : source Mermaid « {entree['source']} » introuvable"
+                    log.warn(
+                        f'{caption}: Mermaid source "{entry["source"]}" not found'
                     )
-            elif entree and entree.get("page") in pages:
-                mermaid = drawio2mermaid.convertir(
-                    pages[entree["page"]],
-                    entree.get("direction", "LR"),
-                    lambda m, niveau="attention", lg=legende: journal.avertir(
-                        f"{lg} : {m}", niveau
+            elif entry and entry.get("page") in pages:
+                mermaid = drawio2mermaid.convert(
+                    pages[entry["page"]],
+                    entry.get("direction", "LR"),
+                    lambda message, level="warning", name=caption: log.warn(
+                        f"{name}: {message}", level
                     ),
                 )
-                origine = f"{drawio.name}, page « {entree['page']} »"
-            elif entree:
-                journal.avertir(
-                    f"{legende} : page draw.io « {entree.get('page')} » introuvable"
+                origin = f"{drawio.name}, page « {entry['page']} »"
+            elif entry:
+                log.warn(
+                    f'{caption}: draw.io page "{entry.get("page")}" not found'
                 )
 
         if mermaid is None:
-            if not legende:
-                journal.avertir(
-                    "figure sans légende exploitable : l'association avec une page "
-                    "draw.io se fait par la légende, elle ne peut donc pas être faite. "
-                    "L'image est conservée telle quelle."
+            if not caption:
+                log.warn(
+                    "figure with no usable caption: a draw.io page is matched by the "
+                    "caption, so no match can be made. The image is kept as it is."
                 )
             else:
-                journal.avertir(
-                    f"{legende} : aucune source Mermaid (ni texte alternatif, ni entrée "
-                    f"correspondante dans tools/figures.toml) — l'image est conservée "
-                    f"telle quelle"
+                log.warn(
+                    f"{caption}: no Mermaid source (neither an alt text nor a matching "
+                    f"entry in tools/figures.toml) — the image is kept as it is"
                 )
-            sorties.extend(conserver_image(attributs, legende, dossier_images))
+            output.extend(keep_image(attributes, caption, images_folder))
         else:
-            sorties.append(f"<!-- source : {origine} — régénéré par tools/build.py -->")
-            sorties.append("")
-            sorties.append("```mermaid")
-            sorties.append(mermaid.rstrip("\n"))
-            sorties.append("```")
+            output.append(f"<!-- source : {origin} — régénéré par tools/build.py -->")
+            output.append("")
+            output.append("```mermaid")
+            output.append(mermaid.rstrip("\n"))
+            output.append("```")
 
-        if legende:
-            sorties.append("")
-            sorties.append(f"*{legende}*")
-        i = saut
-    return sorties
+        if caption:
+            output.append("")
+            output.append(f"*{caption}*")
+        i = next_index
+    return output
 
 
-def lire_legende(lignes, depart):
-    """Légende « Figure n … » / « Tableau n … » qui suit l'image ; renvoie (légende, index suivant)."""
-    i = depart
-    while i < len(lignes) and not lignes[i].strip():
+def read_caption(lines, start):
+    """The "Figure n …" / "Tableau n …" caption following the image; returns (caption, next index)."""
+    i = start
+    while i < len(lines) and not lines[i].strip():
         i += 1
-    if i < len(lignes):
-        candidat = RE_ANCRE.sub("", lignes[i]).strip()
-        correspondance = RE_LEGENDE.match(candidat)
-        if correspondance:
-            genre, numero, titre = correspondance.groups()
-            tete = f"{genre} {numero}" if numero else genre
-            return (f"{tete} — {titre.strip()}" if titre.strip() else tete), i + 1
-    return "", depart
+    if i < len(lines):
+        candidate = RE_ANCHOR.sub("", lines[i]).strip()
+        caption = RE_CAPTION.match(candidate)
+        if caption:
+            kind, number, title = caption.groups()
+            head = f"{kind} {number}" if number else kind
+            return (f"{head} — {title.strip()}" if title.strip() else head), i + 1
+    return "", start
 
 
-def trouver_config(config, legende):
-    """Entrée dont le fragment de légende correspond ; le plus long l'emporte.
+def find_config_entry(config, caption):
+    """The entry whose caption fragment matches; the longest one wins.
 
-    Plusieurs légendes peuvent partager un préfixe (« Arborescence fonctionnelle »
-    et « Arborescence fonctionnelle de la planification ») : l'ordre des entrées
-    dans figures.toml ne doit pas décider à la place du sens.
+    Several captions may share a prefix ("Arborescence fonctionnelle" and
+    "Arborescence fonctionnelle de la planification"): the order of the entries in
+    figures.toml must not decide in place of the meaning.
     """
-    if not legende:
+    if not caption:
         return None
-    candidates = [e for e in config if normaliser(e.get("legende", "")) in normaliser(legende)]
+    candidates = [e for e in config if normalise(e.get("legende", "")) in normalise(caption)]
     return max(candidates, key=lambda e: len(e.get("legende", "")), default=None)
 
 
-def conserver_image(attributs, legende, dossier_images):
-    source = pathlib.Path(attributs.get("src", ""))
+def keep_image(attributes, caption, images_folder):
+    source = pathlib.Path(attributes.get("src", ""))
     if not source.exists():
         return [f"<!-- image manquante : {source} -->"]
-    dossier_images.mkdir(parents=True, exist_ok=True)
-    destination = dossier_images / source.name
+    images_folder.mkdir(parents=True, exist_ok=True)
+    destination = images_folder / source.name
     shutil.copy2(source, destination)
-    chemin = destination.relative_to(RACINE).as_posix()
-    return [f"![{legende or source.name}]({chemin})"]
+    path = destination.relative_to(ROOT).as_posix()
+    return [f"![{caption or source.name}]({path})"]
 
 
 # --------------------------------------------------------------------------- #
-# Étape 4 : tableaux d'exigences -> blocs YAML ancrés
+# Step 4: requirement tables -> anchored YAML blocks
 # --------------------------------------------------------------------------- #
 
-def cellules(ligne):
-    return [c.strip() for c in ligne.strip().strip("|").split("|")]
+def cells(line):
+    return [c.strip() for c in line.strip().strip("|").split("|")]
 
 
-def desechapper(valeur):
-    valeur = valeur.strip()
-    # Une cellule entièrement en gras dans Word arrive en **…** : la mise en forme
-    # n'a pas de sens dans une valeur d'exigence.
-    entiere = re.fullmatch(r"\*\*(.+)\*\*", valeur)
-    if entiere:
-        valeur = entiere.group(1).strip()
-    valeur = re.sub(r"\\(.)", r"\1", valeur)
-    return "" if valeur in ("", "-") else valeur
+def unescape_cell(value):
+    value = value.strip()
+    # A cell entirely in bold in Word arrives as **…**: formatting has no meaning
+    # inside a requirement value.
+    whole = re.fullmatch(r"\*\*(.+)\*\*", value)
+    if whole:
+        value = whole.group(1).strip()
+    value = re.sub(r"\\(.)", r"\1", value)
+    return "" if value in ("", "-") else value
 
 
-def scalaire_yaml(valeur):
-    if not valeur:
+def yaml_scalar(value):
+    if not value:
         return '""'
-    return '"' + valeur.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def tableaux_html_en_pipe(lignes):
-    """Réécrit en tableau Markdown les tableaux HTML qui portent une exigence.
+def html_tables_to_pipe(lines):
+    """Rewrite as Markdown tables the HTML tables that carry a requirement.
 
-    Pandoc produit un tableau HTML dès qu'une cellule contient plusieurs
-    paragraphes (un Motif en deux paragraphes, par exemple). Sans cette étape,
-    l'exigence échapperait à la conversion, à l'index et au contrôle des doublons.
+    Pandoc produces an HTML table as soon as a cell holds several paragraphs (a
+    Motif in two paragraphs, say). Without this step the requirement would escape
+    the conversion, the index and the duplicate check.
     """
-    texte = "\n".join(lignes)
+    text = "\n".join(lines)
 
-    def reecrire(correspondance):
-        bloc = correspondance.group(0)
-        paires = []
-        for rangee in re.findall(r"<tr[^>]*>(.*?)</tr>", bloc, re.S):
-            cellules_html = re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", rangee, re.S)
-            if len(cellules_html) != 2:
-                return bloc
-            valeurs = []
-            for cellule in cellules_html:
-                cellule = re.sub(r"</p>\s*<p>", " ", cellule)
-                cellule = re.sub(r"<[^>]+>", "", cellule)
-                valeurs.append(re.sub(r"\s+", " ", html.unescape(cellule)).strip())
-            paires.append(valeurs)
-        if [cle for cle, _ in paires] != list(CHAMPS_EXIGENCE):
-            return bloc
-        pipe = [f"| {paires[0][0]} | {paires[0][1]} |", "|---|---|"]
-        pipe += [f"| {cle} | {valeur.replace('|', '/')} |" for cle, valeur in paires[1:]]
+    def rewrite(match):
+        block = match.group(0)
+        pairs = []
+        for row in re.findall(r"<tr[^>]*>(.*?)</tr>", block, re.S):
+            html_cells = re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", row, re.S)
+            if len(html_cells) != 2:
+                return block
+            values = []
+            for cell in html_cells:
+                cell = re.sub(r"</p>\s*<p>", " ", cell)
+                cell = re.sub(r"<[^>]+>", "", cell)
+                values.append(re.sub(r"\s+", " ", html.unescape(cell)).strip())
+            pairs.append(values)
+        if [key for key, _ in pairs] != list(REQUIREMENT_FIELDS):
+            return block
+        pipe = [f"| {pairs[0][0]} | {pairs[0][1]} |", "|---|---|"]
+        pipe += [f"| {key} | {value.replace('|', '/')} |" for key, value in pairs[1:]]
         return "\n".join(pipe)
 
-    texte = re.sub(r"<table>.*?</table>", reecrire, texte, flags=re.S)
-    return texte.split("\n")
+    text = re.sub(r"<table>.*?</table>", rewrite, text, flags=re.S)
+    return text.split("\n")
 
 
-def convertir_exigences(lignes, journal):
-    """Transforme les tableaux d'exigences en blocs YAML portant leur section."""
-    sorties, exigences, i = [], [], 0
-    while i < len(lignes):
-        if not lignes[i].strip().startswith("| ID "):
-            sorties.append(lignes[i])
+def convert_requirements(lines, log):
+    """Turn requirement tables into YAML blocks carrying their section."""
+    output, requirements, i = [], [], 0
+    while i < len(lines):
+        if not lines[i].strip().startswith("| ID "):
+            output.append(lines[i])
             i += 1
             continue
 
-        fin = i
-        while fin < len(lignes) and lignes[fin].strip().startswith("|"):
-            fin += 1
-        corps = [l for l in lignes[i:fin] if not re.match(r"^\|[\s|:-]+\|$", l.strip())]
-        paires = [cellules(l) for l in corps]
-        if any(len(p) != 2 for p in paires) or [p[0] for p in paires] != list(CHAMPS_EXIGENCE):
-            sorties.extend(lignes[i:fin])
-            i = fin
+        end = i
+        while end < len(lines) and lines[end].strip().startswith("|"):
+            end += 1
+        body = [l for l in lines[i:end] if not re.match(r"^\|[\s|:-]+\|$", l.strip())]
+        pairs = [cells(l) for l in body]
+        if any(len(p) != 2 for p in pairs) or [p[0] for p in pairs] != list(REQUIREMENT_FIELDS):
+            output.extend(lines[i:end])
+            i = end
             continue
 
-        valeurs = {CHAMPS_EXIGENCE[cle]: desechapper(val) for cle, val in paires}
-        valeurs["section"] = section_courante(sorties, len(sorties))
-        # L'exemple du chapitre 1 (« Forme des exigences ») est rendu comme les
-        # autres, mais n'entre ni dans le compte ni dans l'index.
-        if not (valeurs["section"] or "").startswith("1."):
-            exigences.append(valeurs)
+        values = {REQUIREMENT_FIELDS[key]: unescape_cell(value) for key, value in pairs}
+        values["section"] = current_section(output, len(output))
+        # The example in chapter 1 ("Forme des exigences") is rendered like the
+        # others, but counts neither in the total nor in the index.
+        if not (values["section"] or "").startswith("1."):
+            requirements.append(values)
 
-        sorties.append("```yaml exigence")
-        sorties.append(f"section: {scalaire_yaml(valeurs['section'])}")
-        for champ in CHAMPS_EXIGENCE.values():
-            sorties.append(f"{champ}: {scalaire_yaml(valeurs[champ])}")
-        sorties.append("```")
-        i = fin
+        output.append("```yaml exigence")
+        output.append(f"section: {yaml_scalar(values['section'])}")
+        for field in REQUIREMENT_FIELDS.values():
+            output.append(f"{field}: {yaml_scalar(values[field])}")
+        output.append("```")
+        i = end
 
-    doublons = {}
-    for exigence in exigences:
-        doublons.setdefault(exigence["id"], []).append(exigence["section"])
-    for identifiant, sections in doublons.items():
+    duplicates = {}
+    for requirement in requirements:
+        duplicates.setdefault(requirement["id"], []).append(requirement["section"])
+    for identifier, sections in duplicates.items():
         if len(sections) > 1:
-            journal.avertir(
-                f"identifiant {identifiant} porté par {len(sections)} exigences "
+            log.warn(
+                f"identifier {identifier} carried by {len(sections)} requirements "
                 f"(sections {', '.join(s or '?' for s in sections)})"
             )
-    return sorties, exigences
+    return output, requirements
 
 
-def remplacer_index(lignes, exigences):
-    """Réécrit « Index des exigences » : les numéros de page Word n'ont pas de sens ici."""
-    depart = None
-    for i, ligne in enumerate(lignes):
-        if re.match(r"^#{1,6}\s+(?:\d+(?:\.\d+)*\.\s+)?Index des exigences\s*$", ligne):
-            depart = i
+def replace_requirement_index(lines, requirements):
+    """Rewrite "Index des exigences": Word page numbers mean nothing here."""
+    start = None
+    for i, line in enumerate(lines):
+        if re.match(r"^#{1,6}\s+(?:\d+(?:\.\d+)*\.\s+)?Index des exigences\s*$", line):
+            start = i
             break
-    if depart is None:
-        return lignes
+    if start is None:
+        return lines
 
-    fin = depart + 1
-    while fin < len(lignes) and not lignes[fin].startswith("#"):
-        fin += 1
+    end = start + 1
+    while end < len(lines) and not lines[end].startswith("#"):
+        end += 1
 
     table = ["", "| Exigence | Section | Titre | Flex |", "|---|---|---|---|"]
-    for exigence in sorted(exigences, key=lambda e: (e["id"], e["section"])):
+    for requirement in sorted(requirements, key=lambda r: (r["id"], r["section"])):
         table.append(
-            f"| {exigence['id'] or '—'} | {exigence['section'] or '—'} "
-            f"| {exigence['titre'] or '—'} | {exigence['flexibilite'] or '—'} |"
+            f"| {requirement['id'] or '—'} | {requirement['section'] or '—'} "
+            f"| {requirement['titre'] or '—'} | {requirement['flexibilite'] or '—'} |"
         )
     table.append("")
-    return lignes[:depart + 1] + table + lignes[fin:]
+    return lines[:start + 1] + table + lines[end:]
 
 
 # --------------------------------------------------------------------------- #
-# Étape 5 : assemblage
+# Step 5: assembly
 # --------------------------------------------------------------------------- #
 
-def nettoyer(lignes):
-    sorties, vides = [], 0
-    for ligne in lignes:
-        ligne = RE_ANCRE.sub("", ligne).rstrip()
-        if not ligne.strip():
-            vides += 1
-            if vides > 1:
+def tidy(lines):
+    output, blanks = [], 0
+    for line in lines:
+        line = RE_ANCHOR.sub("", line).rstrip()
+        if not line.strip():
+            blanks += 1
+            if blanks > 1:
                 continue
         else:
-            vides = 0
-        sorties.append(ligne)
-    while sorties and not sorties[0].strip():
-        sorties.pop(0)
-    return sorties
+            blanks = 0
+        output.append(line)
+    while output and not output[0].strip():
+        output.pop(0)
+    return output
 
 
-def entete(docx, drawio, nb_exigences):
+def front_matter(docx, drawio, requirement_count):
     return [
         "---",
         f"genere_le: {date.today().isoformat()}",
         "genere_par: tools/build.py",
         f"source_texte: {docx.name}",
         f"source_diagrammes: {drawio.name}",
-        f"nombre_exigences: {nb_exigences}",
+        f"nombre_exigences: {requirement_count}",
         "---",
         "",
         "<!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER.",
@@ -583,84 +584,85 @@ def entete(docx, drawio, nb_exigences):
     ]
 
 
-def valider_mermaid(lignes, journal):
-    """Compile chaque bloc Mermaid produit, pour que le build échoue avant l'agent."""
+def validate_mermaid(lines, log):
+    """Compile every Mermaid block produced, so the build fails before the agent does."""
     if shutil.which("mmdc") is None:
-        journal.avertir("mmdc absent : les diagrammes Mermaid ne sont pas validés", "info")
+        log.warn("mmdc missing: Mermaid diagrams are not validated", "info")
         return
-    blocs, courant = [], None
-    for ligne in lignes:
-        if courant is None and ligne.strip() == "```mermaid":
-            courant = []
-        elif courant is not None and ligne.strip() == "```":
-            blocs.append("\n".join(courant))
-            courant = None
-        elif courant is not None:
-            courant.append(ligne)
+    blocks, current = [], None
+    for line in lines:
+        if current is None and line.strip() == "```mermaid":
+            current = []
+        elif current is not None and line.strip() == "```":
+            blocks.append("\n".join(current))
+            current = None
+        elif current is not None:
+            current.append(line)
 
-    with tempfile.TemporaryDirectory() as temporaire:
-        dossier = pathlib.Path(temporaire)
-        for n, bloc in enumerate(blocs, 1):
-            entree = dossier / f"d{n}.mmd"
-            entree.write_text(bloc + "\n", encoding="utf-8")
-            resultat = subprocess.run(
-                ["mmdc", "-i", str(entree), "-o", str(dossier / f"d{n}.svg")],
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        for n, block in enumerate(blocks, 1):
+            source = folder / f"d{n}.mmd"
+            source.write_text(block + "\n", encoding="utf-8")
+            result = subprocess.run(
+                ["mmdc", "-i", str(source), "-o", str(folder / f"d{n}.svg")],
                 capture_output=True, text=True,
             )
-            if resultat.returncode != 0:
-                premiere = (resultat.stderr or resultat.stdout).strip().split("\n")
-                journal.avertir(
-                    f"diagramme Mermaid n°{n} ne compile pas : "
-                    + " ".join(premiere[:3])
+            if result.returncode != 0:
+                first_lines = (result.stderr or result.stdout).strip().split("\n")
+                log.warn(
+                    f"Mermaid diagram no. {n} does not compile: "
+                    + " ".join(first_lines[:3])
                 )
-    journal.avertir(f"{len(blocs)} diagramme(s) Mermaid validé(s) par mmdc", "info")
+    log.warn(f"{len(blocks)} Mermaid diagram(s) validated by mmdc", "info")
 
 
 def main():
-    analyseur = argparse.ArgumentParser(description=__doc__)
-    analyseur.add_argument("--docx", default="stb-waterfall.docx")
-    analyseur.add_argument("--drawio", default="waterfall.visuels.drawio")
-    analyseur.add_argument("--sortie", default="waterfall-spec.md")
-    analyseur.add_argument("--config", default="tools/figures.toml")
-    analyseur.add_argument("--strict", action="store_true",
-                           help="échoue si un avertissement est émis")
-    analyseur.add_argument("--verbeux", action="store_true",
-                           help="affiche aussi les messages de traçabilité")
-    arguments = analyseur.parse_args()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--docx", default="stb-waterfall.docx")
+    parser.add_argument("--drawio", default="waterfall.visuels.drawio")
+    parser.add_argument("--output", default="waterfall-spec.md")
+    parser.add_argument("--config", default="tools/figures.toml")
+    parser.add_argument("--strict", action="store_true",
+                        help="fail if any warning is emitted")
+    parser.add_argument("--verbose", action="store_true",
+                        help="also print the traceability messages")
+    arguments = parser.parse_args()
 
-    docx = RACINE / arguments.docx
-    drawio = RACINE / arguments.drawio
-    sortie = RACINE / arguments.sortie
+    docx = ROOT / arguments.docx
+    drawio = ROOT / arguments.drawio
+    output_path = ROOT / arguments.output
     if not docx.exists():
-        print(f"source Word introuvable : {docx}", file=sys.stderr)
+        print(f"Word source not found: {docx}", file=sys.stderr)
         return 1
 
-    journal = Journal(arguments.verbeux)
-    config = charger_config_figures(RACINE / arguments.config)
+    log = BuildLog(arguments.verbose)
+    config = load_figure_config(ROOT / arguments.config)
 
-    with tempfile.TemporaryDirectory() as temporaire:
-        brut = extraire_docx(docx, pathlib.Path(temporaire) / "media")
-        lignes = brut.replace("\r\n", "\n").split("\n")
+    with tempfile.TemporaryDirectory() as temporary:
+        raw = extract_docx(docx, pathlib.Path(temporary) / "media")
+        lines = raw.replace("\r\n", "\n").split("\n")
 
-        numeros_word, sans_numero = lire_sommaire(lignes)
-        lignes = retirer_sommaire(lignes)
-        lignes = [RE_ANCRE.sub("", l) for l in lignes]
-        lignes = numeroter_titres(lignes, numeros_word, sans_numero, journal)
-        lignes = convertir_figures(lignes, drawio, config, RACINE / "images", journal)
+        word_numbers, unnumbered = read_table_of_contents(lines)
+        lines = drop_table_of_contents(lines)
+        lines = [RE_ANCHOR.sub("", line) for line in lines]
+        lines = number_headings(lines, word_numbers, unnumbered, log)
+        lines = convert_figures(lines, drawio, config, ROOT / "images", log)
 
-    lignes = tableaux_html_en_pipe(lignes)
-    lignes, exigences = convertir_exigences(lignes, journal)
-    lignes = remplacer_index(lignes, exigences)
-    lignes = nettoyer(lignes)
-    valider_mermaid(lignes, journal)
+    lines = html_tables_to_pipe(lines)
+    lines, requirements = convert_requirements(lines, log)
+    lines = replace_requirement_index(lines, requirements)
+    lines = tidy(lines)
+    validate_mermaid(lines, log)
 
-    sortie.write_text(
-        "\n".join(entete(docx, drawio, len(exigences)) + lignes) + "\n",
+    output_path.write_text(
+        "\n".join(front_matter(docx, drawio, len(requirements)) + lines) + "\n",
         encoding="utf-8",
     )
-    print(f"{sortie.relative_to(RACINE)} — {len(lignes)} lignes, {len(exigences)} exigences")
-    journal.afficher()
-    if journal.avertissements and arguments.strict:
+    print(f"{output_path.relative_to(ROOT)} — {len(lines)} lines, "
+          f"{len(requirements)} requirements")
+    log.report()
+    if log.warnings and arguments.strict:
         return 1
     return 0
 

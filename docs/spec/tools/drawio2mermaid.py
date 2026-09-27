@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Convertit une page d'un fichier .drawio en diagramme Mermaid.
+"""Convert one page of a .drawio file into a Mermaid diagram.
 
-Les arêtes dessinées « à la main » dans draw.io n'ont pas toujours d'attribut
-source/target : elles ne portent que des coordonnées. On rattache alors chaque
-extrémité au sommet le plus proche géométriquement, et on signale la distance
-retenue pour que le rattachement reste vérifiable.
+Edges drawn "by hand" in draw.io do not always carry a source/target attribute:
+they only carry coordinates. Each loose end is then attached to the geometrically
+nearest vertex, and the distance used is reported so that the attachment stays
+verifiable.
 """
 
 import base64
@@ -17,257 +17,257 @@ import xml.etree.ElementTree as ET
 import zlib
 from collections import defaultdict
 
-# Au-delà de ce nombre de pixels, on refuse d'inférer l'extrémité d'une arête.
-SEUIL_INFERENCE_PX = 20.0
+# Beyond this many pixels, we refuse to infer the end of an edge.
+INFERENCE_THRESHOLD_PX = 20.0
 
 
-def charger_pages(chemin):
-    """Retourne {nom_de_page: element mxGraphModel}, en gérant les pages compressées."""
-    racine = ET.parse(chemin).getroot()
+def load_pages(path):
+    """Return {page_name: mxGraphModel element}, compressed pages included."""
+    root = ET.parse(path).getroot()
     pages = {}
-    for i, diagramme in enumerate(racine.iter("diagram")):
-        nom = diagramme.get("name") or f"Page-{i + 1}"
-        modele = diagramme.find("mxGraphModel")
-        if modele is None and (diagramme.text or "").strip():
-            # Page compressée : base64 -> deflate brut -> URL-encoding.
-            brut = zlib.decompress(base64.b64decode(diagramme.text.strip()), -15)
-            modele = ET.fromstring(urllib.parse.unquote(brut.decode("utf-8")))
-        if modele is None:
+    for index, diagram in enumerate(root.iter("diagram")):
+        name = diagram.get("name") or f"Page-{index + 1}"
+        model = diagram.find("mxGraphModel")
+        if model is None and (diagram.text or "").strip():
+            # Compressed page: base64 -> raw deflate -> URL encoding.
+            raw = zlib.decompress(base64.b64decode(diagram.text.strip()), -15)
+            model = ET.fromstring(urllib.parse.unquote(raw.decode("utf-8")))
+        if model is None:
             continue
-        pages[nom] = modele
+        pages[name] = model
     return pages
 
 
-def texte(cellule):
-    """Libellé d'une cellule, balises HTML de draw.io converties en sauts Mermaid."""
-    valeur = cellule.get("value") or ""
-    # <div> ouvrant compris : draw.io s'en sert aussi comme séparateur de ligne.
-    valeur = re.sub(r"<br\s*/?>|</?(?:div|p|li)[^>]*>", "\n", valeur, flags=re.I)
-    valeur = re.sub(r"<[^>]+>", "", valeur)
-    valeur = html.unescape(valeur).replace("\xa0", " ")
-    lignes = [re.sub(r"\s+", " ", l).strip() for l in valeur.split("\n")]
-    return "<br>".join(l for l in lignes if l)
+def label_of(cell):
+    """Label of a cell, draw.io HTML tags turned into Mermaid line breaks."""
+    value = cell.get("value") or ""
+    # Opening <div> included: draw.io also uses it as a line separator.
+    value = re.sub(r"<br\s*/?>|</?(?:div|p|li)[^>]*>", "\n", value, flags=re.I)
+    value = re.sub(r"<[^>]+>", "", value)
+    value = html.unescape(value).replace("\xa0", " ")
+    lines = [re.sub(r"\s+", " ", line).strip() for line in value.split("\n")]
+    return "<br>".join(line for line in lines if line)
 
 
-def style_en_dict(cellule):
+def style_as_dict(cell):
     style = {}
-    for morceau in (cellule.get("style") or "").split(";"):
-        if "=" in morceau:
-            cle, _, val = morceau.partition("=")
-            style[cle.strip()] = val.strip()
-        elif morceau.strip():
-            style[morceau.strip()] = True
+    for piece in (cell.get("style") or "").split(";"):
+        if "=" in piece:
+            key, _, value = piece.partition("=")
+            style[key.strip()] = value.strip()
+        elif piece.strip():
+            style[piece.strip()] = True
     return style
 
 
-def forme_mermaid(style, libelle):
-    """Choisit la forme Mermaid d'après le style draw.io."""
-    libelle = libelle or " "
+def mermaid_shape(style, label):
+    """Pick the Mermaid shape from the draw.io style."""
+    label = label or " "
     if "rhombus" in style:
-        return '{"%s"}' % libelle
+        return '{"%s"}' % label
     if "ellipse" in style:
-        return '(("%s"))' % libelle
+        return '(("%s"))' % label
     if "cylinder" in style or "mxgraph.flowchart.database" in str(style.get("shape", "")):
-        return '[("%s")]' % libelle
+        return '[("%s")]' % label
     if str(style.get("rounded")) == "1":
-        return '("%s")' % libelle
-    return '["%s"]' % libelle
+        return '("%s")' % label
+    return '["%s"]' % label
 
 
-def identifiant(libelle, pris):
-    """Identifiant Mermaid lisible dérivé du libellé, unique dans le diagramme."""
-    sans_accents = unicodedata.normalize("NFKD", libelle.replace("<br>", " "))
-    sans_accents = "".join(c for c in sans_accents if not unicodedata.combining(c))
-    base = re.sub(r"[^0-9A-Za-z]+", "_", sans_accents)
+def identifier(label, taken):
+    """Readable Mermaid identifier derived from the label, unique in the diagram."""
+    unaccented = unicodedata.normalize("NFKD", label.replace("<br>", " "))
+    unaccented = "".join(c for c in unaccented if not unicodedata.combining(c))
+    base = re.sub(r"[^0-9A-Za-z]+", "_", unaccented)
     base = base.strip("_") or "N"
     if base[0].isdigit():
         base = "N" + base
-    candidat, n = base, 2
-    while candidat in pris:
-        candidat, n = f"{base}_{n}", n + 1
-    pris.add(candidat)
-    return candidat
+    candidate, n = base, 2
+    while candidate in taken:
+        candidate, n = f"{base}_{n}", n + 1
+    taken.add(candidate)
+    return candidate
 
 
-def geometrie(cellule):
-    g = cellule.find("mxGeometry")
-    if g is None:
+def geometry(cell):
+    geo = cell.find("mxGeometry")
+    if geo is None:
         return None
     return (
-        float(g.get("x", 0)), float(g.get("y", 0)),
-        float(g.get("width", 0)), float(g.get("height", 0)),
+        float(geo.get("x", 0)), float(geo.get("y", 0)),
+        float(geo.get("width", 0)), float(geo.get("height", 0)),
     )
 
 
-def distance_au_rectangle(px, py, rect):
-    x, y, w, h = rect
-    dx = max(x - px, 0.0, px - (x + w))
-    dy = max(y - py, 0.0, py - (y + h))
+def distance_to_rectangle(px, py, rect):
+    x, y, width, height = rect
+    dx = max(x - px, 0.0, px - (x + width))
+    dy = max(y - py, 0.0, py - (y + height))
     return (dx * dx + dy * dy) ** 0.5
 
 
-def convertir(modele, direction="LR", avertir=lambda m, niveau="attention": None):
-    cellules = {c.get("id"): c for c in modele.iter("mxCell")}
+def convert(model, direction="LR", warn=lambda message, level="warning": None):
+    cells = {c.get("id"): c for c in model.iter("mxCell")}
 
-    sommets, libelles_aretes, conteneurs = {}, defaultdict(list), set()
-    for ident, cellule in cellules.items():
-        style = style_en_dict(cellule)
-        if cellule.get("vertex") != "1":
+    vertices, edge_labels, nested = {}, defaultdict(list), set()
+    for cell_id, cell in cells.items():
+        style = style_as_dict(cell)
+        if cell.get("vertex") != "1":
             continue
         if "edgeLabel" in style:
-            libelles_aretes[cellule.get("parent")].append(texte(cellule))
+            edge_labels[cell.get("parent")].append(label_of(cell))
             continue
-        rect = geometrie(cellule)
+        rect = geometry(cell)
         if rect is None:
             continue
-        sommets[ident] = (texte(cellule), rect, style)
-        if cellule.get("parent") not in ("1", "0", None):
-            conteneurs.add(ident)
+        vertices[cell_id] = (label_of(cell), rect, style)
+        if cell.get("parent") not in ("1", "0", None):
+            nested.add(cell_id)
 
-    if conteneurs:
-        avertir(
-            f"{len(conteneurs)} sommet(s) imbriqué(s) dans un conteneur draw.io : "
-            "les coordonnées sont relatives au parent, le rattachement géométrique "
-            "peut être faux. Vérifier le diagramme produit."
+    if nested:
+        warn(
+            f"{len(nested)} vertex(es) nested in a draw.io container: coordinates are "
+            "relative to the parent, so geometric attachment may be wrong. Check the "
+            "diagram produced."
         )
 
-    for parent, libelles in libelles_aretes.items():
-        if cellules.get(parent) is None or cellules[parent].get("edge") != "1":
-            avertir(
-                "libellé d'arête orphelin, non rattaché à une arête : "
-                + ", ".join(f"« {l} »" for l in libelles if l)
+    for parent_id, labels in edge_labels.items():
+        if cells.get(parent_id) is None or cells[parent_id].get("edge") != "1":
+            warn(
+                "orphan edge label, attached to no edge: "
+                + ", ".join(f'"{label}"' for label in labels if label)
             )
 
-    def plus_proche(px, py):
-        ident = min(sommets, key=lambda i: (
-            round(distance_au_rectangle(px, py, sommets[i][1]), 1),
-            sommets[i][1][2] * sommets[i][1][3],
+    def nearest(px, py):
+        cell_id = min(vertices, key=lambda i: (
+            round(distance_to_rectangle(px, py, vertices[i][1]), 1),
+            vertices[i][1][2] * vertices[i][1][3],
         ))
-        return ident, distance_au_rectangle(px, py, sommets[ident][1])
+        return cell_id, distance_to_rectangle(px, py, vertices[cell_id][1])
 
-    aretes, inferences = [], []
-    for ident, cellule in cellules.items():
-        if cellule.get("edge") != "1":
+    edges, inferences = [], []
+    for cell_id, cell in cells.items():
+        if cell.get("edge") != "1":
             continue
-        g = cellule.find("mxGeometry")
+        geo = cell.find("mxGeometry")
         points = {}
-        if g is not None:
-            for p in g.findall("mxPoint"):
-                points[p.get("as")] = (float(p.get("x", 0)), float(p.get("y", 0)))
+        if geo is not None:
+            for point in geo.findall("mxPoint"):
+                points[point.get("as")] = (float(point.get("x", 0)), float(point.get("y", 0)))
 
-        extremites = {}
-        for bout, attribut, point in (("source", "source", "sourcePoint"),
-                                      ("cible", "target", "targetPoint")):
-            ref = cellule.get(attribut)
-            if ref in sommets:
-                extremites[bout] = ref
+        ends = {}
+        for end, attribute, point_name in (("source", "source", "sourcePoint"),
+                                           ("target", "target", "targetPoint")):
+            reference = cell.get(attribute)
+            if reference in vertices:
+                ends[end] = reference
                 continue
-            if point in points:
-                candidat, dist = plus_proche(*points[point])
-                if dist <= SEUIL_INFERENCE_PX:
-                    extremites[bout] = candidat
-                    inferences.append((ident, bout, sommets[candidat][0], dist))
+            if point_name in points:
+                candidate, distance = nearest(*points[point_name])
+                if distance <= INFERENCE_THRESHOLD_PX:
+                    ends[end] = candidate
+                    inferences.append((cell_id, end, vertices[candidate][0], distance))
 
-        libelle = "<br>".join(l for l in libelles_aretes.get(ident, []) if l)
-        if "source" in extremites and "cible" in extremites:
-            pointille = str(style_en_dict(cellule).get("dashed")) == "1"
-            aretes.append((extremites["source"], extremites["cible"], libelle, pointille))
+        label = "<br>".join(one for one in edge_labels.get(cell_id, []) if one)
+        if "source" in ends and "target" in ends:
+            dashed = str(style_as_dict(cell).get("dashed")) == "1"
+            edges.append((ends["source"], ends["target"], label, dashed))
         else:
-            avertir(
-                f"arête {ident} ignorée (extrémité non résolue)"
-                + (f' — libellé « {libelle} »' if libelle else "")
+            warn(
+                f"edge {cell_id} ignored (unresolved end)"
+                + (f' — label "{label}"' if label else "")
             )
 
-    for ident, bout, nom, dist in inferences:
-        avertir(
-            f"arête {ident} : {bout} inférée vers « {nom} » (distance {dist:.0f} px)",
+    for cell_id, end, name, distance in inferences:
+        warn(
+            f'edge {cell_id}: {end} inferred towards "{name}" ({distance:.0f} px away)',
             "info",
         )
     if inferences:
-        pire = max(d for *_, d in inferences)
-        avertir(
-            f"{len(inferences)} extrémité(s) d'arête rattachée(s) par géométrie "
-            f"(écart maximal {pire:.0f} px sur {SEUIL_INFERENCE_PX:.0f} tolérés)",
+        worst = max(distance for *_, distance in inferences)
+        warn(
+            f"{len(inferences)} edge end(s) attached by geometry "
+            f"(largest gap {worst:.0f} px of {INFERENCE_THRESHOLD_PX:.0f} tolerated)",
             "info",
         )
 
-    pris = set()
-    noms = {i: identifiant(sommets[i][0] or "N", pris) for i in sommets}
+    taken = set()
+    names = {i: identifier(vertices[i][0] or "N", taken) for i in vertices}
 
-    # Cadres : un sommet libellé dont le rectangle contient celui d'autres sommets.
-    # Chaque sommet est rangé dans le plus petit cadre qui le contient.
-    def contient(a, b):
-        ax, ay, aw, ah = sommets[a][1]
-        bx, by, bw, bh = sommets[b][1]
-        return (a != b and ax <= bx and ay <= by and bx + bw <= ax + aw
-                and by + bh <= ay + ah and aw * ah > bw * bh)
+    # Frames: a labelled vertex whose rectangle contains other vertices. Each vertex
+    # goes into the smallest frame that contains it.
+    def contains(outer, inner):
+        ox, oy, ow, oh = vertices[outer][1]
+        ix, iy, iw, ih = vertices[inner][1]
+        return (outer != inner and ox <= ix and oy <= iy and ix + iw <= ox + ow
+                and iy + ih <= oy + oh and ow * oh > iw * ih)
 
-    parent = {}
-    for b in sommets:
-        englobants = [a for a in sommets if sommets[a][0] and contient(a, b)]
-        if englobants:
-            parent[b] = min(englobants, key=lambda a: sommets[a][1][2] * sommets[a][1][3])
-    cadres = set(parent.values())
+    parent_of = {}
+    for inner in vertices:
+        enclosing = [outer for outer in vertices if vertices[outer][0] and contains(outer, inner)]
+        if enclosing:
+            parent_of[inner] = min(enclosing, key=lambda o: vertices[o][1][2] * vertices[o][1][3])
+    frames = set(parent_of.values())
 
-    lignes = [f"flowchart {direction}"]
+    lines = [f"flowchart {direction}"]
 
-    def emettre(conteneur, retrait):
-        for ident, (libelle, _, style) in sommets.items():
-            if parent.get(ident) != conteneur:
+    def emit(frame, indent):
+        for cell_id, (label, _, style) in vertices.items():
+            if parent_of.get(cell_id) != frame:
                 continue
-            if ident in cadres:
-                lignes.append(f'{retrait}subgraph {noms[ident]}["{libelle}"]')
-                emettre(ident, retrait + "    ")
-                lignes.append(f"{retrait}end")
+            if cell_id in frames:
+                lines.append(f'{indent}subgraph {names[cell_id]}["{label}"]')
+                emit(cell_id, indent + "    ")
+                lines.append(f"{indent}end")
             else:
-                lignes.append(f"{retrait}{noms[ident]}{forme_mermaid(style, libelle)}")
+                lines.append(f"{indent}{names[cell_id]}{mermaid_shape(style, label)}")
 
-    emettre(None, "    ")
+    emit(None, "    ")
 
-    lignes.append("")
-    for source, cible, libelle, pointille in aretes:
-        trait = "-.->" if pointille else "-->"
-        fleche = f'{trait}|"{libelle}"|' if libelle else trait
-        lignes.append(f"    {noms[source]} {fleche} {noms[cible]}")
+    lines.append("")
+    for source, target, label, dashed in edges:
+        stroke = "-.->" if dashed else "-->"
+        arrow = f'{stroke}|"{label}"|' if label else stroke
+        lines.append(f"    {names[source]} {arrow} {names[target]}")
 
-    # Les couleurs de remplissage deviennent des classes, pour rester proche du visuel d'origine.
-    par_couleur = defaultdict(list)
-    for ident, (_, _, style) in sommets.items():
-        if ident in cadres:
+    # Fill colours become classes, to stay close to the original visual.
+    by_colour = defaultdict(list)
+    for cell_id, (_, _, style) in vertices.items():
+        if cell_id in frames:
             continue
-        remplissage = style.get("fillColor")
-        if remplissage and remplissage != "none":
-            par_couleur[(remplissage, style.get("strokeColor", "#000000"))].append(noms[ident])
-    if par_couleur:
-        lignes.append("")
-        for n, ((remplissage, trait), membres) in enumerate(sorted(par_couleur.items()), 1):
-            lignes.append(f"    classDef c{n} fill:{remplissage},stroke:{trait}")
-            lignes.append(f"    class {','.join(sorted(membres))} c{n}")
+        fill = style.get("fillColor")
+        if fill and fill != "none":
+            by_colour[(fill, style.get("strokeColor", "#000000"))].append(names[cell_id])
+    if by_colour:
+        lines.append("")
+        for n, ((fill, stroke), members) in enumerate(sorted(by_colour.items()), 1):
+            lines.append(f"    classDef c{n} fill:{fill},stroke:{stroke}")
+            lines.append(f"    class {','.join(sorted(members))} c{n}")
 
-    return "\n".join(lignes) + "\n"
+    return "\n".join(lines) + "\n"
 
 
 def main(argv):
     if not 2 <= len(argv) <= 4:
-        print("usage: drawio2mermaid.py <fichier.drawio> [page] [direction]", file=sys.stderr)
+        print("usage: drawio2mermaid.py <file.drawio> [page] [direction]", file=sys.stderr)
         return 2
-    pages = charger_pages(argv[1])
+    pages = load_pages(argv[1])
     if len(argv) < 3:
-        for nom in pages:
-            print(nom)
+        for name in pages:
+            print(name)
         return 0
     if argv[2] not in pages:
-        print(f"page « {argv[2]} » absente ; pages disponibles : {', '.join(pages)}", file=sys.stderr)
+        print(f'page "{argv[2]}" not found; available pages: {", ".join(pages)}', file=sys.stderr)
         return 1
     messages = []
-    sortie = convertir(
+    output = convert(
         pages[argv[2]],
         argv[3] if len(argv) > 3 else "LR",
-        lambda m, niveau="attention": messages.append((niveau, m)),
+        lambda message, level="warning": messages.append((level, message)),
     )
-    for niveau, message in messages:
-        print(f"  {'!' if niveau == 'attention' else '-'} {message}", file=sys.stderr)
-    print(sortie, end="")
+    for level, message in messages:
+        print(f"  {'!' if level == 'warning' else '-'} {message}", file=sys.stderr)
+    print(output, end="")
     return 0
 
 
