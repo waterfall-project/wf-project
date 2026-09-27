@@ -290,7 +290,11 @@ avec sa raison.
 
 ## Règles de codage
 
-*À écrire* — `python.md` et `typescript.md`, par l'[US-0300](https://github.com/waterfall-project/wf-project/issues/4).
+Comment s'écrit chaque langage : [Python](python.md), pour le back et les outils, et
+[TypeScript](typescript.md), pour le front. Chacun nomme d'abord les jeux de règles des
+outils, par renvoi, puis les règles de conception qu'aucun outil ne contrôle, chacune avec
+sa raison, et finit par les défauts déjà rencontrés, que la revue cherche nommément. Les
+règles d'écriture du SQL et des migrations viennent avec EP-03, en troisième fichier.
 
 ## Tests
 
