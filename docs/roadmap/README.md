@@ -134,11 +134,16 @@ qui permet de confier le reste à un agent.
    prendrait ses propres décisions de schéma. *Validation* ; l'EPIC passe `prêt`.
 3. **Établir le plan de lots** : pour chaque lot, son périmètre, les critères d'acceptation
    qu'il ferme, les lots dont il dépend et sa taille estimée. *Validation.*
-4. **Ouvrir les issues et la branche** : une issue pour l'EPIC, une par US, une par lot en
-   sous-issue de son US ; reporter dans le fichier les numéros des issues de l'EPIC et des
-   US ; tirer `epic/EP-nn` de `main`. L'EPIC passe `en cours`.
-5. **Livrer** : quand toutes les US sont finies, constater la définition de fini sur la
-   branche de l'EPIC, puis la fusionner dans `main`. L'EPIC passe `livré`.
+4. **Ouvrir les issues** : une issue pour l'EPIC, une par US, une par lot en sous-issue de
+   son US ; reporter dans le fichier les numéros des issues de l'EPIC et des US. L'EPIC passe
+   `en cours`.
+5. **Livrer** : au premier lot, tirer `epic/EP-nn` de `main`, ce qui attend que les EPIC dont
+   celui-ci dépend soient livrés ; livrer les lots ; quand toutes les US sont finies,
+   constater la définition de fini sur la branche de l'EPIC, puis la fusionner dans `main` —
+   une personne le fait, jamais un agent. L'EPIC passe `livré`.
+
+Les quatre premières étapes ne demandent pas que les EPIC précédents soient livrés : un EPIC
+se cadre pendant que celui dont il dépend se développe. Seule la cinquième les attend.
 
 Une proposition de fonctionnalité n'est pas une US : elle passe par le gabarit d'issue
 « Question or proposal », et ne devient une US que lorsqu'elle entre dans un EPIC.
@@ -151,14 +156,15 @@ lot technique et nomme les US qu'il prépare.
 
 | Règle | Pourquoi |
 |---|---|
-| 1 000 à 1 500 lignes de diff, tests compris, dont 800 de code de production au plus | au-delà, une revue attentive décroche |
-| le code engendré n'est pas compté : client du contrat, verrous de dépendances, fixtures extraites, migrations produites par l'outil | un lot qui régénère le client dépasserait le budget sans rien contenir à relire |
+| le plan de lots vise 1 000 à 1 500 lignes de diff par lot, tests compris, dont 800 de code de production au plus | au-delà, une revue attentive décroche |
+| le code engendré n'est pas compté : client du contrat, verrous de dépendances, fixtures extraites, migrations produites par l'outil | un lot qui régénère le client paraîtrait gros sans rien contenir à relire |
 | la pull request met chaque critère fermé en regard du test qui le porte | c'est ce que la revue vérifie en premier |
 | un lot se fusionne seul, la chaîne au vert | la branche de l'EPIC n'est jamais à moitié construite |
-| un lot qui dépasse son budget s'arrête et son découpage est revu ; seule une personne, après cet examen, peut laisser passer le dépassement, en posant l'étiquette `over-budget` sur la pull request | l'estimation se trompe ; la règle d'arrêt corrige, pas la revue |
+| un constat de revue hors du périmètre du lot devient une issue, et ne se corrige pas dans le lot | c'est ce qui fait grossir un lot pendant sa revue, et tourner la revue en boucle |
+| la pull request donne la taille réelle du lot, mesurée par `make lot-size`, à côté de l'estimation de son issue ; un dépassement ne fait rien échouer | l'estimation se trompe, et une règle d'arrêt bloquerait un EPIC livré la nuit ; l'écart se lit au relevé de livraison, et le plan de lots suivant s'en corrige |
 
-Ce tableau est la seule définition du budget : la chaîne, le gabarit de pull request et les
-agents y renvoient, et aucun ne le recopie.
+Ce tableau est la seule définition de la taille visée : le gabarit de pull request, celui
+des lots et les agents y renvoient, et aucun ne la recopie.
 
 Un lot porte le titre `[US-nnnn/Ln] …` ou, pour un lot technique, `[EP-nn/Ln] …` ; `Ln`
 numérote les lots d'une même US ou d'un même EPIC, sans réemploi. Les lots vivent sur GitHub
@@ -170,7 +176,7 @@ fichier de l'EPIC ne les recopie pas.
 | Branche | Reçoit | Tirée de |
 |---|---|---|
 | `main` | la fusion d'une branche d'EPIC à sa livraison, et les modifications de la spécification, du contrat ou de la roadmap qui ne servent aucun EPIC en cours | — |
-| `epic/EP-nn` | les pull requests des lots de cet EPIC, et les modifications du contrat que sa conception prévoit | `main`, à l'ouverture de l'EPIC |
+| `epic/EP-nn` | les pull requests des lots de cet EPIC, et les modifications du contrat que sa conception prévoit | `main`, au premier lot, une fois livrés les EPIC dont il dépend |
 | `lot/<identifiant du lot>` | le travail d'un lot, et lui seul | la branche de son EPIC |
 
 Chaque EPIC en cours a sa branche d'intégration, si bien que plusieurs peuvent avancer en

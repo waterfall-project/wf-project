@@ -27,9 +27,10 @@ suivra les imitera. Les agents de l'US-0280 prennent le relais à partir d'EP-02
 
 ## Ce qui en fait partie
 
-- le guide de développement, que les personnes comme les agents lisent avant d'écrire ;
-- la chaîne sur toute pull request, vers une branche d'EPIC comme vers `main`, et la mesure
-  de la taille d'un lot ;
+- le guide de développement et les règles de codage Python et TypeScript, que les personnes
+  comme les agents lisent avant d'écrire ;
+- la chaîne d'intégration sur GitHub Actions, sur toute pull request, vers une branche
+  d'EPIC comme vers `main`, et la commande qui mesure la taille réelle d'un lot ;
 - la structure du dépôt : front (PBS-1), service d'API et worker (PBS-2.1, PBS-2.2), noyau
   métier (PBS-2.3), et le contrôle qui interdit à un module du noyau de lire les tables d'un
   autre ;
@@ -38,14 +39,15 @@ suivra les imitera. Les agents de l'US-0280 prennent le relais à partir d'EP-02
 - un faux back servi par prism depuis le bundle du contrat, et le fichier Compose qui le
   démarre avec le front ;
 - l'outil qui extrait les exemples chiffrés des champs Vérif et les écrit en fixtures ;
-- l'analyse statique, le contrôle de typage et le contrôle de format, front et back,
-  bloquants et sans avertissement toléré ;
+- le lint, le contrôle de typage et le contrôle de format, front et back, bloquants et sans
+  avertissement toléré ; le lint des workflows, des scripts shell et des Dockerfile ;
 - le rapport de couverture des exigences par les tests, et le refus de publier tant qu'une
   exigence F0 n'est couverte par aucun test ;
 - l'outil de couverture de la roadmap : quelle exigence n'est citée par aucune US ;
 - le harnais de tests de bout en bout, avec un parcours témoin contre le faux back ;
-- les agents qui développent, qui relisent et qui mènent un EPIC de bout en bout, et les
-  règles communes qu'ils lisent tous.
+- les agents : celui qui cadre un EPIC jusqu'à ses issues, celui qui en livre les lots, et
+  pour chaque langage celui qui développe et celui qui relit ; et les règles communes qu'ils
+  lisent tous.
 
 ## Ce qui n'en fait pas partie
 
@@ -54,7 +56,9 @@ suivra les imitera. Les agents de l'US-0280 prennent le relais à partir d'EP-02
 - le jeu de données de référence de WF-QUA-0040, qui demande le modèle : il naît en EP-04 et
   grossit avec chaque EPIC ;
 - les sept flux de bout en bout de WF-QUA-0050 — EP-12 ;
-- les tests de charge de WF-QUA-0060, les images publiées, le chart Helm — EP-13 ;
+- la livraison continue — la construction et la publication des images, le chart Helm, tout
+  déploiement — et les tests de charge de WF-QUA-0060 — EP-13 : la chaîne d'EP-01 intègre
+  et contrôle, elle ne publie rien ;
 - le contrôle de complétude des catalogues de traduction (WF-QUA-0070), qui attend qu'il y
   ait des catalogues — EP-02.
 
@@ -86,6 +90,8 @@ Rien. Le contrat est écrit et `make lint-openapi` passe.
 
 ## Définition de fini
 
+- les contrôles qui existent déjà — projection de la spécification, lint du contrat,
+  inventaire — tournent dans la chaîne ;
 - une commande régénère le client du contrat, et le dépôt est inchangé après ;
 - `make mock` sert le faux back, et le front démarre contre lui par le Compose de
   développement ;
@@ -93,47 +99,76 @@ Rien. Le contrat est écrit et `make lint-openapi` passe.
   exprès font chacun échouer la chaîne ;
 - le rapport de couverture des exigences liste les 203 exigences et celles que nul test ne
   couvre ;
+- le relevé de couverture de code donne les lignes et les branches du back et du front, et
+  un seuil manqué empêche la fusion ;
 - l'outil de la roadmap liste les exigences qu'aucune US ne cite ;
 - le parcours témoin de bout en bout aboutit contre le faux back ;
-- la chaîne exécute tout ce qui précède sur une pull request, et échoue sur chacun de ces
-  points ;
-- une pull request dont la chaîne échoue ne peut pas être fusionnée, et un lot au-delà du
-  budget fait échouer la chaîne tant qu'une personne ne l'a pas autorisé ;
-- le guide de développement existe, et chacune de ses règles qu'un outil peut contrôler
-  nomme ce contrôle ;
-- l'agent de revue, lancé sur une pull request piégée, relève chacun des pièges ; l'agent
-  d'EPIC, lancé à blanc sur EP-02, rend la conception et le plan de lots qu'il proposerait,
-  sans rien publier. Ces deux essais se jouent à la main : la chaîne n'exécute pas d'agent.
+- la chaîne exécute tout ce qui précède, chaque contrôle à son palier et seulement pour ce
+  que la pull request touche, et échoue sur chacun de ces points ;
+- une pull request dont la chaîne échoue ne peut pas être fusionnée ;
+- `make lot-size` donne la taille d'un lot hors code engendré, production et tests séparés ;
+- le guide de développement et les règles de codage Python et TypeScript existent, et
+  chacune de leurs règles qu'un outil peut contrôler nomme ce contrôle ;
+- les deux agents de revue, lancés sur une pull request piégée, relèvent à eux deux chacun
+  des pièges ; l'agent de cadrage, lancé à blanc sur EP-02, rend la conception et le plan de lots
+  qu'il proposerait, sans rien publier. Ces deux essais se jouent à la main : la chaîne
+  n'exécute pas d'agent.
 
 ---
 
-## US-0300 — Guide de développement
+## US-0300 — Guide de développement et règles de codage
 
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** :
 
-**En tant que** développeur, **je veux** un guide qui fixe l'arborescence, les conventions et
-la forme des pièces qui se répètent, **afin que** le premier lot et le centième se
-ressemblent, qu'une personne ou un agent les ait écrits.
+**En tant que** développeur, **je veux** un guide qui fixe l'arborescence et les conventions
+du dépôt, et des règles de codage qui disent comment s'écrit le Python et comment s'écrit le
+TypeScript, **afin que** le premier lot et le centième se ressemblent, qu'une personne ou un
+agent les ait écrits.
 
 **Critères d'acceptation.**
 
 - propre à l'US : le guide couvre au moins l'arborescence et le rôle de chaque répertoire ; le
   nommage, en anglais et selon le tableau du §4.4.1 ; la forme d'un test qui cite son
   exigence, et celle d'un test qui reprend un exemple chiffré ; l'enveloppe d'erreur et
-  l'ajout d'un code ; l'ajout d'une clé de traduction ; l'écriture d'une migration ; les
-  branches, les lots et les pull requests ;
+  l'ajout d'un code ; l'ajout d'une clé de traduction ; les branches, les lots et les pull
+  requests ;
+- propre à l'US : `docs/dev/` porte un fichier de règles de codage par langage, l'un pour
+  Python, l'autre pour TypeScript. Chacun nomme d'abord les jeux de règles d'analyse, de
+  typage et de format activés, en renvoyant à leur configuration sans la recopier ; puis il
+  énonce les règles de conception qu'aucun outil ne contrôle — la découpe d'un module, la
+  forme d'une route, d'un schéma ou d'un composant, le traitement des erreurs, l'accès aux
+  données et à l'API, la forme des tests —, chacune avec sa raison ;
+- propre à l'US : chaque fichier de règles de codage tient la liste des défauts déjà
+  rencontrés dans son langage, chacun avec le scénario qui le déclenche ; c'est elle que
+  l'agent de revue de ce langage cherche nommément (US-0280), et un défaut relevé en revue
+  qui se reproduira s'y ajoute ;
+- propre à l'US : le guide dit ce qu'un commentaire doit porter et que nul outil ne
+  vérifie : la raison d'un choix, non la paraphrase du code ; l'anglais, comme le code ; et
+  il renvoie à l'US-0050 pour les en-têtes, les docstrings, le code commenté et les `TODO` ;
 - propre à l'US : chaque règle qu'un outil peut contrôler l'est, et le guide nomme le
   contrôle ; une règle que rien ne contrôle le dit ;
 - propre à l'US : le guide ne recopie ni la spécification, ni le contrat, ni CONTRIBUTING, ni
-  la roadmap : il y renvoie ; et les règles communes des agents (US-0280) renvoient au guide
-  au lieu de le répéter.
+  la roadmap : il y renvoie ; et les agents (US-0280) renvoient au guide et aux règles de
+  codage au lieu de les répéter.
 
-**Notes de réalisation.** Le guide vit dans `docs/dev/`, et la section « Changing the code »
-de CONTRIBUTING y renvoie. Il s'ouvre avant le premier lot, en squelette, et chaque US de cet
-EPIC y écrit la section qu'elle établit : une convention se fixe en l'appliquant, pas avant.
+**Notes de réalisation.** Le guide et les règles de codage vivent dans `docs/dev/`, et la
+section « Changing the code » de CONTRIBUTING y renvoie. Le guide s'ouvre avant le premier
+lot, en squelette, et chaque US de cet EPIC y écrit la section qu'elle établit : une
+convention se fixe en l'appliquant, pas avant. Les règles de codage partent des conventions
+des agents qui existent déjà hors du dépôt (US-0280), après un tri : ce qui contredit la
+spécification ou le contrat n'est pas repris — identifiants entiers au lieu d'UUID, erreurs
+rendues en phrase au lieu de l'enveloppe à code, tests sur une autre base que PostgreSQL,
+client d'API écrit à la main, textes de l'interface écrits en dur hors des catalogues,
+absence de Prettier. Les défauts qu'y relevaient les relecteurs — une réponse construite
+après la validation de la transaction, un agrégat recalculé par une route et pas par sa
+voisine, une réponse périmée qui écrase la sélection courante, un statut terminal oublié —
+ne dépendent pas de ce code-là : ils amorcent la liste des défauts déjà rencontrés.
+
+**Hors périmètre.** Les règles d'écriture du SQL et des migrations : elles se fixent avec la
+première table, en EP-03, dans un troisième fichier de règles de codage.
 
 ## US-0010 — Structure du dépôt et frontières du noyau
 
@@ -163,36 +198,76 @@ règle « une seule implémentation » ne repose pas sur la vigilance de chacun.
 bloquante au même titre que le reste (WF-QUA-0030) : les modules du noyau ne s'importent
 entre eux que par leur interface publique.
 
-## US-0310 — Chaîne sur les pull requests, branches protégées, taille des lots
+## US-0310 — Chaîne d'intégration sur GitHub Actions, branches protégées, mesure des lots
 
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** :
 
-**En tant que** développeur, **je veux** que la chaîne s'exécute sur toute pull request,
+**En tant que** développeur, **je veux** une chaîne d'intégration sur GitHub Actions qui
+s'exécute sur toute pull request,
 vers une branche d'EPIC comme vers `main`, qu'aucune de ces branches n'accepte ce qu'elle n'a
-pas validé, et qu'elle mesure la taille d'un lot, **afin que** chaque branche d'intégration
-soit constructible à tout moment, et qu'un lot trop gros se voie avant la revue et non
-pendant.
+pas validé, qu'elle ne lance que ce que la modification touche, et qu'une commande mesure
+la taille réelle d'un lot, **afin que** chaque branche d'intégration soit constructible à
+tout moment, qu'une modification ne paie en attente que les contrôles qui la concernent, et
+que l'écart entre un lot et son estimation se lise au lieu de se deviner.
 
 **Critères d'acceptation.**
 
 - propre à l'US : la chaîne s'exécute sur toute pull request vers `main` ou vers une branche
   `epic/*`, et une pull request dont la chaîne échoue ne peut pas être fusionnée ;
+- propre à l'US : la chaîne est faite de workflows GitHub Actions, un par famille de
+  contrôles — back, front, contrat, spécification, roadmap — ; chaque étape appelle une
+  commande du Makefile et aucune logique de contrôle n'est écrite dans un workflow, si bien
+  qu'un échec de la chaîne se reproduit sur un poste par la même commande ;
+- propre à l'US : les contrôles qui existent déjà y entrent dès le premier lot — la
+  projection de la spécification sans avertissement (`make build-doc-strict`), le lint du
+  contrat (`make lint-openapi`) et l'inventaire (`make inventory`) ;
+- propre à l'US : les dépendances sont mises en cache d'une exécution à l'autre, et une
+  nouvelle poussée sur une pull request annule l'exécution encore en cours pour elle ;
+- propre à l'US : chaque action tierce est épinglée par son empreinte et non par une
+  étiquette ; chaque workflow déclare les seules permissions de son jeton dont il a besoin ;
+  aucun secret n'est exposé à une pull request venue d'un fork ;
 - propre à l'US : aucune poussée directe n'est acceptée sur `main` ni sur une branche
   `epic/*` ;
-- propre à l'US : la chaîne mesure le diff d'une pull request hors code engendré, en
-  distinguant le code de production, et échoue au-delà du budget de la section « Lots » du
-  README de la roadmap, sauf si la pull request porte l'étiquette `over-budget` ;
+- propre à l'US : la chaîne a deux paliers. Le palier rapide s'exécute à chaque poussée sur
+  une pull request : format, analyse, typage et tests unitaires. Le palier complet — tests
+  d'intégration, tests de bout en bout et seuils de couverture de code (US-0060) —
+  s'exécute au moment de fusionner la pull request, et non à chaque poussée ; son échec
+  empêche la fusion ;
+- propre à l'US : chaque palier ne lance que les contrôles de ce que la pull request touche.
+  Une pull request qui ne touche que le front ne lance rien du back, et inversement ; un
+  changement du contrat, des dépendances partagées ou de la chaîne elle-même lance les deux
+  côtés ; les contrôles de la spécification, du contrat et de la roadmap ne s'exécutent que si
+  leurs fichiers sont touchés ;
+- propre à l'US : les mêmes sélections existent sur un poste — une commande du Makefile par
+  côté et par palier, et une qui lance le palier rapide de ce que le diff touche ;
+- propre à l'US : `make lot-size` mesure le diff d'une branche de lot par rapport à la
+  branche de son EPIC, hors code engendré, en séparant le code de production des tests ; elle
+  informe et n'échoue jamais sur un dépassement ;
 - propre à l'US : les chemins engendrés et ceux des tests sont déclarés dans un fichier du
   dépôt, chacun avec ce qui l'engendre ou ce qui le reconnaît comme test.
 
 **Notes de réalisation.** La protection des branches est un réglage de GitHub que seul le
 propriétaire du dépôt peut faire : la chaîne ne se l'accorde pas, et l'US n'est finie que
-lorsqu'il est fait. Le budget et la règle d'arrêt viennent de la section « Lots » du README
-de la roadmap ; la chaîne les lit ou les reprend en un seul endroit de sa configuration,
-qui renvoie au README, et ne les redéfinit pas.
+lorsqu'il est fait. Sur une branche `epic/*`, la protection n'exige pas d'approbation
+humaine : l'agent de livraison y fusionne un lot dont la revue locale et la chaîne sont au vert
+(US-0280). Sur `main`, la fusion est faite par une personne. La taille visée vient de la
+section « Lots » du README de la roadmap : la mesure ne la reprend pas, elle donne un nombre
+que l'agent de livraison met en regard de l'estimation. Le fichier des chemins engendrés et
+des tests sert aussi à la limite de taille des fichiers de l'US-0050. « Au moment de
+fusionner » veut dire avant que la fusion soit acceptée, sur le résultat de la fusion : la
+file de fusion de GitHub fait exactement cela ; si elle ne s'applique pas aux branches
+`epic/*`, l'agent de livraison déclenche le palier complet sur la pull request avant de
+fusionner. Un palier complet exécuté après la fusion laisserait la branche de l'EPIC cassée
+pendant qu'on s'en aperçoit : c'est ce que la règle « un lot se fusionne seul, la chaîne au
+vert » interdit. Le dépôt est public : l'épinglage des actions et la retenue des
+permissions ne sont pas des précautions de principe, une action dont l'étiquette est
+déplacée exécute le code de quelqu'un d'autre dans la chaîne. La durée des paliers ne porte
+pas de seuil : elle croîtra avec le code, et un chiffre fixé aujourd'hui serait ou trop
+facile, ou bientôt faux. Elle se lit au relevé de l'agent de livraison (US-0280), EPIC après
+EPIC, et un seuil se fixera quand il y aura de quoi le fonder.
 
 ## US-0020 — Client d'API engendré du contrat
 
@@ -236,6 +311,10 @@ existe un service, et d'éprouver le contrat pendant qu'il est encore gratuit de
 
 **Notes de réalisation.** La règle « les mocks sont engendrés du contrat, jamais écrits à la
 main » vient de `docs/api/README.md` : un mock écrit à la main dérive et ne valide plus rien.
+Le faux back survit à la maquette : il sert aux lots de front qui précèdent leur lot de back,
+et aux tests du front qui ne font que lire. Il ne sert à rien qui écrive, puisqu'il ne garde
+aucun état. En EP-03, le même outil, en mode proxy, contrôle les réponses du service réel
+contre le contrat (WF-ARC-0060).
 
 ## US-0040 — Fixtures engendrées des exemples chiffrés du document
 
@@ -259,15 +338,15 @@ soient ceux du document, et non des nombres inventés pour la circonstance.
   moins un de ces tests. » ne se closent qu'avec les calculs — chaque EPIC de calcul reprend
   ses propres exemples (EP-06 à EP-11), et EP-11 constate les deux phrases sur l'ensemble.
 
-## US-0050 — Analyse statique, typage et format bloquants
+## US-0050 — Lint, typage et format bloquants
 
 - **statut** : à faire
 - **exigences** : `WF-QUA-0030-A`
 - **opérations** : aucune
 - **issue** :
 
-**En tant que** développeur, **je veux** que le typage strict, l'analyse statique et le
-format soient contrôlés par la chaîne et bloquants des deux côtés, **afin qu'**aucun
+**En tant que** développeur, **je veux** que le typage strict, le lint et le format soient
+contrôlés par la chaîne et bloquants des deux côtés, **afin qu'**aucun
 avertissement ne s'accumule jusqu'à ne plus rien signifier.
 
 **Critères d'acceptation.**
@@ -277,12 +356,70 @@ avertissement ne s'accumule jusqu'à ne plus rien signifier.
 - `WF-QUA-0030-A` — « La chaîne n'émet aucun avertissement sur une version publiée. »
 - `WF-QUA-0030-A` — « Le jeu de règles est lisible dans le dépôt et son historique montre
   chaque retrait. »
+- propre à l'US : le lint porte aussi sur ce qui n'est pas du code applicatif et casse
+  pourtant la chaîne ou l'installation — les workflows de GitHub Actions, les scripts shell,
+  les Dockerfile —, bloquant comme le reste ;
+- propre à l'US : la complexité cyclomatique de chaque fonction, back et front, tests
+  compris, est inférieure à 15 ; une fonction qui atteint 15 fait échouer la chaîne en la
+  nommant, avec sa valeur ;
+- propre à l'US : aucun fichier source Python ou TypeScript, tests compris, ne dépasse
+  1 000 lignes ; un fichier qui en compte 1 001 fait échouer la chaîne en le nommant, avec
+  son nombre de lignes. Les fichiers engendrés, que déclare le fichier de l'US-0310, en sont
+  exclus ;
+- propre à l'US : aucune règle d'analyse, de typage ou de format ne s'écarte par un
+  commentaire dans le code ; un tel commentaire fait échouer la chaîne. Une exception, s'il en
+  faut une, s'écrit dans la configuration de l'outil, avec sa raison, là où le jeu de règles
+  se lit et où son historique la montre ;
+- propre à l'US : chaque fichier source porte en tête deux lignes SPDX, le titulaire et la
+  licence — `SPDX-FileCopyrightText: 2026 waterfall-project` et
+  `SPDX-License-Identifier: AGPL-3.0-only` — ; les fichiers qui ne peuvent pas porter de
+  commentaire, ou dont l'en-tête n'apporterait rien, sont déclarés dans le `REUSE.toml` du
+  dépôt ; `reuse lint` fait échouer la chaîne sur un fichier qui n'est couvert ni par l'un ni
+  par l'autre ;
+- propre à l'US : chaque module, classe et fonction publics portent une docstring dont la
+  première ligne résume ce qu'ils font ; ce qui est privé et les tests n'en demandent pas.
+  Aucune section ne répète ce que la signature dit déjà — ni les types, ni la liste des
+  paramètres ; une section ne s'écrit que pour une unité, un invariant ou un cas limite ;
+- propre à l'US : aucun code commenté ne reste dans un fichier, et un `TODO` cite le
+  numéro de l'issue qui le porte ; l'un et l'autre font échouer la chaîne.
 
-**Notes de réalisation.** Ruff et Pyright en mode strict pour le back, ESLint et Prettier
-pour le front (annexe C). Ce qui n'est pas bloquant se retire du jeu de règles au lieu de
-rester en avertissement.
+**Notes de réalisation.** Le lint est ce que la spécification appelle analyse statique
+(WF-QUA-0030) : Ruff et Pyright en mode strict pour le back, ESLint et Prettier pour le
+front (annexe C) ; actionlint pour les workflows, shellcheck pour les scripts, hadolint pour
+les Dockerfile. yamllint et markdownlint ne sont pas retenus : sur des fichiers écrits en
+français, aux tableaux larges, ils produiraient surtout du bruit de mise en forme. Si l'un
+d'eux sert un jour, ce sera sur une liste de fichiers déclarée, jamais sur tout le dépôt. Ce
+qui n'est pas bloquant se retire du jeu de règles au lieu de rester en avertissement.
 
-## US-0060 — Rapport de couverture des exigences par les tests
+La complexité se mesure sans outil de plus : règle `C901` de Ruff, règle `complexity`
+d'ESLint. Toutes deux signalent une valeur qui dépasse le maximum réglé : le maximum est donc
+14, pour que 15 échoue. La taille des fichiers se compte en lignes physiques, blancs et
+commentaires compris, la même mesure des deux côtés : la règle `max-lines` d'ESLint la
+contrôle pour le front ; Ruff n'a pas d'équivalent, et le back demande un contrôle du dépôt,
+qui lit la même liste de fichiers engendrés.
+
+Les commentaires d'exemption visés sont ceux qui font taire un outil sur une ligne ou un
+fichier — `# noqa`, `# type: ignore`, `# pyright: ignore`, `# fmt: off`,
+`# pragma: no cover`, `eslint-disable`, `@ts-ignore`, `@ts-expect-error`,
+`prettier-ignore`, `v8 ignore` ; les outils savent en partie les ignorer ou les refuser
+d'eux-mêmes, et le reste se cherche. Si l'interdiction se révèle intenable, elle se retire
+comme toute autre règle, et l'historique le montre.
+
+Les deux lignes SPDX remplacent le bloc de licence que la GNU recommande en tête de chaque
+fichier, une quinzaine de lignes que le code d'un petit module ne dépasserait pas. Le nom du
+fichier n'y figure pas : il deviendrait faux au premier renommage, et rien ne le vérifierait ;
+la première ligne de la docstring du module, qui dit à quoi il sert, en tient lieu.
+`REUSE.toml` couvre en une fois la documentation, le document Word et les figures, et le code
+engendré. Les docstrings se contrôlent par les règles `D1` de Ruff et par
+`jsdoc/require-jsdoc` limitée aux exports ; `jsdoc/no-types` interdit de répéter en
+commentaire un type que TypeScript porte déjà, et les règles qui exigeraient une section par
+paramètre restent désactivées — c'est ce qui empêche les commentaires de dépasser le code.
+Le code commenté se détecte par la règle `ERA001` de Ruff et les `TODO` par ses règles `TD` ;
+ESLint n'a pas d'équivalent fiable, et le front demande un contrôle du dépôt. Ce qui ne se
+vérifie pas — un commentaire dit pourquoi, non ce que fait le code ; il est en anglais,
+comme le code — est au guide (US-0300).
+
+## US-0060 — Couverture des exigences et du code par les tests
 
 - **statut** : à faire
 - **exigences** : `WF-QUA-0010-A`
@@ -290,8 +427,9 @@ rester en avertissement.
 - **issue** :
 
 **En tant que** développeur, **je veux** que chaque test cite par identifiant l'exigence
-qu'il couvre et que la chaîne en publie le relevé, **afin qu'**une exigence F0 sans test soit
-constatée par la chaîne et non découverte à la recette.
+qu'il couvre, que la chaîne en publie le relevé, et qu'elle mesure la part du code que les
+tests exécutent, **afin qu'**une exigence F0 sans test, ou du code qu'aucun test n'exécute,
+soit constaté par la chaîne et non découvert à la recette.
 
 **Critères d'acceptation.**
 
@@ -301,6 +439,10 @@ constatée par la chaîne et non découverte à la recette.
   couvertes. »
 - `WF-QUA-0010-A` — « Une tentative de publication avec une exigence F0 non couverte échoue
   en la nommant. »
+- propre à l'US : la couverture de code se mesure en lignes et en branches, pour le back et
+  pour le front, hors code engendré ; au-dessous de 90 % des lignes ou de 85 % des branches,
+  d'un côté ou de l'autre, la fusion échoue en nommant les fichiers les moins couverts ;
+  aucune ligne ne s'exclut de la mesure par un commentaire (US-0050).
 
 **Notes de réalisation.** La liste des exigences se lit dans la projection Markdown, avec
 leur champ de flexibilité : le rapport n'a pas de liste à tenir à jour de son côté. Tant
@@ -308,6 +450,16 @@ qu'il n'y a pas de code métier, les 203 sortent comme non couvertes — c'est l
 attendu, et c'est ce qui décroît EPIC par EPIC. L'exemple du §1.3.1, `WF-EXAMP-0010-A`,
 illustre la forme d'une exigence et n'en est pas une du produit : le rapport l'exclut, comme
 le fait déjà `docs/api/tools/inventory.py`, faute de quoi il bloquerait toute publication.
+
+La spécification ne demande que la couverture des exigences ; la couverture de code est une
+règle du dépôt, qui trouve ce que la première ne voit pas — un chemin d'erreur jamais
+exécuté, du code mort, de l'infrastructure qui ne relève d'aucune exigence. Les seuils
+s'éprouvent au palier complet de l'US-0310, où tous les tests s'exécutent : les tests
+d'intégration couvrent ce que les tests unitaires ne touchent pas, et un seuil vérifié sur les
+seuls tests unitaires échouerait à tort. Le front demande un outil de tests unitaires et de
+couverture que l'annexe C ne nomme pas encore — Vitest. Un seuil pousse à écrire des tests qui
+passent sur les lignes sans rien vérifier : c'est un défaut à inscrire d'emblée dans les
+règles de codage des deux langages (US-0300), que les agents de revue cherchent nommément.
 
 ## US-0070 — Couverture des exigences par la roadmap
 
@@ -355,7 +507,8 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
 
 - propre à l'US : un parcours témoin — ouvrir la liste des projets, ouvrir un projet, lire
   une grille — aboutit contre le faux back, dans la chaîne comme sur un poste ;
-- propre à l'US : l'échec du parcours fait échouer la chaîne.
+- propre à l'US : l'échec du parcours fait échouer la chaîne ; le parcours s'exécute au
+  palier complet de l'US-0310, au moment de fusionner, et non à chaque poussée.
 - écart : « Chacun des sept flux et chacun des trois parcours fait l'objet d'un test de bout
   en bout qui aboutit. » attend EP-12, où les sept flux existent ;
 - écart : « L'ensemble s'exécute sur une plateforme déployée à partir des images publiées de
@@ -363,63 +516,108 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
   les images et la version. Ici, l'échec du parcours témoin fait échouer la chaîne, ce qui en
   est la première moitié.
 
-## US-0280 — Agents de développement, de revue et de conduite d'un EPIC
+## US-0280 — Agents de cadrage, de livraison, de développement et de revue
 
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** :
 
-**En tant que** développeur, **je veux** trois agents versionnés dans le dépôt — un qui
-réalise un lot, un qui relit une pull request, un qui mène un EPIC de `à planifier` jusqu'à
-`livré` en confiant chaque lot au premier et chaque pull request au second —, **afin que** les règles de
-ce dépôt soient appliquées par construction à chaque travail, et non redécouvertes à chaque
-conversation.
+**En tant que** développeur, **je veux** des agents versionnés dans le dépôt — un agent de
+cadrage qui mène un EPIC jusqu'à ses issues, un agent de livraison qui part de ces issues, et
+pour chaque langage un agent qui réalise un lot et un agent qui le relit —, **afin que** les
+règles de ce dépôt soient appliquées par construction à chaque travail, qu'un EPIC se cadre
+pendant que le précédent se développe, et que ses lots avancent sans qu'une personne ait à
+être présente à chaque fusion dans sa branche.
 
 **Critères d'acceptation.**
 
-- propre à l'US : les règles communes aux trois agents sont écrites une seule fois, dans un
-  fichier que chacun lit ; aucun agent ne les recopie. Elles comprennent au moins : le
-  fichier de l'EPIC fait foi et l'issue porte l'état ; les critères d'acceptation reprennent
-  le Vérif mot pour mot ; chaque test cite l'exigence qu'il couvre (WF-QUA-0010) ; le
-  contrat d'abord, et une opération qui manque est une modification du contrat qui précède ;
-  aucun mock ni client écrit à la main ; les modules du noyau ne se lisent que par leur
-  interface ; le code en anglais, la documentation en français ; un lot par pull request,
-  vers la branche de son EPIC, dans le budget du README de la roadmap. Pour le reste, elles
-  renvoient au guide de l'US-0300 ;
-- propre à l'US : l'agent de développement prend un lot par son issue, travaille sur une
-  branche tirée de celle de son EPIC et qui porte son identifiant, et n'ouvre sa pull request
-  vers la branche de l'EPIC que lorsque les commandes de contrôle du Makefile passent. Il ne modifie ni la
-  spécification, ni le contrat hors de ce que la conception prévoit, ni les critères
-  d'acceptation ; s'il dépasse le budget du lot, il s'arrête et propose un redécoupage ;
-- propre à l'US : l'agent de revue relit une pull request contre l'US qu'elle cite, les
-  exigences et leur Vérif, le contrat et les règles communes ; chaque constat porte un
-  emplacement et une proposition, et il ne modifie aucun fichier. Lancé sur une pull request
-  piégée — un test qui ne cite pas d'exigence, une réponse de mock écrite à la main, un
-  critère d'acceptation reformulé, un module qui lit la table d'un autre —, il relève
-  chacun des pièges ;
-- propre à l'US : l'agent d'EPIC suit la procédure « Démarrer un EPIC » du README de la
-  roadmap : il détaille les US, écrit la conception, établit le plan de lots, et s'arrête
-  pour validation après chacune de ces trois étapes ; il ouvre ensuite les issues — EPIC, US,
-  et lots en sous-issues — et la branche `epic/EP-nn`, reporte les numéros dans le fichier,
-  prend les statuts parmi ceux du README et aucun autre, et constate la définition de fini
-  sur la branche de l'EPIC avant de demander sa fusion dans `main`.
-  Lancé à blanc sur EP-02, il rend la conception et le plan de lots qu'il proposerait, sans
-  rien publier ;
+- propre à l'US : six agents vivent dans `.claude/agents/` — l'agent de cadrage ; l'agent de
+  livraison ; un agent de développement Python et un TypeScript ; un agent de revue Python et
+  un TypeScript. Un lot qui touche les deux langages est confié aux deux agents de
+  développement, chacun sur sa part, et relu par les deux agents de revue ;
+- propre à l'US : les règles communes aux agents sont écrites une seule fois, dans un fichier
+  que chacun lit ; aucun agent ne les recopie. Elles comprennent au moins : le fichier de
+  l'EPIC fait foi et l'issue porte l'état ; les critères d'acceptation reprennent le Vérif
+  mot pour mot ; chaque test cite l'exigence qu'il couvre (WF-QUA-0010) ; le contrat d'abord,
+  et une opération qui manque est une modification du contrat qui précède ; aucun mock ni
+  client écrit à la main ; les modules du noyau ne se lisent que par leur interface ; le
+  code en anglais, la documentation en français ; un lot par pull request, vers la branche de
+  son EPIC, estimé selon la taille visée au README de la roadmap ; un constat hors du
+  périmètre d'un lot devient une issue et ne s'y corrige pas. Pour le reste, elles renvoient au guide
+  et aux règles de codage de l'US-0300 ;
+- propre à l'US : l'agent de cadrage mène les quatre premières étapes de la procédure
+  « Démarrer un EPIC » du README de la roadmap : il détaille les US, écrit la conception,
+  établit le plan de lots, et s'arrête pour validation après chacune de ces trois étapes ;
+  puis il ouvre les issues — EPIC, US, et lots en sous-issues —, reporte les numéros dans le
+  fichier, et prend les statuts parmi ceux du README et aucun autre. Il ne tire aucune
+  branche et n'écrit aucun code. Lancé à blanc sur EP-02, il rend la conception et le plan de
+  lots qu'il proposerait, sans rien publier ;
+- propre à l'US : l'agent de cadrage réunit le contexte avant de poser une question — le
+  fichier de l'EPIC, les exigences citées et leur Vérif, le contrat et ses décisions, les EPIC
+  voisins, le code de `main` et celui de la branche de l'EPIC en cours dont il dépend —, puis
+  interroge l'utilisateur par petites séries de questions jusqu'à ce qu'il ne reste aucune
+  ambiguïté. Une réponse qui contredit une décision déjà prise — dans la spécification, dans
+  `docs/api/DECISIONS.md`, dans un EPIC livré ou en cours — est énoncée avec sa source et
+  tranchée par l'utilisateur, jamais résolue en silence ;
+- propre à l'US : l'agent de livraison prend en entrée les issues de lots d'un EPIC `en
+  cours`, et lit dans le fichier de l'EPIC les critères et la conception auxquels elles
+  renvoient. Il tire `epic/EP-nn` de `main` au premier lot, et refuse de le faire tant qu'un
+  EPIC dont celui-ci dépend n'est pas livré. Une issue incomplète, ou qui contredit le fichier,
+  l'arrête : il renvoie au cadrage au lieu de deviner ;
+- propre à l'US : l'agent de livraison livre les lots dans l'ordre de leurs dépendances, sans
+  attendre une personne entre deux lots. Pour chacun, il le confie à l'agent de développement
+  de son langage, puis enchaîne revue locale, correction et nouvelle revue jusqu'à ce que la
+  dernière revue ne rende plus aucun constat sur le périmètre du lot et que la chaîne passe ;
+  alors seulement il fusionne la pull request dans la branche de l'EPIC, après y avoir
+  inscrit la taille réelle du lot à côté de son estimation. Un constat hors du
+  périmètre du lot n'est pas corrigé sur place : il devient une issue rattachée à l'EPIC. Au
+  delà d'un plafond d'itérations fixé dans sa définition, le lot reste non fusionné, il est
+  signalé bloqué avec son dernier constat, et l'agent passe au lot suivant qui n'en dépend
+  pas ;
+- propre à l'US : à la fin d'une série de lots, l'agent de livraison rend un relevé — lots
+  fusionnés, avec leur taille réelle et leur estimation, et ceux qui la dépassent nettement
+  mis en avant ; issues ouvertes pour des constats hors périmètre ; lots bloqués et ce qu'il
+  reste à trancher ; durée des paliers de la chaîne ; état de la branche de l'EPIC. Quand toutes les US sont finies, il constate la
+  définition de fini sur la branche de l'EPIC et demande sa fusion dans `main`, qu'une
+  personne fait à la main ;
+- propre à l'US : un agent de développement prend un lot par son issue, travaille sur une
+  branche `lot/…` tirée de celle de son EPIC, applique les règles de codage de son langage,
+  et ne rend son travail que lorsque le palier rapide du Makefile passe pour ce qu'il a
+  touché. Il ne
+  modifie ni la spécification, ni le contrat hors de ce que la conception prévoit, ni les
+  critères d'acceptation ;
+- propre à l'US : un agent de revue relit une pull request contre l'US qu'elle cite, les
+  exigences et leur Vérif, le contrat, les règles communes et les règles de codage de son
+  langage, dont il cherche nommément les défauts déjà rencontrés ; chaque constat porte un
+  emplacement, le scénario qui le déclenche, une gravité et une proposition, et il ne modifie
+  aucun fichier. Lancés sur une pull request piégée qui touche les deux langages — un test qui
+  ne cite pas d'exigence, une réponse de mock écrite à la main, un critère d'acceptation
+  reformulé, un module qui lit la table d'un autre —, les deux agents de revue relèvent à eux
+  deux chacun des pièges ;
+- propre à l'US : aucun agent ne fusionne dans `main`, ni ne pousse sur `main` ou sur une
+  branche `epic/*` ; sur une branche d'EPIC, seul
+  l'agent de livraison fusionne, et seulement la pull request d'un lot dont la revue locale
+  et la chaîne sont au vert ;
 - propre à l'US : chaque agent dit où il s'arrête et rend la main plutôt que de trancher —
   une exigence ambiguë devient une issue « Specification finding », un écart au contrat une
-  issue « Interface contract issue » ; aucun agent ne fusionne une pull request, et aucun ne
-  pousse sur `main` ni sur une branche `epic/*` ;
+  issue « Interface contract issue » ;
 - propre à l'US : chaque commande qu'un agent exécute existe dans le Makefile ; une cible
   renommée qui laisserait un agent appeler une commande disparue fait échouer
   `make roadmap`.
 
-**Notes de réalisation.** Les agents vivent dans `.claude/agents/`. Des agents de ce type
-existent déjà hors du dépôt : ils sont repris et adaptés plutôt que réécrits. La revue de la
-spécification (`docs/spec/revue/PROMPT.md`) reste à part — elle relit le document, celui-ci
-relit du code. Les commandes que les agents citent viennent des US-0050 à US-0070, et leurs
-règles du guide de l'US-0300 : cette US se termine après elles, mais rien n'empêche de la
-commencer plus tôt.
+**Notes de réalisation.** Des agents de ce type existent déjà hors du dépôt — cadrage par
+interview, orchestration d'un EPIC, livraison d'une série d'issues sans surveillance,
+développement et revue par langage : ils sont repris et adaptés plutôt que réécrits. La
+frontière entre cadrage et livraison est celle des issues : le premier les écrit, le second
+les consomme, et c'est ce qui permet de cadrer l'EPIC suivant pendant que le précédent se
+livre. Les conventions de code des agents existants partent dans les règles de codage de
+l'US-0300, et leurs listes de défauts avec elles. La revue de la spécification
+(`docs/spec/revue/PROMPT.md`) reste à part — elle relit le document, ceux-ci relisent du
+code. Les commandes que les agents citent viennent des US-0050 à US-0070, et leurs règles du
+guide de l'US-0300 : cette US se termine après elles, mais rien n'empêche de la commencer plus
+tôt.
 
-**Hors périmètre.** Le choix du modèle et le coût d'une exécution : ils se règlent dans
-la définition de chaque agent et changeront plus vite que ce fichier.
+**Hors périmètre.** Le choix du modèle, le coût d'une exécution et la reprise après une
+limite d'usage : ils se règlent dans la définition de chaque agent et changeront plus vite
+que ce fichier.

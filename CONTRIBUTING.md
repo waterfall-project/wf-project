@@ -117,9 +117,10 @@ progress has its own integration branch, cut from `main`, so several can move at
 without the delivery of one carrying the half-done work of another.
 
 Code arrives in **lots**: one lot, one issue, one branch cut from the epic's branch, one pull
-request back into it, from the lot plan validated for the epic. A lot has a size budget, and
-one that overruns stops and is split rather than pushed through. `docs/roadmap/README.md`
-holds the rules and the budget, sections « Lots » and « Branches ».
+request back into it, from the lot plan validated for the epic. A lot is estimated against a
+size target and its real size is reported on its pull request; a review finding outside its
+scope becomes a new issue instead of growing it. `docs/roadmap/README.md` holds the rules
+and the target, sections « Lots » and « Branches ».
 
 Commit messages are written in French, like the specification. A subject line that says what
 changed, then a body that says **why**: the reasoning is the part nobody can reconstruct six

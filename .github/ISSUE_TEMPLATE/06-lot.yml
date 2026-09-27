@@ -11,7 +11,7 @@ body:
         story's issue, from the lot plan validated for the epic — not invented along the
         way. The acceptance
         criteria stay in the epic's file under `docs/roadmap`; this issue names which of
-        them the lot closes, it does not copy them. The budget and the stop rule are in
+        them the lot closes, it does not copy them. The size target is in
         `docs/roadmap/README.md`, section « Lots ».
   - type: input
     id: identifier
@@ -70,8 +70,8 @@ body:
       label: Estimated size
       description: >-
         Diff lines, tests included, generated code excluded, with the production lines
-        apart. The budget is in `docs/roadmap/README.md`, section « Lots »; a lot that
-        overruns stops and is split.
+        apart, estimated against the target of `docs/roadmap/README.md`, section « Lots ».
+        The real size, from `make lot-size`, is given on the pull request next to it.
       placeholder: "≈ 1,100 (production ≈ 550)"
     validations:
       required: true

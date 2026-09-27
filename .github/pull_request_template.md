@@ -31,7 +31,8 @@ Tick what applies; delete the sections that do not.
 **Lot** (code, from an epic's lot plan)
 - [ ] this pull request targets its epic's branch, `epic/EP-nn`, and names its lot issue: `[US-nnnn/Ln]` or `[EP-nn/Ln]`
 - [ ] each acceptance criterion the lot closes is listed with the test that carries it, and that test cites the requirement
-- [ ] the diff is within the budget of `docs/roadmap/README.md`, section « Lots » — or a person set the `over-budget` label after the split was reviewed
+- [ ] the real size of the lot, from `make lot-size`, is given next to the estimate of its issue; the target is in `docs/roadmap/README.md`, section « Lots »
+- [ ] review findings outside the lot's scope were opened as issues, not fixed here
 - [ ] the chain passes, and nothing in the epic's branch is left half-built by this merge
 
 **Tooling** (`Makefile`, `docs/*/tools`)
