@@ -16,9 +16,14 @@ remplacer le document Word, qui reste le livrable.
 
 ## Régénérer
 
+Depuis la racine du dépôt :
+
 ```bash
-./build.sh
+make build-doc          # régénère la projection
+make build-doc-strict   # échoue au moindre avertissement, pour la CI
 ```
+
+Ou directement `./build.sh`, qui accepte les mêmes options.
 
 Le script affiche les avertissements, puis ce qui a changé depuis la génération
 précédente. Options utiles :

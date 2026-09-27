@@ -1,8 +1,9 @@
 # Inventaire des endpoints
 
-Établi depuis `openapi.yaml` et régénérable. La colonne « Exigences » donne celles que
-la description de l'opération cite ; les schémas en citent d'autres, comptées dans la
-couverture ci-dessous mais pas dans le tableau.
+Établi depuis `openapi.yaml` par `tools/inventaire.py`, et régénérable par
+`make inventaire`. La colonne « Exigences » donne celles que la description de
+l'opération cite ; les schémas en citent d'autres, comptées dans la couverture
+ci-dessous mais pas dans le tableau.
 
 **150 opérations sur 116 chemins, dans 12 familles.**
 Le contrat cite **178 des 203 exigences** de la spécification.

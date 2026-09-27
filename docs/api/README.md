@@ -43,10 +43,13 @@ Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
 
 ## Vérifier, assembler, simuler
 
+Depuis la racine du dépôt :
+
 ```bash
-npx @redocly/cli lint openapi.yaml            # contrôles, bloquants en CI
-npx @redocly/cli bundle openapi.yaml -o waterfall.bundle.yaml
-npx @stoplight/prism-cli mock waterfall.bundle.yaml   # faux back pour la maquette
+make lint-openapi     # contrôles, bloquants en CI
+make build-openapi    # contrôle puis assemble en un fichier
+make mock             # sert un faux back depuis le contrat
+make inventaire       # régénère INVENTAIRE.md
 ```
 
 Le fichier assemblé n'est pas versionné : il se régénère. Les mocks de la maquette sont
