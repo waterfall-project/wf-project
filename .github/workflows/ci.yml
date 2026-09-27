@@ -40,6 +40,7 @@ jobs:
       contract: ${{ steps.families.outputs.contract }}
       back: ${{ steps.families.outputs.back }}
       front: ${{ steps.families.outputs.front }}
+      roadmap: ${{ steps.families.outputs.roadmap }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -83,8 +84,13 @@ jobs:
     with:
       tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
 
+  roadmap:
+    needs: changes
+    if: needs.changes.outputs.roadmap == 'true'
+    uses: ./.github/workflows/roadmap.yml
+
   gate:
-    needs: [changes, repo, spec, contract, back, front]
+    needs: [changes, repo, spec, contract, back, front, roadmap]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

@@ -105,7 +105,7 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front` — puis `roadmap` avec le lot qui la crée |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front`, `roadmap` |
 | `make changes BASE=…` | les familles qu'une modification touche |
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
@@ -196,6 +196,28 @@ et espaces typographiques rendus simples —, et découpe un Vérif en phrases. 
 §1.3.1, `WF-EXAMP-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
 
 *Contrôle* : `make test-tools`.
+
+## La roadmap et les exigences
+
+Les US de `docs/roadmap` citent les exigences qu'elles réalisent, et leurs critères
+d'acceptation reprennent le Vérif de chacune **mot pour mot**, en critère ou en écart : ce
+sont les cas de test à venir. `make roadmap` confronte la roadmap au document, et échoue :
+
+- sur un identifiant inconnu, ou d'un indice de révision que le document a dépassé, dans un
+  tableau d'EPIC comme dans une US ;
+- sur une phrase du Vérif d'une exigence citée, absente de l'US ou tronquée — une phrase se
+  cite entière, point final compris ; les apostrophes et les espaces typographiques ne
+  comptent pas ;
+- sur une exigence du tableau d'un EPIC qu'aucune de ses US ne cite, sauf si l'EPIC est
+  `à planifier` ;
+- sur une exigence qu'aucun EPIC ne close, ou que plusieurs closent.
+
+Il liste, sans échouer, les exigences F0 qu'aucune US ne cite encore : leur nombre décroît à
+mesure que les US des EPIC suivants s'écrivent. L'outil ne lit que le dépôt : l'état des
+issues n'est pas son affaire.
+
+*Contrôle* : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
+changement de la projection.
 
 ## Commentaires
 

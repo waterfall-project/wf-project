@@ -34,6 +34,11 @@ target = "check-contract"
 paths = ["backend/**"]
 target = "check-back"
 
+[families.roadmap]
+# The stories quote the Vérif fields: the projection changing can break them too.
+paths = ["docs/roadmap/**", "docs/spec/waterfall-spec.md", "tools/src/wftools/roadmap.py"]
+target = "check-roadmap"
+
 [families.front]
 # The client of the front is generated from the contract: a contract change checks it.
 paths = ["frontend/**", "docs/api/**"]
