@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+import zipfile
 from datetime import date
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -80,6 +81,29 @@ class BuildLog:
 # --------------------------------------------------------------------------- #
 # Step 1: pandoc extraction
 # --------------------------------------------------------------------------- #
+
+def unwrap_simple_fields(docx, target):
+    """Copy the document with every w:fldSimple unwrapped, its cached result kept.
+
+    Word writes an updated field in one of two shapes: a complex field — begin,
+    instrText, separate, result, end — or a single w:fldSimple that nests its
+    result. Pandoc drops the second shape whole, which silently strips the number
+    from every figure and table caption; updating the fields in Word (Ctrl+A, F9)
+    is precisely what produces that shape. Unwrapping keeps the number and changes
+    nothing else, and the source document is never touched.
+    """
+    with zipfile.ZipFile(docx) as archive:
+        names = archive.namelist()
+        parts = {name: archive.read(name) for name in names}
+    xml = parts["word/document.xml"].decode("utf-8")
+    count = xml.count("<w:fldSimple")
+    xml = re.sub(r"<w:fldSimple[^>]*>", "", xml).replace("</w:fldSimple>", "")
+    parts["word/document.xml"] = xml.encode("utf-8")
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name in names:
+            archive.writestr(name, parts[name])
+    return count
+
 
 def extract_docx(docx, media_folder):
     result = subprocess.run(
@@ -640,7 +664,12 @@ def main():
     config = load_figure_config(ROOT / arguments.config)
 
     with tempfile.TemporaryDirectory() as temporary:
-        raw = extract_docx(docx, pathlib.Path(temporary) / "media")
+        readable = pathlib.Path(temporary) / docx.name
+        unwrapped = unwrap_simple_fields(docx, readable)
+        if unwrapped:
+            log.warn(f"{unwrapped} simple field(s) unwrapped so that pandoc keeps "
+                     "their result — caption numbers, mostly", "info")
+        raw = extract_docx(readable, pathlib.Path(temporary) / "media")
         lines = raw.replace("\r\n", "\n").split("\n")
 
         word_numbers, unnumbered = read_table_of_contents(lines)

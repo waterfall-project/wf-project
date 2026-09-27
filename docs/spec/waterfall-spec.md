@@ -59,7 +59,7 @@ Ce document constitue la spécification technique et fonctionnelle du logiciel W
 | SPI         | Indice de délai (Schedule Performance Index)                                      |
 | UUID        | Identifiant unique universel (Universally Unique Identifier)                      |
 
-Tableau Abréviations
+Tableau 1 Abréviations
 
 ## 1.3. Identification des exigences
 
@@ -125,7 +125,7 @@ Les codes de domaines regroupent les exigences par thèmes. Les codes définit s
 | RIS  | Gestion des risques           |
 | SEC  | Sécurité                      |
 
-Tableau Code de domaines
+Tableau 2 Code de domaines
 
 # 2. Présentation générale
 
@@ -288,7 +288,7 @@ flowchart LR
     class Administrateur,Chef_de_projets,Excel,Manager,Microsoft_Project,SAP c2
 ```
 
-*Figure — Diagramme de contexte*
+*Figure 1 — Diagramme de contexte*
 
 ### 3.1.2. Flux de données
 
@@ -311,7 +311,7 @@ La table suivante définit les flux entre Waterfall et les systèmes externes. T
 | FLX-07 Coûts réels     | Excel             | Waterfall         | Entrant        | Fichier Excel (WF-INTF-0140)          | À chaque revue périodique           |
 | FLX-08 Coûts réels     | SAP               | Excel             | Hors périmètre | Extraction ERP, hors Waterfall        | À chaque revue périodique           |
 
-Tableau Flux avec les systèmes externes
+Tableau 3 Flux avec les systèmes externes
 
 | Flux                             | Source         | Destination    | Sens    | Mode d’échange | Fréquence                                |
 |----------------------------------|----------------|----------------|---------|----------------|------------------------------------------|
@@ -326,7 +326,7 @@ Tableau Flux avec les systèmes externes
 | FLX-17 Gestion des habilitations | Administrateur | Waterfall      | Entrant | IHM            | À la demande                             |
 | FLX-18 États du système          | Waterfall      | Administrateur | Sortant | IHM            | À la demande                             |
 
-Tableau Flux avec les acteurs
+Tableau 4 Flux avec les acteurs
 
 ```yaml exigence
 section: "3.1.2"
@@ -586,7 +586,7 @@ Les relations se lisent ainsi :
 | Trait plein partant d’un losange   | Contenance. L’objet placé du côté du losange contient les autres, par exemple un nœud et ses sous-nœuds.                                         |
 | Trait pointillé                    | Relation avec un objet d’ancrage, grisé, décrit ailleurs.                                                                                        |
 
-Tableau Relations du modèle conceptuel
+Tableau 5 Relations du modèle conceptuel
 
 Une cardinalité, placée à une extrémité d’une relation, indique combien d’objets de ce côté sont liés à un objet de l’autre côté : 1 pour exactement un, 0..1 pour au plus un, \* pour un nombre quelconque, 1..\* pour au moins un. Par exemple, la relation entre rôle de ressource et nœud d’organisation porte \* du côté du rôle et 1 du côté du nœud : un rôle est rattaché à exactement un nœud, et un nœud porte un nombre quelconque de rôles.
 
@@ -615,7 +615,7 @@ classDiagram
     Categorie "1" o-- "*" Taux : un par année
 ```
 
-*Figure — Modèle conceptuel du référentiel de l’entreprise*
+*Figure 2 — Modèle conceptuel du référentiel de l’entreprise*
 
 **Organisation.** L’organisation est un arbre de nœuds qui représente l’organigramme de l’entreprise. Chaque nœud est un service ou un département, et peut en contenir d’autres sans limite de profondeur. L’arbre sert à une seule chose : rattacher les rôles de ressources, et donc regrouper les postes par service ou département. Il ne porte aucune habilitation. Les permissions sont attribuées par les rôles d’habilitation (FBS-1.2), indépendamment de l’organigramme : une affaire multi-métiers ne relève d’aucun service en particulier, et faire décrire par une structure stable une participation qui change à chaque projet mêlerait deux choses sans rapport.
 
@@ -654,7 +654,7 @@ classDiagram
     style Utilisateur fill:#eeeeee,stroke:#999999,color:#666666
 ```
 
-*Figure — Découpage d’un projet*
+*Figure 3 — Découpage d’un projet*
 
 **Deux découpages sans lien entre eux.**
 
@@ -685,7 +685,7 @@ classDiagram
     style ObjetRef fill:#eeeeee,stroke:#999999,color:#666666
 ```
 
-*Figure — Révisions et structure de couts*
+*Figure 4 — Révisions et structure de couts*
 
 **Une révision est un instantané.** Elle contient l’état complet du projet à un moment donné, et tout ce qui a permis de le calculer : ses structures de coûts, et les valeurs du référentiel qu’elles emploient. Une révision conserve ainsi ses taux horaires : une réorganisation ou une correction de taux ne la déplace pas. Elle porte un nom de version et une description, où l’utilisateur consigne ses hypothèses. Pendant le chiffrage, les révisions historisent les offres successives remises au client ; pendant l’exécution, elles alimentent les indicateurs qui comparent deux dates, comme le diagramme temps/temps.
 
@@ -724,7 +724,7 @@ classDiagram
     style Calendrier fill:#eeeeee,stroke:#999999,color:#666666
 ```
 
-*Figure — Modèle conceptuel du planning*
+*Figure 5 — Modèle conceptuel du planning*
 
 **La tâche.** Une tâche porte une durée, des dates, et un mode de planification. En mode automatique, ses dates sont calculées à partir de sa durée, de ses liaisons et du calendrier applicable (WF-PLA-0010) ; en mode manuel, l’utilisateur les saisit directement. Le mode est propre à chaque tâche, comme dans Microsoft Project. Une tâche qui porte des sous-tâches est dite récapitulative, et sa durée découle des leurs ; une tâche sans sous-tâche est une tâche feuille. Ce n’est donc pas une nature qu’on lui donne, mais une conséquence de sa place dans l’arbre.
 
@@ -767,7 +767,7 @@ classDiagram
     style Projet fill:#eeeeee,stroke:#999999,color:#666666
 ```
 
-*Figure — Modèle conceptuel du chiffrage et des coûts*
+*Figure 6 — Modèle conceptuel du chiffrage et des coûts*
 
 **La ligne de devis.** Toute ligne relève d’une catégorie de coût, et par elle d’une nature. Le chemin pour l’atteindre diffère selon la nature. Pour la main-d’œuvre, l’utilisateur traverse l’organigramme et choisit un rôle de ressource, qui détermine la catégorie ; la ligne porte alors une charge en heures, et le taux horaire de la catégorie la convertit en montant. Sinon, l’utilisateur choisit directement la catégorie, et la ligne porte une quantité et un débours. Une ligne porte en outre un délai de paiement, nul pour la main-d’œuvre, qui sert aux projections de décaissement.
 
@@ -802,7 +802,7 @@ classDiagram
     style LigneDevis fill:#eeeeee,stroke:#999999,color:#666666
 ```
 
-*Figure — Modèle conceptuel des risques*
+*Figure 7 — Modèle conceptuel des risques*
 
 **Deux représentations, pour deux usages.** Un risque possède un **devis propre** : une structure de coûts, avec ses tâches et ses lignes, qui décrit ce qu’il coûterait s’il survenait. Cette structure reste à l’écart de la structure principale tant que le risque ne s’est pas produit. Le risque est en outre représenté dans la structure principale par une **ligne de provision**, dont le montant est sa gravité pondérée par sa probabilité. La gravité n’est pas saisie : c’est le total du devis propre. Qualifier un risque suppose donc de l’avoir chiffré, ce qui est voulu.
 
@@ -870,7 +870,7 @@ flowchart LR
     class Abandonne,N,Perdu,Termine c2
 ```
 
-*Figure — Diagramme d’état du cycle de vie d’un projet*
+*Figure 8 — Diagramme d’état du cycle de vie d’un projet*
 
 ```yaml exigence
 section: "3.3.2"
@@ -1089,7 +1089,7 @@ flowchart LR
     class FBS_1_1_Gestion_des_utilisateurs,FBS_1_2_Gestion_des_roles_d_habilitation,FBS_1_3_Surveillance_de_l_etat_du_systeme,FBS_1_4_Sauvegarde_et_restauration,FBS_2_1_Portefeuille_de_projets,FBS_2_2_Plan_de_charge_agrege,FBS_2_3_Performance_du_portefeuille,FBS_2_4_Structure_des_couts_du_portefeuille,FBS_2_5_Risques_du_portefeuille,FBS_2_6_Decaissements_du_portefeuille,FBS_2_7_Sante_du_pilotage,FBS_3_1_1_Nature_et_categories_de_couts,FBS_3_1_2_Taux_horaires,FBS_3_2_1_Arbre_d_organisation,FBS_3_2_2_Roles_de_ressources,FBS_3_2_3_Calendriers,FBS_4_1_Gestion_des_revisions,FBS_4_7_Couts_reels,FBS_4_9_Cycle_de_vie_du_projet c2
 ```
 
-*Figure — Arborescence fonctionnelle*
+*Figure 9 — Arborescence fonctionnelle*
 
 ### 3.4.2. FBS-1 : Administration
 
@@ -1934,7 +1934,7 @@ flowchart LR
     class FBS_4_2_1_Lotissement_du_projet,FBS_4_2_2_Taux_d_inflation,FBS_4_2_3_Sous_projets,FBS_4_2_4_Contributeurs,FBS_4_2_5_Probabilite_de_gain c2
 ```
 
-*Figure — Arborescence fonctionnelle des paramètres de projets*
+*Figure 10 — Arborescence fonctionnelle des paramètres de projets*
 
 ```yaml exigence
 section: "3.4.5.2"
@@ -2101,7 +2101,7 @@ flowchart LR
     class FBS_4_3_1_Chronologie,FBS_4_3_2_Grille_de_planning,FBS_4_3_3_Diagramme_de_GANTT,FBS_4_3_4_Imports_Exports,FBS_4_3_5_Arborescence_de_taches c2
 ```
 
-*Figure — Arborescence fonctionnelle de la planification*
+*Figure 11 — Arborescence fonctionnelle de la planification*
 
 ```yaml exigence
 section: "3.4.5.3"
@@ -2332,7 +2332,7 @@ flowchart LR
     class FBS_4_4_1_Indicateurs_de_devis,FBS_4_4_2_Grille_de_devis,FBS_4_4_3_Gestion_des_couts,FBS_4_4_4_Plan_de_charge_du_projet c2
 ```
 
-*Figure — Arborescence fonctionnelle des chiffrages et devis*
+*Figure 12 — Arborescence fonctionnelle des chiffrages et devis*
 
 ```yaml exigence
 section: "3.4.5.4"
@@ -2471,7 +2471,7 @@ flowchart LR
     class FBS_4_5_1_Indicateurs_de_reste_a_engager,FBS_4_5_2_Grille_de_reste_a_engager,FBS_4_5_3_Kanban_Demarrage_des_taches c2
 ```
 
-*Figure — Arborescence fonctionnelle de l’estimation du RAE*
+*Figure 13 — Arborescence fonctionnelle de l’estimation du RAE*
 
 ```yaml exigence
 section: "3.4.5.5"
@@ -2574,7 +2574,7 @@ flowchart LR
     class FBS_4_6_1_Grille_de_suivi_des_risques,FBS_4_6_2_Gestion_des_provisions_pour_risques c2
 ```
 
-*Figure — Arborescence fonctionnelle de la gestion des risques*
+*Figure 14 — Arborescence fonctionnelle de la gestion des risques*
 
 ```yaml exigence
 section: "3.4.5.6"
@@ -2773,7 +2773,7 @@ flowchart LR
     class FBS_4_8_1_Avancement_financier,FBS_4_8_2_Projection_a_terminaison,FBS_4_8_3_Avancement_physique,FBS_4_8_4_Indicateur_de_couts_CPI,FBS_4_8_5_Indicateur_de_delais_SPI,FBS_4_8_6_Diagramme_temps_temps,FBS_4_8_7_Couts_cumules_courbe_en_S,FBS_4_8_8_Courbes_valeur_acquise,FBS_4_8_9_Projections_cash_out c2
 ```
 
-*Figure — Arborescence fonctionnelle des indicateurs projets*
+*Figure 15 — Arborescence fonctionnelle des indicateurs projets*
 
 ```yaml exigence
 section: "3.4.5.8"
@@ -3293,7 +3293,7 @@ flowchart LR
     PBS5 --> PBS53
 ```
 
-*Figure — Arborescence produit*
+*Figure 16 — Arborescence produit*
 
 #### 4.2.1.1. PBS-1 : Frontend
 
@@ -3375,7 +3375,7 @@ La matrice donne, pour chaque fonction de l’arborescence fonctionnelle, les co
 | FBS-4.8.6 à FBS-4.8.9 Diagrammes et courbes                                  | PBS-1.3, PBS-3.2                                            |
 | FBS-4.9 Cycle de vie du projet                                               | —                                                           |
 
-Tableau Correspondances FBS – PBS
+Tableau 6 Correspondances FBS – PBS
 
 ```yaml exigence
 section: "4.2.2"
@@ -3473,7 +3473,7 @@ flowchart LR
     Prometheus --> Front
 ```
 
-*Figure — Diagramme de déploiement*
+*Figure 17 — Diagramme de déploiement*
 
 ### 4.3.2. Tableau des flux techniques
 
@@ -3492,7 +3492,7 @@ Chaque flux technique porte un identifiant de la forme TFX-nn, stable, sur le mo
 | TFX-09 | Prometheus            | Front, API, worker     | HTTP, point /metrics                            | Réseau interne au cluster            |
 | TFX-10 | Plateforme            | Redis                  | Dépôt en file des tâches planifiées             | Secret de la plateforme              |
 
-Tableau Tableau des flux techniques
+Tableau 7 Tableau des flux techniques
 
 ### 4.3.3. Réalisation des flux fonctionnels
 
@@ -3508,7 +3508,7 @@ Les flux fonctionnels avec les acteurs (FLX-09 à FLX-18) empruntent tous le mê
 | FLX-06 Reste à engager sortant | Comme FLX-02                                                                                                                                                                                                                                    |
 | FLX-07 Coûts réels entrants    | Comme FLX-01, l’application se faisant par insertion ou mise à jour sur le numéro de pièce (WF-DAT-0110)                                                                                                                                        |
 
-Tableau Réalisation des flux fonctionnels
+Tableau 8 Réalisation des flux fonctionnels
 
 ### 4.3.4. Diagrammes de séquence
 
@@ -3550,7 +3550,7 @@ sequenceDiagram
     end
 ```
 
-*Figure — Diagramme de séquence des imports*
+*Figure 18 — Diagramme de séquence des imports*
 
 **Le marquage d'une révision.** Les deux écritures se font dans une transaction unique : figer la révision, puis calculer et conserver ses indicateurs (WF-DAT-0040). Si l'une échoue, aucune n'a eu lieu. La révision suivante n'est créée qu'à la demande, ou par le premier import qui survient (WF-REV-0010, WF-INTF-0090), et c'est alors qu'a lieu la copie.
 
@@ -3581,7 +3581,7 @@ sequenceDiagram
     Note over U,B: la révision suivante n'est créée qu'à la demande,<br/>ou par le premier import : c'est alors qu'a lieu la copie
 ```
 
-*Figure — Diagramme de séquence du marquage de révision*
+*Figure 19 — Diagramme de séquence du marquage de révision*
 
 ```yaml exigence
 section: "4.3.4"
@@ -3658,7 +3658,7 @@ Le modèle conceptuel du §3.2 dit ce que sont les objets ; ce paragraphe dit c
 | Valeurs du référentiel employées                                   | revision_role, revision_calendar, revision_category, revision_rate | révisionné  |
 | Indicateurs d’une révision (WF-DAT-0040)                           | revision_indicator                                                 | révisionné  |
 
-Tableau Correspondance entre objets et tables
+Tableau 9 Correspondance entre objets et tables
 
 **Identifiants.** Toute ligne est identifiée par un UUID engendré par le serveur, ordonné dans le temps. Les codes que les utilisateurs connaissent — code projet, code de sous-projet, adresse électronique, numéro de pièce — sont des contraintes d’unicité, jamais des clés : un code se corrige, une clé non. Les objets révisionnés portent en outre leur identifiant de lignée (WF-DAT-0030).
 
@@ -3887,7 +3887,7 @@ Quatre environnements, et deux empaquetages pour les servir (WF-ARC-0050). Ce qu
 | Préproduction | Chart Helm, dimensionnement de la production | Annuaire de l'entreprise | Jeu de référence, ou copie de production dont les comptes sont anonymisés |
 | Production    | Chart Helm                                   | Annuaire de l'entreprise | Données réelles                                                           |
 
-Tableau Environnements gérés
+Tableau 10 Environnements gérés
 
 Le jeu de données fictif n'est pas un détail d'intendance : il doit couvrir les volumes du §4.6.2 — un projet de mille tâches, cent quatre-vingts révisions marquées, dix-huit mille lignes de coût — sans quoi aucun essai ne dit quoi que ce soit sur le comportement réel.
 
@@ -3952,7 +3952,7 @@ La perte d'un composant ne doit pas devenir la perte de la plateforme. Le tablea
 | Annuaire ou fournisseur d'identité | La connexion des comptes locaux, et les sessions déjà ouvertes                  | La connexion des comptes venus du fournisseur ; la synchronisation            |
 | Prometheus                         | Tout                                                                            | Les métriques de l'écran d'état et les alertes                                |
 
-Tableau Modes dégradés
+Tableau 11 Modes dégradés
 
 ```yaml exigence
 section: "4.5.4"
@@ -4038,7 +4038,7 @@ Ce paragraphe fixe les hypothèses de dimensionnement de la plateforme. Ce ne so
 | Conservation des fichiers importés                 | le temps de l’import, puis suppression                                                                   |
 | Rétention des projets terminés                     | 20 ans, sans purge                                                                                       |
 
-Tableau Hypothèses de volumétrie
+Tableau 12 Hypothèses de volumétrie
 
 **Volumes qui en découlent**
 
@@ -4055,7 +4055,7 @@ Les ordres de grandeur ci-dessous sont arrondis vers le haut.
 | Fichiers en transit (imports en cours)                      | 1                            | quelques dizaines, quelques centaines de Mo au plus                                                                         |
 | Marquages de révisions                                      | 1 par mois                   | 300 par mois, concentrés sur la semaine de revue : une dizaine par heure ouvrée au pic                                      |
 
-Tableau Volume de données
+Tableau 13 Volume de données
 
 Le volume qui commande l’architecture est celui des révisions : un projet de quinze ans revu chaque mois produit cent quatre-vingts instantanés de dix mille objets. Tout le reste tient dans une base ordinaire sans précaution particulière.
 
@@ -4073,7 +4073,7 @@ Mesurés sur le jeu de données de référence (WF-QUA-0040), aux volumes ci-des
 | Analyser puis appliquer un import de dix-huit mille lignes de coût            | 5 min    |
 | Engendrer l'export d'un planning de mille tâches                              | 30 s     |
 
-Tableau Objectifs de temps de réponse
+Tableau 14 Objectifs de temps de réponse
 
 Les trois premières sont les seules qui se paient en attente devant un écran : ce sont elles qui font qu'un outil de chiffrage est utilisable ou non. Les trois dernières sont des tâches de fond (WF-ARC-0090) : leur durée se suit, elle ne bloque personne.
 
@@ -4566,7 +4566,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | Valeur acquise                      | Désigne la valeur, au prix budgété, du travail terminé à une date donnée (WF-IND-0030).                                                                                                                                                                                                                                                                                                                                           |
 | Valeur planifiée                    | Désigne la part du budget de référence qui aurait dû être acquise à une date donnée, d'après les dates de la révision de référence (WF-DEV-0080).                                                                                                                                                                                                                                                                                 |
 
-Tableau Définitions
+Tableau 15 Définitions
 
 # ANNEXE B: Formats d’échanges Excel
 
