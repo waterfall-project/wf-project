@@ -239,8 +239,30 @@ avec sa raison.
 ## Tests
 
 - **Un test qui cite son exigence** — *à écrire*, [US-0060](https://github.com/waterfall-project/wf-project/issues/11).
-- **Un test qui reprend un exemple chiffré** — *à écrire*, [US-0040](https://github.com/waterfall-project/wf-project/issues/9).
+- **Un test qui reprend un exemple chiffré** — voir ci-dessous.
 - **Un parcours de bout en bout** — *à écrire*, [US-0080](https://github.com/waterfall-project/wf-project/issues/13).
+
+### Un test qui reprend un exemple chiffré
+
+Chaque phrase chiffrée d'un champ Vérif est un cas de test du noyau, avec les mêmes entrées
+et la même valeur attendue (WF-QUA-0020). `make fixtures` les relève dans
+`fixtures/examples.json` — fichier engendré, qu'on ne retouche pas —, chacune sous une clé
+faite de l'exigence et de l'empreinte de son texte : `WF-PTF-0020-A#ab12cd34ef56`.
+
+Pour éprouver un exemple :
+
+1. écrire une fixture sous `fixtures/`, un fichier JSON qui cite dans `examples` la clé de
+   la phrase, et porte ses données, recopiées de la phrase ;
+2. écrire le test sous `backend/tests/examples/` : la fixture `example` le charge par la
+   clé, le test appelle le noyau et compare à la valeur de la phrase.
+
+Les sockets y sont fermées : un exemple qui passe ne demande ni base, ni service, ni
+navigateur. Une phrase modifiée dans le document change de clé ; la fixture de l'ancienne
+fait alors échouer la chaîne, et on la réécrit d'après la nouvelle phrase.
+
+*Contrôles* : `make check-fixtures` — le relevé est à jour, chaque clé citée existe, et les
+exemples qu'aucune fixture ne cite encore sont listés, sans échec : leur nombre décroît avec
+les EPIC de calcul (EP-06 à EP-11).
 
 ## Enveloppe d'erreur et codes d'erreur
 

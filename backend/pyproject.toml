@@ -23,6 +23,7 @@ dev = [
     "import-linter>=2.15",
     "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
+    "pytest-socket>=0.8.1",
     "ruff>=0.16.9",
 ]
 

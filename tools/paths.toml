@@ -63,8 +63,12 @@ by = "pnpm install"
 paths = ["frontend/src/api/generated/**"]
 by = "make generate-client"
 
+[[generated]]
+paths = ["fixtures/examples.json"]
+by = "make fixtures"
+
 [tests]
-paths = ["tools/tests/**", "backend/tests/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/e2e/**"]
+paths = ["tools/tests/**", "backend/tests/**", "fixtures/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/e2e/**"]
 
 # Paths excepted from the rules of sources (no suppression comment, 1,000 lines at most),
 # each with its reason. An exception is temporary, and names what lifts it.

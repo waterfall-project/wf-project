@@ -22,7 +22,8 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	test-tools lint-tools typecheck-tools sources reuse lint-workflows lint-shell check \
+	test-tools lint-tools typecheck-tools sources fixtures check-fixtures reuse lint-workflows \
+	lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	install-front lint-front typecheck-front test-front generate-client client-up-to-date \
@@ -70,6 +71,12 @@ typecheck-tools: ## Strict type check of the repository tools
 sources: ## No suppression comment, no source file over 1,000 lines (US-0050)
 	@$(WFTOOLS).sources
 
+fixtures: ## Regenerate the listing of the numeric examples of the document
+	@$(WFTOOLS).examples --write
+
+check-fixtures: ## The listing is up to date, and every fixture cites an existing example
+	@$(WFTOOLS).examples
+
 reuse: ## Check that every file declares its copyright and licence
 	@uv run --frozen --project $(TOOLS) reuse lint
 
@@ -91,7 +98,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 
 check-all: check-repo check-spec check-contract check-back check-front ## Run every family of checks
 
-check-repo: reuse lint-workflows lint-shell lint-docker sources lint-tools typecheck-tools test-tools ## Checks that run on any change
+check-repo: reuse lint-workflows lint-shell lint-docker sources check-fixtures lint-tools typecheck-tools test-tools ## Checks that run on any change
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
