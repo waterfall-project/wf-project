@@ -6,7 +6,8 @@ authoritative** — an interface change is a contract change first, and the code
 
 Issues and pull requests are welcome in French or in English. The specification stays in
 French, the code and the contract stay in English; that split is deliberate and is not open
-for renegotiation file by file.
+for renegotiation file by file. Taking part means holding to the
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Getting set up
 
