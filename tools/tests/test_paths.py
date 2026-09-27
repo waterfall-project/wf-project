@@ -33,12 +33,12 @@ paths = ["tools/tests/**", "frontend/**/*.test.ts"]
 
 @pytest.fixture
 def declaration() -> paths.Declaration:
-    """The sample declaration above."""
+    """Read the sample declaration above."""
     return paths.parse(DECLARATION)
 
 
 def names(families: tuple[paths.Family, ...]) -> list[str]:
-    """The names of families, in order."""
+    """Return the names of families, in order."""
     return [family.name for family in families]
 
 
@@ -60,7 +60,12 @@ def test_no_change_still_runs_the_always_families(declaration: paths.Declaration
 
 @pytest.mark.parametrize(
     ("path", "generated"),
-    [("docs/api/INVENTORY.md", True), ("tools/uv.lock", True), ("uv.lock", True), ("docs/api/README.md", False)],
+    [
+        ("docs/api/INVENTORY.md", True),
+        ("tools/uv.lock", True),
+        ("uv.lock", True),
+        ("docs/api/README.md", False),
+    ],
 )
 def test_generated_paths(declaration: paths.Declaration, path: str, generated: bool) -> None:
     assert declaration.is_generated(path) is generated
@@ -105,3 +110,14 @@ def test_the_declaration_of_the_repository_reads() -> None:
     assert "repo" in names(declaration.families)
     assert declaration.is_generated("docs/spec/waterfall-spec.md")
     assert declaration.is_test("tools/tests/test_paths.py")
+
+
+def test_an_excepted_path_is_named_with_its_reason() -> None:
+    declaration = paths.parse('[[exceptions]]\npaths = ["legacy/**"]\nreason = "until #1"\n')
+    assert declaration.is_excepted("legacy/old.py")
+    assert not declaration.is_excepted("tools/new.py")
+
+
+def test_an_exception_needs_a_reason() -> None:
+    with pytest.raises(DeclarationError, match="the reason they are excepted"):
+        paths.parse('[[exceptions]]\npaths = ["legacy/**"]\n')

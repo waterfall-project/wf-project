@@ -13,7 +13,7 @@ from waterfall import __version__
 
 def main() -> int:
     """Start the API service."""
-    print(f"waterfall-api {__version__}")
+    sys.stdout.write(f"waterfall-api {__version__}\n")
     return 0
 
 

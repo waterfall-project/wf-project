@@ -12,12 +12,13 @@ while each family runs only when a pull request touches it.
 import json
 import os
 import sys
+from collections.abc import Mapping
 
 FAILED = frozenset({"failure", "cancelled"})
 
 
-def failures(needs: dict[str, dict[str, object]]) -> list[str]:
-    """The jobs that failed or were cancelled, by name."""
+def failures(needs: Mapping[str, Mapping[str, object]]) -> list[str]:
+    """Return the jobs that failed or were cancelled, by name."""
     return sorted(name for name, job in needs.items() if job.get("result") in FAILED)
 
 

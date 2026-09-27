@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The rule set of the Python code — back and repository tools — in one place (WF-QUA-0030).
+#
+# Every rule of Ruff is on, and what is off is listed below with its reason: the history of
+# this file shows every withdrawal. A rule is never silenced in the code: no `noqa`
+# comment is accepted (`make exemptions`). An exception for a whole kind of file is written
+# here, under `per-file-ignores`, with its reason.
+line-length = 100
+target-version = "py313"
+# Where the first-party packages live, so that imports sort the same way from anywhere.
+src = ["backend/src", "tools/src"]
+
+[lint]
+select = ["ALL"]
+ignore = [
+    # Pairs Ruff itself declares incompatible: one of each is kept.
+    "D203",   # blank line before a class docstring — D211 (none) is kept
+    "D213",   # summary on the second line — D212 (first line) is kept
+    # Rules the formatter already enforces, or would fight.
+    "COM812", # trailing commas — the formatter places them
+    "ISC001", # implicit string concatenation on one line — conflicts with the formatter
+    # Rules that ask for more than this repository wants.
+    "D105",   # docstring on magic methods — their meaning is the language's
+    "D107",   # docstring on __init__ — the class docstring says it
+    "TD002",  # author of a TODO — the issue it cites says who (TD003 is kept)
+    "FIX002", # any TODO is an error — a TODO citing its issue is accepted (TD003)
+    "ANN401", # typing.Any — Pyright strict already refuses what matters
+]
+# French typography is what the repository tools read from the specification on purpose:
+# typographic apostrophes and the spaces Word puts around « ».
+allowed-confusables = ["’", "‘", "ʼ", " ", " ", " "]
+
+[lint.flake8-copyright]
+# CPY001 checks the SPDX header every source file opens with (US-0050).
+notice-rgx = "SPDX-FileCopyrightText: \\d{4} waterfall-project"
+
+[lint.mccabe]
+# Cyclomatic complexity under 15 (US-0050): Ruff reports a value above the maximum.
+max-complexity = 14
+
+[lint.pydocstyle]
+convention = "pep257"
+
+[lint.per-file-ignores]
+"**/tests/**" = [
+    "D1",      # tests are named for what they check; a docstring would repeat the name
+    "S101",    # assert is how pytest checks
+    "PLR2004", # a test compares with the literal value the document gives
+    "FBT001",  # parametrized expectations arrive as positional booleans
+    "INP001",  # pytest collects test files as modules of their own, not as a package
+    "S603",    # tests run the repository's own commands
+    "S607",
+]
+"tools/src/**" = [
+    "T201", # the repository tools speak on the console
+    "S603", # they run git and their own commands, never user input
+    "S607",
+]

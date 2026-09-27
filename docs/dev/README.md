@@ -154,8 +154,32 @@ docstrings, le code commenté et les `TODO` sont contrôlés : voir « Lint, typ
 
 ## Lint, typage et format
 
-*À écrire* — [US-0050](https://github.com/waterfall-project/wf-project/issues/10), lots
-[US-0050/L1](https://github.com/waterfall-project/wf-project/issues/18) et
+Ce que la spécification appelle analyse statique (WF-QUA-0030) : tout est bloquant, et aucun
+avertissement n'est toléré ; ce qui ne mérite pas de bloquer se retire du jeu de règles.
+
+**Python** — le back et les outils du dépôt partagent un seul jeu de règles,
+`ruff.toml`, à la racine :
+
+- toutes les règles de Ruff sont actives ; celles qui sont retirées sont listées, chacune
+  avec sa raison, et l'historique du fichier montre chaque retrait ;
+- complexité cyclomatique inférieure à 15 par fonction (`C901`, maximum 14) ;
+- l'en-tête SPDX (`CPY001`), une docstring d'une ligne pour ce qui est public (`D1`,
+  convention PEP 257 ; ni les tests ni les méthodes spéciales n'en demandent), pas de code
+  commenté (`ERA001`), un `TODO` qui cite son issue (`TD003`) ;
+- Pyright en mode strict (`[tool.pyright]` de chaque projet), `# type: ignore` non honoré.
+
+**Aucune règle ne s'écarte par un commentaire dans le code.** Une exception, s'il en faut
+une, s'écrit dans la configuration de l'outil — `per-file-ignores` de `ruff.toml` —, avec sa
+raison. Aucun fichier source ne dépasse 1 000 lignes, lignes vides et commentaires compris ;
+les fichiers engendrés en sont exclus.
+
+*Contrôles* : `make lint-back`, `make typecheck-back`, `make lint-tools`,
+`make typecheck-tools` ; `make sources` pour les commentaires d'exemption et la taille des
+fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tools`, écrits
+avant ces règles, en sont exceptés dans `tools/paths.toml` jusqu'au lot
+[EP-01/L2](https://github.com/waterfall-project/wf-project/issues/29).
+
+**TypeScript** — *à écrire*, lot
 [US-0050/L2](https://github.com/waterfall-project/wf-project/issues/20).
 
 ## Règles de codage

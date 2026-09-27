@@ -29,7 +29,7 @@ def git(repository: Path, *arguments: str) -> None:
 
 @pytest.fixture
 def repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A repository with one commit on main, and a branch that changes the specification."""
+    """Build a repository with one commit on main, and a branch that changes the specification."""
     git(tmp_path, "init", "--quiet", "--initial-branch=main")
     git(tmp_path, "config", "user.email", "test@example.invalid")
     git(tmp_path, "config", "user.name", "test")
@@ -46,7 +46,8 @@ def repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def test_changed_paths_are_those_the_branch_adds(repository: Path) -> None:
+@pytest.mark.usefixtures("repository")
+def test_changed_paths_are_those_the_branch_adds() -> None:
     assert changes.changed_paths("main", "HEAD") == ["docs/spec/a.md"]
 
 
@@ -62,18 +63,19 @@ def test_without_a_head_ignored_files_do_not_count(repository: Path) -> None:
     assert changes.changed_paths("main") == [".gitignore", "docs/spec/a.md"]
 
 
-def test_families_are_printed_for_github_actions(
-    repository: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+@pytest.mark.usefixtures("repository")
+def test_families_are_printed_for_github_actions(capsys: pytest.CaptureFixture[str]) -> None:
     assert changes.main(["main"]) == 0
     assert capsys.readouterr().out == "repo=true\nspec=true\n"
 
 
-def test_targets_are_printed_for_make(repository: Path, capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.usefixtures("repository")
+def test_targets_are_printed_for_make(capsys: pytest.CaptureFixture[str]) -> None:
     assert changes.main(["main", "HEAD", "--targets"]) == 0
     assert capsys.readouterr().out == "check-repo\ncheck-spec\n"
 
 
-def test_an_untouched_family_is_false(repository: Path, capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.usefixtures("repository")
+def test_an_untouched_family_is_false(capsys: pytest.CaptureFixture[str]) -> None:
     assert changes.main(["HEAD", "HEAD"]) == 0
     assert capsys.readouterr().out == "repo=true\nspec=false\n"

@@ -20,7 +20,7 @@ from wftools import REPOSITORY, paths
 
 
 def changed_paths(base: str, head: str | None = None) -> list[str]:
-    """The paths a change adds, modifies, renames or deletes, relative to the repository.
+    """Return the paths a change adds, modifies, renames or deletes, relative to the repository.
 
     With a head, the change is what the head adds to its merge base with the base, as a
     pull request shows it. Without one, it is what the working tree adds to that merge
@@ -38,12 +38,15 @@ def _git(*arguments: str) -> list[str]:
     result = subprocess.run(
         ["git", *arguments], cwd=REPOSITORY, capture_output=True, text=True, check=True
     )
-    return [line for line in result.stdout.splitlines() if line]
+    output: str = result.stdout or ""
+    return [line for line in output.splitlines() if line]
 
 
 def main(arguments: list[str]) -> int:
     """Print the families or the targets a change touches."""
-    parser = argparse.ArgumentParser(prog="wftools.changes", description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(
+        prog="wftools.changes", description="Tell which families of checks a change touches."
+    )
     parser.add_argument("base", help="the branch or commit the change is compared with")
     parser.add_argument("head", nargs="?", help="the tip of the change; the working tree if absent")
     parser.add_argument("--targets", action="store_true", help="print Makefile targets")
