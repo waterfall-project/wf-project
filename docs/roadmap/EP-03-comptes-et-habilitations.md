@@ -25,6 +25,10 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
 - le service d'API, la base PostgreSQL, les migrations versionnées, et les conventions du
   §4.4.1 appliquées dès la première table : identifiants, colonnes d'audit, régimes de
   suppression, intégrité déclarée, types des grandeurs ;
+- les règles de codage du SQL et des migrations, troisième fichier de règles de codage à
+  côté de ceux de Python et de TypeScript (US-0300), fixées en écrivant la première table ;
+  et les sections du guide de développement qu'EP-01 a ouvertes pour lui : l'écriture d'une
+  migration, l'ajout d'un code d'erreur côté service ;
 - l'authentification locale, par l'annuaire et par OIDC ; la session en base, son expiration et
   sa révocation ;
 - les comptes : attributs, cycle de vie, avatar, import et resynchronisation depuis l'annuaire ;
@@ -35,7 +39,9 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
 - le worker et la file de tâches, la synchronisation de l'annuaire pour premier traitement ;
 - le journal d'audit, pour les comptes, les rôles et leurs attributions ;
 - l'amorçage d'une installation neuve : catalogue, rôles prédéfinis, compte administrateur ;
-- la comparaison, par la chaîne, des réponses de l'API au schéma déclaré ;
+- la comparaison, par la chaîne, des réponses de l'API au schéma déclaré — piste pour la
+  conception : prism en mode proxy devant le service, l'outil du faux back d'EP-01
+  (US-0030) ;
 - les écrans de connexion, des comptes et des rôles de la maquette, branchés sur le service.
 
 ## Ce qui n'en fait pas partie
