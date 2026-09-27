@@ -18,7 +18,13 @@ REDOCLY := npx --yes @redocly/cli@$(REDOCLY_VERSION)
 PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
-.PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock test-tools reuse check-tools clean
+.PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
+	test-tools reuse lint-workflows lint-shell check check-all check-repo check-spec \
+	check-contract changes gate check-tools clean
+
+# The branch a change is compared with, for `make check` and `make changes`.
+BASE ?= origin/main
+WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
 
 help: ## List the commands
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2}'
@@ -50,6 +56,37 @@ test-tools: ## Run the tests of the repository tools
 
 reuse: ## Check that every file declares its copyright and licence
 	@uv run --frozen --project $(TOOLS) reuse lint
+
+lint-workflows: ## Lint the GitHub Actions workflows
+	@uv run --frozen --project $(TOOLS) actionlint
+
+lint-shell: ## Lint the shell scripts
+	@git ls-files '*.sh' | xargs uv run --frozen --project $(TOOLS) shellcheck
+
+# --- The chain: one target per family of checks (tools/paths.toml) -----------------
+
+check: ## Run the checks of what the change touches (BASE=origin/main by default)
+	@for target in $$($(WFTOOLS).changes $(BASE) --targets); do \
+		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
+	done
+
+check-all: check-repo check-spec check-contract ## Run every family of checks
+
+check-repo: reuse lint-workflows lint-shell test-tools ## Checks that run on any change
+
+check-spec: build-doc-strict ## The projection builds without warning and is up to date
+	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
+		|| { echo "  the projection is not the one the Word document produces: run make build-doc"; exit 1; }
+
+check-contract: lint-openapi inventory ## The contract lints and its inventory is up to date
+	@git diff --exit-code --stat -- $(API)/INVENTORY.md \
+		|| { echo "  INVENTORY.md is not the one the contract produces: run make inventory"; exit 1; }
+
+changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
+	@$(WFTOOLS).changes $(BASE) $(HEAD)
+
+gate: ## Decide the outcome of the chain from its jobs (NEEDS, from GitHub Actions)
+	@$(WFTOOLS).gate
 
 check-tools: ## Report which prerequisites are missing
 	@for t in python3 pandoc npx uv; do \

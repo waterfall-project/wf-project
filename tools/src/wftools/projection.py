@@ -13,7 +13,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-REPOSITORY = Path(__file__).resolve().parents[3]
+from wftools import REPOSITORY
+
 PROJECTION = REPOSITORY / "docs" / "spec" / "waterfall-spec.md"
 
 EXAMPLE_IDENTIFIER = "WF-EXAMP-0010-A"

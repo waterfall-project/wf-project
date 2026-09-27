@@ -10,8 +10,10 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "actionlint-py>=1.7.12.25",
     "pytest>=9.1.1",
     "reuse>=6.2.0",
+    "shellcheck-py>=0.11.0.1",
 ]
 
 [build-system]
