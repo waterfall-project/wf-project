@@ -2518,9 +2518,9 @@ titre: "Démarrage d’une tâche"
 flexibilite: "F0"
 fbs: "FBS-4.5.3"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Une vue Kanban présente les tâches de la structure principale de la révision courante réparties selon leur état — non démarrée, démarrée, terminée — et permet de faire passer une tâche à l’état démarré, y compris une tâche terminée que l’on rouvre. Seules les lignes des tâches démarrées sont exposées à la réestimation du reste à engager."
+corps: "Une vue Kanban présente les tâches de la structure principale de la révision courante réparties selon leur état — non démarrée, démarrée, terminée — et permet de faire passer une tâche à l’état démarré, y compris une tâche terminée que l’on rouvre. Seules les lignes des tâches démarrées sont exposées à la réestimation du reste à engager. Aucun geste ne ramène une tâche à l'état non démarré : une tâche démarrée par erreur se corrige en annulant la saisie (WF-IHM-0110), et passé ce délai elle reste démarrée."
 motif: "Waterfall ne suit pas l’exécution du travail au jour le jour, ce que le périmètre exclu écarte. Il a besoin d’une seule information : la tâche a-t-elle commencé ? C’est elle qui décide de ce que la revue périodique demande de réestimer. Rouvrir une tâche terminée libère la valeur qu’elle avait acquise : ce doit être un acte explicite, et non la conséquence d’une saisie."
-verification: "Une tâche passée à l’état démarré voit ses lignes apparaître dans la grille de reste à engager. Une tâche non démarrée n’y est pas modifiable. Le passage direct de non démarrée à terminée n’est possible que pour un jalon."
+verification: "Une tâche passée à l’état démarré voit ses lignes apparaître dans la grille de reste à engager. Une tâche non démarrée n’y est pas modifiable. Le passage direct de non démarrée à terminée n’est possible que pour un jalon. Aucune commande ne fait passer une tâche démarrée à l'état non démarré."
 ```
 
 ##### 3.4.5.5.3. Grille de reste à engager

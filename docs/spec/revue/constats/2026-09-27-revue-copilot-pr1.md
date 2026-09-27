@@ -17,7 +17,7 @@ Copilot a relevé que le corps de `setTaskProgress` acceptait les trois états d
 tâche ». En cherchant laquelle des deux lectures était la bonne, il est apparu que WF-RAE-0030
 n'accorde qu'un seul passage — celui vers l'état démarré, y compris pour rouvrir une tâche
 terminée — et ne dit rien du retour à « non démarrée ». Le contrat a donc été restreint à
-`started` et `completed`, mais il l'a été sur une lecture en creux plutôt que sur une phrase.
+`started` et `completed` ; l'exigence dit maintenant en clair ce qu'il avait lu en creux.
 
 Les quinze autres constats étaient des défauts du dépôt et n'ont pas laissé de trace ici.
 
@@ -25,7 +25,7 @@ Les quinze autres constats étaient des défauts du dépôt et n'ont pas laissé
 
 | # | Gravité | Emplacement | Constat | Statut |
 |---|---|---|---|---|
-| C-090 | mineur | §3.4.5.5.2, WF-RAE-0030 | Le Kanban affiche trois colonnes et n'autorise qu'un passage : l'impossibilité de revenir à « non démarrée » est implicite | à traiter |
+| C-090 | mineur | §3.4.5.5.2, WF-RAE-0030 | Le Kanban affiche trois colonnes et n'autorise qu'un passage : l'impossibilité de revenir à « non démarrée » est implicite | intégré |
 
 ---
 
@@ -56,7 +56,7 @@ Et, à la vérification, après la phrase sur le jalon :
 
 > Aucune commande ne fait passer une tâche démarrée à l'état non démarré.
 
-**Statut.** à traiter
+**Statut.** intégré — les deux phrases sont dans WF-RAE-0030, corps et vérification
 
 <!-- Le contrat suit déjà cette lecture : components/schemas/revisions.yaml, ProgressUpdate,
      restreint l'énuméré de TaskProgress à started et completed. Si l'auteur tranche dans
