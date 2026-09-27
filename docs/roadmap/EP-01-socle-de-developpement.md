@@ -99,8 +99,8 @@ Rien. Le contrat est écrit et `make lint-openapi` passe.
   développement ;
 - une faute de typage, une violation de règle d'analyse et un écart de format introduits
   exprès font chacun échouer la chaîne ;
-- le rapport de couverture des exigences liste les 203 exigences et celles que nul test ne
-  couvre ;
+- le rapport de couverture des exigences liste les 195 exigences F0 et celles que nul test
+  ne couvre ;
 - le relevé de couverture de code donne les lignes et les branches du back et du front, et
   un seuil manqué empêche la fusion ;
 - l'outil de la roadmap liste les exigences qu'aucune US ne cite ;
@@ -222,11 +222,13 @@ Décisions :
   contrat**, comme le prévoit l'US-0030 ; EP-01 en ajoute aux seules opérations du parcours
   témoin, EP-02 aux autres. C'est la seule modification du contrat que prévoit EP-01.
 - **Relevé des exemples chiffrés.** L'outil relève dans la projection chaque phrase de Vérif
-  qui porte un exemple chiffré, et l'écrit dans `fixtures/` avec une clé stable — l'exigence
-  et le rang de la phrase — et l'empreinte de son texte. Ce relevé est engendré. Une fixture
-  est un fichier de données écrit à la main qui cite la clé de sa phrase : l'outil signale
-  une phrase qu'aucune fixture ne cite, et fait échouer la chaîne sur une fixture dont la
-  phrase a changé ou disparu. Écarté : tirer les valeurs de la prose automatiquement —
+  qui porte un exemple chiffré, et l'écrit dans `fixtures/` sous une clé faite de
+  l'identifiant de l'exigence et de l'empreinte du texte de la phrase. Ce relevé est
+  engendré. Une fixture est un fichier de données écrit à la main qui cite la clé de sa
+  phrase : l'outil signale une phrase qu'aucune fixture ne cite, et fait échouer la chaîne
+  sur une fixture dont la clé n'existe plus — sa phrase a changé ou disparu. Le rang de la
+  phrase n'entre pas dans la clé : une phrase insérée avant une autre la décalerait, et la
+  fixture d'une phrase inchangée échouerait à tort. Écarté : tirer les valeurs de la prose automatiquement —
   « deux projets de valeur acquise 100 et 1 000… » ne se structure pas sans le comprendre,
   et un analyseur de phrases se tromperait en silence.
 - Un exemple du contrat reprend une fixture par référence, et le bundle l'embarque : les
@@ -412,7 +414,7 @@ que l'écart entre un lot et son estimation se lise au lieu de se deviner.
 - propre à l'US : la chaîne s'exécute sur toute pull request vers `main` ou vers une branche
   `epic/*`, et une pull request dont la chaîne échoue ne peut pas être fusionnée ;
 - propre à l'US : la chaîne est faite de workflows GitHub Actions, un par famille de
-  contrôles — back, front, contrat, spécification, roadmap — ; chaque étape appelle une
+  contrôles — back, front, contrat, spécification, roadmap, dépôt — ; chaque étape appelle une
   commande du Makefile et aucune logique de contrôle n'est écrite dans un workflow, si bien
   qu'un échec de la chaîne se reproduit sur un poste par la même commande ;
 - propre à l'US : les contrôles qui existent déjà y entrent dès le premier lot — la
@@ -634,9 +636,11 @@ soit constaté par la chaîne et non découvert à la recette.
   aucune ligne ne s'exclut de la mesure par un commentaire (US-0050).
 
 **Notes de réalisation.** La liste des exigences se lit dans la projection Markdown, avec
-leur champ de flexibilité : le rapport n'a pas de liste à tenir à jour de son côté. Tant
-qu'il n'y a pas de code métier, les 203 sortent comme non couvertes — c'est le résultat
-attendu, et c'est ce qui décroît EPIC par EPIC. L'exemple du §1.3.1, `WF-EXAMP-0010-A`,
+leur champ de flexibilité : le rapport n'a pas de liste à tenir à jour de son côté. Il porte
+sur les 195 exigences F0 ; les huit exigences F1 et F2 y figurent sans compter dans l'échec
+(WF-QUA-0010). Tant qu'il n'y a pas de code métier, presque toutes sortent comme non
+couvertes — seules le sont celles que les tests d'EP-01 citent —, c'est le résultat attendu,
+et c'est ce qui décroît EPIC par EPIC. L'exemple du §1.3.1, `WF-EXAMP-0010-A`,
 illustre la forme d'une exigence et n'en est pas une du produit : le rapport l'exclut, comme
 le fait déjà `docs/api/tools/inventory.py`, faute de quoi il bloquerait toute publication.
 

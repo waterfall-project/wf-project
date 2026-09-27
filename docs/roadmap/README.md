@@ -71,7 +71,7 @@ D'un EPIC, cinq valeurs et aucune autre :
 |---|---|
 | `à planifier` | l'EPIC est écrit, mais ses US ou sa conception ne sont pas arrêtées ; tant que ses US ne sont pas écrites, la colonne US de son tableau porte « — » |
 | `prêt` | ses US sont détaillées et sa conception est validée ; rien n'empêche d'en découper les lots |
-| `en cours` | son plan de lots est validé, et ses issues sont ouvertes sur GitHub |
+| `en cours` | son plan de lots est validé, et ses issues sont ouvertes sur GitHub ; sa branche d'intégration n'existe qu'à partir de son premier lot |
 | `livré` | toutes ses US sont finies, sa définition de fini est vérifiée sur sa branche d'intégration, et celle-ci est fusionnée dans `main` |
 | `abandonné : <pourquoi>` | reconnu, puis écarté ; le fichier reste |
 
@@ -179,11 +179,13 @@ fichier de l'EPIC ne les recopie pas.
 | `epic/EP-nn` | les pull requests des lots de cet EPIC, et les modifications du contrat que sa conception prévoit | `main`, au premier lot, une fois livrés les EPIC dont il dépend |
 | `lot/<identifiant du lot>` | le travail d'un lot, et lui seul | la branche de son EPIC |
 
-Chaque EPIC en cours a sa branche d'intégration, si bien que plusieurs peuvent avancer en
-même temps sans que la livraison de l'un emporte les lots à moitié faits d'un autre. `main`
-ne reçoit donc que des EPIC livrés et des documents relus : elle n'est jamais dans un état
-intermédiaire. Après chaque fusion dans `main`, les branches des EPIC encore en cours la
-reprennent, et c'est à ce moment que se règlent leurs conflits, non à la livraison.
+Un EPIC en cours a sa branche d'intégration dès son premier lot — entre l'ouverture de ses
+issues et ce premier lot, il n'en a pas encore, et c'est normal : il peut attendre qu'un
+EPIC dont il dépend soit livré. Plusieurs EPIC peuvent ainsi avancer en même temps sans que
+la livraison de l'un emporte les lots à moitié faits d'un autre. `main` ne reçoit donc que
+des EPIC livrés et des documents relus : elle n'est jamais dans un état intermédiaire. Après
+chaque fusion dans `main`, les branches des EPIC encore en cours la reprennent, et c'est à
+ce moment que se règlent leurs conflits, non à la livraison.
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.

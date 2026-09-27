@@ -113,8 +113,9 @@ and it is worth knowing before writing the first line:
 `main` holds the published state. It receives two things only: an epic's integration
 branch, `epic/EP-nn`, merged when the epic is delivered; and, through a pull request, the
 specification, contract or roadmap changes that serve no epic in progress. Every epic in
-progress has its own integration branch, cut from `main`, so several can move at once
-without the delivery of one carrying the half-done work of another.
+progress gets its own integration branch, cut from `main` when its first lot starts — once
+the epics it depends on are delivered —, so several can move at once without the delivery
+of one carrying the half-done work of another.
 
 Code arrives in **lots**: one lot, one issue, one branch cut from the epic's branch, one pull
 request back into it, from the lot plan validated for the epic. A lot is estimated against a
