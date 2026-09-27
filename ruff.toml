@@ -63,3 +63,9 @@ convention = "pep257"
     "S603", # they run git and their own commands, never user input
     "S607",
 ]
+"docs/*/tools/**" = [
+    "T201",   # the tools of the specification and of the contract speak on the console
+    "S603",   # they run pandoc and mmdc on the repository's own files
+    "S607",
+    "INP001", # scripts, run from their own directory: not a package
+]

@@ -12,6 +12,8 @@ BUNDLE  := $(API)/waterfall.bundle.yaml
 MOCK_SPEC := $(API)/waterfall.mock.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 TOOLS   := tools
+# The tools of the specification and of the contract, held to the same rules (EP-01/L2).
+DOC_TOOLS := ../docs/api/tools ../docs/spec/tools/pbs.py ../docs/spec/tools/allocate_pbs.py
 BACK    := backend
 FRONT   := frontend
 PNPM    := cd $(FRONT) && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1 pnpm
@@ -62,7 +64,7 @@ build-openapi: lint-openapi ## Check, then bundle the contract into a single fil
 	@echo "  -> $(BUNDLE)"
 
 inventory: ## Regenerate the endpoint inventory and the requirement coverage
-	@python3 $(API)/tools/inventory.py
+	@uv run --frozen --project $(TOOLS) python $(API)/tools/inventory.py
 
 allocate-pbs: ## Write the PBS field of every requirement into the Word document
 	@python3 $(SPEC)/tools/allocate_pbs.py
@@ -84,7 +86,8 @@ test-tools: ## Run the tests of the repository tools
 	@cd $(TOOLS) && uv run --frozen pytest
 
 lint-tools: ## Lint and format check of the repository tools
-	@cd $(TOOLS) && uv run --frozen ruff check . && uv run --frozen ruff format --check .
+	@cd $(TOOLS) && uv run --frozen ruff check . $(DOC_TOOLS) \
+		&& uv run --frozen ruff format --check . $(DOC_TOOLS)
 
 typecheck-tools: ## Strict type check of the repository tools
 	@cd $(TOOLS) && uv run --frozen pyright
