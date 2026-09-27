@@ -113,7 +113,11 @@ months later. Look at `git log` before writing your first one.
 
 A pull request states what it changes and what it leaves alone. If it touches the
 specification, it names the findings it integrates; if it touches the contract, it says
-whether `make lint-openapi` and `make inventory` were run.
+whether `make lint-openapi` and `make inventory` were run. The template in
+`.github/pull_request_template.md` asks for exactly that, and the issue forms in
+`.github/ISSUE_TEMPLATE/` ask a specification finding for its location, its exact
+quotation and its proposed wording — the three things without which a finding has to be
+written again.
 
 ## Licence
 

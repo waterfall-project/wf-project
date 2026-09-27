@@ -1,0 +1,7 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How this repository works
+    url: https://github.com/waterfall-project/wf-project/blob/main/CONTRIBUTING.md
+    about: >-
+      Read this first if you want to change the specification: it is a Word document,
+      the Markdown is generated from it, and a change goes through a review cycle.
