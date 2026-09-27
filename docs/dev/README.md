@@ -110,6 +110,11 @@ commande.
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
 
+`make lot-size BASE=origin/epic/EP-nn` mesure un lot : les lignes de son diff, séparées en
+code de production, tests et le reste (documentation, configuration, contrat), les fichiers
+engendrés mis à part. La pull request met ce nombre à côté de l'estimation de son issue ; un
+dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
+
 ## Chaîne
 
 La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
