@@ -18,6 +18,10 @@ path = [
     ".gitignore",
     "**/.python-version",
     "**/uv.lock",
+    "frontend/package.json",
+    "frontend/tsconfig.json",
+    "frontend/pnpm-lock.yaml",
+    "frontend/.dockerignore",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"
