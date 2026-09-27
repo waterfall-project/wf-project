@@ -30,6 +30,11 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
+      # The coverage thresholds are held by the repository tools, in Python.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
       - run: make check-front
         env:
           TIER: ${{ inputs.tier }}
