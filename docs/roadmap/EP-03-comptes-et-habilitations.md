@@ -91,9 +91,9 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (29) :
+Servies ici pour la première fois (30) :
 
-- `system` : `getLiveness` ;
+- `system` : `getLiveness`, `getBackgroundTask` ;
 - `session` : `listAuthProviders`, `getCurrentSession`, `openSession`, `closeSession`, `startOidcSession`, `completeOidcSession`, `requestPasswordReset`, `confirmPasswordReset`, `getMe`, `updateMyPreferences`, `changeMyPassword`, `putMyAvatar`, `deleteMyAvatar` ;
 - `access` : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`, `setUserAccessRoles`, `getUserAvatar`, `startDirectorySync`, `getLatestDirectorySync`, `listPermissions`, `listAccessRoles`, `createAccessRole`, `getAccessRole`, `updateAccessRole`, `deleteAccessRole`.
 

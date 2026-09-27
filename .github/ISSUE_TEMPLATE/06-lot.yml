@@ -6,9 +6,10 @@ body:
   - type: markdown
     attributes:
       value: >-
-        A lot is the unit of review: one issue, one branch cut from `develop`, one pull
-        request back into `develop`. It is opened as a sub-issue of its story's issue, from
-        the lot plan validated for the epic — not invented along the way. The acceptance
+        A lot is the unit of review: one issue, one branch cut from its epic's branch
+        `epic/EP-nn`, one pull request back into it. It is opened as a sub-issue of its
+        story's issue, from the lot plan validated for the epic — not invented along the
+        way. The acceptance
         criteria stay in the epic's file under `docs/roadmap`; this issue names which of
         them the lot closes, it does not copy them. The budget and the stop rule are in
         `docs/roadmap/README.md`, section « Lots ».
@@ -59,7 +60,7 @@ body:
     id: depends
     attributes:
       label: Depends on
-      description: The lots that must be merged into `develop` before this one starts.
+      description: The lots that must be merged into the epic's branch before this one starts.
       placeholder: "#58, #59 — or « nothing »"
     validations:
       required: true
@@ -68,8 +69,9 @@ body:
     attributes:
       label: Estimated size
       description: >-
-        Diff lines, tests included, generated code excluded. The budget is 1,000 to 1,500,
-        of which 600 to 800 production lines at most; a lot that overruns stops and is split.
+        Diff lines, tests included, generated code excluded, with the production lines
+        apart. The budget is in `docs/roadmap/README.md`, section « Lots »; a lot that
+        overruns stops and is split.
       placeholder: "≈ 1,100 (production ≈ 550)"
     validations:
       required: true

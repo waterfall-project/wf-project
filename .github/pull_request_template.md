@@ -29,10 +29,10 @@ Tick what applies; delete the sections that do not.
 - [ ] the conventions of `docs/api/README.md` are held: UUIDs, `snake_case`, exact decimals, one error envelope, 404 against 403, `lock_version`
 
 **Lot** (code, from an epic's lot plan)
-- [ ] this pull request targets `develop`, and names its lot issue: `[US-nnnn/Ln]` or `[EP-nn/Ln]`
+- [ ] this pull request targets its epic's branch, `epic/EP-nn`, and names its lot issue: `[US-nnnn/Ln]` or `[EP-nn/Ln]`
 - [ ] each acceptance criterion the lot closes is listed with the test that carries it, and that test cites the requirement
-- [ ] the diff is within budget — 1,000 to 1,500 lines with tests, generated code excluded — or the overrun is explained and the split was agreed
-- [ ] the chain passes, and nothing in `develop` is left half-built by this merge
+- [ ] the diff is within the budget of `docs/roadmap/README.md`, section « Lots » — or a person set the `over-budget` label after the split was reviewed
+- [ ] the chain passes, and nothing in the epic's branch is left half-built by this merge
 
 **Tooling** (`Makefile`, `docs/*/tools`)
 - [ ] the projection and the inventory are unchanged, or the change is intended and explained above

@@ -179,6 +179,8 @@ d'affichage (WF-ADM-0040), donc personnels et sans effet sur les données.
 
 - écart : la conservation des préférences dans le compte passe par `updateMyPreferences`, que
   le mock accepte sans rien garder ; elle n'est vraie qu'en EP-03.
+- écart : `WF-ADM-0040-A` — « Deux utilisateurs ouvrant le même projet voient les mêmes
+  données présentées selon leurs réglages respectifs. » demande deux comptes réels — EP-03.
 
 ## US-0120 — Grille dense : saisie au clavier seul
 
@@ -357,9 +359,10 @@ un morceau d'écran par action longue.
 - **opérations** : `getMe`, `updateMyPreferences`
 - **issue** :
 
-**En tant que** utilisateur, **je veux** l'interface dans ma langue, choisie par mon
-navigateur puis par moi, sans que cela change une donnée ni un montant, **afin de** travailler
-dans la langue que je lis et de partager les mêmes projets que mes collègues.
+**En tant que** chef de projet, manager ou administrateur, **je veux** l'interface dans ma
+langue, choisie par mon navigateur puis par moi, sans que cela change une donnée ni un
+montant, **afin de** travailler dans la langue que je lis et de partager les mêmes projets
+que mes collègues.
 
 **Critères d'acceptation.**
 
@@ -384,6 +387,8 @@ dans la langue que je lis et de partager les mêmes projets que mes collègues.
 d'erreur et les comptes rendus sont des codes que le front rend par son catalogue. C'est
 cette US qui fixe le catalogue de codes d'erreur, et tout EPIC ultérieur y ajoute les siens.
 
+- écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
+  celles d'un autre. » demande des comptes réels — EP-03.
 - écart : la conservation du choix dans le compte attend EP-03 ; la langue par défaut de
   l'installation attend le paramétrage d'EP-03 également. Les en-têtes fixes des formats
   d'échange de WF-INTF-0180 se vérifient en EP-12 ; ici, seul l'affichage.
@@ -395,9 +400,9 @@ cette US qui fixe le catalogue de codes d'erreur, et tout EPIC ultérieur y ajou
 - **opérations** : aucune en propre
 - **issue** :
 
-**En tant que** utilisateur, **je veux** atteindre toute action au clavier, lire les textes
-sans effort et agrandir l'affichage sans rien perdre, **afin d'**utiliser Waterfall toute la
-journée sans que l'outil me coûte plus que le travail.
+**En tant que** chef de projet, manager ou administrateur, **je veux** atteindre toute action
+au clavier, lire les textes sans effort et agrandir l'affichage sans rien perdre, **afin
+d'**utiliser Waterfall toute la journée sans que l'outil me coûte plus que le travail.
 
 **Critères d'acceptation.**
 
@@ -406,6 +411,9 @@ journée sans que l'outil me coûte plus que le travail.
 - `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau
   AA. »
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. »
+- propre à l'US : chaque champ de saisie porte un libellé associé, et chaque image porteuse
+  d'information une description — le quatrième point du corps de WF-IHM-0100, que son Vérif
+  ne reprend pas ; un contrôle automatisé d'accessibilité le vérifie dans la chaîne.
 
 **Notes de réalisation.** Le contrôle de contraste est exécuté par la chaîne, sinon il n'est
 fait qu'une fois. Aucune conformité complète à un référentiel n'est visée ni déclarée

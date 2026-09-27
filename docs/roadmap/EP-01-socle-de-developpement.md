@@ -28,8 +28,8 @@ suivra les imitera. Les agents de l'US-0280 prennent le relais à partir d'EP-02
 ## Ce qui en fait partie
 
 - le guide de développement, que les personnes comme les agents lisent avant d'écrire ;
-- la chaîne sur toute pull request vers `develop` et vers `main`, et la mesure de la taille
-  d'un lot ;
+- la chaîne sur toute pull request, vers une branche d'EPIC comme vers `main`, et la mesure
+  de la taille d'un lot ;
 - la structure du dépôt : front (PBS-1), service d'API et worker (PBS-2.1, PBS-2.2), noyau
   métier (PBS-2.3), et le contrôle qui interdit à un module du noyau de lire les tables d'un
   autre ;
@@ -97,8 +97,8 @@ Rien. Le contrat est écrit et `make lint-openapi` passe.
 - le parcours témoin de bout en bout aboutit contre le faux back ;
 - la chaîne exécute tout ce qui précède sur une pull request, et échoue sur chacun de ces
   points ;
-- une pull request vers `develop` dont la chaîne échoue ne peut pas être fusionnée, et un
-  lot au-delà du budget fait échouer la chaîne tant qu'une personne ne l'a pas autorisé ;
+- une pull request dont la chaîne échoue ne peut pas être fusionnée, et un lot au-delà du
+  budget fait échouer la chaîne tant qu'une personne ne l'a pas autorisé ;
 - le guide de développement existe, et chacune de ses règles qu'un outil peut contrôler
   nomme ce contrôle ;
 - l'agent de revue, lancé sur une pull request piégée, relève chacun des pièges ; l'agent
@@ -169,26 +169,29 @@ entre eux que par leur interface publique.
 - **opérations** : aucune
 - **issue** :
 
-**En tant que** développeur, **je veux** que la chaîne s'exécute sur toute pull request vers
-`develop` et vers `main`, qu'aucune de ces deux branches n'accepte ce qu'elle n'a pas validé,
-et qu'elle mesure la taille d'un lot, **afin que** `develop` soit constructible à tout
-moment, et qu'un lot trop gros se voie avant la revue et non pendant.
+**En tant que** développeur, **je veux** que la chaîne s'exécute sur toute pull request,
+vers une branche d'EPIC comme vers `main`, qu'aucune de ces branches n'accepte ce qu'elle n'a
+pas validé, et qu'elle mesure la taille d'un lot, **afin que** chaque branche d'intégration
+soit constructible à tout moment, et qu'un lot trop gros se voie avant la revue et non
+pendant.
 
 **Critères d'acceptation.**
 
-- propre à l'US : la chaîne s'exécute sur toute pull request vers `develop` ou `main`, et une
-  pull request dont la chaîne échoue ne peut pas être fusionnée ;
-- propre à l'US : aucune poussée directe n'est acceptée sur `develop` ni sur `main` ;
-- propre à l'US : la chaîne mesure le diff d'une pull request hors code engendré, et échoue
-  au-delà de 1 500 lignes, ou de 800 lignes de code de production, sauf si une personne pose
-  sur la pull request l'étiquette qui l'autorise ;
+- propre à l'US : la chaîne s'exécute sur toute pull request vers `main` ou vers une branche
+  `epic/*`, et une pull request dont la chaîne échoue ne peut pas être fusionnée ;
+- propre à l'US : aucune poussée directe n'est acceptée sur `main` ni sur une branche
+  `epic/*` ;
+- propre à l'US : la chaîne mesure le diff d'une pull request hors code engendré, en
+  distinguant le code de production, et échoue au-delà du budget de la section « Lots » du
+  README de la roadmap, sauf si la pull request porte l'étiquette `over-budget` ;
 - propre à l'US : les chemins engendrés et ceux des tests sont déclarés dans un fichier du
   dépôt, chacun avec ce qui l'engendre ou ce qui le reconnaît comme test.
 
 **Notes de réalisation.** La protection des branches est un réglage de GitHub que seul le
 propriétaire du dépôt peut faire : la chaîne ne se l'accorde pas, et l'US n'est finie que
 lorsqu'il est fait. Le budget et la règle d'arrêt viennent de la section « Lots » du README
-de la roadmap ; la chaîne les applique, elle ne les redéfinit pas.
+de la roadmap ; la chaîne les lit ou les reprend en un seul endroit de sa configuration,
+qui renvoie au README, et ne les redéfinit pas.
 
 ## US-0020 — Client d'API engendré du contrat
 
@@ -251,8 +254,9 @@ soient ceux du document, et non des nombres inventés pour la circonstance.
   ajouté au document apparaît comme fixture non couverte, plutôt que de passer inaperçu ;
 - propre à l'US : les fixtures alimentent le faux back de l'US-0030.
 - écart : « Pour chacun des exemples chiffrés du document, un test porte les mêmes entrées et
-  attend la même valeur » ne se clôt qu'avec les calculs — chaque EPIC de calcul reprend ses
-  propres exemples (EP-06 à EP-11).
+  attend la même valeur. » et « La modification d'une constante de calcul fait échouer au
+  moins un de ces tests. » ne se closent qu'avec les calculs — chaque EPIC de calcul reprend
+  ses propres exemples (EP-06 à EP-11), et EP-11 constate les deux phrases sur l'ensemble.
 
 ## US-0050 — Analyse statique, typage et format bloquants
 
@@ -300,7 +304,9 @@ constatée par la chaîne et non découverte à la recette.
 **Notes de réalisation.** La liste des exigences se lit dans la projection Markdown, avec
 leur champ de flexibilité : le rapport n'a pas de liste à tenir à jour de son côté. Tant
 qu'il n'y a pas de code métier, les 203 sortent comme non couvertes — c'est le résultat
-attendu, et c'est ce qui décroît EPIC par EPIC.
+attendu, et c'est ce qui décroît EPIC par EPIC. L'exemple du §1.3.1, `WF-EXAMP-0010-A`,
+illustre la forme d'une exigence et n'en est pas une du produit : le rapport l'exclut, comme
+le fait déjà `docs/api/tools/inventory.py`, faute de quoi il bloquerait toute publication.
 
 ## US-0070 — Couverture des exigences par la roadmap
 
@@ -323,6 +329,8 @@ qu'on s'aperçoive, à la fin, qu'elle n'a jamais été prévue.
 - propre à l'US : une exigence citée dans le tableau d'un EPIC mais par aucune de ses US fait
   échouer l'outil, sauf dans un EPIC `à planifier`, dont les US ne sont pas encore écrites ;
 - propre à l'US : une exigence close par aucun EPIC, ou par plus d'un, fait échouer l'outil ;
+  l'exemple du §1.3.1, `WF-EXAMP-0010-A`, qui n'est pas une exigence du produit, en est
+  exclu, comme dans `docs/api/tools/inventory.py` ;
 - propre à l'US : `make roadmap` produit le relevé, et la chaîne l'exécute.
 
 **Hors périmètre.** Aucun rapprochement avec les issues GitHub : l'outil ne lit que le
@@ -344,9 +352,12 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
 - propre à l'US : un parcours témoin — ouvrir la liste des projets, ouvrir un projet, lire
   une grille — aboutit contre le faux back, dans la chaîne comme sur un poste ;
 - propre à l'US : l'échec du parcours fait échouer la chaîne.
-- écart : « s'exécutent contre une plateforme complète déployée par Compose (WF-ARC-0050),
-  sur le jeu de données de référence » attend EP-13, et la couverture des sept flux FLX-01 à
-  FLX-07 et des trois parcours d'acteurs attend EP-12.
+- écart : « Chacun des sept flux et chacun des trois parcours fait l'objet d'un test de bout
+  en bout qui aboutit. » attend EP-12, où les sept flux existent ;
+- écart : « L'ensemble s'exécute sur une plateforme déployée à partir des images publiées de
+  la version. » et « L'échec de l'un empêche la publication. » attendent EP-13, qui publie
+  les images et la version. Ici, l'échec du parcours témoin fait échouer la chaîne, ce qui en
+  est la première moitié.
 
 ## US-0280 — Agents de développement, de revue et de conduite d'un EPIC
 
@@ -370,10 +381,11 @@ conversation.
   contrat d'abord, et une opération qui manque est une modification du contrat qui précède ;
   aucun mock ni client écrit à la main ; les modules du noyau ne se lisent que par leur
   interface ; le code en anglais, la documentation en français ; un lot par pull request,
-  dans son budget, vers `develop`. Pour le reste, elles renvoient au guide de l'US-0300 ;
+  vers la branche de son EPIC, dans le budget du README de la roadmap. Pour le reste, elles
+  renvoient au guide de l'US-0300 ;
 - propre à l'US : l'agent de développement prend un lot par son issue, travaille sur une
-  branche tirée de `develop` qui porte son identifiant, et n'ouvre sa pull request vers
-  `develop` que lorsque les commandes de contrôle du Makefile passent. Il ne modifie ni la
+  branche tirée de celle de son EPIC et qui porte son identifiant, et n'ouvre sa pull request
+  vers la branche de l'EPIC que lorsque les commandes de contrôle du Makefile passent. Il ne modifie ni la
   spécification, ni le contrat hors de ce que la conception prévoit, ni les critères
   d'acceptation ; s'il dépasse le budget du lot, il s'arrête et propose un redécoupage ;
 - propre à l'US : l'agent de revue relit une pull request contre l'US qu'elle cite, les
@@ -385,14 +397,15 @@ conversation.
 - propre à l'US : l'agent d'EPIC suit la procédure « Démarrer un EPIC » du README de la
   roadmap : il détaille les US, écrit la conception, établit le plan de lots, et s'arrête
   pour validation après chacune de ces trois étapes ; il ouvre ensuite les issues — EPIC, US,
-  et lots en sous-issues —, reporte les numéros dans le fichier, prend les statuts parmi ceux
-  du README et aucun autre, et constate la définition de fini sur `develop` avant `livré`.
+  et lots en sous-issues — et la branche `epic/EP-nn`, reporte les numéros dans le fichier,
+  prend les statuts parmi ceux du README et aucun autre, et constate la définition de fini
+  sur la branche de l'EPIC avant de demander sa fusion dans `main`.
   Lancé à blanc sur EP-02, il rend la conception et le plan de lots qu'il proposerait, sans
   rien publier ;
 - propre à l'US : chaque agent dit où il s'arrête et rend la main plutôt que de trancher —
   une exigence ambiguë devient une issue « Specification finding », un écart au contrat une
-  issue « Contract issue » ; aucun agent ne fusionne une pull request, et aucun ne pousse
-  sur `develop` ni sur `main` ;
+  issue « Interface contract issue » ; aucun agent ne fusionne une pull request, et aucun ne
+  pousse sur `main` ni sur une branche `epic/*` ;
 - propre à l'US : chaque commande qu'un agent exécute existe dans le Makefile ; une cible
   renommée qui laisserait un agent appeler une commande disparue fait échouer
   `make roadmap`.

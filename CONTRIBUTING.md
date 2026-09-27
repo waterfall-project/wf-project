@@ -110,15 +110,16 @@ and it is worth knowing before writing the first line:
 
 ## Branches, commits, pull requests
 
-`main` holds the published state, and changes only when an epic is delivered: `develop` is
-then merged into it, so every state `main` has known is a delivered epic. All other work —
-code, specification, contract, roadmap — goes to `develop` through a pull request, from a
-branch cut from `develop`.
+`main` holds the published state. It receives two things only: an epic's integration
+branch, `epic/EP-nn`, merged when the epic is delivered; and, through a pull request, the
+specification, contract or roadmap changes that serve no epic in progress. Every epic in
+progress has its own integration branch, cut from `main`, so several can move at once
+without the delivery of one carrying the half-done work of another.
 
-Code arrives in **lots**: one lot, one issue, one branch, one pull request, cut from the lot
-plan validated for the epic. A lot is 1,000 to 1,500 diff lines, tests included and
-generated code excluded, and one that overruns stops and is split rather than pushed
-through. `docs/roadmap/README.md` holds the rules, sections « Lots » and « Branches ».
+Code arrives in **lots**: one lot, one issue, one branch cut from the epic's branch, one pull
+request back into it, from the lot plan validated for the epic. A lot has a size budget, and
+one that overruns stops and is split rather than pushed through. `docs/roadmap/README.md`
+holds the rules and the budget, sections « Lots » and « Branches ».
 
 Commit messages are written in French, like the specification. A subject line that says what
 changed, then a body that says **why**: the reasoning is the part nobody can reconstruct six

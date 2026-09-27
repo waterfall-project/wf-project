@@ -83,10 +83,9 @@ Servies ici pour la première fois (25) :
 
 - `reference` : `getReferenceSettings`, `updateReferenceSettings`, `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation`, `listResourceRoles`, `createResourceRole`, `updateResourceRole`, `setResourceRoleActivation`, `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`, `setCalendarActivation`, `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`, `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`, `listHourlyRates`, `setHourlyRate`.
 
-Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (3) :
+Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
-- `access` : `listUsers`, `getUser` ;
-- `risks` : `getProjectRiskMatrix`.
+- `access` : `listUsers`, `getUser`.
 
 ## Préalables
 

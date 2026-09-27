@@ -81,9 +81,8 @@ Servies ici pour la première fois (5) :
 
 - `analysis` : `getProjectIndicators`, `getMilestoneTracking`, `getCostCurve`, `getEarnedValueCurves`, `getProjectCashOut`.
 
-Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (12) :
+Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (11) :
 
-- `platform` : `startRestore` ;
 - `reference` : `getReferenceSettings`, `updateReferenceSettings` ;
 - `revisions` : `mergeCostStructure`, `createNode`, `setTaskProgress`, `setNodeTracking` ;
 - `analysis` : `getEstimateIndicators`, `getRemainingIndicators` ;

@@ -109,9 +109,9 @@ Servies ici pour la première fois (23) :
 - `projects` : `listProjects`, `createProject`, `getProject`, `updateProject`, `listProjectStateTransitions`, `getProjectNextState`, `exitProject`, `getWorkBreakdown`, `setWorkBreakdown`, `listSubprojects`, `createSubproject`, `updateSubproject`, `deleteSubproject`, `listContributors`, `setContributors` ;
 - `revisions` : `listRevisions`, `createRevision`, `getRevision`, `abandonRevision`, `markRevision`, `designateReferenceRevision`, `listCostStructures`.
 
-Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (1) :
+Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (0) :
 
-- `analysis` : `getMissingRates`.
+aucune.
 
 ## Préalables
 

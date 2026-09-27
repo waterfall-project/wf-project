@@ -72,7 +72,7 @@ D'un EPIC, cinq valeurs et aucune autre :
 | `à planifier` | l'EPIC est écrit, mais ses US ou sa conception ne sont pas arrêtées ; tant que ses US ne sont pas écrites, la colonne US de son tableau porte « — » |
 | `prêt` | ses US sont détaillées et sa conception est validée ; rien n'empêche d'en découper les lots |
 | `en cours` | son plan de lots est validé, et ses issues sont ouvertes sur GitHub |
-| `livré` | toutes ses US sont finies, sa définition de fini est vérifiée sur `develop`, et `develop` est fusionnée dans `main` |
+| `livré` | toutes ses US sont finies, sa définition de fini est vérifiée sur sa branche d'intégration, et celle-ci est fusionnée dans `main` |
 | `abandonné : <pourquoi>` | reconnu, puis écarté ; le fichier reste |
 
 D'une US, cinq également :
@@ -134,11 +134,11 @@ qui permet de confier le reste à un agent.
    prendrait ses propres décisions de schéma. *Validation* ; l'EPIC passe `prêt`.
 3. **Établir le plan de lots** : pour chaque lot, son périmètre, les critères d'acceptation
    qu'il ferme, les lots dont il dépend et sa taille estimée. *Validation.*
-4. **Ouvrir les issues** : une pour l'EPIC, une par US, une par lot en sous-issue de son US ;
-   reporter dans le fichier les numéros des issues de l'EPIC et des US. L'EPIC passe
-   `en cours`.
-5. **Livrer** : quand toutes les US sont finies, constater la définition de fini sur
-   `develop`, puis fusionner `develop` dans `main`. L'EPIC passe `livré`.
+4. **Ouvrir les issues et la branche** : une issue pour l'EPIC, une par US, une par lot en
+   sous-issue de son US ; reporter dans le fichier les numéros des issues de l'EPIC et des
+   US ; tirer `epic/EP-nn` de `main`. L'EPIC passe `en cours`.
+5. **Livrer** : quand toutes les US sont finies, constater la définition de fini sur la
+   branche de l'EPIC, puis la fusionner dans `main`. L'EPIC passe `livré`.
 
 Une proposition de fonctionnalité n'est pas une US : elle passe par le gabarit d'issue
 « Question or proposal », et ne devient une US que lorsqu'elle entre dans un EPIC.
@@ -151,11 +151,14 @@ lot technique et nomme les US qu'il prépare.
 
 | Règle | Pourquoi |
 |---|---|
-| 1 000 à 1 500 lignes de diff, tests compris, dont 600 à 800 de code de production au plus | au-delà, une revue attentive décroche |
+| 1 000 à 1 500 lignes de diff, tests compris, dont 800 de code de production au plus | au-delà, une revue attentive décroche |
 | le code engendré n'est pas compté : client du contrat, verrous de dépendances, fixtures extraites, migrations produites par l'outil | un lot qui régénère le client dépasserait le budget sans rien contenir à relire |
 | la pull request met chaque critère fermé en regard du test qui le porte | c'est ce que la revue vérifie en premier |
-| un lot se fusionne seul, la chaîne au vert | `develop` n'est jamais à moitié construite |
-| un lot qui dépasse son budget s'arrête, et son découpage est revu | l'estimation se trompe ; la règle d'arrêt corrige, pas la revue |
+| un lot se fusionne seul, la chaîne au vert | la branche de l'EPIC n'est jamais à moitié construite |
+| un lot qui dépasse son budget s'arrête et son découpage est revu ; seule une personne, après cet examen, peut laisser passer le dépassement, en posant l'étiquette `over-budget` sur la pull request | l'estimation se trompe ; la règle d'arrêt corrige, pas la revue |
+
+Ce tableau est la seule définition du budget : la chaîne, le gabarit de pull request et les
+agents y renvoient, et aucun ne le recopie.
 
 Un lot porte le titre `[US-nnnn/Ln] …` ou, pour un lot technique, `[EP-nn/Ln] …` ; `Ln`
 numérote les lots d'une même US ou d'un même EPIC, sans réemploi. Les lots vivent sur GitHub
@@ -164,12 +167,17 @@ fichier de l'EPIC ne les recopie pas.
 
 ## Branches
 
-| Branche | Reçoit | Depuis |
+| Branche | Reçoit | Tirée de |
 |---|---|---|
-| `main` | la fusion de `develop` à la livraison d'un EPIC, et rien d'autre | `develop` |
-| `develop` | les pull requests des lots, et toute modification de la spécification, du contrat ou de la roadmap | une branche de lot ou de travail |
-| une branche de lot | le travail d'un lot, et lui seul | `develop` |
+| `main` | la fusion d'une branche d'EPIC à sa livraison, et les modifications de la spécification, du contrat ou de la roadmap qui ne servent aucun EPIC en cours | — |
+| `epic/EP-nn` | les pull requests des lots de cet EPIC, et les modifications du contrat que sa conception prévoit | `main`, à l'ouverture de l'EPIC |
+| `lot/<identifiant du lot>` | le travail d'un lot, et lui seul | la branche de son EPIC |
 
-`main` ne change donc qu'à la fin d'un EPIC, et chaque état qu'elle a connu est un EPIC livré.
-La chaîne s'exécute sur toute pull request, vers `develop` comme vers `main`, et aucune n'est
-fusionnée si elle échoue.
+Chaque EPIC en cours a sa branche d'intégration, si bien que plusieurs peuvent avancer en
+même temps sans que la livraison de l'un emporte les lots à moitié faits d'un autre. `main`
+ne reçoit donc que des EPIC livrés et des documents relus : elle n'est jamais dans un état
+intermédiaire. Après chaque fusion dans `main`, les branches des EPIC encore en cours la
+reprennent, et c'est à ce moment que se règlent leurs conflits, non à la livraison.
+
+La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
+aucune n'est fusionnée si elle échoue.
