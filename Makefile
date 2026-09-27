@@ -25,7 +25,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	test-tools lint-tools typecheck-tools sources reuse lint-workflows lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
-	install-front typecheck-front test-front lint-docker changes gate \
+	install-front lint-front typecheck-front test-front lint-docker changes gate \
 	check-tools clean
 
 # The branch a change is compared with, for `make check` and `make changes`.
@@ -114,10 +114,14 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 test-back: ## Tests of the back
 	@cd $(BACK) && uv run --frozen pytest
 
-check-front: typecheck-front test-front ## The front: types, tests
+check-front: lint-front typecheck-front test-front ## The front: lint and format, types, tests
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
+
+lint-front: install-front ## Lint and format check of the front
+	@$(PNPM) lint
+	@$(PNPM) format:check
 
 typecheck-front: install-front ## Strict type check of the front
 	@$(PNPM) typecheck

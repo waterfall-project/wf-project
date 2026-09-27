@@ -80,3 +80,27 @@ def test_generated_and_excepted_paths_are_left_out() -> None:
 
 def test_the_repository_keeps_the_rules(capsys: pytest.CaptureFixture[str]) -> None:
     assert sources.main() == 0, capsys.readouterr().err
+
+
+TODO = "TO" + "DO"
+
+
+@pytest.mark.parametrize(
+    ("line", "breach"),
+    [
+        (f"// {TODO}(#12): pick the column order", False),
+        (f"// {TODO}: pick the column order", True),
+        (f"/* {TODO} later */", True),
+        (f" * {TODO}(#12): in a block comment", False),
+        (f" * {TODO} in a block comment", True),
+        ("// FIX" + "ME: broken on Safari", True),
+        ("// HA" + "CK around the grid", True),
+        (f"const label = '{TODO}';", False),
+    ],
+)
+def test_a_typescript_todo_cites_its_issue(line: str, breach: bool) -> None:
+    assert bool(sources.breaches("frontend/src/a.ts", f"{line}\n")) is breach
+
+
+def test_a_python_todo_is_left_to_ruff() -> None:
+    assert sources.breaches("backend/src/a.py", f"# {TODO}: Ruff reports this one\n") == []
