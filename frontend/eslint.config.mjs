@@ -15,7 +15,14 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores([".next/**", "coverage/**", "next-env.d.ts", "src/api/generated/**"]),
+  globalIgnores([
+    ".next/**",
+    "coverage/**",
+    "test-results/**",
+    "playwright-report/**",
+    "next-env.d.ts",
+    "src/api/generated/**",
+  ]),
   js.configs.recommended,
   nextVitals,
   tseslint.configs.strictTypeChecked,

@@ -31,7 +31,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	install-front lint-front typecheck-front test-front generate-client client-up-to-date \
-	coverage-back coverage-front roadmap check-roadmap \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-browsers \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -40,6 +40,8 @@ BASE ?= origin/main
 # The tier of the chain: `fast` on every push, `full` when a pull request is merged
 # (US-0310). The full tier adds what is slow: code coverage, end-to-end tests.
 TIER ?= fast
+# Extra flags to install Playwright's browsers: the chain adds --with-deps.
+PLAYWRIGHT_INSTALL ?=
 full-only = $(if $(filter full,$(TIER)),$(1))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
 
@@ -155,7 +157,7 @@ coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US
 	@cd $(BACK) && uv run --frozen pytest --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
-check-front: client-up-to-date lint-front typecheck-front test-front $(call full-only,coverage-front) ## The front: client, lint, types, tests; coverage in the full tier
+check-front: client-up-to-date lint-front typecheck-front test-front $(call full-only,coverage-front e2e-browsers e2e) ## The front: client, lint, types, tests; coverage and end-to-end in the full tier
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -186,6 +188,12 @@ check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
 
 roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
 	@$(WFTOOLS).roadmap
+
+e2e-browsers: install-front ## Install the browser the end-to-end tests run in
+	@$(PNPM) exec playwright install $(PLAYWRIGHT_INSTALL) chromium
+
+e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080)
+	@$(PNPM) exec playwright test
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

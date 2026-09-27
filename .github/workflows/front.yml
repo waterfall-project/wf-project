@@ -35,6 +35,13 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: tools/uv.lock
+      # The browsers of the end-to-end tests, in the full tier only.
+      - if: inputs.tier == 'full'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
       - run: make check-front
         env:
           TIER: ${{ inputs.tier }}
+          PLAYWRIGHT_INSTALL: --with-deps

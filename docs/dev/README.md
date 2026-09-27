@@ -291,7 +291,7 @@ avec sa raison.
 
 - **Un test qui cite son exigence** — voir ci-dessous.
 - **Un test qui reprend un exemple chiffré** — voir ci-dessous.
-- **Un parcours de bout en bout** — *à écrire*, [US-0080](https://github.com/waterfall-project/wf-project/issues/13).
+- **Un parcours de bout en bout** — voir ci-dessous.
 
 ### Un test qui cite son exigence
 
@@ -314,6 +314,26 @@ résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou d'
 révision que le document a dépassé, le fait échouer. `make requirements-release` échoue en
 plus sur toute exigence F0 non couverte, en la nommant : c'est la commande de la
 publication d'une version.
+
+### Un parcours de bout en bout
+
+Un parcours s'écrit sous `frontend/e2e/`, en Playwright, et cite dans son titre l'exigence
+qu'il couvre : `test("… [WF-QUA-0050-A]", …)`. Il trouve les éléments par leur rôle et leur
+nom accessible (`getByRole`), comme un utilisateur les voit, jamais par une classe CSS.
+
+`make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
+dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
+les serveurs que `make` et `pnpm` lancent survivraient. `make e2e-browsers` installe le
+navigateur. À partir d'EP-03, les mêmes parcours se jouent contre le vrai service en
+changeant `WATERFALL_API_ADDRESS`.
+
+Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
+sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté
+serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
+contrat par `frontend/src/test/fixtures.ts`, les mêmes données que sert le faux back.
+
+*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
+échouer.
 
 ### Couverture du code
 

@@ -3,3 +3,5 @@ node_modules
 coverage
 next-env.d.ts
 tsconfig.tsbuildinfo
+test-results
+playwright-report
