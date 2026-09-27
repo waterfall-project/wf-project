@@ -29,6 +29,7 @@ jobs:
     outputs:
       spec: ${{ steps.families.outputs.spec }}
       contract: ${{ steps.families.outputs.contract }}
+      back: ${{ steps.families.outputs.back }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -57,8 +58,13 @@ jobs:
     if: needs.changes.outputs.contract == 'true'
     uses: ./.github/workflows/contract.yml
 
+  back:
+    needs: changes
+    if: needs.changes.outputs.back == 'true'
+    uses: ./.github/workflows/back.yml
+
   gate:
-    needs: [changes, repo, spec, contract]
+    needs: [changes, repo, spec, contract, back]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

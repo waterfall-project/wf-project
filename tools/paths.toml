@@ -30,6 +30,10 @@ target = "check-spec"
 paths = ["docs/api/**"]
 target = "check-contract"
 
+[families.back]
+paths = ["backend/**"]
+target = "check-back"
+
 [[generated]]
 paths = ["docs/spec/waterfall-spec.md"]
 by = "make build-doc"
@@ -47,4 +51,4 @@ paths = ["**/uv.lock"]
 by = "uv lock"
 
 [tests]
-paths = ["tools/tests/**"]
+paths = ["tools/tests/**", "backend/tests/**"]

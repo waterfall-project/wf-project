@@ -10,6 +10,7 @@ SPEC    := docs/spec
 API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
 TOOLS   := tools
+BACK    := backend
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
 REDOCLY_VERSION := 2.54.3
@@ -20,7 +21,8 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	test-tools reuse lint-workflows lint-shell check check-all check-repo check-spec \
-	check-contract changes gate check-tools clean
+	check-contract check-back lint-back typecheck-back imports-back test-back changes gate \
+	check-tools clean
 
 # The branch a change is compared with, for `make check` and `make changes`.
 BASE ?= origin/main
@@ -70,7 +72,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract ## Run every family of checks
+check-all: check-repo check-spec check-contract check-back ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell test-tools ## Checks that run on any change
 
@@ -81,6 +83,20 @@ check-spec: build-doc-strict ## The projection builds without warning and is up 
 check-contract: lint-openapi inventory ## The contract lints and its inventory is up to date
 	@git diff --exit-code --stat -- $(API)/INVENTORY.md \
 		|| { echo "  INVENTORY.md is not the one the contract produces: run make inventory"; exit 1; }
+
+check-back: lint-back typecheck-back imports-back test-back ## The back: lint, types, boundaries, tests
+
+lint-back: ## Lint and format check of the back
+	@cd $(BACK) && uv run --frozen ruff check . && uv run --frozen ruff format --check .
+
+typecheck-back: ## Strict type check of the back
+	@cd $(BACK) && uv run --frozen pyright
+
+imports-back: ## The boundaries of the core (WF-ARC-0010)
+	@cd $(BACK) && uv run --frozen lint-imports --no-cache
+
+test-back: ## Tests of the back
+	@cd $(BACK) && uv run --frozen pytest
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes $(BASE) $(HEAD)
