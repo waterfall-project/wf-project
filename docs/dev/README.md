@@ -44,6 +44,20 @@ un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`).
 SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
 imports : elle relève des règles SQL d'EP-03 et de la revue.
 
+## Le front
+
+Le front est une application Next.js en TypeScript strict (`frontend/tsconfig.json`, avec
+`noUncheckedIndexedAccess` et `exactOptionalPropertyTypes`). pnpm en gère les dépendances,
+à la version que nomme `packageManager` dans `package.json`, lancée par corepack
+(`corepack enable pnpm`) ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
+avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `*.test.tsx`
+à côté du code qu'ils éprouvent, lancés par Vitest.
+
+L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
+empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
+
+*Contrôles* : `make typecheck-front`, `make test-front` ; `make lint-docker` (hadolint).
+
 ## Commandes
 
 Tout se lance par le Makefile, sur un poste comme dans la chaîne : `make help` les liste.
@@ -55,7 +69,7 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back` — puis `front` et `roadmap` avec les lots qui les créent |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back`, `front` — puis `roadmap` avec le lot qui la crée |
 | `make changes BASE=…` | les familles qu'une modification touche |
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.

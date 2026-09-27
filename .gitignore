@@ -7,3 +7,8 @@ __pycache__/
 stb-waterfall.docx.before*
 docs/api/*.bundle.yaml
 .venv/
+node_modules/
+.next/
+coverage/
+next-env.d.ts
+*.tsbuildinfo

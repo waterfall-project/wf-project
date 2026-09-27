@@ -1,0 +1,31 @@
+{
+  "name": "waterfall-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Waterfall: the web application (PBS-1).",
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@11.27.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.2",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.2"
+  }
+}

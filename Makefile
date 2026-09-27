@@ -11,6 +11,8 @@ API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
 TOOLS   := tools
 BACK    := backend
+FRONT   := frontend
+PNPM    := cd $(FRONT) && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1 pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
 REDOCLY_VERSION := 2.54.3
@@ -22,7 +24,8 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	test-tools lint-tools typecheck-tools sources reuse lint-workflows lint-shell check \
 	check-all check-repo check-spec \
-	check-contract check-back lint-back typecheck-back imports-back test-back changes gate \
+	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
+	install-front typecheck-front test-front lint-docker changes gate \
 	check-tools clean
 
 # The branch a change is compared with, for `make check` and `make changes`.
@@ -75,6 +78,9 @@ lint-workflows: ## Lint the GitHub Actions workflows
 lint-shell: ## Lint the shell scripts
 	@git ls-files '*.sh' | xargs uv run --frozen --project $(TOOLS) shellcheck
 
+lint-docker: ## Lint the Dockerfiles
+	@git ls-files '*Dockerfile' | xargs -r uv run --frozen --project $(TOOLS) hadolint
+
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------
 
 check: ## Run the checks of what the change touches (BASE=origin/main by default)
@@ -82,9 +88,9 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract check-back ## Run every family of checks
+check-all: check-repo check-spec check-contract check-back check-front ## Run every family of checks
 
-check-repo: reuse lint-workflows lint-shell sources lint-tools typecheck-tools test-tools ## Checks that run on any change
+check-repo: reuse lint-workflows lint-shell lint-docker sources lint-tools typecheck-tools test-tools ## Checks that run on any change
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
@@ -107,6 +113,17 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 
 test-back: ## Tests of the back
 	@cd $(BACK) && uv run --frozen pytest
+
+check-front: typecheck-front test-front ## The front: types, tests
+
+install-front: ## Install the dependencies of the front, as the lock file says
+	@$(PNPM) install --frozen-lockfile --silent
+
+typecheck-front: install-front ## Strict type check of the front
+	@$(PNPM) typecheck
+
+test-front: install-front ## Unit tests of the front
+	@$(PNPM) test
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes $(BASE) $(HEAD)
