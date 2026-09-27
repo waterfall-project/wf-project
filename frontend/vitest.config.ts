@@ -16,7 +16,9 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.test.{ts,tsx}"],
+      // The generated client is types only; the tests measure the code written by hand.
+      exclude: ["src/**/*.test.{ts,tsx}", "src/api/generated/**"],
+      reporter: ["text", "json-summary"],
     },
   },
 });

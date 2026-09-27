@@ -4,6 +4,7 @@
   "private": true,
   "description": "Waterfall: the web application (PBS-1).",
   "license": "AGPL-3.0-only",
+  "type": "module",
   "packageManager": "pnpm@11.27.1",
   "engines": {
     "node": ">=24"

@@ -31,11 +31,16 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	install-front lint-front typecheck-front test-front generate-client client-up-to-date \
+	coverage-back coverage-front \
 	lint-docker changes gate \
 	check-tools clean
 
 # The branch a change is compared with, for `make check` and `make changes`.
 BASE ?= origin/main
+# The tier of the chain: `fast` on every push, `full` when a pull request is merged
+# (US-0310). The full tier adds what is slow: code coverage, end-to-end tests.
+TIER ?= fast
+full-only = $(if $(filter full,$(TIER)),$(1))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
 
 help: ## List the commands
@@ -115,7 +120,7 @@ lint-compose: ## Validate the Compose files
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------
 
 check: ## Run the checks of what the change touches (BASE=origin/main by default)
-	@for target in $$($(WFTOOLS).changes $(BASE) --targets); do \
+	@for target in $$($(WFTOOLS).changes "$(BASE)" --targets); do \
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
@@ -132,7 +137,7 @@ check-contract: lint-openapi inventory ## The contract lints and its inventory i
 	@git diff --exit-code --stat -- $(API)/INVENTORY.md \
 		|| { echo "  INVENTORY.md is not the one the contract produces: run make inventory"; exit 1; }
 
-check-back: lint-back typecheck-back imports-back test-back ## The back: lint, types, boundaries, tests
+check-back: lint-back typecheck-back imports-back test-back $(call full-only,coverage-back) ## The back: lint, types, boundaries, tests; coverage in the full tier
 
 lint-back: ## Lint and format check of the back
 	@cd $(BACK) && uv run --frozen ruff check . && uv run --frozen ruff format --check .
@@ -146,7 +151,11 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 test-back: ## Tests of the back
 	@cd $(BACK) && uv run --frozen pytest
 
-check-front: client-up-to-date lint-front typecheck-front test-front ## The front: client, lint and format, types, tests
+coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060)
+	@cd $(BACK) && uv run --frozen pytest --quiet --cov --cov-report=json:coverage.json
+	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
+
+check-front: client-up-to-date lint-front typecheck-front test-front $(call full-only,coverage-front) ## The front: client, lint, types, tests; coverage in the full tier
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -169,8 +178,12 @@ typecheck-front: install-front ## Strict type check of the front
 test-front: install-front ## Unit tests of the front
 	@$(PNPM) test
 
+coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060)
+	@$(PNPM) exec vitest run --coverage --silent
+	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
+
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
-	@$(WFTOOLS).changes $(BASE) $(HEAD)
+	@$(WFTOOLS).changes "$(BASE)" $(HEAD)
 
 gate: ## Decide the outcome of the chain from its jobs (NEEDS, from GitHub Actions)
 	@$(WFTOOLS).gate

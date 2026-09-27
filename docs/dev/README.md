@@ -129,7 +129,10 @@ Makefile, les workflows, la déclaration elle-même — réveille toutes les fam
 
 Deux paliers : le rapide à chaque poussée sur une pull request (`pull_request`), le complet
 dans la file de fusion (`merge_group`), sur le résultat de la fusion, avant qu'elle soit
-acceptée.
+acceptée. Le palier complet ajoute ce qui est lent — la couverture du code, puis les tests de
+bout en bout ; sur un poste, `make check-back TIER=full`. Tant que la file de fusion d'une
+branche n'est pas réglée, la chaîne se lance à la main sur la branche d'un lot, toutes
+familles et palier complet, avant de le fusionner : `gh workflow run chain --ref <branche>`.
 
 Règles des workflows :
 
@@ -289,6 +292,21 @@ résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou d'
 révision que le document a dépassé, le fait échouer. `make requirements-release` échoue en
 plus sur toute exigence F0 non couverte, en la nommant : c'est la commande de la
 publication d'une version.
+
+### Couverture du code
+
+La spécification ne demande que la couverture des exigences ; la couverture du code est une
+règle du dépôt, qui trouve ce que la première ne voit pas — un chemin d'erreur jamais
+exécuté, du code mort. Le back et le front doivent chacun couvrir **90 % des lignes et 85 %
+des branches** : les branches comptent, parce qu'un `if` sans son `else` couvre toutes ses
+lignes et la moitié des cas. Le code engendré en est exclu. Aucune ligne ne s'exclut de la
+mesure par un commentaire ; une exclusion s'écrit dans la configuration, avec sa raison
+(`[tool.coverage.report]` de `backend/pyproject.toml`, `coverage` de
+`frontend/vitest.config.ts`). Un test qui passe sur des lignes sans rien vérifier est un
+défaut, que la revue relève.
+
+*Contrôles* : `make coverage-back`, `make coverage-front`, au palier complet : ils nomment
+les fichiers les moins couverts quand un seuil n'est pas atteint.
 
 ### Un test qui reprend un exemple chiffré
 

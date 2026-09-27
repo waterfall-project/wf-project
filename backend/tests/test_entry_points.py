@@ -4,12 +4,15 @@
 
 import subprocess
 import tomllib
+from collections.abc import Callable
 from importlib.metadata import entry_points
 from pathlib import Path
 
 import pytest
 
 import waterfall
+import waterfall.api.main
+import waterfall.worker.main
 
 PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
@@ -40,3 +43,14 @@ def test_the_api_and_the_worker_carry_the_same_version() -> None:
     worker = run("waterfall-worker").split()[-1]
     declared = tomllib.loads(PROJECT.read_text(encoding="utf-8"))["project"]["version"]
     assert api == worker == declared
+
+
+@pytest.mark.parametrize(
+    ("start", "name"),
+    [(waterfall.api.main.main, "waterfall-api"), (waterfall.worker.main.main, "waterfall-worker")],
+)
+def test_each_entry_point_returns_success(
+    start: Callable[[], int], name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert start() == 0
+    assert capsys.readouterr().out == f"{name} {waterfall.__version__}\n"

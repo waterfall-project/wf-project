@@ -79,3 +79,9 @@ def test_targets_are_printed_for_make(capsys: pytest.CaptureFixture[str]) -> Non
 def test_an_untouched_family_is_false(capsys: pytest.CaptureFixture[str]) -> None:
     assert changes.main(["HEAD", "HEAD"]) == 0
     assert capsys.readouterr().out == "repo=true\nspec=false\n"
+
+
+@pytest.mark.usefixtures("repository")
+def test_without_a_base_every_family_runs(capsys: pytest.CaptureFixture[str]) -> None:
+    assert changes.main([""]) == 0
+    assert capsys.readouterr().out == "repo=true\nspec=true\n"
