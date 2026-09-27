@@ -30,7 +30,7 @@ LAYOUT = {
 
 
 def contracts_for(package: str) -> str:
-    """The import contracts of the project, written for another root package."""
+    """Write the import contracts of the project for another root package."""
     settings = tomllib.loads(PROJECT.read_text(encoding="utf-8"))["tool"]["importlinter"]
     lines = [f'[tool.importlinter]\nroot_package = "{package}"\n']
     for contract in settings["contracts"]:
@@ -51,7 +51,7 @@ def _toml(value: object, package: str) -> str:
 
 @pytest.fixture
 def sample(tmp_path: Path) -> Path:
-    """A package named ``sample`` laid out like ``waterfall``, and its contracts."""
+    """Build a package named ``sample`` laid out like ``waterfall``, and its contracts."""
     for name, content in LAYOUT.items():
         path = tmp_path / "sample" / name
         path.parent.mkdir(parents=True, exist_ok=True)

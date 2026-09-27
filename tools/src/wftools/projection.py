@@ -137,8 +137,7 @@ def _requirement(number: int, block: str) -> Requirement:
     missing = _FIELDS.keys() - fields.keys()
     if unknown or missing:
         message = (
-            f"requirement block {number}: "
-            f"missing {sorted(missing)}, unknown {sorted(unknown)}"
+            f"requirement block {number}: missing {sorted(missing)}, unknown {sorted(unknown)}"
         )
         raise ProjectionError(message)
     if not _IDENTIFIER.match(fields["id"]):

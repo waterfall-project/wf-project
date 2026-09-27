@@ -3,13 +3,14 @@
 """Tests of the gate that decides the outcome of the chain."""
 
 import json
+from collections.abc import Mapping
 
 import pytest
 
 from wftools import gate
 
 
-def run(monkeypatch: pytest.MonkeyPatch, needs: dict[str, dict[str, object]]) -> int:
+def run(monkeypatch: pytest.MonkeyPatch, needs: Mapping[str, Mapping[str, object]]) -> int:
     """Run the gate on these job results."""
     monkeypatch.setenv("NEEDS", json.dumps(needs))
     return gate.main()
@@ -26,7 +27,9 @@ def test_a_failed_or_cancelled_job_fails(monkeypatch: pytest.MonkeyPatch, result
     assert run(monkeypatch, needs) == 1
 
 
-def test_failures_are_named(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_failures_are_named(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     run(monkeypatch, {"repo": {"result": "failure"}, "spec": {"result": "cancelled"}})
     assert "failed: repo, spec" in capsys.readouterr().err
 

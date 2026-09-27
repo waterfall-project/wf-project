@@ -97,7 +97,10 @@ def test_sentences_split_on_full_stops_question_and_exclamation_marks() -> None:
 
 def test_sentences_keep_section_numbers_and_decimals_whole() -> None:
     text = "Voir le §4.4.1 pour 0,917. Un indice de 1.5 reste entier."
-    assert projection.sentences(text) == ("Voir le §4.4.1 pour 0,917.", "Un indice de 1.5 reste entier.")
+    assert projection.sentences(text) == (
+        "Voir le §4.4.1 pour 0,917.",
+        "Un indice de 1.5 reste entier.",
+    )
 
 
 def test_sentences_do_not_split_before_a_lowercase_word() -> None:
@@ -128,7 +131,9 @@ class TestTheDocument:
         assert len(requirements) == text.count("```yaml exigence\n")
 
     def test_the_example_is_there_once(self, requirements: tuple[Requirement, ...]) -> None:
-        assert [r.identifier for r in requirements if r.is_example] == [projection.EXAMPLE_IDENTIFIER]
+        assert [r.identifier for r in requirements if r.is_example] == [
+            projection.EXAMPLE_IDENTIFIER
+        ]
 
     def test_every_mandatory_requirement_has_a_verification(
         self, requirements: tuple[Requirement, ...]
@@ -142,7 +147,9 @@ class TestTheDocument:
     ) -> None:
         by_identifier = {r.identifier: r for r in requirements}
         assert by_identifier["WF-ARC-0010-A"].verification_sentences[1:] == (
-            "Un module qui lit une table d'un autre module est rejeté par les contrôles "
-            "de la chaîne CI/CD.",
+            (
+                "Un module qui lit une table d'un autre module est rejeté par les contrôles "
+                "de la chaîne CI/CD."
+            ),
             "L'API et le worker d'une installation portent la même version.",
         )

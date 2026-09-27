@@ -17,7 +17,8 @@ from wftools import REPOSITORY
 
 DECLARATION = REPOSITORY / "tools" / "paths.toml"
 
-_TOP = {"shared", "families", "generated", "tests"}
+_TOP = {"shared", "families", "generated", "tests", "exceptions"}
+_EXCEPTION = {"paths", "reason"}
 _FAMILY = {"paths", "always", "target"}
 _GENERATED = {"paths", "by"}
 
@@ -55,6 +56,14 @@ class Generated:
 
 
 @dataclass(frozen=True, slots=True)
+class Excepted:
+    """Paths excepted from the rules of sources, and why."""
+
+    paths: tuple[str, ...]
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class Declaration:
     """Everything ``tools/paths.toml`` declares."""
 
@@ -62,6 +71,7 @@ class Declaration:
     families: tuple[Family, ...]
     generated: tuple[Generated, ...]
     tests: tuple[str, ...]
+    exceptions: tuple[Excepted, ...] = ()
 
     def is_generated(self, path: str) -> bool:
         """Whether a tool writes this path."""
@@ -71,8 +81,12 @@ class Declaration:
         """Whether this path holds tests."""
         return matches(path, self.tests)
 
+    def is_excepted(self, path: str) -> bool:
+        """Whether this path is excepted, for a declared reason, from the rules of sources."""
+        return any(matches(path, entry.paths) for entry in self.exceptions)
+
     def touched(self, changed: Iterable[str]) -> tuple[Family, ...]:
-        """The families that a change to these paths wakes up, in declaration order."""
+        """Return the families a change to these paths wakes up, in declaration order."""
         paths = list(changed)
         if any(matches(path, self.shared) for path in paths):
             return self.families
@@ -89,16 +103,20 @@ def parse(text: str) -> Declaration:
     _only(data, _TOP, "the declaration")
     families = tuple(_family(name, entry) for name, entry in data.get("families", {}).items())
     generated = tuple(
-        _generated(number, entry)
-        for number, entry in enumerate(data.get("generated", []), start=1)
+        _generated(number, entry) for number, entry in enumerate(data.get("generated", []), start=1)
     )
     tests = data.get("tests", {})
     _only(tests, {"paths"}, "[tests]")
+    exceptions = tuple(
+        _exception(number, entry)
+        for number, entry in enumerate(data.get("exceptions", []), start=1)
+    )
     return Declaration(
         shared=tuple(data.get("shared", ())),
         families=families,
         generated=generated,
         tests=tuple(tests.get("paths", ())),
+        exceptions=exceptions,
     )
 
 
@@ -127,6 +145,15 @@ def _generated(number: int, entry: dict[str, Any]) -> Generated:
         message = f"{where} needs paths and the command that writes them (by)"
         raise DeclarationError(message)
     return Generated(paths=tuple(entry["paths"]), by=entry["by"])
+
+
+def _exception(number: int, entry: dict[str, Any]) -> Excepted:
+    where = f"exception {number}"
+    _only(entry, _EXCEPTION, where)
+    if not entry.get("paths") or not entry.get("reason"):
+        message = f"{where} needs paths and the reason they are excepted"
+        raise DeclarationError(message)
+    return Excepted(paths=tuple(entry["paths"]), reason=entry["reason"])
 
 
 def _only(entry: dict[str, Any], allowed: set[str], where: str) -> None:

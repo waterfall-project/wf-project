@@ -20,7 +20,8 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	test-tools reuse lint-workflows lint-shell check check-all check-repo check-spec \
+	test-tools lint-tools typecheck-tools sources reuse lint-workflows lint-shell check \
+	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back changes gate \
 	check-tools clean
 
@@ -56,6 +57,15 @@ mock: build-openapi ## Serve a fake backend from the contract, for the mockup
 test-tools: ## Run the tests of the repository tools
 	@cd $(TOOLS) && uv run --frozen pytest
 
+lint-tools: ## Lint and format check of the repository tools
+	@cd $(TOOLS) && uv run --frozen ruff check . && uv run --frozen ruff format --check .
+
+typecheck-tools: ## Strict type check of the repository tools
+	@cd $(TOOLS) && uv run --frozen pyright
+
+sources: ## No suppression comment, no source file over 1,000 lines (US-0050)
+	@$(WFTOOLS).sources
+
 reuse: ## Check that every file declares its copyright and licence
 	@uv run --frozen --project $(TOOLS) reuse lint
 
@@ -74,7 +84,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 
 check-all: check-repo check-spec check-contract check-back ## Run every family of checks
 
-check-repo: reuse lint-workflows lint-shell test-tools ## Checks that run on any change
+check-repo: reuse lint-workflows lint-shell sources lint-tools typecheck-tools test-tools ## Checks that run on any change
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \

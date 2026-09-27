@@ -13,7 +13,7 @@ from waterfall import __version__
 
 def main() -> int:
     """Start the worker."""
-    print(f"waterfall-worker {__version__}")
+    sys.stdout.write(f"waterfall-worker {__version__}\n")
     return 0
 
 

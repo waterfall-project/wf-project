@@ -11,14 +11,24 @@ dependencies = []
 [dependency-groups]
 dev = [
     "actionlint-py>=1.7.12.25",
+    "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
     "reuse>=6.2.0",
+    "ruff>=0.16.9",
     "shellcheck-py>=0.11.0.1",
 ]
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+include = ["src", "tests"]
+# `# type: ignore` is not honoured: a type error is fixed, never silenced (US-0050).
+enableTypeIgnoreComments = false
+reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
