@@ -1,0 +1,13 @@
+{
+  "summary": "La structure principale de la révision courante.",
+  "value": [
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "kind": "main",
+      "label": "Structure principale",
+      "is_merged": false,
+      "lock_version": 1
+    }
+  ]
+}

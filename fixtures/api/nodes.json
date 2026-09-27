@@ -1,0 +1,90 @@
+{
+  "summary": "Une tâche récapitulative, deux tâches et une ligne de devis de 100 000.",
+  "value": {
+    "items": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000501",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000601",
+        "kind": "task",
+        "parent_id": null,
+        "position": 0,
+        "row_number": 1,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Études",
+          "scheduling_mode": "automatic",
+          "duration_days": 40,
+          "start_date": "2026-03-02",
+          "finish_date": "2026-04-24",
+          "progress": "started",
+          "is_summary": true,
+          "is_milestone": false
+        }
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000502",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000602",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000501",
+        "position": 0,
+        "row_number": 2,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Études de détail",
+          "scheduling_mode": "automatic",
+          "duration_days": 30,
+          "start_date": "2026-03-02",
+          "finish_date": "2026-04-10",
+          "progress": "started",
+          "is_summary": false,
+          "is_milestone": false
+        }
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000503",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000603",
+        "kind": "estimate_line",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000502",
+        "position": 0,
+        "row_number": 3,
+        "level": 3,
+        "lock_version": 1,
+        "estimate_line": {
+          "label": "Ingénierie de détail",
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000401",
+          "quantity": "600",
+          "budgeted_amount": "100000.00",
+          "reestimated_amount": "100000.00",
+          "is_computed": true
+        }
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000504",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000604",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000501",
+        "position": 1,
+        "row_number": 4,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Revue de conception",
+          "scheduling_mode": "automatic",
+          "duration_days": 10,
+          "start_date": "2026-04-13",
+          "finish_date": "2026-04-24",
+          "progress": "not_started",
+          "is_summary": false,
+          "is_milestone": false
+        }
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 4
+    }
+  }
+}
