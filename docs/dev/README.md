@@ -27,6 +27,23 @@ Un répertoire naît avec le lot qui y met le premier fichier : `backend/`, `fro
 `fixtures/` et `deploy/` n'existent pas encore tous. La conception d'EP-01 dit pourquoi
 chaque chose est là (`docs/roadmap/EP-01-socle-de-developpement.md`, « Conception »).
 
+## Le back et les frontières du noyau
+
+Le back est un seul paquet, `waterfall`, et deux processus : `waterfall-api` et
+`waterfall-worker`, deux points d'entrée d'une même distribution. Ils portent donc la même
+version par construction, celle de `backend/pyproject.toml` (WF-ARC-0010).
+
+Le noyau, `waterfall.core`, a un sous-paquet par module, nommé d'après son bloc FBS de
+second niveau, en anglais. Un module expose ce que les autres peuvent utiliser dans son
+module `interface`, et rien d'autre : ses tables et son accès aux données lui sont privés.
+Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
+tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
+
+*Contrôle* : `make imports-back` (import-linter, contrats dans `backend/pyproject.toml`) ;
+un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`). Une requête
+SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
+imports : elle relève des règles SQL d'EP-03 et de la revue.
+
 ## Commandes
 
 Tout se lance par le Makefile, sur un poste comme dans la chaîne : `make help` les liste.
@@ -38,7 +55,7 @@ commande.
 |---|---|
 | `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
 | `make check-all` | toutes les familles de contrôles |
-| `make check-<famille>` | une famille : `repo`, `spec`, `contract` — puis `back`, `front`, `roadmap` avec les lots qui les créent |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract`, `back` — puis `front` et `roadmap` avec les lots qui les créent |
 | `make changes BASE=…` | les familles qu'une modification touche |
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
