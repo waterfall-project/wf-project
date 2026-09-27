@@ -6,3 +6,4 @@ __pycache__/
 /docs/spec/images/
 stb-waterfall.docx.before*
 docs/api/*.bundle.yaml
+.venv/

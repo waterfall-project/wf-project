@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
 # -*- coding: utf-8 -*-
 """Write the PBS field of every requirement into the Word document, replacing "TBD"."""
 import pathlib, re, shutil, sys, zipfile

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
 # Association entre une figure du document Word et une page du fichier draw.io.
 #
 # Une figure n'a besoin d'une entrée ici que si son texte alternatif Word ne

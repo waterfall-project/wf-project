@@ -1,12 +1,15 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
 # Waterfall — repository commands.
 #
 # The specification lives in docs/spec, the interface contract in docs/api.
 # Requirements: python3, pandoc (document projection), node with npx (contract
-# linting and bundling), and mmdc to validate the diagrams.
+# linting and bundling), uv (repository tools), and mmdc to validate the diagrams.
 
 SPEC    := docs/spec
 API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
+TOOLS   := tools
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
 REDOCLY_VERSION := 2.54.3
@@ -15,7 +18,7 @@ REDOCLY := npx --yes @redocly/cli@$(REDOCLY_VERSION)
 PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
-.PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock check-tools clean
+.PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock test-tools reuse check-tools clean
 
 help: ## List the commands
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2}'
@@ -42,8 +45,14 @@ allocate-pbs: ## Write the PBS field of every requirement into the Word document
 mock: build-openapi ## Serve a fake backend from the contract, for the mockup
 	@$(PRISM) mock $(BUNDLE)
 
+test-tools: ## Run the tests of the repository tools
+	@cd $(TOOLS) && uv run --frozen pytest
+
+reuse: ## Check that every file declares its copyright and licence
+	@uv run --frozen --project $(TOOLS) reuse lint
+
 check-tools: ## Report which prerequisites are missing
-	@for t in python3 pandoc npx; do \
+	@for t in python3 pandoc npx uv; do \
 		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
