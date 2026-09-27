@@ -34,6 +34,7 @@ def test_each_process_states_the_version_of_the_package(script: str) -> None:
     assert run(script) == f"{script} {waterfall.__version__}"
 
 
+@pytest.mark.requirement("WF-ARC-0010-A")
 def test_the_api_and_the_worker_carry_the_same_version() -> None:
     api = run("waterfall-api").split()[-1]
     worker = run("waterfall-worker").split()[-1]

@@ -80,6 +80,7 @@ def test_a_module_may_use_the_interface_of_another(sample: Path) -> None:
     assert result.returncode == 0, result.stdout
 
 
+@pytest.mark.requirement("WF-ARC-0010-A")
 def test_a_module_that_reads_the_tables_of_another_is_rejected(sample: Path) -> None:
     result = lint(sample, "core.projects.tables", "from sample.core.accounts import tables\n")
     assert result.returncode == 1

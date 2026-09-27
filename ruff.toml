@@ -40,6 +40,11 @@ notice-rgx = "SPDX-FileCopyrightText: \\d{4} waterfall-project"
 # Cyclomatic complexity under 15 (US-0050): Ruff reports a value above the maximum.
 max-complexity = 14
 
+[lint.pylint]
+# Aligned on the complexity limit: Pylint's own default of 12 branches would refuse a
+# function US-0050 accepts.
+max-branches = 14
+
 [lint.pydocstyle]
 convention = "pep257"
 

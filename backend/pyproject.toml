@@ -30,6 +30,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers", "--strict-config"]
+markers = ["requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)"]
 xfail_strict = true
 filterwarnings = ["error"]
 

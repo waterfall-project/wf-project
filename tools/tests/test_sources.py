@@ -6,6 +6,8 @@ import pytest
 
 from wftools import paths, sources
 
+pytestmark = pytest.mark.requirement("WF-QUA-0030-A")
+
 # Written in pieces, so that this file does not carry the comments it looks for.
 NOQA = "no" + "qa"
 IGNORE = "type" + ": ignore"
