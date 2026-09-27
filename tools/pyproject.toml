@@ -26,7 +26,15 @@ build-backend = "uv_build"
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
-include = ["src", "tests"]
+include = [
+    "src",
+    "tests",
+    "../docs/api/tools",
+    "../docs/spec/tools/pbs.py",
+    "../docs/spec/tools/allocate_pbs.py",
+]
+# The tools of the specification and of the contract run as scripts, from their directory.
+extraPaths = ["../docs/spec/tools"]
 # `# type: ignore` is not honoured: a type error is fixed, never silenced (US-0050).
 enableTypeIgnoreComments = false
 reportUnnecessaryTypeIgnoreComment = "error"

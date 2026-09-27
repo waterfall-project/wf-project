@@ -78,7 +78,8 @@ def test_generated_and_excepted_paths_are_left_out() -> None:
     declaration = paths.read()
     checked = sources.sources(declaration)
     assert "tools/src/wftools/sources.py" in checked
-    assert not any(path.startswith("docs/spec/tools/") for path in checked)
+    assert "docs/spec/tools/pbs.py" in checked
+    assert "docs/spec/tools/build.py" not in checked
 
 
 def test_the_repository_keeps_the_rules(capsys: pytest.CaptureFixture[str]) -> None:

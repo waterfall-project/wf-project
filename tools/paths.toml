@@ -78,5 +78,5 @@ paths = ["tools/tests/**", "backend/tests/**", "fixtures/**", "frontend/**/*.tes
 # Paths excepted from the rules of sources (no suppression comment, 1,000 lines at most),
 # each with its reason. An exception is temporary, and names what lifts it.
 [[exceptions]]
-paths = ["docs/spec/tools/**", "docs/api/tools/**"]
-reason = "written before the rules; brought up to them by EP-01/L2 (#29), which removes this entry"
+paths = ["docs/spec/tools/build.py", "docs/spec/tools/drawio2mermaid.py"]
+reason = "written before the rules; brought up to them by the lots that follow EP-01/L2 (#29)"

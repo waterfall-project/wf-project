@@ -25,6 +25,7 @@ path = [
     "frontend/.prettierrc.json",
     "frontend/src/api/generated/**",
     "fixtures/**",
+    "tools/src/wftools/py.typed",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"
