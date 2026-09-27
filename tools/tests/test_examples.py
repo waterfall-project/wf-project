@@ -10,6 +10,8 @@ import pytest
 from wftools import examples, projection
 from wftools.examples import Example
 
+pytestmark = pytest.mark.requirement("WF-QUA-0020-A")
+
 BLOCK = """\
 ```yaml exigence
 section: "3.4"

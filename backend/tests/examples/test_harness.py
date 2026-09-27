@@ -8,6 +8,8 @@ from collections.abc import Callable
 import pytest
 from pytest_socket import SocketBlockedError
 
+pytestmark = pytest.mark.requirement("WF-QUA-0020-A")
+
 
 def test_an_example_cannot_reach_a_database_or_a_browser() -> None:
     with (

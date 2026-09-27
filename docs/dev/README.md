@@ -264,9 +264,31 @@ avec sa raison.
 
 ## Tests
 
-- **Un test qui cite son exigence** — *à écrire*, [US-0060](https://github.com/waterfall-project/wf-project/issues/11).
+- **Un test qui cite son exigence** — voir ci-dessous.
 - **Un test qui reprend un exemple chiffré** — voir ci-dessous.
 - **Un parcours de bout en bout** — *à écrire*, [US-0080](https://github.com/waterfall-project/wf-project/issues/13).
+
+### Un test qui cite son exigence
+
+Chaque exigence F0 est couverte par au moins un test qui la cite par son identifiant complet,
+indice de révision compris (WF-QUA-0010).
+
+- **Python** : le marqueur `@pytest.mark.requirement("WF-ARC-0010-A")`, sur le test, sur sa
+  classe, ou sur le module (`pytestmark = pytest.mark.requirement(...)`) quand tout le
+  fichier porte la même exigence. Le marqueur est déclaré : une faute de frappe dans son nom
+  fait échouer Pytest.
+- **TypeScript** — Vitest ou Playwright : l'identifiant entre crochets dans le titre,
+  `it("lit une grille [WF-QUA-0050-A]", …)`.
+
+Un test cite l'exigence dont il éprouve le Vérif, pas celle dont il parle. Un test qui ne
+couvre aucune exigence — un outil, un détail de réalisation — n'en cite aucune.
+
+*Contrôles* : `make requirements` lit les citations dans les fichiers de test, sans les
+lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent — dans le
+résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou d'un indice de
+révision que le document a dépassé, le fait échouer. `make requirements-release` échoue en
+plus sur toute exigence F0 non couverte, en la nommant : c'est la commande de la
+publication d'une version.
 
 ### Un test qui reprend un exemple chiffré
 
