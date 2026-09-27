@@ -29,8 +29,8 @@ ignore = [
     "ANN401", # typing.Any — Pyright strict already refuses what matters
 ]
 # French typography is what the repository tools read from the specification on purpose:
-# typographic apostrophes and the spaces Word puts around « ».
-allowed-confusables = ["’", "‘", "ʼ", " ", " ", " "]
+# typographic apostrophes, the spaces Word puts around « », the en dash of its captions.
+allowed-confusables = ["’", "‘", "ʼ", " ", " ", " ", "–"]
 
 [lint.flake8-copyright]
 # CPY001 checks the SPDX header every source file opens with (US-0050).

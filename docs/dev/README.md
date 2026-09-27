@@ -256,9 +256,9 @@ les fichiers engendrés en sont exclus.
 
 *Contrôles* : `make lint-back`, `make typecheck-back`, `make lint-tools`,
 `make typecheck-tools` ; `make sources` pour les commentaires d'exemption et la taille des
-fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tools`, écrits
-avant ces règles, en sont exceptés dans `tools/paths.toml` jusqu'au lot
-[EP-01/L2](https://github.com/waterfall-project/wf-project/issues/29).
+fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tools` suivent
+les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se déclare dans
+`tools/paths.toml`, avec sa raison et ce qui la lèvera.
 
 **TypeScript** — le front a son jeu de règles dans `frontend/eslint.config.mjs` :
 
