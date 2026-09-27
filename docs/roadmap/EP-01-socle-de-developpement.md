@@ -155,7 +155,8 @@ règle « une seule implémentation » ne repose pas sur la vigilance de chacun.
   modules du noyau sont calqués sur les blocs FBS, et les outils de l'annexe C sont
   installés avec leurs versions dans les fichiers de dépendances.
 - écart : « Le dépôt ne contient qu'une implémentation de la machine d'état, des calculs de
-  planning, de chiffrage et d'indicateurs » ne se vérifie qu'à partir d'EP-04 — il n'y a
+  planning, de chiffrage et d'indicateurs, partagée par l'API et le worker. » ne se vérifie
+  qu'à mesure que ces calculs arrivent, d'EP-04 à EP-11, et se constate en EP-11 — il n'y a
   encore aucun calcul.
 
 **Notes de réalisation.** Le contrôle des frontières est une règle d'analyse statique, donc
@@ -328,6 +329,9 @@ qu'on s'aperçoive, à la fin, qu'elle n'a jamais été prévue.
   fait échouer l'outil ;
 - propre à l'US : une exigence citée dans le tableau d'un EPIC mais par aucune de ses US fait
   échouer l'outil, sauf dans un EPIC `à planifier`, dont les US ne sont pas encore écrites ;
+- propre à l'US : pour chaque exigence qu'une US cite, chaque phrase de son Vérif figure mot
+  pour mot dans l'US, en critère ou en écart ; une phrase absente ou tronquée fait échouer
+  l'outil en nommant l'US, l'exigence et la phrase ;
 - propre à l'US : une exigence close par aucun EPIC, ou par plus d'un, fait échouer l'outil ;
   l'exemple du §1.3.1, `WF-EXAMP-0010-A`, qui n'est pas une exigence du produit, en est
   exclu, comme dans `docs/api/tools/inventory.py` ;

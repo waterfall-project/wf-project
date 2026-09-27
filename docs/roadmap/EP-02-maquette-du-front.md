@@ -375,6 +375,10 @@ que mes collègues.
   les mêmes libellés de tâches et de lignes, et des intitulés de colonnes et des libellés
   d'états différents. »
 - `WF-INTF-0170-A` — « Aucun écran ne propose de saisir un libellé dans une seconde langue. »
+- `WF-INTF-0170-A` — « Un projet créé par l'un est lisible par l'autre sans mention d'absence
+  de traduction. » Il se vérifie sur le faux back : un projet saisi en français, ouvert dans
+  une session en anglais, n'affiche aucune marque de traduction manquante sur ses textes
+  saisis.
 - `WF-INTF-0180-A` — « Le même montant s'affiche « 1 234,56 » en français et « 1,234.56 » en
   anglais, et le total du projet est le même. »
 - `WF-QUA-0070-A` — « L'ajout d'une clé dans un seul catalogue fait échouer la chaîne. »
@@ -389,9 +393,13 @@ cette US qui fixe le catalogue de codes d'erreur, et tout EPIC ultérieur y ajou
 
 - écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
   celles d'un autre. » demande des comptes réels — EP-03.
-- écart : la conservation du choix dans le compte attend EP-03 ; la langue par défaut de
-  l'installation attend le paramétrage d'EP-03 également. Les en-têtes fixes des formats
-  d'échange de WF-INTF-0180 se vérifient en EP-12 ; ici, seul l'affichage.
+- écart : la conservation du choix dans le compte attend EP-03, de même que `WF-INTF-0160-A`
+  — « Un utilisateur dont le navigateur demande une langue non offerte obtient la langue par
+  défaut de l'installation. », cette langue étant un paramètre de l'installation.
+- écart : `WF-INTF-0180-A` — « Un devis exporté par un utilisateur en français et réimporté
+  par un utilisateur en anglais donne un devis identique, sans avertissement de format. » et
+  « Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui
+  l'exporte. » attendent les échanges de fichiers — EP-12 ; ici, seul l'affichage.
 
 ## US-0200 — Accessibilité minimale
 
@@ -568,6 +576,9 @@ de la relecture.
 
 - `WF-ARC-0020-A` — « Le front ne contient aucun appel http vers l'API hors du client
   engendré. »
+- `WF-ARC-0020-A` — « Le diagramme de déploiement (§4.3.1) ne montre aucun composant entre le
+  front et l'API. » Il se vérifie sur la spécification, et la revue d'un lot qui ajouterait
+  un intermédiaire le refuse.
 - `WF-ARC-0020-A` — « Les montants, dates et indices affichés sont ceux que l'API renvoie,
   sans recalcul. »
 - propre à l'US : une règle d'analyse statique interdit `fetch` et les clients http hors du
