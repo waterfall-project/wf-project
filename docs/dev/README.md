@@ -34,6 +34,54 @@ Une commande que la chaîne exécute existe dans le Makefile, et un workflow n'�
 logique de contrôle de son côté ; un échec de la chaîne se reproduit donc par la même
 commande.
 
+| Commande | Ce qu'elle fait |
+|---|---|
+| `make check BASE=origin/epic/EP-nn` | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser |
+| `make check-all` | toutes les familles de contrôles |
+| `make check-<famille>` | une famille : `repo`, `spec`, `contract` — puis `back`, `front`, `roadmap` avec les lots qui les créent |
+| `make changes BASE=…` | les familles qu'une modification touche |
+
+`BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
+
+## Chaîne
+
+La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
+
+- `ci.yml` décide des familles qu'une pull request touche (`make changes`), appelle le
+  workflow de chacune, et termine par la **porte** (`gate`), qui juge le tout
+  (`make gate`) : elle échoue si un travail a échoué ou a été annulé, et un travail sauté
+  parce que sa famille n'est pas touchée n'est pas un échec. La porte est le seul contrôle
+  que la protection des branches exige : un contrôle exigé qui ne s'exécute pas faute de
+  fichier touché resterait « en attente » et bloquerait la fusion.
+- un workflow par famille — `repo.yml`, `spec.yml`, `contract.yml`… —, qui installe ses
+  outils et appelle `make check-<famille>`. `repo` s'exécute sur toute modification.
+
+Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
+déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
+Makefile, les workflows, la déclaration elle-même — réveille toutes les familles.
+
+Deux paliers : le rapide à chaque poussée sur une pull request (`pull_request`), le complet
+dans la file de fusion (`merge_group`), sur le résultat de la fusion, avant qu'elle soit
+acceptée.
+
+Règles des workflows :
+
+- une action tierce est épinglée par l'empreinte de son commit, la version en commentaire ;
+  Dependabot propose chaque mois leur mise à jour (`.github/dependabot.yml`) ;
+- chaque workflow déclare `permissions: contents: read`, et n'en demande pas plus sans
+  raison écrite ;
+- `actions/checkout` ne garde pas le jeton (`persist-credentials: false`) ;
+- un outil téléchargé hors d'une action est épinglé par sa version et vérifié par son
+  empreinte, comme pandoc dans `spec.yml`.
+
+*Contrôle* : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
+
+La protection des branches est un réglage de GitHub, fait par le propriétaire du dépôt :
+sur `epic/*`, pas de poussée directe, la porte exigée, la file de fusion ; sur `main`, la
+porte n'est exigée qu'à partir de la livraison d'EP-01 — GitHub lit les workflows dans la
+branche d'une pull request, et une pull request vers `main` tirée d'avant la chaîne ne la
+déclencherait pas.
+
 ## Nommage
 
 Le code, les tables, les colonnes, les variables, les chemins et les messages de console
