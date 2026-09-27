@@ -35,8 +35,15 @@ paths = ["backend/**"]
 target = "check-back"
 
 [families.roadmap]
-# The stories quote the Vérif fields: the projection changing can break them too.
-paths = ["docs/roadmap/**", "docs/spec/waterfall-spec.md", "tools/src/wftools/roadmap.py"]
+# The stories quote the Vérif fields: the projection changing can break them too. The
+# agents cite Makefile targets, which the same check holds.
+paths = [
+    "docs/roadmap/**",
+    "docs/spec/waterfall-spec.md",
+    "tools/src/wftools/roadmap.py",
+    ".claude/agents/**",
+    "docs/dev/agents.md",
+]
 target = "check-roadmap"
 
 [families.front]
