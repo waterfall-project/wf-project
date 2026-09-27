@@ -1,4 +1,6 @@
-# Waterfall
+<p align="center">
+  <img src="docs/assets/waterfall_logo.svg" alt="Waterfall" width="320">
+</p>
 
 Cost, plan and pilot long-running projects: one task tree seen from both time and money,
 revisions that keep each offer and review readable, risk provisions, actual costs imported

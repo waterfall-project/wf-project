@@ -1,4 +1,6 @@
-# Waterfall
+<p align="center">
+  <img src="docs/assets/waterfall_logo.svg" alt="Waterfall" width="320">
+</p>
 
 Chiffrer, planifier et piloter des projets qui durent : un arbre de tâches commun, vu du
 côté du temps et du côté de l'argent ; des révisions qui gardent lisibles chaque offre et
