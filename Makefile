@@ -31,7 +31,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	install-front lint-front typecheck-front test-front generate-client client-up-to-date \
-	coverage-back coverage-front \
+	coverage-back coverage-front roadmap check-roadmap \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -124,7 +124,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract check-back check-front ## Run every family of checks
+check-all: check-repo check-spec check-contract check-back check-front check-roadmap ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
 	requirements lint-tools typecheck-tools test-tools ## Checks that run on any change
@@ -181,6 +181,11 @@ test-front: install-front ## Unit tests of the front
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060)
 	@$(PNPM) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
+
+check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
+
+roadmap: ## Confront the stories of docs/roadmap with the requirements of the document
+	@$(WFTOOLS).roadmap
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

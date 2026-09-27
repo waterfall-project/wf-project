@@ -485,7 +485,7 @@ ne puisse s'installer.
 - propre à l'US : la régénération est une commande du Makefile, et la chaîne échoue si le
   client versionné diffère de celui que le contrat produit.
 - écart : « Une réponse de l'API qui ne correspond pas au schéma déclaré fait échouer la
-  chaîne » et « Aucun endpoint ne répond qui ne figure au contrat » attendent un service
+  chaîne. » et « Aucun endpoint ne répond qui ne figure au contrat. » attendent un service
   réel — EP-03.
 
 ## US-0030 — Faux back tiré du contrat
