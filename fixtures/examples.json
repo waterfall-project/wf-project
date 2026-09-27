@@ -1,0 +1,215 @@
+{
+  "generated_by": "make fixtures",
+  "examples": [
+    {
+      "key": "WF-INTF-0040-A#f8bd140f097f",
+      "requirement": "WF-INTF-0040-A",
+      "sentence": "Un fichier XML produit par chacune des versions 2007, 2010, 2013, 2016, 2019, 2021 et 2024 de MS Project est importé sans erreur."
+    },
+    {
+      "key": "WF-INTF-0180-A#ade0abdb1ba2",
+      "requirement": "WF-INTF-0180-A",
+      "sentence": "Le même montant s'affiche « 1 234,56 » en français et « 1,234.56 » en anglais, et le total du projet est le même."
+    },
+    {
+      "key": "WF-CYC-0130-A#72d37d732212",
+      "requirement": "WF-CYC-0130-A",
+      "sentence": "Un projet passé à Perdu le 15 mars compte parmi les offres closes de mars et d'aucun autre mois."
+    },
+    {
+      "key": "WF-PTF-0020-A#a4a5e110bdc6",
+      "requirement": "WF-PTF-0020-A",
+      "sentence": "Deux projets de valeur acquise 100 et 1 000, de coût réel 200 et 1 000, donnent un indice de coût de portefeuille de 0,917, et non de 0,75."
+    },
+    {
+      "key": "WF-PTF-0020-A#c424fdc63fd8",
+      "requirement": "WF-PTF-0020-A",
+      "sentence": "Une offre à 40 % de probabilité et 100 000 de devis contribue pour 40 000 à la valeur du pipeline."
+    },
+    {
+      "key": "WF-PTF-0050-A#2495b6b38022",
+      "requirement": "WF-PTF-0050-A",
+      "sentence": "Une offre à 40 % de probabilité contribue pour tout au pipeline brut et pour 40 % au pipeline pondéré."
+    },
+    {
+      "key": "WF-PTF-0050-A#4506f09a53ee",
+      "requirement": "WF-PTF-0050-A",
+      "sentence": "Sur dix offres closes dans la période, dont quatre gagnées, le taux de transformation vaut 40 %."
+    },
+    {
+      "key": "WF-PTF-0060-A#45748fe78d7c",
+      "requirement": "WF-PTF-0060-A",
+      "sentence": "Sur deux projets en cours dont les restes à engager portent 100 et 150 heures d'un même rôle le même mois, le plan agrégé porte 250 heures."
+    },
+    {
+      "key": "WF-PTF-0060-A#dd1733488885",
+      "requirement": "WF-PTF-0060-A",
+      "sentence": "Une offre à 50 % avec 100 heures ajoute 50 heures quand le chiffrage est inclus, rien sinon."
+    },
+    {
+      "key": "WF-PTF-0060-A#9bd0b92b0168",
+      "requirement": "WF-PTF-0060-A",
+      "sentence": "Un mois à 120 % de la capacité est signalé."
+    },
+    {
+      "key": "WF-PTF-0100-A#ef1e23bc6126",
+      "requirement": "WF-PTF-0100-A",
+      "sentence": "Un projet en chiffrage à 40 % contribue pour 40 % de sa projection lorsqu'il est inclus."
+    },
+    {
+      "key": "WF-REF-0170-A#828c34614a3f",
+      "requirement": "WF-REF-0170-A",
+      "sentence": "Un indice traverse les trois zones lorsque sa valeur décroît de 1 à 0,5, avec des seuils fixés à 0,9 et 0,8."
+    },
+    {
+      "key": "WF-REV-0050-A#1779578395bf",
+      "requirement": "WF-REV-0050-A",
+      "sentence": "Une ligne réestimée à 140 pour un montant budgété de 100, non désignée par le différentiel, porte toujours 100 et 140 après la fusion."
+    },
+    {
+      "key": "WF-PRJ-0090-A#0600dd236bf1",
+      "requirement": "WF-PRJ-0090-A",
+      "sentence": "Une offre à 40 % de probabilité et 100 000 € de devis pèse 40 000 € dans le pipeline pondéré et 40 % de sa charge dans le plan de charge agrégé pondéré."
+    },
+    {
+      "key": "WF-PRJ-0090-A#16d1304bee60",
+      "requirement": "WF-PRJ-0090-A",
+      "sentence": "Le devis et les indicateurs du projet lui-même sont identiques à 0 % et à 100 %."
+    },
+    {
+      "key": "WF-PLA-0110-A#7e0f932d2ca2",
+      "requirement": "WF-PLA-0110-A",
+      "sentence": "Sur un planning de quatre niveaux, l'affichage demandé au niveau 2 ne représente que les récapitulatives des deux premiers niveaux, sous le nœud du projet."
+    },
+    {
+      "key": "WF-DEV-0030-A#e6c446928b5b",
+      "requirement": "WF-DEV-0030-A",
+      "sentence": "Une même ligne consommée deux ans après l'année de référence, avec un taux d'inflation de 3 %, vaut 1,03 x 1,03 fois son montant de base."
+    },
+    {
+      "key": "WF-DEV-0080-A#97ee98949ad1",
+      "requirement": "WF-DEV-0080-A",
+      "sentence": "Sur un projet dont le budget de référence est de 1 000, la valeur planifiée vaut 1 000 à la date de fin de la dernière tâche de la référence, et 0 avant le début de la première."
+    },
+    {
+      "key": "WF-RIS-0050-A#19d3e61e84c3",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Sur un projet chiffré à 1 000 portant un risque de gravité 200 à 30 %, le devis totalise 1 060 et le budget de référence 1 000."
+    },
+    {
+      "key": "WF-RIS-0050-A#e680f33961d7",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Après survenance du risque, réévalué à 250 par le reste à engager, le budget de référence vaut 1 060 et l'écart de 190 apparaît comme une dérive."
+    },
+    {
+      "key": "WF-RIS-0050-A#f1eeb908b16f",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Si un second risque de provision 40 est ensuite écarté alors qu'aucun autre risque n'est identifié, le budget de référence passe à 1 100."
+    },
+    {
+      "key": "WF-IND-0030-A#c3aebc79b97d",
+      "requirement": "WF-IND-0030-A",
+      "sentence": "Une tâche terminée le 12 du mois contribue à la valeur acquise dès cette date, non à la revue suivante."
+    },
+    {
+      "key": "WF-IND-0040-A#2c0d13aef084",
+      "requirement": "WF-IND-0040-A",
+      "sentence": "Sur un sous-projet de budget 100, de coût réel 70 et de reste à engager 70, l'avancement financier vaut 50 % et la consommation 70 %."
+    },
+    {
+      "key": "WF-IND-0050-A#c6404fb0a5fe",
+      "requirement": "WF-IND-0050-A",
+      "sentence": "Sur un projet de budget 1 000, de valeur acquise 400, de coût réel 500 et de reste à engager 550, les projections valent 1 100 au budget, 1 050 pour le chef de projet et 1 250 au rythme constaté."
+    },
+    {
+      "key": "WF-IND-0060-A#f88169816950",
+      "requirement": "WF-IND-0060-A",
+      "sentence": "Sur un budget de 1 000 dont 400 sont portés par des tâches terminées, l'avancement physique vaut 40 %."
+    },
+    {
+      "key": "WF-IND-0060-A#61c43a87da0a",
+      "requirement": "WF-IND-0060-A",
+      "sentence": "Une tâche démarrée à 90 % de son temps ne contribue pas."
+    },
+    {
+      "key": "WF-IND-0060-A#133eda5b4cef",
+      "requirement": "WF-IND-0060-A",
+      "sentence": "Une récapitulative dont deux subordonnées sur trois sont terminées, de montants budgétés 100, 100 et 200, affiche 50 %."
+    },
+    {
+      "key": "WF-IND-0070-A#c2dde0dac2a2",
+      "requirement": "WF-IND-0070-A",
+      "sentence": "Une valeur acquise de 400 pour un coût réel de 500 donne 0,8."
+    },
+    {
+      "key": "WF-IND-0070-A#039eed3b60cd",
+      "requirement": "WF-IND-0070-A",
+      "sentence": "Une valeur acquise de 400 pour un coût réel de 500 donne un écart de coût de −100."
+    },
+    {
+      "key": "WF-IND-0080-A#aa6a94ba94fd",
+      "requirement": "WF-IND-0080-A",
+      "sentence": "Une valeur acquise de 400 pour une valeur planifiée de 500 donne 0,8."
+    },
+    {
+      "key": "WF-IND-0080-A#5854f69feeaf",
+      "requirement": "WF-IND-0080-A",
+      "sentence": "Un projet dont toutes les tâches sont terminées à la date de fin prévue par la référence affiche 1."
+    },
+    {
+      "key": "WF-IND-0080-A#9e5aed044b39",
+      "requirement": "WF-IND-0080-A",
+      "sentence": "Une valeur acquise de 400 pour une valeur planifiée de 500 donne un écart de délai de −100."
+    },
+    {
+      "key": "WF-IND-0090-A#eee08fe6b818",
+      "requirement": "WF-IND-0090-A",
+      "sentence": "Un jalon prévu au 30 juin dans trois revues successives trace une horizontale."
+    },
+    {
+      "key": "WF-IND-0090-A#ba74e32925d5",
+      "requirement": "WF-IND-0090-A",
+      "sentence": "Un jalon repoussé d'un mois à chaque revue trace une droite de pente 1."
+    },
+    {
+      "key": "WF-IHM-0100-A#bcb52ee478df",
+      "requirement": "WF-IHM-0100-A",
+      "sentence": "À 150 % d'agrandissement, aucune commande ne devient inatteignable."
+    },
+    {
+      "key": "WF-DAT-0100-A#2b7bc2707022",
+      "requirement": "WF-DAT-0100-A",
+      "sentence": "Une tâche planifiée au 30 juin s'affiche au 30 juin sur tout poste client, quel que soit son fuseau."
+    },
+    {
+      "key": "WF-DAT-0100-A#2ce6d54b40a4",
+      "requirement": "WF-DAT-0100-A",
+      "sentence": "Un montant de 0,10 additionné dix fois donne exactement 1,00."
+    },
+    {
+      "key": "WF-DAT-0140-A#e6dc822ae424",
+      "requirement": "WF-DAT-0140-A",
+      "sentence": "Une installation en version N passe en version N+1 sans interruption de service ni perte de données."
+    },
+    {
+      "key": "WF-EXP-0030-A#cf6a050caccd",
+      "requirement": "WF-EXP-0030-A",
+      "sentence": "Une mise à jour de la version N à la version N+1 s'exécute sans qu'aucune requête n'échoue et sans qu'aucun utilisateur ne soit déconnecté."
+    },
+    {
+      "key": "WF-EXP-0030-A#3f98608a6470",
+      "requirement": "WF-EXP-0030-A",
+      "sentence": "Un retour arrière vers la version N s'exécute sur le schéma de la version N+1."
+    },
+    {
+      "key": "WF-CMP-0010-A#22c11bd90d6d",
+      "requirement": "WF-CMP-0010-A",
+      "sentence": "Les grilles, le diagramme de Gantt et les courbes s'affichent et s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures, à 1366 points de large."
+    },
+    {
+      "key": "WF-CMP-0010-A#f11d4089327f",
+      "requirement": "WF-CMP-0010-A",
+      "sentence": "Les vues d'indicateurs se lisent sur un écran de 360 points de large et n'y proposent aucune saisie."
+    }
+  ]
+}

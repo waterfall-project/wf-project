@@ -20,6 +20,7 @@ IGNORE = "type" + ": ignore"
         f"x: int = 'a'  # {IGNORE}",
         "x = f()  # pyright" + ": ignore[reportUnknownVariableType]",
         "# pyright" + ": basic",
+        "# pyright" + ": reportUnusedFunction=false",
         "# fmt" + ": off",
         "if debug:  # pragma" + ": no cover",
     ],

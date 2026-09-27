@@ -24,6 +24,7 @@ path = [
     "frontend/.dockerignore",
     "frontend/.prettierrc.json",
     "frontend/src/api/generated/**",
+    "fixtures/**",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 waterfall-project"

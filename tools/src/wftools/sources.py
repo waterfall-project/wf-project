@@ -28,7 +28,7 @@ SOURCES = _HASH | _SLASH
 # A suppression is recognised in a comment only, so that a string or a document that names
 # one — this module, the guide — is not mistaken for one.
 _HASH_SUPPRESSION = re.compile(
-    r"#\s*(?:noqa\b|ruff:\s*noqa|type:\s*ignore|pyright:\s*(?:ignore|basic|standard)"
+    r"#\s*(?:noqa\b|ruff:\s*noqa|type:\s*ignore|pyright:\s*(?:ignore|basic|standard|report\w+)"
     r"|fmt:\s*(?:off|skip)|pragma:\s*no\s*cover|shellcheck\s+disable)",
 )
 _SLASH_SUPPRESSION = re.compile(
