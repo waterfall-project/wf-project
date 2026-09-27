@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/assets/waterfall_logo.svg" alt="Waterfall" width="320">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/waterfall_logo-dark.svg">
+    <img src="docs/assets/waterfall_logo.svg" alt="Waterfall" width="320">
+  </picture>
 </p>
 
 Cost, plan and pilot long-running projects: one task tree seen from both time and money,

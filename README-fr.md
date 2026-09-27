@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/assets/waterfall_logo.svg" alt="Waterfall" width="320">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/waterfall_logo-dark.svg">
+    <img src="docs/assets/waterfall_logo.svg" alt="Waterfall" width="320">
+  </picture>
 </p>
 
 Chiffrer, planifier et piloter des projets qui durent : un arbre de tâches commun, vu du
