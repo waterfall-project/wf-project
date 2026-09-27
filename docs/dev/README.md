@@ -225,6 +225,13 @@ vérifie, ESLint n'ayant pas d'équivalent aux règles `TD` et `FIX` de Ruff.
 
 *Contrôles* : `make lint-front` (ESLint, Prettier), `make typecheck-front`, `make sources`.
 
+**Contrat** — `docs/api/redocly.yaml` étend `recommended-strict` : toute règle de Redocly
+bloque. Une opération à laquelle une règle ne s'applique pas — une sonde sans réponse 4xx,
+une redirection OIDC sans réponse 2xx — est déclarée dans `docs/api/.redocly.lint-ignore.yaml`,
+avec sa raison.
+
+*Contrôle* : `make lint-openapi`.
+
 ## Règles de codage
 
 *À écrire* — `python.md` et `typescript.md`, par l'[US-0300](https://github.com/waterfall-project/wf-project/issues/4).
