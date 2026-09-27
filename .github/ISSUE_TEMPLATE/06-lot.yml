@@ -1,0 +1,77 @@
+name: Lot — one reviewable piece of a story
+description: Open a lot from an epic's validated lot plan. One lot, one branch, one pull request.
+title: "[US-nnnn/Ln] "
+labels: ["lot", "roadmap"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A lot is the unit of review: one issue, one branch cut from its epic's branch
+        `epic/EP-nn`, one pull request back into it. It is opened as a sub-issue of its
+        story's issue, from the lot plan validated for the epic — not invented along the
+        way. The acceptance
+        criteria stay in the epic's file under `docs/roadmap`; this issue names which of
+        them the lot closes, it does not copy them. The budget and the stop rule are in
+        `docs/roadmap/README.md`, section « Lots ».
+  - type: input
+    id: identifier
+    attributes:
+      label: Identifier
+      description: >-
+        `US-nnnn/Ln` for a lot of a story, `EP-nn/Ln` for a technical lot that prepares
+        several. Also the prefix of this issue's title. Never reused.
+      placeholder: "US-0130/L2"
+    validations:
+      required: true
+  - type: input
+    id: story
+    attributes:
+      label: Story
+      description: The story's identifier and issue number — or, for a technical lot, the epic's, and the stories it prepares.
+      placeholder: "US-0130, #57"
+    validations:
+      required: true
+  - type: input
+    id: file
+    attributes:
+      label: File
+      description: Path of the epic's file, where the criteria and the design are written.
+      placeholder: "docs/roadmap/EP-02-maquette-du-front.md"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this lot builds, and what it leaves to the next ones — as the lot plan says it.
+    validations:
+      required: true
+  - type: input
+    id: criteria
+    attributes:
+      label: Criteria closed
+      description: >-
+        The acceptance criteria this lot closes, by the requirement they quote or « propre
+        à l'US ». « none — technical lot » is an answer.
+      placeholder: "WF-IHM-0050-A (first two sentences)"
+    validations:
+      required: true
+  - type: input
+    id: depends
+    attributes:
+      label: Depends on
+      description: The lots that must be merged into the epic's branch before this one starts.
+      placeholder: "#58, #59 — or « nothing »"
+    validations:
+      required: true
+  - type: input
+    id: size
+    attributes:
+      label: Estimated size
+      description: >-
+        Diff lines, tests included, generated code excluded, with the production lines
+        apart. The budget is in `docs/roadmap/README.md`, section « Lots »; a lot that
+        overruns stops and is split.
+      placeholder: "≈ 1,100 (production ≈ 550)"
+    validations:
+      required: true
