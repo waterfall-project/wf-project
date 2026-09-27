@@ -562,12 +562,14 @@ avertissement ne s'accumule jusqu'à ne plus rien signifier.
   commentaire dans le code ; un tel commentaire fait échouer la chaîne. Une exception, s'il en
   faut une, s'écrit dans la configuration de l'outil, avec sa raison, là où le jeu de règles
   se lit et où son historique la montre ;
+<!-- REUSE-IgnoreStart -->
 - propre à l'US : chaque fichier source porte en tête deux lignes SPDX, le titulaire et la
   licence — `SPDX-FileCopyrightText: 2026 waterfall-project` et
   `SPDX-License-Identifier: AGPL-3.0-only` — ; les fichiers qui ne peuvent pas porter de
   commentaire, ou dont l'en-tête n'apporterait rien, sont déclarés dans le `REUSE.toml` du
   dépôt ; `reuse lint` fait échouer la chaîne sur un fichier qui n'est couvert ni par l'un ni
   par l'autre ;
+<!-- REUSE-IgnoreEnd -->
 - propre à l'US : chaque module, classe et fonction publics portent une docstring dont la
   première ligne résume ce qu'ils font ; ce qui est privé et les tests n'en demandent pas.
   Aucune section ne répète ce que la signature dit déjà — ni les types, ni la liste des

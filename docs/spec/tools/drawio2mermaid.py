@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
 """Convert one page of a .drawio file into a Mermaid diagram.
 
 Edges drawn "by hand" in draw.io do not always carry a source/target attribute:

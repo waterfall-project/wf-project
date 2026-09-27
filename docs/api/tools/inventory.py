@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
 """Regenerate INVENTORY.md from the contract.
 
 One row per operation, with the requirements its own summary and description cite

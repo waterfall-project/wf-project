@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
 # -*- coding: utf-8 -*-
 """PBS allocation for the requirements of chapter 3, per the matrix in section 4.2.2.
 

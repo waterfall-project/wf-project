@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
 # Regenerate waterfall-spec.md from the Word and draw.io sources, and show what
 # changed since the previous generation.
 set -euo pipefail

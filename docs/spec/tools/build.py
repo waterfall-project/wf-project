@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
 """Project the Word + draw.io specification into Markdown an agent can read.
 
 Word and draw.io remain the sources; this script regenerates `waterfall-spec.md`,

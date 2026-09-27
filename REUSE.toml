@@ -1,0 +1,31 @@
+# Copyright and licence of the files that carry no SPDX header of their own.
+#
+# Code carries its two SPDX lines at the top (guide, « En-têtes et licences »). What is listed
+# here cannot carry a comment, or would gain nothing from one: documentation, the
+# specification and its figures, the contract, forms and templates, images, and what a tool
+# generates. `make reuse` fails on a file covered neither by a header nor by this list.
+version = 1
+
+[[annotations]]
+path = [
+    "**/*.md",
+    "docs/api/**/*.yaml",
+    "docs/spec/stb-waterfall.docx",
+    "docs/spec/waterfall.visuels.drawio",
+    "docs/spec/figures/**",
+    "docs/assets/**",
+    ".github/**",
+    ".gitignore",
+    "**/.python-version",
+    "**/uv.lock",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 waterfall-project"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+# The Contributor Covenant, adopted as it is written: its text keeps its own licence.
+[[annotations]]
+path = "CODE_OF_CONDUCT.md"
+precedence = "override"
+SPDX-FileCopyrightText = "Contributor Covenant contributors <https://www.contributor-covenant.org>"
+SPDX-License-Identifier = "CC-BY-4.0"
