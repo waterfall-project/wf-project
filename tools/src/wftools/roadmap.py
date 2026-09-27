@@ -13,7 +13,11 @@ It fails on what would let a requirement slip through the plan unnoticed:
 - a sentence of the Vérif field of a requirement a story cites, missing from the story or
   truncated in it: acceptance criteria take the Vérif word for word, as a criterion or as
   a deviation (« écart »), because they become the test cases;
-- a requirement that no epic closes, or that more than one closes.
+- a requirement that no epic closes, or that more than one closes;
+- a ``make`` command an agent reads — in ``.claude/agents/``, or in the guide, the common
+  rules and the coding rules of ``docs/dev/`` that the agents follow — that the Makefile
+  does not have: a target renamed would otherwise leave an agent calling a command that is
+  gone (US-0280). Only the files git tracks are read.
 
 It lists, without failing, the F0 requirements no story cites yet — they are cited as the
 stories of later epics are written — and the declared exceptions, with their reason. The
@@ -21,6 +25,7 @@ example of section 1.3.1 is not a requirement of the product, and is left out.
 """
 
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
@@ -29,6 +34,8 @@ from pathlib import Path
 from wftools import REPOSITORY, projection
 
 ROADMAP = REPOSITORY / "docs" / "roadmap"
+MAKEFILE = REPOSITORY / "Makefile"
+AGENT_FILES = (".claude/agents/*.md", "docs/dev/*.md")
 
 EXCEPTIONS: dict[str, str] = {}
 """F0 requirements no story is meant to cite, each with its reason. None so far."""
@@ -42,6 +49,14 @@ _ROW = re.compile(
 _STORY = re.compile(r"^## (?P<id>US-\d{4}) — .*?(?=^## US-\d{4} — |\Z)", re.MULTILINE | re.DOTALL)
 _STORY_REQUIREMENTS = re.compile(r"^- \*\*exigences\*\* : (?P<cited>.*)$", re.MULTILINE)
 _IDENTIFIER = re.compile(r"WF-[A-Z]+-\d{4}-[A-Z]")
+_TARGET = re.compile(r"^([a-z][a-z0-9-]*):", re.MULTILINE)
+# A command is cited in code: an inline span or a fenced block. Within it, `make`, its options
+# (`-C ..`, `-s`) and then the target, whatever variables come before or after.
+_CODE = re.compile(r"```.*?```|`[^`\n]+`", re.DOTALL)
+# A target ends where the word ends: `make check-<famille>` is a pattern, not a command.
+_CITED_COMMAND = re.compile(
+    r"\bmake\s+(?:-C\s+\S+\s+|-[a-zA-Z]+\s+)*([a-z](?:[a-z0-9-]*[a-z0-9])?)(?=[\s`;&|)]|$)"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,10 +176,50 @@ def confront(epics: tuple[Epic, ...], requirements: tuple[projection.Requirement
     return Findings(problems, uncited)
 
 
+def targets(makefile: str) -> set[str]:
+    """Return the targets a Makefile defines."""
+    return set(_TARGET.findall(makefile))
+
+
+def agent_texts(patterns: tuple[str, ...] = AGENT_FILES) -> dict[str, str]:
+    """Return, by path, the text of the tracked files the agents read."""
+    listed = subprocess.run(
+        ["git", "ls-files", "--", *patterns],
+        cwd=REPOSITORY,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    output: str = listed.stdout or ""
+    return {
+        path: (REPOSITORY / path).read_text(encoding="utf-8")
+        for path in sorted(output.splitlines())
+        if (REPOSITORY / path).is_file()
+    }
+
+
+def cited_targets(text: str) -> set[str]:
+    """Return the Makefile targets a text cites in its code."""
+    return {target for code in _CODE.findall(text) for target in _CITED_COMMAND.findall(code)}
+
+
+def missing_commands(texts: dict[str, str], defined: set[str]) -> list[str]:
+    """Return the ``make`` commands the agents cite that the Makefile does not define."""
+    return [
+        f"{path}: cites `make {target}`, which the Makefile does not define"
+        for path, text in texts.items()
+        for target in sorted(cited_targets(text))
+        if target not in defined
+    ]
+
+
 def main() -> int:
     """Print the confrontation, and fail on a problem."""
     requirements = projection.read()
     findings = confront(read(), requirements)
+    findings.problems.extend(
+        missing_commands(agent_texts(), targets(MAKEFILE.read_text(encoding="utf-8")))
+    )
     for problem in findings.problems:
         print(problem, file=sys.stderr)
     mandatory = sum(r.is_mandatory for r in requirements)

@@ -221,8 +221,12 @@ Il liste, sans échouer, les exigences F0 qu'aucune US ne cite encore : leur nom
 mesure que les US des EPIC suivants s'écrivent. L'outil ne lit que le dépôt : l'état des
 issues n'est pas son affaire.
 
+Il échoue aussi sur une commande `make` que cite un agent (`.claude/agents/`,
+`docs/dev/agents.md`) et que le Makefile n'a pas : une cible renommée ne laisse pas un agent
+appeler une commande disparue.
+
 *Contrôle* : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
-changement de la projection.
+changement de la projection ou des agents.
 
 ## Commentaires
 
@@ -400,8 +404,8 @@ ses paramètres, jamais une phrase.
 
 ## Agents
 
-Les agents de `.claude/agents/` — développement et revue par langage, puis cadrage et
-livraison avec le lot US-0280/L2 — suivent ce guide comme une personne, et leurs règles propres sont dans
+Les agents de `.claude/agents/` — cadrage, livraison, développement et revue par langage —
+suivent ce guide comme une personne, et leurs règles propres sont dans
 [agents.md](agents.md) : ce qui fait foi, comment un lot se fait, où un agent s'arrête.
 
 ## Branches, lots et pull requests

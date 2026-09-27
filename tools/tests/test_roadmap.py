@@ -151,3 +151,64 @@ def test_the_example_of_the_document_is_left_out() -> None:
 
 def test_the_roadmap_of_the_repository_holds() -> None:
     assert roadmap.main() == 0
+
+
+MAKEFILE = """\
+check: ## Run what the change touches
+\t@echo check
+
+lint-back: ## Lint
+\t@echo lint
+"""
+
+
+def test_the_targets_of_a_makefile_are_read() -> None:
+    assert roadmap.targets(MAKEFILE) == {"check", "lint-back"}
+
+
+def test_a_command_an_agent_cites_must_exist() -> None:
+    texts = {
+        ".claude/agents/a.md": "Lance `make check`, puis `make lint-back` et `make lint-fron`."
+    }
+    assert roadmap.missing_commands(texts, roadmap.targets(MAKEFILE)) == [
+        ".claude/agents/a.md: cites `make lint-fron`, which the Makefile does not define"
+    ]
+
+
+def test_a_command_with_arguments_is_read_by_its_target() -> None:
+    texts = {
+        "docs/dev/agents.md": "`make check BASE=origin/epic/EP-nn` et `make check-back TIER=full`"
+    }
+    assert roadmap.missing_commands(texts, {"check"}) == [
+        "docs/dev/agents.md: cites `make check-back`, which the Makefile does not define"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("text", "target"),
+    [
+        ("`TIER=full make check-back`", "check-back"),
+        ("`cd tools && make -s lint-tools`", "lint-tools"),
+        ("`make -C .. mock`", "mock"),
+        ("```bash\nmake e2e\n```", "e2e"),
+    ],
+)
+def test_commands_are_found_in_any_code(text: str, target: str) -> None:
+    assert roadmap.cited_targets(text) == {target}
+
+
+def test_a_pattern_of_targets_is_not_a_command() -> None:
+    assert roadmap.cited_targets("`make check-<famille>`") == set()
+
+
+def test_the_word_make_in_prose_is_not_a_command() -> None:
+    assert roadmap.cited_targets("On make sure que tout passe, sans code.") == set()
+
+
+def test_the_agents_of_the_repository_cite_existing_commands() -> None:
+    defined = roadmap.targets(roadmap.MAKEFILE.read_text(encoding="utf-8"))
+    texts = roadmap.agent_texts()
+    assert ".claude/agents/python-developer.md" in texts
+    assert "docs/dev/python.md" in texts
+    assert "docs/dev/python-fastapi-expert.md" not in texts  # untracked: never read
+    assert roadmap.missing_commands(texts, defined) == []

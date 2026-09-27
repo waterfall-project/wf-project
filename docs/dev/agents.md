@@ -10,10 +10,15 @@ foi.
 
 | Agent | Rôle |
 |---|---|
-| `epic-framer` | cadre un EPIC jusqu'à ses issues : US détaillées, conception, plan de lots — lot US-0280/L2 (#32) |
-| `epic-deliverer` | livre les lots d'un EPIC `en cours`, à partir de leurs issues — lot US-0280/L2 (#32) |
+| `epic-framer` | cadre un EPIC jusqu'à ses issues : US détaillées, conception, plan de lots |
+| `epic-deliverer` | livre les lots d'un EPIC `en cours`, à partir de leurs issues |
 | `python-developer`, `typescript-developer` | réalisent un lot, chacun dans son langage |
 | `python-reviewer`, `typescript-reviewer` | relisent la pull request d'un lot, sans rien modifier |
+
+`epic-framer` et `epic-deliverer` se lancent comme agent principal de la session
+(`claude --agent epic-deliverer`) : l'un pose ses questions à l'utilisateur, l'autre confie
+le travail aux quatre autres, et un sous-agent ne peut faire ni l'un ni l'autre. Les quatre
+autres sont des sous-agents, que l'agent de livraison — ou une personne — appelle.
 
 ## Ce qui fait foi
 
@@ -41,6 +46,9 @@ foi.
 - **Taille** : un lot vise la taille de la section « Lots » du README de la roadmap ; sa
   pull request met sa taille réelle, `make lot-size BASE=origin/epic/EP-nn`, à côté de
   l'estimation de son issue. Un dépassement se signale, il ne s'arrête pas.
+- **Les statuts des US vivent dans le fichier de l'EPIC** : le premier lot d'une US la passe
+  `en cours`, et celui qui la termine la passe `fini` — dans le fichier, par ce même lot,
+  quand ses critères sont tenus et que ses tests citent leurs exigences.
 - **Un constat hors du périmètre du lot ne se corrige pas dans le lot** : il devient une
   issue, rattachée à l'EPIC ou à l'US qu'il concerne.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
@@ -62,14 +70,15 @@ Un agent rend la main plutôt que de trancher à la place d'une personne :
 Et quelles que soient les circonstances :
 
 - **aucun agent ne fusionne dans `main`**, ni ne pousse sur `main` ou sur une branche
-  `epic/*` ; la fusion d'une branche d'EPIC dans `main` est faite par une personne ;
+  `epic/*` — sauf `epic-deliverer`, pour créer la branche de son EPIC au premier lot ; la
+  fusion d'une branche d'EPIC dans `main` est faite par une personne ;
 - **seul `epic-deliverer` fusionne**, dans la branche d'un EPIC, la pull request d'un lot dont
-  la revue locale et la chaîne sont au vert ; tant qu'il n'existe pas, c'est une personne ;
+  la revue locale et la chaîne sont au vert ;
 - aucun agent ne modifie la spécification (`docs/spec`), ni les jeux de règles des outils
   pour faire passer son code ;
-- une commande qu'un agent exécute existe dans le Makefile — ou c'est `git` ou `gh` ; le
-  contrôle qui vérifie que les commandes citées par les agents existent arrive avec
-  `make roadmap`, au lot US-0280/L2 (#32).
+- une commande qu'un agent exécute existe dans le Makefile — ou c'est `git` ou `gh` ;
+  `make roadmap` échoue sur une commande `make` que cite un agent et que le Makefile n'a
+  pas.
 
 ## Rendre compte
 
