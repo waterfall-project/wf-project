@@ -29,6 +29,8 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
   TanStack Table, Apache ECharts —, installées avec le premier écran qui s'en sert ;
 - la coquille : navigation, projet ouvert qui le reste d'un écran à l'autre, bandeau de
   contexte de lecture ;
+- la charte graphique, en jetons dérivés des logos du dépôt, en clair et en sombre : aucun
+  composant n'écrit une couleur ni une police en dur ;
 - la grille dense — le composant qui porte le planning, le devis, le reste à engager et les
   risques : lecture, tri et filtres demandés au serveur, colonnes, saisie au clavier seul,
   collage depuis un tableur, et les commandes Annuler et Rétablir, présentes et
@@ -129,7 +131,8 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
 - chaque fonction feuille de l'arborescence FBS est adressable — une page, une route ou un
   onglet — depuis la navigation, et un contrôle du dépôt le vérifie ;
 - les onze exigences du §3.6 ont chacune au moins un test de bout en bout qui les cite ;
-- un contrôle automatisé de contraste ne relève aucun écart au niveau AA ;
+- un contrôle automatisé de contraste ne relève aucun écart au niveau AA, en clair comme
+  en sombre ;
 - le parcours de bout en bout s'exécute et aboutit en français comme en anglais ;
 - la chaîne échoue sur un appel http au serveur hors du client engendré, sur un texte
   destiné à l'utilisateur écrit en dur, et sur une clé de traduction manquante ou orpheline ;
@@ -157,9 +160,17 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
   indicateurs conserve la révision affichée et le sous-projet filtré. »
 - `WF-IHM-0010-A` — « Le retour au projet précédent depuis une fonction hors projet retrouve
   le même contexte. »
+- propre à l'US : la charte graphique — couleurs, typographie, espacements, rayons — est
+  définie en jetons (les variables de Tailwind et de shadcn/ui), dérivée des logos de
+  `docs/assets`, en mode clair et en mode sombre ; aucun composant n'écrit une couleur ni
+  une police en dur, et le guide reçoit la section « Charte graphique » — comment on ajoute
+  une couleur : par un jeton, jamais dans un composant.
 
-**Notes de réalisation.** Le contexte de lecture — projet, révision, sous-projet filtré, date
-de calcul — est l'état que porte la coquille, et tout écran le lit. C'est lui que le bandeau
+**Notes de réalisation.** Les logos de `docs/assets` ont déjà leur variante sombre, et les
+jetons du signalement (US-0160) viennent des zones du référentiel, choisis pour le
+contraste AA — la revue tient la règle « aucune couleur en dur ». Le contexte de lecture —
+projet, révision, sous-projet filtré, date de calcul — est l'état que porte la coquille, et
+tout écran le lit. C'est lui que le bandeau
 de l'US-0100 affiche et que les filtres des grilles restreignent : le décider ici évite que
 chaque écran s'invente le sien.
 
@@ -487,7 +498,9 @@ d'**utiliser Waterfall toute la journée sans que l'outil me coûte plus que le 
 - `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. »
 - propre à l'US : chaque champ de saisie porte un libellé associé, et chaque image porteuse
   d'information une description — le quatrième point du corps de WF-IHM-0100, que son Vérif
-  ne reprend pas ; un contrôle automatisé d'accessibilité le vérifie dans la chaîne.
+  ne reprend pas ; un contrôle automatisé d'accessibilité le vérifie dans la chaîne ;
+- propre à l'US : le contrôle de contraste joue en mode clair et en mode sombre — la charte
+  existe dans les deux (US-0090), et un mode qui n'est pas contrôlé dérive.
 
 **Notes de réalisation.** Le contrôle de contraste est exécuté par la chaîne, sinon il n'est
 fait qu'une fois. Aucune conformité complète à un référentiel n'est visée ni déclarée
