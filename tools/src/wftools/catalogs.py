@@ -203,13 +203,13 @@ def _message(text: str, index: int, names: set[str]) -> int:
 def _quoted(text: str, index: int) -> int:
     """Skip an apostrophe as intl-messageformat reads it; return the index after it.
 
-    Two apostrophes are one, literal; one before a brace opens a literal text up to the next
-    lone apostrophe; any other is literal.
+    Two apostrophes are one, literal; one before a brace or an angle bracket — the tags of
+    rich text — opens a literal text up to the next lone apostrophe; any other is literal.
     """
     following = text[index + 1 : index + 2]
     if following == "'":
         return index + 2
-    if following not in ("{", "}"):
+    if following not in ("{", "}", "<", ">"):
         return index + 1
     index += 1
     while index < len(text):

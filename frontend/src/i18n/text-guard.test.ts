@@ -60,6 +60,7 @@ const IN_ATTRIBUTES: readonly string[] = [
   '<abbr title="Fin à début">{t("name")}</abbr>',
   '<img src="/logo.svg" alt="Waterfall" />',
   '<input placeholder="Rechercher" />',
+  '<input placeholder="empty trash first" />',
   '<input placeholder={"Rechercher"} />',
   "<input placeholder={`Rechercher`} />",
   '<button type="button" aria-label={ok ? t("name") : "Fermer"} />',

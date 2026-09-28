@@ -126,7 +126,7 @@ const OPERATOR =
 const TEXT_CHILD = ":matches(JSXElement, JSXFragment) > JSXExpressionContainer";
 const TEXT_ATTRIBUTES = [
   "JSXAttribute[name.name=/^(aria-(label|description|roledescription|valuetext|placeholder)|title|alt|label)$/]",
-  "JSXAttribute[name.name='placeholder']:not([value.value=/^(blur|empty|data:image\\/)/])",
+  "JSXAttribute[name.name='placeholder']:not([value.value=/^((blur|empty)$|data:image\\/)/])",
   "JSXOpeningElement[name.name='input']:has(> JSXAttribute[name.name='type'][value.value=/^(submit|button|reset)$/]) > JSXAttribute[name.name='value']",
 ];
 const TEXT_SYNTAX = [

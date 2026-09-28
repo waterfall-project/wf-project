@@ -255,6 +255,8 @@ def test_a_key_written_twice_fails_the_command(
         ("'{a} it''s' {b} 'x", {"b"}),
         ("{n, plural, one {'{'#'}'} other {{c}}}", {"n", "c"}),
         ("'{open", set[str]()),
+        ("'<b>{name}</b>'", set[str]()),
+        ("'<'{x}", {"x"}),
     ],
 )
 def test_the_arguments_of_a_message_are_the_names_that_open_its_braces(
