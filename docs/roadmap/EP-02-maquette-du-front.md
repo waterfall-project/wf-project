@@ -334,8 +334,11 @@ verrou.
   sous Vitest. Testing Library et user-event entrent avec les composants.
 - **Garde réseau élargie** : `no-restricted-globals` et `no-restricted-properties` déjà en
   place, étendus à `XMLHttpRequest`, `WebSocket`, `EventSource` ; `no-restricted-imports`
-  pour `openapi-fetch` hors de `src/api/` et pour tout client http. Un test lint des
-  extraits piégés et attend l'erreur.
+  et `import()` refusés pour `openapi-fetch` et les clients http connus. Seul
+  `src/api/client.ts` en est exempté — les actions serveur de `src/api/actions/` n'appellent
+  que lui, et portent `"use server"`. Un composant client n'importe de `src/api/` que ces
+  actions et des types. Un test lint des extraits piégés et attend l'erreur ; la liste des
+  dépendances est figée, pour qu'une nouvelle soit examinée pour la garde.
 - **Accessibilité** : @axe-core/playwright, niveau AA, sur chaque route de
   `functions.json`, **en clair et en sombre**, à 1366 points puis à l'agrandissement de
   150 % ; parcours au clavier, focus visible. Le helper arrive avec la coquille, chaque lot
