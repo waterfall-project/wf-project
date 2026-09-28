@@ -82,9 +82,12 @@ par cet EPIC.
 ## Opérations du contrat
 
 Aucune n'est servie : le faux back sert le contrat entier tel qu'il est, sans en choisir.
-`make build-openapi` produit le bundle dont prism part. Le parcours témoin (US-0080) consomme
-`listProjects`, `getProject`, `listRevisions` et `listNodes`, et ce sont les seules
-opérations auxquelles EP-01 ajoute des exemples : c'est sa seule modification du contrat.
+`make mock-spec` en dérive la variante que prism sert. Le parcours témoin (US-0080) consomme
+`listProjects`, `getProject`, `listRevisions`, `listCostStructures` et `listNodes`, et ce sont
+les seules opérations auxquelles EP-01 ajoute des exemples : c'est sa seule modification du
+contrat. `listCostStructures`, absente de la conception, s'est révélée nécessaire en
+livrant l'US-0030 : les nœuds se lisent par structure, et aucune des quatre autres ne la
+donne.
 
 ## Préalables
 
@@ -312,7 +315,7 @@ ouvre ces sections, avec le renvoi à l'US qui les écrira.
 
 ## US-0300 — Guide de développement et règles de codage
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #4
@@ -370,7 +373,7 @@ première table, en EP-03, dans un troisième fichier de règles de codage.
 
 ## US-0010 — Structure du dépôt et frontières du noyau
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ARC-0010-A`
 - **opérations** : aucune
 - **issue** : #5
@@ -397,7 +400,7 @@ entre eux que par leur interface publique.
 
 ## US-0310 — Chaîne d'intégration sur GitHub Actions, branches protégées, mesure des lots
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #6
@@ -467,7 +470,7 @@ EPIC, et un seuil se fixera quand il y aura de quoi le fonder.
 
 ## US-0020 — Client d'API engendré du contrat
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0060-A`
 - **opérations** : toutes, par engendrement
 - **issue** : #7
@@ -482,12 +485,12 @@ ne puisse s'installer.
 - propre à l'US : la régénération est une commande du Makefile, et la chaîne échoue si le
   client versionné diffère de celui que le contrat produit.
 - écart : « Une réponse de l'API qui ne correspond pas au schéma déclaré fait échouer la
-  chaîne » et « Aucun endpoint ne répond qui ne figure au contrat » attendent un service
+  chaîne. » et « Aucun endpoint ne répond qui ne figure au contrat. » attendent un service
   réel — EP-03.
 
 ## US-0030 — Faux back tiré du contrat
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : toutes, servies par prism depuis le bundle
 - **issue** : #8
@@ -512,7 +515,7 @@ contre le contrat (WF-ARC-0060).
 
 ## US-0040 — Fixtures engendrées des exemples chiffrés du document
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0020-A`
 - **opérations** : aucune
 - **issue** : #9
@@ -533,7 +536,7 @@ soient ceux du document, et non des nombres inventés pour la circonstance.
 
 ## US-0050 — Lint, typage et format bloquants
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0030-A`
 - **opérations** : aucune
 - **issue** : #10
@@ -562,12 +565,14 @@ avertissement ne s'accumule jusqu'à ne plus rien signifier.
   commentaire dans le code ; un tel commentaire fait échouer la chaîne. Une exception, s'il en
   faut une, s'écrit dans la configuration de l'outil, avec sa raison, là où le jeu de règles
   se lit et où son historique la montre ;
+<!-- REUSE-IgnoreStart -->
 - propre à l'US : chaque fichier source porte en tête deux lignes SPDX, le titulaire et la
   licence — `SPDX-FileCopyrightText: 2026 waterfall-project` et
   `SPDX-License-Identifier: AGPL-3.0-only` — ; les fichiers qui ne peuvent pas porter de
   commentaire, ou dont l'en-tête n'apporterait rien, sont déclarés dans le `REUSE.toml` du
   dépôt ; `reuse lint` fait échouer la chaîne sur un fichier qui n'est couvert ni par l'un ni
   par l'autre ;
+<!-- REUSE-IgnoreEnd -->
 - propre à l'US : chaque module, classe et fonction publics portent une docstring dont la
   première ligne résume ce qu'ils font ; ce qui est privé et les tests n'en demandent pas.
   Aucune section ne répète ce que la signature dit déjà — ni les types, ni la liste des
@@ -613,7 +618,7 @@ comme le code — est au guide (US-0300).
 
 ## US-0060 — Couverture des exigences et du code par les tests
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0010-A`
 - **opérations** : aucune
 - **issue** : #11
@@ -656,7 +661,7 @@ règles de codage des deux langages (US-0300), que les agents de revue cherchent
 
 ## US-0070 — Couverture des exigences par la roadmap
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #12
@@ -686,7 +691,7 @@ dépôt, et l'état des travaux n'est pas son affaire.
 
 ## US-0080 — Harnais de tests de bout en bout
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0050-A`
 - **opérations** : celles que le parcours témoin traverse
 - **issue** : #13
@@ -709,7 +714,7 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
 
 ## US-0280 — Agents de cadrage, de livraison, de développement et de revue
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #14
@@ -740,9 +745,11 @@ pendant que le précédent se développe, et que ses lots avancent sans qu'une p
   « Démarrer un EPIC » du README de la roadmap : il détaille les US, écrit la conception,
   établit le plan de lots, et s'arrête pour validation après chacune de ces trois étapes ;
   puis il ouvre les issues — EPIC, US, et lots en sous-issues —, reporte les numéros dans le
-  fichier, et prend les statuts parmi ceux du README et aucun autre. Il ne tire aucune
-  branche et n'écrit aucun code. Lancé à blanc sur EP-02, il rend la conception et le plan de
-  lots qu'il proposerait, sans rien publier ;
+  fichier, et prend les statuts parmi ceux du README et aucun autre. Il ne tire pas la
+  branche de l'EPIC et n'écrit aucun code : ses modifications de la roadmap partent de
+  `main`, sur une branche courte, et y reviennent par une pull request que fusionne une
+  personne. Lancé à blanc sur EP-02, il rend la conception et le plan de lots qu'il
+  proposerait, sans rien publier ;
 - propre à l'US : l'agent de cadrage réunit le contexte avant de poser une question — le
   fichier de l'EPIC, les exigences citées et leur Vérif, le contrat et ses décisions, les EPIC
   voisins, le code de `main` et celui de la branche de l'EPIC en cours dont il dépend —, puis

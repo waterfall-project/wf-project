@@ -1,0 +1,107 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The chain: one job decides which families a change touches, one reusable workflow per
+# family runs its checks, and the gate judges them all. The gate is the only check branch
+# protection requires: a family skipped because nothing touched it is not a failure, where a
+# required workflow that never ran would stay "expected" and block the merge.
+#
+# Two tiers: the fast one on every push to a pull request, the full one in the merge queue,
+# on the result of the merge, before it is accepted (US-0310). Every step calls the Makefile.
+name: chain
+
+on:
+  pull_request:
+    branches: [main, "epic/**"]
+  merge_group:
+  # Run by hand on a branch, every family and the full tier by default: what the merge
+  # queue runs, for a branch whose merge queue is not set yet.
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: Tier of the chain
+        type: choice
+        options: [full, fast]
+        default: full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chain-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      spec: ${{ steps.families.outputs.spec }}
+      contract: ${{ steps.families.outputs.contract }}
+      back: ${{ steps.families.outputs.back }}
+      front: ${{ steps.families.outputs.front }}
+      roadmap: ${{ steps.families.outputs.roadmap }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
+      - id: families
+        env:
+          # Empty when run by hand: every family is then run.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD: ${{ github.sha }}
+        run: make changes >> "$GITHUB_OUTPUT"
+
+  repo:
+    uses: ./.github/workflows/repo.yml
+
+  spec:
+    needs: changes
+    if: needs.changes.outputs.spec == 'true'
+    uses: ./.github/workflows/spec.yml
+
+  contract:
+    needs: changes
+    if: needs.changes.outputs.contract == 'true'
+    uses: ./.github/workflows/contract.yml
+
+  back:
+    needs: changes
+    if: needs.changes.outputs.back == 'true'
+    uses: ./.github/workflows/back.yml
+    with:
+      tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
+
+  front:
+    needs: changes
+    if: needs.changes.outputs.front == 'true'
+    uses: ./.github/workflows/front.yml
+    with:
+      tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
+
+  roadmap:
+    needs: changes
+    if: needs.changes.outputs.roadmap == 'true'
+    uses: ./.github/workflows/roadmap.yml
+
+  gate:
+    needs: [changes, repo, spec, contract, back, front, roadmap]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/uv.lock
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: make gate

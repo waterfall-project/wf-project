@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Which dependencies may run a script at installation. None needs one: unrs-resolver, used
+# by ESLint to resolve imports, ships prebuilt binaries.
+allowBuilds:
+  unrs-resolver: false

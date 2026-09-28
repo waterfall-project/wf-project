@@ -94,8 +94,12 @@ in `tools/inventory.py`.
 
 ## Changing the code
 
-There is none yet. When there is, the specification already fixes what will be asked of it,
-and it is worth knowing before writing the first line:
+Read the [development guide](docs/dev/README.md) first: where each piece lives, how it is
+named, the shape of the pieces that repeat, and which check enforces each rule. It is written
+in French, like the specification, and grows with the codebase.
+
+The specification already fixes what will be asked of the code, and it is worth knowing
+before writing the first line:
 
 - **every F0 requirement is covered by at least one automated test citing its identifier**,
   and a release is refused while one is uncovered (`WF-QUA-0010`);

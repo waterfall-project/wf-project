@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The specification: the projection builds from the Word document without a warning, and the
+# versioned projection is the one it produces. Mermaid figures are validated on a
+# workstation only (mmdc needs a browser); the build reports them as not validated here.
+name: spec
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  # The version the projection is generated with: another version of pandoc writes another
+  # Markdown, and the check would fail on a document nobody changed.
+  PANDOC_VERSION: 3.1.11.1
+  PANDOC_SHA256: ab0ac0aa1c3f9b23243d14e43023e06cbce51a52420aba17d27bd0d9c28f73ac
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pandoc
+        run: |
+          curl -sSfL -o pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+          echo "${PANDOC_SHA256}  pandoc.deb" | sha256sum --check --strict
+          sudo dpkg -i pandoc.deb
+          rm pandoc.deb
+      - run: make check-spec

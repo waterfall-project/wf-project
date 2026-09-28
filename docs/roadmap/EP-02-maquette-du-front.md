@@ -183,6 +183,8 @@ d'affichage (WF-ADM-0040), donc personnels et sans effet sur les données.
   le mock accepte sans rien garder ; elle n'est vraie qu'en EP-03.
 - écart : `WF-ADM-0040-A` — « Deux utilisateurs ouvrant le même projet voient les mêmes
   données présentées selon leurs réglages respectifs. » demande deux comptes réels — EP-03.
+- écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
+  celles d'un autre. » est l'affaire de l'US-0190, et demande des comptes réels — EP-03.
 
 ## US-0120 — Grille dense : saisie au clavier seul
 
@@ -397,6 +399,9 @@ cette US qui fixe le catalogue de codes d'erreur, et tout EPIC ultérieur y ajou
 
 - écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
   celles d'un autre. » demande des comptes réels — EP-03.
+- écart : `WF-ADM-0040-A` — « Deux utilisateurs ouvrant le même projet voient les mêmes
+  données présentées selon leurs réglages respectifs. » est l'affaire de l'US-0110, et
+  demande deux comptes réels — EP-03.
 - écart : la conservation du choix dans le compte attend EP-03, de même que `WF-INTF-0160-A`
   — « Un utilisateur dont le navigateur demande une langue non offerte obtient la langue par
   défaut de l'installation. », cette langue étant un paramètre de l'installation.
