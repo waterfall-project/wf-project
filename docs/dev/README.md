@@ -485,11 +485,13 @@ clé que le code emploie sans qu'il l'ait casse le typage, comme une clé qui ma
 catalogue anglais (`frontend/src/i18n/catalogues.ts`) ; `make lint-front` —
 `react/jsx-no-literals` refuse le texte écrit dans le JSX, et `no-restricted-syntax` un
 littéral dans un attribut lu — `aria-label`, `aria-description`, `aria-roledescription`,
-`aria-valuetext`, `aria-placeholder`, `title`, `alt`, `placeholder` (sauf `blur` et `empty`
-de next/image), `label`, la `value` d'un `input` bouton —, ou dans une branche ou une
-concaténation d'un enfant ou d'un de ces attributs ; restent à la revue les autres props de
-nos propres composants, et une chaîne bâtie hors du JSX ; `frontend/src/i18n/text-guard.test.ts` l'éprouve sur des extraits piégés, à côté de
-la garde réseau qui partage la règle ; `make catalogs`, dans `check-front`, qui lit le
+`aria-valuetext`, `aria-placeholder`, `title`, `alt`, `placeholder` (sauf `blur`, `empty` et
+une adresse `data:image/`, les formes de next/image), `label`, la `value` d'un `input`
+bouton —, ou dans une branche ou une concaténation d'un enfant ou d'un de ces attributs ;
+restent à la revue les autres props de nos propres composants, et une chaîne bâtie par une
+fonction ou une méthode (`.join`, `.concat`), dans le JSX ou hors de lui ;
+`frontend/src/i18n/text-guard.test.ts` l'éprouve sur des extraits piégés, à côté de la garde
+réseau qui partage la règle ; `make catalogs`, dans `check-front`, qui lit le
 contrat qu'il vient d'assembler (`wftools.catalogs`) — les deux catalogues ont les mêmes
 clés, chaque valeur est un texte non vide, chaque valeur d'énumération, chaque code d'erreur
 et chaque permission du contrat a la sienne, et aucune clé sous `enums`, `errors` ou

@@ -84,6 +84,17 @@ describe("the language of a request", () => {
     expect(routes(client)).toEqual(["GET /me"]);
   });
 
+  it("follows the browser for an account that never chose, and has no preference recorded", async () => {
+    request({ "GET /me": "me_without_preferences" }, "en");
+    expect(await requestLanguage()).toEqual({ locale: "en", preference: "default" });
+  });
+
+  it("lets a defect through rather than take it for an API out of reach", async () => {
+    // No answer for GET /me: the fake client fails the call, and so the request.
+    request({}, "en");
+    await expect(requestLanguage()).rejects.toThrow("fakeClient: no answer for GET /me");
+  });
+
   it("follows the browser without a session, on the sign-in page", async () => {
     const unauthorized = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
     request({ "GET /me": unauthorized }, "en");

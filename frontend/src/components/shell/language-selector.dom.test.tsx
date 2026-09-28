@@ -116,6 +116,19 @@ describe("the language selector", () => {
     expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("fr");
   });
 
+  it("shows the preference a new render reads, not the one it was first given", async () => {
+    // The account changed elsewhere — another tab, another workstation — and the page is
+    // rendered again.
+    const client = fakeClient({ "GET /me": ["me", "me_english"] });
+    server.client = client;
+    const view = render(await layout());
+    expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("default");
+
+    view.rerender(await layout());
+
+    expect(screen.getByRole("combobox", { name: "Language" })).toHaveValue("en");
+  });
+
   it("keeps the last preference chosen when handed a value that is not one", async () => {
     const client = await open({ "GET /me": "me", [PREFERENCES]: "preferences" });
     fireEvent.change(screen.getByRole("combobox", { name: "Langue" }), {

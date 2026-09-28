@@ -29,6 +29,14 @@ export function LanguageSelector({ preference }: LanguageSelectorProps) {
   const messages = useMessages();
   const id = useId();
   const [chosen, choose] = useState(preference);
+  // A new render may read another preference — the one just applied, or one changed from
+  // another workstation —: the selector shows it. Adjusted while rendering, not by
+  // remounting (a key), which would take the focus from the button just pressed.
+  const [shown, show] = useState(preference);
+  if (preference !== shown) {
+    show(preference);
+    choose(preference);
+  }
   const [pending, startTransition] = useTransition();
   const [problem, setProblem] = useState<components["schemas"]["Problem"]>();
 

@@ -61,9 +61,9 @@ est une traduction oubliée (WF-QUA-0070). *Contrôle* : `react/jsx-no-literals`
 `no-restricted-syntax` (`make lint-front`) refusent le texte du JSX et les attributs lus —
 `aria-label` et ses pareils, `title`, `alt`, `placeholder`, `label`, la `value` d'un
 bouton `input` — écrits en littéral, dans une branche ou une concaténation. Restent à la
-revue : les autres props de nos propres composants (`heading="…"`), et une chaîne bâtie
-hors du JSX — un message construit dans une fonction. `make typecheck-front` et `make catalogs` tiennent les
-clés : guide, « Clés de traduction ».
+revue : les autres props de nos propres composants (`heading="…"`), et une chaîne bâtie par
+une fonction ou une méthode (`.join`, `.concat`), dans le JSX ou hors de lui.
+`make typecheck-front` et `make catalogs` tiennent les clés : guide, « Clés de traduction ».
 
 ### Un nombre ne passe jamais par un flottant
 

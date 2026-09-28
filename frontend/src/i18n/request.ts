@@ -13,6 +13,7 @@
 import "server-only";
 
 import { headers } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import { getRequestConfig } from "next-intl/server";
 import { cache } from "react";
 
@@ -32,14 +33,20 @@ export interface RequestLanguage {
 }
 
 /**
- * Call the API, or `undefined` when it cannot be reached: the language of a page never waits
- * on it — the page itself says the API is out of reach (US-0170).
+ * Call the API, or `undefined` when it cannot be reached — `fetch` failing, a `TypeError`: the
+ * language of a page never waits on it, and the page itself says the API is out of reach
+ * (US-0170). Any other error is a defect, and goes on: an error of Next first, which it must
+ * handle itself, then the rest — a fake client's call without an answer among them.
  */
 async function reach<T>(call: () => Promise<T>): Promise<T | undefined> {
   try {
     return await call();
-  } catch {
-    return undefined;
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof TypeError) {
+      return undefined;
+    }
+    throw error;
   }
 }
 

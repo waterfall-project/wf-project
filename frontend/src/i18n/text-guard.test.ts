@@ -88,6 +88,7 @@ const ALLOWED: readonly string[] = [
   '<input type="text" value="fr" readOnly />',
   '<Image src="/logo.svg" alt="" width={10} height={10} placeholder="blur" />',
   '<Image src="/logo.svg" alt="" width={10} height={10} placeholder="empty" />',
+  '<Image src="/logo.svg" alt="" width={10} height={10} placeholder="data:image/png;base64,iVBORw0KGgo=" />',
 ];
 
 let eslint: ESLint;

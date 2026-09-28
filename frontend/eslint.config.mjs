@@ -115,8 +115,9 @@ const ACTION_SYNTAX = {
 //
 // A literal passed to a function, `t(ok ? "yes" : "no")`, is a key, not a text; an empty
 // alt, the mark of a decorative image, is no text either, nor the placeholder of next/image,
-// `blur` or `empty`. What stays with the review: the props of our own components other than
-// `label`, and a string built outside the JSX.
+// `blur`, `empty` or a `data:image/` address. What stays with the review: the props of our
+// own components other than `label`, and a string built by a function or a method
+// (`.join`, `.concat`), in the JSX or outside it.
 const TEXT = "Write the text in the catalogues of messages/, and read it with next-intl.";
 const TEXT_VALUE =
   ":matches(Literal[value=/\\S/], TemplateLiteral:has(> TemplateElement[value.raw=/\\S/]))";
@@ -125,7 +126,7 @@ const OPERATOR =
 const TEXT_CHILD = ":matches(JSXElement, JSXFragment) > JSXExpressionContainer";
 const TEXT_ATTRIBUTES = [
   "JSXAttribute[name.name=/^(aria-(label|description|roledescription|valuetext|placeholder)|title|alt|label)$/]",
-  "JSXAttribute[name.name='placeholder']:not([value.value=/^(blur|empty)$/])",
+  "JSXAttribute[name.name='placeholder']:not([value.value=/^(blur|empty|data:image\\/)/])",
   "JSXOpeningElement[name.name='input']:has(> JSXAttribute[name.name='type'][value.value=/^(submit|button|reset)$/]) > JSXAttribute[name.name='value']",
 ];
 const TEXT_SYNTAX = [
