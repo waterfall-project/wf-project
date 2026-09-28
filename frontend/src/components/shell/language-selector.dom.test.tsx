@@ -1,0 +1,107 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { requestLanguage } from "@/i18n/request";
+import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+
+import { Shell } from "./shell";
+
+// The server of Next, as far as the shell needs it: the fake back behind serverClient, the
+// Accept-Language of the browser, and the refresh a server action asks for, which renders
+// the layout again.
+const server = vi.hoisted((): { client: FakeClient | undefined; refresh: () => unknown } => ({
+  client: undefined,
+  refresh: () => undefined,
+}));
+
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/headers", () => ({
+  headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR,fr;q=0.9" })),
+}));
+vi.mock("next/cache", () => ({ refresh: () => server.refresh() }));
+
+const PREFERENCES = "PATCH /me/preferences";
+
+/** Render the shell as the root layout does: the language of the request, then the page. */
+async function layout() {
+  const { locale, preference } = await requestLanguage();
+  return (
+    <Shell locale={locale} preference={preference}>
+      <main />
+    </Shell>
+  );
+}
+
+/** Serve the fake back, render the shell, and render it again on each refresh. */
+async function open(answers: FakeAnswers): Promise<FakeClient> {
+  const client = fakeClient(answers);
+  server.client = client;
+  const view = render(await layout());
+  server.refresh = async () => {
+    view.rerender(await layout());
+  };
+  return client;
+}
+
+/** The bodies the shell sent to an operation. */
+function sent(client: FakeClient, route: string): unknown[] {
+  return client.calls.filter((call) => call.route === route).map((call) => call.body);
+}
+
+beforeEach(() => {
+  server.refresh = () => undefined;
+});
+
+describe("the language selector", () => {
+  it("offers the browser's language, French and English, in the language of the page", async () => {
+    await open({ "GET /me": "me" });
+    const select = screen.getByRole("combobox", { name: "Langue" });
+    expect(select).toHaveValue("default");
+    const options = screen.getAllByRole("option").map((option) => option.textContent);
+    expect(options).toEqual(["Langue du navigateur", "Français", "English"]);
+  });
+
+  it("applies the chosen language without signing in again [WF-INTF-0160-A]", async () => {
+    // The back keeps the choice, and the next read of the account returns it; the fake back
+    // keeps nothing, so the second answer of GET /me stands in for what it would keep.
+    const client = await open({ "GET /me": ["me", "me_english"], [PREFERENCES]: "preferences" });
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "en");
+
+    const select = await screen.findByRole("combobox", { name: "Language" });
+    expect(select).toHaveValue("en");
+    expect(screen.getByRole("option", { name: "Browser language" })).toBeInTheDocument();
+    expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
+    // Two reads of the account and one write: no new session was asked for.
+    expect(client.calls.map((call) => call.route)).toEqual(["GET /me", PREFERENCES, "GET /me"]);
+  });
+
+  it("says why the API refused the choice, in the language of the page", async () => {
+    const expired = { problem: { code: "SESSION_EXPIRED", status: 401 } } as const;
+    const refresh = vi.fn();
+    const client = await open({ "GET /me": "me", [PREFERENCES]: expired });
+    server.refresh = refresh;
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "fr");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Votre session a expiré\u202F; reconnectez-vous.");
+    expect(sent(client, PREFERENCES)).toEqual([{ language: "fr" }]);
+    expect(refresh).not.toHaveBeenCalled();
+    // The refusal leaves the preference of the account as it was.
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("default");
+    });
+  });
+
+  it("sends nothing for a value that is not a preference", async () => {
+    const client = await open({ "GET /me": "me" });
+    fireEvent.change(screen.getByRole("combobox", { name: "Langue" }), {
+      target: { value: "de" },
+    });
+    expect(sent(client, PREFERENCES)).toEqual([]);
+  });
+});

@@ -1,0 +1,530 @@
+{
+  "app": {
+    "name": "Waterfall"
+  },
+  "languageSelector": {
+    "label": "Langue"
+  },
+  "errors": {
+    "MALFORMED_REQUEST": "La requête est mal formée.",
+    "CONFIRMATION_REQUIRED": "Cette opération demande une confirmation explicite.",
+    "SESSION_REQUIRED": "Vous devez vous connecter.",
+    "SESSION_EXPIRED": "Votre session a expiré ; reconnectez-vous.",
+    "INVALID_CREDENTIALS": "Adresse électronique ou mot de passe incorrect.",
+    "PERMISSION_MISSING": "Vous n’avez pas la permission nécessaire.",
+    "NOT_CONTRIBUTOR": "Seuls les contributeurs du projet peuvent le faire.",
+    "PROJECT_TERMINAL": "Le projet est clos : il ne se modifie plus.",
+    "REVISION_MARKED": "La révision est marquée : elle ne se modifie plus.",
+    "NOT_FOUND": "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès.",
+    "STATE_FORBIDS_OPERATION": "L’état actuel ne permet pas cette opération.",
+    "ALREADY_EXISTS": "Cet élément existe déjà.",
+    "CURRENT_REVISION_EXISTS": "Le projet a déjà une révision en cours d’élaboration.",
+    "REFERENCE_NOT_CORRECTABLE": "La révision de référence ne peut plus être corrigée.",
+    "UNDO_CONFLICT": "Impossible d’annuler : la donnée a été modifiée depuis.",
+    "LAST_ADMINISTRATOR": "Au moins un compte actif doit garder les permissions d’administration.",
+    "ACCESS_ROLE_IN_USE": "Ce rôle d’habilitation est encore attribué à des comptes.",
+    "DEFAULT_CALENDAR_REQUIRED": "Un calendrier par défaut est requis.",
+    "HAS_ACTUAL_COSTS": "Des coûts réels y sont imputés.",
+    "TASK_ALREADY_STARTED": "La tâche a déjà démarré.",
+    "TASK_COMPLETED": "La tâche est terminée.",
+    "WIN_PROBABILITY_FROZEN": "La probabilité de gain ne se modifie plus une fois le projet en cours.",
+    "REFERENCE_INCOMPLETE": "Le référentiel minimal est incomplet.",
+    "PASSWORD_RESET_TOKEN_INVALID": "Ce lien de réinitialisation n’est plus valable.",
+    "ACCOUNT_LOCKED": "Compte verrouillé après trop d’échecs ; réessayez dans quinze minutes.",
+    "STALE_LOCK_VERSION": "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
+    "FILE_TOO_LARGE": "Le fichier dépasse la taille admise.",
+    "VALIDATION_FAILED": "Les données saisies ne sont pas valides.",
+    "COMPUTED_VALUE": "Cette valeur est calculée : elle ne se saisit pas.",
+    "SUMMARY_TASK_DERIVED": "Une tâche récapitulative tient ses valeurs de ses subordonnées.",
+    "LINK_CYCLE": "Cette liaison créerait une boucle.",
+    "LINK_FORBIDDEN": "Cette liaison n’est pas permise.",
+    "RESOURCE_ROLE_REQUIRED": "Un rôle de ressource est requis.",
+    "LABOUR_CATEGORY_REQUIRED": "Une catégorie de coût de main-d’œuvre est requise.",
+    "HOURLY_RATE_MISSING": "Aucun taux horaire n’est défini pour ce rôle et cette année.",
+    "PROJECT_CODE_REQUIRED": "Le code projet doit être renseigné.",
+    "PASTE_TOO_WIDE": "Les données collées ont plus de colonnes que la grille.",
+    "FILE_FORMAT_UNREADABLE": "Le format du fichier est illisible.",
+    "VALUE_REQUIRED": "Une valeur est requise.",
+    "VALUE_TOO_LONG": "La valeur est trop longue.",
+    "VALUE_OUT_OF_RANGE": "La valeur sort des limites admises.",
+    "NUMBER_INVALID": "Ce n’est pas un nombre valide.",
+    "DATE_INVALID": "Ce n’est pas une date valide.",
+    "UNKNOWN_COST_CATEGORY": "Catégorie de coût inconnue.",
+    "UNKNOWN_RESOURCE_ROLE": "Rôle de ressource inconnu.",
+    "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
+    "UNKNOWN_TASK": "Tâche inconnue.",
+    "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
+    "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
+    "INTERNAL_ERROR": "Erreur inattendue du service."
+  },
+  "problemDetails": {
+    "missing_permission": "Permission requise : {permission}.",
+    "missing_condition": "Condition non remplie : {condition}.",
+    "missing_prerequisites": "À compléter : {prerequisites}.",
+    "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}}.",
+    "component": "Composant indisponible : {component}."
+  },
+  "permissions": {
+    "users": {
+      "read": "Consulter les utilisateurs",
+      "write": "Modifier les utilisateurs"
+    },
+    "access_roles": {
+      "read": "Consulter les rôles d’habilitation",
+      "write": "Modifier les rôles d’habilitation"
+    },
+    "system_status": {
+      "read": "Consulter l’état du système",
+      "write": "Modifier l’état du système"
+    },
+    "backups": {
+      "read": "Consulter les sauvegardes",
+      "write": "Modifier les sauvegardes"
+    },
+    "portfolio_projects": {
+      "read": "Consulter le portefeuille de projets",
+      "write": "Modifier le portefeuille de projets"
+    },
+    "portfolio_workload": {
+      "read": "Consulter le plan de charge agrégé",
+      "write": "Modifier le plan de charge agrégé"
+    },
+    "portfolio_performance": {
+      "read": "Consulter la performance du portefeuille",
+      "write": "Modifier la performance du portefeuille"
+    },
+    "portfolio_cost_structure": {
+      "read": "Consulter la structure des coûts du portefeuille",
+      "write": "Modifier la structure des coûts du portefeuille"
+    },
+    "portfolio_risks": {
+      "read": "Consulter les risques du portefeuille",
+      "write": "Modifier les risques du portefeuille"
+    },
+    "portfolio_cash_out": {
+      "read": "Consulter les décaissements du portefeuille",
+      "write": "Modifier les décaissements du portefeuille"
+    },
+    "portfolio_pilot_health": {
+      "read": "Consulter la santé du pilotage",
+      "write": "Modifier la santé du pilotage"
+    },
+    "cost_settings": {
+      "read": "Consulter les paramètres de coûts",
+      "write": "Modifier les paramètres de coûts"
+    },
+    "resource_settings": {
+      "read": "Consulter les paramètres de ressources",
+      "write": "Modifier les paramètres de ressources"
+    },
+    "risk_settings": {
+      "read": "Consulter les paramètres de risques",
+      "write": "Modifier les paramètres de risques"
+    },
+    "indicator_settings": {
+      "read": "Consulter les paramètres d’indicateurs",
+      "write": "Modifier les paramètres d’indicateurs"
+    },
+    "revisions": {
+      "read": "Consulter les révisions",
+      "write": "Modifier les révisions"
+    },
+    "project_settings": {
+      "read": "Consulter les paramètres de projets",
+      "write": "Modifier les paramètres de projets"
+    },
+    "planning": {
+      "read": "Consulter la planification",
+      "write": "Modifier la planification"
+    },
+    "estimate": {
+      "read": "Consulter le chiffrage et le devis",
+      "write": "Modifier le chiffrage et le devis"
+    },
+    "remaining": {
+      "read": "Consulter l’estimation du reste à engager",
+      "write": "Modifier l’estimation du reste à engager"
+    },
+    "risks": {
+      "read": "Consulter la gestion des risques",
+      "write": "Modifier la gestion des risques"
+    },
+    "actual_costs": {
+      "read": "Consulter les coûts réels",
+      "write": "Modifier les coûts réels"
+    },
+    "project_indicators": {
+      "read": "Consulter les indicateurs projets",
+      "write": "Modifier les indicateurs projets"
+    },
+    "lifecycle": {
+      "read": "Consulter le cycle de vie du projet",
+      "write": "Modifier le cycle de vie du projet"
+    },
+    "revision_mark": "Marquer une révision",
+    "reference_designate": "Désigner la révision de référence",
+    "project_exit": "Clore un projet : terminé, perdu ou abandonné",
+    "risk_occurrence": "Déclarer la survenance d’un risque",
+    "cost_line_exclude": "Exclure des lignes de coût réel",
+    "platform_restore": "Restaurer la plateforme"
+  },
+  "enums": {
+    "ComponentHealth": {
+      "component": {
+        "api": "Service d’API",
+        "worker": "Traitements de fond",
+        "database": "Base de données",
+        "cache": "Cache",
+        "object_storage": "Stockage des fichiers",
+        "directory": "Annuaire",
+        "metrics": "Métriques"
+      }
+    },
+    "AlertZone": {
+      "nominal": "Nominal",
+      "watch": "Vigilance",
+      "alert": "Alerte"
+    },
+    "Alert": {
+      "code": {
+        "component_unavailable": "Composant indisponible",
+        "task_queue_stalled": "File des traitements bloquée",
+        "scheduled_backup_failed": "Échec de la sauvegarde planifiée",
+        "directory_sync_failed": "Échec de la synchronisation de l’annuaire",
+        "storage_nearly_full": "Stockage presque plein",
+        "error_rate_abnormal": "Taux d’erreur anormal"
+      }
+    },
+    "Language": {
+      "fr": "Français",
+      "en": "English"
+    },
+    "BackgroundTaskRef": {
+      "kind": {
+        "import_analysis": "Analyse d’un import",
+        "import_apply": "Application d’un import",
+        "revision_mark": "Marquage d’une révision",
+        "structure_merge": "Fusion d’une structure",
+        "risk_occurrence": "Survenance d’un risque",
+        "export": "Export",
+        "backup": "Sauvegarde",
+        "restore": "Restauration",
+        "directory_sync": "Synchronisation de l’annuaire"
+      },
+      "status": {
+        "queued": "En attente",
+        "running": "En cours",
+        "succeeded": "Réussie",
+        "failed": "Échouée"
+      }
+    },
+    "AuthProviderKind": {
+      "local": "Compte local",
+      "ldap": "Annuaire LDAP",
+      "oidc": "Fournisseur d’identité (OIDC)"
+    },
+    "UserOrigin": {
+      "local": "Créé dans Waterfall",
+      "directory": "Importé de l’annuaire",
+      "identity_provider": "Créé par le fournisseur d’identité"
+    },
+    "ActorRef": {
+      "kind": {
+        "user": "Utilisateur",
+        "platform": "Traitement automatique"
+      }
+    },
+    "SortOrder": {
+      "asc": "Croissant",
+      "desc": "Décroissant"
+    },
+    "DisplayPreferences": {
+      "language": {
+        "default": "Langue du navigateur",
+        "fr": "Français",
+        "en": "English"
+      },
+      "theme": {
+        "default": "Réglage du poste",
+        "light": "Clair",
+        "dark": "Sombre"
+      }
+    },
+    "Permission": {
+      "kind": {
+        "function_read": "Consultation d’une fonction",
+        "function_write": "Modification d’une fonction",
+        "irreversible": "Action irréversible ou structurante"
+      }
+    },
+    "Backup": {
+      "verification": {
+        "pending": "Vérification en attente",
+        "passed": "Vérifiée",
+        "failed": "Vérification échouée"
+      },
+      "scope": {
+        "database": "Base de données"
+      },
+      "origin": {
+        "manual": "Manuelle",
+        "scheduled": "Planifiée"
+      }
+    },
+    "BackupSchedule": {
+      "frequency": {
+        "daily": "Quotidienne",
+        "weekly": "Hebdomadaire"
+      }
+    },
+    "ReferenceReadiness": {
+      "missing": {
+        "default_calendar_with_hours": "un calendrier par défaut pourvu d’heures travaillées",
+        "active_cost_category": "une catégorie de coût active",
+        "active_resource_role": "un rôle de ressource actif"
+      }
+    },
+    "CostTypeKind": {
+      "labor": "Main-d’œuvre",
+      "non_labor": "Hors main-d’œuvre",
+      "provision": "Provision"
+    },
+    "ProjectState": {
+      "created": "Créé",
+      "pricing": "Chiffrage",
+      "in_progress": "En cours",
+      "completed": "Terminé",
+      "lost": "Perdu",
+      "abandoned": "Abandonné"
+    },
+    "ProjectCommand": {
+      "update": "Modifier le projet",
+      "manage_contributors": "Gérer les contributeurs",
+      "create_revision": "Créer une révision",
+      "complete": "Terminer le projet",
+      "lose": "Déclarer le projet perdu",
+      "abandon": "Abandonner le projet",
+      "edit_risks": "Modifier les risques",
+      "declare_risk_occurrence": "Déclarer la survenance d’un risque",
+      "import_actual_costs": "Importer les coûts réels",
+      "exclude_cost_lines": "Exclure des lignes de coût"
+    },
+    "CommandCondition": {
+      "is_contributor": "être contributeur du projet",
+      "project_not_terminal": "projet non clos",
+      "project_in_progress": "projet en cours",
+      "project_in_pricing": "projet en chiffrage",
+      "project_code_set": "code projet renseigné",
+      "reference_revision_designated": "révision de référence désignée",
+      "at_least_one_task": "au moins une tâche",
+      "at_least_one_estimate_line": "au moins une ligne de devis",
+      "no_current_revision": "aucune révision en cours d’élaboration",
+      "revision_draft": "révision en cours d’élaboration",
+      "revision_marked": "révision marquée",
+      "reference_correctable": "référence encore corrigeable",
+      "unmerged_amendment_exists": "un avenant non fusionné",
+      "task_not_completed": "tâche non terminée",
+      "hourly_rates_set": "taux horaires renseignés"
+    },
+    "ProjectExit": {
+      "to_state": {
+        "completed": "Terminé",
+        "lost": "Perdu",
+        "abandoned": "Abandonné"
+      }
+    },
+    "RevisionStatus": {
+      "draft": "En cours d’élaboration",
+      "marked": "Marquée"
+    },
+    "RevisionCommand": {
+      "edit_planning": "Modifier le planning",
+      "edit_estimate": "Modifier le devis",
+      "edit_remaining": "Réestimer le reste à engager",
+      "create_structure": "Créer une structure",
+      "merge_structure": "Fusionner une structure",
+      "mark": "Marquer la révision",
+      "designate_reference": "Désigner comme référence",
+      "abandon": "Abandonner la révision"
+    },
+    "RateUpdateProposal": {
+      "categories": {
+        "source": {
+          "reference_rate": "Taux du référentiel",
+          "inflated_previous": "Taux précédent, projeté par l’inflation"
+        }
+      }
+    },
+    "NodeKind": {
+      "task": "Tâche",
+      "estimate_line": "Ligne de devis"
+    },
+    "ComparedNode": {
+      "changes": {
+        "dates": "Dates",
+        "duration": "Durée",
+        "progress": "Avancement",
+        "budgeted_amount": "Montant budgété",
+        "reestimated_amount": "Montant réestimé",
+        "parent": "Rattachement"
+      }
+    },
+    "RevisionComparison": {
+      "amount_deltas": {
+        "dimension": {
+          "cost_type": "Nature de coût",
+          "subproject": "Sous-projet"
+        }
+      }
+    },
+    "StructureKind": {
+      "main": "Structure principale",
+      "amendment": "Avenant",
+      "risk": "Devis de risque"
+    },
+    "StructureCreate": {
+      "kind": {
+        "amendment": "Avenant",
+        "risk": "Devis de risque"
+      }
+    },
+    "TaskProgress": {
+      "not_started": "Non démarrée",
+      "started": "Démarrée",
+      "completed": "Terminée"
+    },
+    "SchedulingMode": {
+      "automatic": "Automatique",
+      "manual": "Manuel"
+    },
+    "TrackingEntry": {
+      "kind": {
+        "timeline": "Chronologie",
+        "milestone_tracking": "Suivi de jalon"
+      }
+    },
+    "LinkType": {
+      "finish_to_start": "Fin à début (FD)",
+      "start_to_start": "Début à début (DD)",
+      "finish_to_finish": "Fin à fin (FF)",
+      "start_to_finish": "Début à fin (DF)"
+    },
+    "ComputedField": {
+      "task": {
+        "duration_days": "Durée (jours)",
+        "start_date": "Début",
+        "finish_date": "Fin",
+        "progress": "Avancement"
+      },
+      "estimate_line": {
+        "quantity": "Quantité",
+        "hours": "Heures",
+        "unit_disbursement": "Débours unitaire"
+      }
+    },
+    "ProgressUpdate": {
+      "progress": {
+        "started": "Démarrée",
+        "completed": "Terminée"
+      }
+    },
+    "WorkloadPlan": {
+      "basis": {
+        "estimate": "Devis",
+        "remaining": "Reste à engager"
+      }
+    },
+    "CurveSeries": {
+      "series": {
+        "name": {
+          "reference_budget": "Budget de référence",
+          "planned_value": "Valeur planifiée",
+          "earned_value": "Valeur acquise",
+          "actual_cost": "Coût réel",
+          "project_manager_projection": "Projection du chef de projet"
+        }
+      },
+      "steps": {
+        "cause": {
+          "amendment": "Avenant",
+          "risk_occurred": "Risque survenu",
+          "last_risk_dismissed": "Dernier risque écarté"
+        }
+      }
+    },
+    "RiskState": {
+      "identified": "Identifié",
+      "occurred": "Survenu",
+      "dismissed": "Écarté"
+    },
+    "RiskReviewWrite": {
+      "state": {
+        "identified": "Identifié",
+        "dismissed": "Écarté"
+      }
+    },
+    "ExchangeKind": {
+      "ms_project_schedule": "Planning MS Project",
+      "estimate": "Devis",
+      "remaining": "Reste à engager",
+      "actual_costs": "Coûts réels"
+    },
+    "ImportDifference": {
+      "change": {
+        "added": "Ajouté",
+        "removed": "Retiré",
+        "updated": "Modifié"
+      },
+      "target": {
+        "task": "Tâche",
+        "estimate_line": "Ligne de devis",
+        "link": "Liaison",
+        "actual_cost_line": "Ligne de coût réel"
+      }
+    },
+    "ImportReport": {
+      "requires_confirmation_reasons": {
+        "date_or_duration_mismatch": "Dates ou durées différentes de celles que Waterfall recalcule",
+        "lines_outside_project": "Lignes hors du projet",
+        "unknown_subproject": "Sous-projet inconnu"
+      }
+    },
+    "Import": {
+      "status": {
+        "analysing": "Analyse en cours",
+        "analysed": "Analysé",
+        "applying": "Application en cours",
+        "applied": "Appliqué",
+        "abandoned": "Abandonné",
+        "expired": "Expiré",
+        "failed": "Échoué"
+      }
+    },
+    "ExportRequest": {
+      "kind": {
+        "ms_project_schedule": "Planning MS Project",
+        "estimate": "Devis",
+        "remaining": "Reste à engager",
+        "task_tree_image": "Image de l’arborescence de tâches"
+      }
+    },
+    "PortfolioPerformance": {
+      "zone_distribution": {
+        "index": {
+          "cost": "Indice de coût",
+          "schedule": "Indice de délai"
+        }
+      }
+    },
+    "PilotHealth": {
+      "signals": {
+        "code": {
+          "review_overdue": "Revue périodique en retard",
+          "risks_not_reviewed": "Risques non réexaminés",
+          "no_actual_cost_since_last_review": "Aucun coût réel depuis la dernière revue",
+          "contractual_milestone_overdue": "Jalon contractuel dépassé"
+        }
+      }
+    }
+  }
+}

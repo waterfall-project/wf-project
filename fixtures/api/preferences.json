@@ -1,0 +1,9 @@
+{
+  "summary": "Les préférences enregistrées après le choix de l'anglais.",
+  "value": {
+    "language": "en",
+    "theme": "default",
+    "highlight_tasks_added_after_reference": false,
+    "grids": {}
+  }
+}

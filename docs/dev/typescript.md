@@ -18,6 +18,7 @@ dernière section.
 | Client de l'API engendré du contrat | `frontend/src/api/generated/` | `make client-up-to-date` |
 | Aucun commentaire de configuration d'ESLint dans le code | `noInlineConfig` de `frontend/eslint.config.mjs` | `make lint-front` |
 | Aucun commentaire d'exemption (`eslint-disable`, `@ts-ignore`, `prettier-ignore`…) ; `TODO(#12)` ; 1 000 lignes au plus | `tools/src/wftools/sources.py` | `make sources` |
+| Aucun texte d'interface écrit en dur ; catalogues typés par la référence | `frontend/eslint.config.mjs`, `frontend/messages/` | `make lint-front`, `make typecheck-front`, `wftools.catalogs` |
 | Couverture du code : 90 % des lignes, 85 % des branches | seuils dans `tools/src/wftools/codecoverage.py` ; mesure réglée par `coverage` de `frontend/vitest.config.ts` | `make coverage-front` |
 
 ## Règles de conception
@@ -56,9 +57,23 @@ traduction ; un message d'erreur se construit depuis le `code` et les `params` d
 l'enveloppe. Ce que l'utilisateur a saisi s'affiche tel quel, jamais traduit.
 
 *Pourquoi* : l'interface existe en français et en anglais (§3.1.5), et une chaîne en dur
-est une traduction oubliée (WF-QUA-0070). *Contrôle* : le contrôle de complétude des
-catalogues arrive avec EP-02 ; jusque-là, la revue. Les trois pages du parcours témoin
-n'affichent que des données, et EP-02 les remplace.
+est une traduction oubliée (WF-QUA-0070). *Contrôle* : `react/jsx-no-literals` et
+`no-restricted-syntax` (`make lint-front`) refusent le texte du JSX et les attributs lus
+écrits en littéral ; une chaîne hors du JSX — un message construit dans une fonction —
+leur échappe, et reste à la revue. `make typecheck-front` et le contrôle croisé des
+catalogues tiennent les clés : guide, « Clés de traduction ».
+
+### Un nombre ne passe jamais par un flottant
+
+Un `Decimal`, un `Money`, des `Hours` se formatent depuis la chaîne du contrat, par
+`src/i18n/format.ts` ; aucun `Number()`, `parseFloat` ni opération arithmétique ne les
+touche. Une date de planning s'affiche telle quelle, sans fuseau ; un horodatage, en heure
+locale du poste, dans le navigateur (`LocalTime`).
+
+*Pourquoi* : un flottant arrondit ce que le serveur a calculé exactement (WF-DAT-0100), et
+une date lue à minuit dans le fuseau du poste tombe la veille à l'ouest de Greenwich.
+*Contrôle* : la revue ; les tests de `src/i18n/format.test.ts` éprouvent les formats sous
+plusieurs fuseaux.
 
 ### Où s'exécute un composant
 

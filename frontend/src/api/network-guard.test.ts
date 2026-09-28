@@ -119,8 +119,10 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 ].map((code) => USE_CLIENT + code);
 
 // The dependencies of package.json, each examined for the lists of the guard. A new one
-// fails this test until someone has asked whether it reaches the network.
-const DEPENDENCIES = ["next", "openapi-fetch", "react", "react-dom", "server-only"];
+// fails this test until someone has asked whether it reaches the network. next-intl
+// (US-0190) does not: it reads the catalogues it is handed, and its message extractor, which
+// watches files, is not used.
+const DEPENDENCIES = ["next", "next-intl", "openapi-fetch", "react", "react-dom", "server-only"];
 const DEV_DEPENDENCIES = [
   "@eslint/js",
   "@playwright/test",

@@ -677,7 +677,7 @@ longue.
 
 ## US-0190 — Langue de l'interface, catalogues et formats d'affichage
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-INTF-0160-A`, `WF-INTF-0170-A`, `WF-INTF-0180-A`, `WF-ADM-0040-A`, `WF-QUA-0070-A`, `WF-DAT-0100-A`
 - **opérations** : `getMe`, `updateMyPreferences`, `getInstallation`
 - **issue** : #83

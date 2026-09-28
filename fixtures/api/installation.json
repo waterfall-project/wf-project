@@ -1,0 +1,6 @@
+{
+  "summary": "Une installation dont la langue par défaut est le français.",
+  "value": {
+    "default_language": "fr"
+  }
+}

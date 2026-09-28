@@ -1,0 +1,35 @@
+{
+  "summary": "Camille Martin, cheffe de projet, dont l'interface suit la langue du navigateur.",
+  "value": {
+    "user_id": "01926f3a-7c00-7000-8000-000000000301",
+    "last_name": "Martin",
+    "first_name": "Camille",
+    "email": "camille.martin@example.com",
+    "is_active": true,
+    "origin": "local",
+    "org_node_id": null,
+    "access_role_ids": [
+      "01926f3a-7c00-7000-8000-000000000701"
+    ],
+    "has_avatar": false,
+    "audit": {
+      "created_at": "2026-01-05T09:00:00Z",
+      "created_by": {
+        "kind": "platform"
+      },
+      "updated_at": "2026-03-16T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 3,
+    "display_preferences": {
+      "language": "default",
+      "theme": "default",
+      "highlight_tasks_added_after_reference": false,
+      "grids": {}
+    }
+  }
+}
