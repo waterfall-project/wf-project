@@ -51,9 +51,11 @@ Le front est une application Next.js en TypeScript strict (`frontend/tsconfig.js
 à la version que nomme `packageManager` dans `package.json`, lancée par corepack
 (`corepack enable pnpm`) ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
 avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `*.test.tsx`
-à côté du code qu'ils éprouvent, lancés par Vitest en deux projets (`vitest.config.ts`) :
-`node` pour les `*.test.ts`, `jsdom` pour les `*.test.tsx`, les composants, que Testing
-Library rend.
+à côté du code qu'ils éprouvent, lancés par Vitest en deux projets (`vitest.config.ts`),
+que le nom du fichier départage : `node` pour les `*.test.ts` et `*.test.tsx` — la logique,
+et les composants serveur de `src/app/`, qui se rendent sans document comme en production —,
+`dom` pour les `*.dom.test.ts` et `*.dom.test.tsx` — les composants client, que Testing
+Library rend dans le document de happy-dom.
 
 L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
 empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
@@ -63,14 +65,18 @@ Le client de l'API est engendré du contrat (PBS-1.2, WF-ARC-0060) : `make gener
 `frontend/src/api/client.ts` en fait des appels typés par openapi-fetch. Une opération qui
 manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
 fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors de
-`frontend/src/api/`, et seul le serveur Next appelle l'API : `client.ts` et `server.ts`
-importent `server-only`, et un composant client qui les importerait ne se construit pas.
+`frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client
+n'importe de `src/api/` que ses actions serveur (`src/api/actions/`) et des types.
 
 *Contrôles* : `make client-up-to-date` échoue si le client versionné n'est pas celui que le
 contrat produit ; une modification du contrat réveille donc la famille front. ESLint refuse
-hors de `src/api/` tout moyen d'atteindre le réseau — `fetch`, `XMLHttpRequest`,
-`WebSocket`, `EventSource`, un client http importé —, et `src/api/network-guard.test.ts`
-l'éprouve sur des extraits piégés. `make typecheck-front`, `make test-front` ;
+hors de `src/api/client.ts` les moyens connus d'atteindre le réseau — `fetch`,
+`XMLHttpRequest`, `WebSocket`, `EventSource`, un client http importé —, et, dans un fichier
+`"use client"`, l'import de `src/api/` hors des actions serveur ;
+`src/api/network-guard.test.ts` l'éprouve sur des extraits piégés, et fige la liste des
+dépendances de `package.json`, pour qu'une nouvelle soit examinée pour la garde avant
+d'entrer. `client.ts` et `server.ts` importent aussi `server-only` : c'est le filet de
+`next build`, qu'aucun contrôle ne lance encore (#131), pas un contrôle de la chaîne. `make typecheck-front`, `make test-front` ;
 `make lint-docker` (hadolint).
 
 ## Le faux back
@@ -280,8 +286,10 @@ les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se d�
   par fichier (`max-lines`) ;
 - une docstring JSDoc pour ce qui est exporté, sans type — TypeScript les porte
   (`jsdoc/no-types`) — et sans section par paramètre, qui répéterait la signature ;
-- aucun appel réseau hors de `src/api/` — `fetch`, `XMLHttpRequest`, `WebSocket`,
-  `EventSource`, ni un client http importé : l'API ne s'appelle que par le client engendré
+- aucun des moyens connus d'appeler le réseau hors de `src/api/client.ts` — `fetch`,
+  `XMLHttpRequest`, `WebSocket`, `EventSource`, ni un client http importé —, et aucun
+  import de `src/api/` dans un composant client hors des actions serveur : l'API ne
+  s'appelle que par le client engendré, depuis le serveur
   (WF-ARC-0020) ;
 - Prettier pour le format (`frontend/.prettierrc.json`) ; ESLint s'exécute avec
   `--max-warnings 0`.

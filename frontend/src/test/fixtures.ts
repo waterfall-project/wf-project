@@ -4,9 +4,11 @@
  * The examples of the contract, for the unit tests of the front: the same data the fake back
  * serves (`fixtures/api/`), so that a page is tested on what it will receive.
  *
- * `fakeClient` is the generated client itself, over a transport that answers from those
- * examples instead of the network: the paths, parameters and bodies a page sends go through
- * openapi-fetch as they would in production, and the test reads them back from `calls`.
+ * `fakeClient` is the generated client itself, with a middleware that answers each call
+ * from those examples before it reaches the network: the paths, parameters and bodies a
+ * page sends go through openapi-fetch as they would in production, and the test reads them
+ * back from `calls`. An answer is typed by the operation it answers: only a status the
+ * contract declares for it, with a body only when that status has one.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -14,10 +16,10 @@ import { join } from "node:path";
 import { API_PREFIX, type ApiClient, createApiClient } from "@/api/client";
 import type { components, paths } from "@/api/generated/schema";
 
-// From the directory of this file: in jsdom, `import.meta.url` is not a file URL.
+// From the directory of this file: under a document, `import.meta.url` is not a file URL.
 const FIXTURES = join(import.meta.dirname, "../../../fixtures/api/");
 
-// Never resolved: the fake transport answers before anything could leave.
+// Never reached: the middleware answers every call, or fails it.
 const ADDRESS = "http://fake.invalid";
 
 /** Read the value of an example of the contract, by the name of its fixture. */
@@ -39,27 +41,53 @@ export type Route = {
 /** The error envelope of the contract (WF-ARC-0110). */
 export type Problem = components["schemas"]["Problem"];
 
+/** The responses the contract declares for an operation, by status. */
+type Responses<R extends Route> =
+  R extends `${infer M extends Method} ${infer P extends keyof paths}`
+    ? paths[P][Lowercase<M>] extends { responses: infer X }
+      ? X
+      : never
+    : never;
+
 /**
- * What the fake client answers to one call: the name of a fixture of `fixtures/api/`, served
- * with 200; the same with another status (201, 202); a `Problem`, served with its own status,
- * which the client returns as `error` instead of `data`; or a status without a body (204).
+ * The answers to one declared status: a status with a body answers the name of a fixture of
+ * `fixtures/api/` — alone for 200 — when it is a success, a `Problem` carrying that status
+ * when it is a refusal; a status without a body answers the status alone.
  */
-export type FakeAnswer =
-  | string
-  | { readonly example: string; readonly status: number }
-  | { readonly problem: Problem }
-  | { readonly status: number };
+type StatusAnswer<X, S extends keyof X & number> = X[S] extends { content: object }
+  ? `${S}` extends `2${string}`
+    ? | (S extends 200 ? string : never)
+      | ({ readonly example: string; readonly status: S } & None<"problem">)
+    : { readonly problem: Problem & { readonly status: S } } & None<"example" | "status">
+  : { readonly status: S } & None<"example" | "problem">;
+
+/** Keys an answer must not have: without them, a type would take any extra key in its stride. */
+type None<K extends string> = Partial<Readonly<Record<K, never>>>;
+
+/** What the fake client may answer to one call of an operation. */
+export type FakeAnswer<R extends Route> = {
+  [S in keyof Responses<R> & number]: StatusAnswer<Responses<R>, S>;
+}[keyof Responses<R> & number];
 
 /**
  * The answers of a fake client, by route. A sequence answers the calls of its route in turn
  * — `running`, then `succeeded` — and its last answer repeats.
  */
-export type FakeAnswers = Partial<Readonly<Record<Route, FakeAnswer | readonly FakeAnswer[]>>>;
+export type FakeAnswers = {
+  readonly [R in Route]?: FakeAnswer<R> | readonly FakeAnswer<R>[];
+};
+
+/** An answer, whatever its operation: what the middleware serves. */
+type AnyAnswer =
+  | string
+  | { readonly example: string; readonly status: number }
+  | { readonly problem: Problem }
+  | { readonly status: number };
 
 /** A call the fake client received. */
 export interface FakeCall {
-  /** The operation the call matched. */
-  readonly route: Route;
+  /** The operation the call named, as openapi-fetch received it. */
+  readonly route: string;
   /** The path called, its parameters filled in, without the prefix of the contract. */
   readonly path: string;
   /** The query string the client serialized. */
@@ -70,50 +98,6 @@ export interface FakeCall {
 
 /** A client of the API that answers from the examples of the contract, and records its calls. */
 export type FakeClient = ApiClient & { readonly calls: readonly FakeCall[] };
-
-/** What answers one route: how a request is matched, and what it is answered. */
-interface Matcher {
-  readonly route: Route;
-  readonly method: string;
-  readonly pattern: RegExp;
-  readonly parameters: number;
-  readonly sequence: readonly FakeAnswer[];
-  /** How many calls the route has answered: where it stands in its sequence. */
-  served: number;
-}
-
-/** Whether a key of the answers names a route; the type of `FakeAnswers` sees to the rest. */
-function isRoute(key: string): key is Route {
-  return /^(GET|POST|PUT|PATCH|DELETE) \//.test(key);
-}
-
-/** Compile a route into what matches a request: a parameter is one path segment. */
-function matcher(route: Route, answer: FakeAnswer | readonly FakeAnswer[]): Matcher {
-  const [method = "", template = ""] = route.split(" ");
-  const pattern = new RegExp(`^${template.replaceAll(/\{[^}]+\}/g, "[^/]+")}$`);
-  const sequence = isSequence(answer) ? answer : [answer];
-  const parameters = template.split("{").length - 1;
-  return { route, method, pattern, parameters, sequence, served: 0 };
-}
-
-/** The answer to the next call of a route: its sequence in turn, the last answer repeating. */
-function next(entry: Matcher): FakeAnswer | undefined {
-  const answer = entry.sequence[Math.min(entry.served, entry.sequence.length - 1)];
-  entry.served += 1;
-  return answer;
-}
-
-/** Whether an answer is a sequence of answers. */
-function isSequence(answer: FakeAnswer | readonly FakeAnswer[]): answer is readonly FakeAnswer[] {
-  return Array.isArray(answer);
-}
-
-/** The route a request calls: of those that match, the one with the fewest parameters. */
-function matching(matchers: readonly Matcher[], method: string, path: string): Matcher | undefined {
-  const found = matchers.filter((m) => m.method === method && m.pattern.test(path));
-  found.sort((a, b) => a.parameters - b.parameters);
-  return found[0];
-}
 
 /** Read the body of a request the way a test inspects it. */
 async function bodyOf(request: Request): Promise<unknown> {
@@ -129,7 +113,7 @@ async function bodyOf(request: Request): Promise<unknown> {
 }
 
 /** Make the response of one answer. */
-function respond(answer: FakeAnswer): Response {
+function respond(answer: AnyAnswer): Response {
   if (typeof answer === "string") {
     return Response.json(example(answer));
   }
@@ -143,27 +127,53 @@ function respond(answer: FakeAnswer): Response {
   return new Response(null, { status: answer.status });
 }
 
+/** Whether an answer is a sequence of answers. */
+function isSequence(answer: AnyAnswer | readonly AnyAnswer[]): answer is readonly AnyAnswer[] {
+  return Array.isArray(answer);
+}
+
+/** Refuse the network: a call the middleware let through would be a defect of the fake. */
+function refuse(request: Request): Promise<Response> {
+  return Promise.reject(
+    new Error(`fakeClient: ${request.method} ${request.url} reached the network`),
+  );
+}
+
 /**
  * Make a client that answers each route from the examples of the contract. A call to a route
  * it has no answer for fails the test: an unexpected call is a defect, not an empty page.
  */
 export function fakeClient(answers: FakeAnswers): FakeClient {
-  const matchers = Object.entries(answers).flatMap(([key, answer]) =>
-    isRoute(key) ? [matcher(key, answer)] : [],
-  );
-  const calls: FakeCall[] = [];
+  const table: Readonly<Record<string, AnyAnswer | readonly AnyAnswer[] | undefined>> = answers;
+  const served = new Map<string, number>();
+  const calls: { -readonly [K in keyof FakeCall]: FakeCall[K] }[] = [];
+  const client = createApiClient({ address: ADDRESS, fetch: refuse });
 
-  const transport = async (request: Request): Promise<Response> => {
-    const url = new URL(request.url);
-    const path = url.pathname.slice(API_PREFIX.length);
-    const found = matching(matchers, request.method, path);
-    const answer = found === undefined ? undefined : next(found);
-    if (found === undefined || answer === undefined) {
-      throw new Error(`fakeClient: no answer for ${request.method} ${path}`);
-    }
-    calls.push({ route: found.route, path, query: url.searchParams, body: await bodyOf(request) });
-    return respond(answer);
-  };
+  client.use({
+    async onRequest({ request, schemaPath }) {
+      const route = `${request.method} ${schemaPath}`;
+      const given = table[route] ?? [];
+      const sequence = isSequence(given) ? given : [given];
+      const index = served.get(route) ?? 0;
+      const answer = sequence[Math.min(index, sequence.length - 1)];
+      if (answer === undefined) {
+        throw new Error(`fakeClient: no answer for ${route}`);
+      }
+      served.set(route, index + 1);
+      // The call takes its place before the first await: calls made together are recorded
+      // in the order they were made, whatever their bodies take to read.
+      const url = new URL(request.url);
+      const call = {
+        route,
+        path: url.pathname.slice(API_PREFIX.length),
+        query: url.searchParams,
+        body: undefined as unknown,
+      };
+      calls.push(call);
+      call.body = await bodyOf(request);
+      return respond(answer);
+    },
+  });
 
-  return Object.assign(createApiClient({ address: ADDRESS, fetch: transport }), { calls });
+  return Object.assign(client, { calls });
 }

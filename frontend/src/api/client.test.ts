@@ -5,26 +5,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { API_PREFIX, createApiClient } from "./client";
 
 /** A fetch that records the requests it receives, and answers an empty object. */
-function recorder(): { fetch: (request: Request) => Promise<Response>; urls: string[] } {
+function recorder(): { send: (request: Request) => Promise<Response>; urls: string[] } {
   const urls: string[] = [];
   const record = (request: Request): Promise<Response> => {
     urls.push(request.url);
     return Promise.resolve(Response.json({}));
   };
-  return { fetch: record, urls };
+  return { send: record, urls };
 }
 
 describe("createApiClient", () => {
   it("calls an operation of the contract under the prefix of the contract", async () => {
-    const { fetch, urls } = recorder();
-    const client = createApiClient({ address: "http://localhost:4010", fetch });
+    const { send, urls } = recorder();
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
     await client.GET("/health");
     expect(urls).toEqual([`http://localhost:4010${API_PREFIX}/health`]);
   });
 
   it("keeps the prefix when the address ends with a slash", async () => {
-    const { fetch, urls } = recorder();
-    const client = createApiClient({ address: "http://api.example/", fetch });
+    const { send, urls } = recorder();
+    const client = createApiClient({ address: "http://api.example/", fetch: send });
     await client.GET("/health");
     expect(urls).toEqual([`http://api.example${API_PREFIX}/health`]);
   });

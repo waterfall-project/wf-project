@@ -30,10 +30,12 @@ en double une opération. Une opération qui manque est une modification du cont
 `make generate-client`.
 
 *Pourquoi* : un client écrit à la main dérive du contrat (WF-ARC-0020, WF-ARC-0060).
-*Contrôle* : ESLint refuse hors de `src/api/` `fetch`, `XMLHttpRequest`, `WebSocket`,
-`EventSource` et l'import d'un client http, éprouvé par `src/api/network-guard.test.ts` ;
-`server-only` fait échouer la construction d'un composant client qui importerait le client ;
-`make client-up-to-date`.
+*Contrôle* : ESLint refuse hors de `src/api/client.ts` les moyens connus d'appeler le
+réseau — `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, l'import d'un client http —,
+et, dans un fichier `"use client"`, tout import de `src/api/` autre que ses actions serveur
+et des types : c'est le contrôle de la chaîne, éprouvé par `src/api/network-guard.test.ts`.
+`server-only`, qu'importent `client.ts` et `server.ts`, n'en est que le filet : il fait
+échouer `next build`, qu'aucun contrôle ne lance encore (#131). `make client-up-to-date`.
 
 ### Le front affiche, il ne calcule pas
 
@@ -84,9 +86,16 @@ reste, la revue.
   `it("… [WF-IHM-0010-A]", …)`.
 - Il reçoit les données du contrat — `frontend/src/test/fixtures.ts` lit les exemples de
   `fixtures/api/` —, jamais un objet inventé qui n'a pas la forme d'une réponse.
-  `fakeClient` est le client engendré sur un transport qui répond, par opération
-  (`"GET /projects/{project_id}"`), un exemple nommé, une séquence d'exemples ou une
-  enveloppe `Problem`, et qui enregistre les appels, corps compris, dans `calls`.
+  Un exemple servi au front vit sous `fixtures/api/`, en objet Example d'OpenAPI, et se
+  nomme par son fichier : `"project"` est `fixtures/api/project.json`. `fakeClient` est le
+  client engendré, dont un middleware répond par opération (`"GET /projects/{project_id}"`)
+  un exemple nommé, une séquence de réponses ou une enveloppe `Problem`, et enregistre les
+  appels, corps compris, dans `calls` ; une réponse ne prend qu'un statut que le contrat
+  déclare pour l'opération, avec un corps seulement si ce statut en a un — le typage le
+  refuse sinon.
+- Un composant serveur de `src/app/` se teste dans le projet `node` (`*.test.tsx`), sans
+  document, comme il s'exécute ; un composant client, dans le projet `dom`
+  (`*.dom.test.tsx`), par Testing Library.
 - Un test unitaire rend le composant et vérifie ce qu'il produit ; un parcours de bout en
   bout trouve les éléments par `getByRole` ou `getByLabel` de Playwright, jamais par une
   classe CSS.

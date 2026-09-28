@@ -5,9 +5,9 @@
  *
  * The types come from `generated/schema.d.ts`, which `make generate-client` writes from the
  * bundled contract and nobody edits; `openapi-fetch` turns them into typed calls. Every call
- * to the API goes through a client made here: ESLint refuses any network call anywhere else
- * (WF-ARC-0020), and `server-only` keeps this module out of the browser — only the server
- * of Next calls the API (§4.3.1).
+ * to the API goes through a client made here: ESLint refuses the known ways of reaching the
+ * network in any other module (WF-ARC-0020), and a client component importing this one —
+ * only the server of Next calls the API (§4.3.1); `server-only` is the net of the build.
  */
 import "server-only";
 

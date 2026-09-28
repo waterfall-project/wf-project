@@ -4,9 +4,9 @@
  * Set up every unit test of the front.
  *
  * `src/api/client.ts` and `server.ts` import `server-only`, which throws anywhere but in the
- * server bundle of Next: that is what keeps a client component from calling the API. A
- * test is not that bundle, so the marker is emptied here; a test that checks the refusal
- * restores it with `vi.doUnmock`.
+ * server bundle of Next: the net of `next build` under the rule of ESLint that keeps a
+ * client component from importing them. A test is not that bundle, so the marker is
+ * emptied here; a test that checks the refusal restores it with `vi.doUnmock`.
  */
 import { vi } from "vitest";
 

@@ -5,7 +5,8 @@
  *
  * The address comes from `WATERFALL_API_ADDRESS`: the fake back in development and in the
  * end-to-end tests, the real service from EP-03. Nothing else tells them apart.
- * `server-only`: a client component that imported it would not build (§4.3.1).
+ * Only the server of Next imports it (§4.3.1): ESLint refuses it in a client component, and
+ * `server-only` fails the build of one.
  */
 import "server-only";
 

@@ -3,7 +3,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type FakeAnswers, fakeClient, type Problem } from "@/test/fixtures";
+import { type FakeAnswers, fakeClient } from "@/test/fixtures";
 
 import ProjectPage from "./[projectId]/page";
 import RevisionPage from "./[projectId]/revisions/[revisionId]/page";
@@ -15,7 +15,7 @@ vi.mock("@/api/server", () => ({ serverClient: () => fakeClient(server.answers) 
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const NOT_FOUND: { readonly problem: Problem } = { problem: { code: "NOT_FOUND", status: 404 } };
+const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 
 beforeEach(() => {
   server.answers = {
