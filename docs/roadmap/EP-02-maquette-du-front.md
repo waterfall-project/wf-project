@@ -11,8 +11,11 @@ issue:
 ## Objet
 
 Construire l'application web entière contre le faux back d'EP-01 : la navigation, les
-composants d'interface de PBS-1.3, les onze exigences du §3.6, les deux langues, et un écran
-par fonction. Rien n'est calculé par le front — c'est le mock qui répond.
+composants d'interface de PBS-1.3, les onze exigences du §3.6, les deux langues, et chaque
+fonction adressable à l'écran. Rien n'est calculé par le front — c'est le mock qui répond.
+Cet EPIC ne s'intéresse qu'à deux choses : l'ergonomie, qu'il constate, et le contrat, qu'il
+fige ; tout ce qui exige un serveur réel se commence ici et se clôt dans l'EPIC de son
+domaine.
 
 La maquette a deux résultats, et le second est le plus précieux. Elle donne des écrans ; elle
 donne surtout la liste de ce que le contrat a mal prévu. Un champ qu'aucun écran ne sait
@@ -27,14 +30,23 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 - la coquille : navigation, projet ouvert qui le reste d'un écran à l'autre, bandeau de
   contexte de lecture ;
 - la grille dense — le composant qui porte le planning, le devis, le reste à engager et les
-  risques : lecture, tri, colonnes, saisie au clavier seul, collage depuis un tableur,
-  annulation et rétablissement ;
+  risques : lecture, tri et filtres demandés au serveur, colonnes, saisie au clavier seul,
+  collage depuis un tableur, et les commandes Annuler et Rétablir, présentes et
+  positionnées ;
 - la distinction visuelle entre valeur calculée et valeur saisie ;
 - l'échelle de signalement commune, lisible sans couleur ;
 - le suivi des traitements longs, les commandes indisponibles et les refus ;
 - l'accessibilité minimale : clavier, contraste AA, libellés, agrandissement à 150 % ;
 - les deux langues, les catalogues, et le contrôle de complétude par la chaîne ;
-- un écran par fonction de l'arborescence FBS, en lecture, alimenté par le mock ;
+- chaque fonction feuille de l'arborescence FBS adressable — une page, une route ou un
+  onglet, l'ergonomie décidant des regroupements —, en lecture, alimentée par le mock ; les
+  seules commandes réelles sont celles que le §3.6 impose d'éprouver tôt : la saisie en
+  grille, le collage, le marquage, la sortie du cycle de vie, l'import en deux temps, la
+  langue et les préférences, la connexion et le compte personnel ;
+- la connexion et le compte personnel, les écrans qu'EP-03 branchera sur l'authentification
+  réelle ;
+- les modifications du contrat déjà connues, faites avant les écrans (« Opérations du
+  contrat ») ;
 - la preuve que le front n'appelle l'API que par le client engendré.
 
 ## Ce qui n'en fait pas partie
@@ -43,6 +55,12 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
   besoin de calculer est un endpoint qui manque au contrat, donc un constat, pas du code ;
 - le comportement réel des écrans, qui arrive avec l'EPIC de leur domaine : ici, une commande
   aboutit parce que le mock répond, pas parce qu'une règle a été évaluée ;
+- les formulaires de création et de modification — projets, révisions, comptes, rôles… :
+  ils appartiennent à l'EPIC de leur domaine, et leurs opérations d'écriture avec eux ; la
+  saisie d'un taux dans la grille des taux horaires, elle, est une saisie en grille (§3.6)
+  et reste ;
+- le fonctionnement de l'annulation : ses commandes se voient et se placent ici, elles
+  n'agissent qu'en EP-06 ;
 - l'authentification réelle — EP-03 : la maquette part d'une session que le mock accorde ;
 - les imports et exports réels — EP-09 pour les coûts réels, EP-12 pour les autres flux :
   l'écran d'import en deux temps est maquetté, le traitement ne l'est pas ;
@@ -59,7 +77,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0030-A` | Valeur calculée et valeur saisie | entière | US-0150 |
 | `WF-IHM-0040-A` | Saisie au clavier dans les grilles | entière | US-0120 |
 | `WF-IHM-0050-A` | Collage depuis un tableur | entière | US-0130 |
-| `WF-IHM-0060-A` | Lecture d'une grille | entière | US-0110 |
+| `WF-IHM-0060-A` | Lecture d'une grille | début — close en EP-03 | US-0110 |
 | `WF-IHM-0070-A` | Une échelle de signalement commune, lisible sans couleur | entière | US-0160 |
 | `WF-IHM-0080-A` | Traitements longs | entière | US-0180 |
 | `WF-IHM-0090-A` | Refus et commandes indisponibles | entière | US-0170 |
@@ -70,19 +88,20 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-INTF-0180-A` | Formats indépendants de la langue | début — close en EP-12 | US-0190 |
 | `WF-ADM-0040-A` | Préférences d'affichage | début — close en EP-03 | US-0110, US-0190 |
 | `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
-| `WF-CMP-0010-A` | Navigateurs et affichage | entière | US-0290 |
+| `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
-Dix des onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface, et
-l'interface existe ici pour de bon. Quatre exigences ne le sont qu'en partie, et leurs US le
-disent : WF-IHM-0110 (l'annulation porte sur des saisies que le mock accepte sans les
-conserver ; close en EP-06, première grille dont les saisies le sont), WF-ADM-0040 et
-WF-INTF-0160 (la conservation des préférences et de la langue dans le compte attend EP-03),
-et WF-INTF-0180 (le format des fichiers d'échange attend EP-12 ; seul l'affichage est ici).
+Neuf des onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface,
+et l'interface existe ici pour de bon. Six exigences ne font que commencer, et leurs US
+disent quelle phrase attend quoi : WF-IHM-0060 (le tri effectif et les réglages par compte —
+EP-03), WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-ADM-0040 et WF-INTF-0160 (la
+conservation des préférences et de la langue dans le compte — EP-03), WF-INTF-0180 (le
+format des fichiers d'échange — EP-12), et WF-CMP-0010 (la version majeure précédente et le
+Safari réel — EP-13, en recette).
 
 ## Opérations du contrat
 
 Toutes celles que les écrans lisent, servies par le faux back. Les familles, avec l'US qui
-les consomme : `session` et `system` (US-0090), `projects` et `revisions` (US-0210),
+les consomme : `session` et `system` (US-0090, US-0320), `projects` et `revisions` (US-0210),
 `revisions` pour le planning et le devis (US-0220), `risks`, `costs` et la partie « reste à
 engager » d'`analysis` (US-0230), `analysis` et `portfolio` (US-0240), `reference` et
 `access` (US-0250), `exchanges` (US-0260).
@@ -90,13 +109,25 @@ engager » d'`analysis` (US-0230), `analysis` et `portfolio` (US-0240), `referen
 Une opération qui manque se note dans cet EPIC et se corrige dans `docs/api` : c'est une
 modification du contrat, donc un travail qui précède l'écran qui l'attend.
 
+Huit modifications sont déjà connues, décidées au cadrage, et se font en premier lot : les
+commandes disponibles et leurs conditions manquantes, portées par le projet et par la
+révision ; le catalogue des codes d'erreur, que `Problem.code` promet sans qu'il existe ;
+l'énumération des codes de permission ; les deux genres manquants de tâche de fond — fusion
+d'une structure, survenance d'un risque ; `listNodes` rendu sans pagination, une révision
+portant au plus dix mille objets ; les champs calculés portés par chaque nœud
+(`computed_fields`) ; la langue réduite à une seule préférence à trois états — `default`,
+`fr`, `en` —, où `default` suit le navigateur ; le tri et les filtres des grilles portés par
+le contrat et exécutés par le serveur, qui rend les lignes et les totaux du périmètre
+demandé.
+
 ## Préalables
 
 EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de bout en bout.
 
 ## Définition de fini
 
-- chaque fonction de l'arborescence FBS a son écran, atteignable depuis la navigation ;
+- chaque fonction feuille de l'arborescence FBS est adressable — une page, une route ou un
+  onglet — depuis la navigation, et un contrôle du dépôt le vérifie ;
 - les onze exigences du §3.6 ont chacune au moins un test de bout en bout qui les cite ;
 - un contrôle automatisé de contraste ne relève aucun écart au niveau AA ;
 - le parcours de bout en bout s'exécute et aboutit en français comme en anglais ;
@@ -157,7 +188,7 @@ suis, si elle est marquée, si elle est la référence, et ce qu'un filtre actif
 
 - **statut** : à faire
 - **exigences** : `WF-IHM-0060-A`, `WF-ADM-0040-A`
-- **opérations** : `listNodes`, `updateMyPreferences`
+- **opérations** : `listNodes`, `getMe`, `updateMyPreferences`
 - **issue** :
 
 **En tant que** chef de projet, **je veux** une grille qui se trie, se filtre, dont je choisis
@@ -166,21 +197,30 @@ défile, **afin de** travailler sur mille tâches sans perdre le fil de ce que j
 
 **Critères d'acceptation.**
 
-- `WF-IHM-0060-A` — « Chaque colonne d'une grille se trie dans les deux sens. »
 - `WF-IHM-0060-A` — « Après défilement de mille lignes, en-têtes et totaux sont toujours
   visibles, de même que la colonne de libellé après défilement horizontal. »
-- `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la
-  réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. »
+- propre à l'US : le clic d'un en-tête demande le tri au serveur, dans les deux sens, par le
+  paramètre du contrat, et la grille rend les lignes dans l'ordre reçu ; les filtres font de
+  même, et la ligne de totaux affiche ceux que le serveur rend pour la requête courante —
+  rien n'est ordonné ni sommé dans le front ;
 - propre à l'US : l'ouverture d'une grille de mille tâches tient l'objectif d'une seconde du
   §4.6.2, mesuré contre le faux back.
 
 **Notes de réalisation.** Composant propre fondé sur TanStack Table (annexe C). C'est le
 composant le plus réutilisé de l'application — planning, devis, reste à engager, risques,
-coûts réels — et les US-0120 à US-0150 en sont la suite. Les réglages sont une préférence
-d'affichage (WF-ADM-0040), donc personnels et sans effet sur les données.
+coûts réels — et les US-0120 à US-0150 en sont la suite. Le tri et les filtres sont demandés
+au serveur (décision du cadrage) : TanStack Table n'ordonne rien en local, et la règle « le
+front ne réordonne pas ce que le back ordonne » reste sans exception. Les réglages sont une
+préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les données.
 
-- écart : la conservation des préférences dans le compte passe par `updateMyPreferences`, que
-  le mock accepte sans rien garder ; elle n'est vraie qu'en EP-03.
+- écart : `WF-IHM-0060-A` — « Chaque colonne d'une grille se trie dans les deux sens. » : le
+  faux back rend toujours le même exemple, quel que soit le paramètre ; le réordonnancement
+  effectif se constate en EP-03, sur la première grille servie par le vrai service.
+- écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées
+  à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres
+  réglages. » : la conservation passe par `updateMyPreferences`, que le mock accepte sans
+  rien garder, et le second utilisateur demande un compte réel — EP-03. Ici, l'écran des
+  colonnes et des largeurs existe et écrit la préférence ; rien ne la restitue encore.
 - écart : `WF-ADM-0040-A` — « Deux utilisateurs ouvrant le même projet voient les mêmes
   données présentées selon leurs réglages respectifs. » demande deux comptes réels — EP-03.
 - écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
@@ -190,7 +230,8 @@ d'affichage (WF-ADM-0040), donc personnels et sans effet sur les données.
 
 - **statut** : à faire
 - **exigences** : `WF-IHM-0040-A`
-- **opérations** : `updateEstimateLine`, `updateTaskFacet`
+- **opérations** : `updateEstimateLine`, `updateTaskFacet`, `listCostCategories`,
+  `listResourceRoles`
 - **issue** :
 
 **En tant que** chef de projet, **je veux** saisir une ligne entière sans toucher la souris,
@@ -204,7 +245,8 @@ d'affichage (WF-ADM-0040), donc personnels et sans effet sur les données.
 - `WF-IHM-0040-A` — « L'abandon d'une saisie en cours laisse la cellule à sa valeur
   antérieure. »
 - `WF-IHM-0040-A` — « Les cellules calculées sont traversées sans entrer en saisie. »
-- propre à l'US : le recalcul qui suit une saisie tient l'objectif d'une seconde du §4.6.2.
+- écart : le recalcul qui suit une saisie tient l'objectif d'une seconde du §4.6.2 — il n'y
+  a pas de recalcul sur le faux back ; la mesure revient à EP-06.
 
 ## US-0130 — Grille dense : collage depuis un tableur
 
@@ -234,7 +276,7 @@ serveur produit. C'est la même forme que l'import en deux temps de WF-ARC-0100.
 
 - **statut** : à faire
 - **exigences** : `WF-IHM-0110-A`
-- **opérations** : `undoLastChange`, `redoLastUndo`
+- **opérations** : aucune en propre — `undoLastChange` et `redoLastUndo` attendent EP-06
 - **issue** :
 
 **En tant que** chef de projet, **je veux** annuler mes saisies une par une et rétablir ce que
@@ -243,22 +285,24 @@ qu'elle a défait.
 
 **Critères d'acceptation.**
 
-- `WF-IHM-0110-A` — « La suppression d'une tâche puis son annulation restituent la tâche, ses
-  lignes et ses liaisons. »
-- `WF-IHM-0110-A` — « Cinquante modifications successives s'annulent une par une, puis se
-  rétablissent dans l'ordre. »
-- `WF-IHM-0110-A` — « L'annulation d'une modification qu'un autre contributeur a depuis
-  reprise est refusée en nommant l'objet en conflit. »
 - `WF-IHM-0110-A` — « Aucune commande n'annule un marquage, un import appliqué ou une
   exclusion de ligne de coût. »
+- propre à l'US : Annuler et Rétablir sont présentes et positionnées — dans les grilles, au
+  menu et par Ctrl+Z et Ctrl+Maj+Z — et leur état se lit ; aucune n'est branchée : elles
+  n'agissent qu'en EP-06 (décision du cadrage).
 
-**Notes de réalisation.** L'annulation est portée par le serveur (`undoLastChange`), non par
-une pile dans le navigateur : c'est ce qui permet le refus en cas de conflit, et ce que
-WF-ARC-0070 impose. Le front ne fait qu'appeler et rafraîchir.
+**Notes de réalisation.** L'annulation sera portée par le serveur (`undoLastChange`), non
+par une pile dans le navigateur : c'est ce qui permet le refus en cas de conflit, et ce que
+WF-ARC-0070 impose. EP-06 branchera ces commandes ; les poser au bon endroit dès la maquette
+évite de redessiner les grilles à ce moment-là.
 
-- écart : le conflit entre contributeurs et le refus qu'il déclenche ne se constatent qu'avec
-  un serveur réel — le mock répond ce qu'on lui demande de répondre. La vérification complète
-  revient à EP-06, où la grille de planning conserve ses saisies.
+- écart : `WF-IHM-0110-A` — « La suppression d'une tâche puis son annulation restituent la
+  tâche, ses lignes et ses liaisons. », « Cinquante modifications successives s'annulent une
+  par une, puis se rétablissent dans l'ordre. » et « L'annulation d'une modification qu'un
+  autre contributeur a depuis reprise est refusée en nommant l'objet en conflit. » demandent
+  un serveur qui restitue et qui refuse — le faux back ne conserve rien. Ces trois phrases
+  reviennent à EP-06, où la grille de planning conserve ses saisies : ici, les commandes se
+  voient et se placent, elles n'agissent pas (décision du cadrage).
 
 ## US-0150 — Valeur calculée contre valeur saisie
 
@@ -281,8 +325,10 @@ est ailleurs.
 
 **Notes de réalisation.** Le contrat sépare déjà les schémas de lecture et d'écriture pour
 interdire l'envoi d'une valeur calculée, et porte une enveloppe `Computable`
-(`docs/api/DECISIONS.md`) : le front n'a pas à tenir sa propre liste de ce qui est calculé, il
-la lit du contrat.
+(`docs/api/DECISIONS.md`). Mais le schéma ne suffit pas à la ligne : une date de tâche est
+saisie en mode manuel et calculée en mode automatique, et seul le serveur le sait. Chaque
+nœud porte donc la liste de ses champs calculés (`computed_fields`, modification du
+cadrage) : le front la lit, ligne par ligne, au lieu de recopier une règle.
 
 ## US-0160 — Échelle de signalement commune, lisible sans couleur
 
@@ -311,7 +357,7 @@ des rôles et les signaux de santé du pilotage l'emploient tous.
 
 - **statut** : à faire
 - **exigences** : `WF-IHM-0090-A`
-- **opérations** : `getProjectNextState`, `listProjectStateTransitions`, `listPermissions`
+- **opérations** : `getProject`, `getRevision`, `getCurrentSession`, `listPermissions`
 - **issue** :
 
 **En tant que** chef de projet, **je veux** qu'une commande momentanément impossible me dise
@@ -328,9 +374,12 @@ ce qui manque, et qu'une commande que je n'ai pas le droit d'exercer ne me soit 
   contributeur nomme cette condition. »
 
 **Notes de réalisation.** Les conditions manquantes viennent du serveur, jamais d'une règle
-recopiée dans le front (WF-ARC-0020) : `getProjectNextState` dit ce qui bloque, et
-l'enveloppe d'erreur porte un code et ses paramètres que le front rend en phrase
-(WF-ARC-0110). Griser un bouton reste une commodité de lecture, pas une protection.
+recopiée dans le front (WF-ARC-0020) : le projet et la révision portent leurs commandes
+disponibles et ce qui manque à chacune (`available_commands`, modification du cadrage —
+`getProjectNextState` ne couvrait que les transitions d'avant En cours), les codes de
+permission sont énumérés au contrat, et l'enveloppe d'erreur porte un code et ses paramètres
+que le front rend en phrase (WF-ARC-0110). Griser un bouton reste une commodité de lecture,
+pas une protection.
 
 ## US-0180 — Traitements longs : suivi et signalement
 
@@ -353,8 +402,10 @@ pendant qu'un marquage ou un import se fait.
   traitement peut être relancé. »
 
 **Notes de réalisation.** Le contrat répond 202 avec une référence de tâche de fond
-(WF-ARC-0090) : le suivi est un composant de la coquille, commun à toutes les tâches, et non
-un morceau d'écran par action longue.
+(WF-ARC-0090), qui porte désormais les neuf genres d'opérations longues, fusion d'une
+structure et survenance d'un risque comprises (modification du cadrage) : le suivi est un
+composant de la coquille, commun à toutes les tâches, et non un morceau d'écran par action
+longue.
 
 ## US-0190 — Langue de l'interface, catalogues et formats d'affichage
 
@@ -372,8 +423,9 @@ que mes collègues.
 
 - `WF-INTF-0160-A` — « Un utilisateur dont le navigateur demande l'anglais obtient l'interface
   en anglais à sa première connexion, un autre demandant le français l'obtient en français. »
-- `WF-INTF-0160-A` — « Un utilisateur qui force le français le retrouve en se connectant
-  depuis un autre poste dont le navigateur demande l'anglais. »
+- `WF-INTF-0160-A` — « Un utilisateur dont le navigateur demande une langue non offerte
+  obtient la langue par défaut de l'installation. » — la résolution est dans le front, et la
+  langue par défaut vient du référentiel que le faux back sert.
 - `WF-INTF-0160-A` — « Le changement de langue s'applique sans reconnexion. »
 - `WF-INTF-0170-A` — « Deux utilisateurs de langues différentes ouvrant le même projet voient
   les mêmes libellés de tâches et de lignes, et des intitulés de colonnes et des libellés
@@ -397,14 +449,19 @@ d'erreur côté front (US-0300). L'API ne renvoie aucune phrase (WF-ARC-0110) : 
 d'erreur et les comptes rendus sont des codes que le front rend par son catalogue. C'est
 cette US qui fixe le catalogue de codes d'erreur, et tout EPIC ultérieur y ajoute les siens.
 
+La langue est une préférence de compte à trois états — `default`, `fr`, `en` —, où `default`
+suit le navigateur ; dès qu'elle est fixée, elle prime (décision du cadrage). Le front la
+résout à chaque requête — la préférence, sinon `Accept-Language`, sinon la langue par défaut
+de l'installation — et le contrat n'a plus qu'un seul champ de langue.
+
 - écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
   celles d'un autre. » demande des comptes réels — EP-03.
 - écart : `WF-ADM-0040-A` — « Deux utilisateurs ouvrant le même projet voient les mêmes
   données présentées selon leurs réglages respectifs. » est l'affaire de l'US-0110, et
   demande deux comptes réels — EP-03.
-- écart : la conservation du choix dans le compte attend EP-03, de même que `WF-INTF-0160-A`
-  — « Un utilisateur dont le navigateur demande une langue non offerte obtient la langue par
-  défaut de l'installation. », cette langue étant un paramètre de l'installation.
+- écart : `WF-INTF-0160-A` — « Un utilisateur qui force le français le retrouve en se
+  connectant depuis un autre poste dont le navigateur demande l'anglais. » : la conservation
+  du choix dans le compte demande un compte réel — EP-03.
 - écart : `WF-INTF-0180-A` — « Un devis exporté par un utilisateur en français et réimporté
   par un utilisateur en anglais donne un devis identique, sans avertissement de format. » et
   « Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui
@@ -442,15 +499,15 @@ fait qu'une fois. Aucune conformité complète à un référentiel n'est visée 
 
 - **statut** : à faire
 - **exigences** : aucune en propre — les exigences de ces fonctions sont réalisées en EP-04
-- **opérations** : `listProjects`, `createProject`, `getProject`, `updateProject`,
-  `listProjectStateTransitions`, `exitProject`, `listSubprojects`, `listContributors`,
-  `setContributors`, `listRevisions`, `getRevision`, `createRevision`, `markRevision`,
-  `designateReferenceRevision`, `compareRevisions`
+- **opérations** : `listProjects`, `getProject`, `listProjectStateTransitions`,
+  `exitProject`, `listSubprojects`, `listContributors`, `listRevisions`, `getRevision`,
+  `compareRevisions`, `listCostStructures`, `getRateUpdateProposal`
 - **issue** :
 
 **En tant que** chef de projet, **je veux** les écrans de la liste des projets, du projet, de
-ses sous-projets, de ses contributeurs et de ses révisions, **afin de** voir si le contrat
-sait dire tout ce qu'ils ont à montrer.
+ses sous-projets, de ses contributeurs, de ses révisions, de leurs structures de coûts et de
+la proposition de mise à jour des taux, **afin de** voir si le contrat sait dire tout ce
+qu'ils ont à montrer.
 
 **Critères d'acceptation.**
 
@@ -458,6 +515,9 @@ sait dire tout ce qu'ils ont à montrer.
   donnée soit écrite dans le front ;
 - propre à l'US : l'écran de comparaison de deux révisions présente ce que `compareRevisions`
   renvoie, sans rapprochement calculé dans le front ;
+- propre à l'US : aucun de ces écrans ne propose de créer ni de modifier — projet,
+  révision, contributeurs : ces formulaires appartiennent à l'EPIC de leur domaine (décision
+  du cadrage) ; seule la sortie du cycle de vie, commande du §3.6, s'y exerce ;
 - propre à l'US : tout manque du contrat constaté ici est écrit dans cet EPIC, puis corrigé
   dans `docs/api` ou ouvert en issue.
 
@@ -466,8 +526,8 @@ sait dire tout ce qu'ils ont à montrer.
 - **statut** : à faire
 - **exigences** : aucune en propre — EP-06 et EP-07
 - **opérations** : `getWorkBreakdown`, `listNodes`, `createNode`, `updateTaskFacet`,
-  `setPredecessors`, `moveNodes`, `generatePlanningSkeleton`, `listTimelines`,
-  `listCostStructures`, `updateEstimateLine`, `getEstimateIndicators`, `getMissingRates`
+  `setPredecessors`, `listTimelines`, `listCostStructures`, `updateEstimateLine`,
+  `getEstimateIndicators`, `getMissingRates`
 - **issue** :
 
 **En tant que** chef de projet, **je veux** la grille de planning, le diagramme de Gantt en
@@ -488,8 +548,8 @@ les objectifs de temps de réponse.
 - **statut** : à faire
 - **exigences** : aucune en propre — EP-08 et EP-09
 - **opérations** : `listRisks`, `getRisk`, `listRiskReviews`, `getProjectRiskMatrix`,
-  `getRemainingIndicators`, `setLineRemaining`, `listStartableTasks`, `setTaskProgress`,
-  `listActualCosts`, `setActualCostTrackedScope`, `listCostImports`
+  `getRemainingIndicators`, `setLineRemaining`, `listStartableTasks`, `listActualCosts`,
+  `listCostImports`
 - **issue** :
 
 **En tant que** chef de projet, **je veux** les écrans des risques et de leur matrice, du
@@ -502,7 +562,8 @@ porte le cycle d'une revue mensuelle de bout en bout.
 - propre à l'US : la gravité et la provision d'un risque sont présentées comme calculées
   (US-0150) ;
 - propre à l'US : l'écran d'avancement ne propose aucun pourcentage à saisir — une tâche est
-  terminée ou elle ne l'est pas.
+  terminée ou elle ne l'est pas ; démarrer ou terminer une tâche est une commande de l'EPIC
+  des coûts réels et de l'avancement, pas de la maquette.
 
 ## US-0240 — Écrans des indicateurs et du portefeuille
 
@@ -534,13 +595,13 @@ sans que le front ait à sommer quoi que ce soit.
 - **exigences** : aucune en propre — EP-03 et EP-05
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listCostTypes`, `listCostCategories`,
-  `listHourlyRates`, `setHourlyRate`, `listUsers`, `createUser`, `setUserAccessRoles`,
-  `listAccessRoles`, `listPermissions`, `getSystemStatus`
+  `listHourlyRates`, `setHourlyRate`, `listUsers`, `listAccessRoles`, `listPermissions`,
+  `getSystemStatus`, `listBackups`, `getBackupSchedule`
 - **issue** :
 
 **En tant qu'**administrateur, **je veux** les écrans du référentiel, des comptes, des rôles
-d'habilitation et de l'état du système, **afin de** vérifier qu'ils s'atteignent sans projet
-ouvert et que la matrice des permissions se lit.
+d'habilitation, de l'état du système et de la sauvegarde, **afin de** vérifier qu'ils
+s'atteignent sans projet ouvert et que la matrice des permissions se lit.
 
 **Critères d'acceptation.**
 
@@ -548,7 +609,10 @@ ouvert et que la matrice des permissions se lit.
 - propre à l'US : la grille des taux horaires, qui porte quinze ans de valeurs pour cent
   cinquante rôles, emploie le composant de grille dense ;
 - propre à l'US : l'écran des rôles d'habilitation présente les permissions par fonction de
-  second niveau, telles que `listPermissions` les renvoie.
+  second niveau, telles que `listPermissions` les renvoie ;
+- propre à l'US : l'écran de sauvegarde et de restauration (FBS-1.4) présente les sauvegardes
+  et leur planification telles que le contrat les rend, sans déclencher ni sauvegarde ni
+  restauration — commandes de l'EPIC d'exploitation.
 
 ## US-0260 — Écran d'import en deux temps
 
@@ -612,13 +676,49 @@ mon bureau.
 
 **Critères d'acceptation.**
 
-- `WF-CMP-0010-A` — « Les grilles, le diagramme de Gantt et les courbes s'affichent et
-  s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures,
-  à 1366 points de large. »
 - `WF-CMP-0010-A` — « Les vues d'indicateurs se lisent sur un écran de 360 points de large et
   n'y proposent aucune saisie. »
 - `WF-CMP-0010-A` — « Aucune fonction n'exige une installation sur le poste. »
+- propre à l'US : les parcours des grilles, du Gantt et des courbes se jouent dans la chaîne
+  sur les quatre navigateurs de la spécification — Chrome et Edge par leurs canaux
+  Playwright, Firefox, et WebKit tenant lieu de Safari —, en version courante, à 1366 points
+  de large ;
+- écart : `WF-CMP-0010-A` — « Les grilles, le diagramme de Gantt et les courbes s'affichent et
+  s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures,
+  à 1366 points de large. » : la version majeure précédente et le Safari réel ne se rejouent
+  pas par l'outillage ; ils se constatent en recette, sur la plateforme déployée — EP-13.
 
-**Notes de réalisation.** La matrice des navigateurs est celle du harnais de bout en bout
-d'EP-01 (US-0080) : le parcours témoin et ceux de cet EPIC s'y jouent sur les quatre
-navigateurs, à 1366 points, puis les vues d'indicateurs à 360.
+**Notes de réalisation.** Le harnais d'EP-01 ne joue que Chromium : c'est cette US qui lui
+ajoute les quatre navigateurs — Chrome et Edge sont des canaux de Chromium dans Playwright,
+Firefox et WebKit ses deux autres moteurs, et le Safari réel reste à la recette (EP-13) —
+et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs.
+
+## US-0320 — Connexion et compte personnel
+
+- **statut** : à faire
+- **exigences** : aucune en propre — l'authentification réelle est EP-03
+- **opérations** : `listAuthProviders`, `openSession`, `closeSession`, `startOidcSession`,
+  `requestPasswordReset`, `confirmPasswordReset`, `getMe`, `updateMyPreferences`,
+  `changeMyPassword`, `putMyAvatar`, `deleteMyAvatar`
+- **issue** :
+
+**En tant que** chef de projet, manager ou administrateur, **je veux** l'écran de connexion —
+compte local, annuaire, fournisseur d'identité — et celui de mon compte : mes préférences,
+ma langue, mon mot de passe, mon avatar, **afin que** l'entrée dans Waterfall existe avant
+qu'EP-03 ne la branche sur une authentification réelle.
+
+**Critères d'acceptation.**
+
+- propre à l'US : l'écran de connexion présente les fournisseurs que `listAuthProviders`
+  rend — le compte local toujours, l'annuaire et le fournisseur d'identité quand
+  l'installation les active — et le mot de passe oublié en deux temps ;
+- propre à l'US : la connexion aboutit parce que le faux back répond, et mène à la liste des
+  projets ; la déconnexion ramène à la connexion ;
+- propre à l'US : l'écran du compte porte les préférences et la langue (US-0190), le
+  changement de mot de passe et l'avatar ; aucune règle de mot de passe n'est recopiée dans
+  le front — un refus est un code du catalogue.
+
+**Notes de réalisation.** EP-03 attend « les écrans de connexion, des comptes et des rôles de
+la maquette, branchés sur le service » : cet écran de connexion est celui qu'il branchera.
+La session que le faux back accorde est celle dont toute la maquette part, et cette US lui
+donne enfin une porte d'entrée visible.

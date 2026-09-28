@@ -68,6 +68,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-INTF-0030-A` | Usages de l’administrateur | début — close en EP-13 | — |
 | `WF-INTF-0160-A` | Choix de la langue de l'interface | fin — amorcée en EP-02 | — |
 | `WF-ADM-0040-A` | Préférences d’affichage | fin — amorcée en EP-02 | — |
+| `WF-IHM-0060-A` | Lecture d'une grille | fin — amorcée en EP-02 | — |
 | `WF-ADM-0050-A` | Attributs d’un compte utilisateur | entière | — |
 | `WF-ADM-0060-A` | Cycle de vie d’un compte | entière | — |
 | `WF-ADM-0070-A` | Import des comptes depuis l’annuaire d’entreprise | entière | — |
