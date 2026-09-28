@@ -38,10 +38,17 @@ export default defineConfig([
       complexity: ["error", 14],
       // 1,000 lines at most, blank lines and comments included (US-0050).
       "max-lines": ["error", { max: 1000, skipBlankLines: false, skipComments: false }],
-      // The API is called through the generated client only (WF-ARC-0020).
+      // The API is called through the generated client only (WF-ARC-0020): the bare
+      // identifier, and any member access named fetch — globalThis.fetch, window.fetch,
+      // or an alias of them. A third-party API whose own .fetch never touches the network
+      // would be excepted here, with its reason, never silenced in the code.
       "no-restricted-globals": [
         "error",
         { name: "fetch", message: "Call the API through the generated client, in src/api/." },
+      ],
+      "no-restricted-properties": [
+        "error",
+        { property: "fetch", message: "Call the API through the generated client, in src/api/." },
       ],
       // A docstring for what is exported; its types are TypeScript's, never repeated.
       "jsdoc/require-jsdoc": [
@@ -61,7 +68,7 @@ export default defineConfig([
   {
     // The generated client is where the network is called.
     files: ["src/api/**"],
-    rules: { "no-restricted-globals": "off" },
+    rules: { "no-restricted-globals": "off", "no-restricted-properties": "off" },
   },
   {
     // Tests are named for what they check; a docstring would repeat the name.

@@ -189,7 +189,8 @@ Décisions :
   fait. Limite : une requête SQL écrite en texte, qui nommerait la table d'un autre module,
   échappe à l'analyse des imports ; elle est interdite par les règles SQL d'EP-03 et
   cherchée par la revue. Faute de module en EP-01, le contrôle s'éprouve sur un paquet
-  d'essai dans les tests de `tools/` : un module qui lit les tables d'un autre y est rejeté.
+  d'essai dans les tests du back (`backend/tests/test_boundaries.py`) : un module qui lit
+  les tables d'un autre y est rejeté.
 - Coverage.py n'applique qu'un seuil unique, qui mêle lignes et branches : les deux seuils
   de l'US-0060 sont appliqués par l'outil de couverture de `tools/`, qui lit le relevé de
   coverage.py.
@@ -579,6 +580,9 @@ avertissement ne s'accumule jusqu'à ne plus rien signifier.
   paramètres ; une section ne s'écrit que pour une unité, un invariant ou un cas limite ;
 - propre à l'US : aucun code commenté ne reste dans un fichier, et un `TODO` cite le
   numéro de l'issue qui le porte ; l'un et l'autre font échouer la chaîne.
+- écart : côté TypeScript, le code commenté ne fait pas échouer la chaîne — aucune règle
+  fiable n'existe, et une heuristique crierait à tort sur de la prose. Il est tenu par la
+  revue : c'est un défaut de la liste de `docs/dev/typescript.md`, cherché nommément.
 
 **Notes de réalisation.** Le lint est ce que la spécification appelle analyse statique
 (WF-QUA-0030) : Ruff et Pyright en mode strict pour le back, ESLint et Prettier pour le
@@ -612,7 +616,8 @@ engendré. Les docstrings se contrôlent par les règles `D1` de Ruff et par
 commentaire un type que TypeScript porte déjà, et les règles qui exigeraient une section par
 paramètre restent désactivées — c'est ce qui empêche les commentaires de dépasser le code.
 Le code commenté se détecte par la règle `ERA001` de Ruff et les `TODO` par ses règles `TD` ;
-ESLint n'a pas d'équivalent fiable, et le front demande un contrôle du dépôt. Ce qui ne se
+ESLint n'a pas d'équivalent fiable : les `TODO` du front sont tenus par le contrôle des
+sources, le code commenté par la revue (écart ci-dessus). Ce qui ne se
 vérifie pas — un commentaire dit pourquoi, non ce que fait le code ; il est en anglais,
 comme le code — est au guide (US-0300).
 
@@ -672,7 +677,7 @@ qu'on s'aperçoive, à la fin, qu'elle n'a jamais été prévue.
 **Critères d'acceptation.**
 
 - propre à l'US : l'outil liste les exigences F0 qu'aucune US ne cite, et les exceptions
-  déclarées dans l'outil avec leur raison — comme le fait `tools/inventory.py` pour le
+  déclarées dans l'outil avec leur raison — comme le fait `docs/api/tools/inventory.py` pour le
   contrat ;
 - propre à l'US : une US qui cite un identifiant inexistant, ou un indice de révision périmé,
   fait échouer l'outil ;

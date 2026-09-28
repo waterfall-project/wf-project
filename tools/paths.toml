@@ -15,7 +15,10 @@
 shared = [
     "Makefile",
     ".github/workflows/**",
-    "tools/paths.toml",
+    # The whole tools project: this file, the code that interprets it, and the code that
+    # implements the checks. A change there must run every family, or a pull request could
+    # weaken a check without waking the family that relies on it.
+    "tools/**",
 ]
 
 [families.repo]
