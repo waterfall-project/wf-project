@@ -18,7 +18,9 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   use: { baseURL: FRONT, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // A French browser by default, the language of the reference catalogue: a path that needs
+  // another language sets its own (`test.use({ locale })`).
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], locale: "fr-FR" } }],
   webServer: [
     {
       command: "make -C .. mock",

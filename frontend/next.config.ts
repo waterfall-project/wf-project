@@ -4,6 +4,7 @@
  * Configuration of the Next.js application.
  */
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const config: NextConfig = {
   reactStrictMode: true,
@@ -11,4 +12,6 @@ const config: NextConfig = {
   poweredByHeader: false,
 };
 
-export default config;
+// next-intl, without the language in the address: the plugin finds the configuration of a
+// request at its default path, src/i18n/request.ts.
+export default createNextIntlPlugin()(config);

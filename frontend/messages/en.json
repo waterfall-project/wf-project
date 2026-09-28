@@ -1,0 +1,542 @@
+{
+  "app": {
+    "name": "Waterfall"
+  },
+  "languageSelector": {
+    "label": "Language",
+    "apply": "Apply"
+  },
+  "errors": {
+    "MALFORMED_REQUEST": "The request is malformed.",
+    "CONFIRMATION_REQUIRED": "This operation requires explicit confirmation.",
+    "SESSION_REQUIRED": "You need to sign in.",
+    "SESSION_EXPIRED": "Your session has expired; please sign in again.",
+    "INVALID_CREDENTIALS": "Incorrect email address or password.",
+    "PERMISSION_MISSING": "You do not have the required permission.",
+    "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
+    "PROJECT_TERMINAL": "The project is closed and can no longer be changed.",
+    "REVISION_MARKED": "The revision is marked and can no longer be changed.",
+    "NOT_FOUND": "Not found: this item does not exist, or you do not have access to it.",
+    "STATE_FORBIDS_OPERATION": "The current state does not allow this operation.",
+    "ALREADY_EXISTS": "This item already exists.",
+    "CURRENT_REVISION_EXISTS": "The project already has a draft revision.",
+    "REFERENCE_NOT_CORRECTABLE": "The reference revision can no longer be corrected.",
+    "UNDO_CONFLICT": "Cannot undo: the data has changed since.",
+    "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
+    "ACCESS_ROLE_IN_USE": "This access role is still assigned to accounts.",
+    "DEFAULT_CALENDAR_REQUIRED": "A default calendar is required.",
+    "HAS_ACTUAL_COSTS": "Actual costs are booked against it.",
+    "TASK_ALREADY_STARTED": "The task has already started.",
+    "TASK_COMPLETED": "The task is completed.",
+    "WIN_PROBABILITY_FROZEN": "The win probability can no longer be changed once the project is in progress.",
+    "REFERENCE_INCOMPLETE": "The minimum reference data is incomplete.",
+    "PASSWORD_RESET_TOKEN_INVALID": "This reset link is no longer valid.",
+    "ACCOUNT_LOCKED": "Account locked after too many failed attempts; try again in fifteen minutes.",
+    "STALE_LOCK_VERSION": "Someone changed this data in the meantime; reload it to see its latest version.",
+    "FILE_TOO_LARGE": "The file is larger than allowed.",
+    "VALIDATION_FAILED": "The data entered is not valid.",
+    "COMPUTED_VALUE": "This value is calculated and cannot be entered.",
+    "SUMMARY_TASK_DERIVED": "A summary task takes its values from its subtasks.",
+    "LINK_CYCLE": "This link would create a loop.",
+    "LINK_FORBIDDEN": "This link is not allowed.",
+    "RESOURCE_ROLE_REQUIRED": "A resource role is required.",
+    "LABOUR_CATEGORY_REQUIRED": "A labour cost category is required.",
+    "HOURLY_RATE_MISSING": "No hourly rate is set for this role and year.",
+    "PROJECT_CODE_REQUIRED": "The project code must be filled in.",
+    "PASTE_TOO_WIDE": "The pasted data has more columns than the grid.",
+    "FILE_FORMAT_UNREADABLE": "The file format cannot be read.",
+    "VALUE_REQUIRED": "A value is required.",
+    "VALUE_TOO_LONG": "The value is too long.",
+    "VALUE_OUT_OF_RANGE": "The value is outside the allowed range.",
+    "NUMBER_INVALID": "This is not a valid number.",
+    "DATE_INVALID": "This is not a valid date.",
+    "UNKNOWN_COST_CATEGORY": "Unknown cost category.",
+    "UNKNOWN_RESOURCE_ROLE": "Unknown resource role.",
+    "UNKNOWN_SUBPROJECT": "Unknown subproject.",
+    "UNKNOWN_TASK": "Unknown task.",
+    "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
+    "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
+    "INTERNAL_ERROR": "Unexpected service error."
+  },
+  "problemDetails": {
+    "missing_permission": "Required permission: {permission}.",
+    "missing_condition": "Unmet condition: {condition}.",
+    "missing_prerequisites": "Still missing: {prerequisites}.",
+    "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}}.",
+    "component": "Unavailable component: {component}."
+  },
+  "permissions": {
+    "users": {
+      "read": "View users",
+      "write": "Edit users"
+    },
+    "access_roles": {
+      "read": "View access roles",
+      "write": "Edit access roles"
+    },
+    "system_status": {
+      "read": "View the system status",
+      "write": "Edit the system status"
+    },
+    "backups": {
+      "read": "View backups",
+      "write": "Edit backups"
+    },
+    "portfolio_projects": {
+      "read": "View the project portfolio",
+      "write": "Edit the project portfolio"
+    },
+    "portfolio_workload": {
+      "read": "View the aggregated workload",
+      "write": "Edit the aggregated workload"
+    },
+    "portfolio_performance": {
+      "read": "View the portfolio performance",
+      "write": "Edit the portfolio performance"
+    },
+    "portfolio_cost_structure": {
+      "read": "View the portfolio cost structure",
+      "write": "Edit the portfolio cost structure"
+    },
+    "portfolio_risks": {
+      "read": "View the portfolio risks",
+      "write": "Edit the portfolio risks"
+    },
+    "portfolio_cash_out": {
+      "read": "View the portfolio cash-out",
+      "write": "Edit the portfolio cash-out"
+    },
+    "portfolio_pilot_health": {
+      "read": "View the project control health",
+      "write": "Edit the project control health"
+    },
+    "cost_settings": {
+      "read": "View cost settings",
+      "write": "Edit cost settings"
+    },
+    "resource_settings": {
+      "read": "View resource settings",
+      "write": "Edit resource settings"
+    },
+    "risk_settings": {
+      "read": "View risk settings",
+      "write": "Edit risk settings"
+    },
+    "indicator_settings": {
+      "read": "View indicator settings",
+      "write": "Edit indicator settings"
+    },
+    "revisions": {
+      "read": "View revisions",
+      "write": "Edit revisions"
+    },
+    "project_settings": {
+      "read": "View project settings",
+      "write": "Edit project settings"
+    },
+    "planning": {
+      "read": "View planning",
+      "write": "Edit planning"
+    },
+    "estimate": {
+      "read": "View costing and estimate",
+      "write": "Edit costing and estimate"
+    },
+    "remaining": {
+      "read": "View the estimate to complete",
+      "write": "Edit the estimate to complete"
+    },
+    "risks": {
+      "read": "View risk management",
+      "write": "Edit risk management"
+    },
+    "actual_costs": {
+      "read": "View actual costs",
+      "write": "Edit actual costs"
+    },
+    "project_indicators": {
+      "read": "View project indicators",
+      "write": "Edit project indicators"
+    },
+    "lifecycle": {
+      "read": "View the project lifecycle",
+      "write": "Edit the project lifecycle"
+    },
+    "revision_mark": "Mark a revision",
+    "reference_designate": "Designate the reference revision",
+    "project_exit": "Close a project: completed, lost or abandoned",
+    "risk_occurrence": "Declare that a risk has occurred",
+    "cost_line_exclude": "Exclude actual cost lines",
+    "platform_restore": "Restore the platform"
+  },
+  "enums": {
+    "ComponentHealth": {
+      "component": {
+        "api": "API service",
+        "worker": "Background worker",
+        "database": "Database",
+        "cache": "Cache",
+        "object_storage": "File storage",
+        "directory": "Directory",
+        "metrics": "Metrics"
+      }
+    },
+    "AlertZone": {
+      "nominal": "Nominal",
+      "watch": "Watch",
+      "alert": "Alert"
+    },
+    "Alert": {
+      "code": {
+        "component_unavailable": "Component unavailable",
+        "task_queue_stalled": "Task queue stalled",
+        "scheduled_backup_failed": "Scheduled backup failed",
+        "directory_sync_failed": "Directory synchronisation failed",
+        "storage_nearly_full": "Storage nearly full",
+        "error_rate_abnormal": "Abnormal error rate"
+      }
+    },
+    "Language": {
+      "fr": "Français",
+      "en": "English"
+    },
+    "BackgroundTaskRef": {
+      "kind": {
+        "import_analysis": "Import analysis",
+        "import_apply": "Applying an import",
+        "revision_mark": "Revision marking",
+        "structure_merge": "Structure merge",
+        "risk_occurrence": "Risk occurrence",
+        "export": "Export",
+        "backup": "Backup",
+        "restore": "Restore",
+        "directory_sync": "Directory synchronisation"
+      },
+      "status": {
+        "queued": "Queued",
+        "running": "Running",
+        "succeeded": "Succeeded",
+        "failed": "Failed"
+      }
+    },
+    "AuthProviderKind": {
+      "local": "Local account",
+      "ldap": "LDAP directory",
+      "oidc": "Identity provider (OIDC)"
+    },
+    "UserOrigin": {
+      "local": "Created in Waterfall",
+      "directory": "Imported from the directory",
+      "identity_provider": "Created by the identity provider"
+    },
+    "ActorRef": {
+      "kind": {
+        "user": "User",
+        "platform": "Automatic process"
+      }
+    },
+    "SortOrder": {
+      "asc": "Ascending",
+      "desc": "Descending"
+    },
+    "DisplayPreferences": {
+      "language": {
+        "default": "Browser language",
+        "fr": "Français",
+        "en": "English"
+      },
+      "theme": {
+        "default": "System setting",
+        "light": "Light",
+        "dark": "Dark"
+      }
+    },
+    "Permission": {
+      "kind": {
+        "function_read": "View a function",
+        "function_write": "Edit a function",
+        "irreversible": "Irreversible or structuring action"
+      }
+    },
+    "Backup": {
+      "verification": {
+        "pending": "Verification pending",
+        "passed": "Verified",
+        "failed": "Verification failed"
+      },
+      "scope": {
+        "database": "Database"
+      },
+      "origin": {
+        "manual": "Manual",
+        "scheduled": "Scheduled"
+      }
+    },
+    "BackupSchedule": {
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly"
+      }
+    },
+    "ReferenceReadiness": {
+      "missing": {
+        "default_calendar_with_hours": "a default calendar with working hours",
+        "active_cost_category": "an active cost category",
+        "active_resource_role": "an active resource role"
+      }
+    },
+    "CostTypeKind": {
+      "labor": "Labour",
+      "non_labor": "Non-labour",
+      "provision": "Provision"
+    },
+    "ProjectState": {
+      "created": "Created",
+      "pricing": "Pricing",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "lost": "Lost",
+      "abandoned": "Abandoned"
+    },
+    "ProjectCommand": {
+      "update": "Edit the project",
+      "manage_contributors": "Manage contributors",
+      "create_revision": "Create a revision",
+      "complete": "Complete the project",
+      "lose": "Declare the project lost",
+      "abandon": "Abandon the project",
+      "edit_risks": "Edit the risks",
+      "declare_risk_occurrence": "Declare that a risk has occurred",
+      "import_actual_costs": "Import actual costs",
+      "exclude_cost_lines": "Exclude cost lines"
+    },
+    "CommandCondition": {
+      "is_contributor": "being a contributor to the project",
+      "project_not_terminal": "project not closed",
+      "project_in_progress": "project in progress",
+      "project_in_pricing": "project in pricing",
+      "project_code_set": "project code filled in",
+      "reference_revision_designated": "reference revision designated",
+      "at_least_one_task": "at least one task",
+      "at_least_one_estimate_line": "at least one estimate line",
+      "no_current_revision": "no draft revision",
+      "revision_draft": "draft revision",
+      "revision_marked": "marked revision",
+      "reference_correctable": "reference still correctable",
+      "unmerged_amendment_exists": "an unmerged amendment",
+      "task_not_completed": "task not completed",
+      "hourly_rates_set": "hourly rates set"
+    },
+    "ProjectExit": {
+      "to_state": {
+        "completed": "Completed",
+        "lost": "Lost",
+        "abandoned": "Abandoned"
+      }
+    },
+    "RevisionStatus": {
+      "draft": "Draft",
+      "marked": "Marked"
+    },
+    "RevisionCommand": {
+      "edit_planning": "Edit the schedule",
+      "edit_estimate": "Edit the estimate",
+      "edit_remaining": "Update the estimate to complete",
+      "create_structure": "Create a structure",
+      "merge_structure": "Merge a structure",
+      "mark": "Mark the revision",
+      "designate_reference": "Designate as reference",
+      "abandon": "Abandon the revision"
+    },
+    "RateUpdateProposal": {
+      "categories": {
+        "source": {
+          "reference_rate": "Reference rate",
+          "inflated_previous": "Previous rate, projected with inflation"
+        }
+      }
+    },
+    "NodeKind": {
+      "task": "Task",
+      "estimate_line": "Estimate line"
+    },
+    "ComparedNode": {
+      "changes": {
+        "dates": "Dates",
+        "duration": "Duration",
+        "progress": "Progress",
+        "budgeted_amount": "Budgeted amount",
+        "reestimated_amount": "Re-estimated amount",
+        "parent": "Parent"
+      }
+    },
+    "RevisionComparison": {
+      "amount_deltas": {
+        "dimension": {
+          "cost_type": "Cost type",
+          "subproject": "Subproject"
+        }
+      }
+    },
+    "StructureKind": {
+      "main": "Main structure",
+      "amendment": "Amendment",
+      "risk": "Risk estimate"
+    },
+    "StructureCreate": {
+      "kind": {
+        "amendment": "Amendment",
+        "risk": "Risk estimate"
+      }
+    },
+    "TaskProgress": {
+      "not_started": "Not started",
+      "started": "Started",
+      "completed": "Completed"
+    },
+    "SchedulingMode": {
+      "automatic": "Automatic",
+      "manual": "Manual"
+    },
+    "TrackingEntry": {
+      "kind": {
+        "timeline": "Timeline",
+        "milestone_tracking": "Milestone tracking"
+      }
+    },
+    "LinkType": {
+      "finish_to_start": "Finish-to-start (FS)",
+      "start_to_start": "Start-to-start (SS)",
+      "finish_to_finish": "Finish-to-finish (FF)",
+      "start_to_finish": "Start-to-finish (SF)"
+    },
+    "ComputedField": {
+      "task": {
+        "duration_days": "Duration (days)",
+        "start_date": "Start",
+        "finish_date": "Finish",
+        "progress": "Progress"
+      },
+      "estimate_line": {
+        "quantity": "Quantity",
+        "hours": "Hours",
+        "unit_disbursement": "Unit disbursement"
+      }
+    },
+    "ProgressUpdate": {
+      "progress": {
+        "started": "Started",
+        "completed": "Completed"
+      }
+    },
+    "WorkloadPlan": {
+      "basis": {
+        "estimate": "Estimate",
+        "remaining": "Estimate to complete"
+      }
+    },
+    "CurveSeries": {
+      "series": {
+        "name": {
+          "reference_budget": "Reference budget",
+          "planned_value": "Planned value",
+          "earned_value": "Earned value",
+          "actual_cost": "Actual cost",
+          "project_manager_projection": "Project manager’s projection"
+        }
+      },
+      "steps": {
+        "cause": {
+          "amendment": "Amendment",
+          "risk_occurred": "Risk occurred",
+          "last_risk_dismissed": "Last risk dismissed"
+        }
+      }
+    },
+    "RiskState": {
+      "identified": "Identified",
+      "occurred": "Occurred",
+      "dismissed": "Dismissed"
+    },
+    "RiskReviewWrite": {
+      "state": {
+        "identified": "Identified",
+        "dismissed": "Dismissed"
+      }
+    },
+    "ExchangeKind": {
+      "ms_project_schedule": "MS Project schedule",
+      "estimate": "Estimate",
+      "remaining": "Estimate to complete",
+      "actual_costs": "Actual costs"
+    },
+    "ImportDifference": {
+      "change": {
+        "added": "Added",
+        "removed": "Removed",
+        "updated": "Updated"
+      },
+      "target": {
+        "task": "Task",
+        "estimate_line": "Estimate line",
+        "link": "Link",
+        "actual_cost_line": "Actual cost line"
+      }
+    },
+    "ImportReport": {
+      "requires_confirmation_reasons": {
+        "date_or_duration_mismatch": "Dates or durations differ from those Waterfall recalculates",
+        "lines_outside_project": "Lines outside the project",
+        "unknown_subproject": "Unknown subproject"
+      }
+    },
+    "Import": {
+      "status": {
+        "analysing": "Analysing",
+        "analysed": "Analysed",
+        "applying": "Applying",
+        "applied": "Applied",
+        "abandoned": "Abandoned",
+        "expired": "Expired",
+        "failed": "Failed"
+      }
+    },
+    "ExportRequest": {
+      "kind": {
+        "ms_project_schedule": "MS Project schedule",
+        "estimate": "Estimate",
+        "remaining": "Estimate to complete",
+        "task_tree_image": "Task tree image"
+      }
+    },
+    "PortfolioPerformance": {
+      "zone_distribution": {
+        "index": {
+          "cost": "Cost index",
+          "schedule": "Schedule index"
+        }
+      }
+    },
+    "PilotHealth": {
+      "signals": {
+        "code": {
+          "review_overdue": "Periodic review overdue",
+          "risks_not_reviewed": "Risks not reviewed",
+          "no_actual_cost_since_last_review": "No actual cost since the last review",
+          "contractual_milestone_overdue": "Contractual milestone overdue"
+        }
+      }
+    },
+    "Scope": {
+      "project": "Whole project",
+      "unassigned": "No subproject"
+    },
+    "SubprojectFilter": {
+      "unassigned": "No subproject"
+    },
+    "WorkloadBasis": {
+      "estimate": "Estimate",
+      "remaining": "Estimate to complete"
+    }
+  }
+}

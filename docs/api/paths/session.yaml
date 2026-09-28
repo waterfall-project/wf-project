@@ -169,6 +169,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/UserSelf }
+            examples:
+              witness: { $ref: ../../../fixtures/api/me.json }
+              english: { $ref: ../../../fixtures/api/me_english.json }
+              without_preferences: { $ref: ../../../fixtures/api/me_without_preferences.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 
 /me/preferences:
@@ -191,6 +195,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/DisplayPreferences }
+            examples:
+              witness: { $ref: ../../../fixtures/api/preferences.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 

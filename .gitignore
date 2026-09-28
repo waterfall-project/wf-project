@@ -6,6 +6,7 @@ __pycache__/
 /docs/spec/images/
 stb-waterfall.docx.before*
 docs/api/*.bundle.yaml
+docs/api/*.bundle.json
 .venv/
 node_modules/
 .next/

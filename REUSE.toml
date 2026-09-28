@@ -23,6 +23,7 @@ path = [
     "frontend/pnpm-lock.yaml",
     "frontend/.dockerignore",
     "frontend/.prettierrc.json",
+    "frontend/messages/*.json",
     "frontend/src/api/generated/**",
     "fixtures/**",
     "tools/src/wftools/py.typed",

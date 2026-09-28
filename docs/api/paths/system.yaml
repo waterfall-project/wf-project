@@ -34,6 +34,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Installation }
+            examples:
+              witness: { $ref: ../../../fixtures/api/installation.json }
+              english: { $ref: ../../../fixtures/api/installation_english.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /health/ready:

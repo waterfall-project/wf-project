@@ -103,6 +103,47 @@ const ACTION_SYNTAX = {
   message: 'A module of src/api/actions/ holds server actions: it opens with "use server".',
 };
 
+// No text for the user is written in the code (WF-QUA-0070): it comes from the catalogues
+// of messages/, in the language of the reader. react/jsx-no-literals refuses the text of
+// JSX, and a string written as a child. The selectors here refuse what it lets through:
+//
+// - a string in a branch or a concatenation of a child — `{ok ? "Oui" : t("no")}`,
+//   `{"Total : " + n}` —, three operators deep at most;
+// - the attributes a user reads — spoken by a screen reader, shown on hover, in place of an
+//   image or of an empty field, as the label of an option, on a button made of an input —
+//   whose value, or a branch or a concatenation of it, is a literal with something to read.
+//
+// A literal passed to a function, `t(ok ? "yes" : "no")`, is a key, not a text; an empty
+// alt, the mark of a decorative image, is no text either, nor the placeholder of next/image,
+// `blur`, `empty` or a `data:image/` address. What stays with the review: the props of our
+// own components other than `label`, and a string built by a function or a method
+// (`.join`, `.concat`), in the JSX or outside it.
+const TEXT = "Write the text in the catalogues of messages/, and read it with next-intl.";
+const TEXT_VALUE =
+  ":matches(Literal[value=/\\S/], TemplateLiteral:has(> TemplateElement[value.raw=/\\S/]))";
+const OPERATOR =
+  ":matches(ConditionalExpression, LogicalExpression, BinaryExpression[operator='+'])";
+const TEXT_CHILD = ":matches(JSXElement, JSXFragment) > JSXExpressionContainer";
+const TEXT_ATTRIBUTES = [
+  "JSXAttribute[name.name=/^(aria-(label|description|roledescription|valuetext|placeholder)|title|alt|label)$/]",
+  "JSXAttribute[name.name='placeholder']:not([value.value=/^((blur|empty)$|data:image\\/)/])",
+  "JSXOpeningElement[name.name='input']:has(> JSXAttribute[name.name='type'][value.value=/^(submit|button|reset)$/]) > JSXAttribute[name.name='value']",
+];
+const TEXT_SYNTAX = [
+  ...TEXT_ATTRIBUTES.flatMap((attribute) => [
+    `${attribute} > ${TEXT_VALUE}`,
+    `${attribute} > JSXExpressionContainer > ${TEXT_VALUE}`,
+  ]),
+  ...[
+    ...TEXT_ATTRIBUTES.map((attribute) => `${attribute} > JSXExpressionContainer`),
+    TEXT_CHILD,
+  ].flatMap((container) => [
+    `${container} > ${OPERATOR} > ${TEXT_VALUE}`,
+    `${container} > ${OPERATOR} > ${OPERATOR} > ${TEXT_VALUE}`,
+    `${container} > ${OPERATOR} > ${OPERATOR} > ${OPERATOR} > ${TEXT_VALUE}`,
+  ]),
+].map((selector) => ({ selector, message: TEXT }));
+
 export default defineConfig([
   globalIgnores([
     ".next/**",
@@ -143,7 +184,13 @@ export default defineConfig([
         "error",
         { patterns: [{ regex: NETWORK_MODULE, message: NETWORK }] },
       ],
-      "no-restricted-syntax": ["error", ...NETWORK_SYNTAX, ...CLIENT_SYNTAX],
+      "no-restricted-syntax": ["error", ...NETWORK_SYNTAX, ...CLIENT_SYNTAX, ...TEXT_SYNTAX],
+      // See TEXT: the text of JSX, and a string written as a child. The attributes are
+      // TEXT_SYNTAX's, which knows which of them a user reads.
+      "react/jsx-no-literals": [
+        "error",
+        { noStrings: true, ignoreProps: true, allowedStrings: [] },
+      ],
       // A docstring for what is exported; its types are TypeScript's, never repeated.
       "jsdoc/require-jsdoc": [
         "error",
@@ -162,7 +209,8 @@ export default defineConfig([
   {
     // The client of the API is where the network is called: that one module, not src/api/,
     // where the server actions call the client like any other code. It is no client
-    // component, so the selectors of CLIENT_SYNTAX have nothing to find in it.
+    // component, so the selectors of CLIENT_SYNTAX have nothing to find in it, nor JSX for
+    // those of TEXT_SYNTAX.
     files: ["src/api/client.ts"],
     rules: {
       "no-restricted-globals": "off",
@@ -177,13 +225,26 @@ export default defineConfig([
     files: ["src/api/actions/**"],
     ignores: ["**/*.test.ts", "**/*.test.tsx"],
     rules: {
-      "no-restricted-syntax": ["error", ...NETWORK_SYNTAX, ...CLIENT_SYNTAX, ACTION_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...NETWORK_SYNTAX,
+        ...CLIENT_SYNTAX,
+        ...TEXT_SYNTAX,
+        ACTION_SYNTAX,
+      ],
     },
   },
   {
-    // Tests are named for what they check; a docstring would repeat the name.
+    // Tests are named for what they check; a docstring would repeat the name. The text a
+    // test renders is its own data — a page in a layout, a label to find —, never shown to
+    // a user: the rules against text written in the code do not apply, and the network
+    // guard does, its selectors repeated without TEXT_SYNTAX.
     files: ["**/*.test.ts", "**/*.test.tsx", "e2e/**"],
-    rules: { "jsdoc/require-jsdoc": "off" },
+    rules: {
+      "jsdoc/require-jsdoc": "off",
+      "react/jsx-no-literals": "off",
+      "no-restricted-syntax": ["error", ...NETWORK_SYNTAX, ...CLIENT_SYNTAX],
+    },
   },
   {
     // Configuration files are not part of the TypeScript project.

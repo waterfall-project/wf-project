@@ -293,6 +293,8 @@ les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se d�
   import de `src/api/` dans un composant client hors des actions serveur : l'API ne
   s'appelle que par le client engendré, depuis le serveur
   (WF-ARC-0020) ;
+- aucun texte destiné à l'utilisateur écrit dans le code (WF-QUA-0070) : voir « Clés de
+  traduction » ;
 - Prettier pour le format (`frontend/.prettierrc.json`) ; ESLint s'exécute avec
   `--max-warnings 0`.
 
@@ -408,13 +410,95 @@ les EPIC de calcul (EP-06 à EP-11).
 L'enveloppe est fixée par le contrat (`docs/api/README.md`, WF-ARC-0110) : un code machine et
 ses paramètres, jamais une phrase.
 
-- **Ajouter un code côté front** — *à écrire*, US-0190 (EP-02), qui crée le catalogue des
-  codes.
+- **Ajouter un code côté front** — un code nouveau est d'abord une modification du contrat
+  (`ErrorCode`, `docs/api/components/common.yaml`), suivie de `make generate-client`. Le
+  front lui donne sa phrase, `errors.<CODE>`, dans les deux catalogues : ce qui est refusé,
+  sans rien de ce que les paramètres nomment. Un paramètre nouveau qu'un lecteur doit
+  connaître reçoit la sienne, `problemDetails.<param>`, et sa lecture dans `DETAILS` de
+  `frontend/src/i18n/problem.ts`, qui nomme une valeur codée — une permission, une
+  condition — par son libellé du catalogue ; un paramètre qui ne dit rien à un lecteur —
+  un identifiant, un compteur d'écriture — n'en reçoit pas. Un composant rend un refus par
+  `problemMessage(problem, { locale, messages })`, jamais en écrivant la phrase.
+
+  *Contrôles* : `make typecheck-front` échoue sur un code d'`ErrorCode` sans clé dans le
+  catalogue français, que `problem.ts` lit par `errors.${code}` ; `make catalogs`, sur un
+  code sans clé dans l'un des deux, ou sur une clé `errors.` que le contrat n'a plus.
 - **Ajouter un code côté service** — *à écrire*, EP-03, qui crée le service.
 
 ## Clés de traduction
 
-*À écrire* — US-0190 (EP-02), qui choisit la bibliothèque et crée les catalogues.
+Les textes de l'interface vivent dans deux catalogues jumeaux, que lit next-intl :
+`frontend/messages/fr.json`, la référence, et `frontend/messages/en.json`. La langue
+n'apparaît pas dans l'adresse — un lien partagé s'ouvre chez chacun dans la sienne
+(WF-INTF-0170) — : le serveur la résout à chaque requête (`frontend/src/i18n/request.ts`),
+d'après la préférence du compte si elle vaut `fr` ou `en`, sinon la première langue offerte
+que demande `Accept-Language`, sinon la langue par défaut de l'installation
+(`getInstallation`). Un `*` placé devant toute langue offerte dans `Accept-Language` laisse
+décider l'installation ; une installation illisible ou injoignable donne `fr`, la langue du
+catalogue de référence. Sans compte — pas de session, ou une API injoignable — il n'y a pas
+de préférence : le navigateur décide, et la coquille n'offre pas le sélecteur de langue.
+
+- **Une clé est hiérarchique, en anglais.** Un texte propre à l'interface se range sous le
+  composant ou l'écran qui l'emploie, en camelCase (`languageSelector.label`). Ce que le
+  contrat énumère garde ses noms, et chaque valeur a sa clé :
+  - `enums.<Schéma>.<valeur>` pour une énumération nommée (`enums.ProjectState.in_progress`),
+    `enums.<Schéma>.<propriété>.<valeur>` pour une énumération déclarée dans une propriété
+    (`enums.BackgroundTaskRef.status.running`), les `items` d'un tableau ne comptant pas
+    (`enums.ReferenceReadiness.missing.active_cost_category`) : toutes les énumérations de
+    `components.schemas`, sauf les deux suivantes ;
+  - `errors.<CODE>` pour chaque code d'`ErrorCode`, `permissions.<code>` pour chaque
+    `PermissionCode` ;
+  - `enums.<Paramètre>.<valeur>` pour une énumération d'un paramètre partagé de
+    `components.parameters` (`enums.Scope.unassigned`) : son nom partage le niveau des
+    schémas, et un paramètre qui énumère des valeurs ne porte pas le nom d'un schéma ;
+  - aucune énumération ne s'écrit en ligne, faute d'un nom pour ranger ses clés : celle d'un
+    paramètre d'opération devient un paramètre partagé de
+    `docs/api/components/parameters.yaml` ; celle d'un corps de requête ou de réponse, ou
+    d'un en-tête — sous `paths` comme sous `components.responses`, `requestBodies` et
+    `headers` —, un schéma nommé de `components.schemas`. Deux exceptions, sans clé :
+    `sort_by`, dont les valeurs sont des colonnes que l'en-tête de la grille libelle déjà, et
+    les corps des sondes, `/health` et les chemins qui en partent, qu'aucun écran n'affiche ;
+  - un `const` n'a pas de clé : le contrat ne s'en sert que pour l'accord qu'une requête
+    donne (`confirmed: true`), qui ne s'affiche pas ;
+  - une valeur qui porte un point se lit comme un niveau, next-intl réservant le point au
+    chemin : `permissions.users.write`, `enums.ComputedField.task.start_date`.
+- **Une valeur est un message ICU** — `{max_columns, plural, one {…} other {…}}` —, avec les
+  mêmes arguments dans les deux catalogues, ce que `make catalogs` vérifie ; le libellé d'une valeur d'énumération ou d'une
+  permission est du texte sans argument. Le français suit sa typographie : espace insécable
+  avant les deux-points, fine insécable avant le point-virgule et les points d'exclamation et
+  d'interrogation, apostrophe typographique ; l'anglais suit l'orthographe britannique.
+- **Ajouter une clé**, c'est l'écrire dans les deux catalogues, au même endroit, et la lire par
+  `useTranslations` — composant client, ou serveur sans `await` — ou par `createTranslator`
+  et `requestLanguage()` dans un composant serveur asynchrone. Une valeur ajoutée à une
+  énumération du contrat ajoute sa clé dans la même modification.
+- **Ce que l'utilisateur a saisi ne se traduit pas** : un libellé de tâche, un nom de projet
+  s'affichent tels quels (WF-INTF-0170).
+- **Les formats** sont ceux de `frontend/src/i18n/format.ts`, par la langue : un montant, un
+  décimal, des heures depuis la chaîne exacte du contrat (`formatMoney`, `formatDecimal`),
+  jamais par un flottant ; une date de planning telle quelle, sans fuseau
+  (`formatPlanningDate`) ; un horodatage en heure locale du poste, écrit dans le navigateur
+  (`LocalTime`). En français, `Intl` sépare les milliers par une fine insécable (U+202F) :
+  « 1 234,56 » ne se coupe pas en fin de ligne.
+
+*Contrôles* : `make typecheck-front` — next-intl est typé par le catalogue français, et une
+clé que le code emploie sans qu'il l'ait casse le typage, comme une clé qui manque au
+catalogue anglais (`frontend/src/i18n/catalogues.ts`) ; `make lint-front` —
+`react/jsx-no-literals` refuse le texte écrit dans le JSX, et `no-restricted-syntax` un
+littéral dans un attribut lu — `aria-label`, `aria-description`, `aria-roledescription`,
+`aria-valuetext`, `aria-placeholder`, `title`, `alt`, `placeholder` (sauf `blur`, `empty` et
+une adresse `data:image/`, les formes de next/image), `label`, la `value` d'un `input`
+bouton —, ou dans une branche ou une concaténation d'un enfant ou d'un de ces attributs ;
+restent à la revue les autres props de nos propres composants, et une chaîne bâtie par une
+fonction ou une méthode (`.join`, `.concat`), dans le JSX ou hors de lui ;
+`frontend/src/i18n/text-guard.test.ts` l'éprouve sur des extraits piégés, à côté de la garde
+réseau qui partage la règle ; `make catalogs`, dans `check-front`, qui lit le
+contrat qu'il vient d'assembler (`wftools.catalogs`) — les deux catalogues ont les mêmes
+clés, chaque valeur est un texte non vide, chaque valeur d'énumération, chaque code d'erreur
+et chaque permission du contrat a la sienne, et aucune clé sous `enums`, `errors` ou
+`permissions` ne survit à la valeur que le contrat a retirée ; un texte emploie les mêmes
+arguments ICU que celui du catalogue français, une clé ne s'écrit qu'une fois par fichier, et
+aucune énumération ne s'écrit en ligne, hors `sort_by` et les sondes. Il demande au moins
+deux catalogues, et nomme chaque clé qui manque et le catalogue qui la porte.
 
 ## Migrations
 
