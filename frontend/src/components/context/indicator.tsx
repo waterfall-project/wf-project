@@ -11,7 +11,8 @@ import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
-import { formatDecimal } from "@/i18n/format";
+import type { Catalogue } from "@/i18n/catalogues";
+import { formatDecimal, formatPercent } from "@/i18n/format";
 
 /** A value that may not be computable (WF-IND-0010). */
 export type Computable = components["schemas"]["Computable"];
@@ -36,9 +37,29 @@ export function CalculationDate({ context }: CalculationDateProps) {
   );
 }
 
-/** An indicator: its name, in the language of the interface; its value; its context. */
+/** The name of an indicator whose value may not be computable. */
+type IndicatorName = keyof Catalogue["indicator"]["names"];
+
+/** The key of the label of an indicator in the catalogues. */
+export type IndicatorLabel = `indicator.names.${IndicatorName}`;
+
+/**
+ * How each indicator shows its value: a progress or a consumption is a ratio, shown as a
+ * percentage; an index or a projection, as the decimal the API gave. Every name of the
+ * catalogue is classified: one added there fails the type check until it is here.
+ */
+const FORMATS: Readonly<Record<IndicatorLabel, typeof formatDecimal>> = {
+  "indicator.names.financialProgress": formatPercent,
+  "indicator.names.budgetConsumption": formatPercent,
+  "indicator.names.physicalProgress": formatPercent,
+  "indicator.names.costIndex": formatDecimal,
+  "indicator.names.scheduleIndex": formatDecimal,
+  "indicator.names.projectionAtObservedRate": formatDecimal,
+};
+
+/** An indicator: the key of its name in the catalogues; its value; its context. */
 export interface ComputedIndicatorProps {
-  readonly label: string;
+  readonly label: IndicatorLabel;
   readonly value: Computable;
   readonly context: CalculationContext;
 }
@@ -52,9 +73,9 @@ export function ComputedIndicator({ label, value, context }: ComputedIndicatorPr
   const reason = computed === null ? (value.reason ?? "") : "";
   return (
     <dl className="space-y-0.5">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dt className="text-sm text-muted-foreground">{t(label)}</dt>
       <dd className="text-lg font-semibold tabular-nums">
-        {computed === null ? t("indicator.notComputable") : formatDecimal(computed, locale)}
+        {computed === null ? t("indicator.notComputable") : FORMATS[label](computed, locale)}
       </dd>
       {reason === "" ? null : <dd className="text-sm text-muted-foreground">{reason}</dd>}
       <dd>

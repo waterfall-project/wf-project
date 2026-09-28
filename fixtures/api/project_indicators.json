@@ -25,7 +25,7 @@
     },
     "physical_progress": {
       "is_computable": true,
-      "value": "0.25",
+      "value": "0",
       "reason": null
     },
     "cost_index": {

@@ -80,6 +80,8 @@ const CONTROLS: readonly [string, string][] = [
   ["input", "card"],
   ["ring", "background"],
   ["ring", "card"],
+  // The focus of the link that lifts a filter, drawn on its chip.
+  ["ring", "accent"],
 ];
 
 const MODES: readonly Mode[] = ["light", "dark"];

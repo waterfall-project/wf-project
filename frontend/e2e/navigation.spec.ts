@@ -7,7 +7,8 @@ import { expect, type Page, test } from "@playwright/test";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
-const CONTEXT = "?subproject_id=01926f3a-7c00-7000-8000-000000000401&as_of=2026-05-31";
+// A sub-project of the project, in the examples of the contract (`subprojects.json`).
+const CONTEXT = "?subproject_id=01926f3a-7c00-7000-8000-000000000801&as_of=2026-05-31";
 
 /** Follow a link of the navigation, and check the screen it leads to names its function. */
 async function open(page: Page, name: string) {

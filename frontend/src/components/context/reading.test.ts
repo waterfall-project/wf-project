@@ -75,6 +75,7 @@ describe("what a screen of a project reads in", () => {
       pathname: REMAINING,
       project: { label: "Modernisation du poste de commande" },
       revision: { revision_id: REVISION, status: "draft" },
+      edits: new Set(["edit_planning", "edit_estimate", "edit_remaining"]),
       readOnly: false,
       filters: [],
     });
@@ -82,11 +83,26 @@ describe("what a screen of a project reads in", () => {
 
   it("is read only on a marked revision [WF-IHM-0020-A]", async () => {
     request({ "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked" });
-    expect(await read(REMAINING)).toMatchObject({ readOnly: true, revision: { status: "marked" } });
+    expect(await read(REMAINING)).toMatchObject({
+      readOnly: true,
+      edits: new Set(),
+      revision: { status: "marked" },
+    });
+  });
+
+  it("is not read only for one who may enter the estimate alone, and names that command", async () => {
+    request({ "GET /projects/{project_id}/revisions/{revision_id}": "revision_estimator" });
+    const reading = await read(REMAINING);
+    expect(reading).toMatchObject({ readOnly: false, edits: new Set(["edit_estimate"]) });
+    expect(typeof reading === "object" && reading.edits.has("edit_planning")).toBe(false);
   });
 
   it("is the project alone on a function of the project that carries no revision", async () => {
-    expect(await read(LIFECYCLE)).toMatchObject({ revision: undefined, readOnly: false });
+    expect(await read(LIFECYCLE)).toMatchObject({
+      revision: undefined,
+      edits: new Set(),
+      readOnly: false,
+    });
     expect(fake.calls.map((call) => call.route)).toEqual(["GET /projects/{project_id}"]);
   });
 

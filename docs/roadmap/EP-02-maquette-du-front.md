@@ -279,7 +279,10 @@ verrou.
   d'une valeur dans le front.
 - **Bandeau de contexte** : projet ; révision, son état, son caractère de référence ;
   filtres en pastilles ; date de calcul — une valeur sous enveloppe `Computable` ne
-  s'affiche pas sans la date de son `CalculationContext`, rendue en heure locale.
+  s'affiche pas sans la date de son `CalculationContext`, rendue en heure locale. Quand la
+  date de calcul renvoie à une autre révision que celle de l'adresse — `as_of` lit la
+  dernière révision marquée antérieure —, le bandeau nomme la révision du calcul
+  (`CalculationContext.revision_id`), pas celle de l'adresse.
 - **Commande** : sur le projet et la révision, absente quand l'objet ne la liste pas — le
   serveur ne liste dans `available_commands` que les commandes dont l'appelant a la
   permission, et le front ne sait pas quelle permission garde quelle commande —, présente
@@ -441,7 +444,7 @@ chaque écran s'invente le sien.
 
 ## US-0100 — Bandeau de contexte de lecture
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-IHM-0020-A`
 - **opérations** : `getRevision`, `listRevisions`, `listSubprojects`
 - **issue** : #74

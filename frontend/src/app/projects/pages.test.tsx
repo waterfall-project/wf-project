@@ -24,6 +24,15 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const NO_SEARCH = Promise.resolve({});
 const BANNER = '<section aria-label="Reading context"';
+const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+
+/** What a page says, its tags left out: the texts a reader reads, one space apart. */
+function text(markup: string): string {
+  return markup
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 /** A page in English, as the shell hands it its texts. */
 function inEnglish(page: ReactNode) {
@@ -118,8 +127,9 @@ describe("the banner of the reading context on the witness path", () => {
     });
     const html = renderToStaticMarkup(inEnglish(page));
     expect(html.startsWith(BANNER)).toBe(true);
-    expect(html).toContain('<dt class="text-muted-foreground">Project</dt>');
-    expect(html).toContain('<dd class="font-medium">Modernisation du poste de commande</dd>');
+    expect(text(html)).toMatch(
+      /^Project Modernisation du poste de commande Modernisation du poste de commande Référence/,
+    );
   });
 
   it("names the project and the revision on the grid of a revision [WF-IHM-0020-A]", async () => {
@@ -129,20 +139,29 @@ describe("the banner of the reading context on the witness path", () => {
       inEnglish(await RevisionPage({ params, searchParams: search })),
     );
     expect(html.startsWith(BANNER)).toBe(true);
-    expect(html).toContain('<dd class="font-medium">Current revision</dd>');
-    expect(html).toContain(">Subproject: No subproject<");
+    expect(text(html)).toMatch(
+      /^Project Modernisation du poste de commande Revision Current revision Draft Subproject: No subproject 1 Études/,
+    );
     expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}"`);
   });
 
-  it("shows no banner on the grid of a revision the API does not find", async () => {
+  it("is not found for a revision the API does not find, as the other screens of a project", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": NOT_FOUND,
     };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const html = renderToStaticMarkup(
-      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
+  });
+
+  it("shows the grid without a banner when the project cannot be read otherwise", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": UNAUTHORIZED };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const page = inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH }));
+    expect(text(renderToStaticMarkup(page))).toBe(
+      "1 Études 2 Études de détail 3 Ingénierie de détail 4 Revue de conception",
     );
-    expect(html.startsWith("<main><table>")).toBe(true);
   });
 });

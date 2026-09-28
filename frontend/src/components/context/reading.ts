@@ -22,7 +22,7 @@ import {
 } from "@/navigation/context";
 import { reach } from "@/session/request";
 
-import { isReadOnly, type Revision } from "./read-only";
+import { availableEdits, type EditCommand, isReadOnly, type Revision } from "./read-only";
 
 /** A project, as the API reads it. */
 export type Project = components["schemas"]["Project"];
@@ -51,7 +51,15 @@ export interface ProjectReading {
   readonly project: Project;
   /** The revision the screen reads in; none on a function of the project without one. */
   readonly revision: Revision | undefined;
-  /** Whether the screen offers no command of modification of its revision. */
+  /**
+   * The commands of modification of the revision the caller may exercise now: a grid reads
+   * its own — `edits.has("edit_planning")` —, never `readOnly`. Empty without a revision.
+   */
+  readonly edits: ReadonlySet<EditCommand>;
+  /**
+   * Whether no command of modification of the revision is available — it is marked, or the
+   * caller may modify nothing of it: what the notice of the banner says, and nothing more.
+   */
   readonly readOnly: boolean;
   /** The active filters, in the order of the parameters of the context. */
   readonly filters: readonly ContextFilter[];
@@ -114,7 +122,7 @@ async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
  * Read what a screen of a project reads in: `"not_found"` when the API finds neither the
  * project nor the revision the address names — or does not let the user read them, which it
  * answers alike (WF-ADM-0110) —, `undefined` when it could not read them otherwise — an API
- * out of reach, which the page says (US-0170) —, the reading itself else.
+ * out of reach, which the screen of failure says (US-0090/L2, #101) —, the reading itself else.
  */
 export async function readProjectContext(
   pathname: string,
@@ -138,6 +146,7 @@ export async function readProjectContext(
     context,
     project: project.data,
     revision: read,
+    edits: read === undefined ? new Set() : availableEdits(read),
     readOnly: read !== undefined && isReadOnly(read),
     filters,
   };

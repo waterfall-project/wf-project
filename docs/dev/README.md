@@ -78,8 +78,11 @@ qui répond « introuvable » quand l'API ne trouve pas le projet ou la révisio
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
 fois par requête — et le montre par `ContextBanner`, au-dessus de son `<main>`
-(WF-IHM-0020). La lecture porte `readOnly`, qu'un écran reçoit plutôt que de le déduire :
-révision marquée, ou aucune commande `edit_*` disponible (`read-only.ts`). Une valeur sous
+(WF-IHM-0020). La lecture porte `edits`, les commandes `edit_*` de la révision que
+l'appelant peut exercer (`read-only.ts`), qu'un écran reçoit plutôt que de les déduire : une
+grille lit sa propre commande — `edits.has("edit_planning")` pour le planning —, car un
+chiffreur peut saisir le devis sans toucher au planning. `readOnly` — révision marquée, ou
+aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une valeur sous
 enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext` (`indicator.tsx`).
 
@@ -503,8 +506,11 @@ de préférence : le navigateur décide, et la coquille n'offre pas le sélecteu
   décimal, des heures depuis la chaîne exacte du contrat (`formatMoney`, `formatDecimal`),
   jamais par un flottant ; une date de planning telle quelle, sans fuseau
   (`formatPlanningDate`) ; un horodatage en heure locale du poste, écrit dans le navigateur
-  (`LocalTime`). En français, `Intl` sépare les milliers par une fine insécable (U+202F) :
-  « 1 234,56 » ne se coupe pas en fin de ligne.
+  (`LocalTime`) ; un rapport — un avancement — en pourcentage, depuis sa chaîne exacte
+  (`formatPercent`). En français, `Intl` sépare les milliers par une fine insécable
+  (U+202F) : « 1 234,56 » ne se coupe pas en fin de ligne. L'anglais se formate en anglais
+  britannique (`en-GB`), comme ses catalogues s'écrivent : « 31 May 2026, 16:30 », les
+  nombres restant « 1,234.56 ».
 
 *Contrôles* : `make typecheck-front` — next-intl est typé par le catalogue français, et une
 clé que le code emploie sans qu'il l'ait casse le typage, comme une clé qui manque au

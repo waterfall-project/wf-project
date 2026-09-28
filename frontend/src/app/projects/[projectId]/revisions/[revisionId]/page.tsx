@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The grid of a revision, last step of the witness path (US-0080): the banner of its reading
- * context (WF-IHM-0020), and the nodes of its main structure, one row each. Scaffolding
- * without text of its own: EP-02 replaces it with the dense grid and keeps the path.
+ * context (WF-IHM-0020), and the nodes of its main structure, one row each. A project or a
+ * revision the API does not find is not found, as at the other screens of a project.
+ * Scaffolding without text of its own: EP-02 replaces it with the dense grid and keeps the
+ * path.
  */
+import { notFound } from "next/navigation";
+
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readAddress } from "@/components/context/reading";
@@ -47,9 +51,12 @@ export default async function RevisionPage({
     mainNodes(revision),
     readAddress(pathname, pageSearch(search)),
   ]);
+  if (read === "not_found") {
+    notFound();
+  }
   return (
     <>
-      {typeof read === "object" ? <ContextBanner reading={read} /> : null}
+      {read === undefined ? null : <ContextBanner reading={read} />}
       <main>
         <table>
           <tbody>

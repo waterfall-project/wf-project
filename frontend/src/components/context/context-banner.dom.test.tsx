@@ -11,7 +11,7 @@ import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
 import { ContextBanner } from "./context-banner";
-import { isReadOnly, type Revision } from "./read-only";
+import { availableEdits, isReadOnly, type Revision } from "./read-only";
 import type { ContextFilter, Project, ProjectReading, Subproject } from "./reading";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -44,6 +44,7 @@ function reading(address: string, revisionExample: string | undefined): ProjectR
     context,
     project: example("project") as Project,
     revision,
+    edits: revision === undefined ? new Set() : availableEdits(revision),
     readOnly: revision !== undefined && isReadOnly(revision),
     filters,
   };
@@ -72,27 +73,25 @@ describe("the banner of the reading context", () => {
   });
 
   it("presents a marked revision, its version name, that it is the reference, and that it is read only [WF-IHM-0020-A]", async () => {
-    // L'ouverture d'une révision marquée présente cet état et ne propose aucune commande de
-    // modification.
+    // L'ouverture d'une révision marquée présente cet état — la seconde moitié de la phrase,
+    // aucune commande de modification proposée, est prouvée avec les commandes (US-0170/L1).
     const { container } = banner(reading(REMAINING, "revision_marked"));
     const region = screen.getByRole("region", { name: "Contexte de lecture" });
     expect(within(region).getByText("Référence")).toBeInTheDocument();
     expect(within(region).getByText("Marquée")).toBeInTheDocument();
     expect(within(region).getByText("Révision de référence")).toBeInTheDocument();
     expect(
-      within(region).getByText(
-        "Lecture seule : aucune modification n’est proposée sur cette révision.",
-        { normalizer: (text) => text.replace(/\s+/g, " ") },
-      ),
+      within(region).getByText("Lecture seule : aucune saisie n’est proposée sur cette révision.", {
+        normalizer: (text) => text.replace(/\s+/g, " "),
+      }),
     ).toBeInTheDocument();
-    expect(within(region).queryByRole("button")).toBeNull();
     await expectAccessible(container);
   });
 
   it("presents as read only a draft the caller may modify nothing of", () => {
     banner(reading(REMAINING, "revision_reader"), "en");
     expect(
-      screen.getByText("Read only: no modification is offered on this revision."),
+      screen.getByText("Read only: no entry is offered on this revision."),
     ).toBeInTheDocument();
     expect(screen.getByText("Draft")).toBeInTheDocument();
   });
@@ -105,11 +104,11 @@ describe("the banner of the reading context", () => {
     const items = within(chips).getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
       "Subproject: SP-CMD — Poste de commande",
-      "Calculation date: May 31, 2026",
+      "Calculation date: 31 May 2026",
     ]);
     expect(items[0]).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "Remove the filter “Calculation date: May 31, 2026”" }),
+      screen.getByRole("link", { name: "Remove the filter “Calculation date: 31 May 2026”" }),
     ).toHaveAttribute("href", `${REMAINING}?subproject_id=${SUBPROJECT}`);
     expect(
       screen.getByRole("link", {

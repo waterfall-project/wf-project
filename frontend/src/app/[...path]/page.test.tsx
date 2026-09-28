@@ -170,9 +170,9 @@ describe("the banner of the reading context of a screen of a project", () => {
     );
   });
 
-  it("presents a marked revision as such, read only, and offers no command of modification [WF-IHM-0020-A]", async () => {
-    // L'ouverture d'une révision marquée présente cet état et ne propose aucune commande de
-    // modification.
+  it("presents a marked revision as such, and that it is read only [WF-IHM-0020-A]", async () => {
+    // L'ouverture d'une révision marquée présente cet état — la seconde moitié de la phrase,
+    // aucune commande de modification proposée, est prouvée avec les commandes (US-0170/L1).
     server.answers = {
       ...ANSWERS,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
@@ -180,9 +180,8 @@ describe("the banner of the reading context of a screen of a project", () => {
     const page = html(await ScreenPage(at(REMAINING)));
     expect(text(page)).toContain(
       "Révision Référence Marquée Révision de référence " +
-        "Lecture seule : aucune modification n’est proposée sur cette révision.",
+        "Lecture seule : aucune saisie n’est proposée sur cette révision.",
     );
-    expect(page).not.toMatch(/<(button|form|input|select|textarea)\b/);
   });
 
   it("shows the active filters as chips, each lifted by a link that keeps the rest [WF-IHM-0020-A]", async () => {

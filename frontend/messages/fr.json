@@ -25,7 +25,7 @@
     "revision": "Révision",
     "currentRevision": "Révision en cours",
     "reference": "Révision de référence",
-    "readOnly": "Lecture seule : aucune modification n’est proposée sur cette révision.",
+    "readOnly": "Lecture seule : aucune saisie n’est proposée sur cette révision.",
     "filters": "Filtres actifs",
     "subproject": "Sous-projet : {subproject}",
     "subprojectName": "{code} — {label}",
@@ -33,6 +33,14 @@
     "removeFilter": "Lever le filtre « {filter} »"
   },
   "indicator": {
+    "names": {
+      "financialProgress": "Avancement financier",
+      "budgetConsumption": "Consommation du budget",
+      "physicalProgress": "Avancement physique",
+      "costIndex": "Indice de coût",
+      "scheduleIndex": "Indice de délai",
+      "projectionAtObservedRate": "Projection au rythme constaté"
+    },
     "notComputable": "Non calculable",
     "computedAt": "Calculé le <time></time>"
   },
