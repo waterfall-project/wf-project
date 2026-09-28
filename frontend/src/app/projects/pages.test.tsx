@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UnexpectedAnswer } from "@/components/context/reading";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, fakeClient } from "@/test/fixtures";
 
@@ -96,18 +97,21 @@ describe("the witness path", () => {
     expect(html).toContain("<tbody></tbody>");
   });
 
-  it("renders nothing when the API refuses", async () => {
+  it("renders nothing when the API refuses the list", async () => {
+    server.answers = { "GET /projects": NOT_FOUND };
+    expect(renderToStaticMarkup(await ProjectsPage())).toBe("<main><ul></ul></main>");
+  });
+
+  it("is not found for a project the API does not find, as the other screens of a project", async () => {
     server.answers = {
-      "GET /projects": NOT_FOUND,
       "GET /projects/{project_id}": NOT_FOUND,
       "GET /projects/{project_id}/revisions": NOT_FOUND,
     };
-    expect(renderToStaticMarkup(await ProjectsPage())).toBe("<main><ul></ul></main>");
-    const page = await ProjectPage({
+    const page = ProjectPage({
       params: Promise.resolve({ projectId: PROJECT }),
       searchParams: NO_SEARCH,
     });
-    expect(renderToStaticMarkup(inEnglish(page))).toBe("<main><h1></h1><ul></ul></main>");
+    await expect(page).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   });
 
   it("titles the tab with the screen, and with the project read", async () => {
@@ -156,12 +160,11 @@ describe("the banner of the reading context on the witness path", () => {
     });
   });
 
-  it("shows the grid without a banner when the project cannot be read otherwise", async () => {
+  it("does not swallow an answer other than not found, and leaves it to the screen of failure", async () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": UNAUTHORIZED };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const page = inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH }));
-    expect(text(renderToStaticMarkup(page))).toBe(
-      "1 Études 2 Études de détail 3 Ingénierie de détail 4 Revue de conception",
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toThrow(
+      new UnexpectedAnswer("getProject", 401),
     );
   });
 });

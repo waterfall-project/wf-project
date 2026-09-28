@@ -6,7 +6,7 @@ import { type ApiClient, createApiClient } from "@/api/client";
 import { readContext } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import { readAddress, readProject, readProjectContext } from "./reading";
+import { readAddress, readProject, readProjectContext, UnexpectedAnswer } from "./reading";
 
 const server = vi.hoisted(() => ({
   client: undefined as ApiClient | undefined,
@@ -133,6 +133,16 @@ describe("what a screen of a project reads in", () => {
     expect(await read(LIFECYCLE)).toBe("not_found");
     request({ "GET /projects/{project_id}/revisions/{revision_id}": NOT_FOUND });
     expect(await read(REMAINING)).toBe("not_found");
+  });
+
+  it("throws on an answer other than not found: no session, or a failure of the server", async () => {
+    request({
+      "GET /projects/{project_id}": { problem: { code: "SESSION_REQUIRED", status: 401 } },
+    });
+    await expect(read(LIFECYCLE)).rejects.toThrow(new UnexpectedAnswer("getProject", 401));
+    request({ "GET /projects/{project_id}/subprojects": NOT_FOUND });
+    const reading = await read(`${LIFECYCLE}?subproject_id=${SUBPROJECT}`);
+    expect(reading).toMatchObject({ filters: [{ name: "subproject_id", subproject: undefined }] });
   });
 
   it("is not found at an address that is no screen of a project", async () => {

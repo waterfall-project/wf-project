@@ -83,6 +83,22 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("lists three prerequisites as British English does, without a serial comma", () => {
+    const problem: ProblemText = {
+      code: "REFERENCE_INCOMPLETE",
+      params: {
+        missing_prerequisites: [
+          "default_calendar_with_hours",
+          "active_cost_category",
+          "active_resource_role",
+        ],
+      },
+    };
+    expect(say(problem, "en")).toBe(
+      "The minimum reference data is incomplete. Still missing: a default calendar with working hours, an active cost category and an active resource role.",
+    );
+  });
+
   it("says how many columns a paste may have", () => {
     const problem: ProblemText = { code: "PASTE_TOO_WIDE", params: { max_columns: 12 } };
     expect(say(problem, "en")).toBe(

@@ -34,6 +34,14 @@ export const TIME_ZONE = "UTC";
  */
 const FORMAT_LOCALE: Readonly<Record<Locale, string>> = { fr: "fr", en: "en-GB" };
 
+/**
+ * The locale to build any `Intl` formatter with for a language of the interface — a number,
+ * a date, a list —, never the language itself: English is British everywhere it is written.
+ */
+export function formatLocale(locale: Locale): string {
+  return FORMAT_LOCALE[locale];
+}
+
 type Decimal = components["schemas"]["Decimal"];
 type Money = components["schemas"]["Money"];
 type PlanningDate = components["schemas"]["PlanningDate"];
@@ -77,7 +85,7 @@ function fractionDigits(value: DecimalString): number {
 export function formatDecimal(value: Decimal, locale: Locale): string {
   const exact = decimal(value);
   const digits = fractionDigits(exact);
-  return new Intl.NumberFormat(FORMAT_LOCALE[locale], {
+  return new Intl.NumberFormat(formatLocale(locale), {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
     signDisplay: "negative",
@@ -93,7 +101,7 @@ export function formatPercent(value: Decimal, locale: Locale): string {
   const exact = decimal(value);
   // The two digits the percentage moves before the point are no longer fraction digits.
   const digits = Math.max(0, fractionDigits(exact) - 2);
-  return new Intl.NumberFormat(FORMAT_LOCALE[locale], {
+  return new Intl.NumberFormat(formatLocale(locale), {
     style: "percent",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -114,7 +122,7 @@ export function formatMoney(value: Money, locale: Locale, currency?: string): st
   };
   const style: Intl.NumberFormatOptions =
     currency === undefined ? {} : { style: "currency", currency };
-  return new Intl.NumberFormat(FORMAT_LOCALE[locale], { ...options, ...style }).format(
+  return new Intl.NumberFormat(formatLocale(locale), { ...options, ...style }).format(
     decimal(value, MONEY),
   );
 }
@@ -134,7 +142,7 @@ export function formatPlanningDate(
   if (!DATE.test(value) || !midnight.toISOString().startsWith(value)) {
     throw new RangeError(`Not a date of the contract: ${JSON.stringify(value)}`);
   }
-  return new Intl.DateTimeFormat(FORMAT_LOCALE[locale], { dateStyle, timeZone: TIME_ZONE }).format(
+  return new Intl.DateTimeFormat(formatLocale(locale), { dateStyle, timeZone: TIME_ZONE }).format(
     midnight,
   );
 }
@@ -146,7 +154,7 @@ export function formatPlanningDate(
 export function formatTimestamp(value: Timestamp, locale: Locale, timeZone?: string): string {
   const options: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
   return new Intl.DateTimeFormat(
-    FORMAT_LOCALE[locale],
+    formatLocale(locale),
     timeZone === undefined ? options : { ...options, timeZone },
   ).format(new Date(value));
 }

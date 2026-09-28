@@ -65,6 +65,34 @@ export interface ProjectReading {
   readonly filters: readonly ContextFilter[];
 }
 
+/**
+ * An answer of the API to a read of a screen that is neither a success nor "not found": a
+ * refusal without a session — a screen of a project means nothing without an account — or a
+ * failure of the server. The page does not swallow it: it throws, and the screen of failure
+ * shows it (US-0090/L2, #101).
+ */
+export class UnexpectedAnswer extends Error {
+  /** The answer of an operation, by its `operationId` and its status. */
+  constructor(
+    readonly operation: string,
+    readonly status: number,
+  ) {
+    super(`${operation} answered ${String(status)}`);
+    this.name = "UnexpectedAnswer";
+  }
+}
+
+/** Throw on an answer that is neither a success nor "not found"; leave the others be. */
+function refuseUnexpected(
+  operation: string,
+  answer: { readonly response: Response } | undefined,
+): void {
+  const status = answer?.response.status;
+  if (status !== undefined && status !== 404 && !answer?.response.ok) {
+    throw new UnexpectedAnswer(operation, status);
+  }
+}
+
 /** Read a project, once per request (`getProject`); `undefined` when the API is out of reach. */
 export const readProject = cache(async (projectId: string) =>
   reach(() =>
@@ -101,6 +129,7 @@ async function filteredSubproject(
     return undefined;
   }
   const answer = await readSubprojects(projectId);
+  refuseUnexpected("listSubprojects", answer);
   return answer?.data?.find((subproject) => subproject.subproject_id === value);
 }
 
@@ -119,10 +148,17 @@ async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
 }
 
 /**
- * Read what a screen of a project reads in: `"not_found"` when the API finds neither the
- * project nor the revision the address names — or does not let the user read them, which it
- * answers alike (WF-ADM-0110) —, `undefined` when it could not read them otherwise — an API
- * out of reach, which the screen of failure says (US-0090/L2, #101) —, the reading itself else.
+ * Read what a screen of a project reads in, and say what the page is to do with it:
+ *
+ * - `"not_found"` when the API finds neither the project nor the revision the address names
+ *   — or does not let the user read them, which it answers alike (WF-ADM-0110): the page is
+ *   not found;
+ * - `undefined` when the API cannot be reached at all: there is nothing to name, so no
+ *   banner, and the page goes on to say the API is out of reach (US-0090/L2, #101);
+ * - the reading itself on success.
+ *
+ * Any other answer — no session, a failure of the server — throws `UnexpectedAnswer`: a
+ * banner left out on such an answer would hide which revision the screen reads in.
  */
 export async function readProjectContext(
   pathname: string,
@@ -137,6 +173,8 @@ export async function readProjectContext(
   if (project?.response.status === 404 || revision?.response.status === 404) {
     return "not_found";
   }
+  refuseUnexpected("getProject", project);
+  refuseUnexpected("getRevision", revision);
   if (project?.data === undefined || (revisionId !== undefined && revision?.data === undefined)) {
     return undefined;
   }

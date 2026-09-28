@@ -7,6 +7,7 @@ import { example } from "@/test/fixtures";
 
 import {
   formatDecimal,
+  formatLocale,
   formatMoney,
   formatPercent,
   formatPlanningDate,
@@ -92,6 +93,15 @@ describe("a decimal", () => {
     expect(() => formatDecimal("NaN", "fr")).toThrow(RangeError);
     expect(() => formatDecimal(" 1", "fr")).toThrow(RangeError);
     expect(() => formatDecimal("", "fr")).toThrow(RangeError);
+  });
+});
+
+describe("the locale of the formatters", () => {
+  it("is British English for English, French for French", () => {
+    expect(formatLocale("en")).toBe("en-GB");
+    expect(formatLocale("fr")).toBe("fr");
+    const list = new Intl.ListFormat(formatLocale("en"), { type: "conjunction" });
+    expect(list.format(["a", "b", "c"])).toBe("a, b and c");
   });
 });
 

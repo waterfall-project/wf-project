@@ -16,6 +16,7 @@ import { createTranslator } from "next-intl";
 import type { components } from "@/api/generated/schema";
 
 import type { Catalogue } from "./catalogues";
+import { formatLocale } from "./format";
 import type { Locale } from "./locale";
 
 /** What the sentence is made of: the code of the envelope, and its parameters. */
@@ -57,7 +58,7 @@ const DETAILS: readonly Reader[] = [
     const items = Array.isArray(missing_prerequisites) ? missing_prerequisites : [];
     const named = items.map((item) => label("enums.ReferenceReadiness.missing", item));
     const known = named.filter((item) => item !== undefined);
-    const list = new Intl.ListFormat(locale, { type: "conjunction" }).format(known);
+    const list = new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(known);
     return known.length === 0 ? undefined : ["missing_prerequisites", { prerequisites: list }];
   },
   ({ max_columns }) =>
