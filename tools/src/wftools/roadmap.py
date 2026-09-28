@@ -47,7 +47,12 @@ _ROW = re.compile(
     r"^\| `(?P<id>WF-[A-Z]+-\d{4}-[A-Z])` \|[^|]*\| (?P<scope>[^|]+?) \|", re.MULTILINE
 )
 _STORY = re.compile(r"^## (?P<id>US-\d{4}) — .*?(?=^## US-\d{4} — |\Z)", re.MULTILINE | re.DOTALL)
-_STORY_REQUIREMENTS = re.compile(r"^- \*\*exigences\*\* : (?P<cited>.*)$", re.MULTILINE)
+# The field may wrap: its continuation lines are indented by two spaces and open no new
+# `- **…**` field. Reading them matters — a wrapped identifier silently dropped would
+# release the story from quoting its Vérif sentences.
+_STORY_REQUIREMENTS = re.compile(
+    r"^- \*\*exigences\*\* : (?P<cited>.*(?:\n  (?!\*\*)[^\n]*)*)", re.MULTILINE
+)
 _IDENTIFIER = re.compile(r"WF-[A-Z]+-\d{4}-[A-Z]")
 _TARGET = re.compile(r"^([a-z][a-z0-9-]*):", re.MULTILINE)
 # A command is cited in code: an inline span or a fenced block. Within it, `make`, its options
