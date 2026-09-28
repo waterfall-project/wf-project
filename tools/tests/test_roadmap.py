@@ -197,6 +197,12 @@ def test_commands_are_found_in_any_code(text: str, target: str) -> None:
     assert roadmap.cited_targets(text) == {target}
 
 
+def test_options_that_read_two_ways_do_not_backtrack() -> None:
+    # Before the fix, this string ran for days: `-C -A` was a directory or two options.
+    assert roadmap.cited_targets("`make " + "-C -A " * 40 + "!`") == set()
+    assert roadmap.cited_targets("`make -C -A check`") == {"check"}
+
+
 def test_a_pattern_of_targets_is_not_a_command() -> None:
     assert roadmap.cited_targets("`make check-<famille>`") == set()
 
