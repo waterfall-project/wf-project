@@ -3,8 +3,9 @@
 # Waterfall — repository commands.
 #
 # The specification lives in docs/spec, the interface contract in docs/api.
-# Requirements: python3, pandoc (document projection), node with npx (contract
-# linting and bundling), uv (repository tools), and mmdc to validate the diagrams.
+# Requirements: python3 3.11+ (the projection), uv (Python 3.13 for the back and the tools),
+# node with npx and corepack (the front, the contract), pandoc 3.1.11.1 (the projection),
+# docker (make dev), and mmdc to validate the diagrams.
 
 SPEC    := docs/spec
 API     := docs/api
@@ -208,9 +209,11 @@ gate: ## Decide the outcome of the chain from its jobs (NEEDS, from GitHub Actio
 	@$(WFTOOLS).gate
 
 check-tools: ## Report which prerequisites are missing
-	@for t in python3 pandoc npx uv; do \
+	@for t in python3 pandoc node npx corepack uv docker; do \
 		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
+	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.1.11.1$$" \
+		|| echo "  warning  pandoc is not 3.1.11.1: the projection would differ from the chain's"
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
 clean: ## Remove everything the commands generate

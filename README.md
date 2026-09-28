@@ -14,8 +14,10 @@ is negotiated over months, the baseline moves only by contract, and the question
 still where we said we would be? » has to be answerable years after the people who
 answered it first have left.
 
-> **Status: no code yet.** This repository holds the specification and the interface
-> contract. The implementation starts from them, not the other way round.
+> **Status: the foundation is in place, the product is not yet.** The specification and the
+> interface contract come first; the repository now also carries the empty back and front,
+> the tooling and the chain every line of product code will pass through. The product is
+> built epic by epic, as [`docs/roadmap`](docs/roadmap/README.md) plans it.
 
 ## What makes it different
 
@@ -49,13 +51,22 @@ fifty-thousand deal the same weight as a million-euro one, and measures nothing.
 
 | Path | Contents |
 |---|---|
-| `docs/spec` | the specification: **203 requirements**, its Word and draw.io sources, the generated Markdown projection, the pipeline tools, and the reviews that shaped it |
+| `docs/spec` | the specification: **203 requirements**, its Word and draw.io sources, the generated Markdown projection, the tools that produce it, and the reviews that shaped it |
 | `docs/api` | the interface contract: **150 operations** over 116 paths and 147 schemas, hand-written OpenAPI, with the endpoint inventory and the design decisions |
+| `docs/roadmap` | the plan: thirteen epics in the order they are built, their stories, their design, and the rules that take an epic from its stories to delivered code |
+| `docs/dev` | the development guide, the coding rules per language, and the rules the agents follow |
+| `backend/` | one Python package: the business core, the API service and the worker |
+| `frontend/` | the Next.js application, its client generated from the contract, its end-to-end paths |
+| `tools/` | the repository tools: requirement coverage, roadmap check, source rules, lot size |
+| `fixtures/` | the numeric examples of the specification, and the data the fake back serves |
+| `deploy/` | packaging: the development Compose today, the Helm chart later |
+| `.github/workflows/` | the chain, run on every pull request |
+| `.claude/agents/` | the agents that frame an epic, deliver its lots, develop and review |
 
-**The specification is in French.** It is a formal requirements document — every
-requirement carries an identifier, a rationale and an observable acceptance criterion — and
-translating it would double the source of truth. The contract, the code and this file are in
-English. [README-fr.md](README-fr.md) says all of this in French.
+**The specification is in French**, and so is the documentation. It is a formal requirements
+document — every requirement carries an identifier, a rationale and an observable acceptance
+criterion — and translating it would double the source of truth. The contract, the code and
+this file are in English. [README-fr.md](README-fr.md) says all of this in French.
 
 ### Where to start reading
 
@@ -66,23 +77,44 @@ English. [README-fr.md](README-fr.md) says all of this in French.
   generated from Word so that a machine can read it.
 - [`docs/spec/revue/constats/`](docs/spec/revue/constats/) — the reviews. This is where
   the reasoning lives: what was wrong, what replaced it, and why.
+- [`docs/roadmap/README.md`](docs/roadmap/README.md) — in what order the product is built,
+  and how work moves from an epic to reviewed code.
+- [`docs/dev/README.md`](docs/dev/README.md) — the development guide: where each piece lives
+  and which check holds each rule.
+
+## How the work is done
+
+Every requirement is closed by exactly one epic. An epic is framed — stories whose acceptance
+criteria quote the specification word for word, a design, a plan of lots — then delivered one
+lot at a time: one issue, one branch, one pull request into the epic's integration branch,
+merged only when the local review and the chain are green. The chain lints, type-checks and
+tests only what a change touches, runs coverage and end-to-end tests when a pull request is
+merged, and fails on any requirement a test cites wrongly. Agents can do the framing, the
+development, the review and the delivery; merging an epic into `main` is always a person's
+decision.
 
 ## Commands
 
 ```bash
-make                  # list the commands
-make build-doc        # regenerate the Markdown projection from Word and draw.io
-make lint-openapi     # check the contract
-make build-openapi    # check, then bundle the contract into one file
-make mock             # serve a fake backend from the contract
-make inventory        # regenerate the endpoint inventory and requirement coverage
-make check-tools      # tell me what is missing
+make                      # list the commands
+make check-tools          # tell me what is missing
+make check BASE=origin/epic/EP-01  # the checks of what my change touches
+make check-all            # run every family of checks
+make dev                  # the front against the fake back, on http://localhost:3000
+make mock                 # the fake back alone, served from the contract's examples
+make e2e                  # the end-to-end paths, in a browser
+make requirements         # which requirements the tests cover
+make roadmap              # the roadmap confronted with the specification
+make build-doc            # regenerate the Markdown projection from Word and draw.io
+make generate-client      # regenerate the front's API client from the contract
 ```
 
-Prerequisites: Python 3.11+, `pandoc`, Node with `npx`, and `mmdc`
-(`npm i -g @mermaid-js/mermaid-cli`) to validate the diagrams.
+Prerequisites: [uv](https://docs.astral.sh/uv/), which brings Python 3.13 for the back and
+the tools; a Python 3.11 or later on the `PATH` as `python3`, which builds the projection;
+Node 24, whose corepack brings pnpm; Docker, for `make dev`; `pandoc` 3.1.11.1, the version the projection
+is generated with; and `mmdc` (`npm i -g @mermaid-js/mermaid-cli`) to validate the diagrams.
 
-## Planned stack
+## Stack
 
 Decided in the specification, and each choice is argued there rather than asserted:
 **Next.js** and **TypeScript** on the front, with custom grids built on TanStack Table and
@@ -92,13 +124,14 @@ an **S3-compatible** store for files in transit and backups; **Helm** for Kubern
 **Compose** for development and small installations.
 
 The contract is written by hand and is authoritative: the front's client is generated from
-it, and the chain rejects a build whose responses drift from it.
+it, the fake back serves its examples, and the chain will reject a service whose responses
+drift from it.
 
 ## Contributing
 
 [CONTRIBUTING.md](CONTRIBUTING.md) — how the specification is changed (never by editing the
-generated Markdown), how the review cycle works, and the conventions that are not
-negotiable file by file.
+generated Markdown), how the review cycle works, how code arrives in lots, and the
+conventions that are not negotiable file by file.
 
 ## Licence
 
