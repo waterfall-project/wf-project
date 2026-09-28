@@ -79,9 +79,10 @@ const NETWORK_SYNTAX = [
 
 // Only the server of Next calls the API (§4.3.1): a file under the "use client" directive
 // imports nothing of src/api/ but its server actions (src/api/actions/), which Next turns
-// into references, and types, which the build erases. This is the check of the chain;
-// server-only, imported by client.ts and server.ts, is the net of `next build`, which no
-// check runs yet.
+// into references, and types, which the build erases. This is the check of the chain, and
+// it sees the direct import only: a module without a directive that imports
+// @/api/server, imported in turn by a client component, is left to server-only, imported
+// by client.ts and server.ts — the net of `next build`, which no check runs yet (#131).
 const CLIENT = "Program:has(> ExpressionStatement[directive='use client'])";
 const API_MODULE = inSelector("^(@/|(\\.\\.?/)+)api/(?!actions/)");
 const API_IN_CLIENT = "A client component reaches the API through a server action only.";
@@ -92,6 +93,15 @@ const CLIENT_SYNTAX = [
   `${CLIENT} ImportExpression[source.value=${API_MODULE}]`,
   `${CLIENT} ImportExpression > TemplateLiteral[expressions.length=0][quasis.0.value.raw=${API_MODULE}]`,
 ].map((selector) => ({ selector, message: API_IN_CLIENT }));
+
+// A module of src/api/actions/ is trusted by CLIENT_SYNTAX because Next turns it into
+// references: it must then be a module of server actions, under the "use server"
+// directive, or a client component importing it would carry the client of the API into
+// the browser.
+const ACTION_SYNTAX = {
+  selector: "Program:not(:has(> ExpressionStatement[directive='use server']))",
+  message: 'A module of src/api/actions/ holds server actions: it opens with "use server".',
+};
 
 export default defineConfig([
   globalIgnores([
@@ -159,6 +169,15 @@ export default defineConfig([
       "no-restricted-properties": "off",
       "no-restricted-imports": "off",
       "no-restricted-syntax": "off",
+    },
+  },
+  {
+    // The options of a rule are replaced whole from one block to the next: the selectors
+    // of the whole front are repeated here, with the one of the actions.
+    files: ["src/api/actions/**"],
+    ignores: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": ["error", ...NETWORK_SYNTAX, ...CLIENT_SYNTAX, ACTION_SYNTAX],
     },
   },
   {

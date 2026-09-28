@@ -52,6 +52,25 @@ describe("the answers of fakeClient", () => {
     }>().not.toExtend<FakeAnswers>();
   });
 
+  it("serve a body other than JSON as itself, never as a fixture", () => {
+    expectTypeOf<{
+      "GET /users/{user_id}/avatar": { body: Blob; type: "image/png"; status: 200 };
+    }>().toExtend<FakeAnswers>();
+    expectTypeOf<{
+      "GET /metrics": { body: string; type: "text/plain"; status: 200 };
+    }>().toExtend<FakeAnswers>();
+    expectTypeOf<{ "GET /users/{user_id}/avatar": "project" }>().not.toExtend<FakeAnswers>();
+    expectTypeOf<{
+      "GET /users/{user_id}/avatar": { example: "project"; status: 200 };
+    }>().not.toExtend<FakeAnswers>();
+    expectTypeOf<{
+      "GET /users/{user_id}/avatar": { body: string; type: "application/json"; status: 200 };
+    }>().not.toExtend<FakeAnswers>();
+    expectTypeOf<{
+      "GET /projects": { body: string; type: "application/json"; status: 200 };
+    }>().not.toExtend<FakeAnswers>();
+  });
+
   it("refuse an operation the contract does not have", () => {
     expectTypeOf<{ "GET /me/avatar": { status: 204 } }>().not.toExtend<FakeAnswers>();
   });
@@ -121,6 +140,20 @@ describe("fakeClient", () => {
     expect(response.status).toBe(204);
     expect(data).toBeUndefined();
     expect(client.calls[0]).toMatchObject({ path: `/access-roles/${ROLE}`, body: undefined });
+  });
+
+  it("serves a body other than JSON with its media type", async () => {
+    const image = new Blob(["png"], { type: "image/png" });
+    const client = fakeClient({
+      "GET /users/{user_id}/avatar": { body: image, type: "image/png", status: 200 },
+      "GET /metrics": { body: "waterfall_up 1", type: "text/plain", status: 200 },
+    });
+    const params = { path: { user_id: USER } };
+    const avatar = await client.GET("/users/{user_id}/avatar", { params, parseAs: "blob" });
+    expect(avatar.response.headers.get("content-type")).toBe("image/png");
+    expect(await avatar.data?.text()).toBe("png");
+    const metrics = await client.GET("/metrics", { parseAs: "text" });
+    expect(metrics.data).toBe("waterfall_up 1");
   });
 
   it("goes through a sequence in turn, then repeats its last answer", async () => {

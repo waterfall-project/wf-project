@@ -8,7 +8,7 @@
  * from those examples before it reaches the network: the paths, parameters and bodies a
  * page sends go through openapi-fetch as they would in production, and the test reads them
  * back from `calls`. An answer is typed by the operation it answers: only a status the
- * contract declares for it, with a body only when that status has one.
+ * contract declares for it, with a body only when that status has one, and of its kind.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -50,19 +50,27 @@ type Responses<R extends Route> =
     : never;
 
 /**
- * The answers to one declared status: a status with a body answers the name of a fixture of
- * `fixtures/api/` — alone for 200 — when it is a success, a `Problem` carrying that status
- * when it is a refusal; a status without a body answers the status alone.
+ * The answers to one declared status, by what its body is. A JSON body answers the name of a
+ * fixture of `fixtures/api/` — alone for 200; a Problem body, a `Problem` carrying that
+ * status; any other body — an image, an archive, text — a `Blob` or a string, served with one
+ * of the media types the status declares; a status without a body answers the status alone.
  */
-type StatusAnswer<X, S extends keyof X & number> = X[S] extends { content: object }
-  ? `${S}` extends `2${string}`
+type StatusAnswer<X, S extends keyof X & number> = X[S] extends { content: infer C }
+  ? "application/json" extends keyof C
     ? | (S extends 200 ? string : never)
-      | ({ readonly example: string; readonly status: S } & None<"problem">)
-    : { readonly problem: Problem & { readonly status: S } } & None<"example" | "status">
-  : { readonly status: S } & None<"example" | "problem">;
+      | (Keys<"example" | "status"> & { readonly example: string; readonly status: S })
+    : "application/problem+json" extends keyof C
+      ? Keys<"problem"> & { readonly problem: Problem & { readonly status: S } }
+      : Keys<"body" | "type" | "status"> & {
+          readonly body: Blob | string;
+          readonly type: keyof C & string;
+          readonly status: S;
+        }
+  : Keys<"status"> & { readonly status: S };
 
-/** Keys an answer must not have: without them, a type would take any extra key in its stride. */
-type None<K extends string> = Partial<Readonly<Record<K, never>>>;
+/** The keys of an answer: it must have none of the others, or a type would take any extra key. */
+type Keys<K extends AnswerKey> = Partial<Readonly<Record<Exclude<AnswerKey, K>, never>>>;
+type AnswerKey = "example" | "problem" | "body" | "type" | "status";
 
 /** What the fake client may answer to one call of an operation. */
 export type FakeAnswer<R extends Route> = {
@@ -82,6 +90,7 @@ type AnyAnswer =
   | string
   | { readonly example: string; readonly status: number }
   | { readonly problem: Problem }
+  | { readonly body: Blob | string; readonly type: string; readonly status: number }
   | { readonly status: number };
 
 /** A call the fake client received. */
@@ -123,6 +132,10 @@ function respond(answer: AnyAnswer): Response {
   if ("problem" in answer) {
     const headers = { "content-type": "application/problem+json" };
     return Response.json(answer.problem, { status: answer.problem.status, headers });
+  }
+  if ("body" in answer) {
+    const headers = { "content-type": answer.type };
+    return new Response(answer.body, { status: answer.status, headers });
   }
   return new Response(null, { status: answer.status });
 }

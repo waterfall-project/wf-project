@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { ESLint, type Linter } from "eslint";
+import tseslint from "typescript-eslint";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -142,10 +143,24 @@ const DEV_DEPENDENCIES = [
   "vitest",
 ];
 
+// A server action of src/api/actions/, which does not exist yet: no file of the TypeScript
+// project stands in for it, so it is linted without the typed rules — the guard needs none.
+const ACTION = "src/api/actions/load.ts";
+const USE_SERVER = '"use server";\n';
+const LOAD = [
+  'import { serverClient } from "@/api/server";',
+  "/** Load the projects. */",
+  'export async function load() {\n  return serverClient().GET("/projects");\n}',
+].join("\n");
+const NO_DIRECTIVE =
+  'A module of src/api/actions/ holds server actions: it opens with "use server".';
+
 let eslint: ESLint;
+let actions: ESLint;
 
 beforeAll(() => {
   eslint = new ESLint({ cwd: ROOT });
+  actions = new ESLint({ cwd: ROOT, overrideConfig: tseslint.configs.disableTypeChecked });
 });
 
 /** The messages of the guard on a snippet written in a file, and the fatal ones. */
@@ -237,6 +252,27 @@ describe("the network guard", { timeout: 60_000 }, () => {
 
   it.each(ALLOWED_IN_CLIENT)("lets %j through in a client component", async (code) => {
     expect(await lint(code, PAGE)).toEqual([]);
+  });
+
+  it("refuses a module of actions without the use server directive [WF-ARC-0020-A]", async () => {
+    const [result] = await actions.lintText(LOAD, { filePath: ACTION });
+    expect(result?.messages.map((m) => [m.ruleId, m.severity, m.message])).toEqual([
+      ["no-restricted-syntax", 2, NO_DIRECTIVE],
+    ]);
+  });
+
+  it("lets a module of server actions through", async () => {
+    const [result] = await actions.lintText(USE_SERVER + LOAD, { filePath: ACTION });
+    expect(result?.messages).toEqual([]);
+  });
+
+  it("keeps the rest of the guard in the actions [WF-ARC-0020-A]", async () => {
+    const code = USE_SERVER + (DYNAMIC[0] ?? "");
+    const [result] = await actions.lintText(code, { filePath: ACTION });
+    expect(result?.messages.map((m) => [m.ruleId, m.message])).toContainEqual([
+      "no-restricted-syntax",
+      NETWORK,
+    ]);
   });
 
   it("knows every dependency of package.json", () => {
