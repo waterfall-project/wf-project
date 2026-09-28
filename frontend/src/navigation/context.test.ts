@@ -7,13 +7,15 @@ import {
   contextCookie,
   contextQuery,
   LAST_CONTEXT_COOKIE,
+  pageSearch,
   readContext,
   rememberedAddress,
+  withoutFilter,
 } from "./context";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000401";
+const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 const LIFECYCLE = `/projects/${PROJECT}/lifecycle`;
 
@@ -99,5 +101,29 @@ describe("the reading context", () => {
     undefined,
   ])("leads nowhere from the cookie %j", (value) => {
     expect(rememberedAddress(value)).toBeUndefined();
+  });
+
+  it("lifts one filter, and keeps the revision and the other filter", () => {
+    const search = new URLSearchParams({ subproject_id: SUBPROJECT, as_of: "2026-05-31" });
+    const inRevision = readContext(REMAINING, search);
+    expect(inRevision && withoutFilter(REMAINING, inRevision, "as_of")).toBe(
+      `${REMAINING}?subproject_id=${SUBPROJECT}`,
+    );
+    search.set("revision_id", REVISION);
+    const inProject = readContext(LIFECYCLE, search);
+    expect(inProject && withoutFilter(LIFECYCLE, inProject, "subproject_id")).toBe(
+      `${LIFECYCLE}?revision_id=${REVISION}&as_of=2026-05-31`,
+    );
+    // The context read is left as it was.
+    expect(inProject?.parameters.get("subproject_id")).toBe(SUBPROJECT);
+  });
+
+  it("reads the search parameters of a page as those of the browser, a repeated one once", () => {
+    const search = pageSearch({ as_of: "2026-05-31", subproject_id: [SUBPROJECT, "unassigned"] });
+    expect(search.get("as_of")).toBe("2026-05-31");
+    expect(search.get("subproject_id")).toBe(SUBPROJECT);
+    expect(search.get("revision_id")).toBeNull();
+    expect(search.get("toString")).toBeNull();
+    expect(pageSearch({ as_of: [] }).get("as_of")).toBeNull();
   });
 });

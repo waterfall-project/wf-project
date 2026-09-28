@@ -5,7 +5,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
 
-import { formatDecimal, formatMoney, formatPlanningDate, formatTimestamp } from "./format";
+import {
+  formatDecimal,
+  formatLocale,
+  formatMoney,
+  formatPercent,
+  formatPlanningDate,
+  formatTimestamp,
+} from "./format";
 
 // French separates thousands with a narrow no-break space; the Vérif writes a plain space,
 // which the projection of the document does not tell apart from a typographic one.
@@ -44,7 +51,7 @@ describe("an amount", () => {
   it("carries the currency of the installation when given one", () => {
     expect(formatMoney("1234.56", "fr", "EUR")).toBe(`1${NARROW}234,56${NO_BREAK}€`);
     expect(formatMoney("1234.56", "en", "EUR")).toBe("€1,234.56");
-    expect(formatMoney("-0.5", "en", "USD")).toBe("-$0.50");
+    expect(formatMoney("-0.5", "en", "USD")).toBe("-US$0.50");
   });
 
   it("keeps every digit, where a float would lose them", () => {
@@ -89,6 +96,37 @@ describe("a decimal", () => {
   });
 });
 
+describe("the locale of the formatters", () => {
+  it("is British English for English, French for French", () => {
+    expect(formatLocale("en")).toBe("en-GB");
+    expect(formatLocale("fr")).toBe("fr");
+    const list = new Intl.ListFormat(formatLocale("en"), { type: "conjunction" });
+    expect(list.format(["a", "b", "c"])).toBe("a, b and c");
+  });
+});
+
+describe("a percentage", () => {
+  it("shows a ratio of the API as a percentage, with every digit it gave", () => {
+    expect(formatPercent("0.25", "fr")).toBe(`25${NO_BREAK}%`);
+    expect(formatPercent("0.125", "en")).toBe("12.5%");
+    expect(formatPercent("0", "en")).toBe("0%");
+    expect(formatPercent("1.5", "fr")).toBe(`150${NO_BREAK}%`);
+    expect(formatPercent("-0.03", "en")).toBe("-3%");
+    expect(formatPercent("-0.00", "fr")).toBe(`0${NO_BREAK}%`);
+  });
+
+  it("never passes through a float, which would add digits", () => {
+    expect(String(Number("0.07") * 100)).toBe("7.000000000000001");
+    expect(formatPercent("0.07", "en")).toBe("7%");
+    const ratio = "0.1000000000000000055511151231257827";
+    expect(formatPercent(ratio, "en")).toBe("10.00000000000000055511151231257827%");
+  });
+
+  it("refuses what is not a decimal of the contract", () => {
+    expect(() => formatPercent("25%", "fr")).toThrow(RangeError);
+  });
+});
+
 describe("a planning date", () => {
   const original = process.env.TZ;
 
@@ -108,9 +146,9 @@ describe("a planning date", () => {
     process.env.TZ = zone;
     expect(new Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(zone);
     expect(formatPlanningDate("2026-06-30", "fr", "long")).toBe("30 juin 2026");
-    expect(formatPlanningDate("2026-06-30", "en", "long")).toBe("June 30, 2026");
+    expect(formatPlanningDate("2026-06-30", "en", "long")).toBe("30 June 2026");
     expect(formatPlanningDate("2026-06-30", "fr", "short")).toBe("30/06/2026");
-    expect(formatPlanningDate("2026-06-30", "en")).toBe("Jun 30, 2026");
+    expect(formatPlanningDate("2026-06-30", "en")).toBe("30 Jun 2026");
   });
 
   it("is the zone a naive reading would get wrong", () => {
@@ -133,19 +171,17 @@ describe("a timestamp", () => {
     process.env.TZ = original;
   });
 
-  it("shows in the local time of the workstation", () => {
+  it("shows in the local time of the workstation, English as British English", () => {
     const instant = "2026-06-30T23:30:00Z";
     process.env.TZ = "Europe/Paris";
     expect(formatTimestamp(instant, "fr")).toBe("1 juil. 2026, 01:30");
     process.env.TZ = "America/Los_Angeles";
     expect(formatTimestamp(instant, "fr")).toBe("30 juin 2026, 16:30");
-    expect(plain(formatTimestamp(instant, "en"))).toBe("Jun 30, 2026, 4:30 PM");
+    expect(formatTimestamp(instant, "en")).toBe("30 Jun 2026, 16:30");
   });
 
   it("shows in a given zone when one is named", () => {
     process.env.TZ = "America/Los_Angeles";
-    expect(plain(formatTimestamp("2026-06-30T23:30:00Z", "en", "Asia/Tokyo"))).toBe(
-      "Jul 1, 2026, 8:30 AM",
-    );
+    expect(formatTimestamp("2026-06-30T23:30:00Z", "en", "Asia/Tokyo")).toBe("1 Jul 2026, 08:30");
   });
 });

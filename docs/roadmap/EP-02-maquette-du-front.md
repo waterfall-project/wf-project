@@ -279,7 +279,10 @@ verrou.
   d'une valeur dans le front.
 - **Bandeau de contexte** : projet ; révision, son état, son caractère de référence ;
   filtres en pastilles ; date de calcul — une valeur sous enveloppe `Computable` ne
-  s'affiche pas sans la date de son `CalculationContext`, rendue en heure locale.
+  s'affiche pas sans la date de son `CalculationContext`, rendue en heure locale. Quand la
+  date de calcul renvoie à une autre révision que celle de l'adresse — `as_of` lit la
+  dernière révision marquée antérieure —, le bandeau nomme la révision du calcul
+  (`CalculationContext.revision_id`), pas celle de l'adresse.
 - **Commande** : sur le projet et la révision, absente quand l'objet ne la liste pas — le
   serveur ne liste dans `available_commands` que les commandes dont l'appelant a la
   permission, et le front ne sait pas quelle permission garde quelle commande —, présente
@@ -369,6 +372,13 @@ dans `docs/api` ou s'ouvrent en issue « Interface contract issue ». Déjà pre
 portée de `getRemainingIndicators`, le tri de `listActualCosts`, la liste des tâches de
 fond d'un utilisateur, la révision ouverte par défaut.
 
+### Constats sur le contrat
+
+- `Computable.reason` est une phrase libre, que le front ne peut pas traduire, quand le
+  contrat a partout ailleurs remplacé la phrase par un code (`ErrorCode`,
+  `CommandCondition`) — US-0100/L1, ouvert en #137. D'ici là, le front affiche le motif tel
+  que l'API le donne.
+
 ### Ordre de construction
 
 1. Les modifications du contrat ; la garde réseau élargie et le socle des tests de
@@ -434,9 +444,9 @@ chaque écran s'invente le sien.
 
 ## US-0100 — Bandeau de contexte de lecture
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0020-A`
-- **opérations** : `getRevision`, `listRevisions`
+- **opérations** : `getRevision`, `listRevisions`, `listSubprojects`
 - **issue** : #74
 
 **En tant que** chef de projet, **je veux** lire sur chaque écran dans quelle révision je

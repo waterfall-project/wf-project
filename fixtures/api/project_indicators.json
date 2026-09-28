@@ -1,0 +1,62 @@
+{
+  "summary": "Les indicateurs du projet en cours au 16 mars 2026, sur sa révision courante : aucun coût réel encore, donc un indice de coût et une projection au rythme constaté non calculables (WF-IND-0010).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "revision_status": "draft",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "reference_budget": "100000.00",
+    "planned_value": "33333.33",
+    "earned_value": "0.00",
+    "actual_cost": "0.00",
+    "remaining": "100000.00",
+    "financial_progress": {
+      "is_computable": true,
+      "value": "0",
+      "reason": null
+    },
+    "budget_consumption": {
+      "is_computable": true,
+      "value": "0",
+      "reason": null
+    },
+    "physical_progress": {
+      "is_computable": true,
+      "value": "0",
+      "reason": null
+    },
+    "cost_index": {
+      "value": {
+        "is_computable": false,
+        "value": null,
+        "reason": "Aucun coût réel à la date de calcul : le dénominateur de l’indice est nul."
+      },
+      "zone": null
+    },
+    "schedule_index": {
+      "value": {
+        "is_computable": true,
+        "value": "0",
+        "reason": null
+      },
+      "zone": "alert"
+    },
+    "cost_variance": "0.00",
+    "schedule_variance": "-33333.33",
+    "projections": {
+      "at_budget": "100000.00",
+      "project_manager": "100000.00",
+      "at_observed_rate": {
+        "is_computable": false,
+        "value": null,
+        "reason": "Aucun coût réel à la date de calcul : l’indice de coût, dont dépend la projection, n’est pas calculable."
+      },
+      "variance_at_budget": "0.00",
+      "variance_project_manager": "0.00",
+      "variance_at_observed_rate": null
+    }
+  }
+}

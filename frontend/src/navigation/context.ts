@@ -16,6 +16,9 @@ import table from "./functions.json";
 /** The parameters of the address that filter what a screen reads, as the contract names them. */
 export const CONTEXT_PARAMETERS = ["subproject_id", "as_of"] as const;
 
+/** The value of `subproject_id` that restricts to what belongs to no sub-project (WF-IND-0020). */
+export const UNASSIGNED = "unassigned";
+
 /** The parameter that carries the revision on a screen of the project itself. */
 export const REVISION_PARAMETER = "revision_id";
 
@@ -130,6 +133,37 @@ export function contextQuery(context: ProjectContext, carryRevision: boolean): s
 /** The address of the screen a context was read on: its path, and the context it carries. */
 export function contextAddress(pathname: string, context: ProjectContext): string {
   return pathname + contextQuery(context, !context.revisionInPath);
+}
+
+/** A filter the address of a context may carry: `subproject_id` or `as_of`. */
+export type ContextParameter = (typeof CONTEXT_PARAMETERS)[number];
+
+/**
+ * The address of the same screen with one filter lifted: the revision and the other filter
+ * kept, as a link that removes it from the address.
+ */
+export function withoutFilter(
+  pathname: string,
+  context: ProjectContext,
+  name: ContextParameter,
+): string {
+  const parameters = new URLSearchParams(context.parameters);
+  parameters.delete(name);
+  return contextAddress(pathname, { ...context, parameters });
+}
+
+/** The search parameters of a page, as Next hands them to it: a repeated one counts once. */
+export type PageSearchParams = Readonly<Record<string, string | readonly string[] | undefined>>;
+
+/** Read the search parameters of a page as the navigation reads those of the browser. */
+export function pageSearch(search: PageSearchParams): SearchParameters {
+  return {
+    get(name) {
+      const value = Object.hasOwn(search, name) ? search[name] : undefined;
+      const first = typeof value === "string" ? value : value?.[0];
+      return first ?? null;
+    },
+  };
 }
 
 /**

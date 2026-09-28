@@ -14,7 +14,8 @@
  * A zero shows without a sign, even written `-0.00`: `signDisplay: "negative"`.
  *
  * In French, `Intl` separates thousands with a narrow no-break space (U+202F), the French
- * typographic rule: « 1 234,56 » never breaks across two lines.
+ * typographic rule: « 1 234,56 » never breaks across two lines. English is formatted as
+ * British English, as its catalogue is written: « 31 May 2026, 16:30 », and « 1,234.56 ».
  */
 import type { components } from "@/api/generated/schema";
 
@@ -26,6 +27,20 @@ import type { Locale } from "./locale";
  * a `Timestamp` is written in the browser by `LocalTime`, not by the formatter of next-intl.
  */
 export const TIME_ZONE = "UTC";
+
+/**
+ * The locale `Intl` formats each language of the interface in: English is British, the
+ * English of the catalogue — the day before the month, the time on 24 hours.
+ */
+const FORMAT_LOCALE: Readonly<Record<Locale, string>> = { fr: "fr", en: "en-GB" };
+
+/**
+ * The locale to build any `Intl` formatter with for a language of the interface — a number,
+ * a date, a list —, never the language itself: English is British everywhere it is written.
+ */
+export function formatLocale(locale: Locale): string {
+  return FORMAT_LOCALE[locale];
+}
 
 type Decimal = components["schemas"]["Decimal"];
 type Money = components["schemas"]["Money"];
@@ -70,7 +85,24 @@ function fractionDigits(value: DecimalString): number {
 export function formatDecimal(value: Decimal, locale: Locale): string {
   const exact = decimal(value);
   const digits = fractionDigits(exact);
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(formatLocale(locale), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    signDisplay: "negative",
+  }).format(exact);
+}
+
+/**
+ * Format a ratio — a `Decimal` or a `Percent` of the contract, `0.25` for a quarter — as a
+ * percentage, with every digit the API gave: `0.125` is « 12,5 % » in French and `12.5%` in
+ * English. `Intl` moves the point of the decimal string itself: no float, no product.
+ */
+export function formatPercent(value: Decimal, locale: Locale): string {
+  const exact = decimal(value);
+  // The two digits the percentage moves before the point are no longer fraction digits.
+  const digits = Math.max(0, fractionDigits(exact) - 2);
+  return new Intl.NumberFormat(formatLocale(locale), {
+    style: "percent",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
     signDisplay: "negative",
@@ -90,7 +122,9 @@ export function formatMoney(value: Money, locale: Locale, currency?: string): st
   };
   const style: Intl.NumberFormatOptions =
     currency === undefined ? {} : { style: "currency", currency };
-  return new Intl.NumberFormat(locale, { ...options, ...style }).format(decimal(value, MONEY));
+  return new Intl.NumberFormat(formatLocale(locale), { ...options, ...style }).format(
+    decimal(value, MONEY),
+  );
 }
 
 /**
@@ -108,7 +142,9 @@ export function formatPlanningDate(
   if (!DATE.test(value) || !midnight.toISOString().startsWith(value)) {
     throw new RangeError(`Not a date of the contract: ${JSON.stringify(value)}`);
   }
-  return new Intl.DateTimeFormat(locale, { dateStyle, timeZone: TIME_ZONE }).format(midnight);
+  return new Intl.DateTimeFormat(formatLocale(locale), { dateStyle, timeZone: TIME_ZONE }).format(
+    midnight,
+  );
 }
 
 /**
@@ -118,7 +154,7 @@ export function formatPlanningDate(
 export function formatTimestamp(value: Timestamp, locale: Locale, timeZone?: string): string {
   const options: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
   return new Intl.DateTimeFormat(
-    locale,
+    formatLocale(locale),
     timeZone === undefined ? options : { ...options, timeZone },
   ).format(new Date(value));
 }

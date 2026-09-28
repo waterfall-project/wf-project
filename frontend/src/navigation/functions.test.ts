@@ -13,7 +13,7 @@ type Session = components["schemas"]["Session"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000401";
+const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
 
 const FUNCTIONS = FUNCTION_GROUPS.flatMap((group) => group.functions);

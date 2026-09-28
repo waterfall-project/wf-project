@@ -149,6 +149,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/ProjectIndicators }
+            examples:
+              witness: { $ref: ../../../fixtures/api/project_indicators.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':

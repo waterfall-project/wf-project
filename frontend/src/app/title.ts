@@ -9,22 +9,20 @@ import "server-only";
 import type { Metadata } from "next";
 import { createTranslator } from "next-intl";
 
-import { serverClient } from "@/api/server";
+import { readProject } from "@/components/context/reading";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { requestLanguage } from "@/i18n/request";
 import type { NavigationFunction } from "@/navigation/functions";
-import { reach } from "@/session/request";
 
 /** What a title names: a function, or the list of projects. */
 export type ScreenLabel = NavigationFunction["label"] | "functionGroups.projects";
 
-/** The label of a project, or `undefined` when it cannot be read. */
+/**
+ * The label of a project, or `undefined` when it cannot be read — read once for the request,
+ * with the page and the banner of its context.
+ */
 async function projectLabel(projectId: string): Promise<string | undefined> {
-  const answer = await reach(() =>
-    serverClient().GET("/projects/{project_id}", {
-      params: { path: { project_id: projectId } },
-    }),
-  );
+  const answer = await readProject(projectId);
   return answer?.data?.label;
 }
 

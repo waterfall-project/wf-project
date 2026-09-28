@@ -1,0 +1,47 @@
+{
+  "summary": "Les deux sous-projets du projet, identifiés par leur code ERP ; aucun coût réel ne leur est encore imputé.",
+  "value": [
+    {
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+      "code": "SP-CMD",
+      "label": "Poste de commande",
+      "has_actual_costs": false,
+      "audit": {
+        "created_at": "2026-01-20T10:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-20T10:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000802",
+      "code": "SP-ESS",
+      "label": "Essais et mise en service",
+      "has_actual_costs": false,
+      "audit": {
+        "created_at": "2026-01-20T10:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-20T10:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    }
+  ]
+}

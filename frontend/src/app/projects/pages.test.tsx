@@ -1,8 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UnexpectedAnswer } from "@/components/context/reading";
+import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, fakeClient } from "@/test/fixtures";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
@@ -19,6 +23,26 @@ vi.mock("next/headers", () => ({
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
+const NO_SEARCH = Promise.resolve({});
+const BANNER = '<section aria-label="Reading context"';
+const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+
+/** What a page says, its tags left out: the texts a reader reads, one space apart. */
+function text(markup: string): string {
+  return markup
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** A page in English, as the shell hands it its texts. */
+function inEnglish(page: ReactNode) {
+  return (
+    <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+      {page}
+    </NextIntlClientProvider>
+  );
+}
 
 beforeEach(() => {
   server.answers = {
@@ -26,6 +50,7 @@ beforeEach(() => {
     "GET /projects": "projects",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
+    "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
     "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": "nodes",
   };
@@ -39,8 +64,11 @@ describe("the witness path", () => {
   });
 
   it("shows a project and links to its revisions", async () => {
-    const page = await ProjectPage({ params: Promise.resolve({ projectId: PROJECT }) });
-    const html = renderToStaticMarkup(page);
+    const page = await ProjectPage({
+      params: Promise.resolve({ projectId: PROJECT }),
+      searchParams: NO_SEARCH,
+    });
+    const html = renderToStaticMarkup(inEnglish(page));
     expect(html).toContain("<h1>Modernisation du poste de commande</h1>");
     expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}"`);
     expect(html).toContain(">Référence</a>");
@@ -48,7 +76,9 @@ describe("the witness path", () => {
 
   it("shows the nodes of the main structure, one row each", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const html = renderToStaticMarkup(await RevisionPage({ params }));
+    const html = renderToStaticMarkup(
+      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+    );
     expect(html.match(/<tr /g)).toHaveLength(4);
     expect(html).toContain(
       '<tr data-kind="estimate_line"><td>3</td><td>Ingénierie de détail</td></tr>',
@@ -61,19 +91,27 @@ describe("the witness path", () => {
       "GET /projects/{project_id}/revisions/{revision_id}/structures": NOT_FOUND,
     };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const html = renderToStaticMarkup(await RevisionPage({ params }));
+    const html = renderToStaticMarkup(
+      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+    );
     expect(html).toContain("<tbody></tbody>");
   });
 
-  it("renders nothing when the API refuses", async () => {
+  it("renders nothing when the API refuses the list", async () => {
+    server.answers = { "GET /projects": NOT_FOUND };
+    expect(renderToStaticMarkup(await ProjectsPage())).toBe("<main><ul></ul></main>");
+  });
+
+  it("is not found for a project the API does not find, as the other screens of a project", async () => {
     server.answers = {
-      "GET /projects": NOT_FOUND,
       "GET /projects/{project_id}": NOT_FOUND,
       "GET /projects/{project_id}/revisions": NOT_FOUND,
     };
-    expect(renderToStaticMarkup(await ProjectsPage())).toBe("<main><ul></ul></main>");
-    const page = await ProjectPage({ params: Promise.resolve({ projectId: PROJECT }) });
-    expect(renderToStaticMarkup(page)).toBe("<main><h1></h1><ul></ul></main>");
+    const page = ProjectPage({
+      params: Promise.resolve({ projectId: PROJECT }),
+      searchParams: NO_SEARCH,
+    });
+    await expect(page).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   });
 
   it("titles the tab with the screen, and with the project read", async () => {
@@ -81,6 +119,52 @@ describe("the witness path", () => {
     const params = Promise.resolve({ projectId: PROJECT });
     expect((await projectMetadata({ params })).title).toBe(
       "Projects · Modernisation du poste de commande — Waterfall",
+    );
+  });
+});
+
+describe("the banner of the reading context on the witness path", () => {
+  it("names the project on the page of a project [WF-IHM-0020-A]", async () => {
+    const page = await ProjectPage({
+      params: Promise.resolve({ projectId: PROJECT }),
+      searchParams: NO_SEARCH,
+    });
+    const html = renderToStaticMarkup(inEnglish(page));
+    expect(html.startsWith(BANNER)).toBe(true);
+    expect(text(html)).toMatch(
+      /^Project Modernisation du poste de commande Modernisation du poste de commande Référence/,
+    );
+  });
+
+  it("names the project and the revision on the grid of a revision [WF-IHM-0020-A]", async () => {
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const search = Promise.resolve({ subproject_id: "unassigned" });
+    const html = renderToStaticMarkup(
+      inEnglish(await RevisionPage({ params, searchParams: search })),
+    );
+    expect(html.startsWith(BANNER)).toBe(true);
+    expect(text(html)).toMatch(
+      /^Project Modernisation du poste de commande Revision Current revision Draft Subproject: No subproject 1 Études/,
+    );
+    expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}"`);
+  });
+
+  it("is not found for a revision the API does not find, as the other screens of a project", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": NOT_FOUND,
+    };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
+  });
+
+  it("does not swallow an answer other than not found, and leaves it to the screen of failure", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}": UNAUTHORIZED };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toThrow(
+      new UnexpectedAnswer("getProject", 401),
     );
   });
 });

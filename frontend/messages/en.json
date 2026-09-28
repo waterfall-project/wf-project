@@ -19,6 +19,31 @@
   "screen": {
     "comingSoon": "This screen is still to come."
   },
+  "contextBanner": {
+    "label": "Reading context",
+    "project": "Project",
+    "revision": "Revision",
+    "currentRevision": "Current revision",
+    "reference": "Reference revision",
+    "readOnly": "Read only: no entry is offered on this revision.",
+    "filters": "Active filters",
+    "subproject": "Subproject: {subproject}",
+    "subprojectName": "{code} — {label}",
+    "asOf": "Calculation date: {date}",
+    "removeFilter": "Remove the filter “{filter}”"
+  },
+  "indicator": {
+    "names": {
+      "financialProgress": "Financial progress",
+      "budgetConsumption": "Budget consumption",
+      "physicalProgress": "Physical progress",
+      "costIndex": "Cost index",
+      "scheduleIndex": "Schedule index",
+      "projectionAtObservedRate": "Projection at the observed rate"
+    },
+    "notComputable": "Not computable",
+    "computedAt": "Computed on <time></time>"
+  },
   "functionGroups": {
     "administration": "Administration",
     "portfolio": "Portfolio",

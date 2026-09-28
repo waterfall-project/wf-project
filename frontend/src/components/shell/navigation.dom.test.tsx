@@ -23,7 +23,7 @@ vi.mock("next/navigation", async (original) => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000401";
+const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
 const CONTEXT = `?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
 

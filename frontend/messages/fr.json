@@ -19,6 +19,31 @@
   "screen": {
     "comingSoon": "Cet écran est à venir."
   },
+  "contextBanner": {
+    "label": "Contexte de lecture",
+    "project": "Projet",
+    "revision": "Révision",
+    "currentRevision": "Révision en cours",
+    "reference": "Révision de référence",
+    "readOnly": "Lecture seule : aucune saisie n’est proposée sur cette révision.",
+    "filters": "Filtres actifs",
+    "subproject": "Sous-projet : {subproject}",
+    "subprojectName": "{code} — {label}",
+    "asOf": "Date de calcul : {date}",
+    "removeFilter": "Lever le filtre « {filter} »"
+  },
+  "indicator": {
+    "names": {
+      "financialProgress": "Avancement financier",
+      "budgetConsumption": "Consommation du budget",
+      "physicalProgress": "Avancement physique",
+      "costIndex": "Indice de coût",
+      "scheduleIndex": "Indice de délai",
+      "projectionAtObservedRate": "Projection au rythme constaté"
+    },
+    "notComputable": "Non calculable",
+    "computedAt": "Calculé le <time></time>"
+  },
   "functionGroups": {
     "administration": "Administration",
     "portfolio": "Portefeuille",
