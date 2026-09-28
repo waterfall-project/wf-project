@@ -23,6 +23,8 @@
                   type: array
                   items: { $ref: ../components/schemas/revisions.yaml#/Revision }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/revisions.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -251,6 +253,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
+            examples:
+              witness: { $ref: ../../../fixtures/api/structures.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createCostStructure
@@ -345,6 +349,8 @@
                   type: array
                   items: { $ref: ../components/schemas/revisions.yaml#/Node }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/nodes.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:

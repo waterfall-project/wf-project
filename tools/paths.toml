@@ -1,0 +1,86 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# What the chain needs to know about the paths of the repository, declared once.
+#
+# - `families`: which family of checks a changed path wakes up. A pull request only pays for
+#   the families it touches (US-0310); `always` families run whatever changed.
+# - `shared`: paths every family depends on; touching one runs them all.
+# - `generated`: paths a tool writes, with the command that writes them. They are left out
+#   of the size of a lot and of the size limit of a source file (US-0050, US-0310).
+# - `tests`: paths that hold tests, told apart from production code in the size of a lot.
+#
+# Patterns follow pathlib's full_match: `*` stays within a directory, `**` crosses them.
+
+shared = [
+    "Makefile",
+    ".github/workflows/**",
+    # The whole tools project: this file, the code that interprets it, and the code that
+    # implements the checks. A change there must run every family, or a pull request could
+    # weaken a check without waking the family that relies on it.
+    "tools/**",
+]
+
+[families.repo]
+always = true
+target = "check-repo"
+
+[families.spec]
+paths = ["docs/spec/**"]
+target = "check-spec"
+
+[families.contract]
+paths = ["docs/api/**"]
+target = "check-contract"
+
+[families.back]
+paths = ["backend/**"]
+target = "check-back"
+
+[families.roadmap]
+# The stories quote the Vérif fields: the projection changing can break them too. The
+# agents cite Makefile targets, which the same check holds.
+paths = [
+    "docs/roadmap/**",
+    "docs/spec/waterfall-spec.md",
+    "tools/src/wftools/roadmap.py",
+    ".claude/agents/**",
+    "docs/dev/agents.md",
+]
+target = "check-roadmap"
+
+[families.front]
+# The client of the front is generated from the contract: a contract change checks it.
+paths = ["frontend/**", "docs/api/**"]
+target = "check-front"
+
+[[generated]]
+paths = ["docs/spec/waterfall-spec.md"]
+by = "make build-doc"
+
+[[generated]]
+paths = ["docs/api/INVENTORY.md"]
+by = "make inventory"
+
+[[generated]]
+paths = ["LICENSES/**"]
+by = "reuse download"
+
+[[generated]]
+paths = ["**/uv.lock"]
+by = "uv lock"
+
+[[generated]]
+paths = ["frontend/pnpm-lock.yaml"]
+by = "pnpm install"
+
+[[generated]]
+paths = ["frontend/src/api/generated/**"]
+by = "make generate-client"
+
+[[generated]]
+paths = ["fixtures/examples.json"]
+by = "make fixtures"
+
+[tests]
+paths = ["tools/tests/**", "backend/tests/**", "fixtures/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/e2e/**"]

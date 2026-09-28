@@ -6,3 +6,14 @@ __pycache__/
 /docs/spec/images/
 stb-waterfall.docx.before*
 docs/api/*.bundle.yaml
+.venv/
+node_modules/
+.next/
+coverage/
+next-env.d.ts
+*.tsbuildinfo
+docs/api/waterfall.mock.json
+backend/coverage.json
+.coverage
+test-results/
+playwright-report/

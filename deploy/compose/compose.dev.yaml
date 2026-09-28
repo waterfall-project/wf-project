@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The development platform: the front, and the fake back it runs against (US-0030).
+# Started by `make dev`, which first derives from the contract the variant the fake back
+# serves (`make mock-spec`). The front knows nothing of the fake back but its address:
+# from EP-03, the same variable designates the real service.
+name: waterfall-dev
+
+services:
+  mock:
+    # Prism, at the version the Makefile pins, run in the node image the front uses.
+    image: node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+    command:
+      - npx
+      - --yes
+      - "@stoplight/prism-cli@${PRISM_VERSION:?run make dev}"
+      - mock
+      - /contract/waterfall.mock.json
+      - --host
+      - 0.0.0.0
+      - --port
+      - "4010"
+    volumes:
+      - ../../docs/api/waterfall.mock.json:/contract/waterfall.mock.json:ro
+    ports:
+      - "4010:4010"
+    user: "1000:1000"
+    environment:
+      npm_config_cache: /tmp/npm
+
+  front:
+    build:
+      context: ../../frontend
+    environment:
+      WATERFALL_API_ADDRESS: http://mock:4010
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../frontend/src:/app/src
+    depends_on:
+      - mock

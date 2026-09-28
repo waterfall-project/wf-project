@@ -12,13 +12,17 @@ for renegotiation file by file. Taking part means holding to the
 ## Getting set up
 
 ```bash
-make check-tools      # tells you what is missing
-make build-doc        # regenerate the specification projection
-make lint-openapi     # check the contract
+make check-tools                  # tells you what is missing
+corepack enable pnpm              # once: pnpm at the version the front pins
+make check-all                    # every family of checks, as the chain runs them
+make check BASE=origin/epic/EP-nn # only what your change touches, before you push
 ```
 
-You need Python 3.11+, `pandoc`, Node with `npx`, and `mmdc`
-(`npm i -g @mermaid-js/mermaid-cli`) if you want the diagrams validated.
+You need [uv](https://docs.astral.sh/uv/), which installs Python 3.13 for the back and the
+tools; a Python 3.11 or later on the `PATH` as `python3`, which builds the specification
+projection; Node 24, whose corepack provides pnpm; Docker, for `make dev`; `pandoc` 3.1.11.1 — the
+version the projection is generated with, since another one writes another Markdown; and
+`mmdc` (`npm i -g @mermaid-js/mermaid-cli`) if you want the diagrams validated.
 
 ## Changing the specification
 
@@ -90,12 +94,16 @@ Every operation cites, in its own summary or description, the requirements it re
 requirement cited by a shared response says nothing about what the operation does.
 `make inventory` turns that into a coverage table, and fails on an operation that cites
 nothing, or on a requirement domain that escapes the contract, unless the reason is declared
-in `tools/inventory.py`.
+in `docs/api/tools/inventory.py`.
 
 ## Changing the code
 
-There is none yet. When there is, the specification already fixes what will be asked of it,
-and it is worth knowing before writing the first line:
+Read the [development guide](docs/dev/README.md) first: where each piece lives, how it is
+named, the shape of the pieces that repeat, and which check enforces each rule. It is written
+in French, like the specification, and grows with the codebase.
+
+The specification already fixes what will be asked of the code, and it is worth knowing
+before writing the first line:
 
 - **every F0 requirement is covered by at least one automated test citing its identifier**,
   and a release is refused while one is uncovered (`WF-QUA-0010`);
