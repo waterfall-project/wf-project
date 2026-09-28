@@ -120,7 +120,8 @@ l'énumération des codes de permission ; les deux genres manquants de tâche de
 d'une structure, survenance d'un risque ; `listNodes` rendu sans pagination, une révision
 portant au plus dix mille objets ; les champs calculés portés par chaque nœud
 (`computed_fields`) ; la langue réduite à une seule préférence à trois états — `default`,
-`fr`, `en` —, où `default` suit le navigateur ; le tri et les filtres des grilles portés par
+`fr`, `en` —, où `default` suit le navigateur, et la langue par défaut de l'installation
+rendue lisible sans session (`getInstallation`), pour la page de connexion ; le tri et les filtres des grilles portés par
 le contrat et exécutés par le serveur, qui rend les lignes et les totaux du périmètre
 demandé ; le filtre « mes projets » de `listProjects` — les projets dont l'utilisateur
 est contributeur —, qu'exige l'écran d'accueil ; et le thème, préférence de compte à trois
@@ -276,9 +277,13 @@ verrou.
 - **Bandeau de contexte** : projet ; révision, son état, son caractère de référence ;
   filtres en pastilles ; date de calcul — une valeur sous enveloppe `Computable` ne
   s'affiche pas sans la date de son `CalculationContext`, rendue en heure locale.
-- **Commande** : absente sans la permission (`Session.permissions`) ; présente et
-  indisponible avec sa condition manquante (`available_commands`) ; un refus est rendu par
-  le catalogue.
+- **Commande** : sur le projet et la révision, absente quand l'objet ne la liste pas — le
+  serveur ne liste dans `available_commands` que les commandes dont l'appelant a la
+  permission, et le front ne sait pas quelle permission garde quelle commande —, présente
+  et indisponible avec ses conditions manquantes. Ailleurs — comptes, rôles, référentiel,
+  sauvegarde —, les commandes d'une fonction suivent sa permission de modification dans
+  `Session.permissions`, et la restauration sa permission propre, `platform_restore` :
+  c'est la règle même du catalogue (WF-ADM-0100), sans condition à nommer. Un refus est rendu par le catalogue des codes d'erreur.
 - **Suivi des tâches de fond** : un fournisseur de la coquille garde chaque référence avec
   la commande qui l'a lancée, interroge `getBackgroundTask` par une action serveur tant que
   la tâche court, annonce l'aboutissement ou l'échec (`aria-live`) quel que soit l'écran,
@@ -301,7 +306,7 @@ verrou.
 - **La langue est une préférence à trois états** — `default`, `fr`, `en` — où `default`
   suit le navigateur. Le front la résout à chaque requête : la préférence si elle est
   fixée, sinon `Accept-Language`, sinon la langue par défaut de l'installation
-  (`getReferenceSettings`). Le contrat n'a plus qu'un champ de langue : une des dix
+  (`getInstallation`, lisible sans session). Le compte n'a plus qu'un champ de langue : une des dix
   modifications du cadrage l'y réduit.
 - **Catalogues** : clés hiérarchiques en anglais ; une clé par valeur d'énumération
   traduite du contrat (`enums.ProjectState.in_progress`), une par code d'erreur
@@ -668,7 +673,7 @@ longue.
 
 - **statut** : à faire
 - **exigences** : `WF-INTF-0160-A`, `WF-INTF-0170-A`, `WF-INTF-0180-A`, `WF-ADM-0040-A`, `WF-QUA-0070-A`, `WF-DAT-0100-A`
-- **opérations** : `getMe`, `updateMyPreferences`
+- **opérations** : `getMe`, `updateMyPreferences`, `getInstallation`
 - **issue** : #83
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** l'interface dans ma
@@ -682,7 +687,7 @@ que mes collègues.
   en anglais à sa première connexion, un autre demandant le français l'obtient en français. »
 - `WF-INTF-0160-A` — « Un utilisateur dont le navigateur demande une langue non offerte
   obtient la langue par défaut de l'installation. » — la résolution est dans le front, et la
-  langue par défaut vient du référentiel que le faux back sert.
+  langue par défaut vient de `getInstallation`, lisible sans session, que le faux back sert.
 - `WF-INTF-0160-A` — « Le changement de langue s'applique sans reconnexion. »
 - `WF-INTF-0170-A` — « Deux utilisateurs de langues différentes ouvrant le même projet voient
   les mêmes libellés de tâches et de lignes, et des intitulés de colonnes et des libellés
@@ -713,7 +718,8 @@ cette US qui fixe le catalogue de codes d'erreur, et tout EPIC ultérieur y ajou
 La langue est une préférence de compte à trois états — `default`, `fr`, `en` —, où `default`
 suit le navigateur ; dès qu'elle est fixée, elle prime (décision du cadrage). Le front la
 résout à chaque requête — la préférence, sinon `Accept-Language`, sinon la langue par défaut
-de l'installation — et le contrat n'a plus qu'un seul champ de langue.
+de l'installation, que `getInstallation` rend sans session — et le compte n'a plus qu'un
+seul champ de langue.
 
 - écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
   celles d'un autre. » demande des comptes réels — EP-03.

@@ -323,6 +323,19 @@
       la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme
       de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et
       grille de devis (WF-DEV-0050).
+
+      La structure est rendue entière, sans pagination : une révision porte au plus dix
+      mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et
+      les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien : le
+      tri ordonne les nœuds frères entre eux sans défaire l'arbre. Un filtre sur une
+      tâche — avancement, criticité, sous-arbre — retient les tâches qui le satisfont
+      avec les lignes qu'elles portent ; un filtre sur une ligne — nature, catégorie,
+      rôle, sous-projet — retient les lignes qui le satisfont ; la recherche porte sur
+      les libellés des deux, et une tâche retenue par elle garde ses lignes. Les
+      filtres se combinent, et les ancêtres des nœuds retenus sont rendus pour que
+      l'arbre reste lisible. Les totaux sont ceux des lignes retenues. `kinds` n'est
+      pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les
+      lignes —, et les totaux ne changent pas avec lui.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -334,21 +347,78 @@
           type: array
           items: { $ref: ../components/schemas/revisions.yaml#/NodeKind }
         explode: false
-      - $ref: ../components/parameters.yaml#/Limit
-      - $ref: ../components/parameters.yaml#/Offset
+      - $ref: ../components/parameters.yaml#/Search
+      - name: subtree_of
+        in: query
+        description: >-
+          Restreint au sous-arbre d'une tâche récapitulative, elle comprise
+          (WF-PLA-0080, WF-DEV-0050).
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - $ref: ../components/parameters.yaml#/SubprojectFilter
+      - name: cost_type_id
+        in: query
+        description: Restreint aux lignes d'une nature de coût (WF-DEV-0050).
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: cost_category_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: resource_role_id
+        in: query
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: progress
+        in: query
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/revisions.yaml#/TaskProgress }
+        explode: false
+      - name: is_critical
+        in: query
+        schema: { type: boolean }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, l'ordre du plan. Chaque colonne d'une grille se
+          trie dans les deux sens (WF-IHM-0060) : une colonne de grille qui manquerait
+          ici est un constat sur le contrat.
+        schema:
+          type: string
+          enum:
+            - label
+            - description
+            - scheduling_mode
+            - duration_days
+            - start_date
+            - finish_date
+            - progress
+            - physical_progress
+            - total_float_days
+            - is_critical
+            - predecessors
+            - cost_category
+            - resource_role
+            - quantity
+            - hours
+            - unit_disbursement
+            - subproject
+            - payment_delay_days
+            - consumption_year
+            - budgeted_amount
+            - reestimated_amount
+            - previous_reestimated_amount
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
-        description: Nœuds, en parcours profondeur d'abord.
+        description: Nœuds, en parcours profondeur d'abord, et leurs totaux.
         content:
           application/json:
             schema:
               type: object
-              required: [items, meta]
+              required: [items, totals]
               properties:
                 items:
                   type: array
                   items: { $ref: ../components/schemas/revisions.yaml#/Node }
-                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+                totals: { $ref: ../components/schemas/revisions.yaml#/NodeTotals }
             examples:
               witness: { $ref: ../../../fixtures/api/nodes.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
@@ -539,8 +609,10 @@
     tags: [remaining]
     summary: Réestimer une ligne
     description: >-
-      Réservé aux lignes portées par une tâche démarrée ; un reste à engager nul
-      termine la tâche (WF-RAE-0010, WF-RAE-0040).
+      Refusé sur une ligne d'une tâche terminée ; une tâche non démarrée se réestime
+      aussi, et un reste à engager nul pour toutes les lignes d'une tâche la termine
+      (WF-RAE-0040). La ligne dit elle-même si elle accepte la réestimation
+      (`remaining_entry`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

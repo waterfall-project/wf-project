@@ -3,10 +3,13 @@
 # avertissement toléré. Une exception qu'on ajoute dit pourquoi l'opération est juste.
 paths/system.yaml:
   # Les sondes répondent avant toute authentification et ne refusent rien : leur seule
-  # réponse est leur état (WF-EXP-0040).
+  # réponse est leur état (WF-EXP-0040). Les paramètres publics de l'installation sont
+  # lus de même avant toute session, sans paramètre : aucune requête bien formée n'y est
+  # refusée (WF-INTF-0160).
   operation-4xx-response:
     - '#/~1health/get/responses'
     - '#/~1health~1ready/get/responses'
+    - '#/~1installation/get/responses'
 paths/session.yaml:
   # La liste des fournisseurs d'identité est publique, lue avant toute session : aucune
   # requête bien formée n'y est refusée (WF-ADM-0180).

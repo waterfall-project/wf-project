@@ -56,11 +56,21 @@ afficher une grille.
 présenter zéro ou l'infini : le contrat rend `{ is_computable, value, reason }` partout où
 un dénominateur peut être nul. C'est verbeux et c'est le prix de l'exigence.
 
+**Chaque nœud dit lesquels de ses champs sont calculés** (`computed_fields`, EP-02). Le
+schéma d'écriture ne suffit pas à la ligne : une date de tâche se saisit en mode manuel et
+se calcule en mode automatique, la durée d'une récapitulative dérive de ses subordonnées,
+les grandeurs d'une ligne de provision viennent du risque. Le serveur le sait ; le front,
+s'il devait le déduire du mode ou de la nature du nœud, recopierait une règle du noyau.
+Pour la même raison, une ligne de devis dit si elle accepte une réestimation au reste à
+engager (`remaining_entry`) : sous une tâche terminée, elle ne l'accepte plus.
+
 ## Traitements longs
 
 **Neuf opérations renvoient une tâche de fond, jamais un résultat** : marquage, fusion d'un
 différentiel, survenance d'un risque, analyse et application d'un import, export,
-sauvegarde, restauration, synchronisation de l'annuaire. Toutes répondent `202` avec une
+sauvegarde, restauration, synchronisation de l'annuaire. Chacune a son genre dans
+`BackgroundTaskRef.kind` — la fusion et la survenance n'y figuraient pas, et leur suivi
+n'aurait pas su dire ce qu'il suivait (EP-02). Toutes répondent `202` avec une
 référence de tâche, et le front suit l'avancement par `GET /tasks/{id}` (WF-ARC-0090,
 WF-IHM-0080). Conséquence à assumer dans la maquette : aucun de ces gestes n'a de réponse
 immédiate.
@@ -74,7 +84,37 @@ code client pourrait stocker.
 
 **Les permissions effectives sont renvoyées avec la session.** Sans elles, le front ne peut
 pas tenir WF-IHM-0090, qui distingue une commande indisponible d'une commande absente.
-Aucune exigence ne l'impose — voir C-087.
+Aucune exigence ne l'impose — voir C-087. Elles règlent la navigation : une fonction dont
+l'utilisateur n'a pas la consultation ne s'y présente pas.
+
+**Le catalogue des permissions est une énumération** (EP-02). WF-ADM-0100 le dit livré et
+non modifiable : deux permissions par fonction de second niveau — vingt-quatre fonctions —,
+et six pour les actions irréversibles ou structurantes. Un motif de chaîne laissait le front
+ignorer quels codes existent ; l'énumération fait d'une permission nouvelle une
+modification du contrat, ce qu'elle est.
+
+**Le projet et la révision portent leurs commandes disponibles** (`available_commands`,
+EP-02). Chacune dit si elle est disponible et, sinon, les conditions qui lui manquent,
+nommées par un catalogue (`CommandCondition`) que le front rend en phrase. Le serveur ne
+liste que les commandes que l'appelant a la permission d'exercer : une commande absente de
+la liste n'est pas présentée, et le front n'a pas à savoir quelle permission garde quelle
+commande — ce serait une règle recopiée. Les autres fonctions — comptes, rôles,
+référentiel, sauvegarde — n'ont pas de conditions à nommer : leurs commandes suivent la
+permission de modification de la fonction, que la session porte, et la restauration sa
+permission propre ; c'est la règle même du catalogue. La saisie d'une révision est trois commandes —
+planning, devis, reste à engager —, parce que trois permissions la gardent : un chiffreur
+peut saisir le devis sans pouvoir toucher au planning. Les risques et les coûts réels ont
+leurs commandes sur le projet ; une commande que refuse l'état d'un objet particulier — un
+risque déjà survenu — l'est par son code d'erreur. `getProjectNextState` ne couvrait que les
+transitions d'avant En cours ; la terminaison d'un projet en chiffrage, par exemple, n'avait
+pas de condition à nommer. La consultation « prochain état » garde sa forme, et ses
+conditions viennent du même catalogue.
+
+**Les codes d'erreur sont un catalogue énuméré** (`ErrorCode`, EP-02). `Problem.code`
+promettait un catalogue qui n'existait pas. Il couvre les refus de l'API, les motifs par
+champ, et les motifs de rejet d'une ligne collée ou importée : ce sont les mêmes phrases à
+rendre, et un seul catalogue de textes les rend. Le front n'en rencontre aucun qu'il ne
+sache dire ; un code nouveau est une modification du contrat.
 
 **Une seule enveloppe d'erreur, sans phrase.** `code`, `status`, `params`, `fields`,
 `correlation_id`. Pas de champ de message : WF-ARC-0110 veut que le texte soit rendu par le
@@ -87,6 +127,36 @@ d'écriture, ou pas contributeur, c'est 403 avec la condition nommée.
 
 **`412` pour un `lock_version` périmé**, distinct du `409` d'un conflit d'état. Le front
 peut ainsi proposer de recharger dans un cas et d'expliquer dans l'autre.
+
+## Langue et thème
+
+**Le compte n'a qu'un champ de langue, sa préférence à trois états** — `default`, `fr`,
+`en` (EP-02). `default` suit le navigateur, puis la langue par défaut de l'installation ;
+un choix explicite prime (WF-INTF-0160). Le front la résout à chaque requête — la langue
+par défaut lui vient de `getInstallation`, lisible sans session pour la page de
+connexion —, et l'API ne localise rien (WF-ARC-0110) : `Session.language` et `User.language`, qui la répétaient sans
+dire laquelle faisait foi, sont retirés. Le thème suit la même forme — `default`, `light`,
+`dark`, où `default` suit le poste —, préférence de présentation (WF-ADM-0040).
+
+## Listes et grilles
+
+**Le serveur trie, filtre et totalise ; le front n'ordonne ni ne somme rien** (EP-02). Chaque
+grille demande son tri par `sort_by` et `sort_order`, ses filtres par des paramètres nommés,
+et la réponse porte les totaux du périmètre retenu. Trier dans le front aurait exigé
+l'exception à la règle « le front ne réordonne pas ce que le back ordonne », et laissé les
+totaux mentir sous un filtre. Dans l'arbre, le tri ordonne les frères sans défaire l'arbre,
+et un filtre rend aussi les ancêtres des nœuds retenus. Le montant d'une récapitulative —
+la somme de ce qu'elle porte et de ses subordonnées (WF-DEV-0050) — est de même rendu par
+la facette tâche. La préférence de tri d'une grille garde la forme de la requête, une
+colonne et un sens, pour être renvoyée telle quelle.
+
+**`listNodes` rend la structure entière, sans pagination** (EP-02). Une révision porte au
+plus dix mille objets (§4.6.2), et un arbre ne se lit pas par pages : une page coupe une
+tâche de ses lignes. La grille virtualise l'affichage, pas la lecture.
+
+**L'accueil filtre sur la qualité de contributeur** (`is_contributor` de `listProjects`,
+EP-02). C'est un filtre que l'utilisateur voit et lève, jamais une restriction de lecture :
+la consultation ne dépend que des habilitations (WF-PRJ-0060).
 
 ## Collage et annulation
 

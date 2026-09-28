@@ -242,6 +242,13 @@ HourlyRateWrite:
     amount: { $ref: ../common.yaml#/Money }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+Installation:
+  type: object
+  required: [default_language]
+  description: Paramètres de l'installation lisibles sans session.
+  properties:
+    default_language: { $ref: ../common.yaml#/Language }
+
 ReferenceSettings:
   type: object
   required:
@@ -260,9 +267,7 @@ ReferenceSettings:
       type: string
       pattern: '^[A-Z]{3}$'
       description: Devise unique, choisie à l'installation et non modifiable (WF-REF-0140).
-    default_language:
-      type: string
-      pattern: '^[a-z]{2}$'
+    default_language: { $ref: ../common.yaml#/Language }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
@@ -272,7 +277,7 @@ ReferenceSettingsWrite:
   type: object
   required: [lock_version]
   properties:
-    default_language: { type: string, pattern: '^[a-z]{2}$' }
+    default_language: { $ref: ../common.yaml#/Language }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }

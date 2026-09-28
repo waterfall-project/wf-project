@@ -5,12 +5,26 @@
     summary: Projets
     description: >-
       La consultation ne dépend que des habilitations, jamais de la qualité de
-      contributeur (WF-PRJ-0060, WF-PTF-0030).
+      contributeur (WF-PRJ-0060, WF-PTF-0030). Le filtre `is_contributor` restreint
+      la liste aux projets dont l'appelant est contributeur : c'est l'accueil, un
+      filtre que l'utilisateur voit et lève, jamais une restriction de lecture. Le
+      tri est fait par le serveur.
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - $ref: ../components/parameters.yaml#/Search
       - $ref: ../components/parameters.yaml#/PortfolioStates
+      - name: is_contributor
+        in: query
+        description: Vrai, les seuls projets dont l'appelant est contributeur.
+        schema: { type: boolean, default: false }
+      - name: sort_by
+        in: query
+        description: Colonne du tri ; absente, les projets modifiés le plus récemment d'abord.
+        schema:
+          type: string
+          enum: [label, code, state, updated_at]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Projets.

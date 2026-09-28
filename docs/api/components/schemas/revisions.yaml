@@ -12,7 +12,7 @@ RevisionStatus:
 
 Revision:
   type: object
-  required: [revision_id, project_id, status, is_reference, audit, lock_version]
+  required: [revision_id, project_id, status, is_reference, available_commands, audit, lock_version]
   properties:
     revision_id: { $ref: ../common.yaml#/Uuid }
     project_id: { $ref: ../common.yaml#/Uuid }
@@ -31,8 +31,45 @@ Revision:
       description: Caractère de révision de référence (WF-REV-0040, WF-REV-0090).
     snapshot:
       anyOf: [{ $ref: '#/RevisionSnapshot' }, { type: 'null' }]
+    available_commands:
+      type: array
+      description: >-
+        Commandes de la révision que l'appelant a la permission d'exercer, chacune
+        disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une grille
+        dont la commande de saisie est absente ou indisponible se présente en lecture
+        seule.
+      items: { $ref: '#/RevisionCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RevisionCommand:
+  type: string
+  enum:
+    - edit_planning
+    - edit_estimate
+    - edit_remaining
+    - create_structure
+    - merge_structure
+    - mark
+    - designate_reference
+    - abandon
+  description: >-
+    Commandes portées par la révision : saisir le planning, le devis, le reste à
+    engager — une commande par fonction, chacune gardée par sa permission
+    (WF-ADM-0100) —, ouvrir et fusionner un différentiel (WF-REV-0050, WF-REV-0100),
+    la marquer, la désigner comme référence, l'abandonner (WF-REV-0010, WF-REV-0020,
+    WF-REV-0040).
+
+RevisionCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/RevisionCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
 
 RevisionSnapshot:
   type: object
@@ -187,7 +224,7 @@ NodeKind:
 
 Node:
   type: object
-  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, lock_version]
+  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, computed_fields, lock_version]
   description: >-
     `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable
     d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et
@@ -208,7 +245,53 @@ Node:
     predecessors:
       type: array
       items: { $ref: '#/Predecessor' }
+    computed_fields:
+      type: array
+      description: >-
+        Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa
+        commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en
+        mode automatique, les dates, la durée et l'avancement d'une récapitulative, les
+        grandeurs d'une ligne de provision. Le front les présente
+        comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit
+        rien du mode ni de la nature du nœud.
+      items: { $ref: '#/ComputedField' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ComputedField:
+  type: string
+  enum:
+    - task.duration_days
+    - task.start_date
+    - task.finish_date
+    - task.progress
+    - estimate_line.quantity
+    - estimate_line.hours
+    - estimate_line.unit_disbursement
+
+EntryAvailability:
+  type: object
+  required: [is_available, missing_conditions]
+  description: Si une saisie est ouverte sur cet objet, et sinon les conditions qui lui manquent (WF-IHM-0090).
+  properties:
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      items: { $ref: projects.yaml#/CommandCondition }
+
+NodeTotals:
+  type: object
+  required: [task_count, estimate_line_count, hours, budgeted_amount, reestimated_amount]
+  description: >-
+    Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les
+    montants et les heures sont ceux des seules lignes de devis retenues par les
+    filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —,
+    et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre.
+  properties:
+    task_count: { type: integer, minimum: 0 }
+    estimate_line_count: { type: integer, minimum: 0 }
+    hours: { $ref: ../common.yaml#/Hours }
+    budgeted_amount: { $ref: ../common.yaml#/Money }
+    reestimated_amount: { $ref: ../common.yaml#/Money }
 
 TaskProgress:
   type: string
@@ -233,6 +316,8 @@ TaskFacet:
     - progress
     - is_summary
     - is_milestone
+    - budgeted_amount
+    - reestimated_amount
   description: >-
     Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique,
     dates et durée d'une récapitulative, marge, criticité, avancement physique —
@@ -272,6 +357,15 @@ TaskFacet:
     physical_progress:
       anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
       description: Avancement physique d'une récapitulative, calculé (WF-IND-0060).
+    budgeted_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Somme des montants budgétés des lignes que la tâche porte et de ceux de ses
+        subordonnées, calculée par le serveur, jamais saisissable (WF-DEV-0050). Un
+        attribut de la tâche : un filtre de la grille ne le change pas.
+    reestimated_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: Même somme, pour les montants réestimés.
     tracking:
       type: array
       description: Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060).
@@ -286,6 +380,7 @@ EstimateLineFacet:
     - budgeted_amount
     - reestimated_amount
     - is_computed
+    - remaining_entry
   description: >-
     Facette argent d'un nœud. Les deux montants sont calculés et non saisissables :
     le budgété est fixé par la révision de référence et nul pour une ligne ajoutée
@@ -310,6 +405,11 @@ EstimateLineFacet:
       description: Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020).
     budgeted_amount: { $ref: ../common.yaml#/Money }
     reestimated_amount: { $ref: ../common.yaml#/Money }
+    previous_reestimated_amount:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        Montant réestimé au reste à engager précédent, que la grille de reste à
+        engager présente à côté du courant (WF-RAE-0040) ; nul avant la première revue.
     consumption_year:
       anyOf: [{ $ref: ../common.yaml#/Year }, { type: 'null' }]
       description: Année de consommation, déduite du planning (WF-DEV-0040).
@@ -318,6 +418,12 @@ EstimateLineFacet:
       description: >-
         Vrai pour une ligne de provision, dont le montant est calculé depuis le
         risque et jamais saisi (WF-RIS-0010).
+    remaining_entry:
+      allOf: [{ $ref: '#/EntryAvailability' }]
+      description: >-
+        Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui
+        manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La
+        grille le lit ligne par ligne, sans déduire la règle de l'avancement.
     bearing_task_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Tâche porteuse, résolue à la lecture.
@@ -447,8 +553,8 @@ RemainingUpdate:
   type: object
   required: [reestimated_amount_basis, lock_version]
   description: >-
-    Réestime une ligne portée par une tâche démarrée ; un reste à engager nul
-    termine la tâche (WF-RAE-0040, WF-RAE-0010).
+    Réestime une ligne dont la tâche n'est pas terminée ; un reste à engager nul pour
+    toutes les lignes d'une tâche la termine (WF-RAE-0040, WF-RAE-0010).
   properties:
     reestimated_amount_basis:
       type: object
@@ -509,7 +615,7 @@ PastePlan:
         required: [row, code]
         properties:
           row: { type: integer, minimum: 0 }
-          code: { type: string }
+          code: { $ref: ../common.yaml#/ErrorCode }
           params:
             type: object
             additionalProperties: true

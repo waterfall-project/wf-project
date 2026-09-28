@@ -10,6 +10,64 @@
         "status": "marked",
         "marked_at": "2026-02-01T09:00:00Z",
         "is_reference": true,
+        "available_commands": [
+          {
+            "command": "edit_planning",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "edit_estimate",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "edit_remaining",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "create_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "merge_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "mark",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "designate_reference",
+            "is_available": false,
+            "missing_conditions": [
+              "reference_correctable"
+            ]
+          },
+          {
+            "command": "abandon",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          }
+        ],
         "audit": {
           "created_at": "2026-03-02T08:30:00Z",
           "created_by": {
@@ -34,6 +92,52 @@
         "status": "draft",
         "marked_at": null,
         "is_reference": false,
+        "available_commands": [
+          {
+            "command": "edit_planning",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "edit_estimate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "edit_remaining",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "create_structure",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "merge_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "unmerged_amendment_exists"
+            ]
+          },
+          {
+            "command": "mark",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "designate_reference",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_marked"
+            ]
+          },
+          {
+            "command": "abandon",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
         "audit": {
           "created_at": "2026-03-02T08:30:00Z",
           "created_by": {

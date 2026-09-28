@@ -93,7 +93,7 @@ ImportRejection:
   required: [row, code]
   properties:
     row: { type: integer, minimum: 1 }
-    code: { type: string }
+    code: { $ref: ../common.yaml#/ErrorCode }
     params:
       type: object
       additionalProperties: true

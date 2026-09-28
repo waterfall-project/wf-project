@@ -6,19 +6,14 @@
     description: >-
       Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du
       périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes
-      conservées du fichier sont restituées (WF-CRE-0010).
+      conservées du fichier sont restituées (WF-CRE-0010). Le tri et les filtres sont
+      faits par le serveur, et les totaux sont ceux de toutes les lignes retenues, pas
+      de la seule page rendue.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
-      - name: subproject_id
-        in: query
-        description: '`unassigned` pour les lignes imputées au seul projet (WF-CRE-0020).'
-        schema:
-          anyOf:
-            - type: string
-              enum: [unassigned]
-            - $ref: ../components/common.yaml#/Uuid
+      - $ref: ../components/parameters.yaml#/SubprojectFilter
       - name: from
         in: query
         schema: { $ref: ../components/common.yaml#/PlanningDate }
@@ -28,6 +23,13 @@
       - name: in_tracked_scope
         in: query
         schema: { type: boolean }
+      - name: sort_by
+        in: query
+        description: Colonne du tri ; absente, les pièces les plus récentes d'abord.
+        schema:
+          type: string
+          enum: [document_date, document_number, amount, subproject]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Lignes de coût et les trois totaux.

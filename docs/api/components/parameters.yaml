@@ -16,6 +16,22 @@ Search:
   description: Recherche sur le libellé.
   schema: { type: string, minLength: 1, maxLength: 200 }
 
+SortOrder:
+  name: sort_order
+  in: query
+  description: Sens du tri demandé par `sort_by`.
+  schema: { $ref: common.yaml#/SortOrder }
+
+SubprojectFilter:
+  name: subproject_id
+  in: query
+  description: '`unassigned` pour ce qui ne relève d''aucun sous-projet (WF-IND-0020, WF-CRE-0020).'
+  schema:
+    anyOf:
+      - type: string
+        enum: [unassigned]
+      - $ref: common.yaml#/Uuid
+
 IncludeInactive:
   name: include_inactive
   in: query

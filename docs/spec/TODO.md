@@ -66,3 +66,22 @@ librement dans le document.
   locale du poste.
 - **Texte proposé** (corps de WF-DAT-0100, ajout) : « Un horodatage s'affiche dans l'heure
   locale du poste ; une date de planning s'affiche telle quelle. »
+
+## 7. Une tâche non démarrée se réestime à la demande
+
+- **Où** : WF-RAE-0030 (corps et Vérif).
+- **Quoi** : WF-RAE-0030 contredisait WF-RAE-0040 sur la saisie. WF-RAE-0030 disait
+  « Seules les lignes des tâches démarrées sont exposées à la réestimation du reste à
+  engager » et, dans son Vérif, « Une tâche non démarrée n'y est pas modifiable » ;
+  WF-RAE-0040 dit que la grille fait apparaître à la demande les tâches non démarrées
+  « pour les réestimer », et son Vérif qu'elles « sont alors modifiables ». **Tranché
+  (2026-09-28) : WF-RAE-0040 fait foi.** Le contrat la suit déjà : seule une ligne d'une
+  tâche terminée refuse la réestimation (`setLineRemaining`, `remaining_entry`).
+  WF-RAE-0040 ne change pas ; WF-RAE-0030 s'aligne.
+- **Texte proposé** :
+  - corps de WF-RAE-0030, remplacer « Seules les lignes des tâches démarrées sont exposées
+    à la réestimation du reste à engager. » par « Les lignes des tâches démarrées sont
+    exposées par défaut à la réestimation du reste à engager ; celles des tâches non
+    démarrées le sont à la demande (WF-RAE-0040). » ;
+  - Vérif de WF-RAE-0030, remplacer « Une tâche non démarrée n'y est pas modifiable. » par
+    « Une tâche non démarrée n'y apparaît qu'à la demande. »
