@@ -400,7 +400,7 @@ entre eux que par leur interface publique.
 
 ## US-0310 — Chaîne d'intégration sur GitHub Actions, branches protégées, mesure des lots
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #6
