@@ -613,7 +613,7 @@ cadrage) : le front la lit, ligne par ligne, au lieu de recopier une règle.
 
 ## US-0160 — Échelle de signalement commune, lisible sans couleur
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0070-A`
 - **opérations** : aucune en propre
 - **issue** : #80

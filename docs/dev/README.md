@@ -562,6 +562,16 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   `--font-<nom>`.
 - **Le contraste** d'un texte sur son fond atteint 4,5:1, celui de ce qui montre un contrôle —
   bord d'un champ, anneau du focus — 3:1, dans les deux modes (WCAG AA, §3.6).
+- **Un signalement passe par `Signal`** (`frontend/src/components/signal/`), et seulement
+  par lui (WF-IHM-0070) : il reçoit une `AlertZone` du contrat et la rend par une forme
+  Lucide, son libellé du catalogue (`enums.AlertZone.<zone>`) et son jeton,
+  `--signal-<zone>`, dans une seule table typée sur `AlertZone`. **Une zone vient du
+  serveur**, qui classe selon les seuils du référentiel : le front n'en déduit jamais une
+  d'une valeur (WF-ARC-0020). Les jetons de signalement sont mesurés comme les autres, et
+  de plus en niveaux de gris et vus d'un protanope et d'un deutéranope
+  (`contrast.test.ts`). Qu'aucun écran ne distingue deux états par la seule couleur — une
+  pastille, une ligne teintée sans forme ni texte —, c'est la revue qui le tient ; les tests
+  de `Signal` le prouvent pour le composant.
 - **shadcn/ui** : un composant s'ajoute en copiant son source dans
   `frontend/src/components/ui/` (`frontend/components.json` en donne les chemins), et seulement
   quand un écran l'emploie. Copié, il est du code du dépôt, soumis à toutes ses règles :
