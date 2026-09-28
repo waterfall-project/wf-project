@@ -3,26 +3,27 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, fakeClient } from "@/test/fixtures";
 
 import ProjectPage from "./[projectId]/page";
 import RevisionPage from "./[projectId]/revisions/[revisionId]/page";
 import ProjectsPage from "./page";
 
-const server = vi.hoisted((): { answers: Record<string, string | undefined> } => ({ answers: {} }));
+const server = vi.hoisted((): { answers: FakeAnswers } => ({ answers: {} }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => fakeClient(server.answers) }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 
 beforeEach(() => {
   server.answers = {
-    "/projects": "projects",
-    "/projects/{project_id}": "project",
-    "/projects/{project_id}/revisions": "revisions",
-    "/projects/{project_id}/revisions/{revision_id}/structures": "structures",
-    "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": "nodes",
+    "GET /projects": "projects",
+    "GET /projects/{project_id}": "project",
+    "GET /projects/{project_id}/revisions": "revisions",
+    "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
+    "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": "nodes",
   };
 });
 
@@ -50,15 +51,22 @@ describe("the witness path", () => {
     );
   });
 
-  it("shows an empty grid when the revision has no main structure", async () => {
-    server.answers["/projects/{project_id}/revisions/{revision_id}/structures"] = undefined;
+  it("shows an empty grid when the structures cannot be read", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": NOT_FOUND,
+    };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const html = renderToStaticMarkup(await RevisionPage({ params }));
     expect(html).toContain("<tbody></tbody>");
   });
 
-  it("renders nothing when the API answers nothing", async () => {
-    server.answers = {};
+  it("renders nothing when the API refuses", async () => {
+    server.answers = {
+      "GET /projects": NOT_FOUND,
+      "GET /projects/{project_id}": NOT_FOUND,
+      "GET /projects/{project_id}/revisions": NOT_FOUND,
+    };
     expect(renderToStaticMarkup(await ProjectsPage())).toBe("<main><ul></ul></main>");
     const page = await ProjectPage({ params: Promise.resolve({ projectId: PROJECT }) });
     expect(renderToStaticMarkup(page)).toBe("<main><h1></h1><ul></ul></main>");

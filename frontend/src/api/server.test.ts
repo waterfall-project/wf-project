@@ -15,3 +15,16 @@ describe("serverClient", () => {
     expect(typeof serverClient().GET).toBe("function");
   });
 });
+
+describe("the module of the server client", () => {
+  afterEach(() => {
+    vi.doMock("server-only", () => ({}));
+    vi.resetModules();
+  });
+
+  it("refuses to load outside the server of Next", async () => {
+    vi.doUnmock("server-only");
+    vi.resetModules();
+    await expect(import("./server")).rejects.toThrow("Client Component");
+  });
+});

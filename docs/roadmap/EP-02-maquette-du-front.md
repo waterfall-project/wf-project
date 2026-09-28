@@ -228,7 +228,7 @@ verrou.
   révision courante. Les **exemples nommés** (`marked`, `running`, `failed`, `empty`,
   `not_contributor`…) servent aux états qu'un Vérif demande et que le premier ne montre
   pas.
-- **Tests de composants** (Vitest, jsdom, Testing Library) : `fakeClient` couvre les cinq
+- **Tests de composants** (Vitest, happy-dom, Testing Library) : `fakeClient` couvre les cinq
   méthodes, choisit un exemple nommé, enchaîne des réponses (`running` puis `succeeded`) et
   enregistre les appels, corps compris. **Parcours de bout en bout** : le premier exemple ;
   une phrase de Vérif qui demande un autre état se vérifie au composant. Écarté : faire
@@ -326,13 +326,19 @@ verrou.
 
 ### Contrôles et tests
 
-- **Vitest** en deux projets — `node` pour la logique, `jsdom` pour les composants —
-  réglés dans `vitest.config.ts`, jamais par un commentaire d'environnement ; Testing
-  Library et user-event entrent avec les composants.
+- **Vitest** en deux projets, réglés dans `vitest.config.ts`, jamais par un commentaire
+  d'environnement : `node` pour la logique et les composants serveur, qui s'exécutent
+  côté serveur — un test en navigateur simulé laisserait passer un composant serveur qui
+  touche `window` ; `dom` (happy-dom) pour les composants client, par le suffixe
+  `.dom.test.tsx`. Écarté : jsdom, dont les corps `Blob` et multipart ne se lisent pas
+  sous Vitest. Testing Library et user-event entrent avec les composants.
 - **Garde réseau élargie** : `no-restricted-globals` et `no-restricted-properties` déjà en
   place, étendus à `XMLHttpRequest`, `WebSocket`, `EventSource` ; `no-restricted-imports`
-  pour `openapi-fetch` hors de `src/api/` et pour tout client http. Un test lint des
-  extraits piégés et attend l'erreur.
+  et `import()` refusés pour `openapi-fetch` et les clients http connus. Seul
+  `src/api/client.ts` en est exempté — les actions serveur de `src/api/actions/` n'appellent
+  que lui, et portent `"use server"`. Un composant client n'importe de `src/api/` que ces
+  actions et des types. Un test lint des extraits piégés et attend l'erreur ; la liste des
+  dépendances est figée, pour qu'une nouvelle soit examinée pour la garde.
 - **Accessibilité** : @axe-core/playwright, niveau AA, sur chaque route de
   `functions.json`, **en clair et en sombre**, à 1366 points puis à l'agrandissement de
   150 % ; parcours au clavier, focus visible. Le helper arrive avec la coquille, chaque lot
@@ -909,7 +915,7 @@ temps du contrat se tient à l'écran.
 
 ## US-0270 — Le front n'appelle l'API que par le client engendré
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0020-A`
 - **opérations** : aucune
 - **issue** : #91

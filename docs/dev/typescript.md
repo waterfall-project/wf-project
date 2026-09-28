@@ -24,12 +24,20 @@ dernière section.
 
 ### L'API ne s'appelle que par le client engendré
 
-Un appel à l'API passe par le client de `frontend/src/api/`, typé par le contrat ; aucun
-`fetch` ailleurs, aucune fonction écrite à la main qui en double une opération. Une
-opération qui manque est une modification du contrat, suivie de `make generate-client`.
+Un appel à l'API passe par le client de `frontend/src/api/`, typé par le contrat, et depuis
+le serveur Next seulement ; aucun appel réseau ailleurs, aucune fonction écrite à la main qui
+en double une opération. Une opération qui manque est une modification du contrat, suivie de
+`make generate-client`.
 
 *Pourquoi* : un client écrit à la main dérive du contrat (WF-ARC-0020, WF-ARC-0060).
-*Contrôle* : ESLint refuse `fetch` hors de `src/api/` ; `make client-up-to-date`.
+*Contrôle* : ESLint refuse hors de `src/api/client.ts` les moyens connus d'appeler le
+réseau — `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, l'import d'un client http —,
+et, dans un fichier `"use client"`, tout import de `src/api/` autre que ses actions serveur
+et des types ; un module de `src/api/actions/` s'ouvre sur `"use server"`. C'est le contrôle
+de la chaîne, éprouvé par `src/api/network-guard.test.ts`, et il voit l'import direct : le
+cas transitif — un module sans directive qui importe `@/api/server`, et qu'un composant
+client importe — reste à `server-only`, qu'importent `client.ts` et `server.ts`, le filet
+de `next build`, qu'aucun contrôle ne lance encore (#131). `make client-up-to-date`.
 
 ### Le front affiche, il ne calcule pas
 
@@ -80,6 +88,17 @@ reste, la revue.
   `it("… [WF-IHM-0010-A]", …)`.
 - Il reçoit les données du contrat — `frontend/src/test/fixtures.ts` lit les exemples de
   `fixtures/api/` —, jamais un objet inventé qui n'a pas la forme d'une réponse.
+  Un exemple servi au front vit sous `fixtures/api/`, en objet Example d'OpenAPI, et se
+  nomme par son fichier : `"project"` est `fixtures/api/project.json`. `fakeClient` est le
+  client engendré, dont un middleware répond par opération (`"GET /projects/{project_id}"`)
+  un exemple nommé, une séquence de réponses ou une enveloppe `Problem`, et enregistre les
+  appels, corps compris, dans `calls` ; une réponse ne prend qu'un statut que le contrat
+  déclare pour l'opération, avec un corps seulement si ce statut en a un, et de sa sorte —
+  un exemple nommé pour du JSON, un `Blob` ou un texte avec son type de média pour le reste
+  (avatar, sauvegarde, métriques) : le typage le refuse sinon.
+- Un composant serveur de `src/app/` se teste dans le projet `node` (`*.test.tsx`), sans
+  document, comme il s'exécute ; un composant client, dans le projet `dom`
+  (`*.dom.test.tsx`), par Testing Library.
 - Un test unitaire rend le composant et vérifie ce qu'il produit ; un parcours de bout en
   bout trouve les éléments par `getByRole` ou `getByLabel` de Playwright, jamais par une
   classe CSS.

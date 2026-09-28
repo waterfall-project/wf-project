@@ -5,16 +5,17 @@
  *
  * The address comes from `WATERFALL_API_ADDRESS`: the fake back in development and in the
  * end-to-end tests, the real service from EP-03. Nothing else tells them apart.
+ * Only the server of Next imports it (§4.3.1): ESLint refuses it in a client component, and
+ * `server-only` fails the build of one.
  */
-import type { Client } from "openapi-fetch";
+import "server-only";
 
-import { createApiClient } from "./client";
-import type { paths } from "./generated/schema";
+import { type ApiClient, createApiClient } from "./client";
 
 /** The address used when none is configured: the fake back of `make mock`. */
 export const DEFAULT_ADDRESS = "http://localhost:4010";
 
 /** Make a client of the API at the configured address. */
-export function serverClient(): Client<paths> {
+export function serverClient(): ApiClient {
   return createApiClient({ address: process.env.WATERFALL_API_ADDRESS ?? DEFAULT_ADDRESS });
 }
