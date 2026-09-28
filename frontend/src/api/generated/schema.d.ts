@@ -4026,6 +4026,8 @@ export interface components {
         NodeId: components["schemas"]["Uuid"];
         /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
+        /** @description Base du plan de charge : le devis d'une révision, ou le reste à engager courant (WF-DEV-0070). */
+        WorkloadBasis: "estimate" | "remaining";
         /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
         AsOf: components["schemas"]["PlanningDate"];
         RiskId: components["schemas"]["Uuid"];
@@ -7325,7 +7327,8 @@ export interface operations {
     getProjectWorkload: {
         parameters: {
             query: {
-                basis: "estimate" | "remaining";
+                /** @description Base du plan de charge : le devis d'une révision, ou le reste à engager courant (WF-DEV-0070). */
+                basis: components["parameters"]["WorkloadBasis"];
                 revision_id?: components["schemas"]["Uuid"];
                 org_node_id?: components["schemas"]["Uuid"];
             };

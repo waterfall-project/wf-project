@@ -525,6 +525,17 @@
           "contractual_milestone_overdue": "Jalon contractuel dépassé"
         }
       }
+    },
+    "Scope": {
+      "project": "Projet entier",
+      "unassigned": "Hors sous-projet"
+    },
+    "SubprojectFilter": {
+      "unassigned": "Hors sous-projet"
+    },
+    "WorkloadBasis": {
+      "estimate": "Devis",
+      "remaining": "Reste à engager"
     }
   }
 }

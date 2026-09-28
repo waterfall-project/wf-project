@@ -525,6 +525,17 @@
           "contractual_milestone_overdue": "Contractual milestone overdue"
         }
       }
+    },
+    "Scope": {
+      "project": "Whole project",
+      "unassigned": "No subproject"
+    },
+    "SubprojectFilter": {
+      "unassigned": "No subproject"
+    },
+    "WorkloadBasis": {
+      "estimate": "Estimate",
+      "remaining": "Estimate to complete"
     }
   }
 }

@@ -3,11 +3,12 @@
 """Tests of the check of the catalogues of the front."""
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 
-from wftools import catalogs
+from wftools import REPOSITORY, catalogs
 
 SCHEMAS: dict[str, object] = {
     "ErrorCode": {"type": "string", "enum": ["NOT_FOUND"]},
@@ -186,23 +187,174 @@ def test_a_contract_without_schemas_codes_nothing() -> None:
     [
         ({"app": {"name": ""}}, "app.name is not a non-empty text"),
         ({"app": {"name": "  "}}, "app.name is not a non-empty text"),
-        ({"app": {"count": 3}}, "app.count is not a non-empty text"),
+        ({"app": {"name": 3}}, "app.name is not a non-empty text"),
         ({"app": {}}, "app is an empty group"),
-        (
-            {"app": {"a.b": "Texte"}},
-            "app.a.b: a level empty or with a dot, which next-intl misreads",
-        ),
+        ({"app.name": "Texte"}, "app.name: a level empty or with a dot, which next-intl misreads"),
         (["Texte"], "is not an object of keys"),
     ],
 )
 def test_a_catalogue_holds_only_groups_and_non_empty_texts(catalogue: object, fault: str) -> None:
-    assert catalogs.read_catalogue(catalogue) == (set(), [fault])
+    assert catalogs.read_catalogue(catalogue).faults == [fault]
+
+
+def test_a_faulty_leaf_keeps_its_key() -> None:
+    reading = catalogs.read_catalogue({"app": {"name": "", "title": "Waterfall"}})
+    assert reading.keys == {("app", "name"), ("app", "title")}
+    assert reading.texts == {("app", "title"): "Waterfall"}
+
+
+def test_an_empty_text_is_reported_once_and_not_as_missing() -> None:
+    empty = json.loads(json.dumps(TWIN))
+    empty["errors"]["NOT_FOUND"] = ""
+    assert catalogs.problems(CONTRACT, {"fr": empty, "en": TWIN}) == [
+        "fr: errors.NOT_FOUND is not a non-empty text"
+    ]
+
+
+def test_a_level_with_a_dot_is_reported_once_and_not_as_missing() -> None:
+    fr = {"app": {"name": "Waterfall"}}
+    assert catalogs.problems({}, {"fr": {"app.name": "Waterfall"}, "en": fr}) == [
+        "fr: app.name: a level empty or with a dot, which next-intl misreads"
+    ]
+
+
+def test_a_key_written_twice_in_a_file_is_refused_and_named() -> None:
+    catalogue = catalogs.parse_catalogue('{"app": {"name": "A", "title": "B", "name": "C"}}')
+    assert catalogs.read_catalogue(catalogue).faults == ["app.name is written more than once"]
+
+
+def test_a_key_written_twice_fails_the_command(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bundle, fr = tmp_path / "bundle.json", tmp_path / "fr.json"
+    bundle.write_text("{}", encoding="utf-8")
+    fr.write_text('{"app": "A", "app": "B"}', encoding="utf-8")
+    assert catalogs.main([str(bundle), str(fr)]) == 1
+    assert capsys.readouterr().err.startswith(f"{fr}: app is written more than once\n")
+
+
+@pytest.mark.parametrize(
+    ("message", "names"),
+    [
+        ("Waterfall", set[str]()),
+        ("Permission requise : {permission}.", {"permission"}),
+        ("{amount, number} le {day, date, short}", {"amount", "day"}),
+        (
+            "{max_columns, plural, one {# colonne} =0 {aucune} other {# colonnes de {grid}}}",
+            {"max_columns", "grid"},
+        ),
+        ("{kind, select, task {Tâche {label}} other {Ligne}}", {"kind", "label"}),
+        ("{count, selectordinal, offset:1 one {#st} other {#th}}", {"count"}),
+        ("} {stray", {"stray"}),
+        ("{open, plural, one {x}", {"open"}),
+        ("{open, plural, one", {"open"}),
+        ("{open, plural}", {"open"}),
+    ],
+)
+def test_the_arguments_of_a_message_are_the_names_that_open_its_braces(
+    message: str, names: set[str]
+) -> None:
+    assert catalogs.icu_arguments(message) == names
+
+
+@pytest.mark.parametrize(
+    ("fr", "en", "fault"),
+    [
+        (
+            "{n, plural, one {# ligne} other {# lignes}}",
+            "{n, plural, one {# line} other {# lines of {grid}}}",
+            "en: app.lines uses the arguments {grid, n}, fr {n}",
+        ),
+        (
+            "{n, plural, one {# ligne de {grid}} other {# lignes}}",
+            "{n, plural, one {# line} other {# lines}}",
+            "en: app.lines uses the arguments {n}, fr {grid, n}",
+        ),
+    ],
+)
+def test_a_text_uses_the_same_arguments_in_every_catalogue(fr: str, en: str, fault: str) -> None:
+    assert catalogs.problems({}, {"fr": {"app": {"lines": fr}}, "en": {"app": {"lines": en}}}) == [
+        fault
+    ]
 
 
 def test_a_fault_of_shape_names_its_catalogue() -> None:
     assert catalogs.problems({}, {"fr": {"app": {"name": ""}}}) == [
         "fr: app.name is not a non-empty text"
     ]
+
+
+def test_a_shared_parameter_keys_its_values_by_its_name() -> None:
+    contract: dict[str, object] = {
+        "components": {
+            "parameters": {
+                "Scope": {
+                    "name": "scope",
+                    "schema": {"anyOf": [{"enum": ["project", "unassigned"]}, {"format": "uuid"}]},
+                },
+                "Limit": {"name": "limit", "schema": {"type": "integer"}},
+            }
+        }
+    }
+    assert {catalogs.dotted(key) for key in catalogs.coded_keys(contract)} == {
+        "enums.Scope.project",
+        "enums.Scope.unassigned",
+    }
+
+
+def test_a_shared_parameter_that_codes_values_may_not_bear_the_name_of_a_schema() -> None:
+    contract: dict[str, object] = {
+        "components": {
+            "schemas": {"Scope": {"enum": ["x"]}, "SortOrder": {"enum": ["asc"]}},
+            "parameters": {
+                "Scope": {"name": "scope", "schema": {"enum": ["project"]}},
+                "SortOrder": {"name": "sort_order", "schema": {"$ref": "#/SortOrder"}},
+            },
+        }
+    }
+    assert catalogs.contract_faults(contract) == [
+        "components.parameters.Scope: also the name of a schema, whose keys it would share"
+    ]
+
+
+def test_a_parameter_of_an_operation_may_not_enumerate_its_values_in_line() -> None:
+    enumerated = {"name": "basis", "in": "query", "schema": {"enum": ["estimate"]}}
+    contract: dict[str, object] = {
+        "paths": {
+            "/workload": {"get": {"parameters": [enumerated]}},
+            "/plans": {"parameters": [enumerated], "get": {}, "post": {"parameters": []}},
+        }
+    }
+    advice = (
+        ": the parameter basis enumerates its values in line; make it a shared parameter of "
+        "docs/api/components/parameters.yaml, whose name keys its values"
+    )
+    assert catalogs.contract_faults(contract) == [
+        f"GET /workload{advice}",
+        f"GET /plans{advice}",
+        f"POST /plans{advice}",
+    ]
+
+
+def test_sort_columns_shared_parameters_and_responses_may_stay_in_line() -> None:
+    sort_by = {"name": "sort_by", "in": "query", "schema": {"enum": ["label", "state"]}}
+    shared = {"$ref": "#/components/parameters/Scope"}
+    probe = {"200": {"content": {"application/json": {"schema": {"enum": ["ok"]}}}}}
+    contract: dict[str, object] = {
+        "paths": {
+            "/projects": {"get": {"parameters": [sort_by, shared]}},
+            "/health": {"get": {"responses": probe}},
+        }
+    }
+    assert catalogs.contract_faults(contract) == []
+    assert catalogs.coded_keys(contract) == set()
+
+
+def test_a_fault_of_the_contract_fails_the_check() -> None:
+    contract: dict[str, object] = {
+        "paths": {"/w": {"get": {"parameters": [{"name": "basis", "schema": {"enum": ["a"]}}]}}}
+    }
+    assert catalogs.problems(contract, {"fr": TWIN})[0].startswith("contract: GET /w: ")
 
 
 def test_a_catalogue_that_is_not_json_fails_and_is_named(
@@ -223,6 +375,33 @@ def test_a_missing_bundle_fails_and_is_named(
     assert capsys.readouterr().err.startswith(f"{missing}: not readable as JSON: ")
 
 
+def test_a_bundle_that_is_not_an_object_fails_with_a_message(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bundle, fr = tmp_path / "bundle.json", tmp_path / "fr.json"
+    bundle.write_text("[]", encoding="utf-8")
+    fr.write_text(json.dumps(TWIN), encoding="utf-8")
+    assert catalogs.main([str(bundle), str(fr)]) == 1
+    assert capsys.readouterr().err == f"{bundle}: not a contract, which is a JSON object\n"
+
+
 def test_a_failure_points_to_the_guide(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert run(tmp_path, TWIN, {}) == 1
     assert "« Clés de traduction »" in capsys.readouterr().err
+
+
+@pytest.mark.requirement("WF-QUA-0070-A")
+def test_the_chain_runs_the_check_of_the_catalogues() -> None:
+    makefile = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
+    rule = re.search(r"^check-front:([^#\n]*)", makefile, re.MULTILINE)
+    assert rule is not None
+    assert "catalogs" in rule.group(1).split()
+    recipe = re.search(r"^catalogs:.*\n((?:\t.*\n)+)", makefile, re.MULTILINE)
+    assert recipe is not None
+    assert "$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json" in recipe.group(1)
+    workflow = (REPOSITORY / ".github/workflows/front.yml").read_text(encoding="utf-8")
+    assert "run: make check-front" in workflow
+
+
+def test_no_catalogue_leaves_only_the_contract_to_check() -> None:
+    assert catalogs.problems({}, {}) == []

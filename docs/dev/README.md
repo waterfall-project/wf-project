@@ -445,6 +445,16 @@ que demande `Accept-Language`, sinon la langue par défaut de l'installation
     `components.schemas`, sauf les deux suivantes ;
   - `errors.<CODE>` pour chaque code d'`ErrorCode`, `permissions.<code>` pour chaque
     `PermissionCode` ;
+  - `enums.<Paramètre>.<valeur>` pour une énumération d'un paramètre partagé de
+    `components.parameters` (`enums.Scope.unassigned`) : son nom partage le niveau des
+    schémas, et un paramètre qui énumère des valeurs ne porte pas le nom d'un schéma ;
+  - un paramètre d'opération n'énumère pas ses valeurs en ligne, faute d'un nom pour ranger
+    leurs clés : il devient un paramètre partagé de `docs/api/components/parameters.yaml`.
+    Deux exceptions, sans clé : `sort_by`, dont les valeurs sont des colonnes que l'en-tête
+    de la grille libelle déjà, et les énumérations écrites en ligne dans une réponse — l'état
+    des sondes de `/health` —, qu'aucun écran n'affiche ;
+  - un `const` n'a pas de clé : le contrat ne s'en sert que pour l'accord qu'une requête
+    donne (`confirmed: true`), qui ne s'affiche pas ;
   - une valeur qui porte un point se lit comme un niveau, next-intl réservant le point au
     chemin : `permissions.users.write`, `enums.ComputedField.task.start_date`.
 - **Une valeur est un message ICU** — `{max_columns, plural, one {…} other {…}}` —, avec les
@@ -475,8 +485,10 @@ la garde réseau qui partage la règle ; `make catalogs`, dans `check-front`, qu
 contrat qu'il vient d'assembler (`wftools.catalogs`) — les deux catalogues ont les mêmes
 clés, chaque valeur est un texte non vide, chaque valeur d'énumération, chaque code d'erreur
 et chaque permission du contrat a la sienne, et aucune clé sous `enums`, `errors` ou
-`permissions` ne survit à la valeur que le contrat a retirée. Il nomme chaque clé qui manque
-et le catalogue qui la porte.
+`permissions` ne survit à la valeur que le contrat a retirée ; un texte emploie les mêmes
+arguments ICU que celui du catalogue français, une clé ne s'écrit qu'une fois par fichier, et
+aucun paramètre d'opération n'énumère ses valeurs en ligne, `sort_by` excepté. Il nomme
+chaque clé qui manque et le catalogue qui la porte.
 
 ## Migrations
 

@@ -65,10 +65,7 @@
       courant, avec la capacité de chaque rôle en regard (WF-DEV-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
-      - name: basis
-        in: query
-        required: true
-        schema: { type: string, enum: [estimate, remaining] }
+      - $ref: ../components/parameters.yaml#/WorkloadBasis
       - name: revision_id
         in: query
         schema: { $ref: ../components/common.yaml#/Uuid }

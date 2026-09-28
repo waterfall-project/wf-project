@@ -5,9 +5,11 @@
 Usage: ``python -m wftools.catalogs BUNDLE CATALOGUE...``, where BUNDLE is the contract
 bundled as JSON and each CATALOGUE a catalogue of texts of the front, the reference first.
 
-The catalogues are twins (WF-QUA-0070): each holds every key another holds, and each value
-is a non-empty text. A key is the path of a leaf, its levels joined by dots, which next-intl
-reserves for the path: a level that holds a dot could not be read.
+The catalogues are twins (WF-QUA-0070): each holds every key another holds, each value is a
+non-empty text, and a text uses the same ICU arguments as the reference's. A key is the path
+of a leaf, its levels joined by dots, which next-intl reserves for the path: a level that
+holds a dot could not be read, and a key written twice in a file would keep only its last
+text.
 
 What the contract codes has its key in every catalogue, under a root the contract owns:
 
@@ -16,12 +18,20 @@ What the contract codes has its key in every catalogue, under a root the contrac
 - ``enums.<Schema>.<property>...<value>`` for each value of any other enumeration of
   ``components.schemas``: the name of the schema, then the names of the properties down to
   the enumeration. ``items`` and ``additionalProperties`` add no level, nor does a branch of
-  ``allOf``, ``anyOf`` or ``oneOf``.
+  ``allOf``, ``anyOf`` or ``oneOf``;
+- ``enums.<Parameter>.<value>`` for each value of an enumeration of
+  ``components.parameters``, which shares the level of the schemas: a parameter that codes
+  values may not bear the name of a schema.
 
 A value that holds a dot is read as levels (``permissions.users.read``). A ``const`` has no
 key: the contract uses it for the flag a request sets to confirm (``confirmed: true``), which
 nobody reads as a label. Nor has a value that is not a string, such as the ``null`` of an
 enumeration that may be empty.
+
+A parameter of an operation that enumerates its values in line fails: it has no name to key
+its values by, and becomes a shared parameter. ``sort_by`` is the exception: its values are
+columns, which the headers of the grid already label. The enumerations of responses written
+in line — the status of the probes — are not displayed, and have no key.
 
 Under those three roots, a key that matches nothing the contract codes fails too: it is the
 leftover of a value the contract has withdrawn. Other keys — the texts of the interface —
@@ -32,6 +42,7 @@ import argparse
 import json
 import sys
 from collections.abc import Iterator
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
@@ -42,8 +53,12 @@ NAMED: dict[str, Key] = {"ErrorCode": ("errors",), "PermissionCode": ("permissio
 """The enumerations of the contract that have their own root, instead of ``enums``."""
 CODED = frozenset({"enums", "errors", "permissions"})
 """The roots of the keys the contract owns."""
+IN_LINE = frozenset({"sort_by"})
+"""The parameters of operations whose values may be enumerated in line: columns, labelled."""
 _TRANSPARENT = ("items", "additionalProperties")
 _BRANCHES = ("allOf", "anyOf", "oneOf")
+_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
+_CHOICES = frozenset({"plural", "select", "selectordinal"})
 
 
 def dotted(key: Key) -> str:
@@ -51,15 +66,30 @@ def dotted(key: Key) -> str:
     return ".".join(key)
 
 
+def _object(value: object) -> dict[str, object]:
+    """Return a JSON object as such, anything else as an empty one."""
+    return cast("dict[str, object]", value) if isinstance(value, dict) else {}
+
+
+def _list(value: object) -> list[object]:
+    """Return a JSON array as such, anything else as an empty one."""
+    return cast("list[object]", value) if isinstance(value, list) else []
+
+
 def coded_keys(contract: dict[str, object]) -> set[Key]:
-    """Return the key of each value the contract codes in ``components.schemas``."""
-    components = cast("dict[str, object]", contract.get("components", {}))
-    schemas = cast("dict[str, object]", components.get("schemas", {}))
-    return {
+    """Return the key of each value the contract codes in its schemas and shared parameters."""
+    components = _object(contract.get("components"))
+    keys = {
         key
-        for name, schema in schemas.items()
+        for name, schema in _object(components.get("schemas")).items()
         for key in _enum_keys(schema, NAMED.get(name, ("enums", name)))
     }
+    keys.update(
+        key
+        for name, parameter in _object(components.get("parameters")).items()
+        for key in _enum_keys(_object(parameter).get("schema"), ("enums", name))
+    )
+    return keys
 
 
 def _enum_keys(schema: object, prefix: Key) -> Iterator[Key]:
@@ -67,71 +97,200 @@ def _enum_keys(schema: object, prefix: Key) -> Iterator[Key]:
     if not isinstance(schema, dict):
         return
     node = cast("dict[str, object]", schema)
-    for value in cast("list[object]", node.get("enum", [])):
+    for value in _list(node.get("enum")):
         if isinstance(value, str):
             yield (*prefix, *value.split("."))
-    for name, member in cast("dict[str, object]", node.get("properties", {})).items():
+    for name, member in _object(node.get("properties")).items():
         yield from _enum_keys(member, (*prefix, name))
     for keyword in _TRANSPARENT:
         yield from _enum_keys(node.get(keyword), prefix)
     for keyword in _BRANCHES:
-        for branch in cast("list[object]", node.get(keyword, [])):
+        for branch in _list(node.get(keyword)):
             yield from _enum_keys(branch, prefix)
 
 
-def read_catalogue(catalogue: object) -> tuple[set[Key], list[str]]:
-    """Return the keys of a catalogue, and what is wrong with its shape."""
-    keys: set[Key] = set()
-    faults: list[str] = []
+def contract_faults(contract: dict[str, object]) -> list[str]:
+    """Return the coded values of the contract that could not have a key of their own."""
+    components = _object(contract.get("components"))
+    schemas = _object(components.get("schemas"))
+    faults = [
+        f"components.parameters.{name}: also the name of a schema, whose keys it would share"
+        for name, parameter in _object(components.get("parameters")).items()
+        if name in schemas and any(_enum_keys(_object(parameter).get("schema"), ()))
+    ]
+    faults.extend(
+        f"{operation}: the parameter {parameter.get('name')} enumerates its values in line; "
+        "make it a shared parameter of docs/api/components/parameters.yaml, whose name keys "
+        "its values"
+        for operation, parameters in _operations(contract)
+        for parameter in parameters
+        if parameter.get("name") not in IN_LINE and any(_enum_keys(parameter.get("schema"), ()))
+    )
+    return faults
+
+
+def _operations(contract: dict[str, object]) -> Iterator[tuple[str, list[dict[str, object]]]]:
+    """Yield each operation of the contract, by method and path, with its parameters."""
+    for path, item in _object(contract.get("paths")).items():
+        fields = _object(item)
+        shared = _list(fields.get("parameters"))
+        for method in _METHODS:
+            if method in fields:
+                own = _list(_object(fields[method]).get("parameters"))
+                yield f"{method.upper()} {path}", [_object(each) for each in (*shared, *own)]
+
+
+def icu_arguments(message: str) -> frozenset[str]:
+    """Return the names of the ICU arguments a message uses, at any depth."""
+    names: set[str] = set()
+    index = 0
+    while index < len(message):
+        index = _message(message, index, names) + 1
+    return frozenset(names)
+
+
+def _message(text: str, index: int, names: set[str]) -> int:
+    """Read a message up to the brace that closes it; return the index of that brace."""
+    while index < len(text):
+        if text[index] == "}":
+            return index
+        if text[index] == "{":
+            index = _argument(text, index + 1, names)
+        index += 1
+    return index
+
+
+def _upto(text: str, index: int, stops: str) -> int:
+    """Return the index of the first of ``stops`` from ``index``, or the end of the text."""
+    while index < len(text) and text[index] not in stops:
+        index += 1
+    return index
+
+
+def _argument(text: str, index: int, names: set[str]) -> int:
+    """Read an argument after its opening brace; return the index of its closing brace."""
+    end = _upto(text, index, ",}")
+    names.add(text[index:end].strip())
+    if end == len(text) or text[end] == "}":
+        return end
+    kind_end = _upto(text, end + 1, ",}")
+    if text[end + 1 : kind_end].strip() not in _CHOICES:
+        return _upto(text, kind_end, "}")
+    # Each option: a selector, then its message in braces, until the brace of the argument.
+    index = kind_end
+    while index < len(text) and text[index] != "}":
+        opening = _upto(text, index + 1, "{}")
+        if opening == len(text) or text[opening] == "}":
+            return opening
+        index = _message(text, opening + 1, names) + 1
+    return index
+
+
+class _Group(dict[str, object]):
+    """An object of a catalogue as read, with the names it holds more than once."""
+
+    def __init__(self, pairs: list[tuple[str, object]]) -> None:
+        super().__init__(pairs)
+        seen: set[str] = set()
+        self.twice: list[str] = []
+        for name, _ in pairs:
+            if name in seen and name not in self.twice:
+                self.twice.append(name)
+            seen.add(name)
+
+
+def parse_catalogue(text: str) -> object:
+    """Return a catalogue read from JSON, keeping trace of the keys an object writes twice."""
+    return json.loads(text, object_pairs_hook=_Group)
+
+
+@dataclass(frozen=True, slots=True)
+class Reading:
+    """What a catalogue holds: every leaf, the texts among them, and the faults of its shape."""
+
+    keys: set[Key] = field(default_factory=set[Key])
+    texts: dict[Key, str] = field(default_factory=dict[Key, str])
+    faults: list[str] = field(default_factory=list[str])
+
+
+def read_catalogue(catalogue: object) -> Reading:
+    """Return the keys and texts of a catalogue, and what is wrong with its shape."""
+    reading = Reading()
     if isinstance(catalogue, dict):
-        _collect(cast("dict[str, object]", catalogue), (), keys, faults)
+        _collect(cast("dict[str, object]", catalogue), (), reading)
     else:
-        faults.append("is not an object of keys")
-    return keys, faults
+        reading.faults.append("is not an object of keys")
+    return reading
 
 
-def _collect(group: dict[str, object], prefix: Key, keys: set[Key], faults: list[str]) -> None:
-    """Add the leaves of a group of keys to ``keys``, and its faults to ``faults``."""
+def _collect(group: dict[str, object], prefix: Key, reading: Reading) -> None:
+    """Add the leaves of a group of keys to a reading, with their faults."""
     if prefix and not group:
-        faults.append(f"{dotted(prefix)} is an empty group")
+        reading.faults.append(f"{dotted(prefix)} is an empty group")
+    if isinstance(group, _Group):
+        reading.faults.extend(
+            f"{dotted((*prefix, name))} is written more than once" for name in group.twice
+        )
     for name, value in group.items():
-        key = (*prefix, name)
+        # A faulty level still names its key as next-intl would read it: the fault is
+        # reported once, and not again as a key the twin lacks.
+        key = (*prefix, *name.split("."))
         if not name or "." in name:
-            faults.append(f"{dotted(key)}: a level empty or with a dot, which next-intl misreads")
-        elif isinstance(value, dict):
-            _collect(cast("dict[str, object]", value), key, keys, faults)
-        elif isinstance(value, str) and value.strip():
-            keys.add(key)
+            reading.faults.append(
+                f"{dotted((*prefix, name))}: a level empty or with a dot, which next-intl misreads"
+            )
+        if isinstance(value, dict):
+            _collect(cast("dict[str, object]", value), key, reading)
+            continue
+        reading.keys.add(key)
+        if isinstance(value, str) and value.strip():
+            reading.texts[key] = value
         else:
-            faults.append(f"{dotted(key)} is not a non-empty text")
+            reading.faults.append(f"{dotted(key)} is not a non-empty text")
+
+
+def _argument_faults(read: dict[str, Reading]) -> list[str]:
+    """Return the texts whose ICU arguments differ from those of the reference's."""
+    (reference, first), *others = read.items()
+    found: list[str] = []
+    for name, reading in others:
+        for key in sorted(first.texts.keys() & reading.texts.keys()):
+            theirs, ours = icu_arguments(first.texts[key]), icu_arguments(reading.texts[key])
+            if theirs != ours:
+                found.append(
+                    f"{name}: {dotted(key)} uses the arguments {{{', '.join(sorted(ours))}}}, "
+                    f"{reference} {{{', '.join(sorted(theirs))}}}"
+                )
+    return found
 
 
 def problems(contract: dict[str, object], catalogues: dict[str, object]) -> list[str]:
     """Return every key a catalogue lacks or should not have, and every fault of its shape."""
-    found: list[str] = []
-    read: dict[str, set[Key]] = {}
+    found = [f"contract: {fault}" for fault in contract_faults(contract)]
+    read: dict[str, Reading] = {}
     for name, catalogue in catalogues.items():
-        keys, faults = read_catalogue(catalogue)
-        found.extend(f"{name}: {fault}" for fault in faults)
-        read[name] = keys
+        read[name] = read_catalogue(catalogue)
+        found.extend(f"{name}: {fault}" for fault in read[name].faults)
     coded = coded_keys(contract)
 
     def orphan(key: Key) -> bool:
         return key[0] in CODED and key not in coded
 
-    held = {key for keys in read.values() for key in keys if not orphan(key)}
-    for name, keys in read.items():
+    held = {key for reading in read.values() for key in reading.keys if not orphan(key)}
+    for name, reading in read.items():
         found.extend(
             f"{name}: missing {dotted(key)}, a value the contract codes"
-            for key in sorted(coded - keys)
+            for key in sorted(coded - reading.keys)
         )
-        for key in sorted(held - coded - keys):
-            holders = ", ".join(other for other, theirs in read.items() if key in theirs)
+        for key in sorted(held - coded - reading.keys):
+            holders = ", ".join(other for other, theirs in read.items() if key in theirs.keys)
             found.append(f"{name}: missing {dotted(key)}, which {holders} has")
         found.extend(
             f"{name}: {dotted(key)} matches no value the contract codes"
-            for key in sorted(filter(orphan, keys))
+            for key in sorted(filter(orphan, reading.keys))
         )
+    if read:
+        found.extend(_argument_faults(read))
     return found
 
 
@@ -149,10 +308,13 @@ def main(arguments: list[str]) -> int:
     loaded: list[object] = []
     for path in (bundle, *paths):
         try:
-            loaded.append(json.loads(path.read_text(encoding="utf-8")))
+            loaded.append(parse_catalogue(path.read_text(encoding="utf-8")))
         except (OSError, ValueError) as error:
             print(f"{path}: not readable as JSON: {error}", file=sys.stderr)
             return 1
+    if not isinstance(loaded[0], dict):
+        print(f"{bundle}: not a contract, which is a JSON object", file=sys.stderr)
+        return 1
     contract = cast("dict[str, object]", loaded[0])
     catalogues = {str(path): catalogue for path, catalogue in zip(paths, loaded[1:], strict=True)}
     found = problems(contract, catalogues)
