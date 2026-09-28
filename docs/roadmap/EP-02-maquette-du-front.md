@@ -369,6 +369,13 @@ dans `docs/api` ou s'ouvrent en issue « Interface contract issue ». Déjà pre
 portée de `getRemainingIndicators`, le tri de `listActualCosts`, la liste des tâches de
 fond d'un utilisateur, la révision ouverte par défaut.
 
+### Constats sur le contrat
+
+- `Computable.reason` est une phrase libre, que le front ne peut pas traduire, quand le
+  contrat a partout ailleurs remplacé la phrase par un code (`ErrorCode`,
+  `CommandCondition`) — US-0100/L1, ouvert en #137. D'ici là, le front affiche le motif tel
+  que l'API le donne.
+
 ### Ordre de construction
 
 1. Les modifications du contrat ; la garde réseau élargie et le socle des tests de
@@ -434,7 +441,7 @@ chaque écran s'invente le sien.
 
 ## US-0100 — Bandeau de contexte de lecture
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0020-A`
 - **opérations** : `getRevision`, `listRevisions`
 - **issue** : #74

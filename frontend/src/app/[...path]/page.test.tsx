@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createApiClient } from "@/api/client";
+import { serverClient } from "@/api/server";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, fakeClient } from "@/test/fixtures";
 
@@ -12,7 +14,7 @@ import ScreenPage, { generateMetadata } from "./page";
 
 const server = vi.hoisted((): { answers: FakeAnswers } => ({ answers: {} }));
 
-vi.mock("@/api/server", () => ({ serverClient: () => fakeClient(server.answers) }));
+vi.mock("@/api/server", () => ({ serverClient: vi.fn(() => fakeClient(server.answers)) }));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "fr-FR" })),
 }));
@@ -21,9 +23,13 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 
-/** The parameters of the page for an address. */
+/** The parameters of the page for an address, its search parameters included. */
 function at(address: string) {
-  return { params: Promise.resolve({ path: address.split("/").slice(1) }) };
+  const [pathname = "", query = ""] = address.split("?");
+  return {
+    params: Promise.resolve({ path: pathname.split("/").slice(1) }),
+    searchParams: Promise.resolve(Object.fromEntries(new URLSearchParams(query))),
+  };
 }
 
 /** Render a page in French, as the shell hands it its texts. */
@@ -32,6 +38,25 @@ function html(page: ReactNode): string {
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       {page}
     </NextIntlClientProvider>,
+  );
+}
+
+const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
+const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
+const BANNER = '<section aria-label="Contexte de lecture"';
+
+/** What a page says, its tags left out: the texts a reader reads, one space apart. */
+function text(markup: string): string {
+  return markup
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The addresses the links of a page lead to. */
+function links(markup: string): string[] {
+  return [...markup.matchAll(/href="([^"]*)"/g)].map(
+    (match) => match[1]?.replaceAll("&amp;", "&") ?? "",
   );
 }
 
@@ -44,6 +69,14 @@ const ANSWERS: FakeAnswers = {
 beforeEach(() => {
   server.answers = ANSWERS;
 });
+
+/** A client of an API out of reach: every call fails as `fetch` does. */
+function unreachable() {
+  return createApiClient({
+    address: "http://unreachable.invalid",
+    fetch: () => Promise.reject(new TypeError("fetch failed")),
+  });
+}
 
 describe("the page of a function still to come", () => {
   it.each([
@@ -112,5 +145,85 @@ describe("the page of a function still to come", () => {
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",
     });
     expect(await generateMetadata(at("/admin/nobody"))).toEqual({});
+  });
+});
+
+describe("the banner of the reading context of a screen of a project", () => {
+  it("names the project and the revision shown, on a screen of a revision [WF-IHM-0020-A]", async () => {
+    // Chaque écran de données de projet nomme le projet et la révision affichée.
+    const page = html(await ScreenPage(at(REMAINING)));
+    expect(page.startsWith(BANNER)).toBe(true);
+    expect(text(page)).toContain(
+      "Projet Modernisation du poste de commande Révision Révision en cours En cours d’élaboration",
+    );
+    expect(text(page)).not.toContain("Lecture seule");
+  });
+
+  it("names the project, and the revision a screen of the project carries [WF-IHM-0020-A]", async () => {
+    const lifecycle = `/projects/${PROJECT}/lifecycle`;
+    expect(text(html(await ScreenPage(at(lifecycle))))).toContain(
+      "Projet Modernisation du poste de commande Cycle de vie du projet",
+    );
+    const page = html(await ScreenPage(at(`${lifecycle}?revision_id=${REVISION}`)));
+    expect(text(page)).toContain(
+      "Projet Modernisation du poste de commande Révision Révision en cours",
+    );
+  });
+
+  it("presents a marked revision as such, read only, and offers no command of modification [WF-IHM-0020-A]", async () => {
+    // L'ouverture d'une révision marquée présente cet état et ne propose aucune commande de
+    // modification.
+    server.answers = {
+      ...ANSWERS,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
+    };
+    const page = html(await ScreenPage(at(REMAINING)));
+    expect(text(page)).toContain(
+      "Révision Référence Marquée Révision de référence " +
+        "Lecture seule : aucune modification n’est proposée sur cette révision.",
+    );
+    expect(page).not.toMatch(/<(button|form|input|select|textarea)\b/);
+  });
+
+  it("shows the active filters as chips, each lifted by a link that keeps the rest [WF-IHM-0020-A]", async () => {
+    // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres.
+    server.answers = { ...ANSWERS, "GET /projects/{project_id}/subprojects": "subprojects" };
+    const page = html(
+      await ScreenPage(at(`${REMAINING}?subproject_id=${SUBPROJECT}&as_of=2026-05-31&q=x`)),
+    );
+    expect(text(page)).toContain(
+      "Sous-projet : SP-CMD — Poste de commande Date de calcul : 31 mai 2026",
+    );
+    expect(page).toContain(
+      'aria-label="Lever le filtre «\u00a0Date de calcul\u00a0: 31 mai 2026\u00a0»"',
+    );
+    expect(links(page)).toEqual([
+      `${REMAINING}?as_of=2026-05-31`,
+      `${REMAINING}?subproject_id=${SUBPROJECT}`,
+    ]);
+  });
+
+  it("shows no banner outside any project", async () => {
+    expect(html(await ScreenPage(at("/system?as_of=2026-05-31")))).not.toContain(BANNER);
+  });
+
+  it("leaves the page to say the API is out of reach, without a banner it could not fill", async () => {
+    vi.mocked(serverClient).mockReturnValueOnce(unreachable()).mockReturnValueOnce(unreachable());
+    const page = html(await ScreenPage(at(REMAINING)));
+    expect(page).not.toContain(BANNER);
+    expect(text(page)).toBe("Estimation du reste à engager Cet écran est à venir.");
+  });
+
+  it.each([
+    [`/projects/a.b/lifecycle`],
+    [`/projects/${PROJECT}/lifecycle?revision_id=${REVISION}`],
+  ])("is not found at %s when it names no project or revision the API finds", async (address) => {
+    server.answers = {
+      ...ANSWERS,
+      "GET /projects/{project_id}/revisions/{revision_id}": NOT_FOUND,
+    };
+    await expect(ScreenPage(at(address))).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
   });
 });

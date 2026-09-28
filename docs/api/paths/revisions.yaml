@@ -75,6 +75,8 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
             examples:
               witness: { $ref: ../../../fixtures/api/revision.json }
+              marked: { $ref: ../../../fixtures/api/revision_marked.json }
+              reader: { $ref: ../../../fixtures/api/revision_reader.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
     operationId: abandonRevision

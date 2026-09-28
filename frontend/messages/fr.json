@@ -19,6 +19,23 @@
   "screen": {
     "comingSoon": "Cet écran est à venir."
   },
+  "contextBanner": {
+    "label": "Contexte de lecture",
+    "project": "Projet",
+    "revision": "Révision",
+    "currentRevision": "Révision en cours",
+    "reference": "Révision de référence",
+    "readOnly": "Lecture seule : aucune modification n’est proposée sur cette révision.",
+    "filters": "Filtres actifs",
+    "subproject": "Sous-projet : {subproject}",
+    "subprojectName": "{code} — {label}",
+    "asOf": "Date de calcul : {date}",
+    "removeFilter": "Lever le filtre « {filter} »"
+  },
+  "indicator": {
+    "notComputable": "Non calculable",
+    "computedAt": "Calculé le <time></time>"
+  },
   "functionGroups": {
     "administration": "Administration",
     "portfolio": "Portefeuille",

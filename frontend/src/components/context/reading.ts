@@ -1,0 +1,157 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * What a screen of a project reads in, read on the server once per request however many
+ * components ask — the page, the title of its tab, the banner of its context: the project,
+ * the revision the address names, the sub-project a filter restricts to. The banner shows it
+ * (WF-IHM-0020), and a screen receives it as a prop, whether its revision is read only
+ * included, rather than deducing any of it again.
+ */
+import "server-only";
+
+import { cache } from "react";
+
+import type { components } from "@/api/generated/schema";
+import { serverClient } from "@/api/server";
+import {
+  type ContextParameter,
+  type ProjectContext,
+  readContext,
+  type SearchParameters,
+  UNASSIGNED,
+} from "@/navigation/context";
+import { reach } from "@/session/request";
+
+import { isReadOnly, type Revision } from "./read-only";
+
+/** A project, as the API reads it. */
+export type Project = components["schemas"]["Project"];
+
+/** A sub-project of a project, which a filter may restrict a screen to. */
+export type Subproject = components["schemas"]["Subproject"];
+
+/**
+ * A filter the address holds, with what it restricts: the sub-project a `subproject_id`
+ * names — `undefined` for `unassigned`, or for one the project does not have —, the date of
+ * an `as_of`.
+ */
+export type ContextFilter =
+  | {
+      readonly name: Extract<ContextParameter, "subproject_id">;
+      readonly value: string;
+      readonly subproject: Subproject | undefined;
+    }
+  | { readonly name: Extract<ContextParameter, "as_of">; readonly value: string };
+
+/** What a screen of a project reads in, and what the banner of its context shows. */
+export interface ProjectReading {
+  /** The path of the screen, which the links that lift a filter keep. */
+  readonly pathname: string;
+  readonly context: ProjectContext;
+  readonly project: Project;
+  /** The revision the screen reads in; none on a function of the project without one. */
+  readonly revision: Revision | undefined;
+  /** Whether the screen offers no command of modification of its revision. */
+  readonly readOnly: boolean;
+  /** The active filters, in the order of the parameters of the context. */
+  readonly filters: readonly ContextFilter[];
+}
+
+/** Read a project, once per request (`getProject`); `undefined` when the API is out of reach. */
+export const readProject = cache(async (projectId: string) =>
+  reach(() =>
+    serverClient().GET("/projects/{project_id}", {
+      params: { path: { project_id: projectId } },
+    }),
+  ),
+);
+
+/** Read a revision of a project, once per request (`getRevision`). */
+export const readRevision = cache(async (projectId: string, revisionId: string) =>
+  reach(() =>
+    serverClient().GET("/projects/{project_id}/revisions/{revision_id}", {
+      params: { path: { project_id: projectId, revision_id: revisionId } },
+    }),
+  ),
+);
+
+/** Read the sub-projects of a project, once per request (`listSubprojects`). */
+const readSubprojects = cache(async (projectId: string) =>
+  reach(() =>
+    serverClient().GET("/projects/{project_id}/subprojects", {
+      params: { path: { project_id: projectId } },
+    }),
+  ),
+);
+
+/** The sub-project a filter names, read only when it names one rather than `unassigned`. */
+async function filteredSubproject(
+  projectId: string,
+  value: string,
+): Promise<Subproject | undefined> {
+  if (value === UNASSIGNED) {
+    return undefined;
+  }
+  const answer = await readSubprojects(projectId);
+  return answer?.data?.find((subproject) => subproject.subproject_id === value);
+}
+
+/** The filters of a context, with what each restricts. */
+async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
+  const subprojectId = context.parameters.get("subproject_id");
+  const asOf = context.parameters.get("as_of");
+  const subproject =
+    subprojectId === null ? undefined : await filteredSubproject(context.projectId, subprojectId);
+  return [
+    ...(subprojectId === null
+      ? []
+      : [{ name: "subproject_id" as const, value: subprojectId, subproject }]),
+    ...(asOf === null ? [] : [{ name: "as_of" as const, value: asOf }]),
+  ];
+}
+
+/**
+ * Read what a screen of a project reads in: `"not_found"` when the API finds neither the
+ * project nor the revision the address names — or does not let the user read them, which it
+ * answers alike (WF-ADM-0110) —, `undefined` when it could not read them otherwise — an API
+ * out of reach, which the page says (US-0170) —, the reading itself else.
+ */
+export async function readProjectContext(
+  pathname: string,
+  context: ProjectContext,
+): Promise<ProjectReading | "not_found" | undefined> {
+  const { projectId, revisionId } = context;
+  const [project, revision, filters] = await Promise.all([
+    readProject(projectId),
+    revisionId === undefined ? undefined : readRevision(projectId, revisionId),
+    readFilters(context),
+  ]);
+  if (project?.response.status === 404 || revision?.response.status === 404) {
+    return "not_found";
+  }
+  if (project?.data === undefined || (revisionId !== undefined && revision?.data === undefined)) {
+    return undefined;
+  }
+  const read = revision?.data;
+  return {
+    pathname,
+    context,
+    project: project.data,
+    revision: read,
+    readOnly: read !== undefined && isReadOnly(read),
+    filters,
+  };
+}
+
+/**
+ * Read what the screen at an address reads in, as `readProjectContext` does; `"not_found"`
+ * too when the address is no screen of a project — its project or revision named by what is
+ * no identifier of the contract.
+ */
+export async function readAddress(
+  pathname: string,
+  search: SearchParameters,
+): Promise<ProjectReading | "not_found" | undefined> {
+  const context = readContext(pathname, search);
+  return context === undefined ? "not_found" : readProjectContext(pathname, context);
+}

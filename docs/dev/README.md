@@ -75,6 +75,14 @@ existe dès la coquille, servie par la page d'attente `frontend/src/app/[...path
 qui répond « introuvable » quand l'API ne trouve pas le projet ou la révision ; le lot d'un
 écran écrit sa page à la même route, qui l'emporte sur elle.
 
+Un écran de données de projet lit son contexte par `readAddress` de
+`frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
+fois par requête — et le montre par `ContextBanner`, au-dessus de son `<main>`
+(WF-IHM-0020). La lecture porte `readOnly`, qu'un écran reçoit plutôt que de le déduire :
+révision marquée, ou aucune commande `edit_*` disponible (`read-only.ts`). Une valeur sous
+enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
+`CalculationContext` (`indicator.tsx`).
+
 L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
 empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
 

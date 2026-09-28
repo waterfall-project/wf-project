@@ -245,6 +245,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/projects.yaml#/Subproject }
+            examples:
+              witness: { $ref: ../../../fixtures/api/subprojects.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createSubproject
