@@ -131,14 +131,14 @@
         {
           "code": "FBS-4.1",
           "label": "functions.revisions",
-          "route": "/projects/[projectId]/revisions/[revisionId]/revisions",
+          "route": "/projects/[projectId]/revisions",
           "scope": "project",
           "permission": "revisions"
         },
         {
           "code": "FBS-4.2",
           "label": "functions.projectSettings",
-          "route": "/projects/[projectId]/revisions/[revisionId]/settings",
+          "route": "/projects/[projectId]/settings",
           "scope": "project",
           "permission": "project_settings"
         },
@@ -146,48 +146,48 @@
           "code": "FBS-4.3",
           "label": "functions.planning",
           "route": "/projects/[projectId]/revisions/[revisionId]/planning",
-          "scope": "project",
+          "scope": "revision",
           "permission": "planning"
         },
         {
           "code": "FBS-4.4",
           "label": "functions.estimate",
           "route": "/projects/[projectId]/revisions/[revisionId]/estimate",
-          "scope": "project",
+          "scope": "revision",
           "permission": "estimate"
         },
         {
           "code": "FBS-4.5",
           "label": "functions.remaining",
           "route": "/projects/[projectId]/revisions/[revisionId]/remaining",
-          "scope": "project",
+          "scope": "revision",
           "permission": "remaining"
         },
         {
           "code": "FBS-4.6",
           "label": "functions.risks",
           "route": "/projects/[projectId]/revisions/[revisionId]/risks",
-          "scope": "project",
+          "scope": "revision",
           "permission": "risks"
         },
         {
           "code": "FBS-4.7",
           "label": "functions.actualCosts",
           "route": "/projects/[projectId]/revisions/[revisionId]/actual-costs",
-          "scope": "project",
+          "scope": "revision",
           "permission": "actual_costs"
         },
         {
           "code": "FBS-4.8",
           "label": "functions.projectIndicators",
           "route": "/projects/[projectId]/revisions/[revisionId]/indicators",
-          "scope": "project",
+          "scope": "revision",
           "permission": "project_indicators"
         },
         {
           "code": "FBS-4.9",
           "label": "functions.lifecycle",
-          "route": "/projects/[projectId]/revisions/[revisionId]/lifecycle",
+          "route": "/projects/[projectId]/lifecycle",
           "scope": "project",
           "permission": "lifecycle"
         }

@@ -205,10 +205,13 @@ verrou.
 
 ### Contexte de lecture, accueil et pages système
 
-- **L'URL fait foi** : projet et révision dans le chemin, sous-projet filtré et date de
-  calcul en paramètres ; les liens entre fonctions les reportent, les composants serveur
-  les lisent. Écarté : un état global côté client — perdu au rechargement, invisible du
-  rendu serveur, une seconde source de vérité.
+- **L'URL fait foi** : le projet dans le chemin ; la révision aussi pour les fonctions qui la
+  lisent — planning, devis, reste à engager, risques, coûts réels, indicateurs —, et en
+  paramètre `revision_id` pour les fonctions du projet lui-même — révisions, paramètres,
+  cycle de vie —, qu'un projet sans révision garde ; sous-projet filtré et date de calcul en
+  paramètres. Les liens entre fonctions les reportent, les composants serveur les lisent.
+  Écarté : un état global côté client — perdu au rechargement, invisible du rendu serveur,
+  une seconde source de vérité.
 - **Le dernier contexte de projet** vit dans un témoin du front ; la coquille en tire le
   « retour au projet » depuis une fonction hors projet (WF-IHM-0010).
 - **L'accueil** est la liste des projets, filtrée sur « mes projets » — le filtre

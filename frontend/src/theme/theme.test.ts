@@ -7,7 +7,12 @@ import { example } from "@/test/fixtures";
 
 import { forcedTheme, isThemePreference, THEME_PREFERENCES, themePreference } from "./theme";
 
-type Account = components["schemas"]["UserSelf"];
+type Session = components["schemas"]["Session"];
+
+/** The account of a session of the contract. */
+function account(name: string) {
+  return (example(name) as Session).user;
+}
 
 describe("the display mode", () => {
   it("offers the three values of the preference of the contract", () => {
@@ -24,9 +29,9 @@ describe("the display mode", () => {
   });
 
   it("reads the preference of the account, the workstation's when it never chose", () => {
-    expect(themePreference(example("me_dark") as Account)).toBe("dark");
-    expect(themePreference(example("me") as Account)).toBe("default");
-    expect(themePreference(example("me_without_preferences") as Account)).toBe("default");
+    expect(themePreference(account("session_dark"))).toBe("dark");
+    expect(themePreference(account("session"))).toBe("default");
+    expect(themePreference(account("session_without_preferences"))).toBe("default");
     expect(themePreference(undefined)).toBeUndefined();
   });
 });

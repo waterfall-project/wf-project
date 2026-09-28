@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { type ApiClient, createApiClient } from "@/api/client";
 import { fakeClient } from "@/test/fixtures";
 
-import { requestAccount, requestPermissions } from "./request";
+import { requestSession } from "./request";
 
 const server = vi.hoisted(() => ({ client: undefined as ApiClient | undefined }));
 
@@ -14,30 +14,28 @@ vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
 
 describe("the session of a request", () => {
-  it("reads the permissions the API evaluated for the session", async () => {
-    server.client = fakeClient({ "GET /session": "session_project_manager" });
-    const permissions = await requestPermissions();
-    expect(permissions).toContain("portfolio_projects.read");
-    expect(permissions).not.toContain("system_status.read");
+  it("holds the account, its preferences, and the permissions the API evaluated", async () => {
+    server.client = fakeClient({ "GET /session": "session_dark" });
+    const session = await requestSession();
+    expect(session?.user.display_preferences?.theme).toBe("dark");
+    expect(session?.permissions).toContain("system_status.read");
   });
 
-  it("reads the account and its preferences", async () => {
-    server.client = fakeClient({ "GET /me": "me_dark" });
-    expect((await requestAccount())?.display_preferences?.theme).toBe("dark");
+  it("is none without a session", async () => {
+    server.client = fakeClient({ "GET /session": UNAUTHORIZED });
+    expect(await requestSession()).toBeUndefined();
   });
 
-  it("has neither account nor permissions without a session", async () => {
-    server.client = fakeClient({ "GET /me": UNAUTHORIZED, "GET /session": UNAUTHORIZED });
-    expect(await requestAccount()).toBeUndefined();
-    expect(await requestPermissions()).toBeUndefined();
-  });
-
-  it("has neither when the API cannot be reached", async () => {
+  it("is none when the API cannot be reached", async () => {
     server.client = createApiClient({
       address: "http://unreachable.invalid",
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
-    expect(await requestAccount()).toBeUndefined();
-    expect(await requestPermissions()).toBeUndefined();
+    expect(await requestSession()).toBeUndefined();
+  });
+
+  it("lets a defect through rather than take it for an API out of reach", async () => {
+    server.client = fakeClient({});
+    await expect(requestSession()).rejects.toThrow("fakeClient: no answer for GET /session");
   });
 });

@@ -10,9 +10,10 @@
  * The blues come from the logos of docs/assets (#027dc6, #1195e1), the neutrals from
  * shadcn/ui. Each colour token holds its light and its dark value side by side, by
  * `light-dark()`: the document follows the workstation (`color-scheme: light dark`), and the
- * shell forces a mode with `data-theme` when the account asks for one. Every pair of text
- * and background reaches the contrast of WCAG AA in both modes, which contrast.test.ts
- * checks.
+ * shell forces a mode with `data-theme` when the account asks for one. No component asks
+ * which mode shows: the `dark:` variant of Tailwind, which would follow the workstation
+ * alone, is refused by the linter. Every pair of text and background reaches the contrast
+ * of WCAG AA in both modes, which contrast.test.ts checks.
  */
 @import "tailwindcss";
 
@@ -37,6 +38,8 @@
   /* The deep blue of the logo, darkened in light mode to carry white text at AA. */
   --primary: light-dark(#0270b3, #1195e1);
   --primary-foreground: light-dark(#ffffff, #0a0a0a);
+  /* A primary control under the pointer: darker in light mode, lighter in dark mode. */
+  --primary-hover: light-dark(#02609a, #3aa9ea);
   --secondary: light-dark(#f5f5f5, #262626);
   --secondary-foreground: light-dark(#171717, #fafafa);
   --muted: light-dark(#f5f5f5, #262626);
@@ -68,6 +71,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

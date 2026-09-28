@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { requestAccount } from "@/session/request";
+import { requestSession } from "@/session/request";
 import { expectAccessible } from "@/test/axe";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { themePreference } from "@/theme/theme";
@@ -28,7 +28,7 @@ const PREFERENCES = "PATCH /me/preferences";
  * once. The language and the navigation are not this file's: French, and left out.
  */
 async function layout() {
-  const theme = themePreference(await requestAccount());
+  const theme = themePreference((await requestSession())?.user);
   return (
     <Shell
       locale="fr"
@@ -70,7 +70,7 @@ beforeEach(() => {
 
 describe("the mode selector", () => {
   it("offers the workstation's setting, light and dark, and lets the workstation decide first", async () => {
-    await open({ "GET /me": "me" });
+    await open({ "GET /session": "session" });
     const select = screen.getByRole("combobox", { name: "Mode d’affichage" });
     expect(select).toHaveValue("default");
     const options = screen.getAllByRole("option").map((option) => option.textContent);
@@ -80,22 +80,29 @@ describe("the mode selector", () => {
   });
 
   it("records the mode chosen in the account, and renders the page in it", async () => {
-    // The back keeps the choice, and the next read of the account returns it; the fake back
-    // keeps nothing, so the second answer of GET /me stands in for what it would keep.
-    const client = await open({ "GET /me": ["me", "me_dark"], [PREFERENCES]: "preferences_dark" });
+    // The back keeps the choice, and the next read of the session returns it; the fake back
+    // keeps nothing, so the second answer of GET /session stands in for what it would keep.
+    const client = await open({
+      "GET /session": ["session", "session_dark"],
+      [PREFERENCES]: "preferences_dark",
+    });
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Mode d’affichage" }),
       "dark",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer le mode" }));
 
     await waitFor(() => {
       expect(darkLogo()).toBe("all");
     });
     expect(screen.getByRole("combobox", { name: "Mode d’affichage" })).toHaveValue("dark");
     expect(sent(client, PREFERENCES)).toEqual([{ theme: "dark" }]);
-    expect(client.calls.map((call) => call.route)).toEqual(["GET /me", PREFERENCES, "GET /me"]);
+    expect(client.calls.map((call) => call.route)).toEqual([
+      "GET /session",
+      PREFERENCES,
+      "GET /session",
+    ]);
   });
 
   it("shows the light variant of the logo alone in a mode forced light", () => {
@@ -117,14 +124,14 @@ describe("the mode selector", () => {
   it("says why the API refused the choice, and keeps it", async () => {
     const expired = { problem: { code: "SESSION_EXPIRED", status: 401 } } as const;
     const refresh = vi.fn();
-    const client = await open({ "GET /me": "me", [PREFERENCES]: expired });
+    const client = await open({ "GET /session": "session", [PREFERENCES]: expired });
     server.refresh = refresh;
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Mode d’affichage" }),
       "light",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer le mode" }));
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("Votre session a expiré ; reconnectez-vous.");
@@ -134,11 +141,11 @@ describe("the mode selector", () => {
   });
 
   it("keeps the last mode chosen when handed a value that is not one", async () => {
-    const client = await open({ "GET /me": "me", [PREFERENCES]: "preferences_dark" });
+    const client = await open({ "GET /session": "session", [PREFERENCES]: "preferences_dark" });
     fireEvent.change(screen.getByRole("combobox", { name: "Mode d’affichage" }), {
       target: { value: "sepia" },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer le mode" }));
     await waitFor(() => {
       expect(sent(client, PREFERENCES)).toEqual([{ theme: "default" }]);
     });

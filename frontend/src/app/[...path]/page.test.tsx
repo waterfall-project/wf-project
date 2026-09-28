@@ -35,8 +35,14 @@ function html(page: ReactNode): string {
   );
 }
 
+const ANSWERS: FakeAnswers = {
+  "GET /session": "session",
+  "GET /projects/{project_id}": "project",
+  "GET /projects/{project_id}/revisions/{revision_id}": "revision",
+};
+
 beforeEach(() => {
-  server.answers = { "GET /me": "me", "GET /projects/{project_id}": "project" };
+  server.answers = ANSWERS;
 });
 
 describe("the page of a function still to come", () => {
@@ -67,9 +73,38 @@ describe("the page of a function still to come", () => {
   });
 
   it("names the function alone when the project cannot be read", async () => {
-    server.answers = { "GET /me": "me", "GET /projects/{project_id}": NOT_FOUND };
+    server.answers = { ...ANSWERS, "GET /projects/{project_id}": NOT_FOUND };
     const address = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
     expect((await generateMetadata(at(address))).title).toBe("Planification — Waterfall");
+  });
+
+  it("exists for a function of the project itself, without a revision", async () => {
+    const address = `/projects/${PROJECT}/lifecycle`;
+    expect(html(await ScreenPage(at(address)))).toContain(
+      '<h1 class="text-2xl font-semibold">Cycle de vie du projet</h1>',
+    );
+    expect((await generateMetadata(at(address))).title).toBe(
+      "Cycle de vie du projet · Modernisation du poste de commande — Waterfall",
+    );
+  });
+
+  it.each([
+    ["project", "GET /projects/{project_id}", `/projects/${PROJECT}/lifecycle`],
+    [
+      "project",
+      "GET /projects/{project_id}",
+      `/projects/${PROJECT}/revisions/${REVISION}/planning`,
+    ],
+    [
+      "revision",
+      "GET /projects/{project_id}/revisions/{revision_id}",
+      `/projects/${PROJECT}/revisions/${REVISION}/planning`,
+    ],
+  ] as const)("is not found when the API finds no %s, at %s for %s", async (_, route, address) => {
+    server.answers = { ...ANSWERS, [route]: NOT_FOUND };
+    await expect(ScreenPage(at(address))).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
   });
 
   it("is not found at an address that leads to no function", async () => {

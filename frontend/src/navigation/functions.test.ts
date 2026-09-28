@@ -73,17 +73,23 @@ describe("the table of the functions", () => {
     }
   });
 
-  it("gives each function a route of its own, in a project for the functions of FBS-4", () => {
+  it("routes the functions of the project itself under the project, the others under a revision", () => {
     const routes = FUNCTIONS.map((fn) => fn.route);
     expect(new Set(routes).size).toBe(routes.length);
+    const ofProject = new Set(["FBS-4.1", "FBS-4.2", "FBS-4.9"]);
     for (const fn of FUNCTIONS) {
-      const inProject = fn.code.startsWith("FBS-4.");
-      expect(fn.scope, fn.code).toBe(inProject ? "project" : "platform");
-      expect(fn.route, fn.code).toMatch(
-        inProject
-          ? /^\/projects\/\[projectId\]\/revisions\/\[revisionId\]\/[a-z-]+$/
-          : /^\/(admin|portfolio|reference)\/[a-z-]+$|^\/system$/,
-      );
+      if (ofProject.has(fn.code)) {
+        expect([fn.code, fn.scope]).toEqual([fn.code, "project"]);
+        expect(fn.route, fn.code).toMatch(/^\/projects\/\[projectId\]\/[a-z-]+$/);
+      } else if (fn.code.startsWith("FBS-4.")) {
+        expect([fn.code, fn.scope]).toEqual([fn.code, "revision"]);
+        expect(fn.route, fn.code).toMatch(
+          /^\/projects\/\[projectId\]\/revisions\/\[revisionId\]\/[a-z-]+$/,
+        );
+      } else {
+        expect([fn.code, fn.scope]).toEqual([fn.code, "platform"]);
+        expect(fn.route, fn.code).toMatch(/^\/(admin|portfolio|reference)\/[a-z-]+$|^\/system$/);
+      }
     }
   });
 });
@@ -96,7 +102,7 @@ describe("the functions offered", () => {
   });
 
   it("leave out the functions whose read permission the session lacks", () => {
-    const codes = offered("session_project_manager");
+    const codes = offered("session_without_administration");
     expect(codes).not.toContain("FBS-1");
     expect(codes.filter((code) => code.startsWith("FBS-1"))).toEqual([]);
     expect(codes).toContain("FBS-2.1");
@@ -110,27 +116,61 @@ describe("the functions offered", () => {
 });
 
 describe("the address of a function", () => {
-  const planning = FUNCTIONS.find((fn) => fn.code === "FBS-4.3");
-  const portfolio = FUNCTIONS.find((fn) => fn.code === "FBS-2.1");
+  const find = (code: string) => {
+    const found = FUNCTIONS.find((fn) => fn.code === code);
+    if (found === undefined) {
+      throw new Error(code);
+    }
+    return found;
+  };
+  const planning = find("FBS-4.3");
+  const lifecycle = find("FBS-4.9");
+  const revisions = find("FBS-4.1");
+  const portfolio = find("FBS-2.1");
+  const FILTERS = `subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
 
   it("is its route outside a project, whatever the context", () => {
     const context = readContext(`${IN_PROJECT}/risks`, new URLSearchParams());
-    expect(portfolio && functionHref(portfolio, context)).toBe("/portfolio/projects");
-    expect(portfolio && functionHref(portfolio, undefined)).toBe("/portfolio/projects");
+    expect(functionHref(portfolio, context)).toBe("/portfolio/projects");
+    expect(functionHref(portfolio, undefined)).toBe("/portfolio/projects");
   });
 
   it("carries the revision, the sub-project and the calculation date in a project", () => {
-    const search = new URLSearchParams({ subproject_id: SUBPROJECT, as_of: "2026-05-31" });
-    const context = readContext(`${IN_PROJECT}/remaining`, search);
-    expect(planning && functionHref(planning, context)).toBe(
-      `${IN_PROJECT}/planning?subproject_id=${SUBPROJECT}&as_of=2026-05-31`,
-    );
+    const context = readContext(`${IN_PROJECT}/remaining`, new URLSearchParams(FILTERS));
+    expect(functionHref(planning, context)).toBe(`${IN_PROJECT}/planning?${FILTERS}`);
   });
 
-  it("does not exist in a project without a revision to read in, nor outside", () => {
+  it("carries the revision as a parameter to a function of the project itself, and back", () => {
+    const context = readContext(`${IN_PROJECT}/remaining`, new URLSearchParams(FILTERS));
+    const lifecycleHref = functionHref(lifecycle, context) ?? "";
+    expect(lifecycleHref).toBe(`/projects/${PROJECT}/lifecycle?revision_id=${REVISION}&${FILTERS}`);
+
+    const [pathname = "", query = ""] = lifecycleHref.split("?");
+    const there = readContext(pathname, new URLSearchParams(query));
+    expect(functionHref(planning, there)).toBe(`${IN_PROJECT}/planning?${FILTERS}`);
+  });
+
+  it("offers the functions of the project itself in a project without a revision", () => {
     const context = readContext(`/projects/${PROJECT}`, new URLSearchParams());
-    expect(planning && functionHref(planning, context)).toBeUndefined();
-    expect(planning && functionHref(planning, undefined)).toBeUndefined();
+    expect(functionHref(revisions, context)).toBe(`/projects/${PROJECT}/revisions`);
+    expect(functionHref(lifecycle, context)).toBe(`/projects/${PROJECT}/lifecycle`);
+    expect(functionHref(planning, context)).toBeUndefined();
+  });
+
+  it("does not exist for a function of a project outside any project", () => {
+    expect(functionHref(planning, undefined)).toBeUndefined();
+    expect(functionHref(lifecycle, undefined)).toBeUndefined();
+  });
+
+  it("inserts an identifier as it is, whatever it holds", () => {
+    const context = {
+      projectId: "p$&q",
+      revisionId: "r$'s",
+      revisionInPath: true,
+      parameters: new URLSearchParams(),
+    };
+    expect(functionHref(planning, context)).toBe("/projects/p$&q/revisions/r$'s/planning");
+    expect(functionHref(lifecycle, context)).toBe("/projects/p$&q/lifecycle?revision_id=r%24%27s");
   });
 });
 
@@ -139,11 +179,14 @@ describe("the function an address leads to", () => {
     [["system"], "FBS-1.3", undefined],
     [["admin", "users"], "FBS-1.1", undefined],
     [["reference", "costs"], "FBS-3.1", undefined],
-    [["projects", PROJECT, "revisions", REVISION, "actual-costs"], "FBS-4.7", PROJECT],
-  ])("is found from %j", (segments, code, projectId) => {
+    [["projects", PROJECT, "revisions", REVISION, "actual-costs"], "FBS-4.7", PROJECT, REVISION],
+    [["projects", PROJECT, "lifecycle"], "FBS-4.9", PROJECT, undefined],
+    [["projects", PROJECT, "revisions"], "FBS-4.1", PROJECT, undefined],
+  ])("is found from %j", (segments, code, projectId, revisionId?: string) => {
     const screen = findScreen(segments);
     expect(screen?.fn.code).toBe(code);
     expect(screen?.projectId).toBe(projectId);
+    expect(screen?.revisionId).toBe(revisionId);
   });
 
   it.each([[["admin"]], [["admin", "nobody"]], [["projects", PROJECT, "revisions", REVISION]]])(

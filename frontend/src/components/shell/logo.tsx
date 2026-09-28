@@ -9,7 +9,8 @@ import { useTranslations } from "next-intl";
 
 import { forcedTheme, type ThemePreference } from "@/theme/theme";
 
-// The two variants of docs/assets, served from public/ (assets.test.ts keeps them the same).
+// The two variants of docs/assets, served from public/; src/theme/brand.test.ts keeps them
+// the same.
 const LIGHT = "/waterfall_logo.svg";
 const DARK = "/waterfall_logo-dark.svg";
 

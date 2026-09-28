@@ -73,6 +73,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
+            examples:
+              witness: { $ref: ../../../fixtures/api/revision.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
     operationId: abandonRevision

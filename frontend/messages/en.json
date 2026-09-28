@@ -6,11 +6,11 @@
   },
   "languageSelector": {
     "label": "Language",
-    "apply": "Apply"
+    "apply": "Apply language"
   },
   "themeSelector": {
     "label": "Display mode",
-    "apply": "Apply"
+    "apply": "Apply theme"
   },
   "navigation": {
     "label": "Functions",

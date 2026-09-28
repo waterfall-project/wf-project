@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  contextAddress,
   contextCookie,
   contextQuery,
   LAST_CONTEXT_COOKIE,
@@ -14,6 +15,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000401";
 const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
+const LIFECYCLE = `/projects/${PROJECT}/lifecycle`;
 
 describe("the reading context", () => {
   it("reads the project and the revision in the path, the filters in the parameters", () => {
@@ -21,8 +23,21 @@ describe("the reading context", () => {
     const context = readContext(REMAINING, search);
     expect(context?.projectId).toBe(PROJECT);
     expect(context?.revisionId).toBe(REVISION);
+    expect(context?.revisionInPath).toBe(true);
     // In the order of the contract's names, the parameters of other purposes left out.
-    expect(context && contextQuery(context)).toBe(`?subproject_id=${SUBPROJECT}&as_of=2026-05-31`);
+    expect(context && contextQuery(context, false)).toBe(
+      `?subproject_id=${SUBPROJECT}&as_of=2026-05-31`,
+    );
+  });
+
+  it("reads the revision a function of the project itself carries as a parameter", () => {
+    const search = new URLSearchParams({ revision_id: REVISION, as_of: "2026-05-31" });
+    const context = readContext(LIFECYCLE, search);
+    expect(context?.revisionId).toBe(REVISION);
+    expect(context?.revisionInPath).toBe(false);
+    expect(context && contextAddress(LIFECYCLE, context)).toBe(
+      `${LIFECYCLE}?revision_id=${REVISION}&as_of=2026-05-31`,
+    );
   });
 
   it("reads a project without a revision, and without filters", () => {
@@ -30,17 +45,27 @@ describe("the reading context", () => {
     expect(context).toEqual({
       projectId: PROJECT,
       revisionId: undefined,
+      revisionInPath: false,
       parameters: new URLSearchParams(),
     });
-    expect(context && contextQuery(context)).toBe("");
+    expect(context && contextQuery(context, true)).toBe("");
   });
 
-  it.each(["/", "/projects", "/portfolio/projects", "/system", "/projects/"])(
-    "reads no project in %s",
-    (pathname) => {
-      expect(readContext(pathname, new URLSearchParams())).toBeUndefined();
-    },
-  );
+  it.each([
+    "/",
+    "/projects",
+    "/portfolio/projects",
+    "/system",
+    "/projects/",
+    `/projects/${PROJECT}/unknown`,
+    `/projects/${PROJECT}/planning`,
+    `/projects/${PROJECT}/revisions/${REVISION}/lifecycle`,
+    `/projects/${PROJECT}/revisions/${REVISION}/risks/more`,
+    "/projects/../admin",
+    "/projects/%2e%2e/revisions",
+  ])("reads no project in %s", (pathname) => {
+    expect(readContext(pathname, new URLSearchParams())).toBeUndefined();
+  });
 
   it("keeps the address of a context in a cookie of the whole front", () => {
     const address = `${REMAINING}?subproject_id=${SUBPROJECT}`;
@@ -49,16 +74,30 @@ describe("the reading context", () => {
     );
   });
 
-  it("leads back from the cookie to a project only, with its context alone", () => {
+  it("leads back from the cookie to a screen of a project only, with its context alone", () => {
     const address = `${REMAINING}?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
     expect(rememberedAddress(address)).toBe(address);
     expect(rememberedAddress(`${REMAINING}?sort_by=label&as_of=2026-05-31`)).toBe(
       `${REMAINING}?as_of=2026-05-31`,
     );
+    // The revision in the path wins over a parameter, which is then dropped.
+    expect(rememberedAddress(`${REMAINING}?revision_id=other`)).toBe(REMAINING);
+    expect(rememberedAddress(`${LIFECYCLE}?revision_id=${REVISION}`)).toBe(
+      `${LIFECYCLE}?revision_id=${REVISION}`,
+    );
+    expect(rememberedAddress(`${LIFECYCLE}?revision_id=../x`)).toBe(LIFECYCLE);
     expect(rememberedAddress(`/projects/${PROJECT}`)).toBe(`/projects/${PROJECT}`);
-    expect(rememberedAddress("https://elsewhere.example/projects/1")).toBeUndefined();
-    expect(rememberedAddress("//elsewhere.example/projects/1")).toBeUndefined();
-    expect(rememberedAddress("/admin/users")).toBeUndefined();
-    expect(rememberedAddress(undefined)).toBeUndefined();
+  });
+
+  it.each([
+    "https://elsewhere.example/projects/1",
+    "//elsewhere.example/projects/1",
+    "/projects/..//evil.example",
+    `/projects/${PROJECT}/revisions/${REVISION}/../../../admin/users`,
+    `/projects/${PROJECT}//evil.example`,
+    "/admin/users",
+    undefined,
+  ])("leads nowhere from the cookie %j", (value) => {
+    expect(rememberedAddress(value)).toBeUndefined();
   });
 });

@@ -25,6 +25,7 @@ const ACTION = "src/api/actions/trap.tsx";
 
 const COLOUR =
   "Name a token of the charter, src/theme/globals.css; never write a colour or a font.";
+const DARK = "No variant for the dark mode: a token of src/theme/globals.css carries both modes.";
 
 /** A component around some JSX, and a constant beside it. */
 function component(jsx: string, constant = '""'): string {
@@ -50,6 +51,14 @@ const IN_CLASSES: readonly string[] = [
   '<p className="text-[rgb(2_125_198)]">{VALUE}</p>',
   '<p className="fill-[oklch(0.6_0.1_240)]">{VALUE}</p>',
   "<p className=\"font-['Comic_Sans_MS']\">{VALUE}</p>",
+  '<p className="bg-[red]">{VALUE}</p>',
+  '<p className="text-[rebeccapurple]">{VALUE}</p>',
+  '<p className="shadow-[0_0_0_2px_#f00]">{VALUE}</p>',
+  '<p className="[color:#027dc6]">{VALUE}</p>',
+  '<p className="p-2 [--primary:#ff0000]">{VALUE}</p>',
+  '<p className="[font-family:Arial]">{VALUE}</p>',
+  '<p className="hover:[background-color:red]">{VALUE}</p>',
+  '<p className="bg-[color-mix(in_oklab,#fff,#000)]">{VALUE}</p>',
 ];
 
 // A colour or a font written elsewhere: a string of its own, an attribute of an SVG, a style.
@@ -62,6 +71,16 @@ const ELSEWHERE: readonly [string, string][] = [
   ["<p style={{ color: VALUE }}>{VALUE}</p>", '"var(--primary)"'],
   ["<p style={{ backgroundColor: VALUE }}>{VALUE}</p>", '""'],
   ["<p style={{ fontFamily: VALUE }}>{VALUE}</p>", '"Arial"'],
+  ['<p style={{ border: "1px solid #ff0000" }}>{VALUE}</p>', '""'],
+  ['<p style={{ boxShadow: "0 0 0 2px #f00" }}>{VALUE}</p>', '""'],
+  ['<p style={{ outline: "2px solid red" }}>{VALUE}</p>', '""'],
+  ['<p style={{ "color": VALUE }}>{VALUE}</p>', '"red"'],
+  ['<p style={{ "--primary": VALUE }}>{VALUE}</p>', '"red"'],
+  ["<p style={{ caretColor: VALUE }}>{VALUE}</p>", '"red"'],
+  ['<svg><path d="M0 0" fill="red" /></svg>', '""'],
+  ['<svg><path d="M0 0" stroke={"black"} /></svg>', '""'],
+  ['<svg><stop stopColor="white" /></svg>', '""'],
+  ["<p>{VALUE}</p>", '"color-mix(in oklab, var(--primary), transparent)"'],
 ];
 
 // What a component may write: the tokens of the charter, and what only looks like a colour.
@@ -72,6 +91,19 @@ const ALLOWED: readonly [string, string][] = [
   ['<svg><path d="M0 0" fill="currentColor" /></svg>', '""'],
   ['<a href="#main">{VALUE}</a>', '"text-whitespace blue-print"'],
   ["<p style={{ width: VALUE }}>{VALUE}</p>", '"12rem"'],
+  ['<p className="ring-[3px] text-[14px] stroke-[1.5] font-[600] from-[10%]">{VALUE}</p>', '""'],
+  [
+    '<p className="[&_svg]:size-4 aria-[current=page]:bg-accent grid-cols-[1fr_2fr]">{VALUE}</p>',
+    '""',
+  ],
+  ['<svg><path d="M0 0" fill="none" stroke="url(#edge)" /></svg>', '""'],
+  ["<p>{VALUE}</p>", '"the darkest hour: dark matter"'],
+];
+
+// The dark variant, which follows the workstation alone.
+const DARK_VARIANT: readonly string[] = [
+  '<p className="bg-background dark:bg-card">{VALUE}</p>',
+  "<p className={`p-2 md:dark:text-foreground`}>{VALUE}</p>",
 ];
 
 let eslint: ESLint;
@@ -106,6 +138,15 @@ describe("the colour guard", { timeout: 60_000 }, () => {
 
   it.each(ALLOWED)("lets %j with %s through", async (jsx, constant) => {
     expect(await findings(component(jsx, constant))).toEqual([]);
+  });
+
+  it.each(DARK_VARIANT)("refuses the dark variant in %j", async (jsx) => {
+    const [result] = await eslint.lintText(component(jsx), { filePath: COMPONENT });
+    expect(result?.messages.map((m) => [m.ruleId, m.severity, m.message])).toContainEqual([
+      "no-restricted-syntax",
+      2,
+      DARK,
+    ]);
   });
 
   it("holds in the server actions, whose block redefines the rule", async () => {

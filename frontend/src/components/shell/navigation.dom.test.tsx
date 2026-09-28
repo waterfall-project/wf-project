@@ -86,7 +86,7 @@ describe("the navigation", () => {
   });
 
   it("offers no function whose read permission the session lacks", () => {
-    render(navigation("session_project_manager"));
+    render(navigation("session_without_administration"));
     expect(screen.queryByRole("heading", { name: "Administration" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Surveillance de l’état du système" })).toBeNull();
     expect(screen.getByRole("link", { name: "Portefeuille de projets" })).toBeInTheDocument();
@@ -137,12 +137,32 @@ describe("the navigation", () => {
     expect(screen.getByRole("link", { name: "Projets" })).not.toHaveAttribute("aria-current");
   });
 
-  it("offers no function of a project without a revision to read in", () => {
+  it("offers the functions of the project itself to a project without a revision", async () => {
     visit(`/projects/${PROJECT}`);
-    render(navigation());
+    const { container } = render(navigation());
+    expect(href("Gestion des révisions")).toBe(`/projects/${PROJECT}/revisions`);
+    expect(href("Paramètres de projets")).toBe(`/projects/${PROJECT}/settings`);
+    expect(href("Cycle de vie du projet")).toBe(`/projects/${PROJECT}/lifecycle`);
+    // The functions of a revision wait for one.
     expect(screen.queryByRole("link", { name: "Planification" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Retour au projet" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Projets" })).toBeInTheDocument();
+    await expectAccessible(container);
+  });
+
+  it("keeps the revision on a function of the project itself, for the next function of a revision", () => {
+    visit(`/projects/${PROJECT}/lifecycle`, `?revision_id=${REVISION}&as_of=2026-05-31`);
+    render(navigation());
+    expect(screen.getByRole("link", { name: "Cycle de vie du projet" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(href("Planification")).toBe(`${IN_PROJECT}/planning?as_of=2026-05-31`);
+    expect(href("Gestion des révisions")).toBe(
+      `/projects/${PROJECT}/revisions?revision_id=${REVISION}&as_of=2026-05-31`,
+    );
+    expect(document.cookie).toContain(
+      encodeURIComponent(`/projects/${PROJECT}/lifecycle?revision_id=${REVISION}&as_of=2026-05-31`),
+    );
   });
 
   it("marks the list of projects as the page shown", () => {

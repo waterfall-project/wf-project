@@ -59,14 +59,20 @@ Library rend dans le document de happy-dom.
 
 La coquille (`frontend/src/components/shell/`) tire sa navigation de
 `frontend/src/navigation/functions.json` : pour chaque fonction de second niveau de la FBS,
-son code, la clé de son libellé, sa route, sa portée — hors projet, ou dans la révision d'un
-projet — et la permission qui la laisse consulter ; une fonction dont la session n'a pas la
-permission `<fonction>.read` n'y figure pas. Le contexte de lecture est dans l'adresse :
-projet et révision dans le chemin, sous-projet filtré et date de calcul en paramètres,
-`subproject_id` et `as_of`, comme le contrat les nomme ; les liens entre fonctions d'un
-projet les reportent, et un témoin du front, `wf_last_project`, garde le dernier, dont la
-coquille tire le « retour au projet » (WF-IHM-0010). Chaque route de la table existe dès la
-coquille, servie par la page d'attente `frontend/src/app/[...path]/page.tsx` ; le lot d'un
+son code, la clé de son libellé, sa route, sa portée et la permission qui la laisse
+consulter ; une fonction dont la session n'a pas la permission `<fonction>.read` n'y figure
+pas. La table ne porte encore que le second niveau : les feuilles adressables y entrent avec
+le contrôle de complétude des écrans, que le lot EP-02/L3 (#125) ajoute. Trois portées : hors projet ; `project`, les fonctions du
+projet lui-même — révisions, paramètres, cycle de vie —, sous `/projects/[projectId]/…`,
+qu'un projet sans révision offre ; `revision`, les autres, sous
+`/projects/[projectId]/revisions/[revisionId]/…`. Le contexte de lecture est dans l'adresse :
+le projet dans le chemin, la révision dans le chemin ou, sur une fonction du projet, en
+paramètre `revision_id` ; sous-projet filtré et date de calcul en paramètres, `subproject_id`
+et `as_of`, comme le contrat les nomme. Les liens entre fonctions d'un projet les reportent,
+et un témoin du front, `wf_last_project`, garde le dernier, dont la coquille tire le « retour
+au projet » (WF-IHM-0010) ; il ne ramène qu'à un écran de projet de la table. Chaque route
+existe dès la coquille, servie par la page d'attente `frontend/src/app/[...path]/page.tsx`,
+qui répond « introuvable » quand l'API ne trouve pas le projet ou la révision ; le lot d'un
 écran écrit sa page à la même route, qui l'emporte sur elle.
 
 L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
@@ -524,15 +530,20 @@ Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
   `light-dark(claire, sombre)`. Le document suit le poste (`color-scheme: light dark`) ; quand
   le compte force un mode (`DisplayPreferences.theme`), le layout racine pose
   `data-theme="light"` ou `data-theme="dark"` sur `<html>`, résolu côté serveur comme la
-  langue. Aucun composant ne se demande quel mode s'affiche, et la variante `dark:` de
-  Tailwind ne sert pas.
+  langue. Aucun composant ne se demande quel mode s'affiche : la variante `dark:` de
+  Tailwind, qui ne suivrait que le poste et ignorerait le mode forcé, est refusée. Un état
+  qui change de couleur — survol, page courante — a son propre jeton (`--primary-hover`),
+  mesuré comme les autres.
 - **Ajouter une couleur, c'est ajouter un jeton** : sa valeur claire et sa valeur sombre dans
   `:root`, son nom dans `@theme inline` (`--color-<nom>: var(--<nom>)`), et chaque paire
   texte et fond qu'il forme dans `frontend/src/theme/contrast.test.ts` ; un composant emploie
   ensuite sa classe (`bg-<nom>`). Jamais une couleur dans un composant : ni une classe de la
   palette de Tailwind, retirée du thème — `bg-blue-500` ne produit rien —, ni une valeur
-  arbitraire (`bg-[#027dc6]`), ni une couleur écrite dans une chaîne ou dans un `style`. Une
-  police s'ajoute de même, par un jeton `--font-<nom>`.
+  arbitraire d'un utilitaire de couleur (`bg-[#027dc6]`, `bg-[red]`) — une longueur ou un
+  nombre passent, `ring-[3px]` —, ni une propriété arbitraire qui peint ou une variable
+  (`[color:…]`, `[--primary:…]`), ni `color-mix(`, ni une couleur écrite dans une chaîne,
+  dans un `style` ou dans l'attribut d'un SVG. Une police s'ajoute de même, par un jeton
+  `--font-<nom>`.
 - **Le contraste** d'un texte sur son fond atteint 4,5:1, celui de ce qui montre un contrôle —
   bord d'un champ, anneau du focus — 3:1, dans les deux modes (WCAG AA, §3.6).
 - **shadcn/ui** : un composant s'ajoute en copiant son source dans
@@ -545,9 +556,14 @@ Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
   `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où
   le mode sombre s'applique.
 
-*Contrôles* : `make lint-front` — `no-restricted-syntax` refuse une classe de couleur de la
-palette, une valeur arbitraire de couleur ou de police, une couleur écrite en chaîne et une
-couleur ou une police dans un `style` (`COLOUR_SYNTAX` de `frontend/eslint.config.mjs`) ;
+*Contrôles* : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
+`frontend/eslint.config.mjs`) refuse, dans toute chaîne du code, une classe de couleur de la
+palette, une valeur arbitraire d'un utilitaire de couleur qui n'est ni une longueur ni un
+nombre, une police arbitraire, une propriété arbitraire qui peint, pose une police ou une
+variable, `color-mix(`, une couleur écrite en chaîne entière et la variante `dark:` ; dans un
+`style`, quelle que soit sa valeur, une propriété qui peint, borde, ombre ou pose une police,
+et une variable, que la clé soit un nom ou une chaîne ; et, pour `fill`, `stroke`, `color` et
+les couleurs d'un SVG, tout littéral autre que `currentColor`, `none` ou `url(…)`.
 `frontend/src/theme/colour-guard.test.ts` l'éprouve sur des extraits piégés, et vérifie
 qu'aucune feuille de style ne vit hors de `src/theme/`. `make test-front` —
 `contrast.test.ts` mesure chaque paire de jetons dans les deux modes, `brand.test.ts`
@@ -555,7 +571,8 @@ compare les logos et l'icône à ceux de `docs/assets`. Le contraste des écrans
 contrôle dans le navigateur (US-0200) ; le reste de l'accessibilité d'un composant, dans ses
 tests, par `expectAccessible` (`frontend/src/test/axe.ts`, axe-core sous happy-dom, qui ne
 calcule pas les couleurs). Reste à la revue : une couleur bâtie par un gabarit à expressions
-ou par une fonction, que le motif d'une chaîne entière ne voit pas.
+ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt qu'un
+objet ou un littéral écrit sur place.
 
 ## Migrations
 

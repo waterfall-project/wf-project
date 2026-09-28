@@ -5,9 +5,9 @@
  * (WF-INTF-0160), and the configuration next-intl takes from it — the plugin of
  * `next.config.ts` finds this module by its path.
  *
- * The sources are read lazily: the account first (`getMe`, read once for the request, see
- * `@/session/request`), whose preference prevails when it names a language; the browser
- * next (`Accept-Language`); the installation last
+ * The sources are read lazily: the account of the session first (`getCurrentSession`, read
+ * once for the request, see `@/session/request`), whose preference prevails when it names a
+ * language; the browser next (`Accept-Language`); the installation last
  * (`getInstallation`, readable without a session), only when neither decided. A change of
  * preference is therefore seen by the next render — a refresh, not a new session.
  */
@@ -18,7 +18,7 @@ import { getRequestConfig } from "next-intl/server";
 import { cache } from "react";
 
 import { serverClient } from "@/api/server";
-import { reach, requestAccount } from "@/session/request";
+import { type Account, reach, requestSession } from "@/session/request";
 
 import { CATALOGUES, type Catalogue } from "./catalogues";
 import { TIME_ZONE } from "./format";
@@ -33,11 +33,15 @@ export interface RequestLanguage {
   readonly preference: LanguagePreference | undefined;
 }
 
-/** Read the sources of the language of the request, in order, and decide. */
-async function readRequestLanguage(): Promise<RequestLanguage> {
+/**
+ * Decide the language of the request for the account of its session — `undefined` without
+ * one —, reading the browser and the installation only when the account does not decide.
+ * The root layout calls it with the session it has already read; the rest of the request
+ * asks `requestLanguage`.
+ */
+export async function languageOf(account: Account | undefined): Promise<RequestLanguage> {
   // An account without the field follows the browser; no account — the sign-in page, an API
   // out of reach — has no preference at all.
-  const account = await requestAccount();
   const preference =
     account === undefined ? undefined : (account.display_preferences?.language ?? "default");
   const decided = resolveLocale(preference, (await headers()).get("accept-language"));
@@ -49,7 +53,9 @@ async function readRequestLanguage(): Promise<RequestLanguage> {
 }
 
 /** The language of the request: read once per request, however many components ask. */
-export const requestLanguage = cache(readRequestLanguage);
+export const requestLanguage = cache(async (): Promise<RequestLanguage> =>
+  languageOf((await requestSession())?.user),
+);
 
 /** The configuration of next-intl for the request: its language, its texts, and its zone. */
 export async function requestConfig(): Promise<{

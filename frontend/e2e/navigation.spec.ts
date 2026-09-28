@@ -52,6 +52,19 @@ test("the way back to the previous project from a function outside any project f
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
 });
 
+test("a project opened without a revision to read in offers the functions of the project itself", async ({
+  page,
+}) => {
+  await page.goto(`/projects/${PROJECT}`);
+  await open(page, "Cycle de vie du projet");
+  await expect(page).toHaveURL(`/projects/${PROJECT}/lifecycle`);
+  await expect(
+    page
+      .getByRole("navigation", { name: "Fonctions" })
+      .getByRole("link", { name: "Planification" }),
+  ).toHaveCount(0);
+});
+
 test("the tab bears the icon of the product", async ({ page }) => {
   await page.goto("/projects");
   await expect(page).toHaveTitle("Projets — Waterfall");

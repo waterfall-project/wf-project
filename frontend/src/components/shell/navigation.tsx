@@ -4,7 +4,8 @@
  * The navigation of the shell (WF-IHM-0010): the functions of the FBS the session may read,
  * drawn from `functions.json`. The functions outside any project are reached without opening
  * one; in a project, the links carry its context — the revision read, the filtered
- * sub-project, the calculation date —; outside, a link leads back to the last project
+ * sub-project, the calculation date —, and a project without a revision offers the functions
+ * of the project itself; outside, a link leads back to the last project
  * context, which a cookie of the front keeps across visits.
  *
  * A client component: the shell persists from one page to the next, and only the browser
@@ -20,8 +21,8 @@ import { useEffect, useState } from "react";
 
 import type { components } from "@/api/generated/schema";
 import {
+  contextAddress,
   contextCookie,
-  contextQuery,
   type ProjectContext,
   readContext,
 } from "@/navigation/context";
@@ -74,7 +75,7 @@ export function Navigation({ permissions, remembered }: NavigationProps) {
   const t = useTranslations();
   const pathname = usePathname();
   const context = readContext(pathname, useSearchParams());
-  const here = context === undefined ? undefined : pathname + contextQuery(context);
+  const here = context === undefined ? undefined : contextAddress(pathname, context);
   // The last project context: the one shown, or the last one left. Adjusted while
   // rendering, so that leaving a project leads back to it at once.
   const [last, remember] = useState(remembered);

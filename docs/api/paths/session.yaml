@@ -34,7 +34,10 @@
             schema: { $ref: ../components/schemas/access.yaml#/Session }
             examples:
               witness: { $ref: ../../../fixtures/api/session.json }
-              project_manager: { $ref: ../../../fixtures/api/session_project_manager.json }
+              english: { $ref: ../../../fixtures/api/session_english.json }
+              without_preferences: { $ref: ../../../fixtures/api/session_without_preferences.json }
+              dark: { $ref: ../../../fixtures/api/session_dark.json }
+              without_administration: { $ref: ../../../fixtures/api/session_without_administration.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
   post:
     operationId: openSession
@@ -176,7 +179,6 @@
               witness: { $ref: ../../../fixtures/api/me.json }
               english: { $ref: ../../../fixtures/api/me_english.json }
               without_preferences: { $ref: ../../../fixtures/api/me_without_preferences.json }
-              dark: { $ref: ../../../fixtures/api/me_dark.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 
 /me/preferences:

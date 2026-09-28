@@ -40,7 +40,6 @@ const LAST =
 /** A request from a browser asking for a language, by an account and its session. */
 function request(acceptLanguage: string, answers: FakeAnswers = {}) {
   server.client = fakeClient({
-    "GET /me": "me",
     "GET /session": "session",
     "GET /installation": "installation",
     ...answers,
@@ -85,7 +84,7 @@ describe("RootLayout", () => {
   });
 
   it("forces the mode the account chose on the whole document", async () => {
-    request("fr", { "GET /me": "me_dark" });
+    request("fr", { "GET /session": "session_dark" });
     const html = await page();
     expect(html).toMatch(/^<html lang="fr" data-theme="dark"/);
     expect(html).toContain('<option value="dark" selected="">Sombre</option>');
@@ -109,13 +108,21 @@ describe("RootLayout", () => {
   });
 
   it("offers neither selectors nor functions without a session: the browser decides", async () => {
-    request("en", { "GET /me": UNAUTHORIZED, "GET /session": UNAUTHORIZED });
+    request("en", { "GET /session": UNAUTHORIZED });
     const html = await page();
     expect(html).toMatch(/^<html lang="en" class="font-geist-sans">/);
     expect(html).not.toContain("<select");
     expect(html).not.toContain("<nav");
     expect(html).toContain('alt="Waterfall"');
     expect(html).toContain("<p>page</p>");
+  });
+
+  it("reads the session once, and the account through it alone", async () => {
+    request("de-DE");
+    await page();
+    const routes = server.client?.calls.map((call) => call.route);
+    // The browser asks for no language offered: the installation decides.
+    expect(routes).toEqual(["GET /session", "GET /installation"]);
   });
 
   it("titles the document with the product, from the catalogue", async () => {

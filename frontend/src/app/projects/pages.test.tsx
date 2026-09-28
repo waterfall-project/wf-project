@@ -22,7 +22,7 @@ const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 
 beforeEach(() => {
   server.answers = {
-    "GET /me": "me",
+    "GET /session": "session",
     "GET /projects": "projects",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",

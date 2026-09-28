@@ -24,8 +24,12 @@ type Readable<P> = P extends `${infer F}.read` ? F : never;
  */
 export type FunctionPermission = Readable<PermissionCode>;
 
-/** Where a function lives: outside any project, or in the revision of one. */
-export type Scope = "platform" | "project";
+/**
+ * Where a function lives: outside any project; in a project, for the functions of the
+ * project itself — its revisions, its settings, its lifecycle —, which a project without a
+ * revision has; in a revision of a project, for the functions that read one.
+ */
+export type Scope = "platform" | "project" | "revision";
 
 /** A function of the second level of the FBS, as the navigation offers it. */
 export interface NavigationFunction {
@@ -33,7 +37,7 @@ export interface NavigationFunction {
   readonly label: `functions.${keyof Catalogue["functions"]}`;
   /**
    * Its route; a function of a project names the segments of its context:
-   * `/projects/[projectId]/revisions/[revisionId]/planning`.
+   * `/projects/[projectId]/lifecycle`, `/projects/[projectId]/revisions/[revisionId]/planning`.
    */
   readonly route: string;
   readonly scope: Scope;
@@ -69,8 +73,10 @@ export function readableGroups(permissions: readonly PermissionCode[]): Function
 
 /**
  * The address of a function: its route outside a project; in a project, its route in the
- * context given — the same revision, sub-project and calculation date. `undefined` for a
- * function of a project without a revision to read in.
+ * context given — the same revision, sub-project and calculation date, the revision as the
+ * parameter `revision_id` on a function of the project itself, so that the next function of
+ * a revision finds it. `undefined` for a function of a project outside any project, and for
+ * a function of a revision without a revision to read in.
  */
 export function functionHref(
   fn: NavigationFunction,
@@ -79,19 +85,28 @@ export function functionHref(
   if (fn.scope === "platform") {
     return fn.route;
   }
-  if (context?.revisionId === undefined) {
+  if (context === undefined) {
     return undefined;
   }
-  const path = fn.route
-    .replace(CONTEXT_SEGMENTS.projectId, context.projectId)
-    .replace(CONTEXT_SEGMENTS.revisionId, context.revisionId);
-  return path + contextQuery(context);
+  // A function as replacement: an identifier is inserted as it is, `$&` included.
+  const inProject = fn.route.replace(CONTEXT_SEGMENTS.projectId, () => context.projectId);
+  if (fn.scope === "project") {
+    return inProject + contextQuery(context, true);
+  }
+  const { revisionId } = context;
+  if (revisionId === undefined) {
+    return undefined;
+  }
+  return (
+    inProject.replace(CONTEXT_SEGMENTS.revisionId, () => revisionId) + contextQuery(context, false)
+  );
 }
 
-/** A function an address leads to, and the project it reads in, if any. */
+/** A function an address leads to, and the project and the revision it reads in, if any. */
 export interface Screen {
   readonly fn: NavigationFunction;
   readonly projectId: string | undefined;
+  readonly revisionId: string | undefined;
 }
 
 /** Whether the segments of an address follow those of a route, context segments aside. */
@@ -113,8 +128,15 @@ export function findScreen(segments: readonly string[]): Screen | undefined {
     for (const fn of group.functions) {
       const route = fn.route.split("/").slice(1);
       if (follows(route, segments)) {
-        const at = route.indexOf(CONTEXT_SEGMENTS.projectId);
-        return { fn, projectId: at === -1 ? undefined : segments[at] };
+        const segment = (name: string) => {
+          const at = route.indexOf(name);
+          return at === -1 ? undefined : segments[at];
+        };
+        return {
+          fn,
+          projectId: segment(CONTEXT_SEGMENTS.projectId),
+          revisionId: segment(CONTEXT_SEGMENTS.revisionId),
+        };
       }
     }
   }

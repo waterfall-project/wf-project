@@ -15,9 +15,9 @@ import type { ReactNode } from "react";
 
 import { Shell } from "@/components/shell/shell";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { requestLanguage } from "@/i18n/request";
+import { languageOf, requestLanguage } from "@/i18n/request";
 import { LAST_CONTEXT_COOKIE, rememberedAddress } from "@/navigation/context";
-import { requestAccount, requestPermissions } from "@/session/request";
+import { requestSession } from "@/session/request";
 import { forcedTheme, themePreference } from "@/theme/theme";
 
 /** Title the document, in the language of the request; a page names its screen. */
@@ -29,13 +29,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** Render the document around a page. */
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const [{ locale, preference }, account, permissions, jar] = await Promise.all([
-    requestLanguage(),
-    requestAccount(),
-    requestPermissions(),
-    cookies(),
-  ]);
-  const theme = themePreference(account);
+  // One read of the session, whose account decides the language and the mode, and whose
+  // permissions the navigation offers.
+  const [session, jar] = await Promise.all([requestSession(), cookies()]);
+  const { locale, preference } = await languageOf(session?.user);
+  const theme = themePreference(session?.user);
   return (
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>
       <body>
@@ -43,7 +41,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           locale={locale}
           preference={preference}
           theme={theme}
-          permissions={permissions}
+          permissions={session?.permissions}
           remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
         >
           {children}
