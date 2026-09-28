@@ -13,7 +13,7 @@ const server = vi.hoisted(() => ({
   acceptLanguage: "",
   cookie: undefined as string | undefined,
   // What the cache of React holds for the request; a test is one request.
-  cached: new Map<unknown, unknown>(),
+  cached: new Map<unknown, Map<string, unknown>>(),
 }));
 
 // The cache of React, as a server component sees it: a function it wraps runs once per
@@ -24,10 +24,13 @@ vi.mock("react", async (original) => {
   const cache =
     <A extends unknown[], R>(fn: (...args: A) => R) =>
     (...args: A): R => {
-      if (!server.cached.has(fn)) {
-        server.cached.set(fn, fn(...args));
+      const calls = server.cached.get(fn) ?? new Map<string, unknown>();
+      server.cached.set(fn, calls);
+      const key = JSON.stringify(args);
+      if (!calls.has(key)) {
+        calls.set(key, fn(...args));
       }
-      return server.cached.get(fn) as R;
+      return calls.get(key) as R;
     };
   return { ...react, cache };
 });

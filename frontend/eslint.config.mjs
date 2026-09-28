@@ -198,7 +198,7 @@ const STYLE_PROPERTIES =
   "columnRule\\w*|--[\\w-]*";
 const SVG_PAINT =
   "JSXAttribute[name.name=/^(fill|stroke|color|stopColor|floodColor|lightingColor)$/]";
-const PAINTLESS = "/^(currentColor|none|url\\(.*\\))$/";
+const PAINTLESS = "/^(currentcolor|none|url\\(.*\\))$/i";
 const COLOUR_SYNTAX = [
   ...COLOUR_PATTERNS.flatMap((pattern) => [
     `Literal[value=${inSelector(pattern)}i]`,
@@ -206,7 +206,7 @@ const COLOUR_SYNTAX = [
   ]),
   `JSXAttribute[name.name='style'] Property[key.name=/^(${STYLE_PROPERTIES})$/]`,
   `JSXAttribute[name.name='style'] Property[key.value=/^(${STYLE_PROPERTIES})$/]`,
-  `${SVG_PAINT} Literal:not([value=${PAINTLESS}])`,
+  `${SVG_PAINT} Literal[value=type(string)]:not([value=${PAINTLESS}])`,
   `${SVG_PAINT} TemplateLiteral[expressions.length=0]:not([quasis.0.value.raw=${PAINTLESS}])`,
 ]
   .map((selector) => ({ selector, message: COLOUR }))
