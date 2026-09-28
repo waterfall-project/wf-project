@@ -24,12 +24,16 @@ dernière section.
 
 ### L'API ne s'appelle que par le client engendré
 
-Un appel à l'API passe par le client de `frontend/src/api/`, typé par le contrat ; aucun
-`fetch` ailleurs, aucune fonction écrite à la main qui en double une opération. Une
-opération qui manque est une modification du contrat, suivie de `make generate-client`.
+Un appel à l'API passe par le client de `frontend/src/api/`, typé par le contrat, et depuis
+le serveur Next seulement ; aucun appel réseau ailleurs, aucune fonction écrite à la main qui
+en double une opération. Une opération qui manque est une modification du contrat, suivie de
+`make generate-client`.
 
 *Pourquoi* : un client écrit à la main dérive du contrat (WF-ARC-0020, WF-ARC-0060).
-*Contrôle* : ESLint refuse `fetch` hors de `src/api/` ; `make client-up-to-date`.
+*Contrôle* : ESLint refuse hors de `src/api/` `fetch`, `XMLHttpRequest`, `WebSocket`,
+`EventSource` et l'import d'un client http, éprouvé par `src/api/network-guard.test.ts` ;
+`server-only` fait échouer la construction d'un composant client qui importerait le client ;
+`make client-up-to-date`.
 
 ### Le front affiche, il ne calcule pas
 
@@ -80,6 +84,9 @@ reste, la revue.
   `it("… [WF-IHM-0010-A]", …)`.
 - Il reçoit les données du contrat — `frontend/src/test/fixtures.ts` lit les exemples de
   `fixtures/api/` —, jamais un objet inventé qui n'a pas la forme d'une réponse.
+  `fakeClient` est le client engendré sur un transport qui répond, par opération
+  (`"GET /projects/{project_id}"`), un exemple nommé, une séquence d'exemples ou une
+  enveloppe `Problem`, et qui enregistre les appels, corps compris, dans `calls`.
 - Un test unitaire rend le composant et vérifie ce qu'il produit ; un parcours de bout en
   bout trouve les éléments par `getByRole` ou `getByLabel` de Playwright, jamais par une
   classe CSS.

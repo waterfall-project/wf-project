@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { API_PREFIX, createApiClient } from "./client";
 
 /** A fetch that records the requests it receives, and answers an empty object. */
-function recorder(): { fetch: typeof globalThis.fetch; urls: string[] } {
+function recorder(): { fetch: (request: Request) => Promise<Response>; urls: string[] } {
   const urls: string[] = [];
-  const record = (input: RequestInfo | URL): Promise<Response> => {
-    urls.push(input instanceof Request ? input.url : input.toString());
+  const record = (request: Request): Promise<Response> => {
+    urls.push(request.url);
     return Promise.resolve(Response.json({}));
   };
   return { fetch: record, urls };
@@ -32,5 +32,18 @@ describe("createApiClient", () => {
   it("uses the platform's fetch when none is given", () => {
     const client = createApiClient({ address: "http://localhost:4010" });
     expect(typeof client.GET).toBe("function");
+  });
+});
+
+describe("the module of the client", () => {
+  afterEach(() => {
+    vi.doMock("server-only", () => ({}));
+    vi.resetModules();
+  });
+
+  it("refuses to load outside the server of Next", async () => {
+    vi.doUnmock("server-only");
+    vi.resetModules();
+    await expect(import("./client")).rejects.toThrow("Client Component");
   });
 });

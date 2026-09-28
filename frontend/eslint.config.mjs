@@ -14,6 +14,46 @@ import jsdoc from "eslint-plugin-jsdoc";
 import { defineConfig, globalIgnores } from "eslint/config";
 import tseslint from "typescript-eslint";
 
+// The API is called through the generated client only (WF-ARC-0020): outside src/api/,
+// nothing reaches the network. The same message for every way of trying.
+const NETWORK = "Call the API through the generated client, in src/api/.";
+
+// The objects of the platform that send a request: fetch, and the older or streaming
+// transports a hand-written call could fall back on — XMLHttpRequest, WebSocket,
+// EventSource. Refused as bare identifiers and as members (globalThis.X, window.X, an alias
+// of them, a destructured property), since a global is also a property of the global object.
+const NETWORK_GLOBALS = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"];
+
+// Members only: navigator.sendBeacon posts a request, and has no global of its own.
+const NETWORK_MEMBERS = [...NETWORK_GLOBALS, "sendBeacon"];
+
+// The modules that send requests: the http clients of npm, the WebSocket and EventSource
+// clients of Node, the http modules of Node with and without their node: prefix, and
+// openapi-fetch itself, which only src/api/client.ts wraps with the types of the contract.
+// A subpath of a module (axios/unsafe/…) is refused with it.
+const NETWORK_MODULES = [
+  "axios",
+  "ky",
+  "got",
+  "node-fetch",
+  "undici",
+  "superagent",
+  "cross-fetch",
+  "isomorphic-fetch",
+  "ofetch",
+  "wretch",
+  "ws",
+  "eventsource",
+  "openapi-fetch",
+  "http",
+  "https",
+  "http2",
+  "node:http",
+  "node:https",
+  "node:http2",
+];
+const NETWORK_MODULE = `^(${NETWORK_MODULES.join("|")})(/.*)?$`;
+
 export default defineConfig([
   globalIgnores([
     ".next/**",
@@ -38,17 +78,31 @@ export default defineConfig([
       complexity: ["error", 14],
       // 1,000 lines at most, blank lines and comments included (US-0050).
       "max-lines": ["error", { max: 1000, skipBlankLines: false, skipComments: false }],
-      // The API is called through the generated client only (WF-ARC-0020): the bare
-      // identifier, and any member access named fetch — globalThis.fetch, window.fetch,
-      // or an alias of them. A third-party API whose own .fetch never touches the network
-      // would be excepted here, with its reason, never silenced in the code.
+      // The network guard (WF-ARC-0020, US-0270): see NETWORK_GLOBALS and the lists
+      // after it. A member is refused whatever its object, so a third-party API whose own
+      // .fetch never touches the network would be excepted here, with its reason, never
+      // silenced in the code.
       "no-restricted-globals": [
         "error",
-        { name: "fetch", message: "Call the API through the generated client, in src/api/." },
+        ...NETWORK_GLOBALS.map((name) => ({ name, message: NETWORK })),
       ],
       "no-restricted-properties": [
         "error",
-        { property: "fetch", message: "Call the API through the generated client, in src/api/." },
+        ...NETWORK_MEMBERS.map((property) => ({ property, message: NETWORK })),
+      ],
+      "no-restricted-imports": [
+        "error",
+        { patterns: [{ regex: NETWORK_MODULE, message: NETWORK }] },
+      ],
+      // no-restricted-imports reads static imports and re-exports only: a dynamic import()
+      // of the same modules is refused here. require() is refused everywhere by
+      // @typescript-eslint/no-require-imports, of the strict configuration.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: `ImportExpression[source.value=/${NETWORK_MODULE.replaceAll("/", "\\/")}/]`,
+          message: NETWORK,
+        },
       ],
       // A docstring for what is exported; its types are TypeScript's, never repeated.
       "jsdoc/require-jsdoc": [
@@ -66,9 +120,16 @@ export default defineConfig([
     },
   },
   {
-    // The generated client is where the network is called.
+    // The generated client is where the network is called. no-restricted-syntax holds
+    // nothing but the network guard so far: a selector added to it for another reason must
+    // be repeated here.
     files: ["src/api/**"],
-    rules: { "no-restricted-globals": "off", "no-restricted-properties": "off" },
+    rules: {
+      "no-restricted-globals": "off",
+      "no-restricted-properties": "off",
+      "no-restricted-imports": "off",
+      "no-restricted-syntax": "off",
+    },
   },
   {
     // Tests are named for what they check; a docstring would repeat the name.

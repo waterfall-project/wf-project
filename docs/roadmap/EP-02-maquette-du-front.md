@@ -909,7 +909,7 @@ temps du contrat se tient à l'écran.
 
 ## US-0270 — Le front n'appelle l'API que par le client engendré
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0020-A`
 - **opérations** : aucune
 - **issue** : #91

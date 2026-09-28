@@ -51,7 +51,9 @@ Le front est une application Next.js en TypeScript strict (`frontend/tsconfig.js
 à la version que nomme `packageManager` dans `package.json`, lancée par corepack
 (`corepack enable pnpm`) ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
 avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `*.test.tsx`
-à côté du code qu'ils éprouvent, lancés par Vitest.
+à côté du code qu'ils éprouvent, lancés par Vitest en deux projets (`vitest.config.ts`) :
+`node` pour les `*.test.ts`, `jsdom` pour les `*.test.tsx`, les composants, que Testing
+Library rend.
 
 L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
 empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
@@ -61,12 +63,15 @@ Le client de l'API est engendré du contrat (PBS-1.2, WF-ARC-0060) : `make gener
 `frontend/src/api/client.ts` en fait des appels typés par openapi-fetch. Une opération qui
 manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
 fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors de
-`frontend/src/api/`.
+`frontend/src/api/`, et seul le serveur Next appelle l'API : `client.ts` et `server.ts`
+importent `server-only`, et un composant client qui les importerait ne se construit pas.
 
 *Contrôles* : `make client-up-to-date` échoue si le client versionné n'est pas celui que le
 contrat produit ; une modification du contrat réveille donc la famille front. ESLint refuse
-`fetch` hors de `src/api/`. `make typecheck-front`, `make test-front` ; `make lint-docker`
-(hadolint).
+hors de `src/api/` tout moyen d'atteindre le réseau — `fetch`, `XMLHttpRequest`,
+`WebSocket`, `EventSource`, un client http importé —, et `src/api/network-guard.test.ts`
+l'éprouve sur des extraits piégés. `make typecheck-front`, `make test-front` ;
+`make lint-docker` (hadolint).
 
 ## Le faux back
 
@@ -275,7 +280,8 @@ les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se d�
   par fichier (`max-lines`) ;
 - une docstring JSDoc pour ce qui est exporté, sans type — TypeScript les porte
   (`jsdoc/no-types`) — et sans section par paramètre, qui répéterait la signature ;
-- aucun `fetch` hors de `src/api/` : l'API ne s'appelle que par le client engendré
+- aucun appel réseau hors de `src/api/` — `fetch`, `XMLHttpRequest`, `WebSocket`,
+  `EventSource`, ni un client http importé : l'API ne s'appelle que par le client engendré
   (WF-ARC-0020) ;
 - Prettier pour le format (`frontend/.prettierrc.json`) ; ESLint s'exécute avec
   `--max-warnings 0`.
