@@ -1,9 +1,9 @@
 ---
 id: EP-02
 titre: Tous les écrans, navigables, alimentés par le faux back, avant toute règle métier
-statut: prêt
+statut: en cours
 depend_de: EP-01
-issue:
+issue: 72
 ---
 
 # EP-02 — Maquette du front sur contrat simulé
@@ -379,7 +379,7 @@ fond d'un utilisateur, la révision ouverte par défaut.
 - **exigences** : `WF-IHM-0010-A`
 - **opérations** : `getCurrentSession`, `getMe`, `listProjects`, `getProject`,
   `getSystemStatus`, `getReferenceReadiness`
-- **issue** :
+- **issue** : #73
 
 **En tant que** chef de projet, **je veux** que le projet que j'ai ouvert le reste d'un écran
 à l'autre, et que les fonctions hors projet restent atteignables sans en ouvrir un,
@@ -423,7 +423,7 @@ chaque écran s'invente le sien.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0020-A`
 - **opérations** : `getRevision`, `listRevisions`
-- **issue** :
+- **issue** : #74
 
 **En tant que** chef de projet, **je veux** lire sur chaque écran dans quelle révision je
 suis, si elle est marquée, si elle est la référence, et ce qu'un filtre actif restreint,
@@ -444,7 +444,7 @@ suis, si elle est marquée, si elle est la référence, et ce qu'un filtre actif
 - **statut** : à faire
 - **exigences** : `WF-IHM-0060-A`, `WF-ADM-0040-A`
 - **opérations** : `listNodes`, `getMe`, `updateMyPreferences`
-- **issue** :
+- **issue** : #75
 
 **En tant que** chef de projet, **je veux** une grille qui se trie, se filtre, dont je choisis
 les colonnes et leur largeur, et qui garde mes en-têtes et mes totaux sous les yeux quand je
@@ -487,7 +487,7 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 - **exigences** : `WF-IHM-0040-A`
 - **opérations** : `updateEstimateLine`, `updateTaskFacet`, `listCostCategories`,
   `listResourceRoles`
-- **issue** :
+- **issue** : #76
 
 **En tant que** chef de projet, **je veux** saisir une ligne entière sans toucher la souris,
 **afin de** chiffrer plusieurs centaines de lignes à la vitesse à laquelle je les lis.
@@ -510,7 +510,7 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 - **statut** : à faire
 - **exigences** : `WF-IHM-0050-A`
 - **opérations** : `previewPaste`, `applyPaste`
-- **issue** :
+- **issue** : #77
 
 **En tant que** chef de projet, **je veux** coller un bloc de cellules venu d'un tableur et
 voir ce qui sera écrit et ce qui sera refusé avant que quoi que ce soit ne change, **afin de**
@@ -534,7 +534,7 @@ serveur produit. C'est la même forme que l'import en deux temps de WF-ARC-0100.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : aucune en propre — `undoLastChange` et `redoLastUndo` attendent EP-06
-- **issue** :
+- **issue** : #78
 
 **En tant que** chef de projet, **je veux** annuler mes saisies une par une et rétablir ce que
 je viens d'annuler, **afin de** corriger une fausse manœuvre sans reconstruire à la main ce
@@ -566,7 +566,7 @@ WF-ARC-0070 impose. EP-06 branchera ces commandes ; les poser au bon endroit dè
 - **statut** : à faire
 - **exigences** : `WF-IHM-0030-A`
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #79
 
 **En tant que** chef de projet, **je veux** distinguer d'un coup d'œil ce que Waterfall
 calcule de ce que j'ai saisi, **afin de** ne pas chercher à corriger un nombre dont la cause
@@ -592,7 +592,7 @@ cadrage) : le front la lit, ligne par ligne, au lieu de recopier une règle.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0070-A`
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #80
 
 **En tant que** manager, **je veux** que le même état porte le même signalement partout, et
 qu'aucun ne repose sur la seule couleur, **afin de** lire un tableau de bord imprimé en noir
@@ -615,7 +615,7 @@ des rôles et les signaux de santé du pilotage l'emploient tous.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0090-A`
 - **opérations** : `getProject`, `getRevision`, `getCurrentSession`, `listPermissions`
-- **issue** :
+- **issue** : #81
 
 **En tant que** chef de projet, **je veux** qu'une commande momentanément impossible me dise
 ce qui manque, et qu'une commande que je n'ai pas le droit d'exercer ne me soit pas proposée,
@@ -643,7 +643,7 @@ pas une protection.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0080-A`
 - **opérations** : `getBackgroundTask`, `getBackgroundTaskResult`, `markRevision`
-- **issue** :
+- **issue** : #82
 
 **En tant que** chef de projet, **je veux** qu'une action longue me rende la main et me
 signale son aboutissement même si j'ai changé d'écran, **afin de** continuer à travailler
@@ -669,7 +669,7 @@ longue.
 - **statut** : à faire
 - **exigences** : `WF-INTF-0160-A`, `WF-INTF-0170-A`, `WF-INTF-0180-A`, `WF-ADM-0040-A`, `WF-QUA-0070-A`, `WF-DAT-0100-A`
 - **opérations** : `getMe`, `updateMyPreferences`
-- **issue** :
+- **issue** : #83
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** l'interface dans ma
 langue, choisie par mon navigateur puis par moi, sans que cela change une donnée ni un
@@ -737,7 +737,7 @@ de l'installation — et le contrat n'a plus qu'un seul champ de langue.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #84
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** atteindre toute action
 au clavier, lire les textes sans effort et agrandir l'affichage sans rien perdre, **afin
@@ -769,7 +769,7 @@ fait qu'une fois. Aucune conformité complète à un référentiel n'est visée 
 - **opérations** : `listProjects`, `getProject`, `listProjectStateTransitions`,
   `exitProject`, `listSubprojects`, `listContributors`, `listRevisions`, `getRevision`,
   `compareRevisions`, `listCostStructures`, `getRateUpdateProposal`
-- **issue** :
+- **issue** : #85
 
 **En tant que** chef de projet, **je veux** les écrans de la liste des projets, du projet, de
 ses sous-projets, de ses contributeurs, de ses révisions, de leurs structures de coûts et de
@@ -795,7 +795,7 @@ qu'ils ont à montrer.
 - **opérations** : `getWorkBreakdown`, `listNodes`, `createNode`, `updateTaskFacet`,
   `setPredecessors`, `listTimelines`, `listCostStructures`, `updateEstimateLine`,
   `getEstimateIndicators`, `getMissingRates`
-- **issue** :
+- **issue** : #86
 
 **En tant que** chef de projet, **je veux** la grille de planning, le diagramme de Gantt en
 lecture seule, l'arborescence de tâches et la grille de devis, **afin d'**éprouver sur le
@@ -817,7 +817,7 @@ les objectifs de temps de réponse.
 - **opérations** : `listRisks`, `getRisk`, `listRiskReviews`, `getProjectRiskMatrix`,
   `getRemainingIndicators`, `setLineRemaining`, `listStartableTasks`, `listActualCosts`,
   `listCostImports`
-- **issue** :
+- **issue** : #87
 
 **En tant que** chef de projet, **je veux** les écrans des risques et de leur matrice, du
 reste à engager, de l'avancement et des coûts réels, **afin de** vérifier que la maquette
@@ -841,7 +841,7 @@ porte le cycle d'une revue mensuelle de bout en bout.
   `getPortfolioValue`, `getPortfolioPerformance`, `getPortfolioWorkload`,
   `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCashOut`,
   `getPortfolioPilotHealth`
-- **issue** :
+- **issue** : #88
 
 **En tant que** manager, **je veux** les courbes et les tableaux d'indicateurs du projet et du
 portefeuille, **afin de** voir si les endpoints d'agrégation renvoient ce qu'une vue demande,
@@ -864,7 +864,7 @@ sans que le front ait à sommer quoi que ce soit.
   `listResourceRoles`, `listCalendars`, `listCostTypes`, `listCostCategories`,
   `listHourlyRates`, `setHourlyRate`, `listUsers`, `listAccessRoles`, `listPermissions`,
   `getSystemStatus`, `listBackups`, `getBackupSchedule`
-- **issue** :
+- **issue** : #89
 
 **En tant qu'**administrateur, **je veux** les écrans du référentiel, des comptes, des rôles
 d'habilitation, de l'état du système et de la sauvegarde, **afin de** vérifier qu'ils
@@ -887,7 +887,7 @@ s'atteignent sans projet ouvert et que la matrice des permissions se lit.
 - **exigences** : aucune en propre — EP-09 et EP-12
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
   `listImports`, `requestExport`
-- **issue** :
+- **issue** : #90
 
 **En tant que** chef de projet, **je veux** l'écran qui dépose un fichier, présente le compte
 rendu d'analyse, et applique ou abandonne l'import, **afin de** vérifier que la forme en deux
@@ -906,7 +906,7 @@ temps du contrat se tient à l'écran.
 - **statut** : à faire
 - **exigences** : `WF-ARC-0020-A`
 - **opérations** : aucune
-- **issue** :
+- **issue** : #91
 
 **En tant que** développeur, **je veux** que la chaîne rejette tout appel au serveur écrit à
 la main dans le front, **afin que** la règle « le contrat est le seul contrat » ne dépende pas
@@ -934,7 +934,7 @@ note un écran qui aurait été tenté de le faire.
 - **statut** : à faire
 - **exigences** : `WF-CMP-0010-A`
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #92
 
 **En tant que** chef de projet, **je veux** que les grilles, le Gantt et les courbes
 fonctionnent sur le navigateur de mon poste, et consulter les indicateurs depuis mon
@@ -967,7 +967,7 @@ et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs.
 - **opérations** : `listAuthProviders`, `openSession`, `closeSession`, `startOidcSession`,
   `requestPasswordReset`, `confirmPasswordReset`, `getMe`, `updateMyPreferences`,
   `changeMyPassword`, `putMyAvatar`, `deleteMyAvatar`
-- **issue** :
+- **issue** : #93
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** l'écran de connexion —
 compte local, annuaire, fournisseur d'identité — et celui de mon compte : mes préférences,
