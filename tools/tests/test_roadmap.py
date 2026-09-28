@@ -212,3 +212,12 @@ def test_the_agents_of_the_repository_cite_existing_commands() -> None:
     assert "docs/dev/python.md" in texts
     assert "docs/dev/python-fastapi-expert.md" not in texts  # untracked: never read
     assert roadmap.missing_commands(texts, defined) == []
+
+
+def test_a_wrapped_requirements_field_is_read_whole() -> None:
+    text = EPIC.format(status="en cours", scope="entière", cited="x").replace(
+        "- **exigences** : x",
+        "- **exigences** : `WF-QUA-0010-A`,\n  `WF-QUA-0020-A`\n- **autre** : champ suivant",
+    )
+    (story,) = roadmap.parse_epic("EP-09", text).stories
+    assert story.requirements == ("WF-QUA-0010-A", "WF-QUA-0020-A")
