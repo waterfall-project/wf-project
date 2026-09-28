@@ -6,16 +6,17 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**150 opérations sur 116 chemins, dans 12 familles.**
+**151 opérations sur 117 chemins, dans 12 familles.**
 Le contrat cite **178 des 203 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
-`paths/system.yaml` — 6 opérations
+`paths/system.yaml` — 7 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/health` | Sonde de vivacité | — |
+| GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-INTF-0160 |
 | GET | `/health/ready` | Sonde de préparation | WF-EXP-0040 |
 | GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010 |
 | GET | `/system/status` | Écran d'état du système | WF-ADM-0130 |
@@ -163,7 +164,7 @@ Le contrat cite **178 des 203 exigences** de la spécification.
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-RIS-0010 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors` | Remplacer les prédécesseurs d'une tâche | WF-PLA-0030, WF-PLA-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Démarrer ou terminer une tâche | WF-IND-0030, WF-PLA-0040, WF-RAE-0030 |
-| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Réestimer une ligne | WF-RAE-0010, WF-RAE-0040 |
+| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Réestimer une ligne | WF-RAE-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking` | Inscrire ou retirer une tâche des suivis | WF-PLA-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-PLA-0040 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview` | Aperçu d'un collage depuis un tableur | WF-IHM-0050 |

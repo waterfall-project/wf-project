@@ -17,6 +17,25 @@
                 status: { type: string, enum: [ok] }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
+/installation:
+  get:
+    operationId: getInstallation
+    tags: [system]
+    security: []
+    summary: Ce que le front doit savoir de l'installation avant toute session
+    description: >-
+      La langue par défaut de l'installation, sur laquelle le front se replie quand le
+      compte suit le navigateur et que celui-ci ne demande aucune langue offerte
+      (WF-INTF-0160) — y compris sur les pages sans session : connexion, mot de passe
+      oublié.
+    responses:
+      '200':
+        description: Paramètres publics de l'installation.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/Installation }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
 /health/ready:
   get:
     operationId: getReadiness

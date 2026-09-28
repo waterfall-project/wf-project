@@ -5,7 +5,8 @@
     summary: Registre des risques
     description: >-
       Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la
-      case de matrice et les totaux de provisions (WF-RIS-0040).
+      case de matrice et les totaux de provisions (WF-RIS-0040). Le tri et les filtres
+      sont faits par le serveur, et les totaux sont ceux des risques retenus.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: states
@@ -14,6 +15,14 @@
           type: array
           items: { $ref: ../components/schemas/risks.yaml#/RiskState }
         explode: false
+      - $ref: ../components/parameters.yaml#/Search
+      - name: sort_by
+        in: query
+        description: Colonne du tri ; absente, l'ordre de déclaration.
+        schema:
+          type: string
+          enum: [label, probability, severity, provision_amount, state, last_review_on]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Risques et totaux.

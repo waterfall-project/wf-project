@@ -19,8 +19,16 @@
           "finish_date": "2026-04-24",
           "progress": "started",
           "is_summary": true,
-          "is_milestone": false
-        }
+          "is_milestone": false,
+          "budgeted_amount": "100000.00",
+          "reestimated_amount": "100000.00"
+        },
+        "computed_fields": [
+          "task.duration_days",
+          "task.start_date",
+          "task.finish_date",
+          "task.progress"
+        ]
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000502",
@@ -39,8 +47,14 @@
           "finish_date": "2026-04-10",
           "progress": "started",
           "is_summary": false,
-          "is_milestone": false
-        }
+          "is_milestone": false,
+          "budgeted_amount": "100000.00",
+          "reestimated_amount": "100000.00"
+        },
+        "computed_fields": [
+          "task.start_date",
+          "task.finish_date"
+        ]
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000503",
@@ -57,8 +71,14 @@
           "quantity": "600",
           "budgeted_amount": "100000.00",
           "reestimated_amount": "100000.00",
-          "is_computed": true
-        }
+          "is_computed": false,
+          "previous_reestimated_amount": null,
+          "remaining_entry": {
+            "is_available": true,
+            "missing_conditions": []
+          }
+        },
+        "computed_fields": []
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000504",
@@ -77,14 +97,22 @@
           "finish_date": "2026-04-24",
           "progress": "not_started",
           "is_summary": false,
-          "is_milestone": false
-        }
+          "is_milestone": false,
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00"
+        },
+        "computed_fields": [
+          "task.start_date",
+          "task.finish_date"
+        ]
       }
     ],
-    "meta": {
-      "limit": 50,
-      "offset": 0,
-      "total": 4
+    "totals": {
+      "task_count": 3,
+      "estimate_line_count": 1,
+      "hours": "0",
+      "budgeted_amount": "100000.00",
+      "reestimated_amount": "100000.00"
     }
   }
 }

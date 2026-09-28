@@ -23,8 +23,9 @@
     tags: [session]
     summary: Session courante
     description: >-
-      Le compte, ses permissions effectives — évaluées à chaque requête — et la langue
-      retenue (WF-SEC-0020, WF-ADM-0110, WF-INTF-0160).
+      Le compte, ses préférences — dont la langue choisie, que le front résout —, et ses
+      permissions effectives, évaluées à chaque requête (WF-SEC-0020, WF-ADM-0110,
+      WF-INTF-0160).
     responses:
       '200':
         description: Session valide.
@@ -115,9 +116,10 @@
     security: []
     summary: Demander un lien de réinitialisation
     description: >-
-      Envoie un lien valable une heure et à usage unique, dans la langue du compte si
-      elle est connue, sinon dans celle de la requête (WF-ADM-0140, WF-ARC-0110). La
-      réponse ne révèle pas si l'adresse existe.
+      Envoie un lien valable une heure et à usage unique, dans la langue que le compte a
+      choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte
+      que demande la requête, et à défaut dans la langue par défaut de l'installation
+      (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe.
     requestBody:
       required: true
       content:

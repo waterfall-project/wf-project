@@ -85,6 +85,8 @@ paths:
     $ref: ./paths/system.yaml#/~1metrics
   /system/status:
     $ref: ./paths/system.yaml#/~1system~1status
+  /installation:
+    $ref: ./paths/system.yaml#/~1installation
   /tasks/{task_id}:
     $ref: ./paths/system.yaml#/~1tasks~1{task_id}
   /tasks/{task_id}/result:

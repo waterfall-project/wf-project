@@ -84,6 +84,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/installation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ce que le front doit savoir de l'installation avant toute session
+         * @description La langue par défaut de l'installation, sur laquelle le front se replie quand le compte suit le navigateur et que celui-ci ne demande aucune langue offerte (WF-INTF-0160) — y compris sur les pages sans session : connexion, mot de passe oublié.
+         */
+        get: operations["getInstallation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tasks/{task_id}": {
         parameters: {
             query?: never;
@@ -153,7 +173,7 @@ export interface paths {
         };
         /**
          * Session courante
-         * @description Le compte, ses permissions effectives — évaluées à chaque requête — et la langue retenue (WF-SEC-0020, WF-ADM-0110, WF-INTF-0160).
+         * @description Le compte, ses préférences — dont la langue choisie, que le front résout —, et ses permissions effectives, évaluées à chaque requête (WF-SEC-0020, WF-ADM-0110, WF-INTF-0160).
          */
         get: operations["getCurrentSession"];
         put?: never;
@@ -223,7 +243,7 @@ export interface paths {
         put?: never;
         /**
          * Demander un lien de réinitialisation
-         * @description Envoie un lien valable une heure et à usage unique, dans la langue du compte si elle est connue, sinon dans celle de la requête (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe.
+         * @description Envoie un lien valable une heure et à usage unique, dans la langue que le compte a choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte que demande la requête, et à défaut dans la langue par défaut de l'installation (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe.
          */
         post: operations["requestPasswordReset"];
         delete?: never;
@@ -1101,7 +1121,7 @@ export interface paths {
         };
         /**
          * Projets
-         * @description La consultation ne dépend que des habilitations, jamais de la qualité de contributeur (WF-PRJ-0060, WF-PTF-0030).
+         * @description La consultation ne dépend que des habilitations, jamais de la qualité de contributeur (WF-PRJ-0060, WF-PTF-0030). Le filtre `is_contributor` restreint la liste aux projets dont l'appelant est contributeur : c'est l'accueil, un filtre que l'utilisateur voit et lève, jamais une restriction de lecture. Le tri est fait par le serveur.
          */
         get: operations["listProjects"];
         put?: never;
@@ -1546,6 +1566,7 @@ export interface paths {
         /**
          * Arbre commun de la structure
          * @description Les mêmes tâches, vues du côté du temps ou du côté de l'argent : une tâche porte ses lignes de devis (§3.5.1, WF-DEV-0020). `row_number` et `level` sont calculés à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et grille de devis (WF-DEV-0050).
+         *     La structure est rendue entière, sans pagination : une révision porte au plus dix mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien : le tri ordonne les nœuds frères entre eux sans défaire l'arbre. Un filtre sur une tâche — avancement, criticité, sous-arbre — retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus sont rendus pour que l'arbre reste lisible. Les totaux sont ceux des lignes retenues. `kinds` n'est pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent pas avec lui.
          */
         get: operations["listNodes"];
         put?: never;
@@ -1670,7 +1691,7 @@ export interface paths {
         get?: never;
         /**
          * Réestimer une ligne
-         * @description Réservé aux lignes portées par une tâche démarrée ; un reste à engager nul termine la tâche (WF-RAE-0010, WF-RAE-0040).
+         * @description Refusé sur une ligne d'une tâche terminée ; une tâche non démarrée se réestime aussi, et un reste à engager nul pour toutes les lignes d'une tâche la termine (WF-RAE-0040). La ligne dit elle-même si elle accepte la réestimation (`remaining_entry`).
          */
         put: operations["setLineRemaining"];
         post?: never;
@@ -2029,7 +2050,7 @@ export interface paths {
         };
         /**
          * Registre des risques
-         * @description Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la case de matrice et les totaux de provisions (WF-RIS-0040).
+         * @description Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la case de matrice et les totaux de provisions (WF-RIS-0040). Le tri et les filtres sont faits par le serveur, et les totaux sont ceux des risques retenus.
          */
         get: operations["listRisks"];
         put?: never;
@@ -2141,7 +2162,7 @@ export interface paths {
         };
         /**
          * Coûts réels du projet
-         * @description Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes conservées du fichier sont restituées (WF-CRE-0010).
+         * @description Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes conservées du fichier sont restituées (WF-CRE-0010). Le tri et les filtres sont faits par le serveur, et les totaux sont ceux de toutes les lignes retenues, pas de la seule page rendue.
          */
         get: operations["listActualCosts"];
         put?: never;
@@ -2464,20 +2485,24 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
+         * @enum {string}
+         */
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         FieldProblem: {
             /** @description Pointeur JSON vers le champ en défaut. */
             pointer: string;
-            code: string;
+            code: components["schemas"]["ErrorCode"];
             params?: {
                 [key: string]: unknown;
             };
         };
         /** @description Enveloppe unique des refus et des erreurs. Elle ne porte aucune phrase destinée à être lue : `code` et `params` suffisent au front pour rendre le texte dans la langue du lecteur (WF-ARC-0110). `params` nomme la condition manquante, ce que WF-ADM-0110 et WF-IHM-0090 exigent. */
         Problem: {
-            /** @description Code machine, stable, appartenant au catalogue des codes d'erreur. */
-            code: string;
+            code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code : `missing_permission`, `missing_condition`, `conflicting_object_id`, `expected_lock_version`, `component`, selon le cas. */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées d'une récapitulative, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040). */
             params?: {
                 [key: string]: unknown;
             };
@@ -2535,6 +2560,15 @@ export interface components {
             alerts: components["schemas"]["Alert"][];
         };
         /**
+         * @description Langue offerte par l'interface (WF-INTF-0160).
+         * @enum {string}
+         */
+        Language: "fr" | "en";
+        /** @description Paramètres de l'installation lisibles sans session. */
+        Installation: {
+            default_language: components["schemas"]["Language"];
+        };
+        /**
          * Format: uuid
          * @description Identifiant engendré par le serveur, ordonné dans le temps (WF-DAT-0060).
          */
@@ -2543,7 +2577,7 @@ export interface components {
         BackgroundTaskRef: {
             task_id: components["schemas"]["Uuid"];
             /** @enum {string} */
-            kind: "import_analysis" | "import_apply" | "revision_mark" | "export" | "backup" | "restore" | "directory_sync";
+            kind: "import_analysis" | "import_apply" | "revision_mark" | "structure_merge" | "risk_occurrence" | "export" | "backup" | "restore" | "directory_sync";
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
             progress?: number;
@@ -2600,11 +2634,15 @@ export interface components {
             org_node_id?: components["schemas"]["Uuid"] | null;
             /** @description Un ou plusieurs rôles ; l'utilisateur dispose de l'union de leurs permissions (WF-ADM-0090). */
             access_role_ids: components["schemas"]["Uuid"][];
-            language?: string;
             has_avatar?: boolean;
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /**
+         * @description Sens d'un tri demandé au serveur ; croissant par défaut.
+         * @enum {string}
+         */
+        SortOrder: "asc" | "desc";
         GridPreferences: {
             hidden_columns?: string[];
             column_widths?: {
@@ -2612,32 +2650,41 @@ export interface components {
             };
             sort?: {
                 column: string;
-                /** @enum {string} */
-                direction: "asc" | "desc";
-            }[];
+                order: components["schemas"]["SortOrder"];
+            } | null;
             filters?: {
                 [key: string]: unknown;
             };
         };
-        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). */
+        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme, chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut. */
         DisplayPreferences: {
-            language?: string;
+            /**
+             * @description Langue de l'interface. `default` — ou, à la lecture, l'absence du champ — suit le navigateur, puis la langue par défaut de l'installation ; `fr` ou `en` prime dès qu'elle est choisie (WF-INTF-0160). C'est le seul champ de langue du compte : le front résout la langue à chaque requête, l'API n'en localise aucune réponse (WF-ARC-0110).
+             * @enum {string}
+             */
+            language?: "default" | "fr" | "en";
+            /**
+             * @description Mode d'affichage. `default` — ou, à la lecture, l'absence du champ — suit le réglage du poste ; `light` ou `dark` prime dès qu'il est choisi. Une préférence de présentation (WF-ADM-0040).
+             * @enum {string}
+             */
+            theme?: "default" | "light" | "dark";
             highlight_tasks_added_after_reference?: boolean;
             grids?: {
-                [key: string]: components["schemas"]["GridPreferences"];
+                [key: string]: components["schemas"]["GridPreferences"] | null;
             };
         };
         UserSelf: components["schemas"]["User"] & {
             display_preferences?: components["schemas"]["DisplayPreferences"];
         };
-        /** @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, plus une permission propre par action irréversible ou structurante (WF-ADM-0100). */
-        PermissionCode: string;
+        /**
+         * @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, consulter et modifier, la permission d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou structurante (WF-ADM-0100). L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
+         * @enum {string}
+         */
+        PermissionCode: "users.read" | "users.write" | "access_roles.read" | "access_roles.write" | "system_status.read" | "system_status.write" | "backups.read" | "backups.write" | "portfolio_projects.read" | "portfolio_projects.write" | "portfolio_workload.read" | "portfolio_workload.write" | "portfolio_performance.read" | "portfolio_performance.write" | "portfolio_cost_structure.read" | "portfolio_cost_structure.write" | "portfolio_risks.read" | "portfolio_risks.write" | "portfolio_cash_out.read" | "portfolio_cash_out.write" | "portfolio_pilot_health.read" | "portfolio_pilot_health.write" | "cost_settings.read" | "cost_settings.write" | "resource_settings.read" | "resource_settings.write" | "risk_settings.read" | "risk_settings.write" | "indicator_settings.read" | "indicator_settings.write" | "revisions.read" | "revisions.write" | "project_settings.read" | "project_settings.write" | "planning.read" | "planning.write" | "estimate.read" | "estimate.write" | "remaining.read" | "remaining.write" | "risks.read" | "risks.write" | "actual_costs.read" | "actual_costs.write" | "project_indicators.read" | "project_indicators.write" | "lifecycle.read" | "lifecycle.write" | "revision_mark" | "reference_designate" | "project_exit" | "risk_occurrence" | "cost_line_exclude" | "platform_restore";
         /** @description Session conservée en base, révocable immédiatement (WF-SEC-0020). Les permissions effectives sont évaluées à chaque requête et renvoyées ici pour que le front sache quoi présenter (WF-ADM-0110, WF-IHM-0090). */
         Session: {
             user: components["schemas"]["UserSelf"];
             permissions: components["schemas"]["PermissionCode"][];
-            /** @description Langue retenue pour cette session (WF-INTF-0160). */
-            language: string;
             expires_at: components["schemas"]["Timestamp"];
             idle_expires_at?: components["schemas"]["Timestamp"];
         };
@@ -2646,7 +2693,7 @@ export interface components {
             email: string;
             password: string;
         };
-        /** @description Demande un lien de réinitialisation, valable une heure et à usage unique (WF-ADM-0140). Le courriel part dans la langue du compte si elle est connue, sinon dans celle de la requête (WF-ARC-0110). */
+        /** @description Demande un lien de réinitialisation, valable une heure et à usage unique (WF-ADM-0140). Le courriel part dans la langue que le compte a choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte que demande la requête, et à défaut dans la langue par défaut de l'installation (WF-ARC-0110). */
         PasswordResetRequest: {
             /** Format: email */
             email: string;
@@ -2783,14 +2830,14 @@ export interface components {
         ReferenceSettings: {
             /** @description Devise unique, choisie à l'installation et non modifiable (WF-REF-0140). */
             currency_code: string;
-            default_language: string;
+            default_language: components["schemas"]["Language"];
             risk_matrix: components["schemas"]["RiskMatrixSettings"];
             index_thresholds: components["schemas"]["IndexThresholds"];
             max_weeks_between_reviews: number;
             lock_version: components["schemas"]["LockVersion"];
         };
         ReferenceSettingsWrite: {
-            default_language?: string;
+            default_language?: components["schemas"]["Language"];
             risk_matrix?: components["schemas"]["RiskMatrixSettings"];
             index_thresholds?: components["schemas"]["IndexThresholds"];
             max_weeks_between_reviews?: number;
@@ -2942,6 +2989,22 @@ export interface components {
          * @description Date sans heure, en ISO 8601 (WF-DAT-0100).
          */
         PlanningDate: string;
+        /**
+         * @description Commandes portées par le projet : modifier ses paramètres, ses contributeurs, ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer et réexaminer les risques, déclarer un risque survenu (WF-RIS-0060) ; importer les coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030). Une commande que refuse l'état d'un objet particulier — un risque déjà survenu — l'est par son code d'erreur.
+         * @enum {string}
+         */
+        ProjectCommand: "update" | "manage_contributors" | "create_revision" | "complete" | "lose" | "abandon" | "edit_risks" | "declare_risk_occurrence" | "import_actual_costs" | "exclude_cost_lines";
+        /**
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110).
+         * @enum {string}
+         */
+        CommandCondition: "is_contributor" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set";
+        ProjectCommandAvailability: {
+            command: components["schemas"]["ProjectCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
         /** @description Attributs d'un projet (WF-PRJ-0080). */
         Project: {
             project_id: components["schemas"]["Uuid"];
@@ -2959,6 +3022,8 @@ export interface components {
             reference_revision_id?: components["schemas"]["Uuid"] | null;
             /** @description Révision en cours d'élaboration, s'il en existe une (WF-REV-0010). */
             current_revision_id?: components["schemas"]["Uuid"] | null;
+            /** @description Commandes du projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une commande absente de la liste n'est pas présentée. */
+            available_commands: components["schemas"]["ProjectCommandAvailability"][];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -2990,7 +3055,7 @@ export interface components {
             /** @description Code du fait déclencheur, rendu par le front (WF-ARC-0110). */
             trigger: string | null;
             /** @description Codes des conditions restantes, une par une (WF-CYC-0030, WF-CYC-0050). */
-            missing_conditions: ("reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "project_code_set")[];
+            missing_conditions: components["schemas"]["CommandCondition"][];
         };
         /** @description Sortie manuelle : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), et appliquée après confirmation explicite (WF-CYC-0090). */
         ProjectExit: {
@@ -3079,6 +3144,17 @@ export interface components {
             win_probability: components["schemas"]["Percent"];
             employed_reference: components["schemas"]["EmployedReference"];
         };
+        /**
+         * @description Commandes portées par la révision : saisir le planning, le devis, le reste à engager — une commande par fonction, chacune gardée par sa permission (WF-ADM-0100) —, ouvrir et fusionner un différentiel (WF-REV-0050, WF-REV-0100), la marquer, la désigner comme référence, l'abandonner (WF-REV-0010, WF-REV-0020, WF-REV-0040).
+         * @enum {string}
+         */
+        RevisionCommand: "edit_planning" | "edit_estimate" | "edit_remaining" | "create_structure" | "merge_structure" | "mark" | "designate_reference" | "abandon";
+        RevisionCommandAvailability: {
+            command: components["schemas"]["RevisionCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
         Revision: {
             revision_id: components["schemas"]["Uuid"];
             project_id: components["schemas"]["Uuid"];
@@ -3090,6 +3166,8 @@ export interface components {
             /** @description Caractère de révision de référence (WF-REV-0040, WF-REV-0090). */
             is_reference: boolean;
             snapshot?: components["schemas"]["RevisionSnapshot"] | null;
+            /** @description Commandes de la révision que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une grille dont la commande de saisie est absente ou indisponible se présente en lecture seule. */
+            available_commands: components["schemas"]["RevisionCommandAvailability"][];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -3180,15 +3258,15 @@ export interface components {
             version_name: string;
         };
         /**
-         * @description Mode de planification de la tâche : dates calculées depuis les liaisons, ou saisies (WF-PLA-0020).
-         * @enum {string}
-         */
-        SchedulingMode: "automatic" | "manual";
-        /**
          * @description État d'avancement d'une tâche (WF-PLA-0130, WF-RAE-0030).
          * @enum {string}
          */
         TaskProgress: "not_started" | "started" | "completed";
+        /**
+         * @description Mode de planification de la tâche : dates calculées depuis les liaisons, ou saisies (WF-PLA-0020).
+         * @enum {string}
+         */
+        SchedulingMode: "automatic" | "manual";
         TrackingEntry: {
             /** @enum {string} */
             kind: "timeline" | "milestone_tracking";
@@ -3217,8 +3295,17 @@ export interface components {
             is_critical?: boolean;
             /** @description Avancement physique d'une récapitulative, calculé (WF-IND-0060). */
             physical_progress?: components["schemas"]["Percent"] | null;
+            /** @description Somme des montants budgétés des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas. */
+            budgeted_amount: components["schemas"]["Money"];
+            /** @description Même somme, pour les montants réestimés. */
+            reestimated_amount: components["schemas"]["Money"];
             /** @description Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060). */
             tracking?: components["schemas"]["TrackingEntry"][];
+        };
+        /** @description Si une saisie est ouverte sur cet objet, et sinon les conditions qui lui manquent (WF-IHM-0090). */
+        EntryAvailability: {
+            is_available: boolean;
+            missing_conditions: components["schemas"]["CommandCondition"][];
         };
         /** @description Facette argent d'un nœud. Les deux montants sont calculés et non saisissables : le budgété est fixé par la révision de référence et nul pour une ligne ajoutée après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-DEV-0030). */
         EstimateLineFacet: {
@@ -3236,10 +3323,14 @@ export interface components {
             subproject_id?: components["schemas"]["Uuid"] | null;
             budgeted_amount: components["schemas"]["Money"];
             reestimated_amount: components["schemas"]["Money"];
+            /** @description Montant réestimé au reste à engager précédent, que la grille de reste à engager présente à côté du courant (WF-RAE-0040) ; nul avant la première revue. */
+            previous_reestimated_amount?: components["schemas"]["Money"] | null;
             /** @description Année de consommation, déduite du planning (WF-DEV-0040). */
             consumption_year?: components["schemas"]["Year"] | null;
             /** @description Vrai pour une ligne de provision, dont le montant est calculé depuis le risque et jamais saisi (WF-RIS-0010). */
             is_computed: boolean;
+            /** @description Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La grille le lit ligne par ligne, sans déduire la règle de l'avancement. */
+            remaining_entry: components["schemas"]["EntryAvailability"];
             /** @description Tâche porteuse, résolue à la lecture. */
             bearing_task_node_id?: components["schemas"]["Uuid"] | null;
             bearing_task_label?: string | null;
@@ -3254,6 +3345,8 @@ export interface components {
             link_type: components["schemas"]["LinkType"];
             lag_days: number;
         };
+        /** @enum {string} */
+        ComputedField: "task.duration_days" | "task.start_date" | "task.finish_date" | "task.progress" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement";
         /** @description `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et les inscriptions aux suivis (WF-DAT-0030). */
         Node: {
             node_id: components["schemas"]["Uuid"];
@@ -3266,7 +3359,17 @@ export interface components {
             task?: components["schemas"]["TaskFacet"] | null;
             estimate_line?: components["schemas"]["EstimateLineFacet"] | null;
             predecessors?: components["schemas"]["Predecessor"][];
+            /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision. Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
+            computed_fields: components["schemas"]["ComputedField"][];
             lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. */
+        NodeTotals: {
+            task_count: number;
+            estimate_line_count: number;
+            hours: components["schemas"]["Hours"];
+            budgeted_amount: components["schemas"]["Money"];
+            reestimated_amount: components["schemas"]["Money"];
         };
         /** @description Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées. */
         TaskFacetWrite: {
@@ -3308,7 +3411,7 @@ export interface components {
             occurred_on?: components["schemas"]["PlanningDate"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Réestime une ligne portée par une tâche démarrée ; un reste à engager nul termine la tâche (WF-RAE-0040, WF-RAE-0010). */
+        /** @description Réestime une ligne dont la tâche n'est pas terminée ; un reste à engager nul pour toutes les lignes d'une tâche la termine (WF-RAE-0040, WF-RAE-0010). */
         RemainingUpdate: {
             /** @description Les grandeurs saisies dont le montant réestimé est recalculé. */
             reestimated_amount_basis: {
@@ -3336,7 +3439,7 @@ export interface components {
             accepted: number;
             rejected: {
                 row: number;
-                code: string;
+                code: components["schemas"]["ErrorCode"];
                 params?: {
                     [key: string]: unknown;
                 };
@@ -3635,7 +3738,7 @@ export interface components {
         ExchangeKind: "ms_project_schedule" | "estimate" | "remaining" | "actual_costs";
         ImportRejection: {
             row: number;
-            code: string;
+            code: components["schemas"]["ErrorCode"];
             params?: {
                 [key: string]: unknown;
             };
@@ -3911,11 +4014,15 @@ export interface components {
         RateYear: components["schemas"]["Year"];
         /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
         PortfolioStates: components["schemas"]["ProjectState"][];
+        /** @description Sens du tri demandé par `sort_by`. */
+        SortOrder: components["schemas"]["SortOrder"];
         ProjectId: components["schemas"]["Uuid"];
         SubprojectId: components["schemas"]["Uuid"];
         TimelineId: components["schemas"]["Uuid"];
         RevisionId: components["schemas"]["Uuid"];
         StructureId: components["schemas"]["Uuid"];
+        /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
+        SubprojectFilter: "unassigned" | components["schemas"]["Uuid"];
         NodeId: components["schemas"]["Uuid"];
         /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
@@ -4026,6 +4133,27 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getInstallation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paramètres publics de l'installation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Installation"];
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getBackgroundTask: {
@@ -5739,6 +5867,12 @@ export interface operations {
                 search?: components["parameters"]["Search"];
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
+                /** @description Vrai, les seuls projets dont l'appelant est contributeur. */
+                is_contributor?: boolean;
+                /** @description Colonne du tri ; absente, les projets modifiés le plus récemment d'abord. */
+                sort_by?: "label" | "code" | "state" | "updated_at";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -6624,8 +6758,22 @@ export interface operations {
             query?: {
                 /** @description Restreint aux tâches ou aux lignes, selon la grille affichée. */
                 kinds?: components["schemas"]["NodeKind"][];
-                limit?: components["parameters"]["Limit"];
-                offset?: components["parameters"]["Offset"];
+                /** @description Recherche sur le libellé. */
+                search?: components["parameters"]["Search"];
+                /** @description Restreint au sous-arbre d'une tâche récapitulative, elle comprise (WF-PLA-0080, WF-DEV-0050). */
+                subtree_of?: components["schemas"]["Uuid"];
+                /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
+                subproject_id?: components["parameters"]["SubprojectFilter"];
+                /** @description Restreint aux lignes d'une nature de coût (WF-DEV-0050). */
+                cost_type_id?: components["schemas"]["Uuid"];
+                cost_category_id?: components["schemas"]["Uuid"];
+                resource_role_id?: components["schemas"]["Uuid"];
+                progress?: components["schemas"]["TaskProgress"][];
+                is_critical?: boolean;
+                /** @description Colonne du tri ; absente, l'ordre du plan. Chaque colonne d'une grille se trie dans les deux sens (WF-IHM-0060) : une colonne de grille qui manquerait ici est un constat sur le contrat. */
+                sort_by?: "label" | "description" | "scheduling_mode" | "duration_days" | "start_date" | "finish_date" | "progress" | "physical_progress" | "total_float_days" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "previous_reestimated_amount";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path: {
@@ -6637,7 +6785,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœuds, en parcours profondeur d'abord. */
+            /** @description Nœuds, en parcours profondeur d'abord, et leurs totaux. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6645,7 +6793,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: components["schemas"]["Node"][];
-                        meta: components["schemas"]["PaginationMeta"];
+                        totals: components["schemas"]["NodeTotals"];
                     };
                 };
             };
@@ -7396,6 +7544,12 @@ export interface operations {
         parameters: {
             query?: {
                 states?: components["schemas"]["RiskState"][];
+                /** @description Recherche sur le libellé. */
+                search?: components["parameters"]["Search"];
+                /** @description Colonne du tri ; absente, l'ordre de déclaration. */
+                sort_by?: "label" | "probability" | "severity" | "provision_amount" | "state" | "last_review_on";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path: {
@@ -7626,11 +7780,15 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description `unassigned` pour les lignes imputées au seul projet (WF-CRE-0020). */
-                subproject_id?: "unassigned" | components["schemas"]["Uuid"];
+                /** @description `unassigned` pour ce qui ne relève d'aucun sous-projet (WF-IND-0020, WF-CRE-0020). */
+                subproject_id?: components["parameters"]["SubprojectFilter"];
                 from?: components["schemas"]["PlanningDate"];
                 to?: components["schemas"]["PlanningDate"];
                 in_tracked_scope?: boolean;
+                /** @description Colonne du tri ; absente, les pièces les plus récentes d'abord. */
+                sort_by?: "document_date" | "document_number" | "amount" | "subproject";
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path: {

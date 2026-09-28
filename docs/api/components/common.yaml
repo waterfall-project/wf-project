@@ -41,6 +41,11 @@ Timestamp:
   format: date-time
   description: Horodatage en temps universel (WF-DAT-0100).
 
+Language:
+  type: string
+  enum: [fr, en]
+  description: Langue offerte par l'interface (WF-INTF-0160).
+
 Year:
   type: integer
   minimum: 2000
@@ -85,10 +90,7 @@ Problem:
     texte dans la langue du lecteur (WF-ARC-0110). `params` nomme la condition
     manquante, ce que WF-ADM-0110 et WF-IHM-0090 exigent.
   properties:
-    code:
-      type: string
-      pattern: '^[A-Z][A-Z0-9_]*$'
-      description: Code machine, stable, appartenant au catalogue des codes d'erreur.
+    code: { $ref: '#/ErrorCode' }
     status:
       type: integer
       minimum: 400
@@ -97,8 +99,11 @@ Problem:
       type: object
       additionalProperties: true
       description: >-
-        Paramètres du code : `missing_permission`, `missing_condition`,
-        `conflicting_object_id`, `expected_lock_version`, `component`, selon le cas.
+        Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`),
+        `missing_condition` (une `CommandCondition`), `conflicting_object_id`,
+        `expected_lock_version`, `subordinate_node_ids` (les subordonnées d'une
+        récapitulative, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120),
+        `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040).
     fields:
       type: array
       description: Erreurs par champ, pour une entité refusée à la validation.
@@ -107,6 +112,80 @@ Problem:
       type: string
       description: Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020).
 
+ErrorCode:
+  type: string
+  description: >-
+    Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque
+    motif de rejet d'une ligne collée ou importée, y a son code, que le front rend
+    en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est
+    une modification du contrat ; le front n'en rencontre aucun qu'il ne sache
+    rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
+  enum:
+    # 400 — requête mal formée ou confirmation absente.
+    - MALFORMED_REQUEST
+    - CONFIRMATION_REQUIRED
+    # 401 — aucune session valide (WF-SEC-0020).
+    - SESSION_REQUIRED
+    - SESSION_EXPIRED
+    - INVALID_CREDENTIALS
+    # 403 — permission présente, condition manquante : `params.missing_permission`
+    # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090).
+    - PERMISSION_MISSING
+    - NOT_CONTRIBUTOR
+    - PROJECT_TERMINAL
+    - REVISION_MARKED
+    # 404 — objet inexistant ou invisible, sans distinction (WF-ADM-0110).
+    - NOT_FOUND
+    # 409 — l'état courant interdit l'opération ; `params` nomme l'objet ou l'état.
+    - STATE_FORBIDS_OPERATION
+    - ALREADY_EXISTS
+    - CURRENT_REVISION_EXISTS
+    - REFERENCE_NOT_CORRECTABLE
+    - UNDO_CONFLICT
+    - LAST_ADMINISTRATOR
+    - ACCESS_ROLE_IN_USE
+    - DEFAULT_CALENDAR_REQUIRED
+    - HAS_ACTUAL_COSTS
+    - TASK_ALREADY_STARTED
+    - TASK_COMPLETED
+    - WIN_PROBABILITY_FROZEN
+    - REFERENCE_INCOMPLETE
+    - PASSWORD_RESET_TOKEN_INVALID
+    # 429 — compte verrouillé après dix échecs consécutifs (WF-ADM-0140).
+    - ACCOUNT_LOCKED
+    # 412 — `lock_version` périmé ; `params.conflicting_object_id` (WF-IHM-0110).
+    - STALE_LOCK_VERSION
+    # 413 — fichier au-delà de la taille admise (WF-CMP-0020).
+    - FILE_TOO_LARGE
+    # 422 — règle métier ; `params` ou `fields` localise le refus.
+    - VALIDATION_FAILED
+    - COMPUTED_VALUE
+    - SUMMARY_TASK_DERIVED
+    - LINK_CYCLE
+    - LINK_FORBIDDEN
+    - RESOURCE_ROLE_REQUIRED
+    - LABOUR_CATEGORY_REQUIRED
+    - HOURLY_RATE_MISSING
+    - PROJECT_CODE_REQUIRED
+    - PASTE_TOO_WIDE
+    - FILE_FORMAT_UNREADABLE
+    # Motifs par champ, par ligne collée ou importée (`fields`, `PastePlan`,
+    # `ImportRejection`).
+    - VALUE_REQUIRED
+    - VALUE_TOO_LONG
+    - VALUE_OUT_OF_RANGE
+    - NUMBER_INVALID
+    - DATE_INVALID
+    - UNKNOWN_COST_CATEGORY
+    - UNKNOWN_RESOURCE_ROLE
+    - UNKNOWN_SUBPROJECT
+    - UNKNOWN_TASK
+    - INACTIVE_REFERENCE_OBJECT
+    # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
+    # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
+    - COMPONENT_UNAVAILABLE
+    - INTERNAL_ERROR
+
 FieldProblem:
   type: object
   required: [pointer, code]
@@ -114,12 +193,15 @@ FieldProblem:
     pointer:
       type: string
       description: Pointeur JSON vers le champ en défaut.
-    code:
-      type: string
-      pattern: '^[A-Z][A-Z0-9_]*$'
+    code: { $ref: '#/ErrorCode' }
     params:
       type: object
       additionalProperties: true
+
+SortOrder:
+  type: string
+  enum: [asc, desc]
+  description: Sens d'un tri demandé au serveur ; croissant par défaut.
 
 PaginationMeta:
   type: object
@@ -143,6 +225,8 @@ BackgroundTaskRef:
         - import_analysis
         - import_apply
         - revision_mark
+        - structure_merge
+        - risk_occurrence
         - export
         - backup
         - restore

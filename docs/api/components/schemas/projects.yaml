@@ -16,6 +16,7 @@ Project:
     - state
     - inflation_rate
     - win_probability
+    - available_commands
     - audit
     - lock_version
   properties:
@@ -45,8 +46,69 @@ Project:
     current_revision_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Révision en cours d'élaboration, s'il en existe une (WF-REV-0010).
+    available_commands:
+      type: array
+      description: >-
+        Commandes du projet que l'appelant a la permission d'exercer, chacune
+        disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une
+        commande absente de la liste n'est pas présentée.
+      items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+CommandCondition:
+  type: string
+  description: >-
+    Condition qu'une commande exige, nommée par le serveur quand elle manque, et
+    rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110).
+  enum:
+    - is_contributor
+    - project_not_terminal
+    - project_in_progress
+    - project_in_pricing
+    - project_code_set
+    - reference_revision_designated
+    - at_least_one_task
+    - at_least_one_estimate_line
+    - no_current_revision
+    - revision_draft
+    - revision_marked
+    - reference_correctable
+    - unmerged_amendment_exists
+    - task_not_completed
+    - hourly_rates_set
+
+ProjectCommand:
+  type: string
+  enum:
+    - update
+    - manage_contributors
+    - create_revision
+    - complete
+    - lose
+    - abandon
+    - edit_risks
+    - declare_risk_occurrence
+    - import_actual_costs
+    - exclude_cost_lines
+  description: >-
+    Commandes portées par le projet : modifier ses paramètres, ses contributeurs,
+    ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer
+    et réexaminer les risques, déclarer un risque survenu (WF-RIS-0060) ; importer les
+    coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030). Une commande
+    que refuse l'état d'un objet particulier — un risque déjà survenu — l'est par
+    son code d'erreur.
+
+ProjectCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/ProjectCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: '#/CommandCondition' }
 
 ProjectSummary:
   type: object
@@ -111,13 +173,7 @@ NextState:
     missing_conditions:
       type: array
       description: Codes des conditions restantes, une par une (WF-CYC-0030, WF-CYC-0050).
-      items:
-        type: string
-        enum:
-          - reference_revision_designated
-          - at_least_one_task
-          - at_least_one_estimate_line
-          - project_code_set
+      items: { $ref: '#/CommandCondition' }
 
 ProjectExit:
   type: object
