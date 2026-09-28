@@ -443,7 +443,7 @@ chaque écran s'invente le sien.
 
 - **statut** : fini
 - **exigences** : `WF-IHM-0020-A`
-- **opérations** : `getRevision`, `listRevisions`
+- **opérations** : `getRevision`, `listRevisions`, `listSubprojects`
 - **issue** : #74
 
 **En tant que** chef de projet, **je veux** lire sur chaque écran dans quelle révision je
