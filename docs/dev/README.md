@@ -135,9 +135,11 @@ Makefile, les workflows, la déclaration elle-même — réveille toutes les fam
 Deux paliers : le rapide à chaque poussée sur une pull request (`pull_request`), le complet
 dans la file de fusion (`merge_group`), sur le résultat de la fusion, avant qu'elle soit
 acceptée. Le palier complet ajoute ce qui est lent — la couverture du code, puis les tests de
-bout en bout ; sur un poste, `make check-back TIER=full`. Tant que la file de fusion d'une
-branche n'est pas réglée, la chaîne se lance à la main sur la branche d'un lot, toutes
-familles et palier complet, avant de le fusionner : `gh workflow run chain --ref <branche>`.
+bout en bout ; sur un poste, `make check-back TIER=full`. Une pull request entre dans la file par
+le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'API GraphQL :
+`gh pr merge` ne sait pas le faire tant que la fusion automatique est désactivée sur le
+dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
+branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
 
 Règles des workflows :
 
