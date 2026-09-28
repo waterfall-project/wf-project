@@ -62,7 +62,7 @@ _CODE = re.compile(r"```.*?```|`[^`\n]+`", re.DOTALL)
 # The directory of `-C` never opens with a dash: otherwise `-C -A` reads both as a directory
 # and as two options, and a string of them backtracks exponentially.
 _CITED_COMMAND = re.compile(
-    r"\bmake\s+(?:-C\s+(?!-)\S+\s+|-[a-zA-Z]+\s+)*([a-z](?:[a-z0-9-]*[a-z0-9])?)(?=[\s`;&|)]|$)"
+    r"\bmake\s+(?:-C\s+[^\s-]\S*\s+|-[a-zA-Z]+\s+)*([a-z](?:[a-z0-9-]*[a-z0-9])?)(?=[\s`;&|)]|$)"
 )
 
 
