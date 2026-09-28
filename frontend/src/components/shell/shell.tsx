@@ -13,10 +13,13 @@ import type { LanguagePreference, Locale } from "@/i18n/locale";
 
 import { LanguageSelector } from "./language-selector";
 
-/** The language of the request, the preference it came from, and the page. */
+/**
+ * The language of the request, the preference of the account it came from — `undefined`
+ * without an account —, and the page.
+ */
 export interface ShellProps {
   readonly locale: Locale;
-  readonly preference: LanguagePreference;
+  readonly preference: LanguagePreference | undefined;
   readonly children: ReactNode;
 }
 
@@ -25,7 +28,8 @@ export function Shell({ locale, preference, children }: ShellProps) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone={TIME_ZONE}>
       <header>
-        <LanguageSelector preference={preference} />
+        {/* Without an account there is no preference to write: the browser decides. */}
+        {preference === undefined ? null : <LanguageSelector preference={preference} />}
       </header>
       {children}
     </NextIntlClientProvider>

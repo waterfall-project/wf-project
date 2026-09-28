@@ -105,24 +105,41 @@ const ACTION_SYNTAX = {
 
 // No text for the user is written in the code (WF-QUA-0070): it comes from the catalogues
 // of messages/, in the language of the reader. react/jsx-no-literals refuses the text of
-// JSX, and a string written as a child. The selectors here refuse what it lets through: a
-// string in a branch of a child — `{ok ? "Oui" : t("no")}` —, and the attributes a user
-// reads — spoken by a screen reader, shown on hover, in place of an image or of an empty
-// field — whose value, or a branch of it, is a literal with something to read. A literal
-// passed to a function, `t(ok ? "yes" : "no")`, is a key, not a text; an empty alt, the
-// mark of a decorative image, is no text either.
+// JSX, and a string written as a child. The selectors here refuse what it lets through:
+//
+// - a string in a branch or a concatenation of a child — `{ok ? "Oui" : t("no")}`,
+//   `{"Total : " + n}` —, three operators deep at most;
+// - the attributes a user reads — spoken by a screen reader, shown on hover, in place of an
+//   image or of an empty field, as the label of an option, on a button made of an input —
+//   whose value, or a branch or a concatenation of it, is a literal with something to read.
+//
+// A literal passed to a function, `t(ok ? "yes" : "no")`, is a key, not a text; an empty
+// alt, the mark of a decorative image, is no text either, nor the placeholder of next/image,
+// `blur` or `empty`. What stays with the review: the props of our own components other than
+// `label`, and a string built outside the JSX.
 const TEXT = "Write the text in the catalogues of messages/, and read it with next-intl.";
 const TEXT_VALUE =
   ":matches(Literal[value=/\\S/], TemplateLiteral:has(> TemplateElement[value.raw=/\\S/]))";
-const BRANCH = ":matches(ConditionalExpression, LogicalExpression)";
+const OPERATOR =
+  ":matches(ConditionalExpression, LogicalExpression, BinaryExpression[operator='+'])";
 const TEXT_CHILD = ":matches(JSXElement, JSXFragment) > JSXExpressionContainer";
-const TEXT_ATTRIBUTE = "JSXAttribute[name.name=/^(aria-label|title|alt|placeholder)$/]";
+const TEXT_ATTRIBUTES = [
+  "JSXAttribute[name.name=/^(aria-(label|description|roledescription|valuetext|placeholder)|title|alt|label)$/]",
+  "JSXAttribute[name.name='placeholder']:not([value.value=/^(blur|empty)$/])",
+  "JSXOpeningElement[name.name='input']:has(> JSXAttribute[name.name='type'][value.value=/^(submit|button|reset)$/]) > JSXAttribute[name.name='value']",
+];
 const TEXT_SYNTAX = [
-  `${TEXT_ATTRIBUTE} > ${TEXT_VALUE}`,
-  `${TEXT_ATTRIBUTE} > JSXExpressionContainer > ${TEXT_VALUE}`,
-  ...[`${TEXT_ATTRIBUTE} > JSXExpressionContainer`, TEXT_CHILD].flatMap((container) => [
-    `${container} > ${BRANCH} > ${TEXT_VALUE}`,
-    `${container} > ${BRANCH} > ${BRANCH} > ${TEXT_VALUE}`,
+  ...TEXT_ATTRIBUTES.flatMap((attribute) => [
+    `${attribute} > ${TEXT_VALUE}`,
+    `${attribute} > JSXExpressionContainer > ${TEXT_VALUE}`,
+  ]),
+  ...[
+    ...TEXT_ATTRIBUTES.map((attribute) => `${attribute} > JSXExpressionContainer`),
+    TEXT_CHILD,
+  ].flatMap((container) => [
+    `${container} > ${OPERATOR} > ${TEXT_VALUE}`,
+    `${container} > ${OPERATOR} > ${OPERATOR} > ${TEXT_VALUE}`,
+    `${container} > ${OPERATOR} > ${OPERATOR} > ${OPERATOR} > ${TEXT_VALUE}`,
   ]),
 ].map((selector) => ({ selector, message: TEXT }));
 
@@ -219,9 +236,14 @@ export default defineConfig([
   {
     // Tests are named for what they check; a docstring would repeat the name. The text a
     // test renders is its own data — a page in a layout, a label to find —, never shown to
-    // a user.
+    // a user: the rules against text written in the code do not apply, and the network
+    // guard does, its selectors repeated without TEXT_SYNTAX.
     files: ["**/*.test.ts", "**/*.test.tsx", "e2e/**"],
-    rules: { "jsdoc/require-jsdoc": "off", "react/jsx-no-literals": "off" },
+    rules: {
+      "jsdoc/require-jsdoc": "off",
+      "react/jsx-no-literals": "off",
+      "no-restricted-syntax": ["error", ...NETWORK_SYNTAX, ...CLIENT_SYNTAX],
+    },
   },
   {
     // Configuration files are not part of the TypeScript project.

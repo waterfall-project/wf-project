@@ -28,7 +28,7 @@ const NETWORK = "Call the API through the generated client, src/api/client.ts.";
 // The rules the text guard is made of.
 const GUARD = new Set(["react/jsx-no-literals", "no-restricted-syntax"]);
 
-const HEADER = 'import { useTranslations } from "next-intl";\n';
+const HEADER = 'import Image from "next/image";\nimport { useTranslations } from "next-intl";\n';
 
 /** A component around some JSX, reading its texts from the catalogues. */
 function component(jsx: string, directive = ""): string {
@@ -50,6 +50,8 @@ const IN_JSX: readonly string[] = [
   "<p>{`Bonjour`}</p>",
   '<p>{ok ? "Oui" : t("name")}</p>',
   '<p>\n    {t("name")} :\n  </p>',
+  '<p>{"Total : " + t("name")}</p>',
+  '<p>{t("name") + " (" + t("name") + ")"}</p>',
 ];
 
 // An attribute a user reads, written as a literal, or as a literal in one of its branches.
@@ -63,6 +65,15 @@ const IN_ATTRIBUTES: readonly string[] = [
   '<button type="button" aria-label={ok ? t("name") : "Fermer"} />',
   '<button type="button" aria-label={ok && "Fermer"} />',
   '<button type="button" title={`${t("name")} (1)`} />',
+  '<button type="button" aria-label={"Fermer " + t("name")} />',
+  '<div role="slider" aria-valuenow={3} aria-valuetext="trois sur dix" />',
+  '<section aria-roledescription="diapositive" />',
+  '<button type="button" aria-description="Ferme la fenêtre" />',
+  '<div role="textbox" aria-placeholder="Rechercher" />',
+  '<select><option value="fr" label="Français" /></select>',
+  '<input type="submit" value="Envoyer" />',
+  '<input type="reset" value={"Effacer"} />',
+  '<input type="button" value={ok ? "Oui" : t("name")} />',
 ];
 
 // What a component may write: texts read from the catalogues, attributes no one reads, an
@@ -73,6 +84,10 @@ const ALLOWED: readonly string[] = [
   '<img src="/logo.svg" alt="" />',
   '<abbr title={t(ok ? "name" : "name")}>{t("name")}</abbr>',
   '<p>\n    {t("name")}\n  </p>',
+  '<p>{t("name").length + 1}</p>',
+  '<input type="text" value="fr" readOnly />',
+  '<Image src="/logo.svg" alt="" width={10} height={10} placeholder="blur" />',
+  '<Image src="/logo.svg" alt="" width={10} height={10} placeholder="empty" />',
 ];
 
 let eslint: ESLint;

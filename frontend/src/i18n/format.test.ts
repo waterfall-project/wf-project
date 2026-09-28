@@ -61,6 +61,16 @@ describe("an amount", () => {
   });
 });
 
+describe("a zero", () => {
+  it("shows without a sign, whatever sign the API wrote", () => {
+    expect(formatMoney("-0.00", "fr")).toBe("0,00");
+    expect(formatMoney("-0", "en", "EUR")).toBe("€0.00");
+    expect(formatDecimal("-0.000", "fr")).toBe("0,000");
+    expect(formatDecimal("-0.001", "en")).toBe("-0.001");
+    expect(formatMoney("-1234.5", "fr")).toBe(`-1${NARROW}234,50`);
+  });
+});
+
 describe("a decimal", () => {
   it("shows every digit the API gave, no more, no fewer", () => {
     expect(formatDecimal("37.5", "fr")).toBe("37,5");
@@ -96,9 +106,7 @@ describe("a planning date", () => {
     "Pacific/Pago_Pago",
   ])("shows a task planned on 30 June on 30 June, in the zone %s [WF-DAT-0100-A]", (zone) => {
     process.env.TZ = zone;
-    expect(new Date("2026-06-30T00:00:00").getTimezoneOffset()).toBe(
-      new Date("2026-06-30T12:00:00").getTimezoneOffset(),
-    );
+    expect(new Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(zone);
     expect(formatPlanningDate("2026-06-30", "fr", "long")).toBe("30 juin 2026");
     expect(formatPlanningDate("2026-06-30", "en", "long")).toBe("June 30, 2026");
     expect(formatPlanningDate("2026-06-30", "fr", "short")).toBe("30/06/2026");

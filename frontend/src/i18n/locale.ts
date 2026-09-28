@@ -27,7 +27,7 @@ export const PREFERENCES = ["default", ...LOCALES] as const satisfies readonly L
 
 /**
  * The language of a request when the installation cannot tell its own: the language of the
- * reference catalogue. Reached only when `getInstallation` fails.
+ * reference catalogue. Reached only when `getInstallation` fails or cannot be reached.
  */
 export const FALLBACK_LOCALE: Locale = "fr";
 

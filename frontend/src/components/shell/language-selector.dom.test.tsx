@@ -70,6 +70,7 @@ describe("the language selector", () => {
     const client = await open({ "GET /me": ["me", "me_english"], [PREFERENCES]: "preferences" });
 
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "en");
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
 
     const select = await screen.findByRole("combobox", { name: "Language" });
     expect(select).toHaveValue("en");
@@ -79,6 +80,26 @@ describe("the language selector", () => {
     expect(client.calls.map((call) => call.route)).toEqual(["GET /me", PREFERENCES, "GET /me"]);
   });
 
+  it("sends nothing until the choice is applied, and keeps the focus on the keyboard", async () => {
+    const client = await open({ "GET /me": ["me", "me_english"], [PREFERENCES]: "preferences" });
+    await userEvent.tab();
+    const select = screen.getByRole("combobox", { name: "Langue" });
+    expect(select).toHaveFocus();
+
+    await userEvent.selectOptions(select, "fr");
+    await userEvent.selectOptions(select, "en");
+    expect(select).toHaveFocus();
+    expect(sent(client, PREFERENCES)).toEqual([]);
+
+    await userEvent.tab();
+    await userEvent.keyboard("{Enter}");
+
+    const apply = await screen.findByRole("button", { name: "Apply" });
+    expect(apply).toHaveFocus();
+    expect(apply.closest("form")).toHaveAttribute("aria-busy", "false");
+    expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
+  });
+
   it("says why the API refused the choice, in the language of the page", async () => {
     const expired = { problem: { code: "SESSION_EXPIRED", status: 401 } } as const;
     const refresh = vi.fn();
@@ -86,22 +107,23 @@ describe("the language selector", () => {
     server.refresh = refresh;
 
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "fr");
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("Votre session a expiré\u202F; reconnectez-vous.");
     expect(sent(client, PREFERENCES)).toEqual([{ language: "fr" }]);
     expect(refresh).not.toHaveBeenCalled();
-    // The refusal leaves the preference of the account as it was.
-    await waitFor(() => {
-      expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("default");
-    });
+    expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("fr");
   });
 
-  it("sends nothing for a value that is not a preference", async () => {
-    const client = await open({ "GET /me": "me" });
+  it("keeps the last preference chosen when handed a value that is not one", async () => {
+    const client = await open({ "GET /me": "me", [PREFERENCES]: "preferences" });
     fireEvent.change(screen.getByRole("combobox", { name: "Langue" }), {
       target: { value: "de" },
     });
-    expect(sent(client, PREFERENCES)).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    await waitFor(() => {
+      expect(sent(client, PREFERENCES)).toEqual([{ language: "default" }]);
+    });
   });
 });

@@ -22,24 +22,42 @@ import { CATALOGUES, type Catalogue } from "./catalogues";
 import { TIME_ZONE } from "./format";
 import { FALLBACK_LOCALE, type LanguagePreference, type Locale, resolveLocale } from "./locale";
 
-/** The language a request renders in, and the preference of the account it came from. */
+/**
+ * The language a request renders in, and the preference of the account it came from —
+ * `undefined` without an account: no session, or an API out of reach.
+ */
 export interface RequestLanguage {
   readonly locale: Locale;
-  readonly preference: LanguagePreference;
+  readonly preference: LanguagePreference | undefined;
+}
+
+/**
+ * Call the API, or `undefined` when it cannot be reached: the language of a page never waits
+ * on it — the page itself says the API is out of reach (US-0170).
+ */
+async function reach<T>(call: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await call();
+  } catch {
+    return undefined;
+  }
 }
 
 /** Read the sources of the language of the request, in order, and decide. */
 async function readRequestLanguage(): Promise<RequestLanguage> {
   const client = serverClient();
-  // Without a session — the sign-in page — the account has no preference: `default`.
-  const me = await client.GET("/me");
-  const preference = me.data?.display_preferences?.language ?? "default";
+  // An account without the field follows the browser; no account — the sign-in page, an API
+  // out of reach — has no preference at all.
+  const me = await reach(() => client.GET("/me"));
+  const account = me?.data;
+  const preference =
+    account === undefined ? undefined : (account.display_preferences?.language ?? "default");
   const decided = resolveLocale(preference, (await headers()).get("accept-language"));
   if (decided !== undefined) {
     return { locale: decided, preference };
   }
-  const installation = await client.GET("/installation");
-  return { locale: installation.data?.default_language ?? FALLBACK_LOCALE, preference };
+  const installation = await reach(() => client.GET("/installation"));
+  return { locale: installation?.data?.default_language ?? FALLBACK_LOCALE, preference };
 }
 
 /** The language of the request: read once per request, however many components ask. */

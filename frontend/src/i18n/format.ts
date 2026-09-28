@@ -11,6 +11,8 @@
  *   every workstation.
  * - A `Timestamp` is an instant: it is shown in the time zone of the workstation.
  *
+ * A zero shows without a sign, even written `-0.00`: `signDisplay: "negative"`.
+ *
  * In French, `Intl` separates thousands with a narrow no-break space (U+202F), the French
  * typographic rule: « 1 234,56 » never breaks across two lines.
  */
@@ -71,6 +73,7 @@ export function formatDecimal(value: Decimal, locale: Locale): string {
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
+    signDisplay: "negative",
   }).format(exact);
 }
 
@@ -80,7 +83,11 @@ export function formatDecimal(value: Decimal, locale: Locale): string {
  * which comes from the reference data, the amount carries its symbol: « 1 234,56 € ».
  */
 export function formatMoney(value: Money, locale: Locale, currency?: string): string {
-  const options: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  const options: Intl.NumberFormatOptions = {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    signDisplay: "negative",
+  };
   const style: Intl.NumberFormatOptions =
     currency === undefined ? {} : { style: "currency", currency };
   return new Intl.NumberFormat(locale, { ...options, ...style }).format(decimal(value, MONEY));

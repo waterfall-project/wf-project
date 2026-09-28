@@ -433,7 +433,10 @@ n'apparaît pas dans l'adresse — un lien partagé s'ouvre chez chacun dans la 
 (WF-INTF-0170) — : le serveur la résout à chaque requête (`frontend/src/i18n/request.ts`),
 d'après la préférence du compte si elle vaut `fr` ou `en`, sinon la première langue offerte
 que demande `Accept-Language`, sinon la langue par défaut de l'installation
-(`getInstallation`).
+(`getInstallation`). Un `*` placé devant toute langue offerte dans `Accept-Language` laisse
+décider l'installation ; une installation illisible ou injoignable donne `fr`, la langue du
+catalogue de référence. Sans compte — pas de session, ou une API injoignable — il n'y a pas
+de préférence : le navigateur décide, et la coquille n'offre pas le sélecteur de langue.
 
 - **Une clé est hiérarchique, en anglais.** Un texte propre à l'interface se range sous le
   composant ou l'écran qui l'emploie, en camelCase (`languageSelector.label`). Ce que le
@@ -458,7 +461,7 @@ que demande `Accept-Language`, sinon la langue par défaut de l'installation
   - une valeur qui porte un point se lit comme un niveau, next-intl réservant le point au
     chemin : `permissions.users.write`, `enums.ComputedField.task.start_date`.
 - **Une valeur est un message ICU** — `{max_columns, plural, one {…} other {…}}` —, avec les
-  mêmes arguments dans les deux catalogues ; le libellé d'une valeur d'énumération ou d'une
+  mêmes arguments dans les deux catalogues, ce que `make catalogs` vérifie ; le libellé d'une valeur d'énumération ou d'une
   permission est du texte sans argument. Le français suit sa typographie : espace insécable
   avant les deux-points, fine insécable avant le point-virgule et les points d'exclamation et
   d'interrogation, apostrophe typographique ; l'anglais suit l'orthographe britannique.
@@ -479,8 +482,11 @@ que demande `Accept-Language`, sinon la langue par défaut de l'installation
 clé que le code emploie sans qu'il l'ait casse le typage, comme une clé qui manque au
 catalogue anglais (`frontend/src/i18n/catalogues.ts`) ; `make lint-front` —
 `react/jsx-no-literals` refuse le texte écrit dans le JSX, et `no-restricted-syntax` un
-littéral dans `aria-label`, `title`, `alt` ou `placeholder`, ou dans une branche d'un
-enfant ; `frontend/src/i18n/text-guard.test.ts` l'éprouve sur des extraits piégés, à côté de
+littéral dans un attribut lu — `aria-label`, `aria-description`, `aria-roledescription`,
+`aria-valuetext`, `aria-placeholder`, `title`, `alt`, `placeholder` (sauf `blur` et `empty`
+de next/image), `label`, la `value` d'un `input` bouton —, ou dans une branche ou une
+concaténation d'un enfant ou d'un de ces attributs ; restent à la revue les autres props de
+nos propres composants, et une chaîne bâtie hors du JSX ; `frontend/src/i18n/text-guard.test.ts` l'éprouve sur des extraits piégés, à côté de
 la garde réseau qui partage la règle ; `make catalogs`, dans `check-front`, qui lit le
 contrat qu'il vient d'assembler (`wftools.catalogs`) — les deux catalogues ont les mêmes
 clés, chaque valeur est un texte non vide, chaque valeur d'énumération, chaque code d'erreur

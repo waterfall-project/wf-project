@@ -3,11 +3,12 @@
     "name": "Waterfall"
   },
   "languageSelector": {
-    "label": "Language"
+    "label": "Language",
+    "apply": "Apply"
   },
   "errors": {
     "MALFORMED_REQUEST": "The request is malformed.",
-    "CONFIRMATION_REQUIRED": "This operation needs an explicit confirmation.",
+    "CONFIRMATION_REQUIRED": "This operation requires explicit confirmation.",
     "SESSION_REQUIRED": "You need to sign in.",
     "SESSION_EXPIRED": "Your session has expired; please sign in again.",
     "INVALID_CREDENTIALS": "Incorrect email address or password.",
@@ -202,7 +203,7 @@
     "BackgroundTaskRef": {
       "kind": {
         "import_analysis": "Import analysis",
-        "import_apply": "Import application",
+        "import_apply": "Applying an import",
         "revision_mark": "Revision marking",
         "structure_merge": "Structure merge",
         "risk_occurrence": "Risk occurrence",
@@ -320,7 +321,7 @@
       "at_least_one_estimate_line": "at least one estimate line",
       "no_current_revision": "no draft revision",
       "revision_draft": "draft revision",
-      "revision_marked": "revision marked",
+      "revision_marked": "marked revision",
       "reference_correctable": "reference still correctable",
       "unmerged_amendment_exists": "an unmerged amendment",
       "task_not_completed": "task not completed",

@@ -41,6 +41,16 @@ describe("RootLayout", () => {
     expect(html).toMatch(/<label for="[^"]+">Langue<\/label>/);
   });
 
+  it("offers no language to choose without a session: the browser decides", async () => {
+    const unauthorized = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+    server.client = fakeClient({ "GET /me": unauthorized });
+    server.acceptLanguage = "en";
+    const html = renderToStaticMarkup(await RootLayout({ children: <p>page</p> }));
+    expect(html).toBe(
+      '<html lang="en"><head></head><body><header></header><p>page</p></body></html>',
+    );
+  });
+
   it("titles the document with the product, from the catalogue", async () => {
     request("en");
     expect((await generateMetadata()).title).toBe("Waterfall");

@@ -3,7 +3,8 @@
     "name": "Waterfall"
   },
   "languageSelector": {
-    "label": "Langue"
+    "label": "Langue",
+    "apply": "Appliquer"
   },
   "errors": {
     "MALFORMED_REQUEST": "La requête est mal formée.",
