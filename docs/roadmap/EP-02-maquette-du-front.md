@@ -89,16 +89,18 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-INTF-0170-A` | Ce qui est traduit et ce qui ne l'est pas | entière | US-0190 |
 | `WF-INTF-0180-A` | Formats indépendants de la langue | début — close en EP-12 | US-0190 |
 | `WF-ADM-0040-A` | Préférences d'affichage | début — close en EP-03 | US-0110, US-0190 |
+| `WF-DAT-0100-A` | Types des grandeurs | début — close en EP-07 | US-0190 |
 | `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
 | `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
 Neuf des onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface,
-et l'interface existe ici pour de bon. Six exigences ne font que commencer, et leurs US
+et l'interface existe ici pour de bon. Sept exigences ne font que commencer, et leurs US
 disent quelle phrase attend quoi : WF-IHM-0060 (le tri effectif et les réglages par compte —
 EP-03), WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-ADM-0040 et WF-INTF-0160 (la
 conservation des préférences et de la langue dans le compte — EP-03), WF-INTF-0180 (le
-format des fichiers d'échange — EP-12), et WF-CMP-0010 (la version majeure précédente et le
-Safari réel — EP-13, en recette).
+format des fichiers d'échange — EP-12), WF-CMP-0010 (la version majeure précédente et le
+Safari réel — EP-13, en recette), et WF-DAT-0100 (l'affichage des dates sans fuseau est
+ici ; les sommes exactes sont au noyau — EP-03, closes en EP-07).
 
 ## Opérations du contrat
 
@@ -111,7 +113,7 @@ engager » d'`analysis` (US-0230), `analysis` et `portfolio` (US-0240), `referen
 Une opération qui manque se note dans cet EPIC et se corrige dans `docs/api` : c'est une
 modification du contrat, donc un travail qui précède l'écran qui l'attend.
 
-Huit modifications sont déjà connues, décidées au cadrage, et se font en premier lot : les
+Neuf modifications sont déjà connues, décidées au cadrage, et se font en premier lot : les
 commandes disponibles et leurs conditions manquantes, portées par le projet et par la
 révision ; le catalogue des codes d'erreur, que `Problem.code` promet sans qu'il existe ;
 l'énumération des codes de permission ; les deux genres manquants de tâche de fond — fusion
@@ -120,7 +122,8 @@ portant au plus dix mille objets ; les champs calculés portés par chaque nœud
 (`computed_fields`) ; la langue réduite à une seule préférence à trois états — `default`,
 `fr`, `en` —, où `default` suit le navigateur ; le tri et les filtres des grilles portés par
 le contrat et exécutés par le serveur, qui rend les lignes et les totaux du périmètre
-demandé.
+demandé ; et le filtre « mes projets » de `listProjects` — les projets dont l'utilisateur
+est contributeur —, qu'exige l'écran d'accueil.
 
 ## Préalables
 
@@ -145,7 +148,8 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
 
 - **statut** : à faire
 - **exigences** : `WF-IHM-0010-A`
-- **opérations** : `getCurrentSession`, `getMe`, `listProjects`, `getProject`, `getSystemStatus`
+- **opérations** : `getCurrentSession`, `getMe`, `listProjects`, `getProject`,
+  `getSystemStatus`, `getReferenceReadiness`
 - **issue** :
 
 **En tant que** chef de projet, **je veux** que le projet que j'ai ouvert le reste d'un écran
@@ -160,6 +164,16 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
   indicateurs conserve la révision affichée et le sous-projet filtré. »
 - `WF-IHM-0010-A` — « Le retour au projet précédent depuis une fonction hors projet retrouve
   le même contexte. »
+- propre à l'US : à la connexion, l'accueil présente la liste des projets dont l'utilisateur
+  est contributeur (décision du cadrage) — un filtre par défaut, visible et levable, jamais
+  une restriction de lecture (WF-PRJ-0060) ; ce filtre est la neuvième modification du
+  contrat ;
+- propre à l'US : la coquille porte les pages système : une adresse inexistante et une
+  lecture refusée mènent au même écran « introuvable » — l'écart entre les deux fuirait
+  l'existence de l'objet (WF-ADM-0110) ; une API injoignable est annoncée, sans écran
+  blanc ; un chargement se voit ; le vide se dit — aucun projet, projet sans révision — et
+  une installation dont le référentiel est incomplet guide vers lui
+  (`getReferenceReadiness`). Les états vides sont des exemples nommés du contrat ;
 - propre à l'US : la charte graphique — couleurs, typographie, espacements, rayons — est
   définie en jetons (les variables de Tailwind et de shadcn/ui), dérivée des logos de
   `docs/assets`, en mode clair et en mode sombre ; aucun composant n'écrit une couleur ni
@@ -256,6 +270,8 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 - `WF-IHM-0040-A` — « L'abandon d'une saisie en cours laisse la cellule à sa valeur
   antérieure. »
 - `WF-IHM-0040-A` — « Les cellules calculées sont traversées sans entrer en saisie. »
+- propre à l'US : une quantité ou un montant se saisit au format de la langue — virgule en
+  français, point en anglais — et voyage dans le décimal exact du contrat ;
 - écart : le recalcul qui suit une saisie tient l'objectif d'une seconde du §4.6.2 — il n'y
   a pas de recalcul sur le faux back ; la mesure revient à EP-06.
 
@@ -421,7 +437,7 @@ longue.
 ## US-0190 — Langue de l'interface, catalogues et formats d'affichage
 
 - **statut** : à faire
-- **exigences** : `WF-INTF-0160-A`, `WF-INTF-0170-A`, `WF-INTF-0180-A`, `WF-ADM-0040-A`, `WF-QUA-0070-A`
+- **exigences** : `WF-INTF-0160-A`, `WF-INTF-0170-A`, `WF-INTF-0180-A`, `WF-ADM-0040-A`, `WF-QUA-0070-A`, `WF-DAT-0100-A`
 - **opérations** : `getMe`, `updateMyPreferences`
 - **issue** :
 
@@ -448,6 +464,10 @@ que mes collègues.
   saisis.
 - `WF-INTF-0180-A` — « Le même montant s'affiche « 1 234,56 » en français et « 1,234.56 » en
   anglais, et le total du projet est le même. »
+- `WF-DAT-0100-A` — « Une tâche planifiée au 30 juin s'affiche au 30 juin sur tout poste
+  client, quel que soit son fuseau. » — les dates de planning s'affichent telles quelles,
+  sans conversion ; les horodatages, eux — date de calcul d'un indicateur, colonnes
+  d'audit —, s'affichent en heure locale du poste (décision du cadrage).
 - `WF-QUA-0070-A` — « L'ajout d'une clé dans un seul catalogue fait échouer la chaîne. »
 - `WF-QUA-0070-A` — « Un texte destiné à l'utilisateur écrit en dur dans le code fait échouer
   la chaîne. »
@@ -473,6 +493,10 @@ de l'installation — et le contrat n'a plus qu'un seul champ de langue.
 - écart : `WF-INTF-0160-A` — « Un utilisateur qui force le français le retrouve en se
   connectant depuis un autre poste dont le navigateur demande l'anglais. » : la conservation
   du choix dans le compte demande un compte réel — EP-03.
+- écart : `WF-DAT-0100-A` — « La somme des montants budgétés d'une révision est identique
+  quel que soit l'ordre de sommation. » et « Un montant de 0,10 additionné dix fois donne
+  exactement 1,00. » sont des phrases du noyau de calcul — amorcées en EP-03, closes en
+  EP-07.
 - écart : `WF-INTF-0180-A` — « Un devis exporté par un utilisateur en français et réimporté
   par un utilisateur en anglais donne un devis identique, sans avertissement de format. » et
   « Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui
@@ -729,7 +753,10 @@ qu'EP-03 ne la branche sur une authentification réelle.
   projets ; la déconnexion ramène à la connexion ;
 - propre à l'US : l'écran du compte porte les préférences et la langue (US-0190), le
   changement de mot de passe et l'avatar ; aucune règle de mot de passe n'est recopiée dans
-  le front — un refus est un code du catalogue.
+  le front — un refus est un code du catalogue ;
+- propre à l'US : une session qui expire en cours de route (401) mène à la connexion et, la
+  connexion refaite, ramène à l'écran visé — constaté au niveau des composants, par
+  l'exemple nommé du contrat.
 
 **Notes de réalisation.** EP-03 attend « les écrans de connexion, des comptes et des rôles de
 la maquette, branchés sur le service » : cet écran de connexion est celui qu'il branchera.
