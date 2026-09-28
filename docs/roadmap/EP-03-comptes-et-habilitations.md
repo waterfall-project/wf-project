@@ -38,6 +38,10 @@ premier EPIC dont les réponses peuvent se comparer au schéma déclaré — WF-
   le compte ;
 - le worker et la file de tâches, la synchronisation de l'annuaire pour premier traitement ;
 - le journal d'audit, pour les comptes, les rôles et leurs attributions ;
+- les journaux structurés du service et du worker, dès leur premier enregistrement :
+  l'identifiant de corrélation engendré à l'entrée et transmis aux tâches, l'auteur, la
+  gravité, et aucun mot de passe, jeton ni secret — faute de quoi tout le code d'EP-04 à
+  EP-12 s'écrirait sans eux et serait à reprendre ;
 - l'amorçage d'une installation neuve : catalogue, rôles prédéfinis, compte administrateur ;
 - la comparaison, par la chaîne, des réponses de l'API au schéma déclaré — piste pour la
   conception : prism en mode proxy devant le service, l'outil du faux back d'EP-01
@@ -90,6 +94,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-SEC-0010-A` | Transport et secrets | début — close en EP-13 | — |
 | `WF-SEC-0020-A` | Session et révocation | entière | — |
 | `WF-SEC-0030-A` | Journal d'audit des actions irréversibles ou structurantes | début — close en EP-13 | — |
+| `WF-OBS-0020-A` | Journaux structurés et corrélation | début — close en EP-13 | — |
 
 ## Opérations du contrat
 
