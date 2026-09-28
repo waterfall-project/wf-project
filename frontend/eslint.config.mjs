@@ -153,7 +153,9 @@ const TEXT_SYNTAX = [
 //   withdraws the palette, and the class would draw nothing;
 // - an arbitrary value of a utility of colour that is neither a length nor a number —
 //   `bg-[red]`, `bg-[#027dc6]`, `shadow-[0_0_0_2px_#f00]` —, while `ring-[3px]` and
-//   `text-[14px]` pass; an arbitrary font, `font-['Arial']`;
+//   `text-[14px]` pass; an arbitrary font, `font-['Arial']`; and the same utilities given a
+//   custom property in parentheses, `bg-(--x)`, `font-(family-name:--x)`, which read a
+//   variable no contrast was measured for — a length, `text-(length:--x)`, passes;
 // - an arbitrary property that paints or sets a font, or a custom property —
 //   `[color:#027dc6]`, `[font-family:Arial]`, `[--primary:#ff0000]` —, and `color-mix(`;
 // - a colour written as a string of its own, `"#027dc6"`, `"rgb(2 125 198)"`;
@@ -163,7 +165,7 @@ const TEXT_SYNTAX = [
 // and, whatever its value, a property of the `style` of an element that paints, draws a
 // border or a shadow, or sets a font, or a custom property, its key a name or a string; and
 // a colour given to `fill`, `stroke`, `color` or a stop of an SVG, other than
-// `currentColor`, `none` or a `url(…)`. What stays with the review: a colour built by a
+// `currentColor`, `none` or a `url(…)`, anywhere in its value — a branch included. What stays with the review: a colour built by a
 // template with expressions or by a function, and a style or an SVG attribute given a
 // variable.
 const COLOUR =
@@ -185,6 +187,7 @@ const COLOUR_PATTERNS = [
   `${CLASS_START}(${COLOUR_UTILITIES})-(${PALETTE})(-\\d{2,3})?(/[\\w.]+)?($|\\s)`,
   `${CLASS_START}(${COLOUR_UTILITIES})-\\[(?!(${LENGTH})\\])`,
   `${CLASS_START}font-\\[(?!\\d+\\])`,
+  `${CLASS_START}(${COLOUR_UTILITIES}|font)-\\((?!length:)`,
   `\\[(--[\\w-]+|(${PAINTING})[\\w-]*):`,
   `color-mix\\(`,
   `^\\s*(#([\\da-f]{3,4}|[\\da-f]{6}|[\\da-f]{8})|(${COLOUR_FUNCTIONS})\\(.*\\))\\s*$`,
@@ -195,7 +198,7 @@ const STYLE_PROPERTIES =
   "columnRule\\w*|--[\\w-]*";
 const SVG_PAINT =
   "JSXAttribute[name.name=/^(fill|stroke|color|stopColor|floodColor|lightingColor)$/]";
-const NO_PAINT = ":not([value=/^(currentColor|none|url\\(.*\\))$/])";
+const PAINTLESS = "/^(currentColor|none|url\\(.*\\))$/";
 const COLOUR_SYNTAX = [
   ...COLOUR_PATTERNS.flatMap((pattern) => [
     `Literal[value=${inSelector(pattern)}i]`,
@@ -203,8 +206,8 @@ const COLOUR_SYNTAX = [
   ]),
   `JSXAttribute[name.name='style'] Property[key.name=/^(${STYLE_PROPERTIES})$/]`,
   `JSXAttribute[name.name='style'] Property[key.value=/^(${STYLE_PROPERTIES})$/]`,
-  `${SVG_PAINT} > Literal${NO_PAINT}`,
-  `${SVG_PAINT} > JSXExpressionContainer > Literal${NO_PAINT}`,
+  `${SVG_PAINT} Literal:not([value=${PAINTLESS}])`,
+  `${SVG_PAINT} TemplateLiteral[expressions.length=0]:not([quasis.0.value.raw=${PAINTLESS}])`,
 ]
   .map((selector) => ({ selector, message: COLOUR }))
   .concat(

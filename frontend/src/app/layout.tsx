@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
 
 import { Shell } from "@/components/shell/shell";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { languageOf, requestLanguage } from "@/i18n/request";
+import { requestLanguage } from "@/i18n/request";
 import { LAST_CONTEXT_COOKIE, rememberedAddress } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 import { forcedTheme, themePreference } from "@/theme/theme";
@@ -29,10 +29,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** Render the document around a page. */
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  // One read of the session, whose account decides the language and the mode, and whose
-  // permissions the navigation offers.
-  const [session, jar] = await Promise.all([requestSession(), cookies()]);
-  const { locale, preference } = await languageOf(session?.user);
+  // One read of the session for the request, whose account decides the language and the
+  // mode, and whose permissions the navigation offers; the language is the request's, read
+  // once, whatever else asks for it.
+  const [session, { locale, preference }, jar] = await Promise.all([
+    requestSession(),
+    requestLanguage(),
+    cookies(),
+  ]);
   const theme = themePreference(session?.user);
   return (
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>

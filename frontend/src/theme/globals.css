@@ -27,10 +27,6 @@
 :root {
   color-scheme: light dark;
 
-  /* The blues of the logos, as they are drawn. */
-  --brand-deep: #027dc6;
-  --brand-bright: #1195e1;
-
   --background: light-dark(#ffffff, #0a0a0a);
   --foreground: light-dark(#0a0a0a, #fafafa);
   --card: light-dark(#ffffff, #171717);
@@ -51,7 +47,8 @@
   /* A border that only separates; the border of a field shows where to type, at 3:1. */
   --border: light-dark(#e5e5e5, #2e2e2e);
   --input: light-dark(#8c8c8c, #737373);
-  --ring: light-dark(var(--brand-deep), var(--brand-bright));
+  /* The blues of the logos as they are drawn, deep in light mode, bright in dark mode. */
+  --ring: light-dark(#027dc6, #1195e1);
 
   --radius: 0.5rem;
 }

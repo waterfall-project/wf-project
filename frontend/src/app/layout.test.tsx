@@ -12,7 +12,25 @@ const server = vi.hoisted(() => ({
   client: undefined as FakeClient | undefined,
   acceptLanguage: "",
   cookie: undefined as string | undefined,
+  // What the cache of React holds for the request; a test is one request.
+  cached: new Map<unknown, unknown>(),
 }));
+
+// The cache of React, as a server component sees it: a function it wraps runs once per
+// request, however many components call it. Outside the renderer of the server, React's own
+// runs it at every call, and the reads of a request could not be counted.
+vi.mock("react", async (original) => {
+  const react = await original<typeof import("react")>();
+  const cache =
+    <A extends unknown[], R>(fn: (...args: A) => R) =>
+    (...args: A): R => {
+      if (!server.cached.has(fn)) {
+        server.cached.set(fn, fn(...args));
+      }
+      return server.cached.get(fn) as R;
+    };
+  return { ...react, cache };
+});
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/headers", () => ({
@@ -54,6 +72,7 @@ async function page(): Promise<string> {
 
 beforeEach(() => {
   server.cookie = undefined;
+  server.cached.clear();
 });
 
 describe("RootLayout", () => {
@@ -122,6 +141,14 @@ describe("RootLayout", () => {
     await page();
     const routes = server.client?.calls.map((call) => call.route);
     // The browser asks for no language offered: the installation decides.
+    expect(routes).toEqual(["GET /session", "GET /installation"]);
+  });
+
+  it("asks the installation once for a request whose browser leaves it the language", async () => {
+    request("*");
+    await page();
+    await generateMetadata();
+    const routes = server.client?.calls.map((call) => call.route);
     expect(routes).toEqual(["GET /session", "GET /installation"]);
   });
 

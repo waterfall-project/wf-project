@@ -10,7 +10,7 @@
   },
   "themeSelector": {
     "label": "Display mode",
-    "apply": "Apply theme"
+    "apply": "Apply display mode"
   },
   "navigation": {
     "label": "Functions",

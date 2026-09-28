@@ -36,10 +36,8 @@ export interface RequestLanguage {
 /**
  * Decide the language of the request for the account of its session — `undefined` without
  * one —, reading the browser and the installation only when the account does not decide.
- * The root layout calls it with the session it has already read; the rest of the request
- * asks `requestLanguage`.
  */
-export async function languageOf(account: Account | undefined): Promise<RequestLanguage> {
+async function languageOf(account: Account | undefined): Promise<RequestLanguage> {
   // An account without the field follows the browser; no account — the sign-in page, an API
   // out of reach — has no preference at all.
   const preference =

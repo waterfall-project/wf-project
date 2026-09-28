@@ -85,12 +85,14 @@ const CONTROLS: readonly [string, string][] = [
 const MODES: readonly Mode[] = ["light", "dark"];
 
 describe("the colour tokens of the charter", () => {
-  it("hold a light and a dark value each, the blues of the logos aside", () => {
+  it("hold a light and a dark value each, the blues of the logos through the ring", () => {
     const colours = [...TOKENS].filter(([, value]) => /#|light-dark/.test(value));
     const single = colours.filter(([, value]) => !value.startsWith("light-dark("));
-    expect(single.map(([name]) => name)).toEqual(["brand-deep", "brand-bright"]);
-    expect(colour("brand-deep", "light")).toBe("#027dc6");
-    expect(colour("brand-bright", "dark")).toBe("#1195e1");
+    // A colour of a single value would not change with the mode, and would be measured in
+    // one of them only: the blues of the logos reach a component through the ring alone.
+    expect(single.map(([name]) => name)).toEqual([]);
+    expect(colour("ring", "light")).toBe("#027dc6");
+    expect(colour("ring", "dark")).toBe("#1195e1");
   });
 
   it("give Tailwind only tokens of the charter", () => {

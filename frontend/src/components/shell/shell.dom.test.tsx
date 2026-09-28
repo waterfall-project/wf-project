@@ -20,7 +20,7 @@ const { permissions } = example("session") as components["schemas"]["Session"];
 describe("the shell", () => {
   it.each([
     ["fr", "Appliquer la langue", "Appliquer le mode"],
-    ["en", "Apply language", "Apply theme"],
+    ["en", "Apply language", "Apply display mode"],
   ] as const)(
     "names each of its two apply buttons for what it applies, in %s",
     async (locale, language, theme) => {

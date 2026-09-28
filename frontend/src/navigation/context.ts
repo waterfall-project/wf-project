@@ -33,7 +33,7 @@ function screens(scope: string): ReadonlySet<string> {
   const routes = table.groups.flatMap((group) =>
     group.functions.filter((fn) => fn.scope === scope).map((fn) => fn.route),
   );
-  return new Set(routes.map((route) => route.split("/").at(-1) ?? ""));
+  return new Set(routes.map((route) => route.slice(route.lastIndexOf("/") + 1)));
 }
 
 const PROJECT_SCREENS = screens("project");

@@ -59,6 +59,9 @@ const IN_CLASSES: readonly string[] = [
   '<p className="[font-family:Arial]">{VALUE}</p>',
   '<p className="hover:[background-color:red]">{VALUE}</p>',
   '<p className="bg-[color-mix(in_oklab,#fff,#000)]">{VALUE}</p>',
+  '<p className="bg-(--brand-deep)">{VALUE}</p>',
+  '<p className="text-(--brand-bright)">{VALUE}</p>',
+  '<p className="font-(family-name:--x)">{VALUE}</p>',
 ];
 
 // A colour or a font written elsewhere: a string of its own, an attribute of an SVG, a style.
@@ -80,6 +83,8 @@ const ELSEWHERE: readonly [string, string][] = [
   ['<svg><path d="M0 0" fill="red" /></svg>', '""'],
   ['<svg><path d="M0 0" stroke={"black"} /></svg>', '""'],
   ['<svg><stop stopColor="white" /></svg>', '""'],
+  ['<svg><path d="M0 0" fill={ok ? "red" : "none"} /></svg>', '""'],
+  ['<svg><path d="M0 0" fill={`red`} /></svg>', '""'],
   ["<p>{VALUE}</p>", '"color-mix(in oklab, var(--primary), transparent)"'],
 ];
 
@@ -97,6 +102,8 @@ const ALLOWED: readonly [string, string][] = [
     '""',
   ],
   ['<svg><path d="M0 0" fill="none" stroke="url(#edge)" /></svg>', '""'],
+  ['<svg><path d="M0 0" fill={ok ? `none` : "currentColor"} /></svg>', '""'],
+  ['<p className="text-(length:--size) grid-cols-(--columns)">{VALUE}</p>', '""'],
   ["<p>{VALUE}</p>", '"the darkest hour: dark matter"'],
 ];
 

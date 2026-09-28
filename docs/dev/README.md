@@ -524,7 +524,8 @@ La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs : le
 la typographie, les espacements et les rayons y sont des jetons — des variables CSS que
 Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
 `text-muted-foreground`, `rounded-md`). Les bleus viennent des logos de `docs/assets`
-(`#027dc6`, `#1195e1`), les neutres de shadcn/ui ; la police est Geist, celle du logo.
+(`#027dc6`, `#1195e1`), qui n'atteignent un composant que par des jetons mesurés, les
+neutres de shadcn/ui ; la police est Geist, celle du logo.
 
 - **Clair et sombre par les mêmes jetons.** Chaque jeton de couleur porte ses deux valeurs,
   `light-dark(claire, sombre)`. Le document suit le poste (`color-scheme: light dark`) ; quand
@@ -540,7 +541,8 @@ Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
   ensuite sa classe (`bg-<nom>`). Jamais une couleur dans un composant : ni une classe de la
   palette de Tailwind, retirée du thème — `bg-blue-500` ne produit rien —, ni une valeur
   arbitraire d'un utilitaire de couleur (`bg-[#027dc6]`, `bg-[red]`) — une longueur ou un
-  nombre passent, `ring-[3px]` —, ni une propriété arbitraire qui peint ou une variable
+  nombre passent, `ring-[3px]` —, ni une variable entre parenthèses (`bg-(--x)`,
+  `font-(family-name:--x)`), que personne n'a mesurée, ni une propriété arbitraire qui peint ou une variable
   (`[color:…]`, `[--primary:…]`), ni `color-mix(`, ni une couleur écrite dans une chaîne,
   dans un `style` ou dans l'attribut d'un SVG. Une police s'ajoute de même, par un jeton
   `--font-<nom>`.
@@ -559,11 +561,12 @@ Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
 *Contrôles* : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
 `frontend/eslint.config.mjs`) refuse, dans toute chaîne du code, une classe de couleur de la
 palette, une valeur arbitraire d'un utilitaire de couleur qui n'est ni une longueur ni un
-nombre, une police arbitraire, une propriété arbitraire qui peint, pose une police ou une
+nombre, une variable passée à un utilitaire de couleur ou de police, une police arbitraire, une propriété arbitraire qui peint, pose une police ou une
 variable, `color-mix(`, une couleur écrite en chaîne entière et la variante `dark:` ; dans un
 `style`, quelle que soit sa valeur, une propriété qui peint, borde, ombre ou pose une police,
 et une variable, que la clé soit un nom ou une chaîne ; et, pour `fill`, `stroke`, `color` et
-les couleurs d'un SVG, tout littéral autre que `currentColor`, `none` ou `url(…)`.
+les couleurs d'un SVG, tout littéral ou gabarit sans expression autre que `currentColor`,
+`none` ou `url(…)`, où qu'il soit dans la valeur, une branche comprise.
 `frontend/src/theme/colour-guard.test.ts` l'éprouve sur des extraits piégés, et vérifie
 qu'aucune feuille de style ne vit hors de `src/theme/`. `make test-front` —
 `contrast.test.ts` mesure chaque paire de jetons dans les deux modes, `brand.test.ts`
