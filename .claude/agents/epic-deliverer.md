@@ -50,14 +50,17 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
    les portent, taille réelle (`make lot-size BASE=origin/epic/EP-nn`) à côté de
    l'estimation, revue locale faite.
 6. **Fusion**, seulement quand la revue locale et le palier rapide de la pull request sont
-   au vert, et dans la branche de l'EPIC seulement : `gh pr merge --merge --delete-branch`.
-   - Si la branche a sa file de fusion, cette commande met la pull request en file, et le
-     palier complet tourne là, sur le résultat de la fusion. Attends que la pull request
-     soit réellement fusionnée (`gh pr view <n> --json state`) ; si la file la rejette,
-     reprends à l'étape 3.
+   au vert, et dans la branche de l'EPIC seulement.
+   - Si la branche a sa file de fusion, mets la pull request en file :
+     `gh api graphql -f query='mutation($id:ID!){enqueuePullRequest(input:{pullRequestId:$id}){mergeQueueEntry{state}}}' -f id=<id de la pull request>`
+     — `gh pr merge` ne sait pas le faire tant que la fusion automatique est désactivée sur
+     le dépôt. Le palier complet tourne dans la file, sur le résultat de la fusion. Attends
+     que la pull request soit réellement fusionnée (`gh pr view <n> --json state`) ; si la
+     file la rejette, reprends à l'étape 3. Supprime ensuite la branche du lot
+     (`git push origin --delete lot/<identifiant>`).
    - Sinon, lance d'abord le palier complet sur la branche du lot
      (`gh workflow run chain --ref lot/<identifiant> -f tier=full`), attends qu'il passe,
-     puis fusionne.
+     puis fusionne : `gh pr merge --merge --delete-branch`.
 7. **Clôture**, une fois la fusion faite, et pas avant : ferme l'issue du lot — « Closes »
    ne ferme rien sur une branche qui n'est pas la branche par défaut — et, si le lot
    terminait son US, l'issue de l'US.
