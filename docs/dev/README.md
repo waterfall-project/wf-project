@@ -451,11 +451,13 @@ de préférence : le navigateur décide, et la coquille n'offre pas le sélecteu
   - `enums.<Paramètre>.<valeur>` pour une énumération d'un paramètre partagé de
     `components.parameters` (`enums.Scope.unassigned`) : son nom partage le niveau des
     schémas, et un paramètre qui énumère des valeurs ne porte pas le nom d'un schéma ;
-  - un paramètre d'opération n'énumère pas ses valeurs en ligne, faute d'un nom pour ranger
-    leurs clés : il devient un paramètre partagé de `docs/api/components/parameters.yaml`.
-    Deux exceptions, sans clé : `sort_by`, dont les valeurs sont des colonnes que l'en-tête
-    de la grille libelle déjà, et les énumérations écrites en ligne dans une réponse — l'état
-    des sondes de `/health` —, qu'aucun écran n'affiche ;
+  - aucune énumération ne s'écrit en ligne, faute d'un nom pour ranger ses clés : celle d'un
+    paramètre d'opération devient un paramètre partagé de
+    `docs/api/components/parameters.yaml` ; celle d'un corps de requête ou de réponse, ou
+    d'un en-tête — sous `paths` comme sous `components.responses`, `requestBodies` et
+    `headers` —, un schéma nommé de `components.schemas`. Deux exceptions, sans clé :
+    `sort_by`, dont les valeurs sont des colonnes que l'en-tête de la grille libelle déjà, et
+    les corps des sondes, `/health` et les chemins qui en partent, qu'aucun écran n'affiche ;
   - un `const` n'a pas de clé : le contrat ne s'en sert que pour l'accord qu'une requête
     donne (`confirmed: true`), qui ne s'affiche pas ;
   - une valeur qui porte un point se lit comme un niveau, next-intl réservant le point au
@@ -493,8 +495,8 @@ clés, chaque valeur est un texte non vide, chaque valeur d'énumération, chaqu
 et chaque permission du contrat a la sienne, et aucune clé sous `enums`, `errors` ou
 `permissions` ne survit à la valeur que le contrat a retirée ; un texte emploie les mêmes
 arguments ICU que celui du catalogue français, une clé ne s'écrit qu'une fois par fichier, et
-aucun paramètre d'opération n'énumère ses valeurs en ligne, `sort_by` excepté. Il nomme
-chaque clé qui manque et le catalogue qui la porte.
+aucune énumération ne s'écrit en ligne, hors `sort_by` et les sondes. Il demande au moins
+deux catalogues, et nomme chaque clé qui manque et le catalogue qui la porte.
 
 ## Migrations
 

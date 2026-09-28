@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Check the catalogues of the front against each other and against the contract (US-0190).
 
-Usage: ``python -m wftools.catalogs BUNDLE CATALOGUE...``, where BUNDLE is the contract
-bundled as JSON and each CATALOGUE a catalogue of texts of the front, the reference first.
+Usage: ``python -m wftools.catalogs BUNDLE REFERENCE TWIN...``, where BUNDLE is the contract
+bundled as JSON, REFERENCE the catalogue of texts of the front the others follow, and each
+TWIN another catalogue: a single catalogue would have no twin to be checked against.
 
 The catalogues are twins (WF-QUA-0070): each holds every key another holds, each value is a
 non-empty text, and a text uses the same ICU arguments as the reference's. A key is the path
@@ -28,10 +29,12 @@ key: the contract uses it for the flag a request sets to confirm (``confirmed: t
 nobody reads as a label. Nor has a value that is not a string, such as the ``null`` of an
 enumeration that may be empty.
 
-A parameter of an operation that enumerates its values in line fails: it has no name to key
-its values by, and becomes a shared parameter. ``sort_by`` is the exception: its values are
-columns, which the headers of the grid already label. The enumerations of responses written
-in line — the status of the probes — are not displayed, and have no key.
+An enumeration written in line, with no name to key its values by, fails: in a parameter of
+an operation, which becomes a shared parameter; in a body of a request or of a response, or in
+a header, whether under ``paths`` or under ``components.responses``, ``requestBodies`` and
+``headers``, whose schema is then named in ``components.schemas``. Two exceptions: ``sort_by``,
+whose values are columns, which the headers of the grid already label; and the bodies of the
+probes, ``/health`` and the paths under it, which no screen displays.
 
 Under those three roots, a key that matches nothing the contract codes fails too: it is the
 leftover of a value the contract has withdrawn. Other keys — the texts of the interface —
@@ -55,6 +58,8 @@ CODED = frozenset({"enums", "errors", "permissions"})
 """The roots of the keys the contract owns."""
 IN_LINE = frozenset({"sort_by"})
 """The parameters of operations whose values may be enumerated in line: columns, labelled."""
+PROBES = ("/health",)
+"""The paths, and the paths under them, whose bodies may enumerate in line: nobody reads them."""
 _TRANSPARENT = ("items", "additionalProperties")
 _BRANCHES = ("allOf", "anyOf", "oneOf")
 _METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
@@ -122,22 +127,54 @@ def contract_faults(contract: dict[str, object]) -> list[str]:
         f"{operation}: the parameter {parameter.get('name')} enumerates its values in line; "
         "make it a shared parameter of docs/api/components/parameters.yaml, whose name keys "
         "its values"
-        for operation, parameters in _operations(contract)
-        for parameter in parameters
+        for _, operation, fields, shared in _operations(contract)
+        for parameter in map(_object, (*shared, *_list(fields.get("parameters"))))
         if parameter.get("name") not in IN_LINE and any(_enum_keys(parameter.get("schema"), ()))
+    )
+    faults.extend(
+        f"{where}: enumerates values in line; name the schema in components.schemas, whose "
+        "name keys its values"
+        for where, schema in _bodies(contract)
+        if any(_enum_keys(schema, ()))
     )
     return faults
 
 
-def _operations(contract: dict[str, object]) -> Iterator[tuple[str, list[dict[str, object]]]]:
-    """Yield each operation of the contract, by method and path, with its parameters."""
+def _operations(
+    contract: dict[str, object],
+) -> Iterator[tuple[str, str, dict[str, object], list[object]]]:
+    """Yield each operation: its path, its method and path, its fields, the path's parameters."""
     for path, item in _object(contract.get("paths")).items():
         fields = _object(item)
         shared = _list(fields.get("parameters"))
         for method in _METHODS:
             if method in fields:
-                own = _list(_object(fields[method]).get("parameters"))
-                yield f"{method.upper()} {path}", [_object(each) for each in (*shared, *own)]
+                yield path, f"{method.upper()} {path}", _object(fields[method]), shared
+
+
+def _bodies(contract: dict[str, object]) -> Iterator[tuple[str, object]]:
+    """Yield each schema of a body or a header of the contract, with where it is written."""
+    components = _object(contract.get("components"))
+    for kind in ("responses", "requestBodies"):
+        for name, body in _object(components.get(kind)).items():
+            yield from _body_schemas(f"components.{kind}.{name}", body)
+    for name, header in _object(components.get("headers")).items():
+        yield f"components.headers.{name}", _object(header).get("schema")
+    for path, operation, fields, _ in _operations(contract):
+        if path in PROBES or path.startswith(tuple(f"{probe}/" for probe in PROBES)):
+            continue
+        yield from _body_schemas(f"{operation} request", fields.get("requestBody"))
+        for status, response in _object(fields.get("responses")).items():
+            yield from _body_schemas(f"{operation} {status}", response)
+
+
+def _body_schemas(where: str, body: object) -> Iterator[tuple[str, object]]:
+    """Yield the schema of each medium and each header of a body, with where it is written."""
+    fields = _object(body)
+    for medium, content in _object(fields.get("content")).items():
+        yield f"{where} {medium}", _object(content).get("schema")
+    for name, header in _object(fields.get("headers")).items():
+        yield f"{where} header {name}", _object(header).get("schema")
 
 
 def icu_arguments(message: str) -> frozenset[str]:
@@ -154,9 +191,34 @@ def _message(text: str, index: int, names: set[str]) -> int:
     while index < len(text):
         if text[index] == "}":
             return index
+        if text[index] == "'":
+            index = _quoted(text, index)
+            continue
         if text[index] == "{":
             index = _argument(text, index + 1, names)
         index += 1
+    return index
+
+
+def _quoted(text: str, index: int) -> int:
+    """Skip an apostrophe as intl-messageformat reads it; return the index after it.
+
+    Two apostrophes are one, literal; one before a brace opens a literal text up to the next
+    lone apostrophe; any other is literal.
+    """
+    following = text[index + 1 : index + 2]
+    if following == "'":
+        return index + 2
+    if following not in ("{", "}"):
+        return index + 1
+    index += 1
+    while index < len(text):
+        if text[index : index + 2] == "''":
+            index += 2
+        elif text[index] == "'":
+            return index + 1
+        else:
+            index += 1
     return index
 
 
@@ -305,6 +367,10 @@ def main(arguments: list[str]) -> int:
     options = parser.parse_args(arguments)
     bundle = cast("Path", options.bundle)
     paths = cast("list[Path]", options.catalogues)
+    _, *twins = paths
+    if not twins:
+        print("at least two catalogues: the reference, then its twins", file=sys.stderr)
+        return 1
     loaded: list[object] = []
     for path in (bundle, *paths):
         try:

@@ -229,7 +229,7 @@ def test_a_key_written_twice_fails_the_command(
     bundle, fr = tmp_path / "bundle.json", tmp_path / "fr.json"
     bundle.write_text("{}", encoding="utf-8")
     fr.write_text('{"app": "A", "app": "B"}', encoding="utf-8")
-    assert catalogs.main([str(bundle), str(fr)]) == 1
+    assert catalogs.main([str(bundle), str(fr), str(fr)]) == 1
     assert capsys.readouterr().err.startswith(f"{fr}: app is written more than once\n")
 
 
@@ -249,6 +249,12 @@ def test_a_key_written_twice_fails_the_command(
         ("{open, plural, one {x}", {"open"}),
         ("{open, plural, one", {"open"}),
         ("{open, plural}", {"open"}),
+        ("'{name}'", set[str]()),
+        ("It''s {name}", {"name"}),
+        ("It's '{name}' here", set[str]()),
+        ("'{a} it''s' {b} 'x", {"b"}),
+        ("{n, plural, one {'{'#'}'} other {{c}}}", {"n", "c"}),
+        ("'{open", set[str]()),
     ],
 )
 def test_the_arguments_of_a_message_are_the_names_that_open_its_braces(
@@ -363,7 +369,7 @@ def test_a_catalogue_that_is_not_json_fails_and_is_named(
     bundle, broken = tmp_path / "bundle.json", tmp_path / "fr.json"
     bundle.write_text(json.dumps(CONTRACT), encoding="utf-8")
     broken.write_text("{", encoding="utf-8")
-    assert catalogs.main([str(bundle), str(broken)]) == 1
+    assert catalogs.main([str(bundle), str(broken), str(broken)]) == 1
     assert capsys.readouterr().err.startswith(f"{broken}: not readable as JSON: ")
 
 
@@ -371,7 +377,7 @@ def test_a_missing_bundle_fails_and_is_named(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     missing = tmp_path / "bundle.json"
-    assert catalogs.main([str(missing), str(missing)]) == 1
+    assert catalogs.main([str(missing), str(missing), str(missing)]) == 1
     assert capsys.readouterr().err.startswith(f"{missing}: not readable as JSON: ")
 
 
@@ -381,7 +387,7 @@ def test_a_bundle_that_is_not_an_object_fails_with_a_message(
     bundle, fr = tmp_path / "bundle.json", tmp_path / "fr.json"
     bundle.write_text("[]", encoding="utf-8")
     fr.write_text(json.dumps(TWIN), encoding="utf-8")
-    assert catalogs.main([str(bundle), str(fr)]) == 1
+    assert catalogs.main([str(bundle), str(fr), str(fr)]) == 1
     assert capsys.readouterr().err == f"{bundle}: not a contract, which is a JSON object\n"
 
 
@@ -398,10 +404,71 @@ def test_the_chain_runs_the_check_of_the_catalogues() -> None:
     assert "catalogs" in rule.group(1).split()
     recipe = re.search(r"^catalogs:.*\n((?:\t.*\n)+)", makefile, re.MULTILINE)
     assert recipe is not None
-    assert "$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json" in recipe.group(1)
+    command = (
+        "@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json"
+    )
+    assert f"\t{command}\n" in recipe.group(1)
     workflow = (REPOSITORY / ".github/workflows/front.yml").read_text(encoding="utf-8")
     assert "run: make check-front" in workflow
 
 
-def test_no_catalogue_leaves_only_the_contract_to_check() -> None:
+def test_without_catalogues_the_problems_are_those_of_the_contract() -> None:
+    contract: dict[str, object] = {
+        "paths": {"/w": {"get": {"parameters": [{"name": "basis", "schema": {"enum": ["a"]}}]}}}
+    }
     assert catalogs.problems({}, {}) == []
+    assert [problem[:17] for problem in catalogs.problems(contract, {})] == ["contract: GET /w:"]
+
+
+@pytest.mark.requirement("WF-QUA-0070-A")
+def test_a_single_catalogue_has_no_twin_and_fails(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bundle, fr = tmp_path / "bundle.json", tmp_path / "fr.json"
+    bundle.write_text(json.dumps(CONTRACT), encoding="utf-8")
+    fr.write_text(json.dumps(TWIN), encoding="utf-8")
+    assert catalogs.main([str(bundle), str(fr)]) == 1
+    assert capsys.readouterr().err == "at least two catalogues: the reference, then its twins\n"
+
+
+def test_a_body_enumerated_in_line_fails_outside_the_probes() -> None:
+    body = {
+        "content": {
+            "application/json": {"schema": {"properties": {"outcome": {"enum": ["merged"]}}}}
+        }
+    }
+    operation = {"requestBody": body, "responses": {"200": body}}
+    contract: dict[str, object] = {"paths": {"/projects": {"post": operation}}}
+    advice = (
+        ": enumerates values in line; name the schema in components.schemas, whose name keys "
+        "its values"
+    )
+    assert catalogs.contract_faults(contract) == [
+        f"POST /projects request application/json{advice}",
+        f"POST /projects 200 application/json{advice}",
+    ]
+
+
+def test_the_bodies_of_the_probes_may_enumerate_in_line() -> None:
+    status = {
+        "content": {"application/json": {"schema": {"properties": {"status": {"enum": ["ok"]}}}}}
+    }
+    probe = {"get": {"responses": {"200": status}}}
+    contract: dict[str, object] = {"paths": {"/health": probe, "/health/ready": probe}}
+    assert catalogs.contract_faults(contract) == []
+
+
+def test_a_shared_body_or_header_enumerated_in_line_fails() -> None:
+    enumerated = {"schema": {"enum": ["a"]}}
+    contract: dict[str, object] = {
+        "components": {
+            "responses": {"Done": {"headers": {"X-Outcome": enumerated}}},
+            "requestBodies": {"Merge": {"content": {"application/json": enumerated}}},
+            "headers": {"X-Kind": enumerated},
+        }
+    }
+    assert [fault.split(": ")[0] for fault in catalogs.contract_faults(contract)] == [
+        "components.responses.Done header X-Outcome",
+        "components.requestBodies.Merge application/json",
+        "components.headers.X-Kind",
+    ]
