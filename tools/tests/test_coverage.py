@@ -83,10 +83,11 @@ def test_the_report_lists_every_f0_requirement_with_its_tests() -> None:
     result = coverage.report(requirements, [Citation("WF-QUA-0010-A", "t.py::test_a")])
     assert result.covered == {"WF-QUA-0010-A": ["t.py::test_a"]}
     assert result.uncovered == ["WF-QUA-0020-A"]
-    markdown = result.markdown([r for r in requirements if r.is_mandatory])
-    assert "| `WF-QUA-0010-A` | Titre de WF-QUA-0010-A | `t.py::test_a` |" in markdown
-    assert "| `WF-QUA-0020-A` | Titre de WF-QUA-0020-A | **non couverte** |" in markdown
-    assert "WF-IHM-0090-A" not in markdown
+    markdown = result.markdown([r for r in requirements if not r.is_example])
+    assert "| `WF-QUA-0010-A` | F0 | Titre de WF-QUA-0010-A | `t.py::test_a` |" in markdown
+    assert "| `WF-QUA-0020-A` | F0 | Titre de WF-QUA-0020-A | **non couverte** |" in markdown
+    assert "| `WF-IHM-0090-A` | F1 | Titre de WF-IHM-0090-A | non couverte |" in markdown
+    assert "1 exigences F0 couvertes sur 2" in markdown
 
 
 def test_removing_a_test_uncovers_its_requirement() -> None:

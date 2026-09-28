@@ -121,5 +121,8 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
    pendant la requête.
 9. **Chemin groupé testé seulement dans ses refus.** Une sélection multiple n'a que des
    tests de rejet ; un groupe valide qui traverse tout le parcours n'est jamais éprouvé.
-10. **Test qui passe sur les lignes sans rien vérifier.** Il rend le composant, fait monter
+10. **Code commenté laissé dans un fichier.** Aucun outil ne le détecte en TypeScript —
+    `ERA001` est propre à Ruff, et une heuristique crierait à tort. Un bloc de code ou de
+    JSX en commentaire se supprime : l'historique git garde tout.
+11. **Test qui passe sur les lignes sans rien vérifier.** Il rend le composant, fait monter
     la couverture, et n'affirme rien de ce que l'utilisateur voit.

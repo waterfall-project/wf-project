@@ -94,7 +94,7 @@ Every operation cites, in its own summary or description, the requirements it re
 requirement cited by a shared response says nothing about what the operation does.
 `make inventory` turns that into a coverage table, and fails on an operation that cites
 nothing, or on a requirement domain that escapes the contract, unless the reason is declared
-in `tools/inventory.py`.
+in `docs/api/tools/inventory.py`.
 
 ## Changing the code
 

@@ -46,6 +46,8 @@ TIER ?= fast
 # Extra flags to install Playwright's browsers: the chain adds --with-deps.
 PLAYWRIGHT_INSTALL ?=
 full-only = $(if $(filter full,$(TIER)),$(1))
+# The coverage run executes the same tests: in the full tier it replaces the plain run.
+full-else = $(if $(filter full,$(TIER)),$(1),$(2))
 WFTOOLS := uv run --frozen --project $(TOOLS) python -m wftools
 
 help: ## List the commands
@@ -115,7 +117,7 @@ lint-workflows: ## Lint the GitHub Actions workflows
 	@uv run --frozen --project $(TOOLS) actionlint
 
 lint-shell: ## Lint the shell scripts
-	@git ls-files '*.sh' | xargs uv run --frozen --project $(TOOLS) shellcheck
+	@git ls-files '*.sh' | xargs -r uv run --frozen --project $(TOOLS) shellcheck
 
 lint-docker: ## Lint the Dockerfiles
 	@git ls-files '*Dockerfile' | xargs -r uv run --frozen --project $(TOOLS) hadolint
@@ -126,7 +128,9 @@ lint-compose: ## Validate the Compose files
 # --- The chain: one target per family of checks (tools/paths.toml) -----------------
 
 check: ## Run the checks of what the change touches (BASE=origin/main by default)
-	@for target in $$($(WFTOOLS).changes "$(BASE)" --targets); do \
+	@targets=$$($(WFTOOLS).changes "$(BASE)" --targets) \
+		|| { echo "  the family selection failed: no check ran" >&2; exit 1; }; \
+	for target in $$targets; do \
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
@@ -143,7 +147,7 @@ check-contract: lint-openapi inventory ## The contract lints and its inventory i
 	@git diff --exit-code --stat -- $(API)/INVENTORY.md \
 		|| { echo "  INVENTORY.md is not the one the contract produces: run make inventory"; exit 1; }
 
-check-back: lint-back typecheck-back imports-back test-back $(call full-only,coverage-back) ## The back: lint, types, boundaries, tests; coverage in the full tier
+check-back: lint-back typecheck-back imports-back $(call full-else,coverage-back,test-back) ## The back: lint, types, boundaries, tests; coverage replaces the plain tests in the full tier
 
 lint-back: ## Lint and format check of the back
 	@cd $(BACK) && uv run --frozen ruff check . && uv run --frozen ruff format --check .
@@ -161,7 +165,7 @@ coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US
 	@cd $(BACK) && uv run --frozen pytest --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
-check-front: client-up-to-date lint-front typecheck-front test-front $(call full-only,coverage-front e2e-browsers e2e) ## The front: client, lint, types, tests; coverage and end-to-end in the full tier
+check-front: client-up-to-date lint-front typecheck-front $(call full-else,coverage-front e2e-browsers e2e,test-front) ## The front: client, lint, types, tests; coverage and end-to-end replace the plain tests in the full tier
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent

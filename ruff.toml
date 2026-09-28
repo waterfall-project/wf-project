@@ -5,7 +5,7 @@
 #
 # Every rule of Ruff is on, and what is off is listed below with its reason: the history of
 # this file shows every withdrawal. A rule is never silenced in the code: no `noqa`
-# comment is accepted (`make exemptions`). An exception for a whole kind of file is written
+# comment is accepted (`make sources`). An exception for a whole kind of file is written
 # here, under `per-file-ignores`, with its reason.
 line-length = 100
 target-version = "py313"

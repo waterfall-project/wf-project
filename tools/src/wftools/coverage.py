@@ -130,20 +130,33 @@ class Report:
     unknown: list[Citation]
     outdated: list[tuple[Citation, str]]
 
-    def markdown(self, mandatory: list[projection.Requirement]) -> str:
-        """Return the report, one line per F0 requirement."""
+    def markdown(self, requirements: list[projection.Requirement]) -> str:
+        """Return the report: every product requirement, only the F0 ones counting."""
+        mandatory = sum(requirement.is_mandatory for requirement in requirements)
         lines = [
             "## Couverture des exigences par les tests",
             "",
-            f"{len(mandatory) - len(self.uncovered)} exigences F0 couvertes sur {len(mandatory)}.",
+            (
+                f"{mandatory - len(self.uncovered)} exigences F0 couvertes sur {mandatory} ; "
+                f"les {len(requirements) - mandatory} exigences F1 et F2 figurent sans "
+                "compter dans l'échec (WF-QUA-0010)."
+            ),
             "",
-            "| Exigence | Titre | Tests |",
-            "|---|---|---|",
+            "| Exigence | Flex | Titre | Tests |",
+            "|---|---|---|---|",
         ]
-        for requirement in mandatory:
+        for requirement in requirements:
             tests = self.covered.get(requirement.identifier, [])
-            cell = "<br>".join(f"`{test}`" for test in tests) if tests else "**non couverte**"
-            lines.append(f"| `{requirement.identifier}` | {requirement.title} | {cell} |")
+            if tests:
+                cell = "<br>".join(f"`{test}`" for test in tests)
+            elif requirement.is_mandatory:
+                cell = "**non couverte**"
+            else:
+                cell = "non couverte"
+            lines.append(
+                f"| `{requirement.identifier}` | {requirement.flexibility} "
+                f"| {requirement.title} | {cell} |"
+            )
         return "\n".join(lines) + "\n"
 
 
@@ -182,7 +195,7 @@ def main(arguments: list[str]) -> int:
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with Path(summary).open("a", encoding="utf-8") as output:
-            output.write(result.markdown(mandatory))
+            output.write(result.markdown([r for r in requirements if not r.is_example]))
     for citation in result.unknown:
         print(f"{citation.test}: cites {citation.requirement}, unknown", file=sys.stderr)
     for citation, current in result.outdated:
