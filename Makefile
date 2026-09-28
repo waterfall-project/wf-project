@@ -11,6 +11,8 @@ SPEC    := docs/spec
 API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
 MOCK_SPEC := $(API)/waterfall.mock.json
+# The same bundle in JSON, which the repository tools read without a YAML parser.
+JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 TOOLS   := tools
 # The tools of the specification and of the contract, held to the same rules as the others.
@@ -33,7 +35,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
-	install-front lint-front typecheck-front test-front generate-client client-up-to-date \
+	install-front lint-front typecheck-front test-front generate-client client-up-to-date catalogs \
 	coverage-back coverage-front roadmap check-roadmap e2e e2e-browsers lot-size \
 	lint-docker changes gate \
 	check-tools clean
@@ -165,7 +167,7 @@ coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US
 	@cd $(BACK) && uv run --frozen pytest --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
-check-front: client-up-to-date lint-front typecheck-front $(call full-else,coverage-front e2e-browsers e2e,test-front) ## The front: client, lint, types, tests; coverage and end-to-end replace the plain tests in the full tier
+check-front: client-up-to-date lint-front typecheck-front catalogs $(call full-else,coverage-front e2e-browsers e2e,test-front) ## The front: client, lint, types, catalogues, tests; coverage and end-to-end replace the plain tests in the full tier
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -184,6 +186,11 @@ lint-front: install-front ## Lint and format check of the front
 
 typecheck-front: install-front ## Strict type check of the front
 	@$(PNPM) typecheck
+
+# The contract is bundled here, never read from a bundle left on the disk by an older run.
+catalogs: ## The catalogues of the front are twins, with a key for each value the contract codes (WF-QUA-0070)
+	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(JSON_BUNDLE)) >/dev/null
+	@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json
 
 test-front: install-front ## Unit tests of the front
 	@$(PNPM) test
@@ -221,5 +228,5 @@ check-tools: ## Report which prerequisites are missing
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
 clean: ## Remove everything the commands generate
-	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(MOCK_SPEC)
+	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(JSON_BUNDLE) $(MOCK_SPEC)
 	@echo "  cleaned"

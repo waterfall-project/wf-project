@@ -421,8 +421,8 @@ ses paramètres, jamais une phrase.
   `problemMessage(problem, { locale, messages })`, jamais en écrivant la phrase.
 
   *Contrôles* : `make typecheck-front` échoue sur un code d'`ErrorCode` sans clé dans le
-  catalogue français, que `problem.ts` lit par `errors.${code}` ; le contrôle croisé des
-  catalogues (`wftools.catalogs`), sur un code sans clé dans l'un des deux.
+  catalogue français, que `problem.ts` lit par `errors.${code}` ; `make catalogs`, sur un
+  code sans clé dans l'un des deux, ou sur une clé `errors.` que le contrat n'a plus.
 - **Ajouter un code côté service** — *à écrire*, EP-03, qui crée le service.
 
 ## Clés de traduction
@@ -471,9 +471,12 @@ catalogue anglais (`frontend/src/i18n/catalogues.ts`) ; `make lint-front` —
 `react/jsx-no-literals` refuse le texte écrit dans le JSX, et `no-restricted-syntax` un
 littéral dans `aria-label`, `title`, `alt` ou `placeholder`, ou dans une branche d'un
 enfant ; `frontend/src/i18n/text-guard.test.ts` l'éprouve sur des extraits piégés, à côté de
-la garde réseau qui partage la règle ; le contrôle croisé des catalogues
-(`wftools.catalogs`) — les deux catalogues ont les mêmes clés, et chaque valeur
-d'énumération, chaque code d'erreur et chaque permission du bundle a la sienne.
+la garde réseau qui partage la règle ; `make catalogs`, dans `check-front`, qui lit le
+contrat qu'il vient d'assembler (`wftools.catalogs`) — les deux catalogues ont les mêmes
+clés, chaque valeur est un texte non vide, chaque valeur d'énumération, chaque code d'erreur
+et chaque permission du contrat a la sienne, et aucune clé sous `enums`, `errors` ou
+`permissions` ne survit à la valeur que le contrat a retirée. Il nomme chaque clé qui manque
+et le catalogue qui la porte.
 
 ## Migrations
 
