@@ -121,11 +121,27 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 // The dependencies of package.json, each examined for the lists of the guard. A new one
 // fails this test until someone has asked whether it reaches the network. next-intl
 // (US-0190) does not: it reads the catalogues it is handed, and its message extractor, which
-// watches files, is not used.
-const DEPENDENCIES = ["next", "next-intl", "openapi-fetch", "react", "react-dom", "server-only"];
+// watches files, is not used. Nor do those of the charter (US-0090): class-variance-authority,
+// clsx and tailwind-merge compose class names; lucide-react draws its icons inline, in SVG;
+// geist ships its font files, which next/font serves from the front; Tailwind CSS and its
+// PostCSS plugin read the sources at build time; axe-core reads the document of a test.
+const DEPENDENCIES = [
+  "class-variance-authority",
+  "clsx",
+  "geist",
+  "lucide-react",
+  "next",
+  "next-intl",
+  "openapi-fetch",
+  "react",
+  "react-dom",
+  "server-only",
+  "tailwind-merge",
+];
 const DEV_DEPENDENCIES = [
   "@eslint/js",
   "@playwright/test",
+  "@tailwindcss/postcss",
   "@testing-library/dom",
   "@testing-library/jest-dom",
   "@testing-library/react",
@@ -134,12 +150,14 @@ const DEV_DEPENDENCIES = [
   "@types/react",
   "@types/react-dom",
   "@vitest/coverage-v8",
+  "axe-core",
   "eslint",
   "eslint-config-next",
   "eslint-plugin-jsdoc",
   "happy-dom",
   "openapi-typescript",
   "prettier",
+  "tailwindcss",
   "typescript",
   "typescript-eslint",
   "vitest",

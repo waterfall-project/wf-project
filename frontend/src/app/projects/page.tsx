@@ -4,9 +4,17 @@
  * The list of projects, first step of the witness path of the end-to-end harness (US-0080).
  * Scaffolding without text of its own: EP-02 replaces it and keeps the path.
  */
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { serverClient } from "@/api/server";
+
+import { screenMetadata } from "../title";
+
+/** Title the tab with the list of projects. */
+export async function generateMetadata(): Promise<Metadata> {
+  return screenMetadata("functionGroups.projects");
+}
 
 /** Render the projects the API lists. */
 export default async function ProjectsPage() {

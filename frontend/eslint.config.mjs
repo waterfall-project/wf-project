@@ -144,6 +144,44 @@ const TEXT_SYNTAX = [
   ]),
 ].map((selector) => ({ selector, message: TEXT }));
 
+// No colour nor font is written in the code (charter, guide « Charte graphique »): a
+// component names a token of src/theme/globals.css — `bg-primary`, `text-muted-foreground`
+// —, whose light and dark values the charter holds and checks for contrast. Refused, in any
+// string of the code:
+//
+// - a colour class of the palette of Tailwind, `bg-blue-500`, `text-white`: the charter
+//   withdraws the palette, and the class would draw nothing;
+// - an arbitrary value that writes a colour or a font, `bg-[#027dc6]`, `font-['Arial']`;
+// - a colour written as a string of its own, `"#027dc6"`, `"rgb(2 125 198)"`, whether in a
+//   style, an attribute of an SVG, or the options of a chart;
+//
+// and a colour or a font in the `style` of an element, whatever its value.
+const COLOUR =
+  "Name a token of the charter, src/theme/globals.css; never write a colour or a font.";
+const PALETTE =
+  "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|" +
+  "blue|indigo|violet|purple|fuchsia|pink|rose|black|white";
+const COLOUR_UTILITIES =
+  "bg|text|border(-[xytrblse])?|outline|ring(-offset)?|fill|stroke|decoration|shadow|accent|" +
+  "caret|divide|placeholder|from|via|to";
+const COLOUR_FUNCTIONS = "rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|light-dark";
+const COLOUR_PATTERNS = [
+  `(^|[\\s:!])-?(${COLOUR_UTILITIES})-(${PALETTE})(-\\d{2,3})?(/[\\w.]+)?($|\\s)`,
+  `\\[(#|(${COLOUR_FUNCTIONS})\\()`,
+  `(^|[\\s:!])font-\\[`,
+  `^\\s*(#([\\da-f]{3,4}|[\\da-f]{6}|[\\da-f]{8})|(${COLOUR_FUNCTIONS})\\(.*\\))\\s*$`,
+];
+const STYLE_PROPERTIES =
+  "color|background|backgroundColor|border(Top|Right|Bottom|Left)?Color|outlineColor|" +
+  "textDecorationColor|fill|stroke|font|fontFamily";
+const COLOUR_SYNTAX = [
+  ...COLOUR_PATTERNS.flatMap((pattern) => [
+    `Literal[value=${inSelector(pattern)}i]`,
+    `TemplateElement[value.raw=${inSelector(pattern)}i]`,
+  ]),
+  `JSXAttribute[name.name='style'] Property[key.name=/^(${STYLE_PROPERTIES})$/]`,
+].map((selector) => ({ selector, message: COLOUR }));
+
 export default defineConfig([
   globalIgnores([
     ".next/**",
@@ -184,7 +222,13 @@ export default defineConfig([
         "error",
         { patterns: [{ regex: NETWORK_MODULE, message: NETWORK }] },
       ],
-      "no-restricted-syntax": ["error", ...NETWORK_SYNTAX, ...CLIENT_SYNTAX, ...TEXT_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...NETWORK_SYNTAX,
+        ...CLIENT_SYNTAX,
+        ...TEXT_SYNTAX,
+        ...COLOUR_SYNTAX,
+      ],
       // See TEXT: the text of JSX, and a string written as a child. The attributes are
       // TEXT_SYNTAX's, which knows which of them a user reads.
       "react/jsx-no-literals": [
@@ -230,6 +274,7 @@ export default defineConfig([
         ...NETWORK_SYNTAX,
         ...CLIENT_SYNTAX,
         ...TEXT_SYNTAX,
+        ...COLOUR_SYNTAX,
         ACTION_SYNTAX,
       ],
     },
@@ -237,8 +282,9 @@ export default defineConfig([
   {
     // Tests are named for what they check; a docstring would repeat the name. The text a
     // test renders is its own data — a page in a layout, a label to find —, never shown to
-    // a user: the rules against text written in the code do not apply, and the network
-    // guard does, its selectors repeated without TEXT_SYNTAX.
+    // a user, and so are the colours it traps: the rules against text and colours written
+    // in the code do not apply, and the network guard does, its selectors repeated without
+    // TEXT_SYNTAX and COLOUR_SYNTAX.
     files: ["**/*.test.ts", "**/*.test.tsx", "e2e/**"],
     rules: {
       "jsdoc/require-jsdoc": "off",

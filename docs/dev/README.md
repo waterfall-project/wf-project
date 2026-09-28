@@ -57,6 +57,18 @@ et les composants serveur de `src/app/`, qui se rendent sans document comme en p
 `dom` pour les `*.dom.test.ts` et `*.dom.test.tsx` — les composants client, que Testing
 Library rend dans le document de happy-dom.
 
+La coquille (`frontend/src/components/shell/`) tire sa navigation de
+`frontend/src/navigation/functions.json` : pour chaque fonction de second niveau de la FBS,
+son code, la clé de son libellé, sa route, sa portée — hors projet, ou dans la révision d'un
+projet — et la permission qui la laisse consulter ; une fonction dont la session n'a pas la
+permission `<fonction>.read` n'y figure pas. Le contexte de lecture est dans l'adresse :
+projet et révision dans le chemin, sous-projet filtré et date de calcul en paramètres,
+`subproject_id` et `as_of`, comme le contrat les nomme ; les liens entre fonctions d'un
+projet les reportent, et un témoin du front, `wf_last_project`, garde le dernier, dont la
+coquille tire le « retour au projet » (WF-IHM-0010). Chaque route de la table existe dès la
+coquille, servie par la page d'attente `frontend/src/app/[...path]/page.tsx` ; le lot d'un
+écran écrit sa page à la même route, qui l'emporte sur elle.
+
 L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
 empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
 
@@ -499,6 +511,51 @@ et chaque permission du contrat a la sienne, et aucune clé sous `enums`, `error
 arguments ICU que celui du catalogue français, une clé ne s'écrit qu'une fois par fichier, et
 aucune énumération ne s'écrit en ligne, hors `sort_by` et les sondes. Il demande au moins
 deux catalogues, et nomme chaque clé qui manque et le catalogue qui la porte.
+
+## Charte graphique
+
+La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs : les couleurs,
+la typographie, les espacements et les rayons y sont des jetons — des variables CSS que
+Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
+`text-muted-foreground`, `rounded-md`). Les bleus viennent des logos de `docs/assets`
+(`#027dc6`, `#1195e1`), les neutres de shadcn/ui ; la police est Geist, celle du logo.
+
+- **Clair et sombre par les mêmes jetons.** Chaque jeton de couleur porte ses deux valeurs,
+  `light-dark(claire, sombre)`. Le document suit le poste (`color-scheme: light dark`) ; quand
+  le compte force un mode (`DisplayPreferences.theme`), le layout racine pose
+  `data-theme="light"` ou `data-theme="dark"` sur `<html>`, résolu côté serveur comme la
+  langue. Aucun composant ne se demande quel mode s'affiche, et la variante `dark:` de
+  Tailwind ne sert pas.
+- **Ajouter une couleur, c'est ajouter un jeton** : sa valeur claire et sa valeur sombre dans
+  `:root`, son nom dans `@theme inline` (`--color-<nom>: var(--<nom>)`), et chaque paire
+  texte et fond qu'il forme dans `frontend/src/theme/contrast.test.ts` ; un composant emploie
+  ensuite sa classe (`bg-<nom>`). Jamais une couleur dans un composant : ni une classe de la
+  palette de Tailwind, retirée du thème — `bg-blue-500` ne produit rien —, ni une valeur
+  arbitraire (`bg-[#027dc6]`), ni une couleur écrite dans une chaîne ou dans un `style`. Une
+  police s'ajoute de même, par un jeton `--font-<nom>`.
+- **Le contraste** d'un texte sur son fond atteint 4,5:1, celui de ce qui montre un contrôle —
+  bord d'un champ, anneau du focus — 3:1, dans les deux modes (WCAG AA, §3.6).
+- **shadcn/ui** : un composant s'ajoute en copiant son source dans
+  `frontend/src/components/ui/` (`frontend/components.json` en donne les chemins), et seulement
+  quand un écran l'emploie. Copié, il est du code du dépôt, soumis à toutes ses règles :
+  en-tête, lint, JSDoc, couverture, textes par le catalogue. Les icônes sont celles de Lucide
+  (`lucide-react`) ; une icône seule porte un nom, une icône à côté de son texte est
+  `aria-hidden`.
+- **Le logo et le favicon** sont les fichiers de `docs/assets`, copiés à l'octet près dans
+  `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où
+  le mode sombre s'applique.
+
+*Contrôles* : `make lint-front` — `no-restricted-syntax` refuse une classe de couleur de la
+palette, une valeur arbitraire de couleur ou de police, une couleur écrite en chaîne et une
+couleur ou une police dans un `style` (`COLOUR_SYNTAX` de `frontend/eslint.config.mjs`) ;
+`frontend/src/theme/colour-guard.test.ts` l'éprouve sur des extraits piégés, et vérifie
+qu'aucune feuille de style ne vit hors de `src/theme/`. `make test-front` —
+`contrast.test.ts` mesure chaque paire de jetons dans les deux modes, `brand.test.ts`
+compare les logos et l'icône à ceux de `docs/assets`. Le contraste des écrans rendus se
+contrôle dans le navigateur (US-0200) ; le reste de l'accessibilité d'un composant, dans ses
+tests, par `expectAccessible` (`frontend/src/test/axe.ts`, axe-core sous happy-dom, qui ne
+calcule pas les couleurs). Reste à la revue : une couleur bâtie par un gabarit à expressions
+ou par une fonction, que le motif d'une chaîne entière ne voit pas.
 
 ## Migrations
 

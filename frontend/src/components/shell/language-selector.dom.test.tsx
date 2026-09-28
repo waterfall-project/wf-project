@@ -25,11 +25,20 @@ vi.mock("next/cache", () => ({ refresh: () => server.refresh() }));
 
 const PREFERENCES = "PATCH /me/preferences";
 
-/** Render the shell as the root layout does: the language of the request, then the page. */
+/**
+ * Render the shell as the root layout does: the language of the request, then the page. The
+ * mode and the navigation are not this file's: they are left out, and their reads with them.
+ */
 async function layout() {
   const { locale, preference } = await requestLanguage();
   return (
-    <Shell locale={locale} preference={preference}>
+    <Shell
+      locale={locale}
+      preference={preference}
+      theme={undefined}
+      permissions={undefined}
+      remembered={undefined}
+    >
       <main />
     </Shell>
   );
@@ -82,6 +91,8 @@ describe("the language selector", () => {
 
   it("sends nothing until the choice is applied, and keeps the focus on the keyboard", async () => {
     const client = await open({ "GET /me": ["me", "me_english"], [PREFERENCES]: "preferences" });
+    // The logo, which leads home, comes first; the selector next.
+    await userEvent.tab();
     await userEvent.tab();
     const select = screen.getByRole("combobox", { name: "Langue" });
     expect(select).toHaveFocus();

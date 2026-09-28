@@ -4,13 +4,26 @@
  * A project, second step of the witness path (US-0080): its label, and its revisions.
  * Scaffolding without text of its own: EP-02 replaces it and keeps the path.
  */
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { serverClient } from "@/api/server";
 
+import { screenMetadata } from "../../title";
+
 /** The route parameters of a project. */
 export interface ProjectParams {
   readonly projectId: string;
+}
+
+/** Title the tab with the project. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<ProjectParams>;
+}): Promise<Metadata> {
+  const { projectId } = await params;
+  return screenMetadata("functionGroups.projects", projectId);
 }
 
 /** Render a project and links to its revisions. */

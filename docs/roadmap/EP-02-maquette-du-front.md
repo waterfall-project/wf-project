@@ -386,7 +386,7 @@ fond d'un utilisateur, la révision ouverte par défaut.
 
 ## US-0090 — Coquille de l'application et contexte de projet
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0010-A`
 - **opérations** : `getCurrentSession`, `getMe`, `listProjects`, `getProject`,
   `getSystemStatus`, `getReferenceReadiness`

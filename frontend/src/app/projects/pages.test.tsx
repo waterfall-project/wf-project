@@ -5,13 +5,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type FakeAnswers, fakeClient } from "@/test/fixtures";
 
-import ProjectPage from "./[projectId]/page";
+import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
 import RevisionPage from "./[projectId]/revisions/[revisionId]/page";
-import ProjectsPage from "./page";
+import ProjectsPage, { generateMetadata as projectsMetadata } from "./page";
 
 const server = vi.hoisted((): { answers: FakeAnswers } => ({ answers: {} }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => fakeClient(server.answers) }));
+vi.mock("next/headers", () => ({
+  headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
+}));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -19,6 +22,7 @@ const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 
 beforeEach(() => {
   server.answers = {
+    "GET /me": "me",
     "GET /projects": "projects",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
@@ -70,5 +74,13 @@ describe("the witness path", () => {
     expect(renderToStaticMarkup(await ProjectsPage())).toBe("<main><ul></ul></main>");
     const page = await ProjectPage({ params: Promise.resolve({ projectId: PROJECT }) });
     expect(renderToStaticMarkup(page)).toBe("<main><h1></h1><ul></ul></main>");
+  });
+
+  it("titles the tab with the screen, and with the project read", async () => {
+    expect((await projectsMetadata()).title).toBe("Projects — Waterfall");
+    const params = Promise.resolve({ projectId: PROJECT });
+    expect((await projectMetadata({ params })).title).toBe(
+      "Projects · Modernisation du poste de commande — Waterfall",
+    );
   });
 });

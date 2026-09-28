@@ -1,0 +1,122 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/*
+ * The rules of eslint.config.mjs against a colour or a font written in the code, tried on
+ * trapped snippets: a component names a token of the charter, and anything else — a class
+ * of the palette of Tailwind, an arbitrary value, a colour in a string or in a style — must
+ * be refused as an error, which fails `make lint-front`. And no stylesheet lives outside
+ * src/theme/, where the tokens are.
+ *
+ * A snippet is linted as the text of an existing file of the project, so that the typed
+ * rules find it; nothing is written to the disk.
+ */
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+
+import { ESLint } from "eslint";
+import tseslint from "typescript-eslint";
+import { beforeAll, describe, expect, it } from "vitest";
+
+const ROOT = join(import.meta.dirname, "../..");
+
+// A client component of the project, in TSX, and a module of server actions.
+const COMPONENT = "src/components/shell/navigation.tsx";
+const ACTION = "src/api/actions/trap.tsx";
+
+const COLOUR =
+  "Name a token of the charter, src/theme/globals.css; never write a colour or a font.";
+
+/** A component around some JSX, and a constant beside it. */
+function component(jsx: string, constant = '""'): string {
+  return [
+    '"use client";',
+    `const VALUE = ${constant};`,
+    "/** A component. */",
+    "export function Trap({ ok }: { ok: boolean }) {",
+    `  return ${jsx};`,
+    "}",
+  ].join("\n");
+}
+
+// A colour or a font written in the classes of an element, however they are built.
+const IN_CLASSES: readonly string[] = [
+  '<p className="text-white">{VALUE}</p>',
+  '<p className="p-2 bg-blue-500">{VALUE}</p>',
+  '<p className="hover:bg-sky-600/50 p-2">{VALUE}</p>',
+  '<p className="border-t-red-700">{VALUE}</p>',
+  '<p className={ok ? "text-slate-900" : "text-foreground"}>{VALUE}</p>',
+  "<p className={`p-2 ${VALUE} ring-emerald-400`}>{VALUE}</p>",
+  '<p className="bg-[#027dc6]">{VALUE}</p>',
+  '<p className="text-[rgb(2_125_198)]">{VALUE}</p>',
+  '<p className="fill-[oklch(0.6_0.1_240)]">{VALUE}</p>',
+  "<p className=\"font-['Comic_Sans_MS']\">{VALUE}</p>",
+];
+
+// A colour or a font written elsewhere: a string of its own, an attribute of an SVG, a style.
+const ELSEWHERE: readonly [string, string][] = [
+  ["<p>{VALUE}</p>", '"#027dc6"'],
+  ["<p>{VALUE}</p>", '"#FFF"'],
+  ["<p>{VALUE}</p>", '"rgb(2, 125, 198)"'],
+  ["<p>{VALUE}</p>", "`hsl(200 90% 40%)`"],
+  ['<svg><path d="M0 0" fill="#1195e1" /></svg>', '""'],
+  ["<p style={{ color: VALUE }}>{VALUE}</p>", '"var(--primary)"'],
+  ["<p style={{ backgroundColor: VALUE }}>{VALUE}</p>", '""'],
+  ["<p style={{ fontFamily: VALUE }}>{VALUE}</p>", '"Arial"'],
+];
+
+// What a component may write: the tokens of the charter, and what only looks like a colour.
+const ALLOWED: readonly [string, string][] = [
+  ['<p className="bg-primary text-primary-foreground">{VALUE}</p>', '""'],
+  ['<p className="text-muted-foreground hover:bg-accent/90">{VALUE}</p>', '""'],
+  ['<p className="border-input ring-ring md:grid-cols-[16rem_1fr]">{VALUE}</p>', '""'],
+  ['<svg><path d="M0 0" fill="currentColor" /></svg>', '""'],
+  ['<a href="#main">{VALUE}</a>', '"text-whitespace blue-print"'],
+  ["<p style={{ width: VALUE }}>{VALUE}</p>", '"12rem"'],
+];
+
+let eslint: ESLint;
+let actions: ESLint;
+
+beforeAll(() => {
+  eslint = new ESLint({ cwd: ROOT });
+  actions = new ESLint({ cwd: ROOT, overrideConfig: tseslint.configs.disableTypeChecked });
+});
+
+/** The rule, severity and message of each finding of the colour guard on a snippet. */
+async function findings(code: string, file = COMPONENT, linter = eslint) {
+  const [result] = await linter.lintText(code, { filePath: file });
+  return (result?.messages ?? [])
+    .filter((m) => m.fatal === true || m.message === COLOUR)
+    .map((m) => [m.ruleId, m.severity, m.message]);
+}
+
+describe("the colour guard", { timeout: 60_000 }, () => {
+  it.each(IN_CLASSES)("refuses %j", async (jsx) => {
+    // Severity 2 is an error: it fails `make lint-front`, and so the chain.
+    expect(await findings(component(jsx))).toContainEqual(["no-restricted-syntax", 2, COLOUR]);
+  });
+
+  it.each(ELSEWHERE)("refuses %j with %s", async (jsx, constant) => {
+    expect(await findings(component(jsx, constant))).toContainEqual([
+      "no-restricted-syntax",
+      2,
+      COLOUR,
+    ]);
+  });
+
+  it.each(ALLOWED)("lets %j with %s through", async (jsx, constant) => {
+    expect(await findings(component(jsx, constant))).toEqual([]);
+  });
+
+  it("holds in the server actions, whose block redefines the rule", async () => {
+    const code = '"use server";\n/** A trap. */\nexport const TRAP = "#027dc6";';
+    expect(await findings(code, ACTION, actions)).toEqual([["no-restricted-syntax", 2, COLOUR]]);
+  });
+
+  it("finds no stylesheet outside src/theme/, where the tokens are", () => {
+    const sheets = readdirSync(join(ROOT, "src"), { recursive: true, encoding: "utf-8" }).filter(
+      (file) => file.endsWith(".css"),
+    );
+    expect(sheets).toEqual([join("theme", "globals.css")]);
+  });
+});
