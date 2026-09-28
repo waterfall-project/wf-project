@@ -113,7 +113,7 @@ engager » d'`analysis` (US-0230), `analysis` et `portfolio` (US-0240), `referen
 Une opération qui manque se note dans cet EPIC et se corrige dans `docs/api` : c'est une
 modification du contrat, donc un travail qui précède l'écran qui l'attend.
 
-Neuf modifications sont déjà connues, décidées au cadrage, et se font en premier lot : les
+Dix modifications sont déjà connues, décidées au cadrage, et se font en premier lot : les
 commandes disponibles et leurs conditions manquantes, portées par le projet et par la
 révision ; le catalogue des codes d'erreur, que `Problem.code` promet sans qu'il existe ;
 l'énumération des codes de permission ; les deux genres manquants de tâche de fond — fusion
@@ -122,8 +122,9 @@ portant au plus dix mille objets ; les champs calculés portés par chaque nœud
 (`computed_fields`) ; la langue réduite à une seule préférence à trois états — `default`,
 `fr`, `en` —, où `default` suit le navigateur ; le tri et les filtres des grilles portés par
 le contrat et exécutés par le serveur, qui rend les lignes et les totaux du périmètre
-demandé ; et le filtre « mes projets » de `listProjects` — les projets dont l'utilisateur
-est contributeur —, qu'exige l'écran d'accueil.
+demandé ; le filtre « mes projets » de `listProjects` — les projets dont l'utilisateur
+est contributeur —, qu'exige l'écran d'accueil ; et le thème, préférence de compte à trois
+états — `default`, `light`, `dark` —, où `default` suit le poste, symétrique de la langue.
 
 ## Préalables
 
@@ -141,6 +142,234 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
   destiné à l'utilisateur écrit en dur, et sur une clé de traduction manquante ou orpheline ;
 - les constats faits sur le contrat sont écrits — soit appliqués dans `docs/api`, soit ouverts
   en issue « Interface contract issue » — et aucun n'est resté dans une tête.
+
+## Conception
+
+EP-02 n'a ni table, ni migration, ni module du noyau : il écrit du front, des exemples du
+contrat, et les dix modifications du contrat décidées au cadrage. Sa conception fixe qui
+appelle l'API, où vit le contexte de lecture, comment un faux back sans état montre des
+états différents, la charte graphique, la forme des composants partagés (PBS-1.3), les
+langues, et ce que la chaîne contrôle. Les versions vivent dans `package.json` et son
+verrou.
+
+### Arborescence du front
+
+| Chemin | Contenu |
+|---|---|
+| `frontend/src/app/` | les routes, en anglais : `/` (l'accueil), `/login`, `/me`, `/projects/[projectId]/revisions/[revisionId]/<fonction>` (`planning`, `estimate`, `remaining`, `risks`, `actual-costs`, `indicators`…), `/portfolio/…`, `/reference/…`, `/admin/…`, `/system`, et la page « introuvable » |
+| `frontend/src/api/` | le client engendré ; `server.ts` ; `actions/`, les actions serveur d'écriture et de suivi, une par famille du contrat ; `problem.ts`, le décodeur de l'enveloppe d'erreur |
+| `frontend/src/components/` | les composants partagés : `grid/`, `signal/`, `context/`, `commands/`, `tasks/`, `charts/`, `gantt/`, `tree/` |
+| `frontend/src/components/ui/` | les composants shadcn/ui copiés — seulement ceux qu'un écran emploie |
+| `frontend/src/theme/` | la charte : les jetons, en variables CSS, clair et sombre |
+| `frontend/src/i18n/` | next-intl : résolution de la langue, formats |
+| `frontend/messages/` | `fr.json`, le catalogue de référence, et `en.json` |
+| `frontend/src/navigation/functions.json` | la table des fonctions : code FBS, route, clé de libellé ; la navigation en est tirée |
+| `fixtures/api/`, `fixtures/api/volume/` | les exemples du contrat ; les exemples de volume, engendrés |
+
+### Charte graphique
+
+- **Tout est jeton.** Les couleurs, la typographie, les espacements et les rayons sont des
+  variables CSS (`src/theme/`), que Tailwind et shadcn/ui consomment ; un composant n'écrit
+  jamais une couleur ni une police. La palette dérive des bleus des logos de `docs/assets`,
+  complétée des neutres de shadcn ; les jetons du signalement (US-0160) portent les zones
+  du référentiel, choisis pour le contraste AA et lisibles par un daltonien.
+- **Clair et sombre dès la maquette**, par les mêmes jetons : `default` suit le poste
+  (`prefers-color-scheme`), et un attribut `data-theme` posé par la coquille force `light`
+  ou `dark` selon la préférence de compte — la dixième modification du contrat. Écarté :
+  next-themes, une dépendance pour un attribut que la coquille sait poser.
+- Le logo emploie ses deux variantes, déjà dans `docs/assets`. Le titre de l'onglet nomme
+  l'écran et le projet ; le favicon vient de `waterfall_icon.svg`.
+
+### Qui appelle l'API
+
+- **Seul le serveur Next appelle l'API** (§4.3.1 : le navigateur ne parle qu'au front).
+  Les lectures se font dans les composants serveur, les écritures et le suivi des tâches
+  dans des actions serveur (`src/api/actions/`) qui appellent le client engendré et rendent
+  au composant la réponse ou l'enveloppe `Problem`. `client.ts` et `server.ts` importent
+  `server-only` : un composant client qui les importerait ne se construit pas. Écarté :
+  appeler l'API depuis le navigateur — EP-03 devrait exposer le témoin de session au CORS ;
+  un gestionnaire de route qui relaierait l'API — le composant intermédiaire que WF-ARC-0020
+  interdit.
+- `serverClient()` reste le seul endroit qu'EP-03 touchera pour transmettre le témoin
+  `wf_session` ; EP-02 ne transmet rien, le faux back accorde la session.
+- **Après une écriture, l'écran applique la réponse** à la ligne ou à l'objet concerné, et
+  ne relit jamais la grille entière : une relecture de six mille nœuds par cellule saisie
+  coûterait la seconde du §4.6.2, et réinitialiserait le défilement et la cellule active.
+  Sur le faux back, la réponse est un exemple figé : les tests de saisie s'écrivent avec
+  les valeurs de cet exemple.
+- **Un seul décodeur d'erreur** (`problem.ts`) : `code` et `params` rendus par le
+  catalogue ; `412` propose de recharger ; `409` explique ; `401` mène à la connexion et,
+  la connexion refaite, ramène à l'écran visé ; une API injoignable rend l'écran de panne —
+  jamais d'écran blanc.
+
+### Contexte de lecture, accueil et pages système
+
+- **L'URL fait foi** : projet et révision dans le chemin, sous-projet filtré et date de
+  calcul en paramètres ; les liens entre fonctions les reportent, les composants serveur
+  les lisent. Écarté : un état global côté client — perdu au rechargement, invisible du
+  rendu serveur, une seconde source de vérité.
+- **Le dernier contexte de projet** vit dans un témoin du front ; la coquille en tire le
+  « retour au projet » depuis une fonction hors projet (WF-IHM-0010).
+- **L'accueil** est la liste des projets, filtrée sur « mes projets » — le filtre
+  contributeur du contrat —, visible et levable.
+- **Les pages système** sont des pièces de la coquille : un écran « introuvable » unique —
+  adresse inexistante ou lecture refusée, indistinguables (WF-ADM-0110) —, l'écran de
+  panne, les squelettes de chargement, et les états vides — aucun projet, projet sans
+  révision, installation dont le référentiel est incomplet, qui guide vers lui
+  (`getReferenceReadiness`). Chaque état vide est un exemple nommé du contrat.
+- **Une révision est en lecture seule** quand l'API la dit marquée ou que ses commandes
+  sont indisponibles : l'écran lit `status` et `available_commands`, il ne déduit rien.
+
+### Faux back et exemples
+
+- **Le premier exemple d'une réponse est celui que prism sert.** Il décrit un univers
+  cohérent — le même projet d'un exemple à l'autre, sa révision de référence marquée, sa
+  révision courante. Les **exemples nommés** (`marked`, `running`, `failed`, `empty`,
+  `not_contributor`…) servent aux états qu'un Vérif demande et que le premier ne montre
+  pas.
+- **Tests de composants** (Vitest, jsdom, Testing Library) : `fakeClient` couvre les cinq
+  méthodes, choisit un exemple nommé, enchaîne des réponses (`running` puis `succeeded`) et
+  enregistre les appels, corps compris. **Parcours de bout en bout** : le premier exemple ;
+  une phrase de Vérif qui demande un autre état se vérifie au composant. Écarté : faire
+  suivre l'en-tête `Prefer` de prism par le front — du code d'essai dans le front de
+  production.
+- **Volumes du §4.6.2** : `wftools.mockdata` (`make mock-data`) engendre, déterministe, la
+  structure de mille tâches à cinq lignes, les taux de cent cinquante rôles sur quinze ans
+  et le portefeuille de trois cents projets, dans `fixtures/api/volume/` — déclarés
+  engendrés dans `tools/paths.toml`, vérifiés à jour par la chaîne. Le premier exemple de
+  `listNodes` est celui des mille tâches : c'est ainsi que le faux back sert le volume au
+  parcours qui mesure la seconde. Le parcours témoin d'EP-01 garde son chemin, ses
+  assertions sont réécrites. Écarté : des exemples de volume écrits à la main ; le mode
+  dynamique de prism, qui tirerait d'autres nombres à chaque exécution.
+
+### Composants partagés (PBS-1.3)
+
+- **Grille dense** : un composant, des configurations (colonnes, facette, action
+  d'écriture, clé de préférences). TanStack Table porte le modèle, **TanStack Virtual** ne
+  rend que les lignes visibles — dépendance hors annexe C, de la même famille, comme Vitest
+  en EP-01. Écarté : tout rendre — soixante mille cellules, la seconde n'est pas tenue ;
+  paginer — un arbre ne se lit pas par pages.
+  - **Le tri et les filtres sont demandés au serveur** (décision du cadrage) : le clic
+    d'en-tête relit avec le paramètre du contrat, la réponse porte les lignes et les totaux
+    du périmètre demandé, et rien ne s'ordonne ni ne se somme dans le front — la règle de
+    `typescript.md` reste sans exception. Écarté : trier dans le front, qui aurait exigé
+    l'exception et laissé les totaux mentir sous filtre.
+  - En-têtes et totaux figés au défilement vertical, colonnes d'identification figées au
+    défilement horizontal ; colonnes et largeurs dans les préférences de compte, par clé de
+    grille stable, écrites avec anti-rebond.
+  - Saisie : une seule cellule dans l'ordre de tabulation, `role="grid"`, `aria-rowcount`
+    malgré la virtualisation ; Entrée ou F2 entre en saisie, Entrée valide et avance,
+    Échap abandonne ; chaque cellule validée part seule, par une action serveur. Une
+    cellule est saisissable si son champ est au schéma d'écriture et que le nœud ne le
+    déclare pas calculé (`computed_fields`) ; une cellule calculée est traversée, et une
+    tentative est refusée en nommant ce dont la valeur dépend. Un nombre se saisit au
+    format de la langue et repart dans le décimal exact du contrat.
+  - Collage : lecture TSV du presse-papiers, `previewPaste`, compte rendu, `applyPaste`
+    après confirmation ; le front ne juge rien du contenu.
+  - **Annuler et Rétablir sont posées, pas branchées** : leur place — grille, menu,
+    Ctrl+Z/Ctrl+Maj+Z —, leur état, et rien d'autre ; EP-06 les branchera sur
+    `undoLastChange` et `redoLastUndo`.
+- **Valeur calculée** : un seul style, une marque non colorée, un nom accessible.
+- **Signalement** : `Signal` reçoit une `AlertZone` du contrat — icône Lucide, libellé du
+  catalogue, jeton de couleur ; la table zone → jeton est unique, aucune zone ne se déduit
+  d'une valeur dans le front.
+- **Bandeau de contexte** : projet ; révision, son état, son caractère de référence ;
+  filtres en pastilles ; date de calcul — une valeur sous enveloppe `Computable` ne
+  s'affiche pas sans la date de son `CalculationContext`, rendue en heure locale.
+- **Commande** : absente sans la permission (`Session.permissions`) ; présente et
+  indisponible avec sa condition manquante (`available_commands`) ; un refus est rendu par
+  le catalogue.
+- **Suivi des tâches de fond** : un fournisseur de la coquille garde chaque référence avec
+  la commande qui l'a lancée, interroge `getBackgroundTask` par une action serveur tant que
+  la tâche court, annonce l'aboutissement ou l'échec (`aria-live`) quel que soit l'écran,
+  et offre de relancer. Écarté : un suivi par écran.
+- **Courbes** : ECharts importé à la carte, rendu SVG, option `aria` activée, une enveloppe
+  maison de quelques lignes. Écarté : echarts-for-react, une dépendance pour trente lignes.
+- **Gantt** : un SVG propre, aligné sur les lignes virtualisées de la grille, en lecture
+  seule — définitivement. Écarté : ECharts, dont le canvas perdrait l'alignement ligne à
+  ligne. **Arborescence de tâches** : `role="tree"`, en lecture.
+- **shadcn/ui, Tailwind CSS, Lucide** : shadcn s'installe en copiant du source — les
+  composants copiés sont du code du dépôt, soumis à toutes ses règles : en-têtes, lint,
+  JSDoc, couverture. *Ceci corrige la conception d'EP-01, qui tenait les dépendances
+  d'affichage pour étrangères au code du dépôt.* Radix, leur socle, se verrouille comme
+  toute dépendance.
+
+### Langues et textes
+
+- **next-intl, sans langue dans l'URL** : un lien partagé s'ouvre chez chacun dans sa
+  langue (WF-INTF-0170). Écarté : un préfixe `/fr` ; react-i18next, pensé pour le client.
+- **La langue est une préférence à trois états** — `default`, `fr`, `en` — où `default`
+  suit le navigateur. Le front la résout à chaque requête : la préférence si elle est
+  fixée, sinon `Accept-Language`, sinon la langue par défaut de l'installation
+  (`getReferenceSettings`). Le contrat n'a plus qu'un champ de langue : une des dix
+  modifications du cadrage l'y réduit.
+- **Catalogues** : clés hiérarchiques en anglais ; une clé par valeur d'énumération
+  traduite du contrat (`enums.ProjectState.in_progress`), une par code d'erreur
+  (`errors.<CODE>`), une par permission. `make catalogs` (`wftools.catalogs`, dans
+  `check-front`) : les deux catalogues portent exactement les mêmes clés, et chaque valeur
+  d'énumération comme chaque code du catalogue d'erreurs, lus dans le bundle, a la sienne ;
+  next-intl est typé par le catalogue de référence, une clé absente casse
+  `make typecheck-front`.
+- **Texte en dur** : `react/jsx-no-literals` pour le texte, `no-restricted-syntax` pour les
+  attributs lus par l'utilisateur (`aria-label`, `title`, `alt`, `placeholder`) écrits en
+  littéral.
+- **Formats** : `Intl`, selon la langue ; `Money`, `Decimal` et `Hours` formatés depuis la
+  chaîne exacte du contrat, jamais par un flottant ; les dates de planning telles quelles,
+  sans fuseau ; les horodatages en heure locale du poste ; la devise, celle du référentiel.
+- Le guide reçoit « Clés de traduction », « Ajouter un code côté front » et « Charte
+  graphique ».
+
+### Contrôles et tests
+
+- **Vitest** en deux projets — `node` pour la logique, `jsdom` pour les composants —
+  réglés dans `vitest.config.ts`, jamais par un commentaire d'environnement ; Testing
+  Library et user-event entrent avec les composants.
+- **Garde réseau élargie** : `no-restricted-globals` et `no-restricted-properties` déjà en
+  place, étendus à `XMLHttpRequest`, `WebSocket`, `EventSource` ; `no-restricted-imports`
+  pour `openapi-fetch` hors de `src/api/` et pour tout client http. Un test lint des
+  extraits piégés et attend l'erreur.
+- **Accessibilité** : @axe-core/playwright, niveau AA, sur chaque route de
+  `functions.json`, **en clair et en sombre**, à 1366 points puis à l'agrandissement de
+  150 % ; parcours au clavier, focus visible. Le helper arrive avec la coquille, chaque lot
+  d'écran y ajoute ses routes.
+- **Navigateurs** : chromium-fr et chromium-en pour tous les parcours ; les quatre
+  navigateurs de la spécification — Chrome et Edge par leurs canaux Playwright, Firefox,
+  WebKit pour Safari — pour les parcours de WF-CMP-0010, grilles, Gantt et courbes à 1366
+  points, vues d'indicateurs à 360. `make e2e-browsers` les installe tous.
+- **Performance** : au palier complet, sur chromium, l'ouverture de la grille de devis de
+  mille tâches — du clic à la première ligne rendue — tient en une seconde ; la mesure
+  s'écrit au relevé de livraison. Le plafond n'est pas acquis : une réponse `listNodes` de
+  plusieurs mégaoctets rendue côté serveur peut le crever, et ce serait alors un constat
+  sur le contrat (représentation d'un nœud trop lourde).
+- **Complétude des écrans** : `make screens` (`wftools.screens`) confronte
+  `functions.json` aux fonctions feuilles de la FBS de la projection — une fonction sans
+  adresse fait échouer la chaîne —, et un parcours ouvre chaque route depuis la navigation.
+
+### Modifications du contrat
+
+Les dix de la section « Opérations du contrat », faites avant le code qui les consomme,
+chacune avec son entrée dans `docs/api/DECISIONS.md`, `make inventory` et
+`make generate-client`. Les constats que feront les écrans s'écrivent dans une section
+« Constats sur le contrat » de ce fichier, par le lot qui les trouve, puis se corrigent
+dans `docs/api` ou s'ouvrent en issue « Interface contract issue ». Déjà pressentis : la
+portée de `getRemainingIndicators`, le tri de `listActualCosts`, la liste des tâches de
+fond d'un utilisateur, la révision ouverte par défaut.
+
+### Ordre de construction
+
+1. Les modifications du contrat ; la garde réseau élargie et le socle des tests de
+   composants.
+2. La charte, la coquille, l'accueil et les pages système ; le helper d'accessibilité.
+3. Les langues : catalogues, formats, `make catalogs`, sélecteur ; les sections du guide.
+4. Le bandeau, le signalement, les commandes, le suivi des tâches de fond ; la connexion et
+   le compte (US-0320).
+5. La grille : lecture et volume (`make mock-data`), calculé contre saisi, saisie au
+   clavier, collage, Annuler/Rétablir posées.
+6. Les écrans, par famille : projets et révisions ; planning et devis, Gantt et
+   arborescence ; reste à engager ; risques ; coûts réels ; indicateurs ; portefeuille ;
+   référentiel ; administration et sauvegarde ; import.
+7. La clôture : continuité du contexte, parcours bilingue, `make screens`, accessibilité
+   sur toutes les routes dans les deux modes, les quatre navigateurs.
 
 ---
 
@@ -178,7 +407,8 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
   définie en jetons (les variables de Tailwind et de shadcn/ui), dérivée des logos de
   `docs/assets`, en mode clair et en mode sombre ; aucun composant n'écrit une couleur ni
   une police en dur, et le guide reçoit la section « Charte graphique » — comment on ajoute
-  une couleur : par un jeton, jamais dans un composant.
+  une couleur : par un jeton, jamais dans un composant ; le mode suit le poste par défaut et
+  se choisit dans la coquille — une préférence de compte, comme la langue.
 
 **Notes de réalisation.** Les logos de `docs/assets` ont déjà leur variante sombre, et les
 jetons du signalement (US-0160) viennent des zones du référentiel, choisis pour le
