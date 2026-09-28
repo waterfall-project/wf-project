@@ -1,7 +1,7 @@
 ---
 id: EP-02
 titre: Tous les écrans, navigables, alimentés par le faux back, avant toute règle métier
-statut: à planifier
+statut: prêt
 depend_de: EP-01
 issue:
 ---
