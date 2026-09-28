@@ -1,0 +1,73 @@
+{
+  "summary": "La révision courante du projet, en brouillon : toutes ses commandes de saisie sont disponibles.",
+  "value": {
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "project_id": "01926f3a-7c00-7000-8000-000000000001",
+    "version_name": null,
+    "description": null,
+    "status": "draft",
+    "marked_at": null,
+    "is_reference": false,
+    "available_commands": [
+      {
+        "command": "edit_planning",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "edit_estimate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "edit_remaining",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "create_structure",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "merge_structure",
+        "is_available": false,
+        "missing_conditions": [
+          "unmerged_amendment_exists"
+        ]
+      },
+      {
+        "command": "mark",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "designate_reference",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_marked"
+        ]
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "audit": {
+      "created_at": "2026-03-02T08:30:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-03-16T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 4
+  }
+}

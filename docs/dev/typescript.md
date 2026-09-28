@@ -19,6 +19,7 @@ dernière section.
 | Aucun commentaire de configuration d'ESLint dans le code | `noInlineConfig` de `frontend/eslint.config.mjs` | `make lint-front` |
 | Aucun commentaire d'exemption (`eslint-disable`, `@ts-ignore`, `prettier-ignore`…) ; `TODO(#12)` ; 1 000 lignes au plus | `tools/src/wftools/sources.py` | `make sources` |
 | Aucun texte d'interface écrit en dur ; catalogues typés par la référence | `frontend/eslint.config.mjs`, `frontend/messages/` | `make lint-front`, `make typecheck-front`, `make catalogs` |
+| Aucune couleur ni police écrite dans le code : la charte en jetons, contrastes AA mesurés | `frontend/eslint.config.mjs`, `frontend/src/theme/` | `make lint-front`, `make test-front` |
 | Couverture du code : 90 % des lignes, 85 % des branches | seuils dans `tools/src/wftools/codecoverage.py` ; mesure réglée par `coverage` de `frontend/vitest.config.ts` | `make coverage-front` |
 
 ## Règles de conception

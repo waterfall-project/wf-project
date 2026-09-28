@@ -1,10 +1,55 @@
 {
   "app": {
-    "name": "Waterfall"
+    "name": "Waterfall",
+    "title": "{screen} — Waterfall",
+    "projectTitle": "{screen} · {project} — Waterfall"
   },
   "languageSelector": {
     "label": "Langue",
-    "apply": "Appliquer"
+    "apply": "Appliquer la langue"
+  },
+  "themeSelector": {
+    "label": "Mode d’affichage",
+    "apply": "Appliquer le mode"
+  },
+  "navigation": {
+    "label": "Fonctions",
+    "returnToProject": "Retour au projet"
+  },
+  "screen": {
+    "comingSoon": "Cet écran est à venir."
+  },
+  "functionGroups": {
+    "administration": "Administration",
+    "portfolio": "Portefeuille",
+    "applicationSettings": "Paramètres applicatifs",
+    "projects": "Projets"
+  },
+  "functions": {
+    "users": "Gestion des utilisateurs",
+    "accessRoles": "Gestion des rôles d’habilitation",
+    "systemStatus": "Surveillance de l’état du système",
+    "backups": "Sauvegarde et restauration",
+    "portfolioProjects": "Portefeuille de projets",
+    "portfolioWorkload": "Plan de charge agrégé",
+    "portfolioPerformance": "Performance du portefeuille",
+    "portfolioCostStructure": "Structure des coûts du portefeuille",
+    "portfolioRisks": "Risques du portefeuille",
+    "portfolioCashOut": "Décaissements du portefeuille",
+    "portfolioPilotHealth": "Santé du pilotage",
+    "costSettings": "Paramètres de coûts",
+    "resourceSettings": "Paramètres de ressources",
+    "riskSettings": "Paramètres de risques",
+    "indicatorSettings": "Paramètres d’indicateurs",
+    "revisions": "Gestion des révisions",
+    "projectSettings": "Paramètres de projets",
+    "planning": "Planification",
+    "estimate": "Chiffrage et devis",
+    "remaining": "Estimation du reste à engager",
+    "risks": "Gestion des risques",
+    "actualCosts": "Coûts réels",
+    "projectIndicators": "Indicateurs projets",
+    "lifecycle": "Cycle de vie du projet"
   },
   "errors": {
     "MALFORMED_REQUEST": "La requête est mal formée.",

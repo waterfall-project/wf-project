@@ -25,11 +25,20 @@ vi.mock("next/cache", () => ({ refresh: () => server.refresh() }));
 
 const PREFERENCES = "PATCH /me/preferences";
 
-/** Render the shell as the root layout does: the language of the request, then the page. */
+/**
+ * Render the shell as the root layout does: the language of the request, then the page. The
+ * mode and the navigation are not this file's: they are left out, and their reads with them.
+ */
 async function layout() {
   const { locale, preference } = await requestLanguage();
   return (
-    <Shell locale={locale} preference={preference}>
+    <Shell
+      locale={locale}
+      preference={preference}
+      theme={undefined}
+      permissions={undefined}
+      remembered={undefined}
+    >
       <main />
     </Shell>
   );
@@ -57,7 +66,7 @@ beforeEach(() => {
 
 describe("the language selector", () => {
   it("offers the browser's language, French and English, in the language of the page", async () => {
-    await open({ "GET /me": "me" });
+    await open({ "GET /session": "session" });
     const select = screen.getByRole("combobox", { name: "Langue" });
     expect(select).toHaveValue("default");
     const options = screen.getAllByRole("option").map((option) => option.textContent);
@@ -65,23 +74,35 @@ describe("the language selector", () => {
   });
 
   it("applies the chosen language without signing in again [WF-INTF-0160-A]", async () => {
-    // The back keeps the choice, and the next read of the account returns it; the fake back
-    // keeps nothing, so the second answer of GET /me stands in for what it would keep.
-    const client = await open({ "GET /me": ["me", "me_english"], [PREFERENCES]: "preferences" });
+    // The back keeps the choice, and the next read of the session returns it; the fake back
+    // keeps nothing, so the second answer of GET /session stands in for what it would keep.
+    const client = await open({
+      "GET /session": ["session", "session_english"],
+      [PREFERENCES]: "preferences",
+    });
 
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "en");
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer la langue" }));
 
     const select = await screen.findByRole("combobox", { name: "Language" });
     expect(select).toHaveValue("en");
     expect(screen.getByRole("option", { name: "Browser language" })).toBeInTheDocument();
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
-    // Two reads of the account and one write: no new session was asked for.
-    expect(client.calls.map((call) => call.route)).toEqual(["GET /me", PREFERENCES, "GET /me"]);
+    // Two reads of the session and one write: no session was opened anew.
+    expect(client.calls.map((call) => call.route)).toEqual([
+      "GET /session",
+      PREFERENCES,
+      "GET /session",
+    ]);
   });
 
   it("sends nothing until the choice is applied, and keeps the focus on the keyboard", async () => {
-    const client = await open({ "GET /me": ["me", "me_english"], [PREFERENCES]: "preferences" });
+    const client = await open({
+      "GET /session": ["session", "session_english"],
+      [PREFERENCES]: "preferences",
+    });
+    // The logo, which leads home, comes first; the selector next.
+    await userEvent.tab();
     await userEvent.tab();
     const select = screen.getByRole("combobox", { name: "Langue" });
     expect(select).toHaveFocus();
@@ -94,7 +115,7 @@ describe("the language selector", () => {
     await userEvent.tab();
     await userEvent.keyboard("{Enter}");
 
-    const apply = await screen.findByRole("button", { name: "Apply" });
+    const apply = await screen.findByRole("button", { name: "Apply language" });
     expect(apply).toHaveFocus();
     expect(apply.closest("form")).toHaveAttribute("aria-busy", "false");
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
@@ -103,11 +124,11 @@ describe("the language selector", () => {
   it("says why the API refused the choice, in the language of the page", async () => {
     const expired = { problem: { code: "SESSION_EXPIRED", status: 401 } } as const;
     const refresh = vi.fn();
-    const client = await open({ "GET /me": "me", [PREFERENCES]: expired });
+    const client = await open({ "GET /session": "session", [PREFERENCES]: expired });
     server.refresh = refresh;
 
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "fr");
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer la langue" }));
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("Votre session a expiré\u202F; reconnectez-vous.");
@@ -119,7 +140,7 @@ describe("the language selector", () => {
   it("shows the preference a new render reads, not the one it was first given", async () => {
     // The account changed elsewhere — another tab, another workstation — and the page is
     // rendered again.
-    const client = fakeClient({ "GET /me": ["me", "me_english"] });
+    const client = fakeClient({ "GET /session": ["session", "session_english"] });
     server.client = client;
     const view = render(await layout());
     expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("default");
@@ -130,11 +151,11 @@ describe("the language selector", () => {
   });
 
   it("keeps the last preference chosen when handed a value that is not one", async () => {
-    const client = await open({ "GET /me": "me", [PREFERENCES]: "preferences" });
+    const client = await open({ "GET /session": "session", [PREFERENCES]: "preferences" });
     fireEvent.change(screen.getByRole("combobox", { name: "Langue" }), {
       target: { value: "de" },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer la langue" }));
     await waitFor(() => {
       expect(sent(client, PREFERENCES)).toEqual([{ language: "default" }]);
     });

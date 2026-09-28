@@ -144,6 +144,78 @@ const TEXT_SYNTAX = [
   ]),
 ].map((selector) => ({ selector, message: TEXT }));
 
+// No colour nor font is written in the code (charter, guide « Charte graphique »): a
+// component names a token of src/theme/globals.css — `bg-primary`, `text-muted-foreground`
+// —, whose light and dark values the charter holds and checks for contrast. Refused, in any
+// string of the code:
+//
+// - a colour class of the palette of Tailwind, `bg-blue-500`, `text-white`: the charter
+//   withdraws the palette, and the class would draw nothing;
+// - an arbitrary value of a utility of colour that is neither a length nor a number —
+//   `bg-[red]`, `bg-[#027dc6]`, `shadow-[0_0_0_2px_#f00]` —, while `ring-[3px]` and
+//   `text-[14px]` pass; an arbitrary font, `font-['Arial']`; and the same utilities given a
+//   custom property in parentheses, `bg-(--x)`, `font-(family-name:--x)`, which read a
+//   variable no contrast was measured for — a length, `text-(length:--x)`, passes;
+// - an arbitrary property that paints or sets a font, or a custom property —
+//   `[color:#027dc6]`, `[font-family:Arial]`, `[--primary:#ff0000]` —, and `color-mix(`;
+// - a colour written as a string of its own, `"#027dc6"`, `"rgb(2 125 198)"`;
+// - the `dark:` variant, which follows the workstation alone and ignores the mode the
+//   account forces: a token carries both values, no component asks which mode shows;
+//
+// and, whatever its value, a property of the `style` of an element that paints, draws a
+// border or a shadow, or sets a font, or a custom property, its key a name or a string; and
+// a colour given to `fill`, `stroke`, `color` or a stop of an SVG, other than
+// `currentColor`, `none` or a `url(…)`, anywhere in its value — a branch included. What stays with the review: a colour built by a
+// template with expressions or by a function, and a style or an SVG attribute given a
+// variable.
+const COLOUR =
+  "Name a token of the charter, src/theme/globals.css; never write a colour or a font.";
+const DARK = "No variant for the dark mode: a token of src/theme/globals.css carries both modes.";
+const PALETTE =
+  "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|" +
+  "blue|indigo|violet|purple|fuchsia|pink|rose|black|white";
+const COLOUR_UTILITIES =
+  "bg|text|border(-[xytrblse])?|outline|ring(-offset)?|fill|stroke|decoration|shadow|" +
+  "drop-shadow|inset-shadow|inset-ring|text-shadow|accent|caret|divide|placeholder|from|via|to";
+const COLOUR_FUNCTIONS = "rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark";
+const CLASS_START = "(^|[\\s:!])-?";
+const LENGTH = "-?[\\d.]+(px|r?em|%|vh|vw|vmin|vmax|ch|ex|pt)?|length:[^\\]]+";
+const PAINTING =
+  "color|background|border|outline|fill|stroke|font|box-shadow|text-shadow|caret-color|" +
+  "accent-color|stop-color|flood-color|lighting-color|text-decoration|column-rule|scrollbar-color";
+const COLOUR_PATTERNS = [
+  `${CLASS_START}(${COLOUR_UTILITIES})-(${PALETTE})(-\\d{2,3})?(/[\\w.]+)?($|\\s)`,
+  `${CLASS_START}(${COLOUR_UTILITIES})-\\[(?!(${LENGTH})\\])`,
+  `${CLASS_START}font-\\[(?!\\d+\\])`,
+  `${CLASS_START}(${COLOUR_UTILITIES}|font)-\\((?!length:)`,
+  `\\[(--[\\w-]+|(${PAINTING})[\\w-]*):`,
+  `color-mix\\(`,
+  `^\\s*(#([\\da-f]{3,4}|[\\da-f]{6}|[\\da-f]{8})|(${COLOUR_FUNCTIONS})\\(.*\\))\\s*$`,
+];
+const STYLE_PROPERTIES =
+  "color|background\\w*|border\\w*|outline\\w*|boxShadow|textShadow|caretColor|accentColor|" +
+  "fill|stroke|stopColor|floodColor|lightingColor|font|fontFamily|textDecoration\\w*|" +
+  "columnRule\\w*|--[\\w-]*";
+const SVG_PAINT =
+  "JSXAttribute[name.name=/^(fill|stroke|color|stopColor|floodColor|lightingColor)$/]";
+const PAINTLESS = "/^(currentcolor|none|url\\(.*\\))$/i";
+const COLOUR_SYNTAX = [
+  ...COLOUR_PATTERNS.flatMap((pattern) => [
+    `Literal[value=${inSelector(pattern)}i]`,
+    `TemplateElement[value.raw=${inSelector(pattern)}i]`,
+  ]),
+  `JSXAttribute[name.name='style'] Property[key.name=/^(${STYLE_PROPERTIES})$/]`,
+  `JSXAttribute[name.name='style'] Property[key.value=/^(${STYLE_PROPERTIES})$/]`,
+  `${SVG_PAINT} Literal[value=type(string)]:not([value=${PAINTLESS}])`,
+  `${SVG_PAINT} TemplateLiteral[expressions.length=0]:not([quasis.0.value.raw=${PAINTLESS}])`,
+]
+  .map((selector) => ({ selector, message: COLOUR }))
+  .concat(
+    [`Literal[value=/(^|[\\s:!])dark:/]`, `TemplateElement[value.raw=/(^|[\\s:!])dark:/]`].map(
+      (selector) => ({ selector, message: DARK }),
+    ),
+  );
+
 export default defineConfig([
   globalIgnores([
     ".next/**",
@@ -184,7 +256,13 @@ export default defineConfig([
         "error",
         { patterns: [{ regex: NETWORK_MODULE, message: NETWORK }] },
       ],
-      "no-restricted-syntax": ["error", ...NETWORK_SYNTAX, ...CLIENT_SYNTAX, ...TEXT_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...NETWORK_SYNTAX,
+        ...CLIENT_SYNTAX,
+        ...TEXT_SYNTAX,
+        ...COLOUR_SYNTAX,
+      ],
       // See TEXT: the text of JSX, and a string written as a child. The attributes are
       // TEXT_SYNTAX's, which knows which of them a user reads.
       "react/jsx-no-literals": [
@@ -230,6 +308,7 @@ export default defineConfig([
         ...NETWORK_SYNTAX,
         ...CLIENT_SYNTAX,
         ...TEXT_SYNTAX,
+        ...COLOUR_SYNTAX,
         ACTION_SYNTAX,
       ],
     },
@@ -237,8 +316,9 @@ export default defineConfig([
   {
     // Tests are named for what they check; a docstring would repeat the name. The text a
     // test renders is its own data — a page in a layout, a label to find —, never shown to
-    // a user: the rules against text written in the code do not apply, and the network
-    // guard does, its selectors repeated without TEXT_SYNTAX.
+    // a user, and so are the colours it traps: the rules against text and colours written
+    // in the code do not apply, and the network guard does, its selectors repeated without
+    // TEXT_SYNTAX and COLOUR_SYNTAX.
     files: ["**/*.test.ts", "**/*.test.tsx", "e2e/**"],
     rules: {
       "jsdoc/require-jsdoc": "off",

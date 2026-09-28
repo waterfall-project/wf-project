@@ -1,0 +1,9 @@
+{
+  "summary": "Les préférences enregistrées après le choix du mode sombre.",
+  "value": {
+    "language": "default",
+    "theme": "dark",
+    "highlight_tasks_added_after_reference": false,
+    "grids": {}
+  }
+}

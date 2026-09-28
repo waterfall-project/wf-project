@@ -20,18 +20,30 @@ export type Outcome<T> =
   | { readonly problem: Problem; readonly data?: never };
 
 /**
- * Record the language of the interface in the preferences of the account, and render the
- * page again: the next render reads the language anew, so the change applies without
- * signing in again (WF-INTF-0160). The value is the API's to judge — a server action is
- * reachable by any request, and the contract refuses what is not `default`, `fr` or `en`.
+ * Record a display preference of the account, and render the page again: the next render
+ * reads the preferences anew, so the change applies without signing in again. The value is
+ * the API's to judge — a server action is reachable by any request, and the contract refuses
+ * what is not one of the values of the field.
  */
-export async function updateLanguage(
-  language: NonNullable<DisplayPreferences["language"]>,
-): Promise<Outcome<DisplayPreferences>> {
-  const { data, error } = await serverClient().PATCH("/me/preferences", { body: { language } });
+async function update(preferences: DisplayPreferences): Promise<Outcome<DisplayPreferences>> {
+  const { data, error } = await serverClient().PATCH("/me/preferences", { body: preferences });
   if (error !== undefined) {
     return { problem: error };
   }
   refresh();
   return { data };
+}
+
+/** Record the language of the interface: `default`, `fr` or `en` (WF-INTF-0160). */
+export async function updateLanguage(
+  language: NonNullable<DisplayPreferences["language"]>,
+): Promise<Outcome<DisplayPreferences>> {
+  return update({ language });
+}
+
+/** Record the display mode: `default`, which follows the workstation, `light` or `dark`. */
+export async function updateTheme(
+  theme: NonNullable<DisplayPreferences["theme"]>,
+): Promise<Outcome<DisplayPreferences>> {
+  return update({ theme });
 }

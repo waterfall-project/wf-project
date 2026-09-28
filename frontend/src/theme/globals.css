@@ -1,0 +1,104 @@
+/*
+ * SPDX-FileCopyrightText: 2026 waterfall-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * The graphic charter of the front: every colour, font, spacing and radius is a token here,
+ * and nowhere else (guide, « Charte graphique »). Tailwind and the components of shadcn/ui
+ * read them through the theme below; a component names a token (`bg-primary`), never a
+ * colour.
+ *
+ * The blues come from the logos of docs/assets (#027dc6, #1195e1), the neutrals from
+ * shadcn/ui. Each colour token holds its light and its dark value side by side, by
+ * `light-dark()`: the document follows the workstation (`color-scheme: light dark`), and the
+ * shell forces a mode with `data-theme` when the account asks for one. No component asks
+ * which mode shows: the `dark:` variant of Tailwind, which would follow the workstation
+ * alone, is refused by the linter. Every pair of text and background reaches the contrast
+ * of WCAG AA in both modes, which contrast.test.ts checks.
+ */
+@import "tailwindcss";
+
+/* No colour but the tokens: the default palette of Tailwind is withdrawn, so that a class
+   such as `bg-blue-500` produces nothing. */
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+}
+
+:root {
+  color-scheme: light dark;
+
+  --background: light-dark(#ffffff, #0a0a0a);
+  --foreground: light-dark(#0a0a0a, #fafafa);
+  --card: light-dark(#ffffff, #171717);
+  --card-foreground: light-dark(#0a0a0a, #fafafa);
+  /* The deep blue of the logo, darkened in light mode to carry white text at AA. */
+  --primary: light-dark(#0270b3, #1195e1);
+  --primary-foreground: light-dark(#ffffff, #0a0a0a);
+  /* A primary control under the pointer: darker in light mode, lighter in dark mode. */
+  --primary-hover: light-dark(#02609a, #3aa9ea);
+  --secondary: light-dark(#f5f5f5, #262626);
+  --secondary-foreground: light-dark(#171717, #fafafa);
+  --muted: light-dark(#f5f5f5, #262626);
+  --muted-foreground: light-dark(#6b6b6b, #a3a3a3);
+  --accent: light-dark(#e6f3fb, #0c2c40);
+  --accent-foreground: light-dark(#0a0a0a, #fafafa);
+  --destructive: light-dark(#b91c1c, #f87171);
+  --destructive-foreground: light-dark(#ffffff, #0a0a0a);
+  /* A border that only separates; the border of a field shows where to type, at 3:1. */
+  --border: light-dark(#e5e5e5, #2e2e2e);
+  --input: light-dark(#8c8c8c, #737373);
+  /* The blues of the logos as they are drawn, deep in light mode, bright in dark mode. */
+  --ring: light-dark(#027dc6, #1195e1);
+
+  --radius: 0.5rem;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Geist, the typeface of the logo, loaded by the root layout; the system's until then. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Menlo", monospace;
+
+  --spacing: 0.25rem;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}

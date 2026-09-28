@@ -1,10 +1,55 @@
 {
   "app": {
-    "name": "Waterfall"
+    "name": "Waterfall",
+    "title": "{screen} — Waterfall",
+    "projectTitle": "{screen} · {project} — Waterfall"
   },
   "languageSelector": {
     "label": "Language",
-    "apply": "Apply"
+    "apply": "Apply language"
+  },
+  "themeSelector": {
+    "label": "Display mode",
+    "apply": "Apply display mode"
+  },
+  "navigation": {
+    "label": "Functions",
+    "returnToProject": "Back to the project"
+  },
+  "screen": {
+    "comingSoon": "This screen is still to come."
+  },
+  "functionGroups": {
+    "administration": "Administration",
+    "portfolio": "Portfolio",
+    "applicationSettings": "Application settings",
+    "projects": "Projects"
+  },
+  "functions": {
+    "users": "User management",
+    "accessRoles": "Access role management",
+    "systemStatus": "System status monitoring",
+    "backups": "Backup and restore",
+    "portfolioProjects": "Project portfolio",
+    "portfolioWorkload": "Aggregated workload",
+    "portfolioPerformance": "Portfolio performance",
+    "portfolioCostStructure": "Portfolio cost structure",
+    "portfolioRisks": "Portfolio risks",
+    "portfolioCashOut": "Portfolio cash-out",
+    "portfolioPilotHealth": "Project control health",
+    "costSettings": "Cost settings",
+    "resourceSettings": "Resource settings",
+    "riskSettings": "Risk settings",
+    "indicatorSettings": "Indicator settings",
+    "revisions": "Revision management",
+    "projectSettings": "Project settings",
+    "planning": "Planning",
+    "estimate": "Costing and estimate",
+    "remaining": "Estimate to complete",
+    "risks": "Risk management",
+    "actualCosts": "Actual costs",
+    "projectIndicators": "Project indicators",
+    "lifecycle": "Project lifecycle"
   },
   "errors": {
     "MALFORMED_REQUEST": "The request is malformed.",
