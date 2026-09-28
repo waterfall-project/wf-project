@@ -59,8 +59,10 @@ _TARGET = re.compile(r"^([a-z][a-z0-9-]*):", re.MULTILINE)
 # (`-C ..`, `-s`) and then the target, whatever variables come before or after.
 _CODE = re.compile(r"```.*?```|`[^`\n]+`", re.DOTALL)
 # A target ends where the word ends: `make check-<famille>` is a pattern, not a command.
+# The directory of `-C` never opens with a dash: otherwise `-C -A` reads both as a directory
+# and as two options, and a string of them backtracks exponentially.
 _CITED_COMMAND = re.compile(
-    r"\bmake\s+(?:-C\s+\S+\s+|-[a-zA-Z]+\s+)*([a-z](?:[a-z0-9-]*[a-z0-9])?)(?=[\s`;&|)]|$)"
+    r"\bmake\s+(?:-C\s+(?!-)\S+\s+|-[a-zA-Z]+\s+)*([a-z](?:[a-z0-9-]*[a-z0-9])?)(?=[\s`;&|)]|$)"
 )
 
 
