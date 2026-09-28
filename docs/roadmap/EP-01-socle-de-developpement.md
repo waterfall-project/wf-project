@@ -714,7 +714,7 @@ front contre le faux back et jouer un parcours, **afin que** les EPIC suivants a
 
 ## US-0280 — Agents de cadrage, de livraison, de développement et de revue
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #14
