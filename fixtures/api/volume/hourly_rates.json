@@ -1,5 +1,5 @@
 {
-  "summary": "Quinze ans de taux horaires de l'ingénierie électrique, de 2012 à 2026, l'année de référence du devis, à 80,00 de l'heure.",
+  "summary": "15 ans de taux horaires de l'ingénierie électrique, de 2012 à 2026, l'année de référence du devis, où il vaut 80,00 de l'heure.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": [
     {"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","year":2012,"amount":"59.00","audit":{"created_at":"2026-01-05T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-01-05T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},

@@ -268,16 +268,25 @@ Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summ
 `value`), et le contrat le cite par `$ref` ; le bundle l'embarque. Ses nombres reprennent
 ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
 
-Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`) les
-engendre dans `fixtures/api/volume/`, qu'on ne retouche pas — la structure de mille tâches et
-de cinq mille lignes, premier exemple de `listNodes`, les trois cents projets de
-`getPortfolioProjects`, les deux cents catégories de `listCostCategories` et quinze ans de
-taux de `listHourlyRates`. Ils restent dans l'univers des autres exemples — le projet, sa
-révision, ses sous-projets, ses catégories et ses rôles gardent leurs identifiants —, et
-l'engendrement ne lit ni l'horloge ni le hasard : chaque valeur tirée vient de l'empreinte
-d'une graine fixe et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets.
-Un exemple de volume s'écrit une ligne par élément, pour qu'un changement se lise dans le
-diff.
+Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`, la
+structure dans `wftools.mockstructure`) les engendre dans `fixtures/api/volume/`, qu'on ne
+retouche pas — la structure de mille tâches et de cinq mille lignes, premier exemple de
+`listNodes`, et les indicateurs de son devis, premier exemple de `getEstimateIndicators`,
+sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même
+total ; les trois cents projets de `getPortfolioProjects`, les deux cents catégories de
+`listCostCategories` et quinze ans de taux de `listHourlyRates`. Les exemples nommés
+(`witness`…) restent pour les tests de composants. Les indicateurs du projet
+(`getProjectIndicators`) et la ligne du projet témoin dans le portefeuille restent ceux du
+témoin, que l'outil lit dans leurs fixtures : ils ne sont pas tirés du volume. Les volumes
+restent dans l'univers des autres exemples — le projet, sa révision, ses sous-projets, ses
+catégories et ses rôles gardent leurs identifiants, et ce que disent le projet témoin, l'offre
+et les libellés de l'univers se lit dans leurs fixtures, jamais recopié —, et l'engendrement
+ne lit ni l'horloge ni le hasard : chaque valeur tirée vient de l'empreinte d'une graine fixe
+et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets. Un exemple de volume
+s'écrit une ligne par élément, pour qu'un changement se lise dans le diff. Les repères que
+lisent les parcours de bout en bout — numéros de ligne, libellés, totaux — sont fixés par
+`test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`) : un changement du
+générateur qui les déplace échoue là, avant les parcours.
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde

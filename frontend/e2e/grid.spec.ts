@@ -6,11 +6,11 @@ import { scrollPageToGrid, scroller, scrollToFoot, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2): a thousand tasks and five thousand lines, six thousand rows, of which the grid
-// renders those in view. The journeys read it by marks the generator writes today, which no test
-// of the generator holds yet — the summary task of row 1, « Études », the lot of row 2, the task of
-// row 3, the milestone of row 6000, the totals of the answer —, and never count the rows rendered:
-// the row count of the grid says how many there are. Measuring the second of §4.6.2 is US-0110/L2
-// (#107).
+// renders those in view. The journeys read it by marks the generator writes, which
+// `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds — the summary task
+// of row 1, « Études », the lot of row 2, the task of row 3, the milestone of row 6000, the totals
+// of the answer —, and never count the rows rendered: the row count of the grid says how many
+// there are. Measuring the second of §4.6.2 is US-0110/L2 (#107).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;

@@ -1,5 +1,5 @@
 {
-  "summary": "Les deux cents catégories de coût du §4.6.2, dont cent cinquante de main-d'œuvre : les lignes de la grille des taux horaires.",
+  "summary": "Les 200 catégories de coût du §4.6.2, dont 150 de main-d'œuvre : les lignes de la grille des taux horaires.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": [
     {"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","code":"MO-001","label":"Ingénierie électrique","cost_type_id":"01926f3a-7c00-7000-8000-000000000461","accounting_code":"641001","is_active":true,"audit":{"created_at":"2026-01-05T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-01-05T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},

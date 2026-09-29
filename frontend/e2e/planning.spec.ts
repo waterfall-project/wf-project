@@ -7,10 +7,11 @@ import { scrollToPosition, withinBox } from "./scroll";
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
 // the volumes of §4.6.2 (EP-02/L2), a thousand tasks and their lines —: its lines show here too,
 // where the service renders the tasks alone — the component and page tests prove that the
-// planning asks for them. The journey reads the structure by marks the generator writes today,
-// which no test of the generator holds yet: row 3, a task completed off the critical path; row 22,
-// started, which follows it; row 453, a task of the critical path not started, which follows row
-// 434, further down — where the fake back numbers the rows as it orders them.
+// planning asks for them. The journey reads the structure by marks the generator writes, which
+// `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds: row 3, a task
+// completed off the critical path; row 22, started, which follows it; row 453, a task of the
+// critical path not started, which follows row 434, further down — where the fake back numbers
+// the rows as it orders them.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 

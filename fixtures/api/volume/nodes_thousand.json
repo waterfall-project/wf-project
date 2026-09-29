@@ -1,5 +1,5 @@
 {
-  "summary": "La structure principale du projet aux volumes du §4.6.2 : mille tâches — dix phases, trente lots, leurs neuf cent trente tâches de travail et leurs jalons, datés en jours ouvrés, avec leur chemin critique — et cinq mille lignes de devis, cinq par tâche : cinq sur chaque tâche de travail, et une provision en sixième ligne sur trois cent cinquante d'entre elles.",
+  "summary": "La structure principale du projet aux volumes du §4.6.2 : 1 000 tâches — 10 phases, 30 lots, leurs 930 tâches de travail et leurs 30 jalons, datés en jours ouvrés, avec leur chemin critique — et 5 000 lignes de devis, 5 par tâche : 5 sur chaque tâche de travail, et une provision de plus sur 350 d'entre elles.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "items": [

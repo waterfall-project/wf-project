@@ -27,9 +27,9 @@ test("opens the list of projects, a project, and reads its planning and its esti
   await expect(
     estimate.getByRole("gridcell", { name: /^Total — 1\s000 tâches, 5\s000 lignes$/ }),
   ).toBeVisible();
-  // The indicators are there, with their figures. Their first example still describes the
-  // estimate of the witness structure (100 000,00), while `listNodes` serves the volume: the
-  // journey asserts no total of the indicators, which would contradict the grid below them.
+  // The indicators are there, with their figures: their first example is summed from the same
+  // lines as the structure the grid shows (EP-02/L2), and says the same total.
   const indicators = page.getByRole("region", { name: "Indicateurs du devis" });
   await expect(indicators.getByRole("term").first()).toHaveText("Total du devis");
+  await expect(indicators).toContainText(/60\s553\s621,36/);
 });
