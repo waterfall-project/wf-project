@@ -185,7 +185,9 @@ que la session peut lire, dans l'ordre de la FBS et de la barre latérale — le
 devis pour un chiffreur qui ne lit pas le planning. L'écran du devis dit au-dessus de sa
 grille les taux horaires qui manquent à son calcul, avec le chemin du référentiel pour qui le
 lit, et ses indicateurs, avec leur date de calcul, ou qu'ils sont indisponibles quand l'API
-les refuse — ce refus ne fait pas tomber l'écran (`EstimateSummary`).
+ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #159) — ces
+deux cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures
+(`EstimateSummary`).
 
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
