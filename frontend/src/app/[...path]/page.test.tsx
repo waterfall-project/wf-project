@@ -114,8 +114,8 @@ describe("the page of a function still to come", () => {
 
   it("names the function alone when the project cannot be read", async () => {
     server.answers = { ...ANSWERS, "GET /projects/{project_id}": NOT_FOUND };
-    const address = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
-    expect((await generateMetadata(at(address))).title).toBe("Planification — Waterfall");
+    const address = `/projects/${PROJECT}/revisions/${REVISION}/risks`;
+    expect((await generateMetadata(at(address))).title).toBe("Gestion des risques — Waterfall");
   });
 
   it("exists for a function of the project itself, without a revision", async () => {
@@ -128,15 +128,11 @@ describe("the page of a function still to come", () => {
 
   it.each([
     ["project", "GET /projects/{project_id}", `/projects/${PROJECT}/lifecycle`],
-    [
-      "project",
-      "GET /projects/{project_id}",
-      `/projects/${PROJECT}/revisions/${REVISION}/planning`,
-    ],
+    ["project", "GET /projects/{project_id}", `/projects/${PROJECT}/revisions/${REVISION}/risks`],
     [
       "revision",
       "GET /projects/{project_id}/revisions/{revision_id}",
-      `/projects/${PROJECT}/revisions/${REVISION}/planning`,
+      `/projects/${PROJECT}/revisions/${REVISION}/risks`,
     ],
   ] as const)("is not found when the API finds no %s, at %s for %s", async (_, route, address) => {
     server.answers = { ...ANSWERS, [route]: NOT_FOUND };

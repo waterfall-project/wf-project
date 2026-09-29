@@ -9,7 +9,8 @@ describe("a cell of a grid", () => {
   it("shows its value by its format, from the exact string of the contract", () => {
     expect(formatCell("money", "1234.5", "en")).toBe("1,234.50");
     expect(formatCell("decimal", "12.5", "fr")).toBe("12,5");
-    expect(formatCell("date", "2026-06-30", "en")).toBe("30 Jun 2026");
+    expect(formatCell("date", "2026-06-30", "en")).toBe("30/06/2026");
+    expect(formatCell("date", "2026-03-02", "fr")).toBe("02/03/2026");
     expect(formatCell("text", "Études", "en")).toBe("Études");
   });
 

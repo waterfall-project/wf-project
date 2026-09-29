@@ -28,14 +28,9 @@ import {
 
 import type { GridConfig } from "./columns";
 import { DenseGrid, ROW_REM } from "./dense-grid";
-import {
-  ESTIMATE_GRID,
-  type Node,
-  type NodeList,
-  type NodeSortColumn,
-  type NodeTotals,
-} from "./estimate";
+import { ESTIMATE_GRID } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
+import type { Node, NodeList, NodeSortColumn, NodeTotals } from "./nodes";
 import type { GridQuery } from "./query";
 import { type GridPreferences, useSettingsWriter, WRITE_DELAY } from "./settings";
 
@@ -809,7 +804,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
     });
 
     // The grid of the estimate, with the finish date of the tasks: a column of dates, as the
-    // grid of planning will configure it.
+    // grid of the planning configures it (`PLANNING_GRID`).
     const dated: GridConfig<Node, NodeSortColumn, NodeTotals> = {
       ...ESTIMATE_GRID,
       key: "dated",
@@ -845,7 +840,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
           </NextIntlClientProvider>,
         );
         const milestone = bodyRows().find((row) => texts(row)[1] === "Réception usine");
-        expect(texts(milestone)).toEqual(["6", "Réception usine", "30 juin 2026"]);
+        expect(texts(milestone)).toEqual(["6", "Réception usine", "30/06/2026"]);
         expect(screen.getByRole("columnheader", { name: "Fin" })).toBeInTheDocument();
       },
     );

@@ -432,6 +432,7 @@
               witness: { $ref: ../../../fixtures/api/nodes.json }
               milestone: { $ref: ../../../fixtures/api/nodes_milestone.json }
               estimate: { $ref: ../../../fixtures/api/nodes_estimate.json }
+              planning: { $ref: ../../../fixtures/api/nodes_planning.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:

@@ -13,55 +13,26 @@
  * sub-projects, which the answer names by identifier only, come with the reference data their
  * names are read from.
  */
-import type { components, operations } from "@/api/generated/schema";
-
 import { type GridConfig, sortColumns } from "./columns";
-import { rowNature, RowNatureIcon } from "./row-nature";
-
-/** A node of a structure, as the API reads it. */
-export type Node = components["schemas"]["Node"];
-
-/** The totals of a reading of the nodes, which the server computes. */
-export type NodeTotals = components["schemas"]["NodeTotals"];
-
-/** The answer of `listNodes`: the nodes, depth first, and their totals. */
-export type NodeList = operations["listNodes"]["responses"][200]["content"]["application/json"];
-
-/** A column of the contract the server sorts the nodes by. */
-export type NodeSortColumn = NonNullable<
-  NonNullable<operations["listNodes"]["parameters"]["query"]>["sort_by"]
->;
-
-/** How the label of a node stands out: a summary in bold, a provision muted. */
-function emphasis(node: Node): "strong" | "muted" | undefined {
-  const nature = rowNature(node);
-  if (nature === "summary") {
-    return "strong";
-  }
-  return nature === "provision" ? "muted" : undefined;
-}
+import {
+  LABEL_COLUMN,
+  NODE_TREE,
+  type Node,
+  nodeKey,
+  nodeNumber,
+  type NodeSortColumn,
+  type NodeTotals,
+} from "./nodes";
 
 /** The grid of the estimate. */
 export const ESTIMATE_GRID: GridConfig<Node, NodeSortColumn, NodeTotals> = {
   key: "estimate",
   name: "estimate",
-  rowKey: (node) => node.node_id,
-  rowNumber: (node) => node.row_number,
-  tree: {
-    level: (node) => node.level,
-    nature: (node) => <RowNatureIcon node={node} />,
-    emphasis,
-  },
+  rowKey: nodeKey,
+  rowNumber: nodeNumber,
+  tree: NODE_TREE,
   columns: [
-    {
-      key: "label",
-      label: "label",
-      format: "text",
-      width: 320,
-      pinned: true,
-      sortBy: "label",
-      value: (node) => node.task?.label ?? node.estimate_line?.label,
-    },
+    LABEL_COLUMN,
     {
       key: "quantity",
       label: "quantity",

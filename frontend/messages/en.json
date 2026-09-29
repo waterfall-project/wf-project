@@ -119,7 +119,8 @@
   },
   "grid": {
     "names": {
-      "estimate": "Estimate grid"
+      "estimate": "Estimate grid",
+      "planning": "Planning grid"
     },
     "columns": {
       "rowNumber": "No.",
@@ -130,7 +131,12 @@
       "budgetedAmount": "Budgeted",
       "reestimatedAmount": "Re-estimated",
       "startDate": "Start",
-      "finishDate": "Finish"
+      "finishDate": "Finish",
+      "schedulingMode": "Scheduling mode",
+      "duration": "Duration",
+      "progress": "Progress",
+      "totalFloat": "Float",
+      "predecessors": "Predecessors"
     },
     "computed": "Computed",
     "resize": "Width of the column {column}",
@@ -147,6 +153,33 @@
   "estimateGrid": {
     "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}",
     "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}"
+  },
+  "planningGrid": {
+    "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
+    "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
+    "days": "{days, number} d",
+    "critical": "Critical path",
+    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag, number} d} lead {{lag, number} d} other {}}",
+    "predecessorSeparator": ";",
+    "unknownRow": "?"
+  },
+  "estimateSummary": {
+    "title": "Estimate indicators",
+    "total": "Estimate total",
+    "provisions": "Identified provisions",
+    "delta": "Deviation from the previous marked revision",
+    "byCostType": "By nature of cost",
+    "bySubproject": "By subproject",
+    "share": "{amount} ({share})",
+    "unavailable": "The estimate indicators are unavailable.",
+    "unnamed": "No label",
+    "missingRates": {
+      "title": "Missing hourly rates",
+      "explanation": "The estimate cannot be calculated until these cost categories have an hourly rate for its reference year:",
+      "rate": "{category} — {year}",
+      "enter": "Enter the hourly rates",
+      "see": "See the hourly rates"
+    }
   },
   "contextBanner": {
     "label": "Reading context",

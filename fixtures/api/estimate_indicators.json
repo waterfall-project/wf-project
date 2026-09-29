@@ -1,0 +1,30 @@
+{
+  "summary": "Les indicateurs du devis de la révision courante au 16 mars 2026 : sa ligne de débours de 100 000, hors sous-projet, sans provision, et aucun écart avec la référence, dont elle reprend le devis (WF-DEV-0060).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "revision_status": "draft",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "total": "100000.00",
+    "by_cost_type": [
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000462",
+        "label": "Débours",
+        "amount": "100000.00",
+        "share": "1"
+      }
+    ],
+    "by_subproject": [
+      {
+        "key": "unassigned",
+        "amount": "100000.00",
+        "share": "1"
+      }
+    ],
+    "provisions_identified": "0.00",
+    "delta_to_previous_revision": "0.00"
+  }
+}

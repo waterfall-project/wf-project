@@ -1,0 +1,209 @@
+{
+  "summary": "Le planning d'une structure, lu sans ses lignes (kinds=task) : une récapitulative, une tâche terminée et une démarrée sur le chemin critique, une tâche en mode manuel sans marge, le jalon de réception, lié en fin à début et en début à début avec cinq jours de décalage, et une tâche liée avec deux jours d'avance, qui porte sept jours de marge (WF-PLA-0040, WF-PLA-0080, WF-PLA-0100). Les numéros de ligne ne comptent que les lignes rendues, ici les seules tâches — ce que le contrat ne dit pas encore (#158). Les totaux restent ceux des lignes de la structure : kinds ne les change pas.",
+  "value": {
+    "items": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000521",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+        "kind": "task",
+        "parent_id": null,
+        "position": 0,
+        "row_number": 1,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Études",
+          "scheduling_mode": "automatic",
+          "duration_days": 40,
+          "start_date": "2026-03-02",
+          "finish_date": "2026-04-24",
+          "progress": "started",
+          "is_summary": true,
+          "is_milestone": false,
+          "budgeted_amount": "100000.00",
+          "reestimated_amount": "100000.00",
+          "physical_progress": "0.5"
+        },
+        "computed_fields": [
+          "task.duration_days",
+          "task.start_date",
+          "task.finish_date",
+          "task.progress"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000522",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 0,
+        "row_number": 2,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Études de détail",
+          "scheduling_mode": "automatic",
+          "duration_days": 30,
+          "start_date": "2026-03-02",
+          "finish_date": "2026-04-10",
+          "progress": "completed",
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "100000.00",
+          "reestimated_amount": "100000.00",
+          "total_float_days": 0,
+          "is_critical": true,
+          "started_on": "2026-03-02",
+          "completed_on": "2026-04-10"
+        },
+        "computed_fields": [
+          "task.start_date",
+          "task.finish_date"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000523",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 1,
+        "row_number": 3,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Pupitres opérateurs",
+          "scheduling_mode": "manual",
+          "duration_days": 40,
+          "start_date": "2026-03-02",
+          "finish_date": "2026-04-24",
+          "progress": "not_started",
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "total_float_days": null,
+          "is_critical": false
+        },
+        "computed_fields": []
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000524",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000624",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 2,
+        "row_number": 4,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Revue de conception",
+          "scheduling_mode": "automatic",
+          "duration_days": 10,
+          "start_date": "2026-04-13",
+          "finish_date": "2026-04-24",
+          "progress": "started",
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "total_float_days": 0,
+          "is_critical": true,
+          "started_on": "2026-04-13"
+        },
+        "predecessors": [
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000522",
+            "link_type": "finish_to_start",
+            "lag_days": 0
+          }
+        ],
+        "computed_fields": [
+          "task.start_date",
+          "task.finish_date"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000525",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000625",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 3,
+        "row_number": 5,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Réception des études",
+          "scheduling_mode": "automatic",
+          "duration_days": 0,
+          "start_date": "2026-04-24",
+          "finish_date": "2026-04-24",
+          "progress": "not_started",
+          "is_summary": false,
+          "is_milestone": true,
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "total_float_days": 0,
+          "is_critical": true
+        },
+        "predecessors": [
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000524",
+            "link_type": "finish_to_start",
+            "lag_days": 0
+          },
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000523",
+            "link_type": "start_to_start",
+            "lag_days": 5
+          }
+        ],
+        "computed_fields": [
+          "task.start_date",
+          "task.finish_date"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000526",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000626",
+        "kind": "task",
+        "parent_id": null,
+        "position": 1,
+        "row_number": 6,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Dossier de conception",
+          "scheduling_mode": "automatic",
+          "duration_days": 5,
+          "start_date": "2026-04-09",
+          "finish_date": "2026-04-15",
+          "progress": "not_started",
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "total_float_days": 7,
+          "is_critical": false
+        },
+        "predecessors": [
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000522",
+            "link_type": "finish_to_start",
+            "lag_days": -2
+          }
+        ],
+        "computed_fields": [
+          "task.start_date",
+          "task.finish_date"
+        ]
+      }
+    ],
+    "totals": {
+      "task_count": 6,
+      "estimate_line_count": 1,
+      "hours": "0",
+      "budgeted_amount": "100000.00",
+      "reestimated_amount": "100000.00"
+    }
+  }
+}

@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A header of a dense grid: the heading of its column, from the catalogue; the Σ that marks a
- * column the server computes (WF-IHM-0030); the sort, when the server sorts it — a button;
- * `aria-sort` on the column sorted, and on it alone —; and the handle that widens it, by the pointer or by the
+ * A header of a dense grid: the heading of its column, from the catalogue — or, in a narrow
+ * column, the icon that stands for it, named by it —; the Σ that marks a column the server
+ * computes (WF-IHM-0030); the sort, when the server sorts it — a button; `aria-sort` on the
+ * column sorted, and on it alone —; and the handle that widens it, by the pointer or by the
  * arrows of the keyboard, a separator whose value is the width.
  */
 "use client";
@@ -28,7 +29,7 @@ const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
 /** What a header reads of its column. */
 type HeaderColumn = Pick<
   GridColumn<unknown, string, unknown>,
-  "label" | "computed" | "format" | "align"
+  "label" | "computed" | "format" | "align" | "icon"
 >;
 
 /** What a header shows, and where. */
@@ -95,6 +96,39 @@ function ResizeHandle<Row extends RowData>({
   );
 }
 
+/**
+ * The heading of a column: the Σ of a column the server computes, then its label — or the icon
+ * that stands for it, named by it and shown on hover to whoever does not read its name.
+ */
+function Heading({
+  id,
+  column,
+  label,
+}: {
+  readonly id: string;
+  readonly column: HeaderColumn | undefined;
+  readonly label: string;
+}) {
+  const t = useTranslations("grid");
+  const Icon = column?.icon;
+  return (
+    <span
+      id={id}
+      title={Icon === undefined ? undefined : label}
+      className="inline-flex min-w-0 items-center gap-1"
+    >
+      {column?.computed === true ? (
+        <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
+      ) : null}
+      {Icon === undefined ? (
+        <span className="truncate">{label}</span>
+      ) : (
+        <Icon role="img" aria-label={label} className="size-3.5 shrink-0" />
+      )}
+    </span>
+  );
+}
+
 /** Render a header of a grid. */
 export function HeaderCell<Row extends RowData>({
   table,
@@ -105,25 +139,24 @@ export function HeaderCell<Row extends RowData>({
   const t = useTranslations("grid");
   const label = t(`columns.${column?.label ?? "rowNumber"}`);
   const sorted = header.column.getIsSorted();
-  const end = column === undefined || alignment(column) === "end";
+  const align = column === undefined ? "end" : alignment(column);
+  const end = align === "end";
   // The header is named by its heading alone — the Σ and the label —, not by the name of the
   // handle it holds, which would be read with every cell of the column.
   const id = useId();
-  const heading = (
-    <span id={id} className="inline-flex min-w-0 items-center gap-1">
-      {column?.computed === true ? (
-        <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
-      ) : null}
-      <span className="truncate">{label}</span>
-    </span>
-  );
+  const heading = <Heading id={id} column={column} label={label} />;
   return (
     <TableHead
       scope="col"
       aria-labelledby={id}
       aria-sort={sorted ? ARIA_SORT[sorted] : undefined}
       style={{ left: pinning.left }}
-      className={cn("relative h-8 bg-muted", pinning.className, end ? "text-right" : null)}
+      className={cn(
+        "relative h-8 bg-muted",
+        pinning.className,
+        end ? "text-right" : null,
+        align === "center" ? "text-center" : null,
+      )}
     >
       {header.column.getCanSort() ? (
         <button

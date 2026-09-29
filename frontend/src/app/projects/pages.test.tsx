@@ -19,8 +19,13 @@ import {
 } from "@/test/fixtures";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
-import EstimatePage from "./[projectId]/revisions/[revisionId]/estimate/page";
+import EstimatePage, {
+  generateMetadata as estimateMetadata,
+} from "./[projectId]/revisions/[revisionId]/estimate/page";
 import RevisionPage from "./[projectId]/revisions/[revisionId]/page";
+import PlanningPage, {
+  generateMetadata as planningMetadata,
+} from "./[projectId]/revisions/[revisionId]/planning/page";
 import ProjectsPage, { generateMetadata as projectsMetadata } from "./page";
 
 const server = vi.hoisted(
@@ -28,13 +33,13 @@ const server = vi.hoisted(
     answers: FakeAnswers;
     clients: FakeClient[];
     unreachable: boolean;
-    structures: (() => Response) | undefined;
+    undeclared: { readonly route: string; readonly answer: () => Response } | undefined;
     timing: FakeTiming;
   } => ({
     answers: {},
     clients: [],
     unreachable: false,
-    structures: undefined,
+    undeclared: undefined,
     timing: {},
   }),
 );
@@ -47,22 +52,20 @@ vi.mock("@/api/server", () => ({
         fetch: () => Promise.reject(new TypeError("fetch failed")),
       });
     }
-    const structures = server.structures;
-    if (structures !== undefined) {
-      // An answer the contract does not declare for the structures — a failure of the
-      // service, a page of a gateway —; the session, the project and the revision from their
-      // examples.
+    const undeclared = server.undeclared;
+    if (undeclared !== undefined) {
+      // An answer the contract does not declare for one read — a failure of the service, a
+      // page of a gateway —; the other reads from their examples.
       return createApiClient({
         address: "http://api.invalid",
         fetch: (request) => {
           const path = new URL(request.url).pathname;
-          if (path.endsWith("/structures")) {
-            return Promise.resolve(structures());
+          if (path.endsWith(undeclared.route)) {
+            return Promise.resolve(undeclared.answer());
           }
-          if (path.endsWith("/session")) {
-            return Promise.resolve(Response.json(example("session")));
-          }
-          const name = /\/revisions\/[^/]+$/.test(path) ? "revision" : "project";
+          const name =
+            Object.entries(EXAMPLE_BY_END).find(([end]) => path.endsWith(end))?.[1] ??
+            (/\/revisions\/[^/]+$/.test(path) ? "revision" : "project");
           return Promise.resolve(Response.json(example(name)));
         },
       });
@@ -91,6 +94,23 @@ const NO_SEARCH = Promise.resolve({});
 const BANNER = '<section aria-label="Reading context"';
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
 
+/** The examples the reads of a revision answer, by the end of their path, the others aside. */
+const EXAMPLE_BY_END: Readonly<Record<string, string>> = {
+  "/session": "session",
+  "/structures": "structures",
+  "/nodes": "nodes",
+  "/estimate-indicators": "estimate_indicators",
+  "/missing-rates": "missing_rates_none",
+};
+
+/** A failure of the service, in its envelope, with the correlation identifier of the request. */
+function failure(correlation: string): Response {
+  return Response.json(
+    { code: "INTERNAL_ERROR", status: 500, correlation_id: correlation },
+    { status: 500, headers: { "content-type": "application/problem+json" } },
+  );
+}
+
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
   return markup
@@ -101,9 +121,12 @@ function text(markup: string): string {
 
 /** The call that read the nodes of the structure. */
 function nodesCall() {
-  return server.clients
-    .flatMap((client) => client.calls)
-    .find((call) => call.route.endsWith("/nodes"));
+  return callOf("/nodes");
+}
+
+/** The call to the API whose route ends as given. */
+function callOf(end: string) {
+  return server.clients.flatMap((client) => client.calls).find((call) => call.route.endsWith(end));
 }
 
 /** A page in English, as the shell hands it its texts. */
@@ -118,7 +141,7 @@ function inEnglish(page: ReactNode) {
 beforeEach(() => {
   server.clients = [];
   server.unreachable = false;
-  server.structures = undefined;
+  server.undeclared = undefined;
   server.timing = {};
   server.answers = {
     "GET /session": "session",
@@ -129,6 +152,8 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
     "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": "nodes",
+    "GET /projects/{project_id}/estimate-indicators": "estimate_indicators",
+    "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates_none",
   };
 });
 
@@ -284,20 +309,42 @@ describe("the witness path", () => {
     });
   });
 
-  it("leads from a revision to the grid of its estimate, the reading context carried on", async () => {
+  it("leads from a revision to its planning, the first function of a revision in the order of the FBS and of the sidebar, the reading context carried on", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const search = Promise.resolve({ subproject_id: "unassigned", as_of: ["2026-05-31", "x"] });
     await expect(RevisionPage({ params, searchParams: search })).rejects.toMatchObject({
       digest: expect.stringContaining(
-        `;/projects/${PROJECT}/revisions/${REVISION}/estimate?subproject_id=unassigned&as_of=2026-05-31&as_of=x;`,
+        `;/projects/${PROJECT}/revisions/${REVISION}/planning?subproject_id=unassigned&as_of=2026-05-31&as_of=x;`,
       ) as unknown,
     });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `;/projects/${PROJECT}/revisions/${REVISION}/planning;`,
+      ) as unknown,
+    });
+    // The session alone is read, to know what it may read; nothing of the revision yet.
+    const routes = server.clients.flatMap((client) => client.calls).map((call) => call.route);
+    expect(new Set(routes)).toEqual(new Set(["GET /session"]));
+  });
+
+  it("leads an estimator who may not read the planning from a revision to its estimate", async () => {
+    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       digest: expect.stringContaining(
         `;/projects/${PROJECT}/revisions/${REVISION}/estimate;`,
       ) as unknown,
     });
-    expect(server.clients.flatMap((client) => client.calls)).toEqual([]);
+  });
+
+  it("leads from a revision to its planning without a session, whose page leads to the sign-in", async () => {
+    server.answers = { ...server.answers, "GET /session": UNAUTHORIZED };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `;/projects/${PROJECT}/revisions/${REVISION}/planning;`,
+      ) as unknown,
+    });
   });
 
   it("is not found at a revision the address names by no identifier, before leading anywhere", async () => {
@@ -319,11 +366,7 @@ describe("the witness path", () => {
   });
 
   it("never shows an empty grid on a failure of the service: the screen of failure names it by its correlation identifier", async () => {
-    server.structures = () =>
-      Response.json(
-        { code: "INTERNAL_ERROR", status: 500, correlation_id: "req-7f3a" },
-        { status: 500, headers: { "content-type": "application/problem+json" } },
-      );
+    server.undeclared = { route: "/structures", answer: () => failure("req-7f3a") };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const page = EstimatePage({ params, searchParams: NO_SEARCH });
     await expect(page).rejects.toBeInstanceOf(UnexpectedAnswer);
@@ -334,7 +377,10 @@ describe("the witness path", () => {
   });
 
   it("never shows an empty grid when a gateway says the service is down: the API is out of reach", async () => {
-    server.structures = () => new Response("<html>Bad gateway</html>", { status: 502 });
+    server.undeclared = {
+      route: "/structures",
+      answer: () => new Response("<html>Bad gateway</html>", { status: 502 }),
+    };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
       Unreachable,
@@ -343,8 +389,10 @@ describe("the witness path", () => {
 
   it("never shows an empty grid for a revision without a main structure, which the contract rules out", async () => {
     const structures = example("structures") as { kind: string }[];
-    server.structures = () =>
-      Response.json(structures.filter((structure) => structure.kind !== "main"));
+    server.undeclared = {
+      route: "/structures",
+      answer: () => Response.json(structures.filter((structure) => structure.kind !== "main")),
+    };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       name: "UnexpectedAnswer",
@@ -379,6 +427,193 @@ describe("the witness path", () => {
     expect((await projectMetadata({ params })).title).toBe(
       "Projects · Modernisation du poste de commande — Waterfall",
     );
+  });
+});
+
+describe("the grid of the planning", () => {
+  const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+
+  beforeEach(() => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes":
+        "nodes_planning",
+    };
+  });
+
+  it("shows the tasks of the main structure, asking the server for the tasks alone, the same grid as the estimate", async () => {
+    const html = renderToStaticMarkup(
+      inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({ kinds: "task" });
+    expect(html.startsWith(BANNER)).toBe(true);
+    expect(html).toContain(`<main class="${SCREEN.dense}">`);
+    expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Planning<\/h1>/);
+    expect(text(html)).toContain("Structure principale · 6 tasks");
+    expect(html).toMatch(
+      /<table[^>]*role="grid"[^>]*aria-label="Planning grid"[^>]*aria-rowcount="8"/,
+    );
+    expect(text(html)).toContain("Total — 6 tasks");
+    // The totals the server gave, which `kinds` leaves as they are, are not the planning's to
+    // show: it has no column of hours nor of amounts.
+    expect(text(html)).not.toContain("100,000.00");
+  });
+
+  it("asks the server for the sort, the search and the filtered sub-project the address holds, besides the tasks", async () => {
+    const search = Promise.resolve({
+      sort_by: "total_float_days",
+      sort_order: "desc",
+      search: "revue",
+      subproject_id: "unassigned",
+    });
+    const html = renderToStaticMarkup(
+      inEnglish(await PlanningPage({ params, searchParams: search })),
+    );
+    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({
+      kinds: "task",
+      sort_by: "total_float_days",
+      sort_order: "desc",
+      search: "revue",
+      subproject_id: "unassigned",
+    });
+    expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Float/);
+  });
+
+  it("asks no sort the planning does not offer, such as an amount of the estimate", async () => {
+    await PlanningPage({ params, searchParams: Promise.resolve({ sort_by: "budgeted_amount" }) });
+    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({ kinds: "task" });
+  });
+
+  it("is not found for a revision the API does not find", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": NOT_FOUND,
+    };
+    await expect(PlanningPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
+  });
+
+  it("titles the tabs of the planning and of the estimate with the function and the project", async () => {
+    const project = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    expect((await planningMetadata({ params: project })).title).toBe(
+      "Planning · Modernisation du poste de commande — Waterfall",
+    );
+    expect((await estimateMetadata({ params: project })).title).toBe(
+      "Costing and estimate · Modernisation du poste de commande — Waterfall",
+    );
+  });
+});
+
+describe("the indicators and the missing rates of the estimate", () => {
+  const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+
+  it("shows the indicators of the revision above its grid, with the date they are computed at", async () => {
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(text(html)).toMatch(
+      /Costing and estimate Structure principale · 3 tasks, 1 line Estimate indicators Computed on Estimate total 100,000.00 .*No\. Label/,
+    );
+    expect(html).toContain('<time dateTime="2026-03-16T14:05:00Z"');
+    expect(Object.fromEntries(callOf("/estimate-indicators")?.query ?? [])).toEqual({
+      revision_id: REVISION,
+    });
+    expect(Object.fromEntries(callOf("/missing-rates")?.query ?? [])).toEqual({
+      revision_id: REVISION,
+    });
+    expect(text(html)).not.toContain("Missing hourly rates");
+  });
+
+  it("reads the indicators for the sub-project the address filters", async () => {
+    await EstimatePage({ params, searchParams: Promise.resolve({ subproject_id: "unassigned" }) });
+    expect(Object.fromEntries(callOf("/estimate-indicators")?.query ?? [])).toEqual({
+      revision_id: REVISION,
+      scope: "unassigned",
+    });
+  });
+
+  it("names the categories whose hourly rate is missing, with the way to the reference, to enter them or to see them", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates",
+    };
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(text(html)).toContain(
+      "Missing hourly rates The estimate cannot be calculated until these cost categories have an hourly rate for its reference year: Ingénierie électrique — 2026 Mise en service — 2026 Enter the hourly rates",
+    );
+    expect(links(html)).toContain("/reference/costs");
+
+    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    const estimator = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    // An estimator reads the rates, and may not enter them.
+    expect(text(estimator)).toContain("Mise en service — 2026 See the hourly rates");
+    expect(links(estimator)).toContain("/reference/costs");
+  });
+
+  it("says the indicators unavailable when the API refuses them, and still shows the missing rates and the grid", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/estimate-indicators": NOT_FOUND,
+      "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates",
+    };
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(text(html)).toContain(
+      "Mise en service — 2026 Enter the hourly rates Estimate indicators The estimate indicators are unavailable.",
+    );
+    expect(html).toMatch(/<table[^>]*role="grid"[^>]*aria-label="Estimate grid"/);
+  });
+
+  it("does not swallow a failure of the service reading the indicators: the screen of failure names it by its correlation identifier", async () => {
+    server.undeclared = { route: "/estimate-indicators", answer: () => failure("req-9b1c") };
+    const page = EstimatePage({ params, searchParams: NO_SEARCH });
+    await expect(page).rejects.toBeInstanceOf(UnexpectedAnswer);
+    await expect(page).rejects.toMatchObject({
+      operation: "getEstimateIndicators",
+      digest: "WATERFALL_CORRELATION;req-9b1c",
+    });
+  });
+
+  it("leads to the sign-in when the API refuses the indicators for want of a session", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/estimate-indicators": UNAUTHORIZED,
+    };
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      operation: "getEstimateIndicators",
+      digest: SESSION_REQUIRED_DIGEST,
+    });
+  });
+
+  it("says the API out of reach when a gateway answers for the indicators", async () => {
+    server.undeclared = {
+      route: "/estimate-indicators",
+      answer: () => new Response("<html>Bad gateway</html>", { status: 502 }),
+    };
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
+      Unreachable,
+    );
+  });
+
+  it("says the indicators unavailable when the API refuses them for a missing hourly rate", async () => {
+    server.undeclared = {
+      route: "/estimate-indicators",
+      answer: () =>
+        Response.json(
+          { code: "HOURLY_RATE_MISSING", status: 422 },
+          { status: 422, headers: { "content-type": "application/problem+json" } },
+        ),
+    };
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(text(html)).toContain("The estimate indicators are unavailable.");
   });
 });
 

@@ -119,7 +119,8 @@
   },
   "grid": {
     "names": {
-      "estimate": "Grille de devis"
+      "estimate": "Grille de devis",
+      "planning": "Grille de planning"
     },
     "columns": {
       "rowNumber": "N°",
@@ -130,7 +131,12 @@
       "budgetedAmount": "Budgété",
       "reestimatedAmount": "Réestimé",
       "startDate": "Début",
-      "finishDate": "Fin"
+      "finishDate": "Fin",
+      "schedulingMode": "Mode de planification",
+      "duration": "Durée",
+      "progress": "Avancement",
+      "totalFloat": "Marge",
+      "predecessors": "Prédécesseurs"
     },
     "computed": "Calculé",
     "resize": "Largeur de la colonne {column}",
@@ -147,6 +153,33 @@
   "estimateGrid": {
     "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}",
     "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}"
+  },
+  "planningGrid": {
+    "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
+    "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
+    "days": "{days, number} j",
+    "critical": "Chemin critique",
+    "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag, number} j} lead {{lag, number} j} other {}}",
+    "predecessorSeparator": ";",
+    "unknownRow": "?"
+  },
+  "estimateSummary": {
+    "title": "Indicateurs du devis",
+    "total": "Total du devis",
+    "provisions": "Provisions identifiées",
+    "delta": "Écart avec la révision marquée précédente",
+    "byCostType": "Par nature de coût",
+    "bySubproject": "Par sous-projet",
+    "share": "{amount} ({share})",
+    "unavailable": "Les indicateurs du devis sont indisponibles.",
+    "unnamed": "Sans libellé",
+    "missingRates": {
+      "title": "Taux horaires manquants",
+      "explanation": "Le devis ne peut pas être calculé tant que ces catégories de coût n’ont pas de taux horaire pour son année de référence :",
+      "rate": "{category} — {year}",
+      "enter": "Renseigner les taux horaires",
+      "see": "Voir les taux horaires"
+    }
   },
   "contextBanner": {
     "label": "Contexte de lecture",

@@ -101,9 +101,13 @@ function pinningOf<Row extends RowData>(table: GridTable<Row>, id: string, layer
   };
 }
 
-/** The classes that align the content of a column: the row numbers and the figures at the end. */
+/**
+ * The classes that align the content of a column: the row numbers and the figures at the end,
+ * an icon alone at the centre.
+ */
 function alignClass(column: Parameters<typeof alignment>[0] | undefined): string | null {
-  return column === undefined || alignment(column) === "end" ? "text-right" : null;
+  const align = column === undefined ? "end" : alignment(column);
+  return { start: null, end: "text-right", center: "text-center" }[align];
 }
 
 /** The label of a row and its tree: indented by its level, the icon of its nature before it. */
@@ -136,7 +140,10 @@ function TreeLabel<Row extends RowData, Sort extends string, Totals>({
   );
 }
 
-/** The content of a cell: the number of the row, the label and its tree, or a value. */
+/**
+ * The content of a cell: the number of the row, the label and its tree, what its column renders,
+ * or its value.
+ */
 function cellContent<Row extends RowData, Sort extends string, Totals>(
   config: GridConfig<Row, Sort, Totals>,
   column: GridColumn<Row, Sort, Totals> | undefined,
@@ -145,6 +152,9 @@ function cellContent<Row extends RowData, Sort extends string, Totals>(
 ): ReactNode {
   if (column === undefined) {
     return config.rowNumber?.(row);
+  }
+  if (column.render !== undefined) {
+    return column.render(row);
   }
   const text = formatCell(column.format, column.value(row), locale);
   return column === config.columns[0] ? <TreeLabel config={config} row={row} text={text} /> : text;

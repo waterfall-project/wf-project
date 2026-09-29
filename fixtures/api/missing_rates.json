@@ -1,0 +1,15 @@
+{
+  "summary": "Deux catégories de main-d'œuvre employées par le devis sans taux horaire pour 2026, son année de référence : le calcul est refusé tant qu'elles n'en ont pas (WF-DEV-0010).",
+  "value": [
+    {
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+      "label": "Ingénierie électrique",
+      "year": 2026
+    },
+    {
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+      "label": "Mise en service",
+      "year": 2026
+    }
+  ]
+}

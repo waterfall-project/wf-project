@@ -1,0 +1,48 @@
+{
+  "summary": "Les indicateurs d'un devis d'une ligne de chaque nature, 2 734,56 au total : la main-d'œuvre, le débours et la provision en montant et en part du total, dont la somme vaut cent pour cent ; le sous-projet du poste de commande et l'ensemble hors sous-projet ; sans révision marquée qui le précède, aucun écart (WF-DEV-0060).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "revision_status": "draft",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "total": "2734.56",
+    "by_cost_type": [
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000461",
+        "label": "Main-d'œuvre",
+        "amount": "1000.00",
+        "share": "0.3657"
+      },
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000462",
+        "label": "Débours",
+        "amount": "1234.56",
+        "share": "0.4515"
+      },
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000463",
+        "label": "Provision",
+        "amount": "500.00",
+        "share": "0.1828"
+      }
+    ],
+    "by_subproject": [
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000801",
+        "label": "Poste de commande",
+        "amount": "2234.56",
+        "share": "0.8172"
+      },
+      {
+        "key": "unassigned",
+        "amount": "500.00",
+        "share": "0.1828"
+      }
+    ],
+    "provisions_identified": "500.00",
+    "delta_to_previous_revision": null
+  }
+}

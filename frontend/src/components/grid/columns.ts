@@ -12,6 +12,7 @@
  * the address, the grid the rest. Its functions stay on the side of the browser, which is why
  * a screen hands its configuration to the grid in a client component of its own.
  */
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Catalogue } from "@/i18n/catalogues";
@@ -24,8 +25,11 @@ import type { Locale } from "@/i18n/locale";
  */
 export type CellFormat = "text" | "money" | "decimal" | "date";
 
-/** Where the content of a cell aligns: the start for a text, the end for a figure. */
-export type CellAlign = "start" | "end";
+/**
+ * Where the content of a cell aligns: the start for a text, the end for a figure, the centre
+ * for an icon alone.
+ */
+export type CellAlign = "start" | "end" | "center";
 
 /** The key of the heading of a column in the catalogue, under `grid.columns`. */
 export type ColumnLabel = keyof Catalogue["grid"]["columns"];
@@ -46,6 +50,11 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   readonly align?: CellAlign;
   /** Its width before the user sets one, in pixels. */
   readonly width: number;
+  /**
+   * The icon its header shows in place of its heading, which names it: a narrow column whose
+   * cells are icons too. The menu of the columns names it by its heading all the same.
+   */
+  readonly icon?: LucideIcon;
   /** Whether the server computes it: a shaded column, marked Σ in its header. */
   readonly computed?: boolean;
   /**
@@ -55,8 +64,17 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   readonly pinned?: boolean;
   /** The column of the contract the server sorts it by; none, and it does not sort. */
   readonly sortBy?: Sort;
-  /** What it reads of a row. */
+  /**
+   * What it reads of a row: the value its cell formats — or, for a column that renders its cell,
+   * only what TanStack Table asks of a column to offer its sort, never shown nor sorted here.
+   */
   readonly value: (row: Row) => CellValue;
+  /**
+   * What its cell shows in place of the value formatted: an icon named for what it says, a
+   * figure with its unit or its mark — rendered in the browser, as the rest of the grid. Its
+   * `value` then serves the sort offered alone.
+   */
+  readonly render?: (row: Row) => ReactNode;
   /** What it reads of the totals of the answer, for the totals row; none, and it is blank. */
   readonly total?: (totals: Totals) => CellValue;
 }
@@ -112,7 +130,9 @@ export function formatCell(format: CellFormat, value: CellValue, locale: Locale)
     case "decimal":
       return formatDecimal(value, locale);
     case "date":
-      return formatPlanningDate(value, locale);
+      // A dense grid shows a date in its short form, the same width on every row; the year keeps
+      // its four digits, clearer over the fifteen years a project may span than the mock-up's two.
+      return formatPlanningDate(value, locale, "short");
     case "text":
       return value;
   }
