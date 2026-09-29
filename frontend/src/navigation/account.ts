@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The pages of the account of the user, which the menu of the account leads to: the account
- * itself, the change of its password, the change of its avatar. Their screens are US-0320's;
- * until they come, each route exists and shows that its screen is to come, as the functions of
- * the navigation do (`src/app/account/[[...section]]/page.tsx`), and the lot of a screen
- * writes its page at the same route, which wins over the one waiting.
+ * itself — its details and its display preferences —, the change of its password, the change of
+ * its avatar (US-0320, `src/app/account/`).
  */
 
 /** A page of the account. */

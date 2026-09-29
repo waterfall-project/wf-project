@@ -75,7 +75,12 @@ existe dès la coquille, servie par la page d'attente `frontend/src/app/[...path
 qui répond « introuvable » quand l'API ne trouve pas le projet ou la révision ; le lot d'un
 écran écrit sa page à la même route, qui l'emporte sur elle. Les pages du compte
 (`/account`, `/account/password`, `/account/avatar`, `frontend/src/navigation/account.ts`)
-attendent de même leurs écrans (US-0320), servies par `frontend/src/app/account/[[...section]]/page.tsx`.
+ont leurs écrans (US-0320) : les informations du compte et ses préférences d'affichage — la
+langue et le mode, les mêmes champs que le menu du compte écrit, enregistrés ensemble —, le
+changement du mot de passe, offert au seul compte local, et l'avatar. L'image de l'avatar,
+servie par l'API seule, est lue par le serveur de Next en rendant la page et écrite dans la
+page en adresse `data:` (`avatar-source.ts`) : ni appel du navigateur à l'API, ni relais ;
+l'écran de l'avatar seul la montre, le menu du compte garde les initiales.
 
 La coquille se compose ainsi (`shell.tsx`, mise en page de la charte) : à gauche la barre
 latérale (`navigation.tsx`), le logo et le choix du projet en tête, les fonctions en trois
@@ -90,7 +95,18 @@ de l'écran, qui l'a déjà lu pour son bandeau — `ContextBanner` le remet à 
 `ShowProject` (`shown-project.tsx`), qui ne le nomme que tant que l'adresse montre ce même
 projet. Le menu du compte (`account-menu.tsx`) porte les préférences d'affichage — langue et
 mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le parcours au
-clavier n'envoyant rien —, les pages du compte et la déconnexion, inerte jusqu'à US-0320.
+clavier n'envoyant rien —, les pages du compte et la déconnexion. La déconnexion
+(`closeSession`, un 401 valant session déjà close) oublie ce que le navigateur gardait de la
+session — le témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi
+— puis charge la page de connexion en document entier. L'entrée — la connexion, `/login`, et
+le mot de passe oublié, `/login/reset` — est hors de la coquille : ni barre latérale, ni barre,
+ni tâches (`shell-frame.tsx`, `isOutsideShell`), le logo au-dessus d'une carte. La page de
+connexion présente les fournisseurs de `listAuthProviders` : le compte local toujours, que
+l'annuaire partage quand il est activé, et le fournisseur d'identité activé par un lien vers
+son `start_url`. La session ouverte, le navigateur charge en document entier l'écran visé
+(`returnTarget(next)`, `frontend/src/navigation/document.ts`) — sans lui, l'accueil, qui mène
+à la liste des projets jusqu'à ce qu'elle soit l'accueil même (#112) — : le layout relit la session, et
+le suivi reprend les tâches qu'une session perdue avait interrompues.
 Sans compte (401), il n'y a ni menu du compte ni barre latérale ; quand la session est
 illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ouvert, et sans
 menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur écran étroit, c'est

@@ -73,19 +73,16 @@ test("the bar shows where the page sits, and the side bar names the project its 
   ).toBeVisible();
 });
 
-test("the menu of the account leads to the pages of the account, whose screens are to come", async ({
-  page,
-}) => {
+test("the menu of the account leads to the pages of the account", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Compte de Camille Martin" }).click();
-  await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).toHaveAttribute(
+  await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
     "aria-disabled",
-    "true",
   );
   await page.getByRole("menuitem", { name: "Changer le mot de passe" }).click();
 
   await expect(page).toHaveURL("/account/password");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Changer le mot de passe");
-  await expect(page.getByRole("main")).toContainText("Cet écran est à venir.");
+  await expect(page.getByLabel("Nouveau mot de passe")).toBeVisible();
   await expect(page).toHaveTitle("Changer le mot de passe — Waterfall");
 });

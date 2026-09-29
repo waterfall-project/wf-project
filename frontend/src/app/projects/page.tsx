@@ -10,10 +10,12 @@
  */
 import type { Metadata } from "next";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { Screen } from "@/components/shell/page-header";
+import { GROUP_ICONS } from "@/components/shell/function-display";
+import { PageHeader, Screen } from "@/components/shell/page-header";
 import { NoProjects, ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -26,6 +28,17 @@ const PROJECTS = "/projects";
 /** Title the tab with the list of projects. */
 export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functionGroups.projects");
+}
+
+/** The title of the list, with the icon of its block. */
+function ProjectsHeader() {
+  const t = useTranslations();
+  return (
+    <PageHeader
+      title={t("functionGroups.projects")}
+      icon={GROUP_ICONS["functionGroups.projects"]}
+    />
+  );
 }
 
 /** Render the projects the API lists, and what the reference data lacks, if anything. */
@@ -45,6 +58,7 @@ export default async function ProjectsPage({
   ]);
   return (
     <Screen>
+      <ProjectsHeader />
       <ReferenceIncomplete readiness={readiness} permissions={session?.permissions ?? []} />
       {projects.items.length === 0 ? (
         <NoProjects unfiltered={contributor ? PROJECTS : undefined} />

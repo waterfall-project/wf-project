@@ -38,6 +38,16 @@ export async function updateLanguage(
   return update({ language });
 }
 
+/**
+ * Record the language and the mode together, as the screen of the account submits them: the
+ * same fields the menu of the account writes one at a time.
+ */
+export async function updateDisplay(
+  preferences: Required<Pick<DisplayPreferences, "language" | "theme">>,
+): Promise<Outcome<DisplayPreferences>> {
+  return update({ language: preferences.language, theme: preferences.theme });
+}
+
 /** Record the display mode: `default`, which follows the workstation, `light` or `dark`. */
 export async function updateTheme(
   theme: NonNullable<DisplayPreferences["theme"]>,

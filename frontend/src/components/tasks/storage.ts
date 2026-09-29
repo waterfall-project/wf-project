@@ -10,7 +10,7 @@
  * but the follow-up when the storage is refused (a private window, a quota). A task that
  * ended is not kept: its end was announced. The command that started a task does not survive
  * a reload — a function is no data —: a task followed again after one cannot be relaunched
- * from the tracker, and the user starts it again from its screen.
+ * from the tracker, and the user starts it again from its screen. Signing out forgets them.
  */
 import { RUNNING, type TaskKind, type TaskStatus, type TrackedTask } from "./tracking";
 
@@ -94,6 +94,18 @@ export function restoreTasks(): TrackedTask[] {
  */
 function isResumable({ task, interrupted }: TrackedTask): boolean {
   return RUNNING[task.status] && interrupted?.problem.status !== 404;
+}
+
+/**
+ * Forget the tasks kept for a reload: they are the session's that ends, not the tab's, and the
+ * next user of the tab is to follow none of them.
+ */
+export function forgetTasks(): void {
+  try {
+    window.sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Refused — a private window —: nothing was kept.
+  }
 }
 
 /** Keep the tasks worth following again, for a reload of the tab to follow them on. */

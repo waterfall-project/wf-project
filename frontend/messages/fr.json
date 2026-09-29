@@ -51,6 +51,61 @@
     "avatar": "Changer l’avatar",
     "signOut": "Se déconnecter"
   },
+  "signIn": {
+    "title": "Connexion",
+    "local": "Avec votre compte Waterfall.",
+    "directory": "Avec votre compte Waterfall ou celui de l’annuaire de l’entreprise.",
+    "namedDirectory": "Avec votre compte Waterfall ou celui de l’annuaire « {directory} ».",
+    "email": "Adresse électronique",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
+    "or": "ou",
+    "identityProvider": "Se connecter avec le fournisseur d’identité",
+    "namedIdentityProvider": "Se connecter avec {provider}",
+    "forgotten": "Mot de passe oublié ?"
+  },
+  "passwordReset": {
+    "title": "Mot de passe oublié",
+    "request": "Indiquez l’adresse électronique de votre compte : un lien pour choisir un nouveau mot de passe lui sera envoyé.",
+    "email": "Adresse électronique",
+    "send": "Envoyer le lien",
+    "sent": "Si un compte correspond à cette adresse, un lien vient de lui être envoyé.",
+    "chooseTitle": "Nouveau mot de passe",
+    "choose": "Choisissez le nouveau mot de passe de votre compte.",
+    "newPassword": "Nouveau mot de passe",
+    "save": "Enregistrer le mot de passe",
+    "saved": "Votre mot de passe est enregistré : vous pouvez vous connecter.",
+    "askAgain": "Demander un nouveau lien",
+    "back": "Retour à la connexion",
+    "signIn": "Se connecter"
+  },
+  "account": {
+    "details": "Informations du compte",
+    "name": "Nom",
+    "email": "Adresse électronique",
+    "origin": "Origine du compte",
+    "preferences": "Préférences d’affichage",
+    "preferencesHelp": "Les mêmes que dans le menu du compte : elles s’appliquent sans reconnexion.",
+    "save": "Enregistrer",
+    "saved": "Vos préférences sont enregistrées.",
+    "password": {
+      "current": "Mot de passe actuel",
+      "new": "Nouveau mot de passe",
+      "submit": "Changer le mot de passe",
+      "changed": "Votre mot de passe est changé.",
+      "external": "Votre mot de passe est celui de l’annuaire ou du fournisseur d’identité dont vient votre compte : il ne se change pas dans Waterfall."
+    },
+    "avatar": {
+      "current": "Votre avatar",
+      "initials": "Aucune image : vos initiales en tiennent lieu.",
+      "file": "Image PNG ou JPEG",
+      "wrongType": "Choisissez une image PNG ou JPEG.",
+      "upload": "Déposer l’image",
+      "remove": "Retirer l’avatar",
+      "uploaded": "Votre avatar est enregistré.",
+      "removed": "Votre avatar est retiré."
+    }
+  },
   "screen": {
     "comingSoon": "Cet écran est à venir."
   },

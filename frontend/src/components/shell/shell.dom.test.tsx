@@ -181,7 +181,7 @@ describe("the shell", () => {
     });
   });
 
-  it("opens the menu of the account on its name and address, its preferences, its pages, and a way out still to come", async () => {
+  it("opens the menu of the account on its name and address, its preferences, its pages, and the way out", async () => {
     shell();
     await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin" }));
     const menu = screen.getByRole("menu");
@@ -193,9 +193,8 @@ describe("the shell", () => {
       within(menu).getByRole("menuitem", { name }).getAttribute("href"),
     );
     expect(pages).toEqual(["/account", "/account/password", "/account/avatar"]);
-    expect(within(menu).getByRole("menuitem", { name: "Se déconnecter" })).toHaveAttribute(
+    expect(within(menu).getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
       "aria-disabled",
-      "true",
     );
     for (const item of within(menu).getAllByRole("menuitem")) {
       expect(item.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
@@ -374,6 +373,26 @@ describe("the shell", () => {
     expect(bar().getByRole("searchbox", { name: "Rechercher" })).toHaveAccessibleDescription(
       "La recherche est à venir\u00a0: elle arrive avec les écrans qui listent les fonctions et les projets.",
     );
+  });
+
+  it.each(["/login", "/login/reset"])(
+    "leaves the way in bare, without side bar, bar nor tasks, whatever the session: %s",
+    (pathname) => {
+      visit(pathname);
+      shell({}, <main>Connexion</main>);
+      expect(screen.queryByRole("banner")).toBeNull();
+      expect(screen.queryByRole("navigation", { name: "Fonctions" })).toBeNull();
+      expect(screen.queryByRole("region", { name: "Tâches de fond" })).toBeNull();
+      expect(screen.getByRole("main")).toHaveTextContent("Connexion");
+    },
+  );
+
+  it("frames every other address, one under /login that leads nowhere included", () => {
+    visit("/login/nobody");
+    shell();
+    expect(screen.getByRole("banner")).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Fonctions" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Tâches de fond" })).toBeInTheDocument();
   });
 
   it("sets the side bar in a landmark named for it", () => {

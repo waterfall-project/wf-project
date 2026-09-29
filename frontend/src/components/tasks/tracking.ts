@@ -10,7 +10,8 @@
  * is applied to the task it was asked for, never to the one a relaunch put in its place.
  *
  * Each end — a task succeeded, failed, or whose follow-up the API interrupted — adds a line to
- * a log, which the shell reads out: the ends add up, none replaces the one before.
+ * a log, which the shell reads out: the ends add up, none replaces the one before. Signing out
+ * forgets them all.
  */
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
 
@@ -99,7 +100,8 @@ export type TrackingEvent =
       readonly taskId: string;
       readonly outcome: Outcome<BackgroundTask>;
     }
-  | { readonly type: "clear" | "dismiss"; readonly key: string };
+  | { readonly type: "clear" | "dismiss"; readonly key: string }
+  | { readonly type: "forget" };
 
 /** Nothing followed yet. */
 export const NOTHING_TRACKED: Tracking = { tasks: [], log: [], restored: false };
@@ -217,5 +219,9 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
       };
     case "dismiss":
       return { ...state, tasks: state.tasks.filter((tracked) => tracked.key !== event.key) };
+    case "forget":
+      // Signed out: nothing of the tasks of the session goes to the next user of the tab — an
+      // answer still on its way finds no task to apply to.
+      return { ...NOTHING_TRACKED, restored: state.restored };
   }
 }

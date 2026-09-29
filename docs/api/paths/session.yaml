@@ -15,6 +15,9 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/access.yaml#/AuthProvider }
+            examples:
+              witness: { $ref: ../../../fixtures/api/auth_providers.json }
+              local_only: { $ref: ../../../fixtures/api/auth_providers_local.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /session:
@@ -60,6 +63,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/Session }
+            examples:
+              witness: { $ref: ../../../fixtures/api/session.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '429':
@@ -179,6 +184,8 @@
               witness: { $ref: ../../../fixtures/api/me.json }
               english: { $ref: ../../../fixtures/api/me_english.json }
               without_preferences: { $ref: ../../../fixtures/api/me_without_preferences.json }
+              with_avatar: { $ref: ../../../fixtures/api/me_with_avatar.json }
+              directory: { $ref: ../../../fixtures/api/me_directory.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 
 /me/preferences:

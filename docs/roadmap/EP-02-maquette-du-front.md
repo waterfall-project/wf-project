@@ -408,6 +408,16 @@ fond d'un utilisateur, la révision ouverte par défaut.
   l'utilisateur), à faire avant #113. D'ici là, le suivi offre « Recharger l'écran » à
   l'aboutissement d'une tâche ; le 409 de `markRevision` ne vaut qu'une fois la révision
   marquée, et pendant le marquage rien au contrat n'empêche un second envoi.
+- `AuthProvider.start_url` ne dit pas ce qu'il désigne — l'adresse de `startOidcSession` vue du
+  navigateur, ou celle du fournisseur —, et le 303 de `startOidcSession` ne déclare pas son
+  `Location` — US-0320/L1, ouvert en #152. D'ici là, la page de connexion offre le fournisseur
+  d'identité par un lien vers `start_url`, et ne l'offre pas sans lui.
+- La taille admise d'un avatar n'est pas au contrat, quand Next borne le corps d'une action
+  serveur à 1 Mo — US-0320/L1, ouvert en #153. D'ici là, une image plus lourde échoue avant
+  l'API, sur l'écran de panne.
+- L'adresse du front que vise le lien de réinitialisation du mot de passe, écrit par l'API dans le courriel, n'est pas au contrat — US-0320/L1, ouvert en #154. D'ici là, le front attend `/login/reset?token=…`.
+- Aucun code d'erreur ne nomme une règle du mot de passe, et le front ne rend pas encore `Problem.fields` — US-0320/L1, ouvert en #155. D'ici là, un mot de passe refusé l'est par « Les données saisies ne sont pas valides. ».
+- La connexion par le fournisseur d'identité ne peut pas ramener à l'écran visé : `start_url` ne transmet pas `next`, et `completeOidcSession` répond 303 « vers l'application » — US-0320/L1, #152. D'ici là, elle mène à l'accueil.
 
 ### Ordre de construction
 
@@ -1019,11 +1029,11 @@ et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs.
 
 ## US-0320 — Connexion et compte personnel
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — l'authentification réelle est EP-03
 - **opérations** : `listAuthProviders`, `openSession`, `closeSession`, `startOidcSession`,
   `requestPasswordReset`, `confirmPasswordReset`, `getMe`, `updateMyPreferences`,
-  `changeMyPassword`, `putMyAvatar`, `deleteMyAvatar`
+  `changeMyPassword`, `putMyAvatar`, `deleteMyAvatar`, `getUserAvatar`
 - **issue** : #93
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** l'écran de connexion —
