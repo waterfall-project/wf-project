@@ -167,6 +167,17 @@ describe("the witness path", () => {
     );
   });
 
+  it("never shows an empty grid for a revision without a main structure, which the contract rules out", async () => {
+    const structures = example("structures") as { kind: string }[];
+    server.structures = () =>
+      Response.json(structures.filter((structure) => structure.kind !== "main"));
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      name: "UnexpectedAnswer",
+      operation: "listCostStructures",
+    });
+  });
+
   it("is not found at an address that names no revision, before the API is asked", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: "a.b" });
     await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({

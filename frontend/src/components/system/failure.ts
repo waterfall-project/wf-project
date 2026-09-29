@@ -45,12 +45,15 @@ export type Failure =
   | { readonly kind: "unreachable" | "signed_out" }
   | { readonly kind: "unexpected"; readonly reference: string | undefined };
 
-/** The reference a digest shows: the correlation identifier it carries, or itself. */
+/**
+ * The reference a digest shows: the correlation identifier it carries, or itself; none when
+ * it is empty — an empty identifier would show a reference followed by nothing.
+ */
 function referenceOf(digest: string | undefined): string | undefined {
-  if (digest === undefined || digest === "") {
-    return undefined;
-  }
-  return digest.startsWith(CORRELATION_PREFIX) ? digest.slice(CORRELATION_PREFIX.length) : digest;
+  const reference = digest?.startsWith(CORRELATION_PREFIX)
+    ? digest.slice(CORRELATION_PREFIX.length)
+    : digest;
+  return reference === "" ? undefined : reference;
 }
 
 /** Class the error a boundary caught. */

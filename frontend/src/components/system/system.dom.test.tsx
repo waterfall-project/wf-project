@@ -18,6 +18,7 @@ import { NoProjects, NoRevisions, ReferenceIncomplete } from "./empty-states";
 import {
   type BoundaryError,
   correlationDigest,
+  failureOf,
   SESSION_REQUIRED_DIGEST,
   UNREACHABLE_DIGEST,
 } from "./failure";
@@ -101,6 +102,13 @@ describe("the screen of failure", () => {
     await expectAccessible(container);
   });
 
+  it("names no reference for an empty correlation identifier", () => {
+    expect(failureOf(forwarded(correlationDigest("")))).toEqual({
+      kind: "unexpected",
+      reference: undefined,
+    });
+  });
+
   it("says an error without a reference is unexpected, and names no reference", () => {
     inLanguage(<SystemFailure error={new Error("a defect")} retry={vi.fn()} />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Erreur inattendue");
@@ -134,12 +142,14 @@ describe("the skeleton of a screen that loads", () => {
   it("shows the page region busy, and names it, its shapes hidden from a screen reader", async () => {
     const { container } = inLanguage(<ScreenSkeleton />);
     const main = screen.getByRole("main", { name: "Chargement de l’écran" });
-    expect(main).toHaveAttribute("aria-busy", "true");
-    // aria-busy alone says nothing: a status, hidden from the eye, announces the loading.
+    // A status, hidden from the eye, says the screen loads — outside any busy region, which
+    // may hold back what it contains; only the hidden shapes are busy.
     const status = screen.getByRole("status", { name: "Chargement de l’écran" });
     expect(status).toHaveTextContent("Chargement de l’écran");
     expect(status).toHaveClass("sr-only");
+    expect(status.closest('[aria-busy="true"]')).toBeNull();
     expect(main.lastElementChild).toHaveAttribute("aria-hidden", "true");
+    expect(main.lastElementChild).toHaveAttribute("aria-busy", "true");
     expect(main.querySelectorAll("div > div")).toHaveLength(5);
     await expectAccessible(container);
   });
@@ -152,10 +162,8 @@ describe("the skeleton of a screen that loads", () => {
   ])("is what %s show while they load", async (_, page) => {
     const { default: Loading } = await page();
     inLanguage(<Loading />, "en");
-    expect(screen.getByRole("main", { name: "Loading the screen" })).toHaveAttribute(
-      "aria-busy",
-      "true",
-    );
+    expect(screen.getByRole("main", { name: "Loading the screen" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading the screen" })).toBeInTheDocument();
   });
 });
 

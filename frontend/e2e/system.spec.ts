@@ -38,7 +38,7 @@ test("the list of projects says nothing of a complete reference, and lists the p
   await expect(page.getByRole("main", { name: "Chargement de l’écran" })).toHaveCount(0);
 });
 
-test("every address not found answers with the same status, whether it exists or not", async ({
+test("every address not found answers with the same status, whatever route it takes", async ({
   page,
 }) => {
   // A soft 404: the response streams from the skeleton on, its status sent before the page

@@ -9,7 +9,7 @@
  */
 import { notFound } from "next/navigation";
 
-import { readOrFail } from "@/api/problem";
+import { readOrFail, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
@@ -22,9 +22,10 @@ export interface RevisionParams {
 }
 
 /**
- * The nodes of the main structure of a revision; none when it has no main structure. A read
- * the API refuses, or cannot answer, is thrown for the pages of the shell to say (`readOrFail`):
- * a grid left empty would say the revision has nothing.
+ * The nodes of the main structure of a revision. A read the API refuses, or cannot answer, is
+ * thrown for the pages of the shell to say (`readOrFail`): a grid left empty would say the
+ * revision has nothing. So is a revision without a main structure, which the contract rules
+ * out: an answer of the API that breaks it is unexpected, not an empty grid.
  */
 async function mainNodes({ projectId, revisionId }: RevisionParams) {
   const client = serverClient();
@@ -36,7 +37,7 @@ async function mainNodes({ projectId, revisionId }: RevisionParams) {
   );
   const main = structures.find((structure) => structure.kind === "main");
   if (main === undefined) {
-    return [];
+    throw new UnexpectedAnswer("listCostStructures", 200);
   }
   const nodes = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
