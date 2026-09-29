@@ -26,8 +26,8 @@ const OPEN_STATUS: Readonly<Record<RevisionStatus, boolean>> = {
   marked: false,
 };
 
-/** Whether a command of a revision is one of modification. */
-export function isEdit(command: RevisionCommand): command is EditCommand {
+/** Whether a command is one of modification. */
+function isEdit(command: RevisionCommand): command is EditCommand {
   return command.startsWith("edit_");
 }
 

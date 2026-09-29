@@ -19,11 +19,18 @@ describe("the way back from the sign-in page", () => {
     ["another site", "https://elsewhere.example/"],
     ["another site without its scheme", "//elsewhere.example/"],
     ["another site behind a backslash", "/\\elsewhere.example/"],
+    ["another site behind a tab", "/\t/elsewhere.example/"],
+    ["another site behind a line feed", "/\n/elsewhere.example/"],
+    ["another site behind a carriage return and a backslash", "/\r\\elsewhere.example/"],
     ["a relative path", "projects"],
     ["nothing", null],
     ["no parameter", undefined],
   ])("leads home rather than to %s", (_, next) => {
     expect(returnTarget(next)).toBe("/");
+  });
+
+  it("keeps on the front a path whose slashes are encoded", () => {
+    expect(returnTarget("/%2F%2Felsewhere.example")).toBe("/%2F%2Felsewhere.example");
   });
 
   it("never names another site as the screen to come back to", () => {

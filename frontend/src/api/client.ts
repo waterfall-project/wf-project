@@ -29,10 +29,34 @@ export interface ApiClientOptions {
   readonly fetch?: (request: Request) => Promise<Response>;
 }
 
+/**
+ * The API did not answer at all: `fetch` itself rejected, as it does when the network or the
+ * service is down. Marked here, where `fetch` is called, so that the API out of reach is told
+ * apart from a defect that happens to throw a `TypeError` too (`reach`, `src/api/problem.ts`).
+ */
+export class Unreachable extends Error {
+  /** The rejection of `fetch`, kept as the cause. */
+  constructor(cause: unknown) {
+    super("the API cannot be reached", { cause });
+    this.name = "Unreachable";
+  }
+}
+
+/** Send a request, the rejection of `fetch` — a `TypeError` — marked as `Unreachable`. */
+function marking(send: (request: Request) => Promise<Response>) {
+  return async (request: Request): Promise<Response> => {
+    try {
+      return await send(request);
+    } catch (error) {
+      throw error instanceof TypeError ? new Unreachable(error) : error;
+    }
+  };
+}
+
 /** Make a client of the API served at an address. */
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const baseUrl = new URL(API_PREFIX, options.address).toString();
-  return createClient<paths>(
-    options.fetch === undefined ? { baseUrl } : { baseUrl, fetch: options.fetch },
-  );
+  // The platform's fetch is looked up at each call: Next may have replaced it in the meantime.
+  const send = options.fetch ?? ((request: Request) => fetch(request));
+  return createClient<paths>({ baseUrl, fetch: marking(send) });
 }

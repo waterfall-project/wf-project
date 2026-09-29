@@ -19,16 +19,21 @@ export const NEXT_PARAMETER = "next";
 /** Where the sign-in page leads when `next` names no screen of this front: the home page. */
 const HOME = "/";
 
+// An origin nobody serves, to resolve `next` as a browser would: only the path is kept.
+const FRONT = "http://front.invalid";
+
 /**
- * The screen a `next` names, or the home page when it names none of this front: a path that
- * starts with a single `/` — neither `//host` nor `/\host`, which a browser reads as another
- * site.
+ * The screen a `next` names, or the home page when it names none of this front. `next` is
+ * resolved as a browser would resolve it — which drops tabs and line breaks, and reads `//host`
+ * or `/\host` as another site —, and followed only when it stays on this front: its path, its
+ * query and its fragment, never its origin.
  */
 export function returnTarget(next: string | null | undefined): string {
-  if (next?.startsWith("/") !== true || next.startsWith("//") || next.startsWith("/\\")) {
+  if (next?.startsWith("/") !== true) {
     return HOME;
   }
-  return next;
+  const target = new URL(next, FRONT);
+  return target.origin === FRONT ? `${target.pathname}${target.search}${target.hash}` : HOME;
 }
 
 /** The address of the sign-in page, which comes back to a screen: its path and its query. */

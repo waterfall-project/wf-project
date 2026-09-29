@@ -54,7 +54,7 @@ function PlacedCommands({
     return <ProjectCommands project={reading.project} />;
   }
   if (fn.permission === "revisions" && reading.revision !== undefined) {
-    return <RevisionCommands revision={reading.revision} edits={reading.edits} />;
+    return <RevisionCommands revision={reading.revision} />;
   }
   return null;
 }

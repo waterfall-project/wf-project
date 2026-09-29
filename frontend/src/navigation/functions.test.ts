@@ -7,7 +7,13 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
 import { readContext } from "./context";
-import { findScreen, FUNCTION_GROUPS, functionHref, readableGroups } from "./functions";
+import {
+  findScreen,
+  FUNCTION_GROUPS,
+  functionHref,
+  PLATFORM_FUNCTIONS,
+  readableGroups,
+} from "./functions";
 
 type Session = components["schemas"]["Session"];
 
@@ -52,6 +58,12 @@ describe("the table of the functions", () => {
       );
       expect(group.functions.map((fn) => fn.code)).toEqual(expected);
     }
+  });
+
+  it("lists as functions outside any project exactly those of the table", () => {
+    expect(PLATFORM_FUNCTIONS).toEqual(
+      FUNCTIONS.filter((fn) => fn.scope === "platform").map((fn) => fn.permission),
+    );
   });
 
   it("names each function and block by a key of both catalogues", () => {

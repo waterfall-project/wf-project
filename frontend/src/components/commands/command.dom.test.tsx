@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { decode, type Outcome } from "@/api/problem";
-import { availableEdits, type Revision } from "@/components/context/read-only";
+import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -40,10 +40,9 @@ function french(children: ReactNode) {
   );
 }
 
-/** A revision of the contract, and the commands of modification its reading holds. */
+/** The commands of a revision of the contract. */
 function revisionCommands(name: string) {
-  const revision = example(name) as Revision;
-  return <RevisionCommands revision={revision} edits={availableEdits(revision)} />;
+  return <RevisionCommands revision={example(name) as Revision} />;
 }
 
 /** A command the server offers now, whose action answers what the test says. */
@@ -195,18 +194,6 @@ describe("a command of a revision", () => {
         "Condition non remplie\u00A0: révision en cours d’élaboration.",
       );
     }
-  });
-
-  it("offers no modification its reading withholds, whatever the list says", () => {
-    const revision = example("revision") as Revision;
-    french(<RevisionCommands revision={revision} edits={new Set(["edit_estimate"])} />);
-    expect(screen.getByRole("button", { name: "Modifier le planning" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Modifier le devis" })).not.toHaveAttribute(
-      "aria-disabled",
-    );
   });
 });
 

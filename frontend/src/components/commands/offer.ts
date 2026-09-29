@@ -16,7 +16,7 @@
  * command anyway, and its refusal is rendered (`OutcomeNotice`).
  */
 import type { components } from "@/api/generated/schema";
-import type { FunctionPermission } from "@/navigation/functions";
+import type { PlatformFunction } from "@/navigation/functions";
 import type { Permission } from "@/session/request";
 
 /** A condition a command requires, named by the server when it lacks. */
@@ -56,7 +56,7 @@ const GRANTED: CommandOffer = { is_available: true, missing_conditions: [] };
  */
 export function platformOffer(
   permissions: readonly Permission[] | undefined,
-  guard: FunctionPermission | "platform_restore",
+  guard: PlatformFunction | "platform_restore",
 ): CommandOffer | undefined {
   const needed = guard === "platform_restore" ? guard : `${guard}.write`;
   return new Set<string>(permissions).has(needed) ? GRANTED : undefined;

@@ -3,9 +3,8 @@
 /**
  * The commands of a project and of a revision, in the order the server lists them
  * (`available_commands`): only those the caller may exercise, each available or naming what it
- * lacks (WF-IHM-0090). A command of modification of a revision is offered only when the
- * reading of the screen holds it (`edits`): a marked revision offers none, as its banner says
- * (WF-IHM-0020).
+ * lacks (WF-IHM-0090). A marked revision offers no command of modification: the server
+ * lists each unavailable, lacking a draft revision (WF-IHM-0020).
  *
  * The screens that run them come with their own lots — the exits of the lifecycle, the
  * marking of a revision —, which hand each command its server action; until then a command is
@@ -14,7 +13,7 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { type EditCommand, isEdit, type Revision } from "@/components/context/read-only";
+import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
 
 import { Command } from "./command";
@@ -45,25 +44,15 @@ export function ProjectCommands({ project }: { readonly project: Project }) {
   );
 }
 
-/** What the commands of a revision are read from: the revision, and what the screen may edit. */
-export interface RevisionCommandsProps {
-  readonly revision: Revision;
-  /** The commands of modification the reading of the screen holds (`ProjectReading.edits`). */
-  readonly edits: ReadonlySet<EditCommand>;
-}
-
 /** The commands of a revision the caller may exercise. */
-export function RevisionCommands({ revision, edits }: RevisionCommandsProps) {
+export function RevisionCommands({ revision }: { readonly revision: Revision }) {
   const t = useTranslations();
   const names = {
     [revision.revision_id]: revision.version_name ?? t("contextBanner.currentRevision"),
   };
-  const offers = revision.available_commands.map((offer) =>
-    isEdit(offer.command) && !edits.has(offer.command) ? { ...offer, is_available: false } : offer,
-  );
   return (
     <CommandList>
-      {offers.map((offer) => (
+      {revision.available_commands.map((offer) => (
         <li key={`${revision.revision_id}:${offer.command}`}>
           <Command
             offer={offer}

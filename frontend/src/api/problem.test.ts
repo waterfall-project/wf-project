@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
 
 import { createApiClient } from "./client";
-import { decode } from "./problem";
+import { decode, reach } from "./problem";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -100,8 +100,8 @@ describe("the decoder of an answer of the API", () => {
   it("takes an answer without the envelope for the unexpected error of the service", async () => {
     const client = answering(() =>
       Promise.resolve(
-        new Response("<html>Bad gateway</html>", {
-          status: 502,
+        new Response("<html>Internal error</html>", {
+          status: 500,
           headers: { "content-type": "text/html" },
         }),
       ),
@@ -109,9 +109,75 @@ describe("the decoder of an answer of the API", () => {
     const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
     expect(outcome).toEqual({
       kind: "refused",
-      problem: { code: "INTERNAL_ERROR", status: 502 },
+      problem: { code: "INTERNAL_ERROR", status: 500 },
       conflictingObjectId: null,
     });
+  });
+
+  it.each([502, 503, 504])(
+    "takes a gateway's %i without the envelope for the API out of reach",
+    async (status) => {
+      const client = answering(() =>
+        Promise.resolve(
+          new Response("<html>Bad gateway</html>", {
+            status,
+            headers: { "content-type": "text/html" },
+          }),
+        ),
+      );
+      const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
+      expect(outcome).toEqual({ kind: "unreachable" });
+    },
+  );
+
+  it("keeps the refusal of an unavailable component, which the API sends in its envelope", async () => {
+    const unavailable = {
+      code: "COMPONENT_UNAVAILABLE",
+      status: 503,
+      params: { component: "database" },
+    };
+    const client = answering(() =>
+      Promise.resolve(
+        Response.json(unavailable, {
+          status: 503,
+          headers: { "content-type": "application/problem+json" },
+        }),
+      ),
+    );
+    const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
+    expect(outcome).toEqual({ kind: "refused", problem: unavailable, conflictingObjectId: null });
+  });
+
+  it("takes a code the catalogue does not know for the unexpected error of the service", async () => {
+    const client = answering(() =>
+      Promise.resolve(
+        Response.json(
+          { code: "A_CODE_OF_A_NEWER_SERVICE", status: 403 },
+          { status: 403, headers: { "content-type": "application/problem+json" } },
+        ),
+      ),
+    );
+    const outcome = await decode(() => client.PATCH("/me/preferences", { body: {} }));
+    expect(outcome).toEqual({
+      kind: "refused",
+      problem: { code: "INTERNAL_ERROR", status: 403 },
+      conflictingObjectId: null,
+    });
+  });
+
+  it("lets a TypeError thrown elsewhere than by fetch through", async () => {
+    const client = answering(() => Promise.resolve(Response.json({})));
+    client.use({
+      onRequest() {
+        throw new TypeError("a defect");
+      },
+    });
+    await expect(decode(() => client.PATCH("/me/preferences", { body: {} }))).rejects.toThrow(
+      "a defect",
+    );
+    await expect(reach(() => Promise.reject(new TypeError("a defect")))).rejects.toThrow(
+      "a defect",
+    );
   });
 
   it("lets a defect through rather than take it for an API out of reach", async () => {
