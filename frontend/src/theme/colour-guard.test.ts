@@ -21,11 +21,14 @@ const ROOT = join(import.meta.dirname, "../..");
 
 // A client component of the project, in TSX, and a module of server actions.
 const COMPONENT = "src/components/shell/navigation.tsx";
+// The component of the signals, the only one that draws the tokens of the zones.
+const SIGNAL_COMPONENT = "src/components/signal/signal.tsx";
 const ACTION = "src/api/actions/trap.tsx";
 
 const COLOUR =
   "Name a token of the charter, src/theme/globals.css; never write a colour or a font.";
 const DARK = "No variant for the dark mode: a token of src/theme/globals.css carries both modes.";
+const SIGNAL = "Show a zone with Signal, src/components/signal/: its colour never shows alone.";
 
 /** A component around some JSX, and a constant beside it. */
 function component(jsx: string, constant = '""'): string {
@@ -159,9 +162,40 @@ describe("the colour guard", { timeout: 60_000 }, () => {
     ]);
   });
 
+  it.each([
+    '<p className="bg-signal-alert">{VALUE}</p>',
+    "<p className={`p-2 hover:text-signal-watch`}>{VALUE}</p>",
+  ])("refuses the token of a zone outside Signal, in %j", async (jsx) => {
+    // A cell tinted by its zone, without the shape and the name `Signal` gives it (WF-IHM-0070).
+    const [result] = await eslint.lintText(component(jsx), { filePath: COMPONENT });
+    expect(result?.messages.map((m) => [m.ruleId, m.severity, m.message])).toContainEqual([
+      "no-restricted-syntax",
+      2,
+      SIGNAL,
+    ]);
+  });
+
+  it("lets Signal draw the token of a zone, and still refuses a colour there", async () => {
+    const lint = async (jsx: string) => {
+      const [result] = await eslint.lintText(component(jsx), { filePath: SIGNAL_COMPONENT });
+      return (result?.messages ?? [])
+        .filter((m) => m.fatal === true || m.ruleId === "no-restricted-syntax")
+        .map((m) => [m.ruleId, m.severity, m.message]);
+    };
+    expect(await lint('<p className="text-signal-alert">{VALUE}</p>')).toEqual([]);
+    expect(await lint('<p className="text-red-700">{VALUE}</p>')).toContainEqual([
+      "no-restricted-syntax",
+      2,
+      COLOUR,
+    ]);
+  });
+
   it("holds in the server actions, whose block redefines the rule", async () => {
     const code = '"use server";\n/** A trap. */\nexport const TRAP = "#027dc6";';
     expect(await findings(code, ACTION, actions)).toEqual([["no-restricted-syntax", 2, COLOUR]]);
+    const signal = '"use server";\n/** A trap. */\nexport const TRAP = "bg-signal-alert";';
+    const [result] = await actions.lintText(signal, { filePath: ACTION });
+    expect(result?.messages.map((m) => m.message)).toEqual([SIGNAL]);
   });
 
   it("finds no stylesheet outside src/theme/, where the tokens are", () => {

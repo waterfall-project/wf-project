@@ -3,8 +3,9 @@
 /**
  * The one signal of the application (WF-IHM-0070): the zone of an index, a budget overrun,
  * a cell of the risk matrix, the load of a role, a health signal of the portfolio all show
- * the same way. The zone comes from the API, which classes a value by the thresholds of the
- * reference data (WF-REF-0170); the front never deduces a zone from a value (WF-ARC-0020).
+ * the same way. The zone comes from the API, which classes a value by the reference data —
+ * the thresholds of the indices (WF-REF-0170), the zones of the risk matrix (WF-REF-0160);
+ * the front never deduces a zone from a value (WF-ARC-0020).
  *
  * Each zone has its own shape, its own name from the catalogues and its own token of the
  * charter: the colour never carries the zone alone, so a grey copy, a printed page or a

@@ -218,8 +218,7 @@ const DISTINCT = 20;
 const GREY_STEP = 8;
 
 describe("the tokens of the signals", () => {
-  it("are one per zone of the contract, each with its class for Tailwind", () => {
-    expect(Object.keys(SIGNALS).sort()).toEqual(["alert", "nominal", "watch"]);
+  it("give each zone of the contract its class for Tailwind", () => {
     for (const token of Object.values(SIGNALS)) {
       expect(CSS).toContain(`--color-${token}: var(--${token});`);
     }

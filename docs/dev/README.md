@@ -567,11 +567,16 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   Lucide, son libellé du catalogue (`enums.AlertZone.<zone>`) et son jeton,
   `--signal-<zone>`, dans une seule table typée sur `AlertZone`. **Une zone vient du
   serveur**, qui classe selon les seuils du référentiel : le front n'en déduit jamais une
-  d'une valeur (WF-ARC-0020). Les jetons de signalement sont mesurés comme les autres, et
-  de plus en niveaux de gris et vus d'un protanope et d'un deutéranope
-  (`contrast.test.ts`). Qu'aucun écran ne distingue deux états par la seule couleur — une
-  pastille, une ligne teintée sans forme ni texte —, c'est la revue qui le tient ; les tests
-  de `Signal` le prouvent pour le composant.
+  d'une valeur (WF-ARC-0020). Une zone nulle ou absente ne rend aucun `Signal` ; la valeur
+  dit qu'elle manque (`ComputedIndicator`) ; jamais `?? "nominal"`. Un signalement que le
+  contrat ne classe pas encore attend sa zone (#139). Les jetons de signalement sont mesurés
+  comme les autres, et de plus en niveaux de gris et vus d'un protanope et d'un deutéranope
+  (`contrast.test.ts`). Hors de `src/components/signal/`, un utilitaire de couleur qui nomme
+  un jeton de zone (`bg-signal-alert`, `text-signal-watch`) est refusé : `SIGNAL_SYNTAX` de
+  `frontend/eslint.config.mjs`, `make lint-front`, éprouvé par `colour-guard.test.ts`.
+  Qu'aucun écran ne distingue deux états par la seule couleur — une pastille, une ligne
+  teintée sans forme ni texte —, c'est pour le reste la revue qui le tient ; les tests de
+  `Signal` le prouvent pour le composant.
 - **shadcn/ui** : un composant s'ajoute en copiant son source dans
   `frontend/src/components/ui/` (`frontend/components.json` en donne les chemins), et seulement
   quand un écran l'emploie. Copié, il est du code du dépôt, soumis à toutes ses règles :

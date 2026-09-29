@@ -27,21 +27,29 @@ function page(zone: AlertZone, variant: Variant, locale: Locale) {
   );
 }
 
-/** What a signal shows once its colour is gone: its markup without a single class. */
+/**
+ * What a signal shows once its colour is gone: its shape, its name, and its markup stripped
+ * of all that is not seen — its classes, and so its colour; its name for assistive
+ * technologies and for the pointer (`aria-*`, `role`, `title`).
+ */
 function uncoloured(zone: AlertZone, variant: Variant, locale: Locale) {
   const { container, unmount } = render(page(zone, variant, locale));
   const signal = container.firstElementChild;
   if (signal === null) {
     throw new Error(`No signal for ${zone}`);
   }
+  const name = signal.textContent || (signal.getAttribute("aria-label") ?? "");
   const copy = signal.cloneNode(true) as Element;
-  for (const element of [copy, ...copy.querySelectorAll("[class]")]) {
-    element.removeAttribute("class");
+  for (const element of [copy, ...copy.querySelectorAll("*")]) {
+    for (const attribute of [...element.getAttributeNames()]) {
+      if (/^(class|style|role|title|aria-.*)$/.test(attribute)) {
+        element.removeAttribute(attribute);
+      }
+    }
   }
   const shape = copy.querySelector("svg")?.innerHTML ?? "";
-  const name = copy.textContent || (copy.getAttribute("aria-label") ?? "");
   unmount();
-  return { markup: copy.outerHTML, shape, name };
+  return { seen: copy.outerHTML, shape, name };
 }
 
 /** Whether the values of a list are all different. */
@@ -107,9 +115,9 @@ describe("a signal", () => {
     "never tells two zones apart by the colour alone, as %s [WF-IHM-0070-A]",
     (variant) => {
       // Aucun écran ne distingue deux états par la seule couleur : with every class — and so
-      // every colour — taken away, no two zones render the same.
-      const markups = ZONES.map((zone) => uncoloured(zone, variant, "fr").markup);
-      expect(allDistinct(markups)).toBe(true);
+      // every colour — taken away, and every name that is not seen, no two zones look alike.
+      const seen = ZONES.map((zone) => uncoloured(zone, variant, "fr").seen);
+      expect(allDistinct(seen)).toBe(true);
     },
   );
 

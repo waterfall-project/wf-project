@@ -216,6 +216,18 @@ const COLOUR_SYNTAX = [
     ),
   );
 
+// A zone is shown by `Signal` alone (WF-IHM-0070, guide « Charte graphique »): its shape, its
+// name and its token go together. A token of a zone given to a utility of colour —
+// `text-signal-alert`, `hover:bg-signal-watch` — is refused in any string outside
+// src/components/signal/, so that no screen tells two zones apart by the colour alone, as a
+// cell of the risk matrix tinted without the shape and the name of its zone would.
+const SIGNAL = "Show a zone with Signal, src/components/signal/: its colour never shows alone.";
+const SIGNAL_PATTERN = `${CLASS_START}(${COLOUR_UTILITIES})-signal-`;
+const SIGNAL_SYNTAX = [
+  `Literal[value=${inSelector(SIGNAL_PATTERN)}i]`,
+  `TemplateElement[value.raw=${inSelector(SIGNAL_PATTERN)}i]`,
+].map((selector) => ({ selector, message: SIGNAL }));
+
 export default defineConfig([
   globalIgnores([
     ".next/**",
@@ -262,6 +274,7 @@ export default defineConfig([
         ...CLIENT_SYNTAX,
         ...TEXT_SYNTAX,
         ...COLOUR_SYNTAX,
+        ...SIGNAL_SYNTAX,
       ],
       // See TEXT: the text of JSX, and a string written as a child. The attributes are
       // TEXT_SYNTAX's, which knows which of them a user reads.
@@ -309,7 +322,22 @@ export default defineConfig([
         ...CLIENT_SYNTAX,
         ...TEXT_SYNTAX,
         ...COLOUR_SYNTAX,
+        ...SIGNAL_SYNTAX,
         ACTION_SYNTAX,
+      ],
+    },
+  },
+  {
+    // The component of the signals draws the tokens of the zones, which SIGNAL_SYNTAX refuses
+    // everywhere else: the selectors of the whole front are repeated here, without it.
+    files: ["src/components/signal/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...NETWORK_SYNTAX,
+        ...CLIENT_SYNTAX,
+        ...TEXT_SYNTAX,
+        ...COLOUR_SYNTAX,
       ],
     },
   },
