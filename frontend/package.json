@@ -20,6 +20,8 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@tanstack/react-table": "^9.2.4",
+    "@tanstack/react-virtual": "^3.14.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "geist": "^1.7.2",

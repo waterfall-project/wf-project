@@ -146,6 +146,24 @@ aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une val
 enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext` (`indicator.tsx`).
 
+Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
+écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
+— clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
+calculée ou non, figée ou non, colonne `sort_by` du contrat — et, s'il y en a un, son arbre
+(niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des
+fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
+(`estimate-grid.tsx`), et la page, serveur, ne lui passe que des données. Le tri et la
+recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`, `search`,
+`query.ts`) : un en-tête cliqué ou une recherche saisie change l'adresse, la page relit
+l'opération avec eux, et la grille rend les lignes dans l'ordre reçu, les totaux de la
+réponse en pied — TanStack Table n'y enregistre aucun modèle trié, filtré ni groupé. Seules
+les lignes visibles sont rendues (`row-window.ts`, TanStack Virtual lu comme un magasin
+dont l'instantané est une donnée, que le React Compiler ne fige pas) ; l'en-tête et les totaux
+sont collés au haut et au pied de la grille, le numéro et le libellé à son début. Colonnes
+masquées et largeurs sont une préférence d'affichage (`settings.ts`) : lues de la session,
+écrites après une pause par `updateGridPreferences`, la grille remplacée entière, ce qu'elle
+ne règle pas renvoyé tel quel.
+
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
 celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission
@@ -724,7 +742,7 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   ligne.** Pour les fonctions, les blocs, les commandes, les pages du compte et les natures de
   ligne, elle est tirée d'une table typée sur ce qu'elle représente — `FUNCTION_ICONS`,
   `GROUP_ICONS`, `PROJECT_COMMAND_ICONS` et `REVISION_COMMAND_ICONS`, `ACCOUNT_ICONS`,
-  `RowNatureIcon` —, de sorte qu'une valeur ajoutée sans icône casse le typage ; ailleurs — un
+  `ROW_NATURE_ICONS` —, de sorte qu'une valeur ajoutée sans icône casse le typage ; ailleurs — un
   bouton de la coquille, un avis, une page système —, elle est posée en ligne. Une icône à côté de son texte est `aria-hidden` ; une
   icône seule porte un nom — le bouton qui la porte, ou l'icône elle-même (`role="img"`), la
   nature d'une ligne dans sa cellule.

@@ -41,6 +41,7 @@
               without_preferences: { $ref: ../../../fixtures/api/session_without_preferences.json }
               dark: { $ref: ../../../fixtures/api/session_dark.json }
               without_administration: { $ref: ../../../fixtures/api/session_without_administration.json }
+              grid_settings: { $ref: ../../../fixtures/api/session_grid_settings.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
   post:
     operationId: openSession

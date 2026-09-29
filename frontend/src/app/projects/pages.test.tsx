@@ -59,6 +59,12 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+  usePathname: () => "/projects",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -78,6 +84,13 @@ function text(markup: string): string {
     .replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** The call that read the nodes of the structure. */
+function nodesCall() {
+  return server.clients
+    .flatMap((client) => client.calls)
+    .find((call) => call.route.endsWith("/nodes"));
 }
 
 /** A page in English, as the shell hands it its texts. */
@@ -126,21 +139,83 @@ describe("the witness path", () => {
     expect(html).toContain(">Référence</a>");
   });
 
-  it("shows the nodes of the main structure, one row each", async () => {
+  it("shows the grid of the estimate on the main structure, a row for each node, in the order of the answer", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const html = renderToStaticMarkup(
       inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
     );
-    expect(html).toContain(`<main class="${SCREEN.dense}"><table>`);
-    expect(html.match(/<tr /g)).toHaveLength(4);
+    expect(html).toContain(`<main class="${SCREEN.dense}">`);
+    expect(html).toMatch(
+      /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Costing and estimate<\/h1>/,
+    );
+    expect(text(html)).toContain("Structure principale · 3 tasks, 1 line");
+    expect(html).toMatch(
+      /<table[^>]*role="grid"[^>]*aria-label="Estimate grid"[^>]*aria-rowcount="6"/,
+    );
     // Each row shows the icon of its nature, named for it: a summary task, a task, a line.
-    const natures = [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)].map(
+    const natures = [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)]
+      .map((match) => match[1])
+      .filter((name) => name !== "Computed");
+    expect(natures).toEqual(["Summary task", "Task", "Disbursement line", "Task"]);
+    const labels = [...html.matchAll(/<span class="truncate">([^<]*)<\/span>/g)].map(
       (match) => match[1],
     );
-    expect(natures).toEqual(["Summary task", "Task", "Estimate line", "Task"]);
-    expect(html).toMatch(
-      /<tr data-kind="estimate_line"><td>3<\/td><td><svg[^>]*>.*?<\/svg><\/td><td>Ingénierie de détail<\/td><\/tr>/,
+    expect(labels).toEqual(
+      expect.arrayContaining(["Études", "Études de détail", "Ingénierie de détail"]),
     );
+    expect(text(html)).toContain("Total — 3 tasks, 1 line");
+  });
+
+  it("asks the server for the sort, the search and the filtered sub-project the address holds, by the parameters of the contract", async () => {
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const search = Promise.resolve({
+      sort_by: "budgeted_amount",
+      sort_order: "desc",
+      search: "revue",
+      subproject_id: "unassigned",
+    });
+    const html = renderToStaticMarkup(
+      inEnglish(await RevisionPage({ params, searchParams: search })),
+    );
+    const call = nodesCall();
+    expect(Object.fromEntries(call?.query ?? [])).toEqual({
+      sort_by: "budgeted_amount",
+      sort_order: "desc",
+      search: "revue",
+      subproject_id: "unassigned",
+    });
+    expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Budgeted/);
+  });
+
+  it("asks the plan order of the whole structure when the address holds no sort the grid offers, nor a search", async () => {
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const search = Promise.resolve({ sort_by: "start_date", sort_order: "desc", search: "" });
+    await RevisionPage({ params, searchParams: search });
+    expect([...(nodesCall()?.query.keys() ?? [])]).toEqual([]);
+  });
+
+  it("shows the totals the server gave for the request, in the language of the interface", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes":
+        "nodes_estimate",
+    };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const html = renderToStaticMarkup(
+      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(text(html)).toContain("Total — 3 tasks, 3 lines 12.5 2,734.56 2,734.56");
+  });
+
+  it("hands the grid the settings of the account the session read", async () => {
+    server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const html = renderToStaticMarkup(
+      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+    );
+    // The quantity hidden, the label widened.
+    expect(html).not.toContain(">Qty<");
+    expect(html).toContain('<col style="width:400px"/>');
   });
 
   it("is not found when the API does not find the structures of the revision", async () => {
@@ -239,7 +314,7 @@ describe("the banner of the reading context on the witness path", () => {
     );
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Revision Current revision Draft Subproject: No subproject 1 Études/,
+      /^Project Modernisation du poste de commande Revision Current revision Draft Subproject: No subproject Costing and estimate /,
     );
     expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}"`);
   });

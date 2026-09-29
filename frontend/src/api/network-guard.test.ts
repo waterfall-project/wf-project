@@ -127,8 +127,13 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 // PostCSS plugin read the sources at build time; axe-core reads the document of a test. Nor do
 // the primitives of Radix under the components of shadcn/ui (US-0090/L4), radix-ui: menus,
 // tooltips, dialogs and their focus, in the document — its avatar would load an image as an
-// <img> does, from an address it is given, and the shell gives it none.
+// <img> does, from an address it is given, and the shell gives it none. Nor do those of the
+// dense grid (US-0110): @tanstack/react-table computes the model of a table from the rows it
+// is handed — its experimental worker plugin, which would start a worker, is not imported —,
+// and @tanstack/react-virtual the rows in view from the sizes and the scroll it observes.
 const DEPENDENCIES = [
+  "@tanstack/react-table",
+  "@tanstack/react-virtual",
   "class-variance-authority",
   "clsx",
   "geist",
