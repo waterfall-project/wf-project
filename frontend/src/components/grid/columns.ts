@@ -87,11 +87,12 @@ export type DependencyReason = keyof Catalogue["computedValue"]["reasons"];
 
 /**
  * What a computed value depends on (WF-IHM-0030): why the server computes it, and the rows it is
- * drawn from — their indices among the rows of the answer —, which the refusal of an entry names.
+ * drawn from — their indices among the rows of the answer —, which the refusal of an entry names;
+ * `null` for a value drawn from no row.
  */
 export interface Dependency {
   readonly reasons: readonly DependencyReason[];
-  readonly rows: readonly number[];
+  readonly rows: readonly number[] | null;
 }
 
 /**

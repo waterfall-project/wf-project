@@ -175,9 +175,12 @@
       "disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
       "provision": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
       "budgeted": "Le montant budgété est celui que la révision de référence a fixé.",
-      "reestimated": "Le montant réestimé suit les revues du reste à engager."
+      "reestimated": "Le montant réestimé suit les revues du reste à engager.",
+      "manualFloat": "Une tâche en mode manuel ne porte pas de marge.",
+      "unknown": "Le serveur ne dit pas encore de quoi elle dépend."
     },
-    "dependsOn": "Elle dépend de :"
+    "dependsOn": "Elle dépend de :",
+    "partial": "D’autres lignes, que la recherche ou les filtres ne montrent pas, peuvent en faire partie."
   },
   "estimateSummary": {
     "title": "Indicateurs du devis",

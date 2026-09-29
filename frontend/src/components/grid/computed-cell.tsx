@@ -46,6 +46,11 @@ export interface ComputedRefusalProps<Row, Sort extends string, Totals> {
   /** The rows of the answer, among which the dependency names its rows by their indices. */
   readonly rows: readonly Row[];
   readonly dependency: Dependency;
+  /**
+   * Whether the answer holds a part of the rows only — a search, a filter —: those it left out
+   * may be among the rows the value depends on, which the refusal cannot name.
+   */
+  readonly partial: boolean;
 }
 
 /** A row a value depends on, named as the grid names it: its number, its nature, its label. */
@@ -80,12 +85,13 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
   column,
   rows,
   dependency,
+  partial,
 }: ComputedRefusalProps<Row, Sort, Totals>) {
   const t = useTranslations("computedValue");
   const columns = useTranslations("grid.columns");
   const title = useId();
   const listed = useId();
-  const named = dependency.rows.flatMap((index) => {
+  const named = (dependency.rows ?? []).flatMap((index) => {
     const row = rows[index];
     return row === undefined ? [] : [row];
   });
@@ -117,6 +123,9 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
           </ul>
         </>
       )}
+      {partial && dependency.rows !== null ? (
+        <p className="text-muted-foreground">{t("partial")}</p>
+      ) : null}
     </PopoverContent>
   );
 }
@@ -127,7 +136,10 @@ export interface ComputedCellProps<Row, Sort extends string, Totals> {
   readonly column: ComputedColumn<Row, Sort, Totals>;
   /** The rows of the answer, read once the cell is tried: a function, which a render compares. */
   readonly answer: () => readonly Row[];
+  /** The index of its row among the rows of the answer. */
   readonly index: number;
+  /** Whether the answer holds a part of the rows only. */
+  readonly partial: boolean;
   /** The value of the cell, formatted or rendered by its column. */
   readonly children: ReactNode;
 }
@@ -138,6 +150,7 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   column,
   answer,
   index,
+  partial,
   children,
 }: ComputedCellProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
@@ -176,6 +189,7 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
         column={column}
         rows={rows}
         dependency={column.computed.dependsOn(rows, index)}
+        partial={partial}
       />
     </Popover>
   );

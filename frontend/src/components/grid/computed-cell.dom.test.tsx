@@ -32,14 +32,18 @@ const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined
 const estimate = example("nodes_estimate") as NodeList;
 const planning = example("nodes_planning") as NodeList;
 
-/** Render a grid of a structure on an answer, in a language. */
-function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr") {
+/** Render a grid of a structure on an answer, in a language, for what the address asked. */
+function renderGrid(
+  grid: "estimate" | "planning",
+  locale: Locale = "fr",
+  query: GridQuery<NodeSortColumn> = NO_QUERY,
+) {
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       {grid === "estimate" ? (
-        <EstimateGrid nodes={estimate} query={NO_QUERY} preferences={undefined} />
+        <EstimateGrid nodes={estimate} query={query} preferences={undefined} />
       ) : (
-        <PlanningGrid nodes={planning} query={NO_QUERY} preferences={undefined} />
+        <PlanningGrid nodes={planning} query={query} preferences={undefined} />
       )}
     </NextIntlClientProvider>,
   );
@@ -101,6 +105,7 @@ const DURATION = 3;
 const START = 4;
 const FINISH = 5;
 const PROGRESS = 6;
+const FLOAT = 7;
 
 describe("a value of a grid the server computes", () => {
   it("is not entered in a line of labour, and does not look like its effort in hours [WF-IHM-0030-A]", async () => {
@@ -220,6 +225,33 @@ describe("a value of a grid the server computes", () => {
       { text: "3Raccordement des borniers", nature: "Ligne de main-d’œuvre" },
       { text: "4Borniers", nature: "Ligne de débours" },
       { text: "5Provision — risque de reprise du câblage", nature: "Ligne de provision" },
+    ]);
+  });
+
+  it("says, under a search or a filter, that rows it does not show may be among those it names", async () => {
+    const partial =
+      "D’autres lignes, que la recherche ou les filtres ne montrent pas, peuvent en faire partie.";
+    renderGrid("planning", "fr", { sort: undefined, search: "Études" });
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(said(refusal()).paragraphs.at(-1)).toBe(partial);
+    await userEvent.keyboard("{Escape}");
+    // A value drawn from no row says nothing of them.
+    await userEvent.click(within(cell("Revue de conception", FINISH)).getByRole("button"));
+    expect(refusal()).not.toHaveTextContent(partial);
+  });
+
+  it("says nothing of rows left out when the answer holds them all", async () => {
+    renderGrid("planning");
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(refusal()).not.toHaveTextContent(/D’autres lignes/);
+  });
+
+  it("says a task in manual mode bears no float", async () => {
+    renderGrid("planning");
+    await userEvent.click(within(cell("Pupitres opérateurs", FLOAT)).getByRole("button"));
+    expect(said(refusal()).paragraphs.slice(1)).toEqual([
+      "Marge ne se saisit pas\u00a0: Waterfall calcule cette valeur.",
+      "Une tâche en mode manuel ne porte pas de marge.",
     ]);
   });
 

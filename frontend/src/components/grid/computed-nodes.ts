@@ -9,9 +9,11 @@
  * deduced from the mode nor from the nature of the node.
  *
  * What a value depends on is what the refusal of an entry names. The contract does not say it: it
- * is read here from the nature of the node, after the rules the contract describes (#168) — the
- * subordinates of a summary, the effort and the rate of a line of labour, the risk of a
- * provision. The subordinates are those of the answer, found by its order and the levels of its
+ * is read here from what the row bears — its kind, its flags, its mode —, after the rules the
+ * contract describes (#168): the subordinates of a summary, the links of a task in automatic mode,
+ * the effort and the rate of a line of labour, the risk of a provision. What those rules do not
+ * cover — a duration or a progress computed out of a summary, a figure out of a provision, a mode
+ * the grid does not read —, the refusal says it cannot tell. The subordinates are those of the answer, found by its order and the levels of its
  * rows: the answer is depth first, a sort ordering siblings among themselves without undoing the
  * tree, so the direct subordinates of a row are the rows one level down that follow it, before
  * the next row of its level or above. A search keeps the ancestors of what it retains and leaves
@@ -26,12 +28,21 @@ import { type RowNature, rowNature } from "./row-nature";
 /** A field of a node that an entry writes and the server may compute for this node alone. */
 type ComputedField = components["schemas"]["ComputedField"];
 
+/** The scheduling mode of a task (WF-PLA-0020). */
+type SchedulingMode = components["schemas"]["SchedulingMode"];
+
 /**
- * What a cell of a structure shows that the server computes: the schedule of a task — its dates,
- * its duration, its progress —, a figure of a line — its quantity, its effort, its unit
- * disbursement —, one of its two amounts, the float of a task.
+ * What a cell of a structure shows that the server computes: the dates, the duration or the
+ * progress of a task, a figure of a line — its quantity, its effort, its unit disbursement —, one
+ * of its two amounts, the float of a task.
  */
-export type NodeValue = "schedule" | "figure" | "budgeted" | "reestimated" | "float";
+export type NodeValue =
+  "dates" | "duration" | "progress" | "figure" | "budgeted" | "reestimated" | "float";
+
+/** A node as the refusal reads it: what every grid reads, and its mode where its grid reads it. */
+type DependencyNode = GridNode & {
+  readonly task?: { readonly scheduling_mode?: SchedulingMode } | null;
+};
 
 /**
  * The indices of the direct subordinates of the row at `index` in the rows of an answer — of a
@@ -73,29 +84,63 @@ const AMOUNT_REASONS = {
 function amountDependency(rows: readonly GridNode[], index: number, node: GridNode): Dependency {
   return {
     reasons: [AMOUNT_REASONS[rowNature(node)]],
-    rows: node.kind === "task" ? subordinates(rows, index) : [],
+    rows: node.kind === "task" ? subordinates(rows, index) : null,
   };
 }
 
-/** What a value of the node at `index` among the rows of an answer depends on. */
-export function nodeDependency(
+/**
+ * What a value of the schedule of a task depends on: the subordinates of a summary, whatever the
+ * value; the duration, the links and the calendar of the dates of a task in automatic mode. Any
+ * other case the contract does not describe, and the refusal says it cannot tell (#168).
+ */
+function scheduleDependency(
   rows: readonly GridNode[],
+  index: number,
+  node: DependencyNode,
+  value: NodeValue,
+): Dependency {
+  if (node.task?.is_summary === true) {
+    return { reasons: ["summary"], rows: subordinates(rows, index, "task") };
+  }
+  const automatic = node.task?.scheduling_mode === "automatic";
+  return { reasons: [value === "dates" && automatic ? "automatic" : "unknown"], rows: null };
+}
+
+/**
+ * What the float of a task depends on: its earliest and latest dates in automatic mode; a task in
+ * manual mode bears none (WF-PLA-0100). A grid that does not read the mode cannot tell.
+ */
+function floatDependency(node: DependencyNode): Dependency {
+  const reasons = {
+    automatic: "float",
+    manual: "manualFloat",
+    unread: "unknown",
+  } as const satisfies Readonly<Record<SchedulingMode | "unread", DependencyReason>>;
+  return { reasons: [reasons[node.task?.scheduling_mode ?? "unread"]], rows: null };
+}
+
+/**
+ * What a value of the node at `index` among the rows of an answer depends on, read from what its
+ * row bears — its kind, its flags, its mode —, after the rules the contract describes (#168).
+ */
+export function nodeDependency(
+  rows: readonly DependencyNode[],
   index: number,
   value: NodeValue,
 ): Dependency {
   const node = rows[index];
   if (node === undefined) {
-    return { reasons: [], rows: [] };
+    return { reasons: [], rows: null };
   }
   switch (value) {
-    case "schedule":
-      return node.task?.is_summary === true
-        ? { reasons: ["summary"], rows: subordinates(rows, index, "task") }
-        : { reasons: ["automatic"], rows: [] };
+    case "dates":
+    case "duration":
+    case "progress":
+      return scheduleDependency(rows, index, node, value);
     case "figure":
-      return { reasons: ["provision"], rows: [] };
+      return { reasons: [rowNature(node) === "provision" ? "provision" : "unknown"], rows: null };
     case "float":
-      return { reasons: ["float"], rows: [] };
+      return floatDependency(node);
     case "budgeted":
     case "reestimated": {
       const amount = amountDependency(rows, index, node);

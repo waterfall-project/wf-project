@@ -175,9 +175,12 @@
       "disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement, projected onto its year of consumption.",
       "provision": "A provision line takes its figures from its risk: its severity weighted by its probability.",
       "budgeted": "The budgeted amount is the one the reference revision set.",
-      "reestimated": "The re-estimated amount follows the reviews of the estimate to complete."
+      "reestimated": "The re-estimated amount follows the reviews of the estimate to complete.",
+      "manualFloat": "A task in manual mode bears no float.",
+      "unknown": "The server does not yet say what it depends on."
     },
-    "dependsOn": "It depends on:"
+    "dependsOn": "It depends on:",
+    "partial": "Other rows, which the search or the filters do not show, may be among them."
   },
   "estimateSummary": {
     "title": "Estimate indicators",

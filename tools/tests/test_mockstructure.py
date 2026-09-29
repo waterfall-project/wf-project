@@ -273,6 +273,7 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert row(4)["kind"] == "estimate_line"
     assert row(4)["estimate_line"]["label"] == "Heures d'ingénierie"
     assert row(4)["estimate_line"]["resource_role_id"] is not None
+    assert row(4)["estimate_line"]["hours"].isdigit()
     assert row(4)["computed_fields"] == []
     subordinates = [node for node in items if node["parent_id"] == row(1)["node_id"]]
     assert [(node["row_number"], node["task"]["label"]) for node in subordinates] == [

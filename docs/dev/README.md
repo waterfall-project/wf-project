@@ -170,8 +170,11 @@ sa colonne a Σ en en-tête ; un champ saisissable l'est là où le nœud le nom
 pressé au clavier, refuse la saisie dans un Popover (`ComputedCell`, `ComputedRefusal`) en disant
 ce dont sa valeur dépend : pourquoi le serveur la calcule, et les lignes dont elle vient —
 nommées par leur numéro, leur nature et leur libellé. Ce dont une valeur dépend, le contrat ne
-le dit pas : le front le lit de la nature du nœud (#168), et les subordonnées d'une ligne de
-l'ordre et des niveaux de la réponse, qui est en profondeur d'abord. Le Popover ne se monte
+le dit pas : le front le lit de ce que porte la ligne — sa nature, son mode, le champ — (#168),
+et dit qu'il ne le sait pas hors des règles que le contrat décrit ; les subordonnées d'une ligne
+se lisent de l'ordre et des niveaux de la réponse, qui est en profondeur d'abord, et, sous une
+recherche ou un filtre (`holdsPart`), le refus dit que d'autres lignes, que la réponse ne porte
+pas, peuvent en être. Le Popover ne se monte
 qu'au premier essai : une racine de Radix par cellule calculée alourdirait l'hydratation du
 premier écran. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,

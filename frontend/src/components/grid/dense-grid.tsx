@@ -42,7 +42,7 @@ import { configColumn, type GridFeatures, type GridTable, useGridTable } from ".
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { useRootFontSize, useRowWindow } from "./row-window";
-import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
+import { type GridQuery, type GridSort, holdsPart, searchHref, sortHref } from "./query";
 import {
   type GridPreferences,
   initialSettings,
@@ -177,6 +177,7 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
   table,
   config,
   answer,
+  partial,
   row,
   index,
   locale,
@@ -185,6 +186,8 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
   readonly config: GridConfig<Row, Sort, Totals>;
   /** The rows of the answer, which a computed cell reads to say what its value depends on. */
   readonly answer: () => readonly Row[];
+  /** Whether the answer holds a part of the rows only: a search, a filter. */
+  readonly partial: boolean;
   readonly row: TableRowModel<GridFeatures, Row>;
   readonly index: number;
   readonly locale: Locale;
@@ -209,7 +212,14 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
             )}
           >
             {computed ? (
-              <ComputedCell config={config} column={column} answer={answer} index={index}>
+              <ComputedCell
+                config={config}
+                column={column}
+                answer={answer}
+                // The index among the rows of the answer, not among those rendered.
+                index={row.index}
+                partial={partial}
+              >
                 {content}
               </ComputedCell>
             ) : (
@@ -368,6 +378,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   // array: the development build of React compares again the props of what it renders again, and
   // six thousand rows in the props of each cell weighed on each navigation of the grid.
   const answer = useCallback(() => rows, [rows]);
+  // What a search or a filter left out may be among what a computed value depends on.
+  const partial = holdsPart(query, address);
 
   const model = table.getRowModel().rows;
   const { items, before, after } = useRowWindow({
@@ -437,6 +449,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
                 table={table}
                 config={config}
                 answer={answer}
+                partial={partial}
                 row={row}
                 index={item.index}
                 locale={locale}
