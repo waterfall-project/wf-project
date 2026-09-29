@@ -46,6 +46,18 @@ test("an open block of the FBS is not painted as the page shown", async ({ page 
   expect(await block.evaluate(background)).not.toBe(await current.evaluate(background));
 });
 
+test("the bar keeps the search, the tasks and the account at its right where the address leads nowhere", async ({
+  page,
+}) => {
+  await page.goto("/admin/nobody");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Introuvable");
+  const bar = page.getByRole("banner");
+  await expect(bar.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveCount(0);
+  const account = await bar.getByRole("button", { name: "Compte de Camille Martin" }).boundingBox();
+  const width = page.viewportSize()?.width ?? 0;
+  expect((account?.x ?? 0) + (account?.width ?? 0)).toBeGreaterThan(width - 40);
+});
+
 test("the bar shows where the page sits, and the side bar names the project its screen reads", async ({
   page,
 }) => {

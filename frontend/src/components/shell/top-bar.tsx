@@ -16,7 +16,6 @@ import { useId } from "react";
 
 import { TasksButton } from "@/components/tasks/task-tracker";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { LanguagePreference } from "@/i18n/locale";
 import type { ThemePreference } from "@/theme/theme";
@@ -47,7 +46,6 @@ export function TopBar({ navigable, account, language, theme }: TopBarProps) {
           <Logo theme={theme} />
         </Link>
       )}
-      <Separator orientation="vertical" className="h-4!" />
       <Breadcrumbs />
       <div role="search" className="relative hidden w-64 md:block">
         <Search

@@ -18,7 +18,7 @@ const SOURCES = readdirSync(UI)
 
 // An ornament, as a class of Tailwind names it; `shadow-md` alone passes.
 const ORNAMENT =
-  /(^|[\s"'`:!])(transition(-[\w[\]-]+)?|animate-[\w-]+|bg-(linear|radial|conic)-[\w-]+|bg-gradient-[\w-]+|shadow(?!-md\b)(-[\w[\]/-]+)?)(?=[\s"'`]|$)/;
+  /(^|[\s"'`:!])(transition(-[\w[\]-]+)?|animate-[\w-]+|bg-(linear|radial|conic)-[\w-]+|bg-gradient-[\w-]+|(drop|text|inset)-shadow(-[\w[\]/-]+)?|shadow(?!-md\b)(-[\w[\]/-]+)?)(?=[\s"'`]|$)/;
 
 describe("the components of shadcn/ui copied into the repository", () => {
   it("are read, every one of them", () => {
@@ -32,7 +32,15 @@ describe("the components of shadcn/ui copied into the repository", () => {
   });
 
   it("tell an ornament from what it is not", () => {
-    for (const ornament of ['"transition-colors"', '"animate-in"', '"shadow-sm"', '"shadow"']) {
+    for (const ornament of [
+      '"transition-colors"',
+      '"animate-in"',
+      '"shadow-sm"',
+      '"shadow"',
+      '"drop-shadow-md"',
+      '"text-shadow-sm"',
+      '"inset-shadow-xs"',
+    ]) {
       expect(ORNAMENT.test(ornament), ornament).toBe(true);
     }
     for (const plain of ['"shadow-md"', '"truncate"', '"data-[state=open]:bg-accent"']) {

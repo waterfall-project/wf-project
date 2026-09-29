@@ -3,8 +3,9 @@
 /**
  * The side bar of shadcn/ui, copied into the repository as far as the shell needs it: unfolded,
  * or folded into a rail of icons whose entries keep their names — a tooltip shows each on hover
- * and on the focus —; on a narrow screen, a sheet over the page, which closes once the user goes
- * to another page. Its state is kept as shadcn/ui keeps it, in a cookie (`sidebar-state.ts`),
+ * and on the focus —; on a narrow screen, a sheet over the page, which closes once a link of it
+ * is followed — to another page, to the same page with another query, to the page shown — and
+ * once the address changes. Its state is kept as shadcn/ui keeps it, in a cookie (`sidebar-state.ts`),
  * and Ctrl+B or Cmd+B folds and unfolds it, while a bar is rendered. Folded, it gives the focus
  * of what the rail hides — a function of a block, the logo — to what stays: the block, or the
  * button that folds it.
@@ -205,7 +206,18 @@ export function Sidebar({ className, children, ...props }: ComponentProps<"div">
             <SheetTitle>{t("label")}</SheetTitle>
             <SheetDescription>{t("description")}</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          {/* A link followed closes the sheet, whatever it changes of the address; a link of a
+              menu opened from the sheet, rendered elsewhere, reaches here through React. */}
+          <div
+            className="flex h-full w-full flex-col"
+            onClick={(event) => {
+              if (event.target instanceof Element && event.target.closest("a[href]") !== null) {
+                setOpenMobile(false);
+              }
+            }}
+          >
+            {children}
+          </div>
         </SheetContent>
       </Sheet>
     );

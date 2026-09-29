@@ -281,20 +281,12 @@ describe("the shell", () => {
     );
   });
 
-  it("closes the sheet of the side bar once the user goes to another page, which the sheet no longer hides", async () => {
+  it("closes the sheet of the side bar once the address changes, as the browser goes back, which the sheet no longer hides", async () => {
     narrow();
     const view = shell();
     await userEvent.click(bar().getByRole("button", { name: "Déplier la barre latérale" }));
-    const sheet = await screen.findByRole("dialog", { name: "Barre latérale" });
-    // The link is followed by the router of Next, which the test stands in for: the click is
-    // kept from the document, and the address changes.
-    const keep = (event: Event) => {
-      event.preventDefault();
-    };
-    document.addEventListener("click", keep, { capture: true });
-    await userEvent.click(within(sheet).getByRole("link", { name: "Projets" }));
-    document.removeEventListener("click", keep, { capture: true });
-    expect(screen.getByRole("dialog", { name: "Barre latérale" })).toBeInTheDocument();
+    await screen.findByRole("dialog", { name: "Barre latérale" });
+
     visit("/projects");
     view.rerender(inShell());
 
@@ -341,10 +333,32 @@ describe("the shell", () => {
     expect(within(nav).queryByRole("link", { name: "Portefeuille de projets" })).toBeNull();
   });
 
-  it("shows no breadcrumb where the address leads nowhere", () => {
+  it("shows no breadcrumb where the address leads nowhere, nor its separator alone", () => {
     visit("/admin/nobody");
     shell();
     expect(bar().queryByRole("navigation", { name: "Fil d’Ariane" })).toBeNull();
+    const header = screen.getByRole("banner");
+    expect(header.querySelector("[data-slot=separator]")).toBeNull();
+    // The space the breadcrumb would take stays, before the search.
+    expect(bar().getByRole("search").previousElementSibling).toHaveClass("flex-1");
+  });
+
+  it("closes the sheet of the side bar on a link followed to the page shown, whose address does not change", async () => {
+    narrow();
+    visit("/projects");
+    shell();
+    await userEvent.click(bar().getByRole("button", { name: "Déplier la barre latérale" }));
+    const sheet = await screen.findByRole("dialog", { name: "Barre latérale" });
+    const keep = (event: Event) => {
+      event.preventDefault();
+    };
+    document.addEventListener("click", keep, { capture: true });
+    await userEvent.click(within(sheet).getByRole("link", { name: "Projets" }));
+    document.removeEventListener("click", keep, { capture: true });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
   });
 
   it("names the group of the preferences in the menu of the account", async () => {

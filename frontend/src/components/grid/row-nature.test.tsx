@@ -14,14 +14,8 @@ type Node = components["schemas"]["Node"];
 
 const [summary, task, line] = (example("nodes") as { items: Node[] }).items;
 
-/**
- * A task of the contract made a milestone, as the API flags one. An exception to the examples of
- * the contract, which the coordinator of EP-02 accepted: no example has a milestone yet, and
- * adding one to `nodes` would change totals that other tests hold fixed.
- */
-function milestone(node: Node): Node {
-  return node.task == null ? node : { ...node, task: { ...node.task, is_milestone: true } };
-}
+// A milestone of the contract, carried by its summary task (`nodes_milestone`).
+const [, milestone] = (example("nodes_milestone") as { items: Node[] }).items;
 
 describe("the nature of a row", () => {
   it("is read from the kind of the node and the flags of its task", () => {
@@ -30,14 +24,14 @@ describe("the nature of a row", () => {
       "task",
       "estimateLine",
     ]);
-    expect(task && rowNature(milestone(task))).toBe("milestone");
+    expect(milestone && rowNature(milestone)).toBe("milestone");
   });
 
   it("shows as an icon named for it, in the language of the page", () => {
-    const html = task
+    const html = milestone
       ? renderToStaticMarkup(
           <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-            <RowNatureIcon node={milestone(task)} />
+            <RowNatureIcon node={milestone} />
           </NextIntlClientProvider>,
         )
       : "";
