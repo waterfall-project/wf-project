@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
-// The fake back serves the first example of `listNodes` whatever `kinds` asks: its line shows
-// here too, where the service renders the tasks alone — the component and page tests prove
-// that the planning asks for them.
+import { scrollToRow } from "./scroll";
+
+// The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
+// the volumes of §4.6.2 (EP-02/L2), a thousand tasks and their lines —: its lines show here too,
+// where the service renders the tasks alone — the component and page tests prove that the
+// planning asks for them. The journey reads the structure by its stable marks: row 3, a task
+// completed off the critical path; row 22, which follows it; row 453, the first task of the
+// critical path not started, further down.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
@@ -17,15 +22,23 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   for (const name of ["N°", "Libellé", "Mode de planification", "Avancement", "Calculé Marge"]) {
     await expect(grid.getByRole("columnheader", { name })).toBeVisible();
   }
-  const review = grid.getByRole("row", { name: /Revue de conception/ });
-  await expect(review.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
-  await expect(review.getByRole("img", { name: "Automatique" })).toBeVisible();
-  await expect(review.getByRole("img", { name: "Non démarrée" })).toBeVisible();
-  await expect(review.getByRole("img", { name: "Chemin critique" })).toBeVisible();
-  await expect(review.getByRole("gridcell").last()).toHaveText("2");
-  await expect(
-    grid.getByRole("row", { name: /^1 / }).getByRole("img", { name: "Chemin critique" }),
-  ).toHaveCount(0);
+  const completed = grid.getByRole("row", { name: /^3 .*Préparation 1\.1\.1/ });
+  await expect(completed.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
+  await expect(completed.getByRole("img", { name: "Automatique" })).toBeVisible();
+  await expect(completed.getByRole("img", { name: "Terminée" })).toBeVisible();
+  await expect(completed.getByRole("img", { name: "Chemin critique" })).toHaveCount(0);
+  const follower = grid.getByRole("row", { name: /^22 .*Réalisation 1\.1\.4/ });
+  await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
+  await expect(follower.getByRole("gridcell").last()).toHaveText("3");
+
+  // Further down, the critical path: marked by its icon, whatever the colour.
+  await scrollToRow(grid, 453);
+  const critical = grid.getByRole("row", { name: /^453 .*Préparation 1\.3\.9/ });
+  await expect(critical.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
+  await expect(critical.getByRole("img", { name: "Automatique" })).toBeVisible();
+  await expect(critical.getByRole("img", { name: "Non démarrée" })).toBeVisible();
+  await expect(critical.getByRole("img", { name: "Chemin critique" })).toBeVisible();
+  await expect(critical.getByRole("gridcell").last()).toHaveText("434");
 
   // A header asks the server for its sort: the address says it.
   await grid
