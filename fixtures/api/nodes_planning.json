@@ -1,5 +1,5 @@
 {
-  "summary": "Le planning d'une structure, lu sans ses lignes (kinds=task) : une récapitulative, une tâche terminée et une démarrée sur le chemin critique, une tâche en mode manuel sans marge, le jalon de réception, lié en fin à début et en début à début avec cinq jours de décalage, et une tâche liée avec deux jours d'avance, qui porte sept jours de marge (WF-PLA-0040, WF-PLA-0080, WF-PLA-0100). Les numéros de ligne ne comptent que les lignes rendues, ici les seules tâches — ce que le contrat ne dit pas encore (#158). Les totaux restent ceux des lignes de la structure : kinds ne les change pas.",
+  "summary": "Le planning d'une structure, lu sans ses lignes (kinds=task) : une récapitulative, une tâche terminée et une démarrée sur le chemin critique, une tâche en mode manuel sans marge, le jalon de réception, lié en fin à début et en début à début avec une semaine de décalage, et une tâche liée avec deux jours d'avance, qui porte sept jours de marge (WF-PLA-0030, WF-PLA-0040, WF-PLA-0080, WF-PLA-0100). Les numéros de ligne sont ceux de toute la structure : la ligne que portent les études de détail, que le planning ne rend pas, garde le numéro 3. Les totaux restent ceux des lignes de la structure : kinds ne les change pas.",
   "value": {
     "items": [
       {
@@ -67,7 +67,7 @@
         "kind": "task",
         "parent_id": "01926f3a-7c00-7000-8000-000000000521",
         "position": 1,
-        "row_number": 3,
+        "row_number": 4,
         "level": 2,
         "lock_version": 1,
         "task": {
@@ -92,7 +92,7 @@
         "kind": "task",
         "parent_id": "01926f3a-7c00-7000-8000-000000000521",
         "position": 2,
-        "row_number": 4,
+        "row_number": 5,
         "level": 2,
         "lock_version": 1,
         "task": {
@@ -113,8 +113,10 @@
         "predecessors": [
           {
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000522",
+            "predecessor_row_number": 2,
             "link_type": "finish_to_start",
-            "lag_days": 0
+            "lag": 0,
+            "lag_unit": "days"
           }
         ],
         "computed_fields": [
@@ -128,7 +130,7 @@
         "kind": "task",
         "parent_id": "01926f3a-7c00-7000-8000-000000000521",
         "position": 3,
-        "row_number": 5,
+        "row_number": 6,
         "level": 2,
         "lock_version": 1,
         "task": {
@@ -148,13 +150,17 @@
         "predecessors": [
           {
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000524",
+            "predecessor_row_number": 5,
             "link_type": "finish_to_start",
-            "lag_days": 0
+            "lag": 0,
+            "lag_unit": "days"
           },
           {
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000523",
+            "predecessor_row_number": 4,
             "link_type": "start_to_start",
-            "lag_days": 5
+            "lag": 1,
+            "lag_unit": "weeks"
           }
         ],
         "computed_fields": [
@@ -168,7 +174,7 @@
         "kind": "task",
         "parent_id": null,
         "position": 1,
-        "row_number": 6,
+        "row_number": 7,
         "level": 1,
         "lock_version": 1,
         "task": {
@@ -188,8 +194,10 @@
         "predecessors": [
           {
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000522",
+            "predecessor_row_number": 2,
             "link_type": "finish_to_start",
-            "lag_days": -2
+            "lag": -2,
+            "lag_unit": "days"
           }
         ],
         "computed_fields": [

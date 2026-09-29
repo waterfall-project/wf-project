@@ -1,0 +1,11 @@
+{
+  "summary": "Ce dont dépend la quantité de la ligne de provision du devis : son risque (WF-IHM-0030, WF-RIS-0010).",
+  "value": {
+    "node_id": "01926f3a-7c00-7000-8000-000000000525",
+    "field": "estimate_line.quantity",
+    "depends_on": [
+      "risk"
+    ],
+    "rows": []
+  }
+}

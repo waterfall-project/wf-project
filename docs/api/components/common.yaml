@@ -101,8 +101,8 @@ Problem:
       description: >-
         Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`),
         `missing_condition` (une `CommandCondition`), `conflicting_object_id`,
-        `expected_lock_version`, `subordinate_node_ids` (les subordonnées d'une
-        récapitulative, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120),
+        `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une
+        récapitulative, WF-IHM-0030, WF-PLA-0040), `missing_prerequisites` (WF-CYC-0120),
         `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040).
     fields:
       type: array
@@ -211,6 +211,13 @@ PaginationMeta:
     offset: { type: integer, minimum: 0 }
     total: { type: integer, minimum: 0 }
 
+BackgroundTaskStatus:
+  type: string
+  enum: [queued, running, succeeded, failed]
+  description: >-
+    Où en est une tâche de fond : en file, en cours, aboutie ou échouée (WF-ARC-0090,
+    WF-IHM-0080). Nommée pour filtrer la liste des tâches de l'appelant.
+
 BackgroundTaskRef:
   type: object
   required: [task_id, kind, status]
@@ -231,9 +238,7 @@ BackgroundTaskRef:
         - backup
         - restore
         - directory_sync
-    status:
-      type: string
-      enum: [queued, running, succeeded, failed]
+    status: { $ref: '#/BackgroundTaskStatus' }
     progress:
       type: integer
       minimum: 0

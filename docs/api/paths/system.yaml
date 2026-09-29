@@ -98,6 +98,53 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
+/tasks:
+  get:
+    operationId: listBackgroundTasks
+    tags: [tasks]
+    summary: Tâches de fond de l'appelant
+    description: >-
+      Les tâches que l'appelant a lancées, les plus récentes d'abord : celles qui courent,
+      et celles qui ont abouti ou échoué depuis la date donnée (WF-ARC-0090, WF-IHM-0080).
+      Le suivi d'un onglet, d'un autre onglet ou d'un autre poste les retrouve ainsi,
+      au-delà des seules références qu'il a gardées. La liste ne dit pas quelle commande a
+      lancé une tâche : une tâche échouée qu'elle fait trouver se relance depuis l'écran de
+      son objet. Une tâche qu'un autre utilisateur a lancée n'y figure pas ; les commandes
+      qu'elle rend caduques le disent (`no_background_task_running`).
+    parameters:
+      - name: status
+        in: query
+        description: Les statuts retenus ; absents, tous.
+        schema:
+          type: array
+          items: { $ref: ../components/common.yaml#/BackgroundTaskStatus }
+        explode: false
+      - name: finished_since
+        in: query
+        description: >-
+          Ne retient, des tâches finies, que celles qui ont abouti ou échoué depuis cette
+          date ; celles qui courent sont toujours retenues.
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+    responses:
+      '200':
+        description: Tâches de l'appelant, les plus récentes d'abord.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              none: { $ref: ../../../fixtures/api/tasks_none.json }
+              running: { $ref: ../../../fixtures/api/tasks_running.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+
 /tasks/{task_id}:
   get:
     operationId: getBackgroundTask

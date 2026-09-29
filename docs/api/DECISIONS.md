@@ -56,6 +56,16 @@ afficher une grille.
 présenter zéro ou l'infini : le contrat rend `{ is_computable, value, reason }` partout où
 un dénominateur peut être nul. C'est verbeux et c'est le prix de l'exigence.
 
+**Le motif d'une valeur non calculable est un code** (`NotComputableReason`, EP-02/L4, #137).
+`reason` était une phrase libre, écrite dans une langue quelle que soit celle du lecteur : la
+dernière phrase d'une réponse, quand le contrat avait partout ailleurs remplacé la phrase par un
+code (`ErrorCode`, `CommandCondition`, WF-ARC-0110). Un code par grandeur nulle au dénominateur,
+relevé sur les indicateurs du §3.4.5.8 et sur les autres `Computable` du contrat : coût réel
+(indice de coût, et projection au rythme constaté tant qu'il ne se calcule pas), valeur acquise
+(la même projection quand l'indice de coût est nul), valeur planifiée, budget de référence,
+coût réel et reste à engager, capacité d'un rôle, offre close sur la période. L'avancement
+physique d'une récapitulative n'est pas un `Computable` : il n'a pas de code.
+
 **Chaque nœud dit lesquels de ses champs sont calculés** (`computed_fields`, EP-02). Le
 schéma d'écriture ne suffit pas à la ligne : une date de tâche se saisit en mode manuel et
 se calcule en mode automatique, la durée d'une récapitulative dérive de ses subordonnées,
@@ -63,6 +73,18 @@ les grandeurs d'une ligne de provision viennent du risque. Le serveur le sait ; 
 s'il devait le déduire du mode ou de la nature du nœud, recopierait une règle du noyau.
 Pour la même raison, une ligne de devis dit si elle accepte une réestimation au reste à
 engager (`remaining_entry`) : sous une tâche terminée, elle ne l'accepte plus.
+
+**Ce dont dépend une valeur calculée se lit à la demande** (`getComputedValueDependencies`,
+EP-02/L4, #168). WF-IHM-0030 veut qu'une tentative de saisie sur une valeur calculée soit
+refusée en nommant ce dont elle dépend. L'opération prend le nœud et le champ tenté, et rend
+les règles qui calculent la valeur (`ComputedDependency`, dans l'ordre où les dire) et les
+lignes dont elle est tirée, nommées par leur numéro et leur libellé — toutes, que la recherche
+ou les filtres de la grille les retiennent ou non. Elle n'est appelée qu'au refus, qui est
+rare : `listNodes` ne s'alourdit pas. Écartés : une table champ → dépendance dans
+`computed_fields`, qui pèserait sur chaque nœud et laisserait sans nom les subordonnées hors
+filtre ; un paramètre `depends_on` sur le seul refus d'une écriture, qui laisserait la grille
+recopier les règles pour refuser avant d'écrire. Les subordonnées que nomme
+`subordinate_node_ids` (`SUMMARY_TASK_DERIVED`) sont les subordonnées directes.
 
 ## Traitements longs
 
@@ -74,6 +96,22 @@ n'aurait pas su dire ce qu'il suivait (EP-02). Toutes répondent `202` avec une
 référence de tâche, et le front suit l'avancement par `GET /tasks/{id}` (WF-ARC-0090,
 WF-IHM-0080). Conséquence à assumer dans la maquette : aucun de ces gestes n'a de réponse
 immédiate.
+
+**Les tâches de l'appelant se listent** (`listBackgroundTasks`, `GET /tasks`, EP-02/L4, #146).
+Une tâche ne se relisait que par son `task_id`, que seul l'onglet qui l'avait lancée
+connaissait : un autre onglet, un autre poste ne savaient rien d'un marquage en cours. La liste
+rend les tâches de l'appelant, celles qui courent et celles finies depuis une date, les plus
+récentes d'abord, paginées ; `BackgroundTaskStatus` est nommé pour la filtrer. Elle ne dit pas
+quelle commande a lancé une tâche : une tâche qu'elle fait trouver se relance depuis l'écran de
+son objet. Écartés : une liste par objet, qui élargirait le contrat et poserait la question des
+habilitations ; attendre EP-04. Une tâche qu'un collègue a lancée sur le même objet se dit par
+les commandes qu'elle rend caduques, ci-dessous.
+
+**Une commande qu'un traitement de fond rendrait caduque le dit** (`no_background_task_running`,
+EP-02/L4, #147). Pendant un marquage, la révision relue listait `mark` disponible : un second
+marquage partait, et n'apprenait qu'au refus 409 que le premier courait. Le serveur nomme la
+condition dans `missing_conditions` des commandes concernées, quel que soit l'utilisateur qui
+a lancé le traitement.
 
 ## Session et erreurs
 
@@ -128,6 +166,12 @@ d'écriture, ou pas contributeur, c'est 403 avec la condition nommée.
 **`412` pour un `lock_version` périmé**, distinct du `409` d'un conflit d'état. Le front
 peut ainsi proposer de recharger dans un cas et d'expliquer dans l'autre.
 
+**Chaque signalement porte sa zone** (`AlertZone`, EP-02/L4, #139). WF-IHM-0070 veut une
+échelle commune, et une zone que le serveur classe : le dépassement du budget d'un sous-projet
+(`SubprojectBalance.zone`) et les signaux de santé du pilotage (`PilotHealth.signals[].zone`)
+n'en avaient pas, et un écran aurait dû choisir entre vigilance et alerte — deux écrans
+auraient pu choisir différemment.
+
 ## Langue et thème
 
 **Le compte n'a qu'un champ de langue, sa préférence à trois états** — `default`, `fr`,
@@ -153,6 +197,26 @@ colonne et un sens, pour être renvoyée telle quelle.
 **`listNodes` rend la structure entière, sans pagination** (EP-02). Une révision porte au
 plus dix mille objets (§4.6.2), et un arbre ne se lit pas par pages : une page coupe une
 tâche de ses lignes. La grille virtualise l'affichage, pas la lecture.
+
+**Une lecture de `listNodes` choisit les champs qu'elle rend** (`fields`, EP-02/L4, #166). Six
+mille nœuds entiers pèsent quatre mégaoctets, dont la moitié en noms de clés et en identifiants
+qu'aucune grille n'affiche ; la seconde du §4.6.2 ne tenait qu'à la marge. `fields` nomme les
+propriétés de `Node` à rendre, et celles d'une facette sous son nom (`task.label`) ; `node_id`,
+`row_number`, `level` et `lock_version` sont toujours rendus. Les schémas décrivent le nœud
+entier, que rend une lecture sans `fields` : leurs propriétés exigées ne le sont pas d'une
+lecture qui en nomme — c'est la seule réponse du contrat dont le schéma ne dit pas tout, et la
+vérification des réponses du service (WF-ARC-0060) devra le savoir. Un nom est une propriété
+et non une énumération : il n'a pas de phrase à rendre, et une propriété nouvelle de `Node` le
+devient sans toucher au paramètre. Écartés : des vues nommées, qui feraient épouser les écrans
+au contrat ; ne rien changer, qui laisserait le back lourd.
+
+**`row_number` numérote toute la structure** (EP-02/L4, #158) : ses tâches et ses lignes, dans
+l'ordre du plan, quels que soient `kinds`, les filtres, la recherche et le tri. Une liaison
+nomme ainsi son prédécesseur par son numéro (`predecessor_row_number`), même quand la lecture
+ne le rend pas, ce que la grille de planning ne pouvait plus faire sous une recherche ; son
+décalage garde son unité (`lag`, `lag_unit` : jours, semaines ou mois, WF-PLA-0030), où
+`lag_days` convertissait une semaine importée en cinq jours. L'écriture des liaisons
+(`PredecessorWrite`) ne porte pas le numéro, que le serveur calcule.
 
 **L'accueil filtre sur la qualité de contributeur** (`is_contributor` de `listProjects`,
 EP-02). C'est un filtre que l'utilisateur voit et lève, jamais une restriction de lecture :

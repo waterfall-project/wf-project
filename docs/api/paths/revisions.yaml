@@ -79,6 +79,7 @@
               marked: { $ref: ../../../fixtures/api/revision_marked.json }
               reader: { $ref: ../../../fixtures/api/revision_reader.json }
               estimator: { $ref: ../../../fixtures/api/revision_estimator.json }
+              marking: { $ref: ../../../fixtures/api/revision_marking.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
     operationId: abandonRevision
@@ -345,6 +346,21 @@
       l'arbre reste lisible. Les totaux sont ceux des lignes retenues. `kinds` n'est
       pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les
       lignes —, et les totaux ne changent pas avec lui.
+
+      `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du
+      plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche
+      et le tri, et un prédécesseur est nommé par le sien même quand la lecture ne le
+      rend pas (`predecessor_row_number`, WF-PLA-0080).
+
+      `fields` choisit ce que la lecture rend de chaque nœud : une grille n'en demande que
+      ce qu'elle affiche, sans quoi six mille nœuds entiers pèsent plusieurs mégaoctets
+      (§4.6.2). Chaque nom est une propriété de `Node` — une facette nommée ainsi est
+      rendue entière — ou une propriété d'une facette, `task.<propriété>` ou
+      `estimate_line.<propriété>`, qui rend la facette avec ses seules propriétés nommées ;
+      `node_id`, `row_number`, `level` et `lock_version` sont toujours rendus. Une facette
+      dont rien n'est nommé est omise. Sans `fields`, chaque nœud est rendu entier. Les
+      propriétés que `Node` et ses facettes exigent le sont d'une lecture sans `fields` :
+      une lecture qui en nomme ne rend que ce qu'elle nomme.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -415,6 +431,18 @@
             - reestimated_amount
             - previous_reestimated_amount
       - $ref: ../components/parameters.yaml#/SortOrder
+      - name: fields
+        in: query
+        description: >-
+          Les propriétés à rendre de chaque nœud, en plus des quatre toujours rendues ; une
+          propriété inconnue est refusée (400).
+        schema:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            pattern: '^((task|estimate_line)\.)?[a-z_]+$'
+        explode: false
     responses:
       '200':
         description: Nœuds, en parcours profondeur d'abord, et leurs totaux.
@@ -434,6 +462,7 @@
               milestone: { $ref: ../../../fixtures/api/nodes_milestone.json }
               estimate: { $ref: ../../../fixtures/api/nodes_estimate.json }
               planning: { $ref: ../../../fixtures/api/nodes_planning.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -485,6 +514,46 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+
+/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies:
+  get:
+    operationId: getComputedValueDependencies
+    tags: [revisions]
+    summary: Ce dont dépend une valeur calculée
+    description: >-
+      Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur
+      calcule : les règles qui la calculent, et les lignes dont elle est tirée, nommées par
+      leur numéro et leur libellé, que la recherche ou les filtres de la grille les
+      retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en
+      nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative
+      sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas
+      pour ce nœud est refusé (422).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RevisionId
+      - $ref: ../components/parameters.yaml#/StructureId
+      - $ref: ../components/parameters.yaml#/NodeId
+      - name: field
+        in: query
+        required: true
+        description: Le champ calculé dont la saisie a été tentée.
+        schema: { $ref: ../components/schemas/revisions.yaml#/ComputedValueField }
+    responses:
+      '200':
+        description: Ce dont dépend la valeur.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/ComputedValueDependencies }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/summary_dependencies.json }
+              summary: { $ref: ../../../fixtures/api/dependencies_summary.json }
+              labour: { $ref: ../../../fixtures/api/dependencies_labour.json }
+              task_amount: { $ref: ../../../fixtures/api/dependencies_task_amount.json }
+              provision: { $ref: ../../../fixtures/api/dependencies_provision.json }
+              manual_float: { $ref: ../../../fixtures/api/dependencies_manual_float.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task:
   patch:

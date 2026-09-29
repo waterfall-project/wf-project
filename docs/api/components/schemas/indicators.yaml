@@ -12,7 +12,32 @@ Computable:
     value:
       anyOf: [{ $ref: ../common.yaml#/Decimal }, { type: 'null' }]
     reason:
-      anyOf: [{ type: string }, { type: 'null' }]
+      anyOf: [{ $ref: '#/NotComputableReason' }, { type: 'null' }]
+      description: >-
+        Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue
+        du lecteur (WF-ARC-0110) ; nul pour une valeur calculable.
+
+NotComputableReason:
+  type: string
+  description: >-
+    Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur
+    (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme
+    constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`,
+    la projection au rythme constaté quand l'indice de coût est nul, faute de valeur
+    acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ;
+    `no_reference_budget`, la consommation du budget et l'avancement physique
+    (WF-IND-0040, WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier
+    (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070,
+    WF-PTF-0060) ; `no_closed_offer`, le taux de transformation d'une période sans offre
+    close (WF-PTF-0050).
+  enum:
+    - no_actual_cost
+    - no_earned_value
+    - no_planned_value
+    - no_reference_budget
+    - no_actual_or_remaining
+    - no_capacity
+    - no_closed_offer
 
 CalculationContext:
   type: object
@@ -69,11 +94,12 @@ RemainingIndicators:
 
 SubprojectBalance:
   type: object
-  required: [key, budget, actual_cost, remaining, variance, is_over_budget]
+  required: [key, budget, actual_cost, remaining, variance, is_over_budget, zone]
   description: >-
     Écart entre le budget d'un sous-projet et la somme de son coût réel et de son
     reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors
-    sous-projet » (WF-IND-0020).
+    sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune
+    des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone.
   properties:
     key: { type: string }
     label: { type: string }
@@ -82,6 +108,7 @@ SubprojectBalance:
     remaining: { $ref: ../common.yaml#/Money }
     variance: { $ref: ../common.yaml#/Money }
     is_over_budget: { type: boolean }
+    zone: { $ref: reference.yaml#/AlertZone }
 
 AmountByKey:
   type: object

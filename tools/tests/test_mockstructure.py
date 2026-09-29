@@ -261,8 +261,10 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     def follows(number: int, before: int) -> bool:
         link = {
             "predecessor_node_id": row(before)["node_id"],
+            "predecessor_row_number": before,
             "link_type": "finish_to_start",
-            "lag_days": 0,
+            "lag": 0,
+            "lag_unit": "days",
         }
         return row(number)["predecessors"] == [link]
 

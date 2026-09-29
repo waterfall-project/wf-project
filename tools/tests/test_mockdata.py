@@ -41,6 +41,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "hourly_rates.json",
         "nodes_thousand.json",
         "portfolio_projects.json",
+        "summary_dependencies.json",
     ]
     for example in volumes.values():
         assert set(example) == {"summary", "description", "value"}
@@ -59,6 +60,25 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
     assert "80,00 de l'heure" in volumes["hourly_rates.json"]["summary"]
+
+
+def test_the_first_summary_depends_on_its_direct_subordinates(volumes: dict[str, Any]) -> None:
+    # The refusal the journeys try on the finish date of row 1 names what the grid names:
+    # computed.spec.ts reads the rows 2, 201 and 401 of the structure.
+    items = cast("list[Node]", volumes["nodes_thousand.json"]["value"]["items"])
+    dependencies = volumes["summary_dependencies.json"]["value"]
+    assert dependencies["node_id"] == items[0]["node_id"]
+    assert dependencies["field"] in items[0]["computed_fields"]
+    assert dependencies["depends_on"] == ["subordinates"]
+    assert [(row["row_number"], row["label"]) for row in dependencies["rows"]] == [
+        (2, "Études — Poste de commande"),
+        (201, "Études — Ligne d'essais"),
+        (401, "Études — Utilités"),
+    ]
+    by_id = {node["node_id"]: node for node in items}
+    for row in dependencies["rows"]:
+        assert by_id[row["node_id"]]["row_number"] == row["row_number"]
+        assert by_id[row["node_id"]]["parent_id"] == items[0]["node_id"]
 
 
 def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str, Any]) -> None:
@@ -315,6 +335,9 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
     )
     assert first_example("analysis.yaml", "getEstimateIndicators") == (
         "volume: { $ref: ../../../fixtures/api/volume/estimate_indicators.json }"
+    )
+    assert first_example("revisions.yaml", "getComputedValueDependencies") == (
+        "volume: { $ref: ../../../fixtures/api/volume/summary_dependencies.json }"
     )
 
 

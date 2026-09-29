@@ -104,6 +104,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tâches de fond de l'appelant
+         * @description Les tâches que l'appelant a lancées, les plus récentes d'abord : celles qui courent, et celles qui ont abouti ou échoué depuis la date donnée (WF-ARC-0090, WF-IHM-0080). Le suivi d'un onglet, d'un autre onglet ou d'un autre poste les retrouve ainsi, au-delà des seules références qu'il a gardées. La liste ne dit pas quelle commande a lancé une tâche : une tâche échouée qu'elle fait trouver se relance depuis l'écran de son objet. Une tâche qu'un autre utilisateur a lancée n'y figure pas ; les commandes qu'elle rend caduques le disent (`no_background_task_running`).
+         */
+        get: operations["listBackgroundTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tasks/{task_id}": {
         parameters: {
             query?: never;
@@ -1567,6 +1587,8 @@ export interface paths {
          * Arbre commun de la structure
          * @description Les mêmes tâches, vues du côté du temps ou du côté de l'argent : une tâche porte ses lignes de devis (§3.5.1, WF-DEV-0020). `row_number` et `level` sont calculés à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et grille de devis (WF-DEV-0050).
          *     La structure est rendue entière, sans pagination : une révision porte au plus dix mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien : le tri ordonne les nœuds frères entre eux sans défaire l'arbre. Un filtre sur une tâche — avancement, criticité, sous-arbre — retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus sont rendus pour que l'arbre reste lisible. Les totaux sont ceux des lignes retenues. `kinds` n'est pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent pas avec lui.
+         *     `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche et le tri, et un prédécesseur est nommé par le sien même quand la lecture ne le rend pas (`predecessor_row_number`, WF-PLA-0080).
+         *     `fields` choisit ce que la lecture rend de chaque nœud : une grille n'en demande que ce qu'elle affiche, sans quoi six mille nœuds entiers pèsent plusieurs mégaoctets (§4.6.2). Chaque nom est une propriété de `Node` — une facette nommée ainsi est rendue entière — ou une propriété d'une facette, `task.<propriété>` ou `estimate_line.<propriété>`, qui rend la facette avec ses seules propriétés nommées ; `node_id`, `row_number`, `level` et `lock_version` sont toujours rendus. Une facette dont rien n'est nommé est omise. Sans `fields`, chaque nœud est rendu entier. Les propriétés que `Node` et ses facettes exigent le sont d'une lecture sans `fields` : une lecture qui en nomme ne rend que ce qu'elle nomme.
          */
         get: operations["listNodes"];
         put?: never;
@@ -1596,6 +1618,26 @@ export interface paths {
          * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070.
          */
         delete: operations["deleteNode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ce dont dépend une valeur calculée
+         * @description Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur calcule : les règles qui la calculent, et les lignes dont elle est tirée, nommées par leur numéro et leur libellé, que la recherche ou les filtres de la grille les retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas pour ce nœud est refusé (422).
+         */
+        get: operations["getComputedValueDependencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2502,7 +2544,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées d'une récapitulative, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040). */
             params?: {
                 [key: string]: unknown;
             };
@@ -2569,6 +2611,11 @@ export interface components {
             default_language: components["schemas"]["Language"];
         };
         /**
+         * @description Où en est une tâche de fond : en file, en cours, aboutie ou échouée (WF-ARC-0090, WF-IHM-0080). Nommée pour filtrer la liste des tâches de l'appelant.
+         * @enum {string}
+         */
+        BackgroundTaskStatus: "queued" | "running" | "succeeded" | "failed";
+        /**
          * Format: uuid
          * @description Identifiant engendré par le serveur, ordonné dans le temps (WF-DAT-0060).
          */
@@ -2578,8 +2625,7 @@ export interface components {
             task_id: components["schemas"]["Uuid"];
             /** @enum {string} */
             kind: "import_analysis" | "import_apply" | "revision_mark" | "structure_merge" | "risk_occurrence" | "export" | "backup" | "restore" | "directory_sync";
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
+            status: components["schemas"]["BackgroundTaskStatus"];
             progress?: number;
             submitted_at?: components["schemas"]["Timestamp"];
             finished_at?: components["schemas"]["Timestamp"] | null;
@@ -2587,6 +2633,11 @@ export interface components {
             problem?: components["schemas"]["Problem"] | null;
             /** @description Où lire le résultat, lorsque la tâche en produit un. */
             result_url?: string | null;
+        };
+        PaginationMeta: {
+            limit: number;
+            offset: number;
+            total: number;
         };
         /** @enum {string} */
         AuthProviderKind: "local" | "ldap" | "oidc";
@@ -2705,11 +2756,6 @@ export interface components {
         PasswordChange: {
             current_password: string;
             new_password: string;
-        };
-        PaginationMeta: {
-            limit: number;
-            offset: number;
-            total: number;
         };
         UserCreate: {
             last_name: string;
@@ -2995,10 +3041,10 @@ export interface components {
          */
         ProjectCommand: "update" | "manage_contributors" | "create_revision" | "complete" | "lose" | "abandon" | "edit_risks" | "declare_risk_occurrence" | "import_actual_costs" | "exclude_cost_lines";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110).
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment, le marquage, la fusion, la désignation de la référence et la saisie d'une révision pendant son marquage, la survenance d'un risque ou l'import des coûts réels d'un projet pendant le leur (WF-IHM-0080, WF-ARC-0090).
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set";
+        CommandCondition: "is_contributor" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running";
         ProjectCommandAvailability: {
             command: components["schemas"]["ProjectCommand"];
             is_available: boolean;
@@ -3340,10 +3386,21 @@ export interface components {
          * @enum {string}
          */
         LinkType: "finish_to_start" | "start_to_start" | "finish_to_finish" | "start_to_finish";
-        Predecessor: {
+        /**
+         * @description Unité d'un décalage de liaison, conservée telle qu'elle a été saisie ou importée (WF-PLA-0030).
+         * @enum {string}
+         */
+        LagUnit: "days" | "weeks" | "months";
+        /** @description Liaison d'une tâche à l'un de ses prédécesseurs, avec son décalage dans son unité : négatif, c'est une avance (WF-PLA-0030). */
+        PredecessorWrite: {
             predecessor_node_id: components["schemas"]["Uuid"];
             link_type: components["schemas"]["LinkType"];
-            lag_days: number;
+            lag: number;
+            lag_unit: components["schemas"]["LagUnit"];
+        };
+        /** @description Liaison telle que la lecture la rend : le numéro de ligne du prédécesseur, calculé comme `row_number` dans la numérotation de toute la structure, qu'il soit ou non retenu par la recherche et les filtres (WF-PLA-0080). */
+        Predecessor: components["schemas"]["PredecessorWrite"] & {
+            readonly predecessor_row_number: number;
         };
         /** @enum {string} */
         ComputedField: "task.duration_days" | "task.start_date" | "task.finish_date" | "task.progress" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement";
@@ -3354,6 +3411,7 @@ export interface components {
             kind: components["schemas"]["NodeKind"];
             parent_id: components["schemas"]["Uuid"] | null;
             position: number;
+            /** @description Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri. */
             row_number: number;
             level: number;
             task?: components["schemas"]["TaskFacet"] | null;
@@ -3400,8 +3458,31 @@ export interface components {
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
         };
+        /**
+         * @description Champ d'un nœud dont le serveur calcule la valeur, pour ce nœud-ci ou pour tous : ceux que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants, la marge, l'avancement physique (WF-IHM-0030).
+         * @enum {string}
+         */
+        ComputedValueField: "task.duration_days" | "task.start_date" | "task.finish_date" | "task.progress" | "task.physical_progress" | "task.total_float_days" | "task.budgeted_amount" | "task.reestimated_amount" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.budgeted_amount" | "estimate_line.reestimated_amount" | "estimate_line.previous_reestimated_amount";
+        /**
+         * @description Ce dont dépend une valeur calculée, que le refus d'une saisie nomme (WF-IHM-0030) : `subordinates`, les dates, la durée et l'avancement d'une récapitulative, tirés de ses subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de sa charge et du taux horaire de sa catégorie ; `unit_disbursement`, celui d'une ligne hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0020) ; `risk`, les grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ; `reference_revision`, le montant budgété, fixé par la révision de référence (WF-DEV-0030) ; `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040).
+         * @enum {string}
+         */
+        ComputedDependency: "subordinates" | "lines_and_subordinates" | "scheduling" | "float_dates" | "manual_mode" | "hourly_rate" | "unit_disbursement" | "risk" | "reference_revision" | "remaining_reviews";
+        /** @description Une ligne dont dépend une valeur calculée, nommée comme la grille la nomme : son numéro dans la numérotation de toute la structure, et son libellé. */
+        DependencyRow: {
+            node_id: components["schemas"]["Uuid"];
+            row_number: number;
+            label: string;
+        };
+        /** @description Ce dont dépend la valeur calculée d'un champ d'un nœud (WF-IHM-0030) : les règles qui la calculent, dans l'ordre où les dire, et les lignes dont elle est tirée — les subordonnées directes d'une récapitulative, les lignes et les subordonnées directes d'une tâche —, toutes, que la recherche ou les filtres d'une lecture les retiennent ou non. Aucune ligne pour une valeur qui n'est tirée d'aucune. */
+        ComputedValueDependencies: {
+            node_id: components["schemas"]["Uuid"];
+            field: components["schemas"]["ComputedValueField"];
+            depends_on: components["schemas"]["ComputedDependency"][];
+            rows: components["schemas"]["DependencyRow"][];
+        };
         PredecessorsReplace: {
-            predecessors: components["schemas"]["Predecessor"][];
+            predecessors: components["schemas"]["PredecessorWrite"][];
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Démarre ou termine une tâche. La date est celle du geste par défaut, et la terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030). Une tâche terminée se rouvre en la repassant à « démarrée » ; aucun geste ne la ramène à « non démarrée », que le Kanban n'offre pas (WF-RAE-0030). Le passage direct de non démarrée à terminée n'est ouvert qu'à un jalon, et l'opération est refusée sur une récapitulative, dont l'état est dérivé (WF-PLA-0040, WF-PLA-0050). */
@@ -3484,11 +3565,17 @@ export interface components {
             provisions_identified?: components["schemas"]["Money"];
             delta_to_previous_revision?: components["schemas"]["Money"] | null;
         };
+        /**
+         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique (WF-IND-0040, WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_closed_offer`, le taux de transformation d'une période sans offre close (WF-PTF-0050).
+         * @enum {string}
+         */
+        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_actual_or_remaining" | "no_capacity" | "no_closed_offer";
         /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010). */
         Computable: {
             is_computable: boolean;
             value?: components["schemas"]["Decimal"] | null;
-            reason?: string | null;
+            /** @description Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue du lecteur (WF-ARC-0110) ; nul pour une valeur calculable. */
+            reason?: components["schemas"]["NotComputableReason"] | null;
         };
         /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
         WorkloadPlan: {
@@ -3508,7 +3595,7 @@ export interface components {
                 }[];
             }[];
         };
-        /** @description Écart entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). */
+        /** @description Écart entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone. */
         SubprojectBalance: {
             key: string;
             label?: string;
@@ -3517,6 +3604,7 @@ export interface components {
             remaining: components["schemas"]["Money"];
             variance: components["schemas"]["Money"];
             is_over_budget: boolean;
+            zone: components["schemas"]["AlertZone"];
         };
         /** @description Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010). */
         RemainingIndicators: {
@@ -3898,12 +3986,13 @@ export interface components {
                 forecast: components["schemas"]["Money"];
             }[];
         };
-        /** @description Quatre signaux qui se constatent sans jugement, et dont l'absence rend les autres vues trompeuses (WF-PTF-0110). */
+        /** @description Quatre signaux qui se constatent sans jugement, et dont l'absence rend les autres vues trompeuses (WF-PTF-0110). Chacun porte sa zone dans l'échelle commune des signalements, que le serveur classe et dont le front ne déduit rien (WF-IHM-0070). */
         PilotHealth: {
             scope: components["schemas"]["PortfolioScope"];
             signals: {
                 project_id: components["schemas"]["Uuid"];
                 project_label: string;
+                zone: components["schemas"]["AlertZone"];
                 /** @enum {string} */
                 code: "review_overdue" | "risks_not_reviewed" | "no_actual_cost_since_last_review" | "contractual_milestone_overdue";
                 params?: {
@@ -3996,9 +4085,9 @@ export interface components {
         };
     };
     parameters: {
-        TaskId: components["schemas"]["Uuid"];
         Limit: number;
         Offset: number;
+        TaskId: components["schemas"]["Uuid"];
         /** @description Recherche sur le libellé. */
         Search: string;
         /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
@@ -4156,6 +4245,37 @@ export interface operations {
                 };
             };
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listBackgroundTasks: {
+        parameters: {
+            query?: {
+                /** @description Les statuts retenus ; absents, tous. */
+                status?: components["schemas"]["BackgroundTaskStatus"][];
+                /** @description Ne retient, des tâches finies, que celles qui ont abouti ou échoué depuis cette date ; celles qui courent sont toujours retenues. */
+                finished_since?: components["schemas"]["Timestamp"];
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tâches de l'appelant, les plus récentes d'abord. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["BackgroundTaskRef"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     getBackgroundTask: {
@@ -6776,6 +6896,8 @@ export interface operations {
                 sort_by?: "label" | "description" | "scheduling_mode" | "duration_days" | "start_date" | "finish_date" | "progress" | "physical_progress" | "total_float_days" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "previous_reestimated_amount";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
+                /** @description Les propriétés à rendre de chaque nœud, en plus des quatre toujours rendues ; une propriété inconnue est refusée (400). */
+                fields?: string[];
             };
             header?: never;
             path: {
@@ -6799,6 +6921,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
@@ -6860,6 +6983,37 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+        };
+    };
+    getComputedValueDependencies: {
+        parameters: {
+            query: {
+                /** @description Le champ calculé dont la saisie a été tentée. */
+                field: components["schemas"]["ComputedValueField"];
+            };
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+                revision_id: components["parameters"]["RevisionId"];
+                structure_id: components["parameters"]["StructureId"];
+                node_id: components["parameters"]["NodeId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ce dont dépend la valeur. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputedValueDependencies"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     updateTaskFacet: {

@@ -107,6 +107,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/RemainingIndicators }
+            examples:
+              witness: { $ref: ../../../fixtures/api/remaining_indicators.json }
+              over_budget: { $ref: ../../../fixtures/api/remaining_indicators_over_budget.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/remaining-indicators/startable-tasks:
