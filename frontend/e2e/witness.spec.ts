@@ -29,7 +29,7 @@ test("opens the list of projects, a project, and reads its planning and its esti
   ).toBeVisible();
   // The indicators are there, with their figures. Their first example still describes the
   // estimate of the witness structure (100 000,00), while `listNodes` serves the volume: the
-  // journey asserts no total of the indicators, which would contradict the grid above it.
+  // journey asserts no total of the indicators, which would contradict the grid below them.
   const indicators = page.getByRole("region", { name: "Indicateurs du devis" });
   await expect(indicators.getByRole("term").first()).toHaveText("Total du devis");
 });

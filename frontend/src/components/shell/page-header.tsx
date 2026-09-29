@@ -25,15 +25,31 @@ const TITLE: Readonly<Record<Density, string>> = {
   airy: "text-2xl",
 };
 
-/** The main content of a screen, at its density. */
+/**
+ * The main content of a screen, at its density. A screen that fills the window — a grid —
+ * bounds the page to its height (`ShellFrame`) and shrinks to what is left under the bar and
+ * the banner, so that the element that scrolls in it, the grid, keeps its edges in view: the
+ * layout gives it its height, never a height computed by hand from what lies above it. When
+ * the window is too low for its content at its least, the content overflows it and the page
+ * scrolls.
+ */
 export function Screen({
   density = "dense",
+  fill = false,
   children,
 }: {
   readonly density?: Density;
+  readonly fill?: boolean;
   readonly children: ReactNode;
 }) {
-  return <main className={SCREEN[density]}>{children}</main>;
+  return (
+    <main
+      data-fill={fill ? "" : undefined}
+      className={cn(SCREEN[density], fill ? "min-h-0" : null)}
+    >
+      {children}
+    </main>
+  );
 }
 
 /** What the header of a screen shows: its title, its icon, a line under it, its commands. */

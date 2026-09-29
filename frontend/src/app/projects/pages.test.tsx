@@ -157,6 +157,12 @@ beforeEach(() => {
   };
 });
 
+/**
+ * The screen of a grid, which fills the window (#163): the page bounded to its height, the grid
+ * taking what the header and the indicators leave it.
+ */
+const FILLED_SCREEN = `<main data-fill="" class="${SCREEN.dense} min-h-0">`;
+
 describe("the witness path", () => {
   it("lists the projects, each a link to its page", async () => {
     const html = renderToStaticMarkup(inEnglish(await ProjectsPage({ searchParams: NO_SEARCH })));
@@ -183,7 +189,7 @@ describe("the witness path", () => {
     const html = renderToStaticMarkup(
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
-    expect(html).toContain(`<main class="${SCREEN.dense}">`);
+    expect(html).toContain(FILLED_SCREEN);
     expect(html).toMatch(
       /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Costing and estimate<\/h1>/,
     );
@@ -447,7 +453,7 @@ describe("the grid of the planning", () => {
     );
     expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({ kinds: "task" });
     expect(html.startsWith(BANNER)).toBe(true);
-    expect(html).toContain(`<main class="${SCREEN.dense}">`);
+    expect(html).toContain(FILLED_SCREEN);
     expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Planning<\/h1>/);
     expect(text(html)).toContain("Structure principale · 6 tasks");
     expect(html).toMatch(

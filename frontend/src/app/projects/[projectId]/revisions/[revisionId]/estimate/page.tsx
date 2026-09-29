@@ -146,7 +146,7 @@ export default async function EstimatePage({
   return (
     <>
       <ContextBanner reading={screen.reading} />
-      <Screen density={FUNCTION_DENSITY.estimate}>
+      <Screen density={FUNCTION_DENSITY.estimate} fill>
         <EstimateHeader label={screen.label} nodes={screen.nodes} />
         <EstimateSummary
           indicators={indicators}

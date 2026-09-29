@@ -171,7 +171,11 @@ quand la fenêtre bouge. Le React Compiler n'est pas activé dans ce front, mais
 React refuse l'adaptateur de TanStack Virtual, dont un rendu compilé figerait les réponses
 (`react-hooks/incompatible-library`). La hauteur d'une ligne suit la taille de la police
 racine (1,75 rem). L'en-tête et les totaux sont collés au haut et au pied de la grille, le
-numéro et le libellé à son début. Colonnes masquées, largeurs et tri sont une préférence
+numéro et le libellé à son début. La grille prend la hauteur que lui laisse son écran : un
+écran de grille est un `Screen` qui remplit la fenêtre (`fill`), la page bornée à sa hauteur
+(`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher —
+aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre trop basse pour ce
+plancher fait défiler la page. Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
 chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une colonne ou une largeur
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
