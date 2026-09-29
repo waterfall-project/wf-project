@@ -15,17 +15,31 @@
  */
 import { type GridConfig, sortColumns } from "./columns";
 import {
+  type AnyNodeFields,
   LABEL_COLUMN,
   NODE_TREE,
-  type Node,
   nodeKey,
   nodeNumber,
   type NodeSortColumn,
   type NodeTotals,
+  type RowOf,
 } from "./nodes";
 
+/**
+ * What the columns of the estimate read of a node, beyond what every grid reads: the amounts of
+ * a task, the figures of a line. The page hands the grid these alone (`projectNodes`).
+ */
+export const ESTIMATE_FIELDS = {
+  node: [],
+  task: ["budgeted_amount", "reestimated_amount"],
+  line: ["quantity", "hours", "unit_disbursement", "budgeted_amount", "reestimated_amount"],
+} as const satisfies AnyNodeFields;
+
+/** A node as the grid of the estimate reads it. */
+export type EstimateNode = RowOf<typeof ESTIMATE_FIELDS>;
+
 /** The grid of the estimate. */
-export const ESTIMATE_GRID: GridConfig<Node, NodeSortColumn, NodeTotals> = {
+export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals> = {
   key: "estimate",
   name: "estimate",
   rowKey: nodeKey,

@@ -3,16 +3,22 @@
 /**
  * The grid of the planning of a revision (WF-PLA-0080, US-0220), at the route of its function
  * (`functions.json`): the banner of its reading context (WF-IHM-0020), and the grid on the main
- * structure of the revision, its tasks alone — the server renders no line for it (`kinds`). The
- * rows come in the order of the answer, with the totals of the answer: a header clicked or a
- * search entered changes the address, and this page reads anew (`grid-screen.ts`).
+ * structure of the revision, its tasks alone — the server renders no line for it (`kinds`) —,
+ * handed the fields it shows alone (`projectNodes`). The rows come in the order of the answer,
+ * with the totals of the answer: a header clicked or a search entered changes the address, and
+ * this page reads anew (`grid-screen.ts`).
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
 import { ContextBanner } from "@/components/context/context-banner";
-import type { NodeList } from "@/components/grid/nodes";
-import { PLANNING_GRID, PLANNING_KINDS, PLANNING_SORT_COLUMNS } from "@/components/grid/planning";
+import { type NodeList, projectNodes } from "@/components/grid/nodes";
+import {
+  PLANNING_FIELDS,
+  PLANNING_GRID,
+  PLANNING_KINDS,
+  PLANNING_SORT_COLUMNS,
+} from "@/components/grid/planning";
 import { PlanningGrid } from "@/components/grid/planning-grid";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -64,7 +70,11 @@ export default async function PlanningPage({
       <ContextBanner reading={screen.reading} />
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} nodes={screen.nodes} />
-        <PlanningGrid nodes={screen.nodes} query={screen.query} preferences={screen.preferences} />
+        <PlanningGrid
+          nodes={projectNodes(screen.nodes, PLANNING_FIELDS)}
+          query={screen.query}
+          preferences={screen.preferences}
+        />
       </Screen>
     </>
   );

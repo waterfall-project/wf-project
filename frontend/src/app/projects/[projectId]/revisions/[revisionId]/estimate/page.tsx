@@ -4,9 +4,10 @@
  * The estimate of a revision (WF-DEV-0050, WF-DEV-0060, US-0220), at the route of its function
  * (`functions.json`): the banner of its reading context (WF-IHM-0020); the hourly rates its
  * calculation lacks and its indicators (`EstimateSummary`), read for the sub-project the address
- * filters; and the grid on the main structure of the revision, its tasks and their lines. The
- * rows come in the order of the answer, with the totals of the answer: a header clicked or a
- * search entered changes the address, and this page reads anew (`grid-screen.ts`). The
+ * filters; and the grid on the main structure of the revision, its tasks and their lines, handed
+ * the fields it shows alone (`projectNodes`). The rows come in the order of the answer, with the
+ * totals of the answer: a header clicked or a search entered changes the address, and this page
+ * reads anew (`grid-screen.ts`). The
  * indicators and the rates are read alongside the grid. A refused read of the rates is thrown
  * for the pages of the shell to say, as the grid's; indicators refused as expected are said
  * unavailable, the rest of the screen shown: the screen never shows a figure it did not read.
@@ -19,9 +20,9 @@ import { isGatewayFailure, readOrFail, refusalOf } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
-import { ESTIMATE_GRID, ESTIMATE_SORT_COLUMNS } from "@/components/grid/estimate";
+import { ESTIMATE_FIELDS, ESTIMATE_GRID, ESTIMATE_SORT_COLUMNS } from "@/components/grid/estimate";
 import { EstimateGrid } from "@/components/grid/estimate-grid";
-import type { NodeList } from "@/components/grid/nodes";
+import { type NodeList, projectNodes } from "@/components/grid/nodes";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import type { PageSearchParams } from "@/navigation/context";
@@ -153,7 +154,11 @@ export default async function EstimatePage({
           missingRates={missingRates}
           permissions={session?.permissions ?? []}
         />
-        <EstimateGrid nodes={screen.nodes} query={screen.query} preferences={screen.preferences} />
+        <EstimateGrid
+          nodes={projectNodes(screen.nodes, ESTIMATE_FIELDS)}
+          query={screen.query}
+          preferences={screen.preferences}
+        />
       </Screen>
     </>
   );

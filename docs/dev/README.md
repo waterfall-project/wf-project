@@ -154,7 +154,14 @@ l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que rend sa 
 de la valeur formatée (`render`) — et, s'il y en a un, son arbre (niveau, icône de nature par
 `RowNatureIcon`). La configuration lit les lignes par des fonctions : elle se remet à
 `DenseGrid` dans un composant client propre à l'écran (`estimate-grid.tsx`,
-`planning-grid.tsx`), et la page, serveur, ne lui passe que des données. La grille de planning
+`planning-grid.tsx`), et la page, serveur, ne lui passe que des données — et de chaque nœud,
+les seuls champs que la grille lit : ceux de toute grille (identité, version, champs calculés,
+numéro, niveau, nature, libellé) et ceux de ses colonnes, que nomme sa configuration
+(`ESTIMATE_FIELDS`, `PLANNING_FIELDS`), projetés par `projectNodes` ; un nœud entier de
+`listNodes` pèse quatre mégaoctets sur mille tâches dans la page (#166). Une colonne qui lit
+un champ nouveau l'ajoute à cette liste : le typage de la ligne le demande, et
+`projection.test.tsx` vérifie que la grille lit la même chose de la ligne projetée que du nœud
+entier. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
 `estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
 lecture de la structure principale (`grid-screen.ts`) ; le planning demande au serveur les
@@ -560,7 +567,9 @@ changeant `WATERFALL_API_ADDRESS`.
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
-back, pour la grille de devis et pour celle de planning. Une ouverture va de son début — le
+back, pour la grille de devis et pour celle de planning ; le faux back sert le planning sans
+tenir compte de `kinds=task`, et sa mesure est pessimiste : elle porte sur six mille lignes, et
+non sur les mille tâches que le service rendra. Une ouverture va de son début — le
 début de la navigation pour une grille ouverte par son adresse, le clic pour une grille
 ouverte depuis la barre latérale — à la première image que le navigateur dessine avec la
 grille utilisable : l'en-tête de ses colonnes, la légende de ses totaux et la première ligne
@@ -574,9 +583,9 @@ de React en développement : il dirait la vitesse du poste du développeur. Chaq
 s'ouvre une fois sans être mesurée, puis cinq fois par son adresse et cinq fois depuis la
 barre latérale, et chaque ouverture doit tenir la seconde ; la médiane et la pire s'écrivent
 dans le journal du parcours, et, pour l'ouverture par l'adresse, où va le temps : les
-instants médians où le serveur a fini d'envoyer le document et où le navigateur l'a lu. Son projet Playwright, `production`, dépend du projet `chromium` :
-il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
-d'eux échoue. Elle tourne donc là où tournent les parcours, au palier complet de la chaîne ;
+instants médians où le serveur a fini d'envoyer le document et où le navigateur l'a lu. Son
+projet Playwright, `production`, dépend du projet `chromium` : il tourne après tous les autres
+parcours, seul sur la machine — et ne tourne pas quand l'un d'eux échoue. Elle tourne donc là où tournent les parcours, au palier complet de la chaîne ;
 sur un poste, `make e2e`, ou la mesure seule, contre des serveurs déjà démarrés :
 `pnpm exec playwright test --project production --no-deps` dans `frontend/`. La mesure est
 faite pour un utilisateur seul et contre le faux back : le jeu de référence et les cinquante

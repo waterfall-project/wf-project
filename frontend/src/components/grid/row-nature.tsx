@@ -22,8 +22,15 @@ import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 
-/** A node of a structure, as the API reads it. */
-type Node = components["schemas"]["Node"];
+/** What the nature of a node is read from: its kind, and the flags of its facet. */
+interface NatureOf {
+  readonly kind: components["schemas"]["NodeKind"];
+  readonly task?: Pick<components["schemas"]["TaskFacet"], "is_summary" | "is_milestone"> | null;
+  readonly estimate_line?: Pick<
+    components["schemas"]["EstimateLineFacet"],
+    "is_computed" | "resource_role_id"
+  > | null;
+}
 
 /** The icon of each nature of a row: a nature added without one breaks the typing. */
 export const ROW_NATURE_ICONS = {
@@ -39,7 +46,7 @@ export const ROW_NATURE_ICONS = {
 export type RowNature = keyof typeof ROW_NATURE_ICONS;
 
 /** The nature of a line of the estimate, from the flags of its facet. */
-function lineNature(line: Node["estimate_line"]): RowNature {
+function lineNature(line: NatureOf["estimate_line"]): RowNature {
   if (line?.is_computed === true) {
     return "provision";
   }
@@ -52,7 +59,7 @@ function lineNature(line: Node["estimate_line"]): RowNature {
  * The nature of a node: its kind tells a task from a line, the flags of its facet the rest —
  * a facet the API left out has none raised.
  */
-export function rowNature(node: Node): RowNature {
+export function rowNature(node: NatureOf): RowNature {
   if (node.kind === "estimate_line") {
     return lineNature(node.estimate_line);
   }
@@ -63,7 +70,7 @@ export function rowNature(node: Node): RowNature {
 }
 
 /** Render the icon of the nature of a row, named for it. */
-export function RowNatureIcon({ node }: { readonly node: Node }) {
+export function RowNatureIcon({ node }: { readonly node: NatureOf }) {
   const t = useTranslations("rowNature");
   const nature = rowNature(node);
   const Icon = ROW_NATURE_ICONS[nature];
