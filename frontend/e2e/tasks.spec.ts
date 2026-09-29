@@ -14,7 +14,10 @@ test("marking a revision gives the hand back, shows its progress, and announces 
 }) => {
   // The time of the page is the test's: installed, then paused once the page is loaded, so
   // that the read of the task comes when the test lets it come — after the change of screen,
-  // not before.
+  // not before. A client navigation does not end while the clock is paused and its route is
+  // still to compile (`next dev` compiles a route at its first visit): the screen reached is
+  // compiled first, clock running.
+  await page.request.get(`/projects/${PROJECT}/lifecycle?revision_id=${REVISION}`);
   await page.clock.install();
   await page.goto(`/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
