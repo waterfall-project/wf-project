@@ -33,13 +33,13 @@ const server = vi.hoisted(
     answers: FakeAnswers;
     clients: FakeClient[];
     unreachable: boolean;
-    structures: (() => Response) | undefined;
+    undeclared: { readonly route: string; readonly answer: () => Response } | undefined;
     timing: FakeTiming;
   } => ({
     answers: {},
     clients: [],
     unreachable: false,
-    structures: undefined,
+    undeclared: undefined,
     timing: {},
   }),
 );
@@ -52,22 +52,20 @@ vi.mock("@/api/server", () => ({
         fetch: () => Promise.reject(new TypeError("fetch failed")),
       });
     }
-    const structures = server.structures;
-    if (structures !== undefined) {
-      // An answer the contract does not declare for the structures — a failure of the
-      // service, a page of a gateway —; the session, the project and the revision from their
-      // examples.
+    const undeclared = server.undeclared;
+    if (undeclared !== undefined) {
+      // An answer the contract does not declare for one read — a failure of the service, a
+      // page of a gateway —; the other reads from their examples.
       return createApiClient({
         address: "http://api.invalid",
         fetch: (request) => {
           const path = new URL(request.url).pathname;
-          if (path.endsWith("/structures")) {
-            return Promise.resolve(structures());
+          if (path.endsWith(undeclared.route)) {
+            return Promise.resolve(undeclared.answer());
           }
-          if (path.endsWith("/session")) {
-            return Promise.resolve(Response.json(example("session")));
-          }
-          const name = /\/revisions\/[^/]+$/.test(path) ? "revision" : "project";
+          const name =
+            Object.entries(EXAMPLE_BY_END).find(([end]) => path.endsWith(end))?.[1] ??
+            (/\/revisions\/[^/]+$/.test(path) ? "revision" : "project");
           return Promise.resolve(Response.json(example(name)));
         },
       });
@@ -95,6 +93,23 @@ const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const NO_SEARCH = Promise.resolve({});
 const BANNER = '<section aria-label="Reading context"';
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+
+/** The examples the reads of a revision answer, by the end of their path, the others aside. */
+const EXAMPLE_BY_END: Readonly<Record<string, string>> = {
+  "/session": "session",
+  "/structures": "structures",
+  "/nodes": "nodes",
+  "/estimate-indicators": "estimate_indicators",
+  "/missing-rates": "missing_rates_none",
+};
+
+/** A failure of the service, in its envelope, with the correlation identifier of the request. */
+function failure(correlation: string): Response {
+  return Response.json(
+    { code: "INTERNAL_ERROR", status: 500, correlation_id: correlation },
+    { status: 500, headers: { "content-type": "application/problem+json" } },
+  );
+}
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -126,7 +141,7 @@ function inEnglish(page: ReactNode) {
 beforeEach(() => {
   server.clients = [];
   server.unreachable = false;
-  server.structures = undefined;
+  server.undeclared = undefined;
   server.timing = {};
   server.answers = {
     "GET /session": "session",
@@ -351,11 +366,7 @@ describe("the witness path", () => {
   });
 
   it("never shows an empty grid on a failure of the service: the screen of failure names it by its correlation identifier", async () => {
-    server.structures = () =>
-      Response.json(
-        { code: "INTERNAL_ERROR", status: 500, correlation_id: "req-7f3a" },
-        { status: 500, headers: { "content-type": "application/problem+json" } },
-      );
+    server.undeclared = { route: "/structures", answer: () => failure("req-7f3a") };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const page = EstimatePage({ params, searchParams: NO_SEARCH });
     await expect(page).rejects.toBeInstanceOf(UnexpectedAnswer);
@@ -366,7 +377,10 @@ describe("the witness path", () => {
   });
 
   it("never shows an empty grid when a gateway says the service is down: the API is out of reach", async () => {
-    server.structures = () => new Response("<html>Bad gateway</html>", { status: 502 });
+    server.undeclared = {
+      route: "/structures",
+      answer: () => new Response("<html>Bad gateway</html>", { status: 502 }),
+    };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
       Unreachable,
@@ -375,8 +389,10 @@ describe("the witness path", () => {
 
   it("never shows an empty grid for a revision without a main structure, which the contract rules out", async () => {
     const structures = example("structures") as { kind: string }[];
-    server.structures = () =>
-      Response.json(structures.filter((structure) => structure.kind !== "main"));
+    server.undeclared = {
+      route: "/structures",
+      answer: () => Response.json(structures.filter((structure) => structure.kind !== "main")),
+    };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       name: "UnexpectedAnswer",
@@ -552,6 +568,52 @@ describe("the indicators and the missing rates of the estimate", () => {
       "Mise en service — 2026 Enter the hourly rates Estimate indicators The estimate indicators are unavailable.",
     );
     expect(html).toMatch(/<table[^>]*role="grid"[^>]*aria-label="Estimate grid"/);
+  });
+
+  it("does not swallow a failure of the service reading the indicators: the screen of failure names it by its correlation identifier", async () => {
+    server.undeclared = { route: "/estimate-indicators", answer: () => failure("req-9b1c") };
+    const page = EstimatePage({ params, searchParams: NO_SEARCH });
+    await expect(page).rejects.toBeInstanceOf(UnexpectedAnswer);
+    await expect(page).rejects.toMatchObject({
+      operation: "getEstimateIndicators",
+      digest: "WATERFALL_CORRELATION;req-9b1c",
+    });
+  });
+
+  it("leads to the sign-in when the API refuses the indicators for want of a session", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/estimate-indicators": UNAUTHORIZED,
+    };
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      operation: "getEstimateIndicators",
+      digest: SESSION_REQUIRED_DIGEST,
+    });
+  });
+
+  it("says the API out of reach when a gateway answers for the indicators", async () => {
+    server.undeclared = {
+      route: "/estimate-indicators",
+      answer: () => new Response("<html>Bad gateway</html>", { status: 502 }),
+    };
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
+      Unreachable,
+    );
+  });
+
+  it("says the indicators unavailable when the API refuses them for a missing hourly rate", async () => {
+    server.undeclared = {
+      route: "/estimate-indicators",
+      answer: () =>
+        Response.json(
+          { code: "HOURLY_RATE_MISSING", status: 422 },
+          { status: 422, headers: { "content-type": "application/problem+json" } },
+        ),
+    };
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(text(html)).toContain("The estimate indicators are unavailable.");
   });
 });
 
