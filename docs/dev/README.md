@@ -149,10 +149,10 @@ enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
 — clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
-calculée ou non, figée ou non, colonne `sort_by` du contrat, et, pour une colonne étroite,
-l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que rend sa cellule en place
-de la valeur formatée (`render`) — et, s'il y en a un, son arbre (niveau, icône de nature par
-`RowNatureIcon`). La configuration lit les lignes par des fonctions : elle se remet à
+celles de ses cellules que le serveur calcule, figée ou non, colonne `sort_by` du contrat, et,
+pour une colonne étroite, l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que
+rend sa cellule en place de la valeur formatée (`render`) — et, s'il y en a un, son arbre
+(niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des fonctions : elle se remet à
 `DenseGrid` dans un composant client propre à l'écran (`estimate-grid.tsx`,
 `planning-grid.tsx`), et la page, serveur, ne lui passe que des données — et de chaque nœud,
 les seuls champs que la grille lit : ceux de toute grille (identité, version, champs calculés,
@@ -162,7 +162,21 @@ entiers de `listNodes` pèsent quatre mégaoctets dans la page, projetés, envir
 (#166). Une colonne qui lit
 un champ nouveau l'ajoute à cette liste : le typage de la ligne le demande, et
 `projection.test.tsx` vérifie que la grille lit la même chose de la ligne projetée que du nœud
-entier. La grille de planning
+entier. Le calculé se lit cellule par cellule (WF-IHM-0030, `computed-nodes.ts`) : un champ
+qu'aucune écriture ne porte — les montants, la marge — l'est dans chaque ligne qui le porte, et
+sa colonne a Σ en en-tête ; un champ saisissable l'est là où le nœud le nomme dans
+`computed_fields`, jamais d'après son mode ni sa nature. Une cellule calculée est grisée, marquée
+Σ et nommée « Calculé » — la marque se lit sans la couleur — ; c'est un bouton qui, cliqué ou
+pressé au clavier, refuse la saisie dans un Popover (`ComputedCell`, `ComputedRefusal`) en disant
+ce dont sa valeur dépend : pourquoi le serveur la calcule, et les lignes dont elle vient —
+nommées par leur numéro, leur nature et leur libellé. Ce dont une valeur dépend, le contrat ne
+le dit pas : le front le lit de ce que porte la ligne — sa nature, son mode, le champ — (#168),
+et dit qu'il ne le sait pas hors des règles que le contrat décrit ; les subordonnées d'une ligne
+se lisent de l'ordre et des niveaux de la réponse, qui est en profondeur d'abord, et, sous une
+recherche ou un filtre (`holdsPart`), le refus dit que des lignes dont la valeur dépend peuvent
+manquer, que la réponse ne porte pas. Le Popover ne se monte
+qu'au premier essai : une racine de Radix par cellule calculée alourdirait l'hydratation du
+premier écran. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
 `estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
 lecture de la structure principale (`grid-screen.ts`) ; le planning demande au serveur les

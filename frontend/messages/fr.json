@@ -163,6 +163,25 @@
     "predecessorSeparator": ";",
     "unknownRow": "?"
   },
+  "computedValue": {
+    "title": "Valeur calculée",
+    "refused": "{column} ne se saisit pas : Waterfall calcule cette valeur.",
+    "reasons": {
+      "summary": "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
+      "automatic": "Une tâche en mode automatique tient ses dates de sa durée, de ses liaisons et du calendrier.",
+      "float": "La marge totale d’une tâche est l’écart entre ses dates au plus tôt et au plus tard.",
+      "taskAmount": "Le montant d’une tâche est celui des lignes qu’elle porte et de ses subordonnées.",
+      "labour": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
+      "disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
+      "provision": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
+      "budgeted": "Le montant budgété est celui que la révision de référence a fixé.",
+      "reestimated": "Le montant réestimé suit les revues du reste à engager.",
+      "manualFloat": "Une tâche en mode manuel ne porte pas de marge.",
+      "unknown": "Waterfall ne précise pas ici de quoi elle dépend."
+    },
+    "dependsOn": "Elle dépend de :",
+    "partial": "Des lignes dont elle dépend peuvent manquer : la recherche ou les filtres ne les montrent pas."
+  },
   "estimateSummary": {
     "title": "Indicateurs du devis",
     "total": "Total du devis",

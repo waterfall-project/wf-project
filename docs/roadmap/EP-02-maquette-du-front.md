@@ -422,6 +422,7 @@ fond d'un utilisateur, la révision ouverte par défaut.
 - Le contrat ne dit pas ce que rend `getEstimateIndicators` quand des taux horaires manquent (WF-DEV-0010) — US-0220/L1, ouvert en #159. D'ici là, l'écran du devis montre l'avis des taux manquants et ce que les indicateurs rendent ; quand l'API ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`), l'écran reste debout et les dit indisponibles ; toute autre réponse suit la règle des lectures.
 - `EstimateIndicators` ne porte que l'écart à la révision précédente et aucun total par poste, là où WF-DEV-0060 demande l'écart à la référence et les totaux par poste — US-0220/L1, ouvert en #160. D'ici là, l'écran affiche l'écart que le contrat rend, sous son nom exact.
 - `listNodes` rend chaque nœud entier — identifiants de lignée, de parent, de catégorie, de rôle et de sous-projet, disponibilité de la saisie du reste, noms de clés répétés sur six mille nœuds — : quatre mégaoctets pour mille tâches et leurs lignes, que le serveur de Next lit puis écrivait entiers dans la page, et l'ouverture d'une grille ne tenait la seconde du §4.6.2 qu'à la marge — US-0110/L2, ouvert en #166. D'ici là, la page ne passe à la grille que les champs qu'elle affiche.
+- Le contrat ne dit pas ce dont dépend une valeur calculée, que WF-IHM-0030 demande de nommer au refus d'une saisie : `computed_fields` dit quels champs d'un nœud sont calculés, pas d'où ils viennent ; `COMPUTED_VALUE` ne porte aucun paramètre, et `SUMMARY_TASK_DERIVED` ne nomme les subordonnées que par `subordinate_node_ids` — directes ou toutes, le contrat ne le dit pas —, que le front ne peut nommer que si la même réponse de `listNodes` les porte — US-0150/L1, ouvert en #168. D'ici là, la grille lit ce dont une valeur dépend de ce que porte la ligne — sa nature, son mode, le champ —, règles du noyau recopiées, et les subordonnées directes d'une ligne de l'ordre et des niveaux de la réponse. Hors de ces règles, le refus dit « Waterfall ne précise pas ici de quoi elle dépend. » : une durée ou un avancement calculés hors d'une récapitulative, les dates calculées d'une tâche qui n'est pas en mode automatique, une grandeur calculée hors d'une provision, une marge sur une grille qui ne lit pas le mode. Sous une recherche ou un filtre — le sous-projet aujourd'hui, les filtres de tâches et de lignes à venir —, les subordonnées que la réponse ne retient pas restent sans nom, et le refus dit « Des lignes dont elle dépend peuvent manquer : la recherche ou les filtres ne les montrent pas. »
 
 ### Ordre de construction
 
@@ -631,7 +632,7 @@ WF-ARC-0070 impose. EP-06 branchera ces commandes ; les poser au bon endroit dè
 
 ## US-0150 — Valeur calculée contre valeur saisie
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0030-A`
 - **opérations** : aucune en propre
 - **issue** : #79

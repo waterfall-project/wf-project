@@ -3,9 +3,9 @@
 /**
  * A header of a dense grid: the heading of its column, from the catalogue — or, in a narrow
  * column, the icon that stands for it, named by it —; the Σ that marks a column the server
- * computes (WF-IHM-0030); the sort, when the server sorts it — a button; `aria-sort` on the
- * column sorted, and on it alone —; and the handle that widens it, by the pointer or by the
- * arrows of the keyboard, a separator whose value is the width.
+ * computes whole (WF-IHM-0030), as each of its cells bears it; the sort, when the server sorts
+ * it — a button; `aria-sort` on the column sorted, and on it alone —; and the handle that widens
+ * it, by the pointer or by the arrows of the keyboard, a separator whose value is the width.
  */
 "use client";
 
@@ -26,11 +26,13 @@ export const RESIZE_STEP = 16;
 /** The value of `aria-sort` for each state of the sort of a column. */
 const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
 
-/** What a header reads of its column. */
+/** What a header reads of its column: whether the server computes it whole, not its rows. */
 type HeaderColumn = Pick<
   GridColumn<unknown, string, unknown>,
-  "label" | "computed" | "format" | "align" | "icon"
->;
+  "label" | "format" | "align" | "icon"
+> & {
+  readonly computed?: { readonly whole: boolean };
+};
 
 /** What a header shows, and where. */
 export interface HeaderCellProps<Row extends RowData> {
@@ -97,8 +99,8 @@ function ResizeHandle<Row extends RowData>({
 }
 
 /**
- * The heading of a column: the Σ of a column the server computes, then its label — or the icon
- * that stands for it, named by it and shown on hover to whoever does not read its name.
+ * The heading of a column: the Σ of a column the server computes whole, then its label — or the
+ * icon that stands for it, named by it and shown on hover to whoever does not read its name.
  */
 function Heading({
   id,
@@ -117,7 +119,7 @@ function Heading({
       title={Icon === undefined ? undefined : label}
       className="inline-flex min-w-0 items-center gap-1"
     >
-      {column?.computed === true ? (
+      {column?.computed?.whole === true ? (
         <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
       ) : null}
       {Icon === undefined ? (

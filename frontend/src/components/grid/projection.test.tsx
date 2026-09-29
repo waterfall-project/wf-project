@@ -62,21 +62,24 @@ function answer(name: string): NodeList {
 
 /**
  * Everything a grid reads of its rows, row by row: the key, the number, the level, how the label
- * stands out, the value of each column — that it formats, sorts and totals —, and the markup of
- * the icon of the nature and of each cell its column renders, the predecessors named by the row
- * numbers of the answer.
+ * stands out, the value of each column — that it formats, sorts and totals —, which of its cells
+ * the server computes and what their values depend on, and the markup of the icon of the nature
+ * and of each cell its column renders, the predecessors named by the row numbers of the answer.
  */
 function whatTheGridReads<Row>(
   config: GridConfig<Row, NodeSortColumn, NodeTotals>,
   rows: readonly Row[],
   numbers: ReadonlyMap<string, number>,
 ) {
-  const values = rows.map((row) => [
+  const values = rows.map((row, index) => [
     config.rowKey(row),
     config.rowNumber?.(row),
     config.tree?.level(row),
     config.tree?.emphasis?.(row),
     ...config.columns.map((column) => column.value(row)),
+    ...config.columns.map((column) =>
+      column.computed?.in(row) === true ? column.computed.dependsOn(rows, index) : null,
+    ),
   ]);
   const markup = renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">

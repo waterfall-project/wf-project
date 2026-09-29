@@ -22,7 +22,7 @@
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useOptimistic, useRef, useState, useTransition } from "react";
+import { type ReactNode, useCallback, useOptimistic, useRef, useState, useTransition } from "react";
 
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import {
@@ -37,11 +37,12 @@ import { cn } from "@/components/ui/utils";
 import type { Locale } from "@/i18n/locale";
 
 import { alignment, formatCell, type GridColumn, type GridConfig } from "./columns";
+import { ComputedCell, type ComputedColumn } from "./computed-cell";
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { useRootFontSize, useRowWindow } from "./row-window";
-import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
+import { type GridQuery, type GridSort, holdsPart, searchHref, sortHref } from "./query";
 import {
   type GridPreferences,
   initialSettings,
@@ -160,16 +161,33 @@ function cellContent<Row extends RowData, Sort extends string, Totals>(
   return column === config.columns[0] ? <TreeLabel config={config} row={row} text={text} /> : text;
 }
 
-/** A row of the answer, its visible cells, at its index among all the rows of the answer. */
+/** Whether the server computes the cell of a column in a row. */
+function computedIn<Row extends RowData, Sort extends string, Totals>(
+  column: GridColumn<Row, Sort, Totals> | undefined,
+  row: Row,
+): column is ComputedColumn<Row, Sort, Totals> {
+  return column?.computed?.in(row) === true;
+}
+
+/**
+ * A row of the answer, its visible cells, at its index among all the rows of the answer. A cell
+ * the server computes in this row is shaded and marked (WF-IHM-0030), and refuses an entry.
+ */
 function BodyRow<Row extends RowData, Sort extends string, Totals>({
   table,
   config,
+  answer,
+  partial,
   row,
   index,
   locale,
 }: {
   readonly table: GridTable<Row>;
   readonly config: GridConfig<Row, Sort, Totals>;
+  /** The rows of the answer, which a computed cell reads to say what its value depends on. */
+  readonly answer: () => readonly Row[];
+  /** Whether the answer holds a part of the rows only: a search, a filter. */
+  readonly partial: boolean;
   readonly row: TableRowModel<GridFeatures, Row>;
   readonly index: number;
   readonly locale: Locale;
@@ -178,7 +196,9 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
     <TableRow aria-rowindex={index + 2} className="h-7">
       {row.getVisibleCells().map((cell) => {
         const column = configColumn(config, cell.column.id);
+        const computed = computedIn(column, row.original);
         const pinning = pinningOf(table, cell.column.id, "z-10");
+        const content = cellContent(config, column, row.original, locale);
         return (
           <TableCell
             key={cell.id}
@@ -186,12 +206,25 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
             className={cn(
               "overflow-hidden text-ellipsis",
               pinning.className,
-              column?.computed === true ? "bg-muted" : "bg-background",
+              computed ? "bg-muted" : "bg-background",
               column === undefined ? "text-muted-foreground" : null,
               alignClass(column),
             )}
           >
-            {cellContent(config, column, row.original, locale)}
+            {computed ? (
+              <ComputedCell
+                config={config}
+                column={column}
+                answer={answer}
+                // The index among the rows of the answer, not among those rendered.
+                index={row.index}
+                partial={partial}
+              >
+                {content}
+              </ComputedCell>
+            ) : (
+              content
+            )}
           </TableCell>
         );
       })}
@@ -341,6 +374,13 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     },
   });
 
+  // The rows of the answer reach each row and each computed cell by a function, never as the
+  // array: the development build of React compares again the props of what it renders again, and
+  // six thousand rows in the props of each cell weighed on each navigation of the grid.
+  const answer = useCallback(() => rows, [rows]);
+  // What a search or a filter left out may be among what a computed value depends on.
+  const partial = holdsPart(query, address);
+
   const model = table.getRowModel().rows;
   const { items, before, after } = useRowWindow({
     rows: model,
@@ -408,6 +448,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
                 key={row.id}
                 table={table}
                 config={config}
+                answer={answer}
+                partial={partial}
                 row={row}
                 index={item.index}
                 locale={locale}

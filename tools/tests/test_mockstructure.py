@@ -240,7 +240,8 @@ def test_schedule_dates_a_small_network_by_hand() -> None:
 
 def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) -> None:
     # The end-to-end paths of the front read the structure by these rows (grid.spec.ts,
-    # planning.spec.ts, witness.spec.ts): a change of the generator that moves them fails here.
+    # planning.spec.ts, witness.spec.ts, computed.spec.ts): a change of the generator that moves
+    # them fails here.
     assert answer["totals"] == {
         "task_count": 1_000,
         "estimate_line_count": 5_000,
@@ -271,6 +272,16 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert (task(3)["progress"], task(3)["is_critical"]) == ("completed", False)
     assert row(4)["kind"] == "estimate_line"
     assert row(4)["estimate_line"]["label"] == "Heures d'ingénierie"
+    assert row(4)["estimate_line"]["resource_role_id"] is not None
+    assert row(4)["estimate_line"]["hours"].isdigit()
+    assert row(4)["computed_fields"] == []
+    subordinates = [node for node in items if node["parent_id"] == row(1)["node_id"]]
+    assert [(node["row_number"], node["task"]["label"]) for node in subordinates] == [
+        (2, "Études — Poste de commande"),
+        (201, "Études — Ligne d'essais"),
+        (401, "Études — Utilités"),
+    ]
+    assert "task.finish_date" in row(1)["computed_fields"]
     assert (task(22)["label"], task(22)["progress"]) == ("Réalisation 1.1.4", "started")
     assert follows(22, 3)
     assert task(453)["label"] == "Préparation 1.3.9"

@@ -178,3 +178,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     visibilité s'affirme par `toBeInViewport` ou `withinBox` (`e2e/scroll.ts`), et un écran
     de grille prend `Screen fill`, jamais une hauteur calculée. Aucun outil ne le tient : la
     revue le cherche.
+14. **Les lignes de la réponse passées à chaque ligne rendue.** Le tableau des six mille lignes
+    donné en prop à chaque ligne ou à chaque cellule d'une grille : le build de développement
+    de React compare les props de ce qu'il rend à nouveau, et la navigation d'un tri sur le
+    serveur de développement a pris une demi-seconde de plus, assez pour qu'un parcours de la
+    chaîne dépasse son attente (US-0150/L1). La production n'en dit rien. Ce qui descend
+    jusqu'aux lignes lit la réponse par une fonction (`answer` de `DenseGrid`), jamais par le
+    tableau. Aucun outil ne le tient : la revue le cherche.
