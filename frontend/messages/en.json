@@ -177,10 +177,10 @@
       "budgeted": "The budgeted amount is the one the reference revision set.",
       "reestimated": "The re-estimated amount follows the reviews of the estimate to complete.",
       "manualFloat": "A task in manual mode bears no float.",
-      "unknown": "The server does not yet say what it depends on."
+      "unknown": "Waterfall does not say here what it depends on."
     },
     "dependsOn": "It depends on:",
-    "partial": "Other rows, which the search or the filters do not show, may be among them."
+    "partial": "Rows it depends on may be missing: the search or the filters do not show them."
   },
   "estimateSummary": {
     "title": "Estimate indicators",

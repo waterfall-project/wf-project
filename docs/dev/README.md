@@ -173,8 +173,8 @@ nommées par leur numéro, leur nature et leur libellé. Ce dont une valeur dép
 le dit pas : le front le lit de ce que porte la ligne — sa nature, son mode, le champ — (#168),
 et dit qu'il ne le sait pas hors des règles que le contrat décrit ; les subordonnées d'une ligne
 se lisent de l'ordre et des niveaux de la réponse, qui est en profondeur d'abord, et, sous une
-recherche ou un filtre (`holdsPart`), le refus dit que d'autres lignes, que la réponse ne porte
-pas, peuvent en être. Le Popover ne se monte
+recherche ou un filtre (`holdsPart`), le refus dit que des lignes dont la valeur dépend peuvent
+manquer, que la réponse ne porte pas. Le Popover ne se monte
 qu'au premier essai : une racine de Radix par cellule calculée alourdirait l'hydratation du
 premier écran. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,

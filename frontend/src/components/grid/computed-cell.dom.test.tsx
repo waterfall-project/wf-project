@@ -29,6 +29,8 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const PARTIAL =
+  "Des lignes dont elle dépend peuvent manquer\u00a0: la recherche ou les filtres ne les montrent pas.";
 const estimate = example("nodes_estimate") as NodeList;
 const planning = example("nodes_planning") as NodeList;
 
@@ -229,21 +231,27 @@ describe("a value of a grid the server computes", () => {
   });
 
   it("says, under a search or a filter, that rows it does not show may be among those it names", async () => {
-    const partial =
-      "D’autres lignes, que la recherche ou les filtres ne montrent pas, peuvent en faire partie.";
     renderGrid("planning", "fr", { sort: undefined, search: "Études" });
     await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
-    expect(said(refusal()).paragraphs.at(-1)).toBe(partial);
+    expect(said(refusal()).paragraphs.at(-1)).toBe(PARTIAL);
     await userEvent.keyboard("{Escape}");
     // A value drawn from no row says nothing of them.
     await userEvent.click(within(cell("Revue de conception", FINISH)).getByRole("button"));
-    expect(refusal()).not.toHaveTextContent(partial);
+    expect(refusal()).not.toHaveTextContent(PARTIAL);
+  });
+
+  it("says it alone, under a search, when the value is drawn from rows none of which it names", async () => {
+    renderGrid("estimate", "fr", { sort: undefined, search: "Réception" });
+    await userEvent.click(within(cell("Réception usine", BUDGETED)).getByRole("button"));
+    expect(said(refusal()).paragraphs.at(-1)).toBe(PARTIAL);
+    expect(refusal()).not.toHaveTextContent(/Elle dépend de/);
+    expect(within(refusal()).queryByRole("list")).toBeNull();
   });
 
   it("says nothing of rows left out when the answer holds them all", async () => {
     renderGrid("planning");
     await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
-    expect(refusal()).not.toHaveTextContent(/D’autres lignes/);
+    expect(refusal()).not.toHaveTextContent(PARTIAL);
   });
 
   it("says a task in manual mode bears no float", async () => {

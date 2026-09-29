@@ -177,10 +177,10 @@
       "budgeted": "Le montant budgété est celui que la révision de référence a fixé.",
       "reestimated": "Le montant réestimé suit les revues du reste à engager.",
       "manualFloat": "Une tâche en mode manuel ne porte pas de marge.",
-      "unknown": "Le serveur ne dit pas encore de quoi elle dépend."
+      "unknown": "Waterfall ne précise pas ici de quoi elle dépend."
     },
     "dependsOn": "Elle dépend de :",
-    "partial": "D’autres lignes, que la recherche ou les filtres ne montrent pas, peuvent en faire partie."
+    "partial": "Des lignes dont elle dépend peuvent manquer : la recherche ou les filtres ne les montrent pas."
   },
   "estimateSummary": {
     "title": "Indicateurs du devis",
