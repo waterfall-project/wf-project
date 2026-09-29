@@ -13,9 +13,10 @@
  * The cell is a button, which the pointer and the keyboard reach alike; the entry at the keyboard
  * (US-0120) will open the same refusal from the cell it lands on. Its popover mounts on the first
  * try only: a root of Radix in each computed cell would cost the hydration of the first screen as
- * many contexts, and the second of §4.6.2 counts it. The server is asked once the cell is first
- * tried, and again when its row changes — the page read anew —: an answer for a row the cell no
- * longer shows is dropped.
+ * many contexts, and the second of §4.6.2 counts it. The server is asked while the refusal is
+ * open, once for each question — the row, its version, the field —: a page read anew asks
+ * nothing of a closed refusal, nor again of a row in the same version. The refusal reads out, in
+ * one live region, that it is reading, then what the server said.
  */
 "use client";
 
@@ -49,38 +50,47 @@ const TRIGGER =
 const UNREACHABLE: Outcome<ComputedDependencies> = { kind: "unreachable" };
 
 /**
- * Ask the server what the value of a field of a row depends on: `undefined` until it answers. An
- * answer that comes once the row has changed, or the cell has gone, is dropped.
+ * Ask the server what the value of a field of a row depends on, while the refusal is open and
+ * has no answer to this question — the identity of the row, its version, the field —:
+ * `undefined` until it answers. The answer is kept for the question it answers: a row read anew
+ * in the same version is not asked again, and one in another version is asked afresh, the answer
+ * before never shown for it. An answer that comes once the question has changed, or the cell has
+ * gone, is dropped.
  */
 function useDependencies<Row>(
   dependencies: DependencyReader<Row> | undefined,
   row: Row,
   field: ComputedValueField,
+  open: boolean,
 ) {
-  // The answer, with what it answers: the answer to a row read before is not this row's.
+  const identity = dependencies?.identity(row);
+  const id = identity?.id;
+  const question =
+    identity === undefined ? undefined : `${identity.id}@${String(identity.version)}/${field}`;
   const [answer, setAnswer] = useState<{
-    readonly row: Row;
-    readonly field: ComputedValueField;
+    readonly question: string;
     readonly outcome: Outcome<ComputedDependencies>;
   }>();
+  const current = answer?.question === question ? answer?.outcome : undefined;
+  const asking = open && current === undefined;
   useEffect(() => {
-    if (dependencies === undefined) {
+    if (!asking || dependencies === undefined || id === undefined || question === undefined) {
       return undefined;
     }
     let live = true;
     const answered = (outcome: Outcome<ComputedDependencies>) => {
       if (live) {
-        setAnswer({ row, field, outcome });
+        setAnswer({ question, outcome });
       }
     };
-    void dependencies(row, field).then(answered, () => {
+    void dependencies.read(id, field).then(answered, () => {
       answered(UNREACHABLE);
     });
     return () => {
       live = false;
     };
-  }, [dependencies, row, field]);
-  return answer?.row === row && answer.field === field ? answer.outcome : undefined;
+  }, [asking, dependencies, id, field, question]);
+  return { answer: current, reading: asking && question !== undefined };
 }
 
 /**
@@ -134,6 +144,8 @@ export interface ComputedRefusalProps<Row, Sort extends string, Totals> {
   readonly row: Row;
   /** How to ask the server what the value depends on; none, and the refusal says no more. */
   readonly dependencies: DependencyReader<Row> | undefined;
+  /** Whether the refusal shows: the server is asked while it does, and only then. */
+  readonly open: boolean;
 }
 
 /**
@@ -144,12 +156,12 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
   column,
   row,
   dependencies,
+  open,
 }: ComputedRefusalProps<Row, Sort, Totals>) {
   const t = useTranslations("computedValue");
   const columns = useTranslations("grid.columns");
   const title = useId();
-  const answer = useDependencies(dependencies, row, column.computed.field(row));
-  const reading = dependencies !== undefined && answer === undefined;
+  const { answer, reading } = useDependencies(dependencies, row, column.computed.field(row), open);
   return (
     <PopoverContent aria-labelledby={title} className="w-80 space-y-1.5 text-xs">
       <p id={title} className="flex items-center gap-1.5 text-sm font-medium">
@@ -157,13 +169,12 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
         {t("title")}
       </p>
       <p>{t("refused", { column: columns(column.label) })}</p>
-      {reading ? (
-        <p role="status" className="text-muted-foreground">
-          {t("pending")}
-        </p>
-      ) : null}
-      {answer?.kind === "done" ? <Dependencies dependencies={answer.data} /> : null}
-      <OutcomeNotice outcome={answer} onClear={keep} />
+      {/* One region, in place as the refusal opens: what it reads, then what the server said. */}
+      <div role="status" aria-live="polite" aria-busy={reading} className="space-y-1.5">
+        {reading ? <p className="text-muted-foreground">{t("pending")}</p> : null}
+        {answer?.kind === "done" ? <Dependencies dependencies={answer.data} /> : null}
+        <OutcomeNotice outcome={answer} onClear={keep} />
+      </div>
     </PopoverContent>
   );
 }
@@ -216,7 +227,7 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger className={TRIGGER}>{content}</PopoverTrigger>
-      <ComputedRefusal column={column} row={row} dependencies={dependencies} />
+      <ComputedRefusal column={column} row={row} dependencies={dependencies} open={open} />
     </Popover>
   );
 }

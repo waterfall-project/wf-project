@@ -4,7 +4,7 @@
  * The grid of the planning of a revision (WF-PLA-0080, US-0220), at the route of its function
  * (`functions.json`): the banner of its reading context (WF-IHM-0020), and the grid on the main
  * structure of the revision, its tasks alone — the server renders no line for it (`kinds`) —,
- * asked and handed the fields it shows alone (`fields`, `projectNodes`). The rows come in the order of the answer,
+ * asked and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer,
  * with the totals of the answer: a header clicked or a search entered changes the address, and
  * this page reads anew (`grid-screen.ts`).
  */
@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
 import { ContextBanner } from "@/components/context/context-banner";
-import { type NodeList, nodeFieldNames, projectNodes } from "@/components/grid/nodes";
+import type { NodeTotals } from "@/components/grid/nodes";
 import {
   PLANNING_FIELDS,
   PLANNING_GRID,
@@ -39,14 +39,20 @@ export async function generateMetadata({
 }
 
 /** The title of the grid, and what it holds: the structure, and its tasks retained. */
-function PlanningHeader({ label, nodes }: { readonly label: string; readonly nodes: NodeList }) {
+function PlanningHeader({
+  label,
+  totals,
+}: {
+  readonly label: string;
+  readonly totals: NodeTotals;
+}) {
   const t = useTranslations();
   return (
     <PageHeader
       title={t("functions.planning")}
       icon={FUNCTION_ICONS.planning}
       density={FUNCTION_DENSITY.planning}
-      subtitle={t("planningGrid.summary", { structure: label, tasks: nodes.totals.task_count })}
+      subtitle={t("planningGrid.summary", { structure: label, tasks: totals.task_count })}
     />
   );
 }
@@ -64,15 +70,15 @@ export default async function PlanningPage({
     key: PLANNING_GRID.key,
     sortable: PLANNING_SORT_COLUMNS,
     kinds: PLANNING_KINDS,
-    fields: nodeFieldNames(PLANNING_FIELDS),
+    fields: PLANNING_FIELDS,
   });
   return (
     <>
       <ContextBanner reading={screen.reading} />
       <Screen density={FUNCTION_DENSITY.planning} fill>
-        <PlanningHeader label={screen.label} nodes={screen.nodes} />
+        <PlanningHeader label={screen.label} totals={screen.nodes.totals} />
         <PlanningGrid
-          nodes={projectNodes(screen.nodes, PLANNING_FIELDS)}
+          nodes={screen.nodes}
           structure={screen.structure}
           query={screen.query}
           preferences={screen.preferences}

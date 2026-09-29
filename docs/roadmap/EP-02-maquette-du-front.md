@@ -390,16 +390,23 @@ fond d'un utilisateur, la révision ouverte par défaut.
   `CommandCondition`) — US-0100/L1, ouvert en #137. Corrigé par EP-02/L4 : `reason` est un
   code (`NotComputableReason`), un par grandeur nulle au dénominateur des indicateurs du
   §3.4.5.8 et des autres `Computable` du contrat, que `ComputedIndicator` rend par le
-  catalogue ; les exemples ne portent plus de phrase.
+  catalogue ; les exemples ne portent plus de phrase. L'avancement physique d'une
+  récapitulative (`TaskFacet.physical_progress`) devient un `Computable`, qui peut dire qu'il
+  n'est pas calculable faute de montant budgété dans son sous-arbre (`no_budgeted_amount`,
+  WF-IND-0060) ; la grille de planning le lira avec le Gantt (#114).
 - Le contrat n'avait pas de liste des tâches de fond d'un utilisateur : une tâche ne se
   relisait que par son `task_id`, que seul l'onglet qui l'a lancée connaît — US-0180/L1,
   ouvert en #146. Corrigé par EP-02/L4 : `listBackgroundTasks` (`GET /tasks`) rend les tâches
   de l'appelant, celles qui courent et celles finies depuis une date, et `BackgroundTaskStatus`
-  est nommé. Le suivi de la coquille lit, pour une session, celles qui courent à son montage,
-  en plus des références que garde le stockage de session de l'onglet (`sessionStorage`), qui
-  porte aussi le nom que l'utilisateur leur a donné : un autre onglet, un autre poste les
-  retrouvent. Une tâche trouvée par la liste ou le stockage vient sans la commande qui l'a
-  lancée, et se relance depuis l'écran de son objet.
+  est nommé. Le suivi de la coquille lit, pour une session, celles qui courent à son montage et
+  chaque fois que l'onglet redevient visible, en plus des références que garde le stockage de
+  session de l'onglet (`sessionStorage`), qui porte aussi le nom que l'utilisateur leur a donné :
+  un autre onglet, un autre poste les retrouvent. Une tâche trouvée par la liste ou le stockage
+  vient sans la commande qui l'a lancée, et se relance depuis l'écran de son objet. Reste hors de
+  portée l'annonce d'une tâche lancée ailleurs et finie entre deux lectures : elle ne court plus,
+  la liste ne la rend pas. `finished_since` ne le règle pas simplement — sa date est celle du
+  serveur, que l'horloge du poste ne vaut pas, et l'onglet qui l'a lancée l'a déjà annoncée —,
+  ce qui demanderait un curseur rendu par la liste elle-même.
 - Deux signalements n'avaient pas de zone au contrat — le dépassement du budget d'un
   sous-projet (`SubprojectBalance.is_over_budget`) et les signaux de santé du pilotage
   (`PilotHealth.signals`) — US-0160/L1, ouvert en #139. Corrigé par EP-02/L4 : chacun porte sa

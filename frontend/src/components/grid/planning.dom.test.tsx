@@ -259,6 +259,40 @@ describe("the grid of the planning", () => {
     expect(texts(bodyRows().find((row) => texts(row)[1] === "Revue de conception"))[8]).toBe("2");
   });
 
+  it("writes each lag in its unit, in months, and a lead in weeks", () => {
+    // What the API would answer of the dossier linked to its two predecessors otherwise.
+    const [studies, review] = [planning.items[1], planning.items[3]];
+    const links = [
+      { node: studies, lag: 2, unit: "months" as const },
+      { node: review, lag: -1, unit: "weeks" as const },
+    ].flatMap(({ node, lag, unit }) =>
+      node === undefined
+        ? []
+        : [
+            {
+              predecessor_node_id: node.node_id,
+              predecessor_row_number: node.row_number,
+              link_type: "start_to_start" as const,
+              lag,
+              lag_unit: unit,
+            },
+          ],
+    );
+    const linked = {
+      ...planning,
+      items: planning.items.map((node) =>
+        node.task?.label === "Dossier de conception" ? { ...node, predecessors: links } : node,
+      ),
+    };
+    const { unmount } = renderPlanning(linked);
+    const dossier = () =>
+      texts(bodyRows().find((row) => texts(row)[1] === "Dossier de conception"));
+    expect(dossier()[8]).toBe(`2DD+2${NBSP}m;5DD-1${NBSP}sem`);
+    unmount();
+    renderPlanning(linked, "en");
+    expect(dossier()[8]).toBe(`2SS+2${NBSP}mo;5SS-1${NBSP}wk`);
+  });
+
   it("shows its figures, units and links in English too", () => {
     renderPlanning(planning, "en");
     expect(texts(bodyRows()[4])).toEqual([

@@ -15,3 +15,27 @@ rules:
   operation-description: error
   no-unresolved-refs: error
   security-defined: error
+  # Une liste de la requête s'écrit en un seul paramètre, ses valeurs séparées par des
+  # virgules (`explode: false`, README, « Conventions ») : un paramètre de tableau qui ne le
+  # déclare pas, ou qui déclare `explode: true`, est refusé.
+  rule/array-parameter-explode-declared:
+    subject:
+      type: Schema
+      property: type
+    where:
+      - subject:
+          type: Parameter
+          property: explode
+        assertions:
+          defined: false
+    assertions:
+      notPattern: '^array$'
+    message: 'Un paramètre de tableau déclare `explode: false`.'
+  rule/array-parameter-not-exploded:
+    subject:
+      type: Parameter
+      property: explode
+    assertions:
+      const: false
+    message: 'Un paramètre déclare `explode: false`, jamais `explode: true`.'
+

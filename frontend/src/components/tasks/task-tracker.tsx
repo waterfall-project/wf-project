@@ -10,10 +10,12 @@
  * One tracker for every kind of task, in the root layout: a navigation within the application
  * keeps it, and nothing of it blocks the screen — no dialog, no control disabled. A full
  * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`),
- * with what the user named them after; and, for a session, the tracker asks the API as it mounts
- * which tasks of its user still run (`listBackgroundTasks`), and follows those it did not — started
- * from another tab, another workstation —, without their command: failed, such a task is run
- * again from the screen of its object. A list the API does not give leaves the tracker as it is.
+ * with what the user named them after; and, for a session, the tracker asks the API as it mounts,
+ * and each time the tab shows again, which tasks of its user still run (`listBackgroundTasks`),
+ * and follows those it did not — started from another tab, another workstation —, without their
+ * command: failed, such a task is run again from the screen of its object. A list the API does
+ * not give leaves the tracker as it is. A task started elsewhere that ended between two readings
+ * is not found, nor announced.
  *
  * Its panel lies under the bar of the shell, in the flow of the page, and a button of the bar
  * shows or hides it, with the number of the tasks followed. Until the user decides, it shows
@@ -118,23 +120,34 @@ export function TaskTracker({ signedIn = false, children }: TaskTrackerProps) {
   useEffect(() => {
     dispatch({ type: "restore", tasks: restoreTasks() });
   }, []);
-  // The tasks of the user that still run, read once, after those the tab kept: what the API
-  // does not give, refused or out of reach, the tracker does without.
+  // The tasks of the user that still run, read after those the tab kept, and again each time
+  // the tab shows once more — the user may have started one from another tab meanwhile: what
+  // the API does not give, refused or out of reach, the tracker does without.
   useEffect(() => {
     if (!signedIn) {
       return undefined;
     }
     let live = true;
-    void listRunningTasks().then(
-      (outcome) => {
-        if (live && outcome.kind === "done") {
-          dispatch({ type: "found", tasks: outcome.data });
-        }
-      },
-      () => undefined,
-    );
+    const list = () => {
+      void listRunningTasks().then(
+        (outcome) => {
+          if (live && outcome.kind === "done") {
+            dispatch({ type: "found", tasks: outcome.data });
+          }
+        },
+        () => undefined,
+      );
+    };
+    const shown = () => {
+      if (document.visibilityState === "visible") {
+        list();
+      }
+    };
+    list();
+    document.addEventListener("visibilitychange", shown);
     return () => {
       live = false;
+      document.removeEventListener("visibilitychange", shown);
     };
   }, [signedIn]);
   useEffect(() => {

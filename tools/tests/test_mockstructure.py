@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockstructure
+from wftools import REPOSITORY, mockdata, mockstructure
 from wftools.mockstructure import Task
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
@@ -144,6 +144,9 @@ def test_a_task_lasts_its_duration_in_working_days(items: list[Node]) -> None:
 def test_a_task_starts_after_its_predecessors_finish(items: list[Node]) -> None:
     nodes = by_id(items)
     for node in tasks(items):
+        for link in node.get("predecessors", []):
+            designated = nodes[link["predecessor_node_id"]]
+            assert link["predecessor_row_number"] == designated["row_number"]
         finishes = [
             nodes[link["predecessor_node_id"]]["task"]["finish_date"]
             for link in node.get("predecessors", [])
@@ -240,8 +243,9 @@ def test_schedule_dates_a_small_network_by_hand() -> None:
 
 def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) -> None:
     # The end-to-end paths of the front read the structure by these rows (grid.spec.ts,
-    # planning.spec.ts, witness.spec.ts, computed.spec.ts): a change of the generator that moves
-    # them fails here.
+    # planning.spec.ts, witness.spec.ts, computed.spec.ts), and the refusal of computed.spec.ts
+    # what summary_dependencies.json says of row 1: a change of the generator that moves them
+    # fails here.
     assert answer["totals"] == {
         "task_count": 1_000,
         "estimate_line_count": 5_000,
@@ -284,6 +288,18 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         (401, "Études — Utilités"),
     ]
     assert "task.finish_date" in row(1)["computed_fields"]
+    dependencies = cast("dict[str, Any]", mockdata.summary_dependencies(answer))
+    assert dependencies["node_id"] == row(1)["node_id"]
+    assert dependencies["field"] == "task.finish_date"
+    assert dependencies["depends_on"] == ["subordinates"]
+    assert [(entry["row_number"], entry["label"]) for entry in dependencies["rows"]] == [
+        (2, "Études — Poste de commande"),
+        (201, "Études — Ligne d'essais"),
+        (401, "Études — Utilités"),
+    ]
+    assert [entry["node_id"] for entry in dependencies["rows"]] == [
+        node["node_id"] for node in subordinates
+    ]
     assert (task(22)["label"], task(22)["progress"]) == ("Réalisation 1.1.4", "started")
     assert follows(22, 3)
     assert task(453)["label"] == "Préparation 1.3.9"

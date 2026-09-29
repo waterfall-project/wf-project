@@ -304,14 +304,14 @@ ComputedDependency:
     subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de
     ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche
     en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier
-    (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard ;
-    `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas (WF-PLA-0100) ;
-    `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de sa charge et
-    du taux horaire de sa catégorie ; `unit_disbursement`, celui d'une ligne hors
-    main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0020) ; `risk`, les
+    (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard
+    (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas
+    (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de
+    sa charge et du taux horaire de sa catégorie ; `unit_disbursement`, celui d'une ligne
+    hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les
     grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ;
     `reference_revision`, le montant budgété, fixé par la révision de référence
-    (WF-DEV-0030) ; `remaining_reviews`, le montant réestimé, suivi par les revues du
+    (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du
     reste à engager (WF-RAE-0040).
   enum:
     - subordinates
@@ -351,9 +351,13 @@ ComputedValueDependencies:
     depends_on:
       type: array
       minItems: 1
+      uniqueItems: true
+      description: Chaque règle une fois, dans l'ordre où la dire.
       items: { $ref: '#/ComputedDependency' }
     rows:
       type: array
+      uniqueItems: true
+      description: Chaque ligne une fois, dans l'ordre du plan.
       items: { $ref: '#/DependencyRow' }
 
 EntryAvailability:
@@ -443,8 +447,12 @@ TaskFacet:
       type: boolean
       description: Appartenance au chemin critique, calculée (WF-PLA-0100).
     physical_progress:
-      anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
-      description: Avancement physique d'une récapitulative, calculé (WF-IND-0060).
+      anyOf: [{ $ref: indicators.yaml#/Computable }, { type: 'null' }]
+      description: >-
+        Avancement physique d'une récapitulative, calculé : le rapport des montants
+        budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce
+        sous-arbre (WF-IND-0060), non calculable quand ce total est nul
+        (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative.
     budgeted_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-

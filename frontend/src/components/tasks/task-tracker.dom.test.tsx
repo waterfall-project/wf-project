@@ -7,11 +7,17 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { markRevision } from "@/api/actions/revisions";
-import { type ApiClient, createApiClient } from "@/api/client";
+import type { ApiClient } from "@/api/client";
 import type { BackgroundTask, Outcome } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  unreachable,
+} from "@/test/fixtures";
 
 import { STORAGE_KEY } from "./storage";
 import { POLL_INTERVAL } from "./task-entry";
@@ -179,14 +185,6 @@ function progressText(): string | null | undefined {
 /** The paths the tracker asked the API. */
 function reads(client: FakeClient): string[] {
   return client.calls.filter((call) => call.route === TASK).map((call) => call.path);
-}
-
-/** A client of the API whose every call finds the API out of reach. */
-function unreachable(): ApiClient {
-  return createApiClient({
-    address: "http://unreachable.invalid",
-    fetch: () => Promise.reject(new TypeError("fetch failed")),
-  });
 }
 
 beforeEach(() => {
@@ -662,6 +660,30 @@ describe("the tasks of its user the API lists", () => {
     expect(
       within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
     ).toBeVisible();
+  });
+
+  it("reads the list again when the tab shows once more, and follows what another tab started", async () => {
+    const client = serve({ [TASKS]: ["tasks_none", "tasks_running"], [TASK]: "task_running" });
+    render(shell(<Screen name="Planning" />, true));
+    const listed = () => client.calls.filter((call) => call.route === TASKS);
+    await vi.waitFor(() => {
+      expect(listed()).toHaveLength(1);
+    });
+    expect(within(panel()).queryByRole("list")).toBeNull();
+    // Hidden, the tab asks nothing; shown again, it asks.
+    const state = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(listed()).toHaveLength(1);
+    state.mockReturnValue("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision",
+    );
+    expect(listed()).toHaveLength(2);
   });
 
   it("follows once a task the tab already follows, with what the user named it after", async () => {

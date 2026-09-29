@@ -25,19 +25,22 @@ NotComputableReason:
     constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`,
     la projection au rythme constaté quand l'indice de coût est nul, faute de valeur
     acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ;
-    `no_reference_budget`, la consommation du budget et l'avancement physique
-    (WF-IND-0040, WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier
-    (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070,
-    WF-PTF-0060) ; `no_closed_offer`, le taux de transformation d'une période sans offre
-    close (WF-PTF-0050).
+    `no_reference_budget`, la consommation du budget et l'avancement physique du projet
+    (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une
+    récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ;
+    `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le
+    taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le
+    taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage
+    (WF-PTF-0050).
   enum:
     - no_actual_cost
     - no_earned_value
     - no_planned_value
     - no_reference_budget
+    - no_budgeted_amount
     - no_actual_or_remaining
     - no_capacity
-    - no_closed_offer
+    - no_offer_out_of_pricing
 
 CalculationContext:
   type: object

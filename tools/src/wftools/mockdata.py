@@ -395,9 +395,12 @@ def volumes() -> dict[str, JsonObject]:
 
 
 def summary_dependencies(answer: JsonObject) -> JsonObject:
-    """Return what the finish date of the first summary depends on: its direct subordinates."""
+    """Return what the finish date of the first summary depends on: its direct subordinates.
+
+    The subordinates of a summary are its tasks: a line it bears is not one of them.
+    """
     items = cast("list[dict[str, Any]]", answer["items"])
-    summary = items[0]
+    summary = next(node for node in items if node["kind"] == "task" and node["task"]["is_summary"])
     rows: list[JsonValue] = [
         {
             "node_id": node["node_id"],
@@ -405,7 +408,7 @@ def summary_dependencies(answer: JsonObject) -> JsonObject:
             "label": node["task"]["label"],
         }
         for node in items
-        if node["parent_id"] == summary["node_id"]
+        if node["parent_id"] == summary["node_id"] and node["kind"] == "task"
     ]
     return {
         "node_id": summary["node_id"],

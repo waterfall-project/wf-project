@@ -5,7 +5,7 @@
  * (`functions.json`): the banner of its reading context (WF-IHM-0020); the hourly rates its
  * calculation lacks and its indicators (`EstimateSummary`), read for the sub-project the address
  * filters; and the grid on the main structure of the revision, its tasks and their lines, asked
- * and handed the fields it shows alone (`fields`, `projectNodes`). The rows come in the order of the answer, with the
+ * and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer, with the
  * totals of the answer: a header clicked or a search entered changes the address, and this page
  * reads anew (`grid-screen.ts`). The
  * indicators and the rates are read alongside the grid. A refused read of the rates is thrown
@@ -22,7 +22,7 @@ import { ContextBanner } from "@/components/context/context-banner";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import { ESTIMATE_FIELDS, ESTIMATE_GRID, ESTIMATE_SORT_COLUMNS } from "@/components/grid/estimate";
 import { EstimateGrid } from "@/components/grid/estimate-grid";
-import { type NodeList, nodeFieldNames, projectNodes } from "@/components/grid/nodes";
+import type { NodeTotals } from "@/components/grid/nodes";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import type { PageSearchParams } from "@/navigation/context";
@@ -113,7 +113,13 @@ async function readEstimateFigures(at: GridAddress) {
 }
 
 /** The title of the grid, and what it holds: the structure, its tasks and lines retained. */
-function EstimateHeader({ label, nodes }: { readonly label: string; readonly nodes: NodeList }) {
+function EstimateHeader({
+  label,
+  totals,
+}: {
+  readonly label: string;
+  readonly totals: NodeTotals;
+}) {
   const t = useTranslations();
   return (
     <PageHeader
@@ -122,8 +128,8 @@ function EstimateHeader({ label, nodes }: { readonly label: string; readonly nod
       density={FUNCTION_DENSITY.estimate}
       subtitle={t("estimateGrid.summary", {
         structure: label,
-        tasks: nodes.totals.task_count,
-        lines: nodes.totals.estimate_line_count,
+        tasks: totals.task_count,
+        lines: totals.estimate_line_count,
       })}
     />
   );
@@ -143,7 +149,7 @@ export default async function EstimatePage({
     readGridScreen(at, {
       key: ESTIMATE_GRID.key,
       sortable: ESTIMATE_SORT_COLUMNS,
-      fields: nodeFieldNames(ESTIMATE_FIELDS),
+      fields: ESTIMATE_FIELDS,
     }),
     readEstimateFigures(at),
     requestSession(),
@@ -152,14 +158,14 @@ export default async function EstimatePage({
     <>
       <ContextBanner reading={screen.reading} />
       <Screen density={FUNCTION_DENSITY.estimate} fill>
-        <EstimateHeader label={screen.label} nodes={screen.nodes} />
+        <EstimateHeader label={screen.label} totals={screen.nodes.totals} />
         <EstimateSummary
           indicators={indicators}
           missingRates={missingRates}
           permissions={session?.permissions ?? []}
         />
         <EstimateGrid
-          nodes={projectNodes(screen.nodes, ESTIMATE_FIELDS)}
+          nodes={screen.nodes}
           structure={screen.structure}
           query={screen.query}
           preferences={screen.preferences}

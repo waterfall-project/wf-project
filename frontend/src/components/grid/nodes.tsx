@@ -21,6 +21,12 @@ type TaskFacet = components["schemas"]["TaskFacet"];
 /** The facet of a node that is a line of the estimate. */
 type EstimateLineFacet = components["schemas"]["EstimateLineFacet"];
 
+/** A field of the task of a node. */
+export type TaskField = keyof TaskFacet;
+
+/** A field of the line of the estimate of a node. */
+export type LineField = keyof EstimateLineFacet;
+
 /** The totals of a reading of the nodes, which the server computes. */
 export type NodeTotals = components["schemas"]["NodeTotals"];
 

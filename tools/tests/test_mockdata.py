@@ -62,23 +62,38 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "80,00 de l'heure" in volumes["hourly_rates.json"]["summary"]
 
 
-def test_the_first_summary_depends_on_its_direct_subordinates(volumes: dict[str, Any]) -> None:
-    # The refusal the journeys try on the finish date of row 1 names what the grid names:
-    # computed.spec.ts reads the rows 2, 201 and 401 of the structure.
-    items = cast("list[Node]", volumes["nodes_thousand.json"]["value"]["items"])
-    dependencies = volumes["summary_dependencies.json"]["value"]
-    assert dependencies["node_id"] == items[0]["node_id"]
-    assert dependencies["field"] in items[0]["computed_fields"]
-    assert dependencies["depends_on"] == ["subordinates"]
-    assert [(row["row_number"], row["label"]) for row in dependencies["rows"]] == [
-        (2, "Études — Poste de commande"),
-        (201, "Études — Ligne d'essais"),
-        (401, "Études — Utilités"),
+def test_the_dependencies_of_a_summary_are_its_tasks_not_its_lines() -> None:
+    def task(row: int, parent: int | None, label: str, *, summary: bool = False) -> Node:
+        return {
+            "node_id": f"n{row}",
+            "parent_id": None if parent is None else f"n{parent}",
+            "row_number": row,
+            "kind": "task",
+            "task": {"label": label, "is_summary": summary},
+        }
+
+    line: Node = {
+        "node_id": "n3",
+        "parent_id": "n2",
+        "row_number": 3,
+        "kind": "estimate_line",
+        "estimate_line": {"label": "Ligne propre"},
+    }
+    answer: dict[str, Any] = {
+        "items": [
+            task(1, None, "Tâche seule"),
+            task(2, None, "Phase", summary=True),
+            line,
+            task(4, 2, "Lot A"),
+            task(5, 2, "Lot B"),
+        ]
+    }
+    dependencies = mockdata.summary_dependencies(answer)
+    assert dependencies["node_id"] == "n2"
+    assert dependencies["rows"] == [
+        {"node_id": "n4", "row_number": 4, "label": "Lot A"},
+        {"node_id": "n5", "row_number": 5, "label": "Lot B"},
     ]
-    by_id = {node["node_id"]: node for node in items}
-    for row in dependencies["rows"]:
-        assert by_id[row["node_id"]]["row_number"] == row["row_number"]
-        assert by_id[row["node_id"]]["parent_id"] == items[0]["node_id"]
 
 
 def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str, Any]) -> None:

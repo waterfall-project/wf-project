@@ -783,9 +783,10 @@
       "no_earned_value": "No earned value: the cost index is zero.",
       "no_planned_value": "No planned value at the calculation date.",
       "no_reference_budget": "No reference budget.",
+      "no_budgeted_amount": "No budgeted amount in the subtree of the task.",
       "no_actual_or_remaining": "Neither actual cost nor estimate to complete.",
       "no_capacity": "No capacity for this role over the period.",
-      "no_closed_offer": "No offer closed over the period."
+      "no_offer_out_of_pricing": "No offer left the Pricing state over the period."
     },
     "CurveSeries": {
       "series": {

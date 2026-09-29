@@ -22,7 +22,11 @@
           "is_milestone": false,
           "budgeted_amount": "100000.00",
           "reestimated_amount": "100000.00",
-          "physical_progress": "0.5"
+          "physical_progress": {
+            "is_computable": true,
+            "value": "0.5",
+            "reason": null
+          }
         },
         "computed_fields": [
           "task.duration_days",

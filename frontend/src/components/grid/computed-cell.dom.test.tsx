@@ -9,7 +9,14 @@ import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+  unreachable,
+} from "@/test/fixtures";
 
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID } from "./estimate";
@@ -43,6 +50,18 @@ const STRUCTURE_PATH = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.
 const PENDING = "Lecture de ce dont elle dépend…";
 const estimate = example("nodes_estimate") as NodeList;
 const planning = example("nodes_planning") as NodeList;
+
+/** The answer of the planning read anew, the summary « Études » changed since: a new version. */
+function withSummaryChanged(): NodeList {
+  const read = structuredClone(planning);
+  const [summary] = read.items;
+  return summary === undefined
+    ? read
+    : {
+        ...read,
+        items: [{ ...summary, lock_version: summary.lock_version + 1 }, ...read.items.slice(1)],
+      };
+}
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>, held = 0): FakeClient {
@@ -112,7 +131,7 @@ function refusal(name = "Valeur calculée"): HTMLElement {
 async function said(name?: string) {
   const dialog = refusal(name);
   await vi.waitFor(() => {
-    expect(within(dialog).queryByRole("status")).toBeNull();
+    expect(within(dialog).getByRole("status")).toHaveAttribute("aria-busy", "false");
   });
   return {
     paragraphs: [...dialog.querySelectorAll("p")].map((paragraph) => paragraph.textContent),
@@ -247,7 +266,7 @@ describe("a value of a grid the server computes", () => {
     ]);
   });
 
-  it("says it is reading what the value depends on until the server answers", async () => {
+  it("says it is reading what the value depends on until the server answers, in one live region", async () => {
     let answer: (value?: unknown) => void = () => undefined;
     serve(
       { [DEPENDENCIES]: "dependencies_summary" },
@@ -257,39 +276,38 @@ describe("a value of a grid the server computes", () => {
     );
     renderGrid("planning");
     await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
-    expect(within(refusal()).getByRole("status")).toHaveTextContent(PENDING);
+    const region = within(refusal()).getByRole("status");
+    expect(region).toHaveAttribute("aria-live", "polite");
+    expect(region).toHaveAttribute("aria-busy", "true");
+    expect(region).toHaveTextContent(PENDING);
     expect(within(refusal()).queryByRole("list")).toBeNull();
+    await expectAccessible(document.body);
     answer();
-    expect(await within(refusal()).findByRole("list")).toBeInTheDocument();
-    expect(within(refusal()).queryByRole("status")).toBeNull();
+    // The same region, which now holds what the server said.
+    expect(await within(region).findByRole("list")).toBeInTheDocument();
+    expect(region).toHaveAttribute("aria-busy", "false");
+    expect(region).not.toHaveTextContent(PENDING);
+    expect(within(refusal()).getAllByRole("status")).toEqual([region]);
   });
 
-  it("drops an answer for a row the page has read anew, and asks again for the new one", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    const client = serve(
-      { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+  it("asks once for a question: closed, a page read anew asks nothing, and reopened, the answer stays", async () => {
+    const client = serve({ [DEPENDENCIES]: "dependencies_summary" });
     const { rerender } = renderGrid("planning");
     await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
-    // The page reads the structure anew while the server has not answered: the same rows, anew.
+    await said();
+    await userEvent.keyboard("{Escape}");
+    // The page reads the structure anew: the same rows, in the same versions, anew.
     rerender(planningOf(structuredClone(planning)));
-    answer();
-    const { paragraphs } = await said();
-    expect(paragraphs).not.toContain(
-      "Le montant budgété est celui que la révision de référence a fixé.",
-    );
-    expect(paragraphs).toContain(
-      "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
-    );
-    expect(asked(client)).toHaveLength(2);
+    rerender(planningOf(structuredClone(planning)));
+    expect(asked(client)).toHaveLength(1);
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect((await said()).rows).toHaveLength(4);
+    expect(asked(client)).toHaveLength(1);
   });
 
-  it("shows no answer to a row read before while it asks again for the row read anew", async () => {
+  it("asks afresh for a row read in another version, never showing the answer before", async () => {
     let answer: (value?: unknown) => void = () => undefined;
-    serve(
+    const client = serve(
       { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
       new Promise((resolve) => {
         answer = resolve;
@@ -299,15 +317,37 @@ describe("a value of a grid the server computes", () => {
     const { rerender } = renderGrid("planning");
     await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
     expect(await within(refusal()).findByText(/^Le montant budgété/)).toBeInTheDocument();
-    rerender(planningOf(structuredClone(planning)));
+    rerender(planningOf(withSummaryChanged()));
     expect(within(refusal()).getByRole("status")).toHaveTextContent(PENDING);
     expect(within(refusal()).queryByText(/^Le montant budgété/)).toBeNull();
     answer();
     expect(await within(refusal()).findByRole("list")).toBeInTheDocument();
+    expect(asked(client)).toHaveLength(2);
+  });
+
+  it("drops an answer to a question changed meanwhile", async () => {
+    let answer: (value?: unknown) => void = () => undefined;
+    serve(
+      { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const { rerender } = renderGrid("planning");
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    rerender(planningOf(withSummaryChanged()));
+    answer();
+    const { paragraphs } = await said();
+    expect(paragraphs).not.toContain(
+      "Le montant budgété est celui que la révision de référence a fixé.",
+    );
+    expect(paragraphs).toContain(
+      "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
+    );
   });
 
   it("is refused from the keyboard as from the pointer, and gives the focus back to its cell", async () => {
-    serve({ [DEPENDENCIES]: "dependencies_summary" });
+    const client = serve({ [DEPENDENCIES]: "dependencies_summary" });
     renderGrid("planning");
     const start = within(cell("Études", START)).getByRole("button");
     start.focus();
@@ -319,9 +359,11 @@ describe("a value of a grid the server computes", () => {
     const trigger = within(cell("Études", START)).getByRole("button");
     expect(trigger).toHaveFocus();
     expect(trigger).toHaveAttribute("aria-expanded", "false");
-    // Pressed again, it opens again: the refusal is the same.
+    // Pressed again, it opens again: the refusal is the same, and the server is not asked again.
     await userEvent.keyboard(" ");
     expect(refusal()).toHaveTextContent(/Début ne se saisit pas/);
+    await said();
+    expect(asked(client)).toHaveLength(1);
   });
 
   it("is read row by row: the dates of a task in manual mode are entered, those of the others computed", () => {
@@ -386,7 +428,28 @@ describe("a value of a grid the server computes", () => {
     expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
       /^Introuvable.+cet élément n’existe pas, ou vous n’y avez pas accès\.$/,
     );
-    expect(within(refusal()).queryByRole("status")).toBeNull();
+    expect(within(refusal()).getByRole("status")).toHaveAttribute("aria-busy", "false");
+    await expectAccessible(document.body);
+  });
+
+  it("tells the refusal of a field the server does not compute for the node", async () => {
+    const problem = example("dependencies_entered") as Problem & { readonly status: 422 };
+    serve({ [DEPENDENCIES]: { problem } });
+    renderGrid("planning");
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
+      /^Les données saisies ne sont pas valides\.$/,
+    );
+  });
+
+  it("says the API is out of reach when the API does not answer", async () => {
+    serve();
+    renderGrid("planning");
+    server.client = unreachable();
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
+      "Le service est injoignable",
+    );
   });
 
   it("says the API is out of reach when the server does not answer at all", async () => {

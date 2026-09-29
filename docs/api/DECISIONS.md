@@ -63,8 +63,10 @@ code (`ErrorCode`, `CommandCondition`, WF-ARC-0110). Un code par grandeur nulle 
 relevé sur les indicateurs du §3.4.5.8 et sur les autres `Computable` du contrat : coût réel
 (indice de coût, et projection au rythme constaté tant qu'il ne se calcule pas), valeur acquise
 (la même projection quand l'indice de coût est nul), valeur planifiée, budget de référence,
-coût réel et reste à engager, capacité d'un rôle, offre close sur la période. L'avancement
-physique d'une récapitulative n'est pas un `Computable` : il n'a pas de code.
+montant budgété du sous-arbre d'une récapitulative, coût réel et reste à engager, capacité d'un
+rôle, offre sortie de l'état Chiffrage sur la période. L'avancement physique d'une
+récapitulative, qui n'était qu'un pourcentage nullable, devient pour cela un `Computable` : il
+peut dire qu'il n'est pas calculable, et pourquoi (WF-IND-0060, WF-IND-0010).
 
 **Chaque nœud dit lesquels de ses champs sont calculés** (`computed_fields`, EP-02). Le
 schéma d'écriture ne suffit pas à la ligne : une date de tâche se saisit en mode manuel et
@@ -80,7 +82,8 @@ refusée en nommant ce dont elle dépend. L'opération prend le nœud et le cham
 les règles qui calculent la valeur (`ComputedDependency`, dans l'ordre où les dire) et les
 lignes dont elle est tirée, nommées par leur numéro et leur libellé — toutes, que la recherche
 ou les filtres de la grille les retiennent ou non. Elle n'est appelée qu'au refus, qui est
-rare : `listNodes` ne s'alourdit pas. Écartés : une table champ → dépendance dans
+rare : `listNodes` ne s'alourdit pas. Un champ que le serveur ne calcule pas pour ce nœud est
+refusé par `VALIDATION_FAILED`, `params.field` le nommant. Écartés : une table champ → dépendance dans
 `computed_fields`, qui pèserait sur chaque nœud et laisserait sans nom les subordonnées hors
 filtre ; un paramètre `depends_on` sur le seul refus d'une écriture, qui laisserait la grille
 recopier les règles pour refuser avant d'écrire. Les subordonnées que nomme

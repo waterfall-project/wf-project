@@ -527,7 +527,7 @@
       retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en
       nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative
       sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas
-      pour ce nœud est refusé (422).
+      pour ce nœud — il se saisit — est refusé (422, `VALIDATION_FAILED`, `params.field`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -553,7 +553,15 @@
               manual_float: { $ref: ../../../fixtures/api/dependencies_manual_float.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Le serveur ne calcule pas ce champ pour ce nœud : il se saisit.
+          `VALIDATION_FAILED`, et `params.field` nomme le champ demandé.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              entered: { $ref: ../../../fixtures/api/dependencies_entered.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task:
   patch:

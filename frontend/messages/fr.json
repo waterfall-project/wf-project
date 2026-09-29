@@ -783,9 +783,10 @@
       "no_earned_value": "Aucune valeur acquise : l’indice de coût est nul.",
       "no_planned_value": "Aucune valeur planifiée à la date de calcul.",
       "no_reference_budget": "Aucun budget de référence.",
+      "no_budgeted_amount": "Aucun montant budgété dans le sous-arbre de la tâche.",
       "no_actual_or_remaining": "Ni coût réel ni reste à engager.",
       "no_capacity": "Aucune capacité pour ce rôle sur la période.",
-      "no_closed_offer": "Aucune offre close sur la période."
+      "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période."
     },
     "CurveSeries": {
       "series": {

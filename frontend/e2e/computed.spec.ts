@@ -50,13 +50,16 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   await expect(computed.getByRole("img", { name: "Calculé" })).toBeVisible();
   expect(await background(amount)).not.toBe(await background(hours));
 
-  // A try on the amount is refused beside it, naming what the server says it depends on — here
-  // what the fake back answers for any value —: nothing opens to type.
+  // A try on the amount is refused beside it, naming what the server says it depends on — the
+  // reading done, at least one rule said, whatever the fake back answers for any value —:
+  // nothing opens to type.
   await computed.click();
   await expect(refusal(page)).toBeInViewport();
   await expect(refusal(page)).toContainText("Budgété ne se saisit pas");
-  await expect(refusal(page).getByRole("list", { name: /^Elle dépend de\s:$/ })).toBeVisible();
-  await expect(refusal(page).getByRole("status")).toHaveCount(0);
+  const said = refusal(page).getByRole("status");
+  await expect(said).toHaveAttribute("aria-busy", "false");
+  await expect(said).not.toBeEmpty();
+  await expect(said).not.toContainText("Lecture de ce dont elle dépend");
   await expect(amount.getByRole("textbox")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(refusal(page)).toHaveCount(0);

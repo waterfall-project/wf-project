@@ -17,7 +17,19 @@ import { notFound } from "next/navigation";
 import { readOrFail, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
-import type { NodeKind, NodeList, NodeSortColumn, StructurePath } from "@/components/grid/nodes";
+import {
+  type LineField,
+  type NodeField,
+  type NodeFields,
+  nodeFieldNames,
+  type NodeKind,
+  type NodeRow,
+  type NodeRows,
+  type NodeSortColumn,
+  projectNodes,
+  type StructurePath,
+  type TaskField,
+} from "@/components/grid/nodes";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import {
@@ -60,41 +72,46 @@ export function gridAddress(
 
 /**
  * What a grid is: the key of its settings, the columns it sorts, what it renders, and the fields
- * of a node it reads.
+ * of a node it reads — `N` of the node, `T` of its task, `L` of its line.
  */
-export interface GridReading {
+export interface GridReading<N extends NodeField, T extends TaskField, L extends LineField> {
   readonly key: string;
   readonly sortable: readonly NodeSortColumn[];
   /** What the server is to render; every kind of node when none is given. */
   readonly kinds?: readonly NodeKind[];
-  /** The fields of each node the server is to render, as `listNodes` names them. */
-  readonly fields: readonly string[];
+  /** The fields of each node the grid reads, besides those every grid reads. */
+  readonly fields: NodeFields<N, T, L>;
 }
 
-/** What a grid of a revision shows: its context, its structure and nodes, its settings. */
-export interface GridScreen {
+/**
+ * What a grid of a revision shows: its context, its structure, the rows of the answer as the
+ * grid reads them and the totals of the answer, its settings. The answer whole stays here.
+ */
+export interface GridScreen<Row> {
   readonly reading: ProjectReading;
   /** The label of the main structure. */
   readonly label: string;
   /** The main structure, which a computed cell names to ask what its value depends on. */
   readonly structure: StructurePath;
-  readonly nodes: NodeList;
+  readonly nodes: NodeRows<Row>;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
 
 /**
  * The main structure of a revision, and its nodes as the address asks them: sorted, searched,
- * restricted to the filtered sub-project, of the kinds the grid renders. A read the API refuses,
+ * restricted to the filtered sub-project, of the kinds the grid renders, the fields it reads
+ * alone — asked of the server (`fields`), and projected (`projectNodes`), the server being free
+ * to render more than asked, as the fake back does. A read the API refuses,
  * or cannot answer, is thrown for the pages of the shell to say (`readOrFail`): a grid left
  * empty would say the revision has nothing. So is a revision without a main structure, which
  * the contract rules out: an answer of the API that breaks it is unexpected, not an empty grid.
  * The structures are read at once; what is asked of the nodes waits for the session, whose
  * preferences may sort them.
  */
-async function mainStructure(
+async function mainStructure<N extends NodeField, T extends TaskField, L extends LineField>(
   { revision, context }: GridAddress,
-  { kinds, fields }: GridReading,
+  { kinds, fields }: GridReading<N, T, L>,
   asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
   const client = serverClient();
@@ -111,12 +128,12 @@ async function mainStructure(
   const { sort, search } = await asked;
   const subproject = context.parameters.get("subproject_id");
   const structure = { ...path, structure_id: main.structure_id };
-  const nodes = await readOrFail("listNodes", () =>
+  const answer = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
       params: {
         path: structure,
         query: {
-          fields: [...fields],
+          fields: nodeFieldNames(fields),
           ...(kinds === undefined ? {} : { kinds: [...kinds] }),
           ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
           ...(search === undefined ? {} : { search }),
@@ -125,7 +142,7 @@ async function mainStructure(
       },
     }),
   );
-  return { label: main.label, structure, nodes };
+  return { label: main.label, structure, nodes: projectNodes(answer, fields) };
 }
 
 /**
@@ -134,7 +151,10 @@ async function mainStructure(
  * the sort; the session, the structures and the reading context are read together, and only
  * the nodes wait for the session.
  */
-export async function readGridScreen(at: GridAddress, grid: GridReading): Promise<GridScreen> {
+export async function readGridScreen<N extends NodeField, T extends TaskField, L extends LineField>(
+  at: GridAddress,
+  grid: GridReading<N, T, L>,
+): Promise<GridScreen<NodeRow<N, T, L>>> {
   const settings = requestSession().then(
     (session) => session?.user.display_preferences?.grids?.[grid.key] ?? undefined,
   );

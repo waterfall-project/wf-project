@@ -1632,7 +1632,7 @@ export interface paths {
         };
         /**
          * Ce dont dépend une valeur calculée
-         * @description Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur calcule : les règles qui la calculent, et les lignes dont elle est tirée, nommées par leur numéro et leur libellé, que la recherche ou les filtres de la grille les retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas pour ce nœud est refusé (422).
+         * @description Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur calcule : les règles qui la calculent, et les lignes dont elle est tirée, nommées par leur numéro et leur libellé, que la recherche ou les filtres de la grille les retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas pour ce nœud — il se saisit — est refusé (422, `VALIDATION_FAILED`, `params.field`).
          */
         get: operations["getComputedValueDependencies"];
         put?: never;
@@ -2544,7 +2544,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040). */
             params?: {
                 [key: string]: unknown;
             };
@@ -3041,7 +3041,7 @@ export interface components {
          */
         ProjectCommand: "update" | "manage_contributors" | "create_revision" | "complete" | "lose" | "abandon" | "edit_risks" | "declare_risk_occurrence" | "import_actual_costs" | "exclude_cost_lines";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment, le marquage, la fusion, la désignation de la référence et la saisie d'une révision pendant son marquage, la survenance d'un risque ou l'import des coûts réels d'un projet pendant le leur (WF-IHM-0080, WF-ARC-0090).
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes ses commandes : la saisie du planning, du devis et du reste à engager, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon ; pendant une survenance ou un import, la déclaration d'une survenance et l'import des coûts réels du projet (WF-IHM-0080, WF-ARC-0090).
          * @enum {string}
          */
         CommandCondition: "is_contributor" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running";
@@ -3313,6 +3313,18 @@ export interface components {
          * @enum {string}
          */
         SchedulingMode: "automatic" | "manual";
+        /**
+         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage (WF-PTF-0050).
+         * @enum {string}
+         */
+        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing";
+        /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010). */
+        Computable: {
+            is_computable: boolean;
+            value?: components["schemas"]["Decimal"] | null;
+            /** @description Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue du lecteur (WF-ARC-0110) ; nul pour une valeur calculable. */
+            reason?: components["schemas"]["NotComputableReason"] | null;
+        };
         TrackingEntry: {
             /** @enum {string} */
             kind: "timeline" | "milestone_tracking";
@@ -3339,8 +3351,8 @@ export interface components {
             total_float_days?: number | null;
             /** @description Appartenance au chemin critique, calculée (WF-PLA-0100). */
             is_critical?: boolean;
-            /** @description Avancement physique d'une récapitulative, calculé (WF-IND-0060). */
-            physical_progress?: components["schemas"]["Percent"] | null;
+            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
+            physical_progress?: components["schemas"]["Computable"] | null;
             /** @description Somme des montants budgétés des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas. */
             budgeted_amount: components["schemas"]["Money"];
             /** @description Même somme, pour les montants réestimés. */
@@ -3464,7 +3476,7 @@ export interface components {
          */
         ComputedValueField: "task.duration_days" | "task.start_date" | "task.finish_date" | "task.progress" | "task.physical_progress" | "task.total_float_days" | "task.budgeted_amount" | "task.reestimated_amount" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.budgeted_amount" | "estimate_line.reestimated_amount" | "estimate_line.previous_reestimated_amount";
         /**
-         * @description Ce dont dépend une valeur calculée, que le refus d'une saisie nomme (WF-IHM-0030) : `subordinates`, les dates, la durée et l'avancement d'une récapitulative, tirés de ses subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de sa charge et du taux horaire de sa catégorie ; `unit_disbursement`, celui d'une ligne hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0020) ; `risk`, les grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ; `reference_revision`, le montant budgété, fixé par la révision de référence (WF-DEV-0030) ; `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040).
+         * @description Ce dont dépend une valeur calculée, que le refus d'une saisie nomme (WF-IHM-0030) : `subordinates`, les dates, la durée et l'avancement d'une récapitulative, tirés de ses subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de sa charge et du taux horaire de sa catégorie ; `unit_disbursement`, celui d'une ligne hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ; `reference_revision`, le montant budgété, fixé par la révision de référence (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040).
          * @enum {string}
          */
         ComputedDependency: "subordinates" | "lines_and_subordinates" | "scheduling" | "float_dates" | "manual_mode" | "hourly_rate" | "unit_disbursement" | "risk" | "reference_revision" | "remaining_reviews";
@@ -3478,7 +3490,9 @@ export interface components {
         ComputedValueDependencies: {
             node_id: components["schemas"]["Uuid"];
             field: components["schemas"]["ComputedValueField"];
+            /** @description Chaque règle une fois, dans l'ordre où la dire. */
             depends_on: components["schemas"]["ComputedDependency"][];
+            /** @description Chaque ligne une fois, dans l'ordre du plan. */
             rows: components["schemas"]["DependencyRow"][];
         };
         PredecessorsReplace: {
@@ -3564,18 +3578,6 @@ export interface components {
             by_subproject: components["schemas"]["AmountByKey"][];
             provisions_identified?: components["schemas"]["Money"];
             delta_to_previous_revision?: components["schemas"]["Money"] | null;
-        };
-        /**
-         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique (WF-IND-0040, WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_closed_offer`, le taux de transformation d'une période sans offre close (WF-PTF-0050).
-         * @enum {string}
-         */
-        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_actual_or_remaining" | "no_capacity" | "no_closed_offer";
-        /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010). */
-        Computable: {
-            is_computable: boolean;
-            value?: components["schemas"]["Decimal"] | null;
-            /** @description Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue du lecteur (WF-ARC-0110) ; nul pour une valeur calculable. */
-            reason?: components["schemas"]["NotComputableReason"] | null;
         };
         /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
         WorkloadPlan: {
@@ -7013,7 +7015,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Le serveur ne calcule pas ce champ pour ce nœud : il se saisit. `VALIDATION_FAILED`, et `params.field` nomme le champ demandé. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     updateTaskFacet: {

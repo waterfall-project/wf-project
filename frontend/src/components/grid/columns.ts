@@ -93,14 +93,22 @@ export type ComputedValueField = components["schemas"]["ComputedValueField"];
  */
 export type ComputedDependencies = components["schemas"]["ComputedValueDependencies"];
 
+/** A row as the server knows it: its identifier, and the version it was read in. */
+export interface RowIdentity {
+  readonly id: string;
+  readonly version: number;
+}
+
 /**
- * Ask the server what the value of a field of a row depends on, once an entry is tried on it:
- * the refusal names it. A server action behind, decoded as every other (`Outcome`).
+ * How a grid asks the server what the value of a field of a row depends on, once an entry is
+ * tried on it: the refusal names it. The question is the row's identity and version and the
+ * field — the same question is not asked twice, whatever object a new reading makes of the row —,
+ * and a server action answers it, decoded as every other (`Outcome`).
  */
-export type DependencyReader<Row> = (
-  row: Row,
-  field: ComputedValueField,
-) => Promise<Outcome<ComputedDependencies>>;
+export interface DependencyReader<Row> {
+  readonly identity: (row: Row) => RowIdentity;
+  readonly read: (id: string, field: ComputedValueField) => Promise<Outcome<ComputedDependencies>>;
+}
 
 /**
  * The cells of a column the server computes (WF-IHM-0030), row by row: a computed cell is shaded
