@@ -125,6 +125,7 @@
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
             examples:
               queued: { $ref: ../../../fixtures/api/task_mark_queued.json }
+              relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':

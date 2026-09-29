@@ -61,6 +61,11 @@
     "succeeded": "Tâche terminée : {task}.",
     "failed": "Tâche échouée : {task}.",
     "relaunch": "Relancer",
+    "reload": "Recharger l’écran",
+    "relaunchLabel": "Relancer : {task}",
+    "relaunchFromScreen": "Pour le relancer, repartez de l’écran de son objet.",
+    "interrupted": "Suivi interrompu",
+    "interruptedLine": "Suivi interrompu : {task}.",
     "dismiss": "Retirer du suivi : {task}"
   },
   "markRevision": {

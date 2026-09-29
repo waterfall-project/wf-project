@@ -3,10 +3,12 @@
 import { act, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
 import type { Revision } from "@/components/context/read-only";
+import { LanguageSelector } from "@/components/shell/language-selector";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -19,6 +21,7 @@ import { RevisionCommands } from "./object-commands";
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 // The router of Next, as far as a notice needs it: the refresh that reads the screen anew.
 const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 
@@ -33,6 +36,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const MARK = "POST /projects/{project_id}/revisions/{revision_id}/mark";
 const TASK = "GET /tasks/{task_id}";
+const PREFERENCES = "PATCH /me/preferences";
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {
@@ -41,13 +45,17 @@ function serve(answers: FakeAnswers): FakeClient {
   return client;
 }
 
-/** The commands of a revision of the contract, within the shell that follows the tasks. */
-function open(name = "revision") {
+/**
+ * The commands of a revision of the contract, within the shell that follows the tasks, beside
+ * what else the screen offers.
+ */
+function open(name = "revision", beside?: ReactNode) {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker>
         <TaskPanel />
         <main>
+          {beside}
           <RevisionCommands revision={example(name) as Revision} />
         </main>
       </TaskTracker>
@@ -99,8 +107,9 @@ describe("the marking of a revision", () => {
     const client = serve({
       [MARK]: { example: "task_mark_queued", status: 202 },
       [TASK]: ["task_running", "task_succeeded"],
+      [PREFERENCES]: "preferences",
     });
-    open();
+    open("revision", <LanguageSelector preference="default" />);
 
     await mark("V2");
     expect(client.calls.find((call) => call.route === MARK)?.path).toBe(
@@ -114,23 +123,27 @@ describe("the marking of a revision", () => {
     const tasks = screen.getByRole("region", { name: "Tâches de fond" });
     await tick();
     const progress = within(tasks).getByRole("progressbar", {
-      name: "Marquage d’une révision « V2 »",
+      name: "Marquage d’une révision «\u00A0V2\u00A0»",
     });
     expect(progress).toHaveAttribute("aria-valuenow", "40");
     expect(within(tasks).getByText("En cours")).toBeVisible();
 
     // While the task runs, nothing of the screen is withheld: no dialog, nothing inert or
-    // disabled, and the user goes on — the commands answer, a field takes what is typed.
+    // disabled, and the user goes on — here, choosing the language of the interface and
+    // applying it, which the server records while the revision is marked.
     expect(document.querySelector("[aria-modal], [inert], :disabled")).toBeNull();
-    await userEvent.click(markCommand());
-    const field = screen.getByRole("textbox", { name: "Nom de version" });
-    await userEvent.type(field, "V3");
-    expect(field).toHaveValue("V3");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "en");
+    const apply = screen.getByRole("button", { name: "Appliquer la langue" });
+    await userEvent.click(apply);
+    expect(apply).toHaveFocus();
+    expect(
+      client.calls.filter((call) => call.route === PREFERENCES).map((call) => call.body),
+    ).toEqual([{ language: "en" }]);
     expect(progress).toHaveAttribute("aria-valuenow", "40");
 
     await tick();
-    expect(within(tasks).getByRole("status").textContent).toBe(
-      "Tâche terminée : Marquage d’une révision « V2 ».",
+    expect(within(tasks).getByRole("log").textContent).toBe(
+      "Tâche terminée\u00A0: Marquage d’une révision «\u00A0V2\u00A0».",
     );
     expect(within(tasks).queryByRole("progressbar")).toBeNull();
     expect(client.calls.filter((call) => call.route === TASK)).toHaveLength(2);
@@ -201,7 +214,8 @@ describe("the marking of a revision", () => {
     await mark("V1");
     const form = screen.getByRole("form", { name: "Marquer la révision" });
     expect(within(form).getByRole("alert").textContent).toBe("Cet élément existe déjà.");
-    expect(screen.queryByRole("region", { name: "Tâches de fond" })).toBeNull();
+    const tasks = screen.getByRole("region", { name: "Tâches de fond" });
+    expect(within(tasks).queryByRole("list")).toBeNull();
   });
 
   it("offers to reload a revision changed since it was read, and reloads it", async () => {
@@ -224,7 +238,7 @@ describe("the marking of a revision", () => {
     open();
     await mark("V2");
     expect(screen.getByRole("alert").textContent).toBe(
-      "Le service est injoignable ; réessayez dans un instant.",
+      "Le service est injoignable\u202F; réessayez dans un instant.",
     );
     expect(screen.getByRole("textbox", { name: "Nom de version" })).toHaveValue("V2");
   });

@@ -8,8 +8,11 @@
  * The follow-up is one for every kind of task — a marking, an import, a merge, a backup… —:
  * nothing here knows which operation started a task, only how to start it again. An answer
  * is applied to the task it was asked for, never to the one a relaunch put in its place.
+ *
+ * Each end — a task succeeded, failed, or whose follow-up the API interrupted — adds a line to
+ * a log, which the shell reads out: the ends add up, none replaces the one before.
  */
-import type { BackgroundTask, Outcome } from "@/api/problem";
+import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
 
 /** Where a background task stands. */
 export type TaskStatus = BackgroundTask["status"];
@@ -17,15 +20,24 @@ export type TaskStatus = BackgroundTask["status"];
 /** What a background task does. */
 export type TaskKind = BackgroundTask["kind"];
 
+/** How the follow-up of a task ended. */
+export type EndKind = "succeeded" | "failed" | "interrupted";
+
 /**
- * Whether a task still runs, for every status of the contract: one the contract adds fails the
- * type check until it is classified here.
+ * Whether a task still runs, and how it ended when it no longer does, for every status of the
+ * contract: one the contract adds fails the type check until it is classified here.
  */
 export const RUNNING: Readonly<Record<TaskStatus, boolean>> = {
   queued: true,
   running: true,
   succeeded: false,
   failed: false,
+};
+const ENDING: Readonly<Record<TaskStatus, EndKind | undefined>> = {
+  queued: undefined,
+  running: undefined,
+  succeeded: "succeeded",
+  failed: "failed",
 };
 
 /** The command that started a task, which starts the same treatment again when run. */
@@ -39,21 +51,37 @@ export interface Launch {
   readonly subject?: string | undefined;
 }
 
+/** A refusal of the API, as the decoder classes it. */
+export type Refusal = Exclude<Outcome<unknown>, { kind: "done" } | { kind: "unreachable" }>;
+
 /** A task the tracker follows. */
 export interface TrackedTask {
   /** The task as it was first handed over: a relaunch keeps its place. */
   readonly key: string;
   readonly task: BackgroundTask;
   readonly subject: string | undefined;
+  /** The command that started it; gone when running it again is bound to be refused. */
   readonly command: TaskCommand | undefined;
-  /** The last read or relaunch that did not give a task back: a refusal, the API out of reach. */
+  /** The last relaunch refused, or the API out of reach at the last read: told as an alert. */
   readonly outcome: Outcome<unknown> | undefined;
+  /** The refusal of the API to say where the task stands: its follow-up stops there. */
+  readonly interrupted: Refusal | undefined;
 }
 
-/** The tasks followed, and which one's end was last announced. */
+/** A line of the log of ends. */
+export interface EndLine {
+  readonly id: number;
+  readonly end: EndKind;
+  readonly task: BackgroundTask;
+  readonly subject: string | undefined;
+  /** The motive of a failure, or the refusal that interrupted the follow-up. */
+  readonly problem: Problem | undefined;
+}
+
+/** The tasks followed, and the log of their ends. */
 export interface Tracking {
   readonly tasks: readonly TrackedTask[];
-  readonly announced: string | undefined;
+  readonly log: readonly EndLine[];
   /** Whether the tasks the tab followed before a reload are back: none is saved before. */
   readonly restored: boolean;
 }
@@ -63,8 +91,9 @@ export type TrackingEvent =
   | { readonly type: "track"; readonly task: BackgroundTask; readonly launch: Launch }
   | { readonly type: "restore"; readonly tasks: readonly TrackedTask[] }
   | {
-      /** The answer of a read of the task's progress, or of its command run again. */
       readonly type: "answer";
+      /** A read of the task's progress, or its command run again. */
+      readonly source: "read" | "relaunch";
       readonly key: string;
       /** The task the answer was asked for. */
       readonly taskId: string;
@@ -73,30 +102,57 @@ export type TrackingEvent =
   | { readonly type: "clear" | "dismiss"; readonly key: string };
 
 /** Nothing followed yet. */
-export const NOTHING_TRACKED: Tracking = { tasks: [], announced: undefined, restored: false };
+export const NOTHING_TRACKED: Tracking = { tasks: [], log: [], restored: false };
+
+/** How many ends the log keeps: the last ones, a reader has heard the others. */
+const LOG_LENGTH = 10;
 
 /**
  * Whether the tracker asks again where a task stands: while it runs, and until the API has
  * refused to say — the task unknown, the session gone. The API out of reach is asked again.
  */
-export function isPolled({ task, outcome }: TrackedTask): boolean {
-  return RUNNING[task.status] && (outcome === undefined || outcome.kind === "unreachable");
+export function isPolled({ task, interrupted }: TrackedTask): boolean {
+  return RUNNING[task.status] && interrupted === undefined;
+}
+
+/** The log with one more end. */
+function logged(
+  log: readonly EndLine[],
+  end: EndKind,
+  { task, subject }: Pick<TrackedTask, "task" | "subject">,
+  problem: Problem | undefined,
+): readonly EndLine[] {
+  const id = (log.at(-1)?.id ?? 0) + 1;
+  return [...log, { id, end, task, subject, problem }].slice(-LOG_LENGTH);
 }
 
 /**
- * The task announced once a task gets a new state: its own key when it has just ended — it ran,
- * or it is a new task, a relaunch —; nothing more of it when it runs again.
+ * The log once a task gets a new state: one more end when it has just ended — it ran, or it
+ * is a new task, a relaunch.
  */
-function announcement(
-  announced: string | undefined,
-  key: string,
-  before: BackgroundTask,
-  after: BackgroundTask,
-): string | undefined {
-  if (!RUNNING[after.status]) {
-    return RUNNING[before.status] || before.task_id !== after.task_id ? key : announced;
+function logEnd(log: readonly EndLine[], before: BackgroundTask, after: TrackedTask) {
+  const end = ENDING[after.task.status];
+  const ended = RUNNING[before.status] || before.task_id !== after.task.task_id;
+  return end === undefined || !ended
+    ? log
+    : logged(log, end, after, after.task.problem ?? undefined);
+}
+
+/** The entry once an answer that is no task has come. */
+function refused(
+  entry: TrackedTask,
+  source: "read" | "relaunch",
+  outcome: Exclude<Outcome<BackgroundTask>, { kind: "done" }>,
+): TrackedTask {
+  if (outcome.kind === "unreachable") {
+    return { ...entry, outcome };
   }
-  return announced === key ? undefined : announced;
+  if (source === "read") {
+    return { ...entry, interrupted: outcome };
+  }
+  // A relaunch refused as stale would be refused again with the same version of the object:
+  // the command goes, and the user starts the treatment again from the screen of the object.
+  return { ...entry, outcome, command: outcome.kind === "stale" ? undefined : entry.command };
 }
 
 /** Apply the answer of a read or of a relaunch to the task it was asked for. */
@@ -106,16 +162,20 @@ function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" 
     // Dismissed, or replaced by a relaunch since the question was asked.
     return state;
   }
-  const { outcome } = event;
+  const { outcome, source } = event;
   const next: TrackedTask =
     outcome.kind === "done"
-      ? { ...entry, task: outcome.data, outcome: undefined }
-      : { ...entry, outcome };
-  return {
-    ...state,
-    tasks: state.tasks.map((tracked) => (tracked === entry ? next : tracked)),
-    announced: announcement(state.announced, entry.key, entry.task, next.task),
-  };
+      ? { ...entry, task: outcome.data, outcome: undefined, interrupted: undefined }
+      : refused(entry, source, outcome);
+  const tasks = state.tasks.map((tracked) => (tracked === entry ? next : tracked));
+  if (next.interrupted !== undefined && entry.interrupted === undefined) {
+    return {
+      ...state,
+      tasks,
+      log: logged(state.log, "interrupted", next, next.interrupted.problem),
+    };
+  }
+  return { ...state, tasks, log: logEnd(state.log, entry.task, next) };
 }
 
 /** Change what the tracker follows. */
@@ -124,17 +184,20 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
     case "track": {
       const { task, launch } = event;
       const key = task.task_id;
-      const entry = {
+      const entry: TrackedTask = {
         key,
         task,
         subject: launch.subject,
         command: launch.command,
         outcome: undefined,
+        interrupted: undefined,
       };
+      const end = ENDING[task.status];
       return {
         ...state,
         tasks: [...state.tasks.filter((tracked) => tracked.key !== key), entry],
-        announced: RUNNING[task.status] ? state.announced : key,
+        log:
+          end === undefined ? state.log : logged(state.log, end, entry, task.problem ?? undefined),
       };
     }
     case "restore": {
@@ -152,10 +215,6 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
         ),
       };
     case "dismiss":
-      return {
-        ...state,
-        tasks: state.tasks.filter((tracked) => tracked.key !== event.key),
-        announced: state.announced === event.key ? undefined : state.announced,
-      };
+      return { ...state, tasks: state.tasks.filter((tracked) => tracked.key !== event.key) };
   }
 }

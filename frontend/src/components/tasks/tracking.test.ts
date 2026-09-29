@@ -24,6 +24,7 @@ describe("what the tracker follows", () => {
     const relaunched = { ...task("task_running"), task_id: "01926f3a-7c00-7000-8000-000000000999" };
     const before = tracking(following(task("task_failed")), {
       type: "answer",
+      source: "read",
       key: MARKING,
       taskId: MARKING,
       outcome: { kind: "done", data: relaunched },
@@ -31,6 +32,7 @@ describe("what the tracker follows", () => {
     // The read of the failed task, asked before the relaunch, answers late.
     const after = tracking(before, {
       type: "answer",
+      source: "read",
       key: MARKING,
       taskId: MARKING,
       outcome: { kind: "done", data: task("task_failed") },
@@ -43,6 +45,7 @@ describe("what the tracker follows", () => {
     const dismissed = tracking(following(task("task_running")), { type: "dismiss", key: MARKING });
     const after = tracking(dismissed, {
       type: "answer",
+      source: "read",
       key: MARKING,
       taskId: MARKING,
       outcome: { kind: "done", data: task("task_succeeded") },
@@ -51,9 +54,17 @@ describe("what the tracker follows", () => {
     expect(after.tasks).toEqual([]);
   });
 
-  it("announces at once a task handed over already ended", () => {
-    expect(following(task("task_succeeded")).announced).toBe(MARKING);
-    expect(following(task("task_running")).announced).toBeUndefined();
+  it("logs at once the end of a task handed over already ended", () => {
+    expect(following(task("task_succeeded")).log.map((line) => line.end)).toEqual(["succeeded"]);
+    expect(following(task("task_running")).log).toEqual([]);
+  });
+
+  it("keeps the last ten ends in its log, each added after the one before", () => {
+    let state = NOTHING_TRACKED;
+    for (let turn = 0; turn < 12; turn += 1) {
+      state = tracking(state, { type: "track", task: task("task_failed"), launch: {} });
+    }
+    expect(state.log.map((line) => line.id)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
   it("follows a task handed over twice once", () => {
@@ -81,7 +92,10 @@ describe("what the tracker follows", () => {
     expect(isPolled({ ...running, outcome: { kind: "unreachable" } })).toBe(true);
     const problem = { code: "NOT_FOUND", status: 404 } as const;
     expect(
-      isPolled({ ...running, outcome: { kind: "refused", problem, conflictingObjectId: null } }),
+      isPolled({
+        ...running,
+        interrupted: { kind: "refused", problem, conflictingObjectId: null },
+      }),
     ).toBe(false);
     expect(isPolled({ ...running, task: task("task_succeeded") })).toBe(false);
   });

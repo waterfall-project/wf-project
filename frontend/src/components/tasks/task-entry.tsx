@@ -3,27 +3,37 @@
 /**
  * One background task the tracker follows (WF-IHM-0080): what it is — its kind, and what the
  * user named it after —, where it stands, how far it has gone while it runs, and, failed, its
- * motive in a sentence of the catalogue and the offer to run the same command again. While the
- * task runs, the entry asks the server where it stands, by a server action, every so often;
- * it stops once the task has ended, once the API refuses to say, and when it is dismissed or
- * the shell goes away.
+ * motive in a sentence of the catalogue and the offer to run the same command again — or,
+ * without the command, the way to do it from the screen of its object —; succeeded, the offer
+ * to read the screen anew. While the task runs,
+ * the entry asks the server where it stands, by a server action, every so often; it stops once
+ * the task has ended, once the API refuses to say — the follow-up is then interrupted, and the
+ * entry says so —, and when it is dismissed or the shell goes away.
  *
- * The end of a task is announced apart, in a live region (`Announcement`): a progress that
- * moves is not read out at every step, an end is.
+ * The ends are read out apart, in a log (`EndLog`): a progress that moves is not read out at
+ * every step, an end is, and the ends add up.
  */
 "use client";
 
 import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { type Dispatch, useEffect, useRef, useTransition } from "react";
+import { type Dispatch, useCallback, useEffect, useRef, useTransition } from "react";
 
 import { readBackgroundTask } from "@/api/actions/tasks";
-import type { BackgroundTask, Outcome } from "@/api/problem";
-import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
+import { OutcomeNotice, SignIn } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
 
-import { isPolled, RUNNING, type TrackedTask, type TrackingEvent } from "./tracking";
+import {
+  type EndKind,
+  type EndLine,
+  isPolled,
+  type Refusal,
+  type TrackedTask,
+  type TrackingEvent,
+} from "./tracking";
 
 /** How long an entry waits before asking again where its running task stands, in ms. */
 export const POLL_INTERVAL = 2000;
@@ -31,43 +41,51 @@ export const POLL_INTERVAL = 2000;
 /** The API out of reach: the server action itself did not answer — the network is down. */
 const UNREACHABLE: Outcome<BackgroundTask> = { kind: "unreachable" };
 
+/** The sentence of each end, by how it ended. */
+const END_SENTENCE: Readonly<Record<EndKind, "succeeded" | "failed" | "interruptedLine">> = {
+  succeeded: "succeeded",
+  failed: "failed",
+  interrupted: "interruptedLine",
+};
+
 /** What a task is called: its kind, and what the user named it after when there is one. */
-function useTaskName({ task, subject }: TrackedTask): string {
+function useTaskName({ task, subject }: Pick<TrackedTask, "task" | "subject">): string {
   const t = useTranslations();
   const kind = t(`enums.BackgroundTaskRef.kind.${task.kind}`);
   return subject === undefined ? kind : t("tasks.named", { kind, subject });
 }
 
-/** The sentence of the motive of a failed task, from its envelope. */
-function Motive({ task }: { readonly task: BackgroundTask }) {
+/** The sentence of a motive — of a failure, of a refusal —, from its envelope. */
+function Motive({ problem }: { readonly problem: Problem | null | undefined }) {
   const locale = useLocale();
   const messages = useMessages();
-  return task.problem == null ? null : <p>{problemMessage(task.problem, { locale, messages })}</p>;
+  return problem == null ? null : <p>{problemMessage(problem, { locale, messages })}</p>;
 }
 
-/**
- * The announcement of the end of a task, success or failure with its motive, in a live region
- * present before it speaks; read by a screen reader, while the entry shows the same state.
- */
-export function Announcement({ entry }: { readonly entry: TrackedTask | undefined }) {
+/** One end of the log: the sentence of the end, and its motive when it has one. */
+function End({ line }: { readonly line: EndLine }) {
+  const t = useTranslations("tasks");
+  const task = useTaskName(line);
   return (
-    <div role="status" aria-live="polite" className="sr-only">
-      {entry === undefined || RUNNING[entry.task.status] ? null : <End entry={entry} />}
+    <div>
+      <p>{t(END_SENTENCE[line.end], { task })}</p>
+      <Motive problem={line.problem} />
     </div>
   );
 }
 
-/** The sentence of the end of a task. */
-function End({ entry }: { readonly entry: TrackedTask }) {
-  const t = useTranslations("tasks");
-  const task = useTaskName(entry);
-  return entry.task.status === "succeeded" ? (
-    <p>{t("succeeded", { task })}</p>
-  ) : (
-    <>
-      <p>{t("failed", { task })}</p>
-      <Motive task={entry.task} />
-    </>
+/**
+ * The log of the ends of the tasks — succeeded, failed with its motive, follow-up interrupted
+ * —, a live region mounted with the shell, before it ever speaks: each end is added, and read
+ * out, while the entry shows the same state.
+ */
+export function EndLog({ log }: { readonly log: readonly EndLine[] }) {
+  return (
+    <div role="log" className="sr-only">
+      {log.map((line) => (
+        <End key={line.id} line={line} />
+      ))}
+    </div>
   );
 }
 
@@ -100,6 +118,38 @@ function Progress({
 }
 
 /**
+ * The offer to read the screen anew once a task has succeeded: what it changed shows only then.
+ * The tracker never reloads by itself — the screen may hold what the user is typing —: the user
+ * decides.
+ */
+function ReloadScreen() {
+  const t = useTranslations("tasks");
+  const router = useRouter();
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        router.refresh();
+      }}
+    >
+      {t("reload")}
+    </Button>
+  );
+}
+
+/** Why the follow-up stopped: the refusal of the API, and the way to sign in without a session. */
+function Interruption({ refusal }: { readonly refusal: Refusal }) {
+  return (
+    <>
+      <Motive problem={refusal.problem} />
+      {refusal.kind === "signed_out" ? <SignIn /> : null}
+    </>
+  );
+}
+
+/**
  * Ask the server where a task stands, a while after each answer, as long as it is polled. The
  * answer is applied to the task it was asked for: dismissed or relaunched meanwhile, it is
  * dropped — the tracker checks the task, and an entry gone asks nothing more.
@@ -112,19 +162,15 @@ function usePolling(entry: TrackedTask, dispatch: Dispatch<TrackingEvent>) {
     const { key } = entry;
     const taskId = entry.task.task_id;
     let live = true;
+    const answered = (outcome: Outcome<BackgroundTask>) => {
+      if (live) {
+        dispatch({ type: "answer", source: "read", key, taskId, outcome });
+      }
+    };
     const timer = setTimeout(() => {
-      void readBackgroundTask(taskId).then(
-        (outcome) => {
-          if (live) {
-            dispatch({ type: "answer", key, taskId, outcome });
-          }
-        },
-        () => {
-          if (live) {
-            dispatch({ type: "answer", key, taskId, outcome: UNREACHABLE });
-          }
-        },
-      );
+      void readBackgroundTask(taskId).then(answered, () => {
+        answered(UNREACHABLE);
+      });
     }, POLL_INTERVAL);
     return () => {
       live = false;
@@ -137,55 +183,86 @@ function usePolling(entry: TrackedTask, dispatch: Dispatch<TrackingEvent>) {
 export interface TaskEntryProps {
   readonly entry: TrackedTask;
   readonly dispatch: Dispatch<TrackingEvent>;
+  /** Stop following the task: the panel takes the focus to where it should go. */
+  readonly onDismiss: (key: string) => void;
+  /** Hand the panel the button that dismisses the task, to give it the focus. */
+  readonly dismissRef: (key: string, button: HTMLButtonElement | null) => void;
 }
 
 /** Show a task the tracker follows, follow it while it runs, and offer to run it again failed. */
-export function TaskEntry({ entry, dispatch }: TaskEntryProps) {
+export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryProps) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
-  const dismiss = useRef<HTMLButtonElement>(null);
+  const dismiss = useRef<HTMLButtonElement | null>(null);
+  const { key, task, command, interrupted } = entry;
+  const setDismiss = useCallback(
+    (button: HTMLButtonElement | null) => {
+      dismiss.current = button;
+      dismissRef(key, button);
+    },
+    [key, dismissRef],
+  );
   usePolling(entry, dispatch);
   const name = useTaskName(entry);
-  const { key, task, command } = entry;
   const relaunch = () => {
     if (command === undefined || pending) {
       return;
     }
     startTransition(async () => {
       const outcome = await command().catch(() => UNREACHABLE);
-      dispatch({ type: "answer", key, taskId: task.task_id, outcome });
+      dispatch({ type: "answer", source: "relaunch", key, taskId: task.task_id, outcome });
       if (outcome.kind === "done") {
         // The button pressed goes with the failure: the focus stays within the entry.
         dismiss.current?.focus();
       }
     });
   };
+  const failed = task.status === "failed";
   return (
     <div className="space-y-1 text-sm">
       <div className="flex items-center gap-2">
         <p className="mr-auto font-medium">{name}</p>
         <p className="text-muted-foreground">
-          {t(`enums.BackgroundTaskRef.status.${task.status}`)}
+          {interrupted === undefined
+            ? t(`enums.BackgroundTaskRef.status.${task.status}`)
+            : t("tasks.interrupted")}
         </p>
+        {/* Dismissed while it runs again, the task relaunched would be lost: it waits. */}
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          ref={dismiss}
+          ref={setDismiss}
           aria-label={t("tasks.dismiss", { task: name })}
+          aria-disabled={pending ? true : undefined}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
           onClick={() => {
-            dispatch({ type: "dismiss", key });
+            if (!pending) {
+              onDismiss(key);
+            }
           }}
         >
           <X aria-hidden />
         </Button>
       </div>
-      {RUNNING[task.status] ? <Progress name={name} progress={task.progress} /> : null}
-      {task.status === "failed" ? <Motive task={task} /> : null}
-      {task.status === "failed" && command !== undefined ? (
-        <Button type="button" variant="outline" size="sm" aria-busy={pending} onClick={relaunch}>
+      {isPolled(entry) ? <Progress name={name} progress={task.progress} /> : null}
+      {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
+      {task.status === "succeeded" ? <ReloadScreen /> : null}
+      {failed ? <Motive problem={task.problem} /> : null}
+      {failed && command !== undefined ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label={t("tasks.relaunchLabel", { task: name })}
+          aria-busy={pending}
+          onClick={relaunch}
+        >
           {t("tasks.relaunch")}
         </Button>
+      ) : null}
+      {failed && command === undefined ? (
+        <p className="text-muted-foreground">{t("tasks.relaunchFromScreen")}</p>
       ) : null}
       <OutcomeNotice
         outcome={entry.outcome}

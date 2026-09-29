@@ -129,12 +129,18 @@ serveur passe par `decodeTask` de `frontend/src/api/problem.ts`, qui tient le mo
 `useTrackTask()` (`frontend/src/components/tasks/`), avec la commande qui l'a lancée et, s'il
 y en a un, le nom que l'utilisateur lui a donné (WF-IHM-0080). Le suivi est commun aux neuf
 genres de tâche : il relit la tâche toutes les deux secondes tant qu'elle court, par l'action
-serveur `readBackgroundTask`, en montre l'avancement, annonce sa fin dans une région
-`aria-live` quel que soit l'écran, et rejoue la commande d'une tâche échouée. Aucun écran ne
-suit ses tâches lui-même. Une réponse ne s'applique qu'à la tâche pour laquelle elle a été
-demandée, jamais à celle qu'une relance a mise à sa place. Le stockage de session de l'onglet
-garde les tâches qui courent pour un rechargement complet, sans leur commande : le contrat n'a
-pas de liste des tâches d'un utilisateur (#146). La commande `mark` d'une révision
+serveur `readBackgroundTask`, en montre l'avancement, ajoute sa fin à un journal
+(`role="log"`) lu quel que soit l'écran, offre de recharger l'écran quand elle a abouti — il
+ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Une relance
+refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
+(404, 401) interrompt le suivi, qui le dit. Aucun écran ne suit ses tâches lui-même. Une
+réponse ne s'applique qu'à la tâche pour laquelle elle a été demandée, jamais à celle qu'une
+relance a mise à sa place. Les actions serveur de Next partent une à une, dans une seule file :
+suivre k tâches ajoute k actions toutes les deux secondes, dans la file même des écritures de
+l'écran, qu'une relecture lente retarde d'autant. Le stockage de session de l'onglet garde les
+tâches qui courent pour un rechargement complet, sans leur commande : le contrat n'a pas de
+liste des tâches d'un utilisateur (#146). Une tâche retrouvée ainsi ne se relance donc pas du
+suivi : échouée, son entrée dit de la relancer depuis l'écran de son objet. La commande `mark` d'une révision
 (`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de
 version.
 

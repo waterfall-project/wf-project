@@ -23,12 +23,13 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
 } from "react";
 
 import type { BackgroundTask } from "@/api/problem";
 
 import { restoreTasks, saveTasks } from "./storage";
-import { Announcement, TaskEntry } from "./task-entry";
+import { EndLog, TaskEntry } from "./task-entry";
 import {
   type Launch,
   NOTHING_TRACKED,
@@ -87,28 +88,58 @@ export function TaskTracker({ children }: { readonly children: ReactNode }) {
   );
 }
 
+const PANEL = "border-b bg-card px-4 py-2 text-card-foreground";
+
 /**
  * The tasks followed, where the shell places them — in the flow of the page, where they hide
- * nothing —, and the announcement of the end of the last one to end; nothing while none is
- * followed.
+ * nothing —, and the log of their ends. The region stays mounted, empty while no task is
+ * followed: its log is in place before it speaks, and it takes the focus when the last task is
+ * dismissed.
  */
 export function TaskPanel() {
   const t = useTranslations("tasks");
   const { state, dispatch } = inTracker(useContext(StateContext));
-  if (state.tasks.length === 0) {
-    return null;
-  }
-  const announced = state.tasks.find((entry) => entry.key === state.announced);
+  const region = useRef<HTMLElement>(null);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const dismissRef = useCallback((key: string, button: HTMLButtonElement | null) => {
+    if (button === null) {
+      buttons.current.delete(key);
+    } else {
+      buttons.current.set(key, button);
+    }
+  }, []);
+  // The focus leaves the button dismissed before it goes: to the dismissal of the next task,
+  // else of the one before, else to the region itself — never to the document.
+  const dismiss = (key: string) => {
+    const index = state.tasks.findIndex((entry) => entry.key === key);
+    const neighbour = state.tasks[index + 1] ?? state.tasks[index - 1];
+    const target = neighbour === undefined ? undefined : buttons.current.get(neighbour.key);
+    (target ?? region.current)?.focus();
+    dispatch({ type: "dismiss", key });
+  };
+  const followed = state.tasks.length > 0;
   return (
-    <section aria-label={t("label")} className="border-b bg-card px-4 py-2 text-card-foreground">
-      <Announcement entry={announced} />
-      <ul className="flex flex-wrap gap-x-8 gap-y-2">
-        {state.tasks.map((entry) => (
-          <li key={entry.key} className="min-w-64 flex-1">
-            <TaskEntry entry={entry} dispatch={dispatch} />
-          </li>
-        ))}
-      </ul>
+    <section
+      ref={region}
+      tabIndex={-1}
+      aria-label={t("label")}
+      className={followed ? PANEL : undefined}
+    >
+      <EndLog log={state.log} />
+      {followed ? (
+        <ul className="flex flex-wrap gap-x-8 gap-y-2">
+          {state.tasks.map((entry) => (
+            <li key={entry.key} className="min-w-64 flex-1">
+              <TaskEntry
+                entry={entry}
+                dispatch={dispatch}
+                onDismiss={dismiss}
+                dismissRef={dismissRef}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }

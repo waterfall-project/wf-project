@@ -5,16 +5,14 @@
  * of a user's background tasks, so the reference of each task that still runs is kept in the
  * storage of the session of the tab (`sessionStorage`), and read back when the shell mounts.
  *
- * Kept with care: only what names a running task — its identifier, its kind, its status and
+ * Kept with care: only what names a running task still followed — its identifier, its kind, its status and
  * the subject the user typed —, read back only when it has that shape, and nothing is lost
  * but the follow-up when the storage is refused (a private window, a quota). A task that
  * ended is not kept: its end was announced. The command that started a task does not survive
  * a reload — a function is no data —: a task followed again after one cannot be relaunched
  * from the tracker, and the user starts it again from its screen.
  */
-import type { BackgroundTask } from "@/api/problem";
-
-import { RUNNING, type TaskKind, type TrackedTask } from "./tracking";
+import { isPolled, RUNNING, type TaskKind, type TaskStatus, type TrackedTask } from "./tracking";
 
 /** The key of the storage of the tab under which the tasks are kept. */
 export const STORAGE_KEY = "wf_background_tasks";
@@ -40,7 +38,7 @@ interface KeptTask {
   readonly key: string;
   readonly task_id: string;
   readonly kind: TaskKind;
-  readonly status: BackgroundTask["status"];
+  readonly status: TaskStatus;
   readonly subject?: string | undefined;
 }
 
@@ -55,7 +53,9 @@ function isKept(value: unknown): value is KeptTask {
     typeof kept.task_id === "string" &&
     typeof kept.kind === "string" &&
     Object.hasOwn(KINDS, kept.kind) &&
-    (kept.status === "queued" || kept.status === "running") &&
+    typeof kept.status === "string" &&
+    Object.hasOwn(RUNNING, kept.status) &&
+    RUNNING[kept.status as TaskStatus] &&
     (kept.subject === undefined || typeof kept.subject === "string")
   );
 }
@@ -83,20 +83,22 @@ export function restoreTasks(): TrackedTask[] {
       subject,
       command: undefined,
       outcome: undefined,
+      interrupted: undefined,
     }));
 }
 
-/** Keep the tasks that still run, for a reload of the tab to follow them again. */
+/**
+ * Keep the tasks that still run and are still followed — not those whose follow-up the API
+ * interrupted —, for a reload of the tab to follow them again.
+ */
 export function saveTasks(tasks: readonly TrackedTask[]): void {
-  const kept: KeptTask[] = tasks
-    .filter(({ task }) => RUNNING[task.status])
-    .map(({ key, task, subject }) => ({
-      key,
-      task_id: task.task_id,
-      kind: task.kind,
-      status: task.status,
-      subject,
-    }));
+  const kept: KeptTask[] = tasks.filter(isPolled).map(({ key, task, subject }) => ({
+    key,
+    task_id: task.task_id,
+    kind: task.kind,
+    status: task.status,
+    subject,
+  }));
   try {
     if (kept.length === 0) {
       window.sessionStorage.removeItem(STORAGE_KEY);

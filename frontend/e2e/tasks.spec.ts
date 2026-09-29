@@ -9,9 +9,12 @@ import { expect, test } from "@playwright/test";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
-test("marking a revision gives the hand back, shows its progress, and announces its end on another screen [WF-IHM-0080-A]", async ({
+test("marking a revision gives the hand back, shows its progress, and announces on another screen its end, which comes after the change [WF-IHM-0080-A]", async ({
   page,
 }) => {
+  // The time of the page is the test's: the read of the task comes when the test lets it come,
+  // after the change of screen, not before.
+  await page.clock.install();
   await page.goto(`/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
   await commands.getByRole("button", { name: "Marquer la révision" }).click();
@@ -36,7 +39,12 @@ test("marking a revision gives the hand back, shows its progress, and announces 
     .getByRole("link", { name: "Cycle de vie du projet" })
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cycle de vie du projet");
-  await expect(tasks.getByRole("status")).toHaveText(
+  // On the new screen, the marking still runs: nothing has been read out yet.
+  await expect(tasks.getByRole("log")).toBeEmpty();
+  await expect(tasks.getByRole("progressbar")).toBeVisible();
+
+  await page.clock.runFor(2000);
+  await expect(tasks.getByRole("log")).toHaveText(
     /^Tâche terminée\s: Marquage d’une révision «\sV2\s»\.$/,
   );
   await expect(tasks.getByText("Réussie")).toBeVisible();

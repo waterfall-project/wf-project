@@ -61,6 +61,11 @@
     "succeeded": "Task finished: {task}.",
     "failed": "Task failed: {task}.",
     "relaunch": "Run again",
+    "reload": "Reload the screen",
+    "relaunchLabel": "Run again: {task}",
+    "relaunchFromScreen": "To run it again, start from the screen of its object.",
+    "interrupted": "Follow-up interrupted",
+    "interruptedLine": "Follow-up interrupted: {task}.",
     "dismiss": "Stop following: {task}"
   },
   "markRevision": {
