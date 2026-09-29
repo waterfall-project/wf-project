@@ -593,8 +593,11 @@ le cache du navigateur est chaud, comme pour un utilisateur qui a déjà ouvert 
 Chaque ouverture ne commence qu'une fois la précédente entièrement servie, préchargements
 compris — la grille hydratée, ses liens de la barre latérale demandent encore au serveur les
 écrans où ils mènent, et une navigation lancée avant leur réponse les couperait pendant que le
-serveur les rend, dans le temps de l'ouverture suivante — : le parcours attend que la page n'ait
-plus de requête en cours (`networkidle`), hors de la mesure.
+serveur les rend, dans le temps de l'ouverture suivante — : le parcours suit les requêtes de la
+page, qu'elles partent d'un document nouveau ou d'une navigation dans la même page, et attend,
+hors de la mesure, qu'aucune ne soit en cours depuis une demi-seconde, en quinze secondes au
+plus ; le journal écrit combien étaient en cours au départ de chaque ouverture mesurée, et il
+n'en faut aucune.
 Chaque ouverture doit tenir la seconde, comparée sans arrondi ; le journal du parcours écrit la
 médiane et la pire, utilisable, dessinée et hydratée, et, pour l'ouverture par l'adresse, où va
 le temps : les instants médians où le serveur a fini d'envoyer le document et où le navigateur

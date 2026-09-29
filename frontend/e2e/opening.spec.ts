@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Request, test } from "@playwright/test";
 
 // The second of §4.6.2 — « ouvrir une grille de planning, de devis ou de reste à engager de mille
 // tâches : 1 s » —, measured on the structure of the volumes the fake back serves (EP-02/L2): a
@@ -25,10 +25,12 @@ import { expect, type Page, test } from "@playwright/test";
 // Before each series of five openings, one opening is not measured: the server's first load of
 // its modules does not count, and the cache of the browser is warm, as for a user who has opened
 // the application. Each opening starts once the one before is wholly served, its prefetches
-// included — the page has no request left under way —, which is waited for outside the measure. Every opening must hold the second; the log of the run writes the median and
-// the worst, drawn and hydrated, and where the time went by the address. Once measured, the
-// document is checked for a field of a node the grid does not read: the page hands its grid what
-// it shows alone (`projectNodes`).
+// included — the page has had no request under way for half a second —, which is waited for
+// outside the measure; the log writes how many requests were under way as each measured opening
+// started, which must be none. Every opening must hold the second; the log of the run writes the
+// median and the worst, drawn and hydrated, and where the time went by the address. Once
+// measured, the document is checked for a field of a node the grid does not read: the page hands
+// its grid what it shows alone (`projectNodes`).
 //
 // The project runs after all the other paths, alone on the machine: `playwright.config.ts`.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -163,30 +165,82 @@ interface Opening {
    * document, and when the browser had parsed it and run its scripts.
    */
   readonly phases?: { readonly served: number; readonly parsed: number };
+  /** How many requests of the page were under way as the opening started: none, once settled. */
+  readonly underWay: number;
 }
 
 /** An opening started at a time, the grid drawn and hydrated at others. */
-function opening(started: number, { drawn, hydrated }: Usable): Opening {
+function opening(started: number, { drawn, hydrated }: Usable, underWay: number): Opening {
   return {
     drawn: drawn - started,
     hydrated: hydrated - started,
     usable: Math.max(drawn, hydrated) - started,
+    underWay,
   };
 }
 
+/** How long a page must have had no request under way to be settled, in milliseconds. */
+const QUIET = 500;
+
+/** The requests of a page under way, and when the last of them started or ended. */
+interface Requests {
+  /** How many requests are under way. */
+  readonly underWay: () => number;
+  /** How long no request has started nor ended, in milliseconds. */
+  readonly quietFor: () => number;
+}
+
 /**
- * Wait until the page has no request left under way: once the grid is hydrated, its links in the
- * navigation still ask the server for the screens they lead to (prefetching), and a navigation
- * started before they are answered would cut them, while the server still renders them — the
- * first time, loading the modules of each route —, in the time of the opening it measures. Waited
- * for between the openings, never within one.
+ * Follow the requests of a page as they start and end — finished or failed —, whatever document
+ * sends them: a navigation within the page, a click on a link, sends its own as a new document
+ * does.
  */
-async function settle(page: Page): Promise<void> {
-  await page.waitForLoadState("networkidle");
+function followRequests(page: Page): Requests {
+  const pending = new Set<Request>();
+  let changed = Date.now();
+  const started = (request: Request) => {
+    pending.add(request);
+    changed = Date.now();
+  };
+  const ended = (request: Request) => {
+    pending.delete(request);
+    changed = Date.now();
+  };
+  page.on("request", started);
+  page.on("requestfinished", ended);
+  page.on("requestfailed", ended);
+  return { underWay: () => pending.size, quietFor: () => Date.now() - changed };
+}
+
+/**
+ * Wait until the page has had no request under way for half a second: once the grid is hydrated,
+ * its links in the navigation still ask the server for the screens they lead to (prefetching),
+ * and a navigation started before they are answered would cut them, while the server still
+ * renders them — the first time, loading the modules of each route —, in the time of the opening
+ * it measures. Waited for between the openings, never within one.
+ */
+async function settle(requests: Requests): Promise<void> {
+  await expect
+    .poll(() => requests.underWay() === 0 && requests.quietFor() >= QUIET, {
+      message: `the page settles: no request under way for ${QUIET.toString()} ms`,
+      timeout: 15_000,
+    })
+    .toBe(true);
+}
+
+/**
+ * How many requests of the page are under way as an opening starts: none, the page settled —
+ * checked here, and written in the log.
+ */
+function underWayAtStart(requests: Requests): number {
+  const underWay = requests.underWay();
+  expect(underWay, "requests under way as an opening starts").toBe(0);
+  return underWay;
 }
 
 /** Open the screen of a grid by its address; how long it took, and where the time went. */
-async function openByAddress(page: Page, screen: GridScreen): Promise<Opening> {
+async function openByAddress(page: Page, requests: Requests, screen: GridScreen): Promise<Opening> {
+  const underWay = underWayAtStart(requests);
   await page.goto(address(screen), { waitUntil: "commit" });
   const usable = await usableAt(page, screen);
   const { started, served, parsed } = await page.evaluate(() => {
@@ -198,18 +252,24 @@ async function openByAddress(page: Page, screen: GridScreen): Promise<Opening> {
       parsed: timing?.domContentLoadedEventEnd ?? Number.NaN,
     };
   });
-  await settle(page);
-  return { ...opening(started, usable), phases: { served, parsed } };
+  await settle(requests);
+  return { ...opening(started, usable, underWay), phases: { served, parsed } };
 }
 
 /**
  * Open the screen of a grid from that of another, by its link in the navigation; how long it
  * took, from the click, in milliseconds.
  */
-async function openByClick(page: Page, from: GridScreen, to: GridScreen): Promise<Opening> {
+async function openByClick(
+  page: Page,
+  requests: Requests,
+  from: GridScreen,
+  to: GridScreen,
+): Promise<Opening> {
   await page.goto(address(from));
   await usableAt(page, from);
-  await settle(page);
+  await settle(requests);
+  const underWay = underWayAtStart(requests);
   await page
     .getByRole("navigation", { name: "Fonctions" })
     .getByRole("link", { name: to.link })
@@ -217,8 +277,8 @@ async function openByClick(page: Page, from: GridScreen, to: GridScreen): Promis
   const usable = await usableAt(page, to);
   const clicked = await page.evaluate((key) => Number(sessionStorage.getItem(key)), CLICKED);
   await expect(page).toHaveURL(address(to));
-  await settle(page);
-  return opening(clicked, usable);
+  await settle(requests);
+  return opening(clicked, usable, underWay);
 }
 
 /** The median of some durations. */
@@ -253,12 +313,18 @@ async function measure(way: string, open: () => Promise<Opening>): Promise<reado
   );
   const served = phases.map((phase) => phase.served);
   const parsed = phases.map((phase) => phase.parsed);
+  const rounded = (times: readonly number[]) =>
+    times.map((time) => Math.round(time).toString()).join(", ");
   const where =
     phases.length === 0
       ? ""
-      : `; document served at a median ${Math.round(median(served)).toString()} ms, parsed at ${Math.round(median(parsed)).toString()} ms`;
+      : `; document served at a median ${rounded([median(served)])} ms,` +
+        ` parsed at ${rounded([median(parsed)])} ms`;
   console.log(
-    `${way}: usable ${usable.map((time) => Math.round(time).toString()).join(", ")} ms — ${inLog(usable)}; drawn ${inLog(openings.map((measured) => measured.drawn))}; hydrated ${inLog(openings.map((measured) => measured.hydrated))}${where}`,
+    `${way}: usable ${rounded(usable)} ms — ${inLog(usable)};` +
+      ` drawn ${inLog(openings.map((measured) => measured.drawn))};` +
+      ` hydrated ${inLog(openings.map((measured) => measured.hydrated))}${where};` +
+      ` requests under way at the start ${rounded(openings.map((measured) => measured.underWay))}`,
   );
   return usable;
 }
@@ -269,11 +335,12 @@ async function measure(way: string, open: () => Promise<Opening>): Promise<reado
  * and that the document holds no field of a node the grid does not read.
  */
 async function holdsTheSecond(page: Page, screen: GridScreen, from: GridScreen) {
+  const requests = followRequests(page);
   const byAddress = await measure(`${screen.grid}, by its address`, () =>
-    openByAddress(page, screen),
+    openByAddress(page, requests, screen),
   );
   const byClick = await measure(`${screen.grid}, from the navigation`, () =>
-    openByClick(page, from, screen),
+    openByClick(page, requests, from, screen),
   );
   expect(Math.max(...byAddress)).toBeLessThanOrEqual(OBJECTIVE);
   expect(Math.max(...byClick)).toBeLessThanOrEqual(OBJECTIVE);
@@ -289,7 +356,7 @@ async function holdsTheSecond(page: Page, screen: GridScreen, from: GridScreen) 
   }
   await page.goto(address(screen));
   expect(await page.content()).not.toContain("lineage_id");
-  await settle(page);
+  await settle(requests);
 }
 
 test.describe("the opening of a grid of a thousand tasks", () => {
