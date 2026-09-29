@@ -12,6 +12,7 @@ import "server-only";
 import { cache } from "react";
 
 import type { components } from "@/api/generated/schema";
+import { reach } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
   type ContextParameter,
@@ -20,7 +21,6 @@ import {
   type SearchParameters,
   UNASSIGNED,
 } from "@/navigation/context";
-import { reach } from "@/session/request";
 
 import { availableEdits, type EditCommand, isReadOnly, type Revision } from "./read-only";
 

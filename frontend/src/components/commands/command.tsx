@@ -1,0 +1,94 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * A command of a screen (WF-IHM-0090): absent when the user may not exercise it; present and
+ * available; or present and unavailable, naming each condition it lacks in a text everyone
+ * reads — shown beside it, and the description of the button for a screen reader.
+ *
+ * An unavailable command stays in the order of the keyboard, marked `aria-disabled`, so that
+ * its description is heard; pressing it does nothing. Greying it out is a convenience, not a
+ * protection: an available command runs its server action, and the refusal the server may
+ * still oppose is told like any outcome (`OutcomeNotice`).
+ */
+"use client";
+
+import { useLocale, useTranslations } from "next-intl";
+import { useId, useState, useTransition } from "react";
+
+import type { Outcome } from "@/api/problem";
+import { Button } from "@/components/ui/button";
+import { formatLocale } from "@/i18n/format";
+
+import type { CommandOffer } from "./offer";
+import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
+
+/** A command, what it is called, and what it does. */
+export interface CommandProps {
+  /** What the screen offers of the command; `undefined` when the user may not exercise it. */
+  readonly offer: CommandOffer | undefined;
+  readonly label: string;
+  /**
+   * The server action the command runs. A command whose operation is still to be wired does
+   * nothing when pressed.
+   */
+  readonly action?: (() => Promise<Outcome<unknown>>) | undefined;
+  /** The names of the objects the screen shows, which name the object of a conflict. */
+  readonly names?: ObjectNames | undefined;
+}
+
+const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
+
+/** Render a command as the screen offers it, and tell of the outcome of running it. */
+export function Command({ offer, label, action, names }: CommandProps) {
+  const t = useTranslations("commands");
+  const conditionLabel = useTranslations("enums.CommandCondition");
+  const locale = useLocale();
+  const id = useId();
+  const [pending, startTransition] = useTransition();
+  const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  if (offer === undefined) {
+    return null;
+  }
+  const missing = offer.missing_conditions.map((condition) => conditionLabel(condition));
+  const unmet = offer.is_available || missing.length === 0 ? undefined : `${id}-unmet`;
+  const run = () => {
+    if (!offer.is_available || pending || action === undefined) {
+      return;
+    }
+    startTransition(async () => {
+      setOutcome(await action());
+    });
+  };
+  return (
+    <div className="space-y-1">
+      <Button
+        type="button"
+        variant="outline"
+        aria-disabled={offer.is_available ? undefined : true}
+        aria-describedby={unmet}
+        aria-busy={pending}
+        className={UNAVAILABLE}
+        onClick={run}
+      >
+        {label}
+      </Button>
+      {unmet === undefined ? null : (
+        <p id={unmet} className="text-sm text-muted-foreground">
+          {t("unmet", {
+            count: missing.length,
+            conditions: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
+              missing,
+            ),
+          })}
+        </p>
+      )}
+      <OutcomeNotice
+        outcome={outcome}
+        names={names}
+        onClear={() => {
+          setOutcome(undefined);
+        }}
+      />
+    </div>
+  );
+}

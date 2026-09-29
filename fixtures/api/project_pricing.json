@@ -1,0 +1,90 @@
+{
+  "summary": "Un projet en chiffrage, sans révision : sa terminaison est indisponible tant qu'il n'est pas en cours.",
+  "value": {
+    "project_id": "01926f3a-7c00-7000-8000-000000000002",
+    "label": "Extension de la ligne d'essais",
+    "code": "PRJ-002",
+    "description": null,
+    "state": "pricing",
+    "inflation_rate": "0.03",
+    "win_probability": "0.4",
+    "order_received_on": null,
+    "reference_revision_id": null,
+    "current_revision_id": null,
+    "available_commands": [
+      {
+        "command": "update",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "manage_contributors",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "create_revision",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "complete",
+        "is_available": false,
+        "missing_conditions": [
+          "project_in_progress"
+        ]
+      },
+      {
+        "command": "lose",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "edit_risks",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "declare_risk_occurrence",
+        "is_available": false,
+        "missing_conditions": [
+          "reference_revision_designated"
+        ]
+      },
+      {
+        "command": "import_actual_costs",
+        "is_available": false,
+        "missing_conditions": [
+          "project_in_progress"
+        ]
+      },
+      {
+        "command": "exclude_cost_lines",
+        "is_available": false,
+        "missing_conditions": [
+          "project_in_progress"
+        ]
+      }
+    ],
+    "audit": {
+      "created_at": "2026-03-02T08:30:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-03-16T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 2
+  }
+}

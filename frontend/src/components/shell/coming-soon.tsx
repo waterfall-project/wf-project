@@ -5,21 +5,24 @@
  * The lot of the screen replaces it by a page of its own, at the same route.
  */
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import type { NavigationFunction } from "@/navigation/functions";
 
-/** The function whose screen is to come. */
+/** The function whose screen is to come, and what the page shows of it already. */
 export interface ComingSoonProps {
   readonly label: NavigationFunction["label"];
+  readonly children?: ReactNode;
 }
 
 /** Render the name of a function, and that its screen is to come. */
-export function ComingSoon({ label }: ComingSoonProps) {
+export function ComingSoon({ label, children }: ComingSoonProps) {
   const t = useTranslations();
   return (
     <main className="space-y-2 p-6">
       <h1 className="text-2xl font-semibold">{t(label)}</h1>
       <p className="text-muted-foreground">{t("screen.comingSoon")}</p>
+      {children}
     </main>
   );
 }
