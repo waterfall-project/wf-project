@@ -181,6 +181,14 @@ verrou.
   next-themes, une dépendance pour un attribut que la coquille sait poser.
 - Le logo emploie ses deux variantes, déjà dans `docs/assets`. Le titre de l'onglet nomme
   l'écran et le projet ; le favicon vient de `waterfall_icon.svg`.
+- **La mise en page suit la maquette validée par l'utilisateur** (2026-09-29,
+  https://claude.ai/artifact/FZCXeHGRQVZEjgaooh9vJf) : shadcn/ui partout où un composant
+  existe ; la barre latérale est le Sidebar de shadcn, repliable en rail d'icônes ; la barre
+  du haut porte à droite l'avatar, qui déroule le menu du compte — préférences, mot de
+  passe, avatar, déconnexion ; une icône Lucide sur chaque entrée, chaque bouton et chaque
+  nature de ligne. Le style est sobre et professionnel, sans autre ornement que les icônes.
+  Les grilles sont denses — le plus d'informations sous les yeux —, les écrans d'indicateurs
+  aérés. Le lot US-0090/L4 (#149) refait la coquille ainsi, avant la grille.
 
 ### Qui appelle l'API
 
