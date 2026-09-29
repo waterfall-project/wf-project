@@ -33,7 +33,8 @@ const { user, permissions } = example("session") as components["schemas"]["Sessi
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {
-  const client = fakeClient(answers);
+  // No task of the user runs, which the tracker asks as the shell mounts.
+  const client = fakeClient({ "GET /tasks": "tasks_none", ...answers });
   server.client = client;
   return client;
 }

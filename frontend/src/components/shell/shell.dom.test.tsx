@@ -4,14 +4,21 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { expectAccessible } from "@/test/axe";
-import { example } from "@/test/fixtures";
+import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { Shell, type ShellProps } from "./shell";
 import { ShowProject } from "./shown-project";
+
+// The server of Next, as far as the shell needs it: the fake back, which the tracker asks, for
+// an account, for the tasks of its user that still run.
+const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 
 // The address the browser shows, as the router of Next gives it to a client component.
 const address = vi.hoisted(() => ({ pathname: "/", search: new URLSearchParams() }));
@@ -74,9 +81,17 @@ function narrow() {
   );
 }
 
+/** Serve the fake back: no task of the user runs. */
+function serve(): FakeClient {
+  const client = fakeClient({ "GET /tasks": "tasks_none" });
+  server.client = client;
+  return client;
+}
+
 beforeEach(() => {
   visit("/");
   document.cookie = `${SIDEBAR_COOKIE}=; path=/; max-age=0`;
+  serve();
 });
 
 afterEach(() => {
@@ -366,6 +381,19 @@ describe("the shell", () => {
     const group = screen.getByRole("group", { name: "Préférences" });
     expect(within(group).getByRole("menuitem", { name: /^Langue/ })).toBeInTheDocument();
     expect(within(group).getByRole("menuitem", { name: /^Mode d’affichage/ })).toBeInTheDocument();
+  });
+
+  it("asks, for an account, which tasks of its user still run, and nothing without one", async () => {
+    const signedIn = serve();
+    const view = shell();
+    await waitFor(() => {
+      expect(signedIn.calls.map((call) => call.route)).toEqual(["GET /tasks"]);
+    });
+    view.unmount();
+    const signedOut = serve();
+    shell({ account: undefined, permissions: undefined });
+    await act(() => Promise.resolve());
+    expect(signedOut.calls).toEqual([]);
   });
 
   it("says the search is to come", () => {

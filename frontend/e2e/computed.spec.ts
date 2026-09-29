@@ -6,7 +6,11 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 // (EP-02/L2). The journeys read it by marks the generator writes, which
 // `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds: row 1, the phase
 // « Études », a summary whose subordinates are the lots of rows 2, 201 and 401; row 4, a line of
-// labour, « Heures d'ingénierie ».
+// labour, « Heures d'ingénierie ». What a computed value depends on, the refusal asks the server
+// (`getComputedValueDependencies`), whose first example the fake back serves whatever the value
+// tried: the finish date of row 1, its subordinates named from the same structure. What another
+// value depends on is proven on its own example by the tests of the cell
+// (`computed-cell.dom.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const REVISION_PATH = `/projects/${PROJECT}/revisions/${REVISION}`;
@@ -46,13 +50,13 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   await expect(computed.getByRole("img", { name: "Calculé" })).toBeVisible();
   expect(await background(amount)).not.toBe(await background(hours));
 
-  // A try on the amount is refused beside it, naming what it depends on: nothing opens to type.
+  // A try on the amount is refused beside it, naming what the server says it depends on — here
+  // what the fake back answers for any value —: nothing opens to type.
   await computed.click();
   await expect(refusal(page)).toBeInViewport();
   await expect(refusal(page)).toContainText("Budgété ne se saisit pas");
-  await expect(refusal(page)).toContainText(
-    "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie",
-  );
+  await expect(refusal(page).getByRole("list", { name: /^Elle dépend de\s:$/ })).toBeVisible();
+  await expect(refusal(page).getByRole("status")).toHaveCount(0);
   await expect(amount.getByRole("textbox")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(refusal(page)).toHaveCount(0);

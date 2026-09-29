@@ -12,8 +12,9 @@
  * workstation decide the language and the mode. When the session cannot be read at all — the
  * API out of reach —, the navigation still offers the status screen (WF-ADM-0130).
  *
- * The shell follows the background tasks the screens start, in a panel under its bar, whatever
- * screen the user goes to meanwhile (WF-IHM-0080).
+ * The shell follows the background tasks the screens start, and, for an account, those of its user
+ * the API says still run, in a panel under its bar, whatever screen the user goes to meanwhile
+ * (WF-IHM-0080).
  *
  * The way in — the sign-in page, the password forgotten — stands outside it: the texts and the
  * mode still, but neither side bar, nor bar, nor tasks (`ShellFrame`).
@@ -64,7 +65,7 @@ export function Shell({
 }: ShellProps) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone={TIME_ZONE}>
-      <TaskTracker>
+      <TaskTracker signedIn={account !== undefined}>
         <ShownProjectProvider>
           <SidebarProvider defaultOpen={sidebarOpen}>
             <ShellFrame

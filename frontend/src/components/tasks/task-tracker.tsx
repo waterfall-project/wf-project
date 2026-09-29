@@ -9,7 +9,11 @@
  *
  * One tracker for every kind of task, in the root layout: a navigation within the application
  * keeps it, and nothing of it blocks the screen — no dialog, no control disabled. A full
- * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`).
+ * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`),
+ * with what the user named them after; and, for a session, the tracker asks the API as it mounts
+ * which tasks of its user still run (`listBackgroundTasks`), and follows those it did not — started
+ * from another tab, another workstation —, without their command: failed, such a task is run
+ * again from the screen of its object. A list the API does not give leaves the tracker as it is.
  *
  * Its panel lies under the bar of the shell, in the flow of the page, and a button of the bar
  * shows or hides it, with the number of the tasks followed. Until the user decides, it shows
@@ -38,6 +42,8 @@ import {
 import type { BackgroundTask } from "@/api/problem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+import { listRunningTasks } from "@/api/actions/tasks";
 
 import { forgetTasks, restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry } from "./task-entry";
@@ -93,8 +99,15 @@ export function useForgetTasks(): () => void {
   return inTracker(useContext(TrackContext)).forget;
 }
 
-/** Follow the background tasks the screens within it start. */
-export function TaskTracker({ children }: { readonly children: ReactNode }) {
+/** What the tracker follows the tasks of, and within what. */
+export interface TaskTrackerProps {
+  /** Whether a session is open: its user's tasks that still run are then listed as it mounts. */
+  readonly signedIn?: boolean;
+  readonly children: ReactNode;
+}
+
+/** Follow the background tasks the screens within it start, and those of its user that run. */
+export function TaskTracker({ signedIn = false, children }: TaskTrackerProps) {
   const [state, dispatch] = useReducer(tracking, NOTHING_TRACKED);
   // Whether the user showed or hid the panel; `undefined` while it follows the tasks.
   const [shown, setShown] = useState<boolean>();
@@ -105,6 +118,25 @@ export function TaskTracker({ children }: { readonly children: ReactNode }) {
   useEffect(() => {
     dispatch({ type: "restore", tasks: restoreTasks() });
   }, []);
+  // The tasks of the user that still run, read once, after those the tab kept: what the API
+  // does not give, refused or out of reach, the tracker does without.
+  useEffect(() => {
+    if (!signedIn) {
+      return undefined;
+    }
+    let live = true;
+    void listRunningTasks().then(
+      (outcome) => {
+        if (live && outcome.kind === "done") {
+          dispatch({ type: "found", tasks: outcome.data });
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [signedIn]);
   useEffect(() => {
     if (state.restored) {
       saveTasks(state.tasks);

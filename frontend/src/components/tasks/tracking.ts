@@ -12,6 +12,11 @@
  * Each end — a task succeeded, failed, or whose follow-up the API interrupted — adds a line to
  * a log, which the shell reads out: the ends add up, none replaces the one before. Signing out
  * forgets them all.
+ *
+ * A task is followed from the screen that started it, from what the tab kept of it across a
+ * reload, or from the list of the tasks of its user the API gives — started from another tab or
+ * another workstation. Found so, it comes without the command that started it: failed, it is run
+ * again from the screen of its object.
  */
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
 
@@ -91,6 +96,7 @@ export interface Tracking {
 export type TrackingEvent =
   | { readonly type: "track"; readonly task: BackgroundTask; readonly launch: Launch }
   | { readonly type: "restore"; readonly tasks: readonly TrackedTask[] }
+  | { readonly type: "found"; readonly tasks: readonly BackgroundTask[] }
   | {
       readonly type: "answer";
       /** A read of the task's progress, or its command run again. */
@@ -181,6 +187,26 @@ function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" 
   return { ...state, tasks, log: logEnd(state.log, entry.task, next) };
 }
 
+/**
+ * What the tracker follows once the API has listed the tasks of its user: those it did not follow
+ * yet, without their command — neither the one it follows under their first identifier, nor the
+ * one a relaunch put in its place.
+ */
+function found(state: Tracking, tasks: readonly BackgroundTask[]): Tracking {
+  const known = new Set(state.tasks.flatMap((tracked) => [tracked.key, tracked.task.task_id]));
+  const added = tasks
+    .filter((task) => !known.has(task.task_id))
+    .map((task): TrackedTask => ({
+      key: task.task_id,
+      task,
+      subject: undefined,
+      command: undefined,
+      outcome: undefined,
+      interrupted: undefined,
+    }));
+  return added.length === 0 ? state : { ...state, tasks: [...state.tasks, ...added] };
+}
+
 /** Change what the tracker follows. */
 export function tracking(state: Tracking, event: TrackingEvent): Tracking {
   switch (event.type) {
@@ -208,6 +234,8 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
       const back = event.tasks.filter((tracked) => !known.has(tracked.key));
       return { ...state, tasks: [...back, ...state.tasks], restored: true };
     }
+    case "found":
+      return found(state, event.tasks);
     case "answer":
       return answer(state, event);
     case "clear":

@@ -51,6 +51,12 @@ vi.mock("next/navigation", async (original) => ({
 
 const PREFERENCES = "PATCH /me/preferences";
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+// The main structure of the current revision of the witness project, as the examples name it.
+const STRUCTURE = {
+  project_id: "01926f3a-7c00-7000-8000-000000000001",
+  revision_id: "01926f3a-7c00-7000-8000-000000000102",
+  structure_id: "01926f3a-7c00-7000-8000-000000000201",
+};
 // The height of a row at the default size of the root font, and of the element that scrolls,
 // as a browser would lay it out: twenty rows.
 const ROW_HEIGHT = ROW_REM * 16;
@@ -85,7 +91,12 @@ function renderGrid(
   const locale = options.locale ?? "fr";
   const grid = (query: GridQuery<NodeSortColumn>) => (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <EstimateGrid nodes={nodes} query={query} preferences={options.preferences} />
+      <EstimateGrid
+        nodes={nodes}
+        structure={STRUCTURE}
+        query={query}
+        preferences={options.preferences}
+      />
     </NextIntlClientProvider>
   );
   const rendered = render(grid(options.query ?? NO_QUERY));

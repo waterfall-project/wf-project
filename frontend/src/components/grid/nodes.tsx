@@ -27,6 +27,15 @@ export type NodeTotals = components["schemas"]["NodeTotals"];
 /** The answer of `listNodes`: the nodes, depth first, and their totals. */
 export type NodeList = operations["listNodes"]["responses"][200]["content"]["application/json"];
 
+/**
+ * The structure a grid reads the nodes of: its project, its revision, the structure itself —
+ * what a computed cell names, with its node, to ask what its value depends on.
+ */
+export type StructurePath = Omit<
+  operations["getComputedValueDependencies"]["parameters"]["path"],
+  "node_id"
+>;
+
 /** A column of the contract the server sorts the nodes by. */
 export type NodeSortColumn = NonNullable<
   NonNullable<operations["listNodes"]["parameters"]["query"]>["sort_by"]
@@ -39,10 +48,12 @@ export type NodeKind = components["schemas"]["NodeKind"];
 export type NodeField = Exclude<keyof Node, "task" | "estimate_line">;
 
 /**
- * The fields a grid reads of a node: of the node itself, of its task, of its line. A page hands
- * its grid these alone (`projectNodes`): the answer of `listNodes` is read whole on the server,
- * and what crosses to the browser is what the grid shows — a thousand tasks and their lines
- * whole would weigh some four megabytes in the page, and cost the second of §4.6.2 (#166).
+ * The fields a grid reads of a node: of the node itself, of its task, of its line. A page asks
+ * `listNodes` for these alone (`fields`, `nodeFieldNames`), and hands its grid these alone
+ * (`projectNodes`): a thousand tasks and their lines whole would weigh some four megabytes, in
+ * the answer and in the page, and cost the second of §4.6.2. The projection stays behind the
+ * request: a server may render more than asked — the fake back renders its example whole —, and
+ * what crosses to the browser is what the grid shows, whatever the answer held.
  */
 export interface NodeFields<
   N extends NodeField,
@@ -95,6 +106,24 @@ export type GridNode = NodeRow;
 export interface NodeRows<Row> {
   readonly items: readonly Row[];
   readonly totals: NodeTotals;
+}
+
+/**
+ * The names `listNodes` takes in `fields` for what a grid reads: the fields every grid reads and
+ * those its columns read — of the node as they are, of its task and of its line prefixed by their
+ * facet (`task.label`).
+ */
+export function nodeFieldNames(fields: AnyNodeFields): string[] {
+  const facet = (name: "task" | "estimate_line", names: readonly string[]) =>
+    names.map((field) => `${name}.${field}`);
+  return [
+    ...new Set([
+      ...COMMON_FIELDS.node,
+      ...fields.node,
+      ...facet("task", [...COMMON_FIELDS.task, ...fields.task]),
+      ...facet("estimate_line", [...COMMON_FIELDS.line, ...fields.line]),
+    ]),
+  ];
 }
 
 /**

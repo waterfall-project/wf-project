@@ -9,8 +9,10 @@ import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
-import { example, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
+import { DenseGrid } from "./dense-grid";
+import { ESTIMATE_GRID } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PlanningGrid } from "./planning-grid";
@@ -29,23 +31,56 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
-const PARTIAL =
-  "Des lignes dont elle dépend peuvent manquer\u00a0: la recherche ou les filtres ne les montrent pas.";
+const DEPENDENCIES =
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies";
+// The main structure of the current revision of the witness project, as the examples name it.
+const STRUCTURE = {
+  project_id: "01926f3a-7c00-7000-8000-000000000001",
+  revision_id: "01926f3a-7c00-7000-8000-000000000102",
+  structure_id: "01926f3a-7c00-7000-8000-000000000201",
+};
+const STRUCTURE_PATH = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/structures/${STRUCTURE.structure_id}`;
+const PENDING = "Lecture de ce dont elle dépend…";
 const estimate = example("nodes_estimate") as NodeList;
 const planning = example("nodes_planning") as NodeList;
 
-/** Render a grid of a structure on an answer, in a language, for what the address asked. */
-function renderGrid(
-  grid: "estimate" | "planning",
-  locale: Locale = "fr",
-  query: GridQuery<NodeSortColumn> = NO_QUERY,
-) {
+/** Serve the fake back, and give it back to read its calls. */
+function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>, held = 0): FakeClient {
+  const client = fakeClient(
+    { "PATCH /me/preferences": "preferences", ...answers },
+    { hold: (route, index) => (route === DEPENDENCIES && index === held ? hold : undefined) },
+  );
+  server.client = client;
+  return client;
+}
+
+/** The grid of the planning on an answer, in French. */
+function planningOf(nodes: NodeList) {
+  return (
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <PlanningGrid nodes={nodes} structure={STRUCTURE} query={NO_QUERY} preferences={undefined} />
+    </NextIntlClientProvider>
+  );
+}
+
+/** Render a grid of a structure on an answer, in a language. */
+function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?: NodeList) {
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       {grid === "estimate" ? (
-        <EstimateGrid nodes={estimate} query={query} preferences={undefined} />
+        <EstimateGrid
+          nodes={nodes ?? estimate}
+          structure={STRUCTURE}
+          query={NO_QUERY}
+          preferences={undefined}
+        />
       ) : (
-        <PlanningGrid nodes={planning} query={query} preferences={undefined} />
+        <PlanningGrid
+          nodes={nodes ?? planning}
+          structure={STRUCTURE}
+          query={NO_QUERY}
+          preferences={undefined}
+        />
       )}
     </NextIntlClientProvider>,
   );
@@ -73,21 +108,28 @@ function refusal(name = "Valeur calculée"): HTMLElement {
   return screen.getByRole("dialog", { name });
 }
 
-/** The texts of the paragraphs of the refusal, and the rows it names. */
-function said(dialog: HTMLElement) {
+/** The texts of the paragraphs of the refusal, once the server has answered, and its rows. */
+async function said(name?: string) {
+  const dialog = refusal(name);
+  await vi.waitFor(() => {
+    expect(within(dialog).queryByRole("status")).toBeNull();
+  });
   return {
     paragraphs: [...dialog.querySelectorAll("p")].map((paragraph) => paragraph.textContent),
     rows: within(dialog)
       .queryAllByRole("listitem")
-      .map((item) => ({
-        text: item.textContent,
-        nature: within(item).getByRole("img").getAttribute("aria-label"),
-      })),
+      .map((item) => item.textContent),
   };
 }
 
+/** The calls of the fake back that asked what a value depends on: the node, and the field. */
+function asked(client: FakeClient) {
+  return client.calls
+    .filter((call) => call.route === DEPENDENCIES)
+    .map((call) => [call.path, call.query.get("field")]);
+}
+
 beforeEach(() => {
-  server.client = fakeClient({ "PATCH /me/preferences": "preferences" });
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1000);
 });
@@ -110,7 +152,8 @@ const PROGRESS = 6;
 const FLOAT = 7;
 
 describe("a value of a grid the server computes", () => {
-  it("is not entered in a line of labour, and does not look like its effort in hours [WF-IHM-0030-A]", async () => {
+  it("is not entered in a line of labour, does not look like its effort in hours, and is refused naming what it depends on [WF-IHM-0030-A]", async () => {
+    const client = serve({ [DEPENDENCIES]: "dependencies_labour" });
     renderGrid("estimate");
     const labour = "Raccordement des borniers";
     const hours = cell(labour, HOURS);
@@ -128,22 +171,30 @@ describe("a value of a grid the server computes", () => {
       /^Calculé 1\s000,00$/,
     );
 
-    // A try to enter it is refused, beside it, naming what it depends on; nothing opens to type.
+    // A try to enter it is refused, beside it, naming what the server says it depends on;
+    // nothing opens to type.
     await userEvent.click(mark);
-    expect(said(refusal())).toEqual({
+    expect(await said()).toEqual({
       paragraphs: [
         "Valeur calculée",
-        "Budgété ne se saisit pas\u00a0: Waterfall calcule cette valeur.",
+        "Budgété ne se saisit pas : Waterfall calcule cette valeur.",
         "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
         "Le montant budgété est celui que la révision de référence a fixé.",
       ],
       rows: [],
     });
+    expect(asked(client)).toEqual([
+      [
+        `${STRUCTURE_PATH}/nodes/01926f3a-7c00-7000-8000-000000000523/dependencies`,
+        "estimate_line.budgeted_amount",
+      ],
+    ]);
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("spinbutton")).toBeNull();
   });
 
   it("refuses to change the finish date of a summary task, naming its subordinates [WF-IHM-0030-A]", async () => {
+    const client = serve({ [DEPENDENCIES]: "dependencies_summary" });
     renderGrid("planning");
     const finish = within(cell("Études", FINISH)).getByRole("button", {
       name: /^Calculé 24\/04\/2026$/,
@@ -151,22 +202,27 @@ describe("a value of a grid the server computes", () => {
     expect(finish).toHaveAttribute("aria-haspopup", "dialog");
     expect(finish).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(finish);
-    const dialog = refusal();
-    expect(said(dialog)).toEqual({
+    expect(await said()).toEqual({
       paragraphs: [
         "Valeur calculée",
-        "Fin ne se saisit pas\u00a0: Waterfall calcule cette valeur.",
+        "Fin ne se saisit pas : Waterfall calcule cette valeur.",
         "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
-        "Elle dépend de\u00a0:",
+        "Elle dépend de :",
       ],
       rows: [
-        { text: "2Études de détail", nature: "Tâche" },
-        { text: "3Pupitres opérateurs", nature: "Tâche" },
-        { text: "4Revue de conception", nature: "Tâche" },
-        { text: "5Réception des études", nature: "Jalon" },
+        "2Études de détail",
+        "4Pupitres opérateurs",
+        "5Revue de conception",
+        "6Réception des études",
       ],
     });
-    expect(within(dialog).getByRole("list", { name: "Elle dépend de\u00a0:" })).toBeInTheDocument();
+    expect(asked(client)).toEqual([
+      [
+        `${STRUCTURE_PATH}/nodes/01926f3a-7c00-7000-8000-000000000521/dependencies`,
+        "task.finish_date",
+      ],
+    ]);
+    expect(within(refusal()).getByRole("list", { name: "Elle dépend de :" })).toBeInTheDocument();
     expect(within(cell("Études", FINISH)).getByRole("button")).toHaveAttribute(
       "aria-expanded",
       "true",
@@ -174,7 +230,84 @@ describe("a value of a grid the server computes", () => {
     await expectAccessible(document.body);
   });
 
+  it("names the subordinates the grid does not show, under a search or a filter [WF-IHM-0030-A]", async () => {
+    serve({ [DEPENDENCIES]: "dependencies_summary" });
+    // What a search on « Études » answers: the summary and the studies, not the other tasks.
+    renderGrid("planning", "fr", {
+      ...planning,
+      items: planning.items.filter((node) => node.task?.label.startsWith("Études") === true),
+    });
+    expect(cellsOf("Revue de conception")).toEqual([]);
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect((await said()).rows).toEqual([
+      "2Études de détail",
+      "4Pupitres opérateurs",
+      "5Revue de conception",
+      "6Réception des études",
+    ]);
+  });
+
+  it("says it is reading what the value depends on until the server answers", async () => {
+    let answer: (value?: unknown) => void = () => undefined;
+    serve(
+      { [DEPENDENCIES]: "dependencies_summary" },
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    renderGrid("planning");
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(within(refusal()).getByRole("status")).toHaveTextContent(PENDING);
+    expect(within(refusal()).queryByRole("list")).toBeNull();
+    answer();
+    expect(await within(refusal()).findByRole("list")).toBeInTheDocument();
+    expect(within(refusal()).queryByRole("status")).toBeNull();
+  });
+
+  it("drops an answer for a row the page has read anew, and asks again for the new one", async () => {
+    let answer: (value?: unknown) => void = () => undefined;
+    const client = serve(
+      { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const { rerender } = renderGrid("planning");
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    // The page reads the structure anew while the server has not answered: the same rows, anew.
+    rerender(planningOf(structuredClone(planning)));
+    answer();
+    const { paragraphs } = await said();
+    expect(paragraphs).not.toContain(
+      "Le montant budgété est celui que la révision de référence a fixé.",
+    );
+    expect(paragraphs).toContain(
+      "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
+    );
+    expect(asked(client)).toHaveLength(2);
+  });
+
+  it("shows no answer to a row read before while it asks again for the row read anew", async () => {
+    let answer: (value?: unknown) => void = () => undefined;
+    serve(
+      { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+      1,
+    );
+    const { rerender } = renderGrid("planning");
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(await within(refusal()).findByText(/^Le montant budgété/)).toBeInTheDocument();
+    rerender(planningOf(structuredClone(planning)));
+    expect(within(refusal()).getByRole("status")).toHaveTextContent(PENDING);
+    expect(within(refusal()).queryByText(/^Le montant budgété/)).toBeNull();
+    answer();
+    expect(await within(refusal()).findByRole("list")).toBeInTheDocument();
+  });
+
   it("is refused from the keyboard as from the pointer, and gives the focus back to its cell", async () => {
+    serve({ [DEPENDENCIES]: "dependencies_summary" });
     renderGrid("planning");
     const start = within(cell("Études", START)).getByRole("button");
     start.focus();
@@ -192,6 +325,7 @@ describe("a value of a grid the server computes", () => {
   });
 
   it("is read row by row: the dates of a task in manual mode are entered, those of the others computed", () => {
+    serve();
     renderGrid("planning");
     for (const position of [DURATION, START, FINISH, PROGRESS]) {
       expect(within(cell("Études", position)).queryByRole("button")).not.toBeNull();
@@ -206,6 +340,7 @@ describe("a value of a grid the server computes", () => {
   });
 
   it("marks the quantity and the unit disbursement of a provision, which come from its risk", async () => {
+    const client = serve({ [DEPENDENCIES]: "dependencies_provision" });
     renderGrid("estimate");
     const provision = "Provision — risque de reprise du câblage";
     for (const position of [QUANTITY, DISBURSEMENT]) {
@@ -214,61 +349,84 @@ describe("a value of a grid the server computes", () => {
     }
     expect(within(cell(provision, HOURS)).queryByRole("button")).toBeNull();
     await userEvent.click(within(cell(provision, QUANTITY)).getByRole("button"));
-    expect(said(refusal()).paragraphs.slice(1)).toEqual([
-      "Qté ne se saisit pas\u00a0: Waterfall calcule cette valeur.",
-      "Une ligne de provision tient ses grandeurs de son risque\u00a0: sa gravité pondérée par sa probabilité.",
+    expect((await said()).paragraphs.slice(1)).toEqual([
+      "Qté ne se saisit pas : Waterfall calcule cette valeur.",
+      "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
     ]);
+    expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.quantity"]);
   });
 
   it("names what the amount of a task depends on: the lines it bears", async () => {
+    const client = serve({ [DEPENDENCIES]: "dependencies_task_amount" });
     renderGrid("estimate");
     await userEvent.click(within(cell("Câblage des armoires", REESTIMATED)).getByRole("button"));
-    expect(said(refusal()).rows).toEqual([
-      { text: "3Raccordement des borniers", nature: "Ligne de main-d’œuvre" },
-      { text: "4Borniers", nature: "Ligne de débours" },
-      { text: "5Provision — risque de reprise du câblage", nature: "Ligne de provision" },
+    expect((await said()).rows).toEqual([
+      "3Raccordement des borniers",
+      "4Borniers",
+      "5Provision — risque de reprise du câblage",
     ]);
-  });
-
-  it("says, under a search or a filter, that rows it does not show may be among those it names", async () => {
-    renderGrid("planning", "fr", { sort: undefined, search: "Études" });
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
-    expect(said(refusal()).paragraphs.at(-1)).toBe(PARTIAL);
-    await userEvent.keyboard("{Escape}");
-    // A value drawn from no row says nothing of them.
-    await userEvent.click(within(cell("Revue de conception", FINISH)).getByRole("button"));
-    expect(refusal()).not.toHaveTextContent(PARTIAL);
-  });
-
-  it("says it alone, under a search, when the value is drawn from rows none of which it names", async () => {
-    renderGrid("estimate", "fr", { sort: undefined, search: "Réception" });
-    await userEvent.click(within(cell("Réception usine", BUDGETED)).getByRole("button"));
-    expect(said(refusal()).paragraphs.at(-1)).toBe(PARTIAL);
-    expect(refusal()).not.toHaveTextContent(/Elle dépend de/);
-    expect(within(refusal()).queryByRole("list")).toBeNull();
-  });
-
-  it("says nothing of rows left out when the answer holds them all", async () => {
-    renderGrid("planning");
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
-    expect(refusal()).not.toHaveTextContent(PARTIAL);
+    expect(asked(client).map(([, field]) => field)).toEqual(["task.reestimated_amount"]);
   });
 
   it("says a task in manual mode bears no float", async () => {
+    const client = serve({ [DEPENDENCIES]: "dependencies_manual_float" });
     renderGrid("planning");
     await userEvent.click(within(cell("Pupitres opérateurs", FLOAT)).getByRole("button"));
-    expect(said(refusal()).paragraphs.slice(1)).toEqual([
-      "Marge ne se saisit pas\u00a0: Waterfall calcule cette valeur.",
+    expect((await said()).paragraphs.slice(1)).toEqual([
+      "Marge ne se saisit pas : Waterfall calcule cette valeur.",
       "Une tâche en mode manuel ne porte pas de marge.",
+    ]);
+    expect(asked(client).map(([, field]) => field)).toEqual(["task.total_float_days"]);
+  });
+
+  it("tells a refusal of the server as every screen does", async () => {
+    serve({ [DEPENDENCIES]: { problem: { code: "NOT_FOUND", status: 404 } } });
+    renderGrid("planning");
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
+      /^Introuvable.+cet élément n’existe pas, ou vous n’y avez pas accès\.$/,
+    );
+    expect(within(refusal()).queryByRole("status")).toBeNull();
+  });
+
+  it("says the API is out of reach when the server does not answer at all", async () => {
+    serve();
+    renderGrid("planning");
+    server.client = undefined;
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
+      "Le service est injoignable",
+    );
+  });
+
+  it("says no more than that the value is computed, in a grid that cannot ask the server", async () => {
+    serve();
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <DenseGrid
+          config={ESTIMATE_GRID}
+          rows={estimate.items}
+          totals={estimate.totals}
+          totalsCaption="Total"
+          query={NO_QUERY}
+          preferences={undefined}
+        />
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(within(cell("Borniers", BUDGETED)).getByRole("button"));
+    expect([...refusal().querySelectorAll("p")].map((p) => p.textContent)).toEqual([
+      "Valeur calculée",
+      "Budgété ne se saisit pas : Waterfall calcule cette valeur.",
     ]);
   });
 
   it("is refused in English too", async () => {
+    serve({ [DEPENDENCIES]: "dependencies_summary" });
     renderGrid("planning", "en");
     await userEvent.click(
       within(cell("Études", FINISH)).getByRole("button", { name: /^Computed/ }),
     );
-    expect(said(refusal("Computed value")).paragraphs).toEqual([
+    expect((await said("Computed value")).paragraphs).toEqual([
       "Computed value",
       "Finish cannot be entered: Waterfall computes this value.",
       "A summary task takes its dates, its duration and its progress from its subtasks.",

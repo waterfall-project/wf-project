@@ -39,6 +39,7 @@ const MARKING = "01926f3a-7c00-7000-8000-000000000901";
 const IMPORT = "01926f3a-7c00-7000-8000-000000000902";
 const RELAUNCHED = "01926f3a-7c00-7000-8000-000000000903";
 const TASK = "GET /tasks/{task_id}";
+const TASKS = "GET /tasks";
 const MARK = "POST /projects/{project_id}/revisions/{revision_id}/mark";
 
 /** A task of the contract, by the name of its example. */
@@ -90,10 +91,10 @@ function Starting({
  * The shell, as far as the tracker goes: the texts, the tracker, the button of its panel in the
  * bar, its panel, the page.
  */
-function shell(page: ReactNode) {
+function shell(page: ReactNode, signedIn = false) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <TaskTracker>
+      <TaskTracker signedIn={signedIn}>
         <header>
           <TasksButton />
         </header>
@@ -639,5 +640,68 @@ describe("the follow-up across a full reload of the tab", () => {
     await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
     expect(panelButton()).toHaveAttribute("aria-expanded", "true");
     expect(panelButton()).toHaveAccessibleName("Tâches de fond\u00A0: 2 suivies");
+  });
+});
+
+describe("the tasks of its user the API lists", () => {
+  it("follows, for a session, the tasks of its user that still run, started elsewhere, and announces their end", async () => {
+    const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_failed" });
+    render(shell(<Screen name="Planning" />, true));
+
+    // The marking another tab started, found once the list is read.
+    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision",
+    );
+    const listed = client.calls.filter((call) => call.route === TASKS);
+    expect(listed.map((call) => call.query.get("status"))).toEqual(["queued,running"]);
+    await tick();
+    expect(reads(client)).toEqual([`/tasks/${MARKING}`]);
+    expect(ends()[0]?.[0]).toBe("Tâche échouée\u00A0: Marquage d’une révision.");
+    // The list does not say which command started it: it is run again from its screen.
+    expect(within(panel()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(
+      within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
+    ).toBeVisible();
+  });
+
+  it("follows once a task the tab already follows, with what the user named it after", async () => {
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        { key: MARKING, task_id: MARKING, kind: "revision_mark", status: "running", subject: "V2" },
+      ]),
+    );
+    const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
+    render(shell(<Screen name="Planning" />, true));
+    await vi.waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toContain(TASKS);
+    });
+    await tick();
+    expect(within(panel()).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(panel()).getByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision « V2 »",
+    );
+  });
+
+  it("does without a list the API refuses, or does not give", async () => {
+    const client = serve({ [TASKS]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
+    const view = render(shell(<Screen name="Planning" />, true));
+    await vi.waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toEqual([TASKS]);
+    });
+    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    view.unmount();
+    server.client = unreachable();
+    render(shell(<Screen name="Planning" />, true));
+    await tick();
+    expect(within(panel()).queryByRole("list")).toBeNull();
+  });
+
+  it("asks nothing without a session", async () => {
+    const client = serve({});
+    render(shell(<Screen name="Planning" />));
+    await tick();
+    expect(client.calls).toEqual([]);
   });
 });

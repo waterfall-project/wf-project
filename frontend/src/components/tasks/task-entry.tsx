@@ -226,7 +226,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
         <p className="mr-auto font-medium">{name}</p>
         <p className="text-muted-foreground">
           {interrupted === undefined
-            ? t(`enums.BackgroundTaskRef.status.${task.status}`)
+            ? t(`enums.BackgroundTaskStatus.${task.status}`)
             : t("tasks.interrupted")}
         </p>
         {/* Dismissed while it runs again, the task relaunched would be lost: it waits. */}

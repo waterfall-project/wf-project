@@ -53,7 +53,8 @@ async function layout() {
 
 /** Serve the fake back, render the shell, and render it again on each refresh. */
 async function open(answers: FakeAnswers): Promise<FakeClient> {
-  const client = fakeClient(answers);
+  // No task of the user runs, which the tracker asks as the shell mounts.
+  const client = fakeClient({ "GET /tasks": "tasks_none", ...answers });
   server.client = client;
   const view = render(await layout());
   server.refresh = async () => {
@@ -132,11 +133,10 @@ describe("the mode selector", () => {
     expect(sent(client, PREFERENCES)).toEqual([{ theme: "dark" }]);
     await modes();
     expect(checked()).toBe("Sombre");
-    expect(client.calls.map((call) => call.route)).toEqual([
-      "GET /session",
-      PREFERENCES,
-      "GET /session",
-    ]);
+    // The tasks of the user, which the tracker asks as the shell mounts, aside.
+    expect(
+      client.calls.map((call) => call.route).filter((route) => route !== "GET /tasks"),
+    ).toEqual(["GET /session", PREFERENCES, "GET /session"]);
   });
 
   it("shows the light variant of the logo alone in a mode forced light", async () => {

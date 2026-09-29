@@ -4,7 +4,7 @@
  * The grid of the planning of a revision (WF-PLA-0080, US-0220), at the route of its function
  * (`functions.json`): the banner of its reading context (WF-IHM-0020), and the grid on the main
  * structure of the revision, its tasks alone — the server renders no line for it (`kinds`) —,
- * handed the fields it shows alone (`projectNodes`). The rows come in the order of the answer,
+ * asked and handed the fields it shows alone (`fields`, `projectNodes`). The rows come in the order of the answer,
  * with the totals of the answer: a header clicked or a search entered changes the address, and
  * this page reads anew (`grid-screen.ts`).
  */
@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
 import { ContextBanner } from "@/components/context/context-banner";
-import { type NodeList, projectNodes } from "@/components/grid/nodes";
+import { type NodeList, nodeFieldNames, projectNodes } from "@/components/grid/nodes";
 import {
   PLANNING_FIELDS,
   PLANNING_GRID,
@@ -64,6 +64,7 @@ export default async function PlanningPage({
     key: PLANNING_GRID.key,
     sortable: PLANNING_SORT_COLUMNS,
     kinds: PLANNING_KINDS,
+    fields: nodeFieldNames(PLANNING_FIELDS),
   });
   return (
     <>
@@ -72,6 +73,7 @@ export default async function PlanningPage({
         <PlanningHeader label={screen.label} nodes={screen.nodes} />
         <PlanningGrid
           nodes={projectNodes(screen.nodes, PLANNING_FIELDS)}
+          structure={screen.structure}
           query={screen.query}
           preferences={screen.preferences}
         />

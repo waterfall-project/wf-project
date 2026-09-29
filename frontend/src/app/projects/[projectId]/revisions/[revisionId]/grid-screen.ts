@@ -6,8 +6,9 @@
  * (WF-IHM-0020), the main structure of the revision, and its nodes as the address asks them —
  * the sort, the search, the filtered sub-project, all named as the contract names them —, the
  * sort the account keeps for the grid when the address asks none. A grid asks the server what
- * to render (`kinds`): the planning, the tasks alone. A project or a revision the API does not
- * find is not found, as at the other screens of a project.
+ * to render (`kinds`): the planning, the tasks alone; and, of each node, the fields it reads
+ * alone (`fields`). A project or a revision the API does not find is not found, as at the other
+ * screens of a project.
  */
 import "server-only";
 
@@ -16,7 +17,7 @@ import { notFound } from "next/navigation";
 import { readOrFail, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
-import type { NodeKind, NodeList, NodeSortColumn } from "@/components/grid/nodes";
+import type { NodeKind, NodeList, NodeSortColumn, StructurePath } from "@/components/grid/nodes";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import {
@@ -57,12 +58,17 @@ export function gridAddress(
   return { revision, pathname, address, context };
 }
 
-/** What a grid is: the key of its settings, the columns it sorts, what it renders. */
+/**
+ * What a grid is: the key of its settings, the columns it sorts, what it renders, and the fields
+ * of a node it reads.
+ */
 export interface GridReading {
   readonly key: string;
   readonly sortable: readonly NodeSortColumn[];
   /** What the server is to render; every kind of node when none is given. */
   readonly kinds?: readonly NodeKind[];
+  /** The fields of each node the server is to render, as `listNodes` names them. */
+  readonly fields: readonly string[];
 }
 
 /** What a grid of a revision shows: its context, its structure and nodes, its settings. */
@@ -70,6 +76,8 @@ export interface GridScreen {
   readonly reading: ProjectReading;
   /** The label of the main structure. */
   readonly label: string;
+  /** The main structure, which a computed cell names to ask what its value depends on. */
+  readonly structure: StructurePath;
   readonly nodes: NodeList;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
@@ -86,7 +94,7 @@ export interface GridScreen {
  */
 async function mainStructure(
   { revision, context }: GridAddress,
-  kinds: readonly NodeKind[] | undefined,
+  { kinds, fields }: GridReading,
   asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
   const client = serverClient();
@@ -102,11 +110,13 @@ async function mainStructure(
   }
   const { sort, search } = await asked;
   const subproject = context.parameters.get("subproject_id");
+  const structure = { ...path, structure_id: main.structure_id };
   const nodes = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
       params: {
-        path: { ...path, structure_id: main.structure_id },
+        path: structure,
         query: {
+          fields: [...fields],
           ...(kinds === undefined ? {} : { kinds: [...kinds] }),
           ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
           ...(search === undefined ? {} : { search }),
@@ -115,7 +125,7 @@ async function mainStructure(
       },
     }),
   );
-  return { label: main.label, nodes };
+  return { label: main.label, structure, nodes };
 }
 
 /**
@@ -130,7 +140,7 @@ export async function readGridScreen(at: GridAddress, grid: GridReading): Promis
   );
   const asked = settings.then((kept) => readGridQuery(at.address, grid.sortable, kept?.sort));
   const [structure, reading, preferences, query] = await Promise.all([
-    mainStructure(at, grid.kinds, asked),
+    mainStructure(at, grid, asked),
     readProjectContext(at.pathname, at.context),
     settings,
     asked,
@@ -138,5 +148,5 @@ export async function readGridScreen(at: GridAddress, grid: GridReading): Promis
   if (reading === "not_found") {
     notFound();
   }
-  return { reading, label: structure.label, nodes: structure.nodes, query, preferences };
+  return { reading, ...structure, query, preferences };
 }

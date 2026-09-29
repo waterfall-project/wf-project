@@ -62,7 +62,8 @@ async function layout() {
 
 /** Serve the fake back, render the shell, and render it again on each refresh. */
 async function open(answers: FakeAnswers): Promise<FakeClient> {
-  const client = fakeClient(answers);
+  // No task of the user runs, which the tracker asks as the shell mounts.
+  const client = fakeClient({ "GET /tasks": "tasks_none", ...answers });
   server.client = client;
   const view = render(await layout());
   server.refresh = async () => {
@@ -137,11 +138,10 @@ describe("the language in the menu of the account", () => {
     expect(screen.getByRole("menuitemradio", { name: "Browser language" })).toBeInTheDocument();
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
     // Two reads of the session and one write: no session was opened anew.
-    expect(client.calls.map((call) => call.route)).toEqual([
-      "GET /session",
-      PREFERENCES,
-      "GET /session",
-    ]);
+    // The tasks of the user, which the tracker asks as the shell mounts, aside.
+    expect(
+      client.calls.map((call) => call.route).filter((route) => route !== "GET /tasks"),
+    ).toEqual(["GET /session", PREFERENCES, "GET /session"]);
   });
 
   it("sends nothing while the keyboard moves through the languages, and gives the focus back once one is chosen", async () => {
@@ -212,7 +212,10 @@ describe("the language in the menu of the account", () => {
   it("shows the preference a new render reads, not the one it was first given", async () => {
     // The account changed elsewhere — another tab, another workstation — and the page is
     // rendered again.
-    const client = fakeClient({ "GET /session": ["session", "session_english"] });
+    const client = fakeClient({
+      "GET /tasks": "tasks_none",
+      "GET /session": ["session", "session_english"],
+    });
     server.client = client;
     const view = render(await layout());
 

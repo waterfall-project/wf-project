@@ -4,30 +4,36 @@
  * A cell of a dense grid whose value the server computes (WF-IHM-0030): shaded by its row, marked
  * by Σ — the one mark of a computed value, which its header bears for a column computed whole —,
  * named « computed » to whoever does not see it, and never entered. Clicked, or pressed from the
- * keyboard, it refuses the entry beside it and names what its value depends on: why the server
- * computes it, and the rows it is drawn from, named as the grid names them — their number, the
- * icon of their nature, their label.
+ * keyboard, it refuses the entry beside it and names what its value depends on, as the server
+ * says it once asked (`getComputedValueDependencies`): the rules that compute it, and the rows it
+ * is drawn from — their number and their label —, all of them, whatever the search or the filters
+ * of the grid retained. Until the server answers, the refusal says it is reading; a refusal of the
+ * server, or the API out of reach, it tells as every screen does (`OutcomeNotice`).
  *
  * The cell is a button, which the pointer and the keyboard reach alike; the entry at the keyboard
  * (US-0120) will open the same refusal from the cell it lands on. Its popover mounts on the first
  * try only: a root of Radix in each computed cell would cost the hydration of the first screen as
- * many contexts, and the second of §4.6.2 counts it.
+ * many contexts, and the second of §4.6.2 counts it. The server is asked once the cell is first
+ * tried, and again when its row changes — the page read anew —: an answer for a row the cell no
+ * longer shows is dropped.
  */
 "use client";
 
 import type { RowData } from "@tanstack/react-table";
 import { Sigma } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useId, useState } from "react";
+import { useTranslations } from "next-intl";
+import { type ReactNode, useEffect, useId, useState } from "react";
 
+import type { Outcome } from "@/api/problem";
+import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-import {
-  type ComputedCells,
-  type Dependency,
-  formatCell,
-  type GridColumn,
-  type GridConfig,
+import type {
+  ComputedCells,
+  ComputedDependencies,
+  ComputedValueField,
+  DependencyReader,
+  GridColumn,
 } from "./columns";
 
 /** A column some of whose cells the server computes. */
@@ -39,62 +45,111 @@ export type ComputedColumn<Row, Sort extends string, Totals> = GridColumn<Row, S
 const TRIGGER =
   "flex w-full min-w-0 items-center justify-between gap-0.5 rounded-sm text-inherit outline-none focus-visible:ring-[3px] focus-visible:ring-ring";
 
-/** What the refusal of an entry on a computed value reads. */
-export interface ComputedRefusalProps<Row, Sort extends string, Totals> {
-  readonly config: GridConfig<Row, Sort, Totals>;
-  readonly column: GridColumn<Row, Sort, Totals>;
-  /** The rows of the answer, among which the dependency names its rows by their indices. */
-  readonly rows: readonly Row[];
-  readonly dependency: Dependency;
-  /**
-   * Whether the answer holds a part of the rows only — a search, a filter —: those it left out
-   * may be among the rows the value depends on, which the refusal cannot name.
-   */
-  readonly partial: boolean;
-}
+/** The API out of reach: the server action itself did not answer — the network is down. */
+const UNREACHABLE: Outcome<ComputedDependencies> = { kind: "unreachable" };
 
-/** A row a value depends on, named as the grid names it: its number, its nature, its label. */
-function DependencyRow<Row, Sort extends string, Totals>({
-  config,
-  row,
-}: {
-  readonly config: GridConfig<Row, Sort, Totals>;
-  readonly row: Row;
-}) {
-  const locale = useLocale();
-  const label = config.columns[0];
-  return (
-    <li className="flex min-w-0 items-center gap-1.5">
-      <span className="w-8 shrink-0 text-right text-muted-foreground tabular-nums">
-        {config.rowNumber?.(row)}
-      </span>
-      {config.tree?.nature(row)}
-      <span className="truncate">
-        {label === undefined ? null : formatCell(label.format, label.value(row), locale)}
-      </span>
-    </li>
-  );
+/**
+ * Ask the server what the value of a field of a row depends on: `undefined` until it answers. An
+ * answer that comes once the row has changed, or the cell has gone, is dropped.
+ */
+function useDependencies<Row>(
+  dependencies: DependencyReader<Row> | undefined,
+  row: Row,
+  field: ComputedValueField,
+) {
+  // The answer, with what it answers: the answer to a row read before is not this row's.
+  const [answer, setAnswer] = useState<{
+    readonly row: Row;
+    readonly field: ComputedValueField;
+    readonly outcome: Outcome<ComputedDependencies>;
+  }>();
+  useEffect(() => {
+    if (dependencies === undefined) {
+      return undefined;
+    }
+    let live = true;
+    const answered = (outcome: Outcome<ComputedDependencies>) => {
+      if (live) {
+        setAnswer({ row, field, outcome });
+      }
+    };
+    void dependencies(row, field).then(answered, () => {
+      answered(UNREACHABLE);
+    });
+    return () => {
+      live = false;
+    };
+  }, [dependencies, row, field]);
+  return answer?.row === row && answer.field === field ? answer.outcome : undefined;
 }
 
 /**
- * Render the refusal of an entry on a computed value, in its popover: the value is computed, why,
- * and the rows it depends on. A dialog, named by its title.
+ * Nothing to forget of a read: an answer stale (412) does not come of a read, and the screen,
+ * read anew, asks again.
+ */
+function keep() {
+  return undefined;
+}
+
+/** What the server said a value depends on: its rules, and the rows it is drawn from. */
+function Dependencies({ dependencies }: { readonly dependencies: ComputedDependencies }) {
+  const t = useTranslations();
+  const listed = useId();
+  return (
+    <>
+      {dependencies.depends_on.map((code) => (
+        <p key={code} className="text-muted-foreground">
+          {t(`enums.ComputedDependency.${code}`)}
+        </p>
+      ))}
+      {dependencies.rows.length === 0 ? null : (
+        <>
+          <p id={listed} className="font-medium">
+            {t("computedValue.dependsOn")}
+          </p>
+          <ul
+            aria-labelledby={listed}
+            tabIndex={0}
+            className="max-h-48 space-y-0.5 overflow-y-auto"
+          >
+            {dependencies.rows.map((row) => (
+              <li key={row.node_id} className="flex min-w-0 items-center gap-1.5">
+                <span className="w-8 shrink-0 text-right text-muted-foreground tabular-nums">
+                  {row.row_number}
+                </span>
+                <span className="truncate">{row.label}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </>
+  );
+}
+
+/** What the refusal of an entry on a computed value reads. */
+export interface ComputedRefusalProps<Row, Sort extends string, Totals> {
+  readonly column: ComputedColumn<Row, Sort, Totals>;
+  /** The row whose value was tried. */
+  readonly row: Row;
+  /** How to ask the server what the value depends on; none, and the refusal says no more. */
+  readonly dependencies: DependencyReader<Row> | undefined;
+}
+
+/**
+ * Render the refusal of an entry on a computed value, in its popover: the value is computed, and
+ * what it depends on, once the server has said it. A dialog, named by its title.
  */
 export function ComputedRefusal<Row, Sort extends string, Totals>({
-  config,
   column,
-  rows,
-  dependency,
-  partial,
+  row,
+  dependencies,
 }: ComputedRefusalProps<Row, Sort, Totals>) {
   const t = useTranslations("computedValue");
   const columns = useTranslations("grid.columns");
   const title = useId();
-  const listed = useId();
-  const named = (dependency.rows ?? []).flatMap((index) => {
-    const row = rows[index];
-    return row === undefined ? [] : [row];
-  });
+  const answer = useDependencies(dependencies, row, column.computed.field(row));
+  const reading = dependencies !== undefined && answer === undefined;
   return (
     <PopoverContent aria-labelledby={title} className="w-80 space-y-1.5 text-xs">
       <p id={title} className="flex items-center gap-1.5 text-sm font-medium">
@@ -102,55 +157,33 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
         {t("title")}
       </p>
       <p>{t("refused", { column: columns(column.label) })}</p>
-      {dependency.reasons.map((reason) => (
-        <p key={reason} className="text-muted-foreground">
-          {t(`reasons.${reason}`)}
+      {reading ? (
+        <p role="status" className="text-muted-foreground">
+          {t("pending")}
         </p>
-      ))}
-      {named.length === 0 ? null : (
-        <>
-          <p id={listed} className="font-medium">
-            {t("dependsOn")}
-          </p>
-          <ul
-            aria-labelledby={listed}
-            tabIndex={0}
-            className="max-h-48 space-y-0.5 overflow-y-auto"
-          >
-            {named.map((row) => (
-              <DependencyRow key={config.rowKey(row)} config={config} row={row} />
-            ))}
-          </ul>
-        </>
-      )}
-      {partial && dependency.rows !== null ? (
-        <p className="text-muted-foreground">{t("partial")}</p>
       ) : null}
+      {answer?.kind === "done" ? <Dependencies dependencies={answer.data} /> : null}
+      <OutcomeNotice outcome={answer} onClear={keep} />
     </PopoverContent>
   );
 }
 
-/** What a computed cell shows, and where its row stands among the rows of the answer. */
+/** What a computed cell shows, and how it asks what its value depends on. */
 export interface ComputedCellProps<Row, Sort extends string, Totals> {
-  readonly config: GridConfig<Row, Sort, Totals>;
   readonly column: ComputedColumn<Row, Sort, Totals>;
-  /** The rows of the answer, read once the cell is tried: a function, which a render compares. */
-  readonly answer: () => readonly Row[];
-  /** The index of its row among the rows of the answer. */
-  readonly index: number;
-  /** Whether the answer holds a part of the rows only. */
-  readonly partial: boolean;
+  /** The row of the cell. */
+  readonly row: Row;
+  /** How to ask the server what the value depends on, once an entry is tried. */
+  readonly dependencies: DependencyReader<Row> | undefined;
   /** The value of the cell, formatted or rendered by its column. */
   readonly children: ReactNode;
 }
 
 /** Render a computed cell: its mark and its value, and the refusal of an entry once tried. */
 export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
-  config,
   column,
-  answer,
-  index,
-  partial,
+  row,
+  dependencies,
   children,
 }: ComputedCellProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
@@ -180,17 +213,10 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
       </button>
     );
   }
-  const rows = answer();
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger className={TRIGGER}>{content}</PopoverTrigger>
-      <ComputedRefusal
-        config={config}
-        column={column}
-        rows={rows}
-        dependency={column.computed.dependsOn(rows, index)}
-        partial={partial}
-      />
+      <ComputedRefusal column={column} row={row} dependencies={dependencies} />
     </Popover>
   );
 }
