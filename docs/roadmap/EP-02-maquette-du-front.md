@@ -385,6 +385,20 @@ fond d'un utilisateur, la révision ouverte par défaut.
   de l'onglet (`sessionStorage`) : un rechargement complet les suit encore, sans la commande
   qui les a lancées — une tâche suivie après un rechargement ne se relance que de son écran —,
   mais un autre onglet ou un autre poste n'en sait rien.
+- Deux signalements n'ont pas de zone au contrat — le dépassement du budget d'un sous-projet
+  (`SubprojectBalance.is_over_budget`) et les signaux de santé du pilotage
+  (`PilotHealth.signals`) — US-0160/L1, ouvert en #139, à faire avant #115 et #120. D'ici
+  là, aucun écran ne les montre par `Signal` : le front n'invente pas de zone.
+- Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
+  US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
+  tests ne peuvent pas le simuler sur ces opérations.
+- `correlation_id` n'a pas de motif, ni de longueur minimale — US-0090/L2, ouvert en #144.
+  D'ici là, le front le préfixe dans le digest de Next et traite une valeur vide comme
+  absente.
+- `CommandCondition` n'a pas de condition « traitement en cours » : pendant un marquage, une
+  révision relue liste toujours `mark` disponible — US-0180/L1, ouvert en #147 (décision de
+  l'utilisateur), à faire avant #113. D'ici là, le suivi offre « Recharger l'écran » à
+  l'aboutissement d'une tâche, et un second marquage est refusé par le serveur (409).
 
 ### Ordre de construction
 
