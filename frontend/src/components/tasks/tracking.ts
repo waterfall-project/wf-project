@@ -148,7 +148,8 @@ function refused(
     return { ...entry, outcome };
   }
   if (source === "read") {
-    return { ...entry, interrupted: outcome };
+    // The API answered: an earlier "out of reach" no longer holds.
+    return { ...entry, outcome: undefined, interrupted: outcome };
   }
   // A relaunch refused as stale would be refused again with the same version of the object:
   // the command goes, and the user starts the treatment again from the screen of the object.

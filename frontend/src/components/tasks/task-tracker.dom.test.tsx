@@ -315,7 +315,7 @@ describe("the tracker of background tasks", () => {
     expect(reads(client)).toEqual([]);
   });
 
-  it("takes the focus from a task dismissed to the next, else the one before, else the region", async () => {
+  it("takes the focus from a task dismissed to the next, else the one before, else the main content", async () => {
     serve({ [TASK]: "task_running" });
     const all = [
       task("task_mark_queued"),
@@ -330,9 +330,13 @@ describe("the tracker of background tasks", () => {
     await userEvent.click(third ?? document.body);
     expect(second).toHaveFocus();
     await userEvent.click(second ?? document.body);
-    // The last one gone, the focus stays in the region, never on the document.
+    // The last one gone, the region is empty, without a height to show a focus: the focus
+    // goes to the main content of the page, outside the order of the keyboard, never to the
+    // document.
     expect(within(panel()).queryByRole("list")).toBeNull();
-    expect(panel()).toHaveFocus();
+    const main = screen.getByRole("main");
+    expect(main).toHaveFocus();
+    expect(main).toHaveAttribute("tabindex", "-1");
     expect(document.activeElement).not.toBe(document.body);
   });
 
@@ -415,6 +419,35 @@ describe("the tracker of background tasks", () => {
     expect(within(entries()).getByRole("link", { name: "Se connecter" })).toBeVisible();
   });
 
+  it("keeps a task interrupted for want of a session, and follows it on after a reload", async () => {
+    serve({ [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
+    const view = await started(task("task_mark_queued"), { subject: "V2" });
+    await tick();
+    expect(JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? "null")).toEqual([
+      { key: MARKING, task_id: MARKING, kind: "revision_mark", status: "queued", subject: "V2" },
+    ]);
+
+    // Signed in again, the user reloads the tab: the task is read anew, and its end announced.
+    view.unmount();
+    const client = serve({ [TASK]: "task_succeeded" });
+    render(shell(<Screen name="Planning" />));
+    await tick();
+    expect(reads(client)).toEqual([`/tasks/${MARKING}`]);
+    expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision «\u00A0V2\u00A0»."]]);
+  });
+
+  it("leaves no alert of the API out of reach once the API refuses to say where the task stands", async () => {
+    server.client = unreachable();
+    await started(task("task_mark_queued"));
+    await tick();
+    expect(within(panel()).getByRole("alert")).toHaveTextContent("Le service est injoignable");
+
+    serve({ [TASK]: { problem: { code: "NOT_FOUND", status: 404 } } });
+    await tick();
+    expect(within(entries()).getByText("Suivi interrompu")).toBeVisible();
+    expect(within(panel()).queryByRole("alert")).toBeNull();
+  });
+
   it("tells the refusal of a relaunch, and keeps the failed task to run again", async () => {
     serve({
       [MARK]: { problem: { code: "ALREADY_EXISTS", status: 409 } },
@@ -441,10 +474,13 @@ describe("the tracker of background tasks", () => {
     await userEvent.click(relaunchButton());
 
     // The same version of the revision would be refused again: the command goes, and the
-    // entry says where to start the treatment again.
+    // entry says where to start the treatment again. The focus, on the button gone, stays in
+    // the entry, on its dismissal.
     expect(within(panel()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(dismissal("Marquage d’une révision")).toHaveFocus();
+    expect(document.activeElement).not.toBe(document.body);
     expect(
-      within(entries()).getByText("Pour le relancer, repartez de l’écran de son objet."),
+      within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
     ).toBeVisible();
     expect(client.calls.filter((call) => call.route === MARK)).toHaveLength(1);
     const alert = within(panel()).getByRole("alert");
@@ -516,7 +552,7 @@ describe("the follow-up across a full reload of the tab", () => {
     // The command did not survive the reload: the entry says where to start it again.
     expect(within(panel()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
     expect(
-      within(entries()).getByText("Pour le relancer, repartez de l’écran de son objet."),
+      within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
     ).toBeVisible();
   });
 

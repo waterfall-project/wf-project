@@ -12,11 +12,15 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 test("marking a revision gives the hand back, shows its progress, and announces on another screen its end, which comes after the change [WF-IHM-0080-A]", async ({
   page,
 }) => {
-  // The time of the page is the test's: the read of the task comes when the test lets it come,
-  // after the change of screen, not before.
+  // The time of the page is the test's: installed, then paused once the page is loaded, so
+  // that the read of the task comes when the test lets it come — after the change of screen,
+  // not before.
   await page.clock.install();
   await page.goto(`/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
+  await expect(commands.getByRole("button", { name: "Marquer la révision" })).toBeVisible();
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  const paused = await page.evaluate(() => Date.now());
   await commands.getByRole("button", { name: "Marquer la révision" }).click();
   await commands.getByRole("textbox", { name: "Nom de version" }).fill("V2");
   await commands.getByRole("button", { name: "Marquer", exact: true }).click();
@@ -39,7 +43,9 @@ test("marking a revision gives the hand back, shows its progress, and announces 
     .getByRole("link", { name: "Cycle de vie du projet" })
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cycle de vie du projet");
-  // On the new screen, the marking still runs: nothing has been read out yet.
+  // On the new screen, reached with the clock still paused, the marking still runs: nothing
+  // has been read out yet.
+  expect(await page.evaluate(() => Date.now())).toBe(paused);
   await expect(tasks.getByRole("log")).toBeEmpty();
   await expect(tasks.getByRole("progressbar")).toBeVisible();
 

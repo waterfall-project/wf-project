@@ -63,7 +63,7 @@
     "relaunch": "Run again",
     "reload": "Reload the screen",
     "relaunchLabel": "Run again: {task}",
-    "relaunchFromScreen": "To run it again, start from the screen of its object.",
+    "relaunchFromScreen": "To run this task again, start from the screen of its object.",
     "interrupted": "Follow-up interrupted",
     "interruptedLine": "Follow-up interrupted: {task}.",
     "dismiss": "Stop following: {task}"

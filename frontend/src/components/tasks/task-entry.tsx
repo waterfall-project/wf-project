@@ -211,8 +211,9 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
     startTransition(async () => {
       const outcome = await command().catch(() => UNREACHABLE);
       dispatch({ type: "answer", source: "relaunch", key, taskId: task.task_id, outcome });
-      if (outcome.kind === "done") {
-        // The button pressed goes with the failure: the focus stays within the entry.
+      if (outcome.kind === "done" || outcome.kind === "stale") {
+        // The button pressed goes — with the failure, or with the command refused as stale —:
+        // the focus stays within the entry, on its dismissal.
         dismiss.current?.focus();
       }
     });

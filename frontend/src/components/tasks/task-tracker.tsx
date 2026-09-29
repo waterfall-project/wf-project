@@ -91,6 +91,19 @@ export function TaskTracker({ children }: { readonly children: ReactNode }) {
 const PANEL = "border-b bg-card px-4 py-2 text-card-foreground";
 
 /**
+ * The main content of the page, made a target of the focus — outside the order of the
+ * keyboard — when it is not one already. The page is not the shell's: it is found in the
+ * document, where every screen has its `<main>`.
+ */
+function mainContent(): HTMLElement | null {
+  const main = document.querySelector("main");
+  if (main !== null && !main.hasAttribute("tabindex")) {
+    main.tabIndex = -1;
+  }
+  return main;
+}
+
+/**
  * The tasks followed, where the shell places them — in the flow of the page, where they hide
  * nothing —, and the log of their ends. The region stays mounted, empty while no task is
  * followed: its log is in place before it speaks, and it takes the focus when the last task is
@@ -109,12 +122,13 @@ export function TaskPanel() {
     }
   }, []);
   // The focus leaves the button dismissed before it goes: to the dismissal of the next task,
-  // else of the one before, else to the region itself — never to the document.
+  // else of the one before, else to the main content of the page — the region, empty then,
+  // has no height to show a focus —, never to the document.
   const dismiss = (key: string) => {
     const index = state.tasks.findIndex((entry) => entry.key === key);
     const neighbour = state.tasks[index + 1] ?? state.tasks[index - 1];
     const target = neighbour === undefined ? undefined : buttons.current.get(neighbour.key);
-    (target ?? region.current)?.focus();
+    (target ?? mainContent() ?? region.current)?.focus();
     dispatch({ type: "dismiss", key });
   };
   const followed = state.tasks.length > 0;

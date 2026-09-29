@@ -12,7 +12,7 @@
  * a reload — a function is no data —: a task followed again after one cannot be relaunched
  * from the tracker, and the user starts it again from its screen.
  */
-import { isPolled, RUNNING, type TaskKind, type TaskStatus, type TrackedTask } from "./tracking";
+import { RUNNING, type TaskKind, type TaskStatus, type TrackedTask } from "./tracking";
 
 /** The key of the storage of the tab under which the tasks are kept. */
 export const STORAGE_KEY = "wf_background_tasks";
@@ -88,11 +88,17 @@ export function restoreTasks(): TrackedTask[] {
 }
 
 /**
- * Keep the tasks that still run and are still followed — not those whose follow-up the API
- * interrupted —, for a reload of the tab to follow them again.
+ * Whether a task is worth following again after a reload: it still runs, and the API has not
+ * said it does not know it (404). One interrupted for want of a session (401) is kept: once
+ * signed in again, a reload follows it on, and announces its end.
  */
+function isResumable({ task, interrupted }: TrackedTask): boolean {
+  return RUNNING[task.status] && interrupted?.problem.status !== 404;
+}
+
+/** Keep the tasks worth following again, for a reload of the tab to follow them on. */
 export function saveTasks(tasks: readonly TrackedTask[]): void {
-  const kept: KeptTask[] = tasks.filter(isPolled).map(({ key, task, subject }) => ({
+  const kept: KeptTask[] = tasks.filter(isResumable).map(({ key, task, subject }) => ({
     key,
     task_id: task.task_id,
     kind: task.kind,
