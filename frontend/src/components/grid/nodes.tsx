@@ -35,6 +35,9 @@ export type NodeSortColumn = NonNullable<
 /** What a grid of a structure asks the server to render: the tasks, the lines. */
 export type NodeKind = components["schemas"]["NodeKind"];
 
+/** A field of a node itself, its facets aside: those are read field by field. */
+export type NodeField = Exclude<keyof Node, "task" | "estimate_line">;
+
 /**
  * The fields a grid reads of a node: of the node itself, of its task, of its line. A page hands
  * its grid these alone (`projectNodes`): the answer of `listNodes` is read whole on the server,
@@ -42,7 +45,7 @@ export type NodeKind = components["schemas"]["NodeKind"];
  * whole would weigh some four megabytes in the page, and cost the second of §4.6.2 (#166).
  */
 export interface NodeFields<
-  N extends keyof Node,
+  N extends NodeField,
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
 > {
@@ -52,14 +55,14 @@ export interface NodeFields<
 }
 
 /** Any list of the fields a grid reads. */
-export type AnyNodeFields = NodeFields<keyof Node, keyof TaskFacet, keyof EstimateLineFacet>;
+export type AnyNodeFields = NodeFields<NodeField, keyof TaskFacet, keyof EstimateLineFacet>;
 
 /**
  * The fields every grid of a structure reads: the identity and the version of a node, which an
  * entry sends back, the fields the server computes on it, its number and its level, its kind and
  * the flags of its nature, its label.
  */
-const COMMON_FIELDS = {
+export const COMMON_FIELDS = {
   node: ["node_id", "lock_version", "computed_fields", "row_number", "level", "kind"],
   task: ["label", "is_summary", "is_milestone"],
   line: ["label", "is_computed", "resource_role_id"],
@@ -70,7 +73,7 @@ const COMMON_FIELDS = {
  * task and `L` of its line that its own columns read.
  */
 export type NodeRow<
-  N extends keyof Node = never,
+  N extends NodeField = never,
   T extends keyof TaskFacet = never,
   L extends keyof EstimateLineFacet = never,
 > = Pick<Node, (typeof COMMON_FIELDS.node)[number] | N> & {
@@ -111,7 +114,7 @@ function pick<T extends object, K extends keyof T>(source: T, keys: readonly K[]
 
 /** A node as a grid reads it: the fields every grid reads, and those its columns read. */
 export function projectNode<
-  N extends keyof Node,
+  N extends NodeField,
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
 >(node: Node, fields: NodeFields<N, T, L>): NodeRow<N, T, L> {
@@ -134,7 +137,7 @@ export function projectNode<
  * totals: what a page hands its grid.
  */
 export function projectNodes<
-  N extends keyof Node,
+  N extends NodeField,
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
 >(list: NodeList, fields: NodeFields<N, T, L>): NodeRows<NodeRow<N, T, L>> {

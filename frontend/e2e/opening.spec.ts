@@ -9,16 +9,24 @@ import { expect, type Page, test } from "@playwright/test";
 // the planning its tasks alone.
 //
 // An opening lasts from its start — the start of the navigation, for a grid opened by its
-// address; the click, for a grid opened from the navigation — to the first frame the browser
-// draws with the grid usable: the header of its columns, the caption of its totals and the first
-// row of the answer wholly within the window. A script given to each document watches every frame
-// for it, and writes the time it finds, as the start, on the clock of the operating system
+// address; the click, for a grid opened from the navigation — until the grid is usable: drawn and
+// hydrated. Drawn is the first frame the browser draws with the header of its columns, the
+// caption of its totals and the first row of the answer wholly within the window; hydrated, the
+// first frame at which React has taken over the grid — the server renders its first screen, which
+// may show before a click does anything —, which the test tells by the keys React gives the
+// button of a header (`__reactProps$…`), an internal of React, read here and nowhere in the front.
+// The later of the two must hold the second. A script given to each document watches every frame
+// for them, and writes the times it finds, as the start, on the clock of the operating system
 // (`performance.timeOrigin`), which survives the document when a click loads another. Nothing of
-// the harness counts: neither Playwright's round trips nor its polling. Each grid opens once
-// before it is measured, so that the server's first load of its modules does not count — the
-// front is built for production, and compiles nothing on demand (`playwright.config.ts`) —,
-// then five times each way, and every opening must hold the second: the median and the worst are
-// written in the log of the run.
+// the harness counts: neither Playwright's round trips nor its polling.
+//
+// The front is built for production, and compiles nothing on demand (`playwright.config.ts`).
+// Before each series of five openings, one opening is not measured: the server's first load of
+// its modules does not count, and the cache of the browser is warm, as for a user who has opened
+// the application. Every opening must hold the second; the log of the run writes the median and
+// the worst, drawn and hydrated, and where the time went by the address. Once measured, the
+// document is checked for a field of a node the grid does not read: the page hands its grid what
+// it shows alone (`projectNodes`).
 //
 // The project runs after all the other paths, alone on the machine: `playwright.config.ts`.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -62,12 +70,13 @@ function address(screen: GridScreen): string {
 
 /**
  * Run in each document from its start: keep the time of each click, and mark, for each grid, the
- * first frame at which its header, its totals and its first row are wholly within the window.
- * A mark is named for the grid it marks; its detail is the time it was reached on the clock of
- * the operating system. Self-contained: Playwright hands its source to the page.
+ * first frame at which its header, its totals and its first row are wholly within the window —
+ * `drawn:` — and the first at which React has hydrated the button of a header — `hydrated:`. A
+ * mark is named for the grid it marks; its detail is the time it was reached on the clock of the
+ * operating system. Self-contained: Playwright hands its source to the page.
  */
 function markUsableGrids(clicked: string): void {
-  const marked = new WeakSet<Element>();
+  const marked = { drawn: new WeakSet<Element>(), hydrated: new WeakSet<Element>() };
   const inWindow = (element: Element | null): boolean => {
     if (element === null) {
       return false;
@@ -81,10 +90,16 @@ function markUsableGrids(clicked: string): void {
       box.right <= window.innerWidth
     );
   };
-  const usable = (grid: Element): boolean =>
-    inWindow(grid.querySelector("thead th")) &&
-    inWindow(grid.querySelector("tfoot td")) &&
-    inWindow(grid.querySelector('tbody tr[aria-rowindex="2"] td'));
+  const reached = {
+    drawn: (grid: Element): boolean =>
+      inWindow(grid.querySelector("thead th")) &&
+      inWindow(grid.querySelector("tfoot td")) &&
+      inWindow(grid.querySelector('tbody tr[aria-rowindex="2"] td')),
+    hydrated: (grid: Element): boolean => {
+      const button = grid.querySelector("thead button");
+      return button !== null && Object.keys(button).some((key) => key.startsWith("__reactProps$"));
+    },
+  };
   document.addEventListener(
     "click",
     (event) => {
@@ -93,12 +108,13 @@ function markUsableGrids(clicked: string): void {
     { capture: true },
   );
   const frame = () => {
+    const now = performance.timeOrigin + performance.now();
     for (const grid of document.querySelectorAll('[role="grid"][aria-label]')) {
-      if (!marked.has(grid) && usable(grid)) {
-        marked.add(grid);
-        performance.mark(`usable:${grid.getAttribute("aria-label") ?? ""}`, {
-          detail: performance.timeOrigin + performance.now(),
-        });
+      for (const state of ["drawn", "hydrated"] as const) {
+        if (!marked[state].has(grid) && reached[state](grid)) {
+          marked[state].add(grid);
+          performance.mark(`${state}:${grid.getAttribute("aria-label") ?? ""}`, { detail: now });
+        }
       }
     }
     requestAnimationFrame(frame);
@@ -106,31 +122,53 @@ function markUsableGrids(clicked: string): void {
   requestAnimationFrame(frame);
 }
 
-/**
- * When the grid of a screen was first usable in the page, on the clock of the operating system,
- * once it is — the last time, should it have been more than once.
- */
-async function usableAt(page: Page, screen: GridScreen): Promise<number> {
-  const read = () =>
-    page.evaluate((name) => {
-      const marks = performance.getEntriesByName(name, "mark");
-      const last = marks.at(-1);
-      return last instanceof PerformanceMark && typeof last.detail === "number"
-        ? last.detail
-        : null;
-    }, `usable:${screen.grid}`);
-  await expect.poll(read, { timeout: 15_000 }).not.toBeNull();
-  return (await read()) ?? Number.POSITIVE_INFINITY;
+/** When a grid was drawn, and when it was hydrated, on the clock of the operating system. */
+interface Usable {
+  readonly drawn: number;
+  readonly hydrated: number;
 }
 
-/** How long an opening took, from its start, in milliseconds. */
+/**
+ * When the grid of a screen was first drawn and first hydrated in the page, on the clock of the
+ * operating system, once it is both — the last time, should it have been more than once.
+ */
+async function usableAt(page: Page, screen: GridScreen): Promise<Usable> {
+  const read = () =>
+    page.evaluate((grid) => {
+      const at = (state: string) => {
+        const last = performance.getEntriesByName(`${state}:${grid}`, "mark").at(-1);
+        return last instanceof PerformanceMark && typeof last.detail === "number"
+          ? last.detail
+          : null;
+      };
+      const drawn = at("drawn");
+      const hydrated = at("hydrated");
+      return drawn === null || hydrated === null ? null : { drawn, hydrated };
+    }, screen.grid);
+  await expect.poll(read, { timeout: 15_000 }).not.toBeNull();
+  return (await read()) ?? { drawn: Number.POSITIVE_INFINITY, hydrated: Number.POSITIVE_INFINITY };
+}
+
+/** How long an opening took, from its start, in milliseconds: drawn, hydrated, usable. */
 interface Opening {
-  readonly duration: number;
+  readonly drawn: number;
+  readonly hydrated: number;
+  /** The later of the two: what must hold the second. */
+  readonly usable: number;
   /**
    * For an opening by the address, where the time went: when the server had sent the whole
    * document, and when the browser had parsed it and run its scripts.
    */
   readonly phases?: { readonly served: number; readonly parsed: number };
+}
+
+/** An opening started at a time, the grid drawn and hydrated at others. */
+function opening(started: number, { drawn, hydrated }: Usable): Opening {
+  return {
+    drawn: drawn - started,
+    hydrated: hydrated - started,
+    usable: Math.max(drawn, hydrated) - started,
+  };
 }
 
 /** Open the screen of a grid by its address; how long it took, and where the time went. */
@@ -146,7 +184,7 @@ async function openByAddress(page: Page, screen: GridScreen): Promise<Opening> {
       parsed: timing?.domContentLoadedEventEnd ?? Number.NaN,
     };
   });
-  return { duration: usable - started, phases: { served, parsed } };
+  return { ...opening(started, usable), phases: { served, parsed } };
 }
 
 /**
@@ -163,7 +201,7 @@ async function openByClick(page: Page, from: GridScreen, to: GridScreen): Promis
   const usable = await usableAt(page, to);
   const clicked = await page.evaluate((key) => Number(sessionStorage.getItem(key)), CLICKED);
   await expect(page).toHaveURL(address(to));
-  return { duration: usable - clicked };
+  return opening(clicked, usable);
 }
 
 /** The median of some durations. */
@@ -175,38 +213,43 @@ function median(durations: readonly number[]): number {
     : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }
 
-/** The median of some times, rounded to the millisecond, as the log writes it. */
+/** Some times as the log writes them, rounded to the millisecond: the median and the worst. */
 function inLog(times: readonly number[]): string {
-  return Math.round(median(times)).toString();
+  const rounded = (time: number) => Math.round(time).toString();
+  return `median ${rounded(median(times))} ms, worst ${rounded(Math.max(...times))} ms`;
 }
 
 /**
- * Open a grid some times one way, and say how long each took, the median and the worst — and,
- * by the address, the medians of the phases.
+ * Open a grid some times one way, once unmeasured first, and say how long each took until the
+ * grid was usable, the median and the worst, drawn and hydrated — and, by the address, the medians
+ * of the phases. The times are those measured, unrounded.
  */
 async function measure(way: string, open: () => Promise<Opening>): Promise<readonly number[]> {
   await open();
   const openings: Opening[] = [];
-  for (let opening = 0; opening < OPENINGS; opening += 1) {
+  for (let count = 0; count < OPENINGS; count += 1) {
     openings.push(await open());
   }
-  const durations = openings.map((opening) => Math.round(opening.duration));
-  const phases = openings.flatMap((opening) =>
-    opening.phases === undefined ? [] : [opening.phases],
+  const usable = openings.map((measured) => measured.usable);
+  const phases = openings.flatMap((measured) =>
+    measured.phases === undefined ? [] : [measured.phases],
   );
+  const served = phases.map((phase) => phase.served);
+  const parsed = phases.map((phase) => phase.parsed);
   const where =
     phases.length === 0
       ? ""
-      : `; median document served at ${inLog(phases.map((phase) => phase.served))} ms, parsed at ${inLog(phases.map((phase) => phase.parsed))} ms`;
+      : `; document served at a median ${Math.round(median(served)).toString()} ms, parsed at ${Math.round(median(parsed)).toString()} ms`;
   console.log(
-    `${way}: ${durations.join(", ")} ms — median ${inLog(durations)} ms, worst ${Math.max(...durations).toString()} ms${where}`,
+    `${way}: usable ${usable.map((time) => Math.round(time).toString()).join(", ")} ms — ${inLog(usable)}; drawn ${inLog(openings.map((measured) => measured.drawn))}; hydrated ${inLog(openings.map((measured) => measured.hydrated))}${where}`,
   );
-  return durations;
+  return usable;
 }
 
 /**
  * Open the screen of a grid by its address and from the navigation, and hold every opening to
- * the second; then check, by the view of Playwright, that what the measure waited for is there.
+ * the second; then check, by the view of Playwright, that what the measure waited for is there,
+ * and that the document holds no field of a node the grid does not read.
  */
 async function holdsTheSecond(page: Page, screen: GridScreen, from: GridScreen) {
   const byAddress = await measure(`${screen.grid}, by its address`, () =>
@@ -227,6 +270,8 @@ async function holdsTheSecond(page: Page, screen: GridScreen, from: GridScreen) 
   ]) {
     await expect(shown).toBeInViewport({ ratio: 1 });
   }
+  await page.goto(address(screen));
+  expect(await page.content()).not.toContain("lineage_id");
 }
 
 test.describe("the opening of a grid of a thousand tasks", () => {

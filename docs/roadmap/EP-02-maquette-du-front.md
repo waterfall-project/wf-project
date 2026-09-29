@@ -363,10 +363,10 @@ verrou.
   WebKit pour Safari — pour les parcours de WF-CMP-0010, grilles, Gantt et courbes à 1366
   points, vues d'indicateurs à 360. `make e2e-browsers` les installe tous.
 - **Performance** : au palier complet, sur chromium, l'ouverture de la grille de devis de
-  mille tâches — du clic à la première ligne rendue — tient en une seconde ; la mesure
-  s'écrit au relevé de livraison. Le plafond n'est pas acquis : une réponse `listNodes` de
-  plusieurs mégaoctets rendue côté serveur peut le crever, et ce serait alors un constat
-  sur le contrat (représentation d'un nœud trop lourde).
+  mille tâches — du clic à la grille utilisable, dessinée et hydratée — tient en une
+  seconde ; la mesure s'écrit au relevé de livraison. Le plafond n'est pas acquis : une
+  réponse `listNodes` de plusieurs mégaoctets rendue côté serveur peut le crever, et ce serait
+  alors un constat sur le contrat (représentation d'un nœud trop lourde).
 - **Complétude des écrans** : `make screens` (`wftools.screens`) confronte
   `functions.json` aux fonctions feuilles de la FBS de la projection — une fonction sans
   adresse fait échouer la chaîne —, et un parcours ouvre chaque route depuis la navigation.

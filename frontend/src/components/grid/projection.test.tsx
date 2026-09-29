@@ -11,7 +11,8 @@ import { example } from "@/test/fixtures";
 import type { GridConfig } from "./columns";
 import { ESTIMATE_FIELDS, ESTIMATE_GRID } from "./estimate";
 import {
-  type Node,
+  COMMON_FIELDS,
+  type NodeField,
   type NodeFields,
   type NodeList,
   type NodeRow,
@@ -45,6 +46,14 @@ const ANSWERS = [
   "nodes_milestone",
   "volume/nodes_thousand",
 ];
+
+/**
+ * The keys a projection keeps of an object: those of a closed list that the object has — a field
+ * the answer leaves out stays out.
+ */
+function keptKeys(source: object, fields: readonly string[]): string[] {
+  return fields.filter((key) => key in source).sort();
+}
 
 /** An answer of `listNodes`, among the examples of the contract. */
 function answer(name: string): NodeList {
@@ -88,24 +97,29 @@ function whatTheGridReads<Row>(
 
 /**
  * The rows a page hands a grid keep all it reads of the answer — the page shows the same grid —,
- * and weigh far less.
+ * and nothing else: they weigh no more than a share of the answer, measured on the volume.
  */
 function holdsWhatTheGridReads<
-  N extends keyof Node,
+  N extends NodeField,
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
 >(
   grid: string,
   config: GridConfig<NodeRow<N, T, L>, NodeSortColumn, NodeTotals>,
   fields: NodeFields<N, T, L>,
+  share: number,
 ) {
+  const node = [...COMMON_FIELDS.node, ...fields.node, "task", "estimate_line"];
+  const task = [...COMMON_FIELDS.task, ...fields.task];
+  const line = [...COMMON_FIELDS.line, ...fields.line];
+
   describe(`the rows the page hands the grid of the ${grid}`, () => {
     it.each(ANSWERS)(
       "keep all the grid reads of the answer %s, the totals as they are",
       (name) => {
         const list = answer(name);
         const projected = projectNodes(list, fields);
-        const numbers = new Map(list.items.map((node) => [node.node_id, node.row_number]));
+        const numbers = new Map(list.items.map((item) => [item.node_id, item.row_number]));
         expect(projected.totals).toBe(list.totals);
         expect(projected.items).toHaveLength(list.items.length);
         const read = whatTheGridReads(config, projected.items, numbers);
@@ -115,35 +129,37 @@ function holdsWhatTheGridReads<
       VOLUME_TIMEOUT,
     );
 
-    it("leave out what the grid does not read, and weigh less than three fifths of the answer", () => {
+    it.each(ANSWERS)(
+      "keep of each node of the answer %s its listed fields, and those alone",
+      (name) => {
+        const list = answer(name);
+        const rows = projectNodes(list, fields).items;
+        for (const [index, source] of list.items.entries()) {
+          const row = rows[index] ?? {};
+          expect(Object.keys(row).sort()).toEqual(keptKeys(source, node));
+          expect(Object.keys(("task" in row ? row.task : undefined) ?? {}).sort()).toEqual(
+            keptKeys(source.task ?? {}, task),
+          );
+          expect(
+            Object.keys(("estimate_line" in row ? row.estimate_line : undefined) ?? {}).sort(),
+          ).toEqual(keptKeys(source.estimate_line ?? {}, line));
+          for (const [key, value] of Object.entries(row)) {
+            if (key !== "task" && key !== "estimate_line") {
+              expect(value).toEqual(source[key as NodeField]);
+            }
+          }
+        }
+      },
+    );
+
+    it(`weigh less than ${share.toString()} of the answer on the volume`, () => {
       const list = answer("volume/nodes_thousand");
       const projected = projectNodes(list, fields);
-      const task = new Set<string>(["label", "is_summary", "is_milestone", ...fields.task]);
-      const line = new Set<string>(["label", "is_computed", "resource_role_id", ...fields.line]);
-      for (const row of projected.items) {
-        expect(row).not.toHaveProperty("lineage_id");
-        expect(row).not.toHaveProperty("parent_id");
-        expect(Object.keys(row.task ?? {}).filter((key) => !task.has(key))).toEqual([]);
-        expect(Object.keys(row.estimate_line ?? {}).filter((key) => !line.has(key))).toEqual([]);
-      }
-      expect(JSON.stringify(projected).length).toBeLessThan((JSON.stringify(list).length * 3) / 5);
-    });
-
-    it("keep what an entry sends back and what the server computes, a field left out staying out", () => {
-      const list = answer("nodes");
-      for (const [index, row] of projectNodes(list, fields).items.entries()) {
-        const node = list.items[index];
-        expect(row).toMatchObject({
-          node_id: node?.node_id,
-          lock_version: node?.lock_version,
-          computed_fields: node?.computed_fields,
-          row_number: node?.row_number,
-        });
-        expect(Object.keys(row).filter((key) => node === undefined || !(key in node))).toEqual([]);
-      }
+      expect(JSON.stringify(projected).length).toBeLessThan(JSON.stringify(list).length * share);
     });
   });
 }
 
-holdsWhatTheGridReads("estimate", ESTIMATE_GRID, ESTIMATE_FIELDS);
-holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS);
+// The shares the projections weigh on the volume: 0.52 for the estimate, 0.44 for the planning.
+holdsWhatTheGridReads("estimate", ESTIMATE_GRID, ESTIMATE_FIELDS, 0.55);
+holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.47);

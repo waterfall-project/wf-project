@@ -39,7 +39,8 @@ export default defineConfig({
       name: "production",
       testMatch: MEASURES,
       dependencies: ["chromium"],
-      use: { ...devices["Desktop Chrome"], locale: "fr-FR", baseURL: PRODUCTION },
+      // No trace: recording one would weigh on what is measured.
+      use: { ...devices["Desktop Chrome"], locale: "fr-FR", baseURL: PRODUCTION, trace: "off" },
     },
   ],
   webServer: [
@@ -61,8 +62,9 @@ export default defineConfig({
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     },
     {
-      // Built after the fake back is up: the servers start one after the other. The build
-      // writes `.next`, the development server `.next/dev`: the two live side by side.
+      // Built after the fake back is up — the servers start one after the other —, which the
+      // build may need (#131). The build writes `.next`, the development server `.next/dev`:
+      // the two live side by side.
       command: "pnpm build && pnpm start --hostname 127.0.0.1 --port 3001",
       url: PRODUCTION,
       env: { WATERFALL_API_ADDRESS: API },
