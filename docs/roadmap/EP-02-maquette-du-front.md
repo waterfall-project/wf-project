@@ -398,7 +398,8 @@ fond d'un utilisateur, la révision ouverte par défaut.
 - `CommandCondition` n'a pas de condition « traitement en cours » : pendant un marquage, une
   révision relue liste toujours `mark` disponible — US-0180/L1, ouvert en #147 (décision de
   l'utilisateur), à faire avant #113. D'ici là, le suivi offre « Recharger l'écran » à
-  l'aboutissement d'une tâche, et un second marquage est refusé par le serveur (409).
+  l'aboutissement d'une tâche ; le 409 de `markRevision` ne vaut qu'une fois la révision
+  marquée, et pendant le marquage rien au contrat n'empêche un second envoi.
 
 ### Ordre de construction
 
