@@ -213,7 +213,10 @@ chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une colonne ou u
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
 quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
 porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
-d'en-tête écrit le tri, en même temps que la navigation qui le montre. L'adresse fait foi :
+d'en-tête écrit le tri, une fois que la page le montre : Next porte une action serveur dans
+l'état de son routeur, et une navigation ne se montre pas avant que les actions lancées après
+elle aient répondu — écrite au clic, la préférence retenait le tri d'un aller-retour, et de
+chaque action en file avant elle. L'adresse fait foi :
 un tri levé y reste, `sort_by` vide, et le tri gardé ne sert que quand elle ne dit rien du
 tri. Chaque grille est à la route de sa fonction, `…/revisions/[r]/planning` et
 `…/revisions/[r]/estimate` ; la révision elle-même mène à la première fonction d'une révision

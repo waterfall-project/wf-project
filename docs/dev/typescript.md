@@ -185,3 +185,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     chaîne dépasse son attente (US-0150/L1). La production n'en dit rien. Ce qui descend
     jusqu'aux lignes lit la réponse par une fonction (`answer` de `DenseGrid`), jamais par le
     tableau. Aucun outil ne le tient : la revue le cherche.
+15. **Action serveur lancée pendant une navigation.** Next porte chaque action serveur dans l'état
+    de son routeur, dans une seule file : une navigation ne se montre qu'une fois répondues les
+    actions lancées après elle, et celles-ci attendent derrière celles déjà en file. Une
+    préférence écrite au clic d'en-tête retenait ainsi l'adresse du tri d'un aller-retour, et de
+    la lecture des tâches de fond que la coquille lance à son montage : sous charge, le parcours
+    du tri dépassait son attente (EP-02/L4). Ce qu'un geste qui navigue doit écrire part une fois
+    la page montrée (`sortToRecord` de `DenseGrid`), ou avant la navigation. Aucun outil ne le
+    tient : la revue le cherche, et une retenue de l'action dans un parcours le prouve.

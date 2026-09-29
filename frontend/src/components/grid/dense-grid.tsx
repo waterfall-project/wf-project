@@ -22,7 +22,7 @@
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useOptimistic, useRef, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import {
@@ -347,16 +347,29 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     asked.current = { from, query: href.split("?")[1] ?? "" };
     router.push(href, { scroll: false });
   };
+  // The preference of the last sort asked, written once the page shows what the address asked:
+  // Next carries a server action in the state of its router, so that a navigation is not shown
+  // before the actions dispatched after it have answered — writing the preference at the click
+  // would hold the sort back by a round trip to the API, and by every action queued before it.
+  const sortToRecord = useRef<GridPreferences>(undefined);
+  const { recordNow } = writer;
+  useEffect(() => {
+    const recorded = sortToRecord.current;
+    if (recorded !== undefined) {
+      sortToRecord.current = undefined;
+      recordNow(recorded);
+    }
+  }, [query, recordNow]);
   // A sort or a search changes the address only: the server reads it, and answers anew. A sort
-  // navigates at once, and its preference is written alongside: the address carries it — a
-  // sort lifted included —, so the page never waits for the preference, nor reads it for it.
+  // navigates at once, and its preference is written once it is shown: the address carries it —
+  // a sort lifted included —, so the page never waits for the preference, nor reads it for it.
   const changeSort = (next: GridSort<Sort> | undefined) => {
     startTransition(() => {
       showSort(next);
       request((query) => sortHref(pathname, query, next));
     });
     keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
-    writer.recordNow(recordedPreferences(preferences, settings, keptSort.current));
+    sortToRecord.current = recordedPreferences(preferences, settings, keptSort.current);
   };
   const search = (text: string) => {
     writer.flush();

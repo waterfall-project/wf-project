@@ -290,12 +290,16 @@ describe("the sort, the search and the totals, asked of the server", () => {
     });
   });
 
-  it("records the sort chosen in the preferences of the grid alongside the navigation, and none once lifted", async () => {
+  it("records the sort chosen in the preferences of the grid once the page shows it, and none once lifted", async () => {
     const client = serve();
     const { ask } = renderGrid(witness);
     const heading = () => screen.getByRole("columnheader", { name: /Qté/ });
     await userEvent.click(within(heading()).getByRole("button"));
-    // Recorded at once, without the pause of a width.
+    // Nothing is written while the navigation is under way: an action would hold it back.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(recorded(client)).toEqual([]);
+    // Shown, it is recorded at once, without the pause of a width.
+    ask({ sort: { column: "quantity", order: "asc" }, search: undefined });
     await waitFor(() => {
       expect(recorded(client)).toEqual([
         {
@@ -311,6 +315,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     });
     ask({ sort: { column: "quantity", order: "desc" }, search: undefined });
     await userEvent.click(within(heading()).getByRole("button"));
+    ask({ sort: undefined, search: undefined });
     await waitFor(() => {
       expect(recorded(client).at(-1)).toEqual({
         grids: { estimate: { hidden_columns: [], column_widths: {}, sort: null } },
@@ -324,14 +329,16 @@ describe("the sort, the search and the totals, asked of the server", () => {
       answer = resolve;
     });
     const client = serve({ [PREFERENCES]: "preferences" }, { hold: () => held });
-    const { unmount } = renderGrid(witness);
+    const { unmount, ask } = renderGrid(witness);
     await userEvent.click(
       within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
     );
-    // The preference is still being written: the address has changed already.
+    // The address has changed before anything is written.
     expect(router.push.mock.calls).toEqual([
       ["/projects/p/revisions/r?sort_by=budgeted_amount&sort_order=asc", { scroll: false }],
     ]);
+    expect(recorded(client)).toEqual([]);
+    ask({ sort: { column: "budgeted_amount", order: "asc" }, search: undefined });
     await waitFor(() => {
       expect(recorded(client)).toHaveLength(1);
     });
@@ -343,13 +350,16 @@ describe("the sort, the search and the totals, asked of the server", () => {
 
   it("lifts the sort by the address, whether or not the preference could be written", async () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
-    renderGrid(witness, { query: { sort: { column: "label", order: "desc" }, search: undefined } });
+    const { ask } = renderGrid(witness, {
+      query: { sort: { column: "label", order: "desc" }, search: undefined },
+    });
     await userEvent.click(
       within(screen.getByRole("columnheader", { name: /Libellé/ })).getByRole("button"),
     );
     expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r?sort_by=", {
       scroll: false,
     });
+    ask({ sort: undefined, search: undefined });
     // The refusal is told; the address carries the lifting all the same.
     expect(await screen.findByRole("alert")).toHaveTextContent("Se connecter");
   });

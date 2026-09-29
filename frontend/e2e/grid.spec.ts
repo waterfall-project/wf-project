@@ -188,6 +188,25 @@ test("asks the server for the sort of a column clicked, both ways, by the parame
   await expect(grid(page).getByRole("row").nth(1)).toHaveAccessibleName(/^1 .*Études/);
 });
 
+test("shows the sort asked without waiting for the server actions of the page: its preference, the tasks of the user", async ({
+  page,
+}) => {
+  // Every server action of the page held longer than the wait of an address: the preference of
+  // the sort and the list of the tasks of the user that the shell reads as it mounts. Next shows
+  // a navigation only once the actions dispatched after it have answered: none may be.
+  await page.route(`**${GRID}*`, async (route) => {
+    if (route.request().headers()["next-action"] !== undefined) {
+      await new Promise((resolve) => setTimeout(resolve, 8_000));
+    }
+    await route.continue().catch(() => undefined);
+  });
+  await page.goto(GRID);
+  const header = grid(page).getByRole("columnheader", { name: "Calculé Budgété" });
+  await header.getByRole("button").click();
+  await expect(page).toHaveURL(`${GRID}?sort_by=budgeted_amount&sort_order=asc`);
+  await expect(header).toHaveAttribute("aria-sort", "ascending");
+});
+
 test("hides a column chosen in the menu of the columns, and searches the labels on the server", async ({
   page,
 }) => {
