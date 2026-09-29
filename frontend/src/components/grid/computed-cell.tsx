@@ -125,7 +125,8 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
 export interface ComputedCellProps<Row, Sort extends string, Totals> {
   readonly config: GridConfig<Row, Sort, Totals>;
   readonly column: ComputedColumn<Row, Sort, Totals>;
-  readonly rows: readonly Row[];
+  /** The rows of the answer, read once the cell is tried: a function, which a render compares. */
+  readonly answer: () => readonly Row[];
   readonly index: number;
   /** The value of the cell, formatted or rendered by its column. */
   readonly children: ReactNode;
@@ -135,7 +136,7 @@ export interface ComputedCellProps<Row, Sort extends string, Totals> {
 export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   config,
   column,
-  rows,
+  answer,
   index,
   children,
 }: ComputedCellProps<Row, Sort, Totals>) {
@@ -166,6 +167,7 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
       </button>
     );
   }
+  const rows = answer();
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger className={TRIGGER}>{content}</PopoverTrigger>

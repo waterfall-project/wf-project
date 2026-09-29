@@ -22,7 +22,7 @@
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useOptimistic, useRef, useState, useTransition } from "react";
+import { type ReactNode, useCallback, useOptimistic, useRef, useState, useTransition } from "react";
 
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import {
@@ -176,14 +176,15 @@ function computedIn<Row extends RowData, Sort extends string, Totals>(
 function BodyRow<Row extends RowData, Sort extends string, Totals>({
   table,
   config,
-  rows,
+  answer,
   row,
   index,
   locale,
 }: {
   readonly table: GridTable<Row>;
   readonly config: GridConfig<Row, Sort, Totals>;
-  readonly rows: readonly Row[];
+  /** The rows of the answer, which a computed cell reads to say what its value depends on. */
+  readonly answer: () => readonly Row[];
   readonly row: TableRowModel<GridFeatures, Row>;
   readonly index: number;
   readonly locale: Locale;
@@ -208,7 +209,7 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
             )}
           >
             {computed ? (
-              <ComputedCell config={config} column={column} rows={rows} index={index}>
+              <ComputedCell config={config} column={column} answer={answer} index={index}>
                 {content}
               </ComputedCell>
             ) : (
@@ -363,6 +364,11 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     },
   });
 
+  // The rows of the answer reach each row and each computed cell by a function, never as the
+  // array: the development build of React compares again the props of what it renders again, and
+  // six thousand rows in the props of each cell weighed on each navigation of the grid.
+  const answer = useCallback(() => rows, [rows]);
+
   const model = table.getRowModel().rows;
   const { items, before, after } = useRowWindow({
     rows: model,
@@ -430,7 +436,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
                 key={row.id}
                 table={table}
                 config={config}
-                rows={rows}
+                answer={answer}
                 row={row}
                 index={item.index}
                 locale={locale}
