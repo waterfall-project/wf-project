@@ -15,6 +15,10 @@ function recorder(): { send: (request: Request) => Promise<Response>; urls: stri
 }
 
 describe("createApiClient", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("calls an operation of the contract under the prefix of the contract", async () => {
     const { send, urls } = recorder();
     const client = createApiClient({ address: "http://localhost:4010", fetch: send });
@@ -49,9 +53,20 @@ describe("createApiClient", () => {
     await expect(broken.GET("/health")).rejects.toBe(defect);
   });
 
-  it("uses the platform's fetch when none is given", () => {
+  it("uses the platform's fetch, looked up at each call, when none is given", async () => {
     const client = createApiClient({ address: "http://localhost:4010" });
-    expect(typeof client.GET).toBe("function");
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (request: Request) => {
+      urls.push(request.url);
+      return Promise.resolve(Response.json({ status: "ok" }));
+    });
+    const { data } = await client.GET("/health");
+    expect(data).toEqual({ status: "ok" });
+    expect(urls).toEqual([`http://localhost:4010${API_PREFIX}/health`]);
+
+    // Replaced after the client was made, and failing as it does when the API is down.
+    vi.stubGlobal("fetch", () => Promise.reject(new TypeError("fetch failed")));
+    await expect(client.GET("/health")).rejects.toBeInstanceOf(Unreachable);
   });
 });
 

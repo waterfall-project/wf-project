@@ -97,6 +97,14 @@ function isProblem(body: unknown): body is Problem {
 }
 
 /**
+ * Whether an answer is a gateway's saying the service behind it is down — 502, 503 or 504
+ * without the envelope of the contract: the API out of reach, for a read as for an action.
+ */
+export function isGatewayFailure(response: Response, body: unknown): boolean {
+  return GATEWAY_STATUSES.has(response.status) && !isProblem(body);
+}
+
+/**
  * The envelope of a refusal the catalogue can render. A body that is none — the page of a
  * proxy in front of the API — or whose code the catalogue does not know — a service newer than
  * the front — stands as the unexpected error of the service, at the status the answer carried:
@@ -114,7 +122,7 @@ function decodeAnswer<T>(answer: Answer<T>): Outcome<T> {
   if (ok) {
     return { kind: "done", data: answer.data as T };
   }
-  if (GATEWAY_STATUSES.has(status) && !isProblem(answer.error)) {
+  if (isGatewayFailure(answer.response, answer.error)) {
     return { kind: "unreachable" };
   }
   const problem = envelope(answer.error, status);

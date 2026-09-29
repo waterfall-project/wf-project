@@ -23,13 +23,14 @@ const HOME = "/";
 const FRONT = "http://front.invalid";
 
 /**
- * The screen a `next` names, or the home page when it names none of this front. `next` is
- * resolved as a browser would resolve it — which drops tabs and line breaks, and reads `//host`
- * or `/\host` as another site —, and followed only when it stays on this front: its path, its
- * query and its fragment, never its origin.
+ * The screen a `next` names, or the home page when it names none of this front or cannot be
+ * read as an address at all — `//[`, `//a b`. `next` is resolved as a browser would resolve
+ * it — which drops tabs and line breaks, and reads `//host` or `/\host` as another site —, and
+ * followed only when it stays on this front: its path, its query and its fragment, never its
+ * origin.
  */
 export function returnTarget(next: string | null | undefined): string {
-  if (next?.startsWith("/") !== true) {
+  if (next?.startsWith("/") !== true || !URL.canParse(next, FRONT)) {
     return HOME;
   }
   const target = new URL(next, FRONT);
