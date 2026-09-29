@@ -37,23 +37,39 @@ export const SEARCH = "search";
 /** The longest search the contract accepts. */
 export const SEARCH_LENGTH = 200;
 
+/** The sort a grid keeps in the preferences of the account, as the contract gives it. */
+export interface KeptSort {
+  readonly column: string;
+  readonly order: string;
+}
+
+/** A column the grid sorts, and a direction of the contract, or no sort. */
+function sortOf<Sort extends string>(
+  sortable: readonly Sort[],
+  by: string | null | undefined,
+  order: string | null | undefined,
+): GridSort<Sort> | undefined {
+  const column = sortable.find((candidate) => candidate === by);
+  return column === undefined ? undefined : { column, order: order === "desc" ? "desc" : "asc" };
+}
+
 /**
  * Read what the address asks of a grid: a sort by one of the columns the grid sorts, ascending
  * unless the address says descending — the default of the contract —; a search of the length
  * the contract accepts. Anything else in the address is not asked: the API would refuse it.
+ * The address is the truth of the screen: the sort the account keeps for the grid serves only
+ * when the address asks none (WF-IHM-0060).
  */
 export function readGridQuery<Sort extends string>(
   search: SearchParameters,
   sortable: readonly Sort[],
+  kept?: KeptSort | null,
 ): GridQuery<Sort> {
-  const by = search.get(SORT_BY);
-  const column = sortable.find((candidate) => candidate === by);
   const text = search.get(SEARCH) ?? "";
   return {
     sort:
-      column === undefined
-        ? undefined
-        : { column, order: search.get(SORT_ORDER) === "desc" ? "desc" : "asc" },
+      sortOf(sortable, search.get(SORT_BY), search.get(SORT_ORDER)) ??
+      sortOf(sortable, kept?.column, kept?.order),
     search: text === "" || text.length > SEARCH_LENGTH ? undefined : text,
   };
 }

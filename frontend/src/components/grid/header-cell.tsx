@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A header of a dense grid: the heading of its column, from the catalogue; the Σ that marks a
- * column the server computes (WF-IHM-0030); the sort, when the server sorts it — a button,
- * whose state `aria-sort` tells —; and the handle that widens it, by the pointer or by the
+ * column the server computes (WF-IHM-0030); the sort, when the server sorts it — a button;
+ * `aria-sort` on the column sorted, and on it alone —; and the handle that widens it, by the pointer or by the
  * arrows of the keyboard, a separator whose value is the width.
  */
 "use client";
@@ -121,7 +121,7 @@ export function HeaderCell<Row extends RowData>({
     <TableHead
       scope="col"
       aria-labelledby={id}
-      aria-sort={header.column.getCanSort() ? (sorted ? ARIA_SORT[sorted] : "none") : undefined}
+      aria-sort={sorted ? ARIA_SORT[sorted] : undefined}
       style={{ left: pinning.left }}
       className={cn("relative h-8 bg-muted", pinning.className, end ? "text-right" : null)}
     >

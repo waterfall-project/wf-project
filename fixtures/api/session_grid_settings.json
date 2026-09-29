@@ -1,5 +1,5 @@
 {
-  "summary": "La session de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et gardé un tri par montant budgété décroissant : les réglages de grille que la grille relit.",
+  "summary": "La session de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun.",
   "value": {
     "user": {
       "user_id": "01926f3a-7c00-7000-8000-000000000301",

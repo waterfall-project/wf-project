@@ -130,10 +130,10 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 // <img> does, from an address it is given, and the shell gives it none. Nor do those of the
 // dense grid (US-0110): @tanstack/react-table computes the model of a table from the rows it
 // is handed — its experimental worker plugin, which would start a worker, is not imported —,
-// and @tanstack/react-virtual the rows in view from the sizes and the scroll it observes.
+// and @tanstack/virtual-core the rows in view from the sizes and the scroll it observes.
 const DEPENDENCIES = [
   "@tanstack/react-table",
-  "@tanstack/react-virtual",
+  "@tanstack/virtual-core",
   "class-variance-authority",
   "clsx",
   "geist",

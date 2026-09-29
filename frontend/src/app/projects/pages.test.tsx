@@ -13,6 +13,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
+import EstimatePage from "./[projectId]/revisions/[revisionId]/estimate/page";
 import RevisionPage from "./[projectId]/revisions/[revisionId]/page";
 import ProjectsPage, { generateMetadata as projectsMetadata } from "./page";
 
@@ -41,13 +42,17 @@ vi.mock("@/api/server", () => ({
     const structures = server.structures;
     if (structures !== undefined) {
       // An answer the contract does not declare for the structures — a failure of the
-      // service, a page of a gateway —; the project and the revision from their examples.
+      // service, a page of a gateway —; the session, the project and the revision from their
+      // examples.
       return createApiClient({
         address: "http://api.invalid",
         fetch: (request) => {
           const path = new URL(request.url).pathname;
           if (path.endsWith("/structures")) {
             return Promise.resolve(structures());
+          }
+          if (path.endsWith("/session")) {
+            return Promise.resolve(Response.json(example("session")));
           }
           const name = /\/revisions\/[^/]+$/.test(path) ? "revision" : "project";
           return Promise.resolve(Response.json(example(name)));
@@ -142,7 +147,7 @@ describe("the witness path", () => {
   it("shows the grid of the estimate on the main structure, a row for each node, in the order of the answer", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const html = renderToStaticMarkup(
-      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(html).toContain(`<main class="${SCREEN.dense}">`);
     expect(html).toMatch(
@@ -175,7 +180,7 @@ describe("the witness path", () => {
       subproject_id: "unassigned",
     });
     const html = renderToStaticMarkup(
-      inEnglish(await RevisionPage({ params, searchParams: search })),
+      inEnglish(await EstimatePage({ params, searchParams: search })),
     );
     const call = nodesCall();
     expect(Object.fromEntries(call?.query ?? [])).toEqual({
@@ -190,7 +195,7 @@ describe("the witness path", () => {
   it("asks the plan order of the whole structure when the address holds no sort the grid offers, nor a search", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const search = Promise.resolve({ sort_by: "start_date", sort_order: "desc", search: "" });
-    await RevisionPage({ params, searchParams: search });
+    await EstimatePage({ params, searchParams: search });
     expect([...(nodesCall()?.query.keys() ?? [])]).toEqual([]);
   });
 
@@ -202,7 +207,7 @@ describe("the witness path", () => {
     };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const html = renderToStaticMarkup(
-      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toContain("Total — 3 tasks, 3 lines 12.5 2,734.56 2,734.56");
   });
@@ -211,11 +216,54 @@ describe("the witness path", () => {
     server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const html = renderToStaticMarkup(
-      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     // The quantity hidden, the label widened.
     expect(html).not.toContain(">Qty<");
     expect(html).toContain('<col style="width:400px"/>');
+  });
+
+  it("sorts by the sort the account keeps for the grid when the address asks none, and by the address otherwise", async () => {
+    server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({
+      sort_by: "budgeted_amount",
+      sort_order: "desc",
+    });
+    expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Budgeted/);
+
+    server.clients = [];
+    await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "label" }) });
+    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({
+      sort_by: "label",
+      sort_order: "asc",
+    });
+  });
+
+  it("leads from a revision to the grid of its estimate, the reading context carried on", async () => {
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const search = Promise.resolve({ subproject_id: "unassigned", as_of: ["2026-05-31", "x"] });
+    await expect(RevisionPage({ params, searchParams: search })).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `;/projects/${PROJECT}/revisions/${REVISION}/estimate?subproject_id=unassigned&as_of=2026-05-31&as_of=x;`,
+      ) as unknown,
+    });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `;/projects/${PROJECT}/revisions/${REVISION}/estimate;`,
+      ) as unknown,
+    });
+    expect(server.clients.flatMap((client) => client.calls)).toEqual([]);
+  });
+
+  it("is not found at a revision the address names by no identifier, before leading anywhere", async () => {
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: "a.b" });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
   });
 
   it("is not found when the API does not find the structures of the revision", async () => {
@@ -224,7 +272,7 @@ describe("the witness path", () => {
       "GET /projects/{project_id}/revisions/{revision_id}/structures": NOT_FOUND,
     };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",
     });
   });
@@ -236,7 +284,7 @@ describe("the witness path", () => {
         { status: 500, headers: { "content-type": "application/problem+json" } },
       );
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const page = RevisionPage({ params, searchParams: NO_SEARCH });
+    const page = EstimatePage({ params, searchParams: NO_SEARCH });
     await expect(page).rejects.toBeInstanceOf(UnexpectedAnswer);
     await expect(page).rejects.toMatchObject({
       operation: "listCostStructures",
@@ -247,7 +295,7 @@ describe("the witness path", () => {
   it("never shows an empty grid when a gateway says the service is down: the API is out of reach", async () => {
     server.structures = () => new Response("<html>Bad gateway</html>", { status: 502 });
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
       Unreachable,
     );
   });
@@ -257,7 +305,7 @@ describe("the witness path", () => {
     server.structures = () =>
       Response.json(structures.filter((structure) => structure.kind !== "main"));
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       name: "UnexpectedAnswer",
       operation: "listCostStructures",
     });
@@ -265,7 +313,7 @@ describe("the witness path", () => {
 
   it("is not found at an address that names no revision, before the API is asked", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: "a.b" });
-    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",
     });
     expect(server.clients.flatMap((client) => client.calls)).toEqual([]);
@@ -310,13 +358,13 @@ describe("the banner of the reading context on the witness path", () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const search = Promise.resolve({ subproject_id: "unassigned" });
     const html = renderToStaticMarkup(
-      inEnglish(await RevisionPage({ params, searchParams: search })),
+      inEnglish(await EstimatePage({ params, searchParams: search })),
     );
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
       /^Project Modernisation du poste de commande Revision Current revision Draft Subproject: No subproject Costing and estimate /,
     );
-    expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}"`);
+    expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/estimate"`);
   });
 
   it("is not found for a revision the API does not find, as the other screens of a project", async () => {
@@ -325,7 +373,7 @@ describe("the banner of the reading context on the witness path", () => {
       "GET /projects/{project_id}/revisions/{revision_id}": NOT_FOUND,
     };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",
     });
   });
@@ -333,7 +381,7 @@ describe("the banner of the reading context on the witness path", () => {
   it("does not swallow an answer other than not found, and leaves it to the screen of failure", async () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": UNAUTHORIZED };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
       operation: "getProject",
       digest: SESSION_REQUIRED_DIGEST,
     });

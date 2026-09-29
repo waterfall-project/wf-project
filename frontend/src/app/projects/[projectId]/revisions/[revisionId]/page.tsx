@@ -1,38 +1,13 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The grid of a revision, last step of the witness path (US-0080): the banner of its reading
- * context (WF-IHM-0020), and the grid of the estimate on the main structure of the revision
- * (US-0110). The server reads the structure as the address asks — the sort, the search, the
- * filtered sub-project, all named as the contract names them — and the grid shows the rows in
- * the order of the answer, with the totals of the answer: a header clicked or a search entered
- * changes the address, and this page reads anew. A project or a revision the API does not find
- * is not found, as at the other screens of a project.
+ * A revision itself, which is no function of the navigation: the server leads to the grid of
+ * its estimate (`…/estimate`), the reading context of the address carried on. The grid of the
+ * planning comes with #105: whether a revision then opens on it is decided there.
  */
-import { notFound } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { notFound, redirect } from "next/navigation";
 
-import { readOrFail, UnexpectedAnswer } from "@/api/problem";
-import { serverClient } from "@/api/server";
-import { ContextBanner } from "@/components/context/context-banner";
-import { readProjectContext } from "@/components/context/reading";
-import {
-  ESTIMATE_GRID,
-  ESTIMATE_SORT_COLUMNS,
-  type NodeList,
-  type NodeSortColumn,
-} from "@/components/grid/estimate";
-import { EstimateGrid } from "@/components/grid/estimate-grid";
-import { type GridQuery, readGridQuery } from "@/components/grid/query";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { PageHeader, Screen } from "@/components/shell/page-header";
-import {
-  type PageSearchParams,
-  pageSearch,
-  type ProjectContext,
-  readContext,
-} from "@/navigation/context";
-import { requestSession } from "@/session/request";
+import { type PageSearchParams, pageSearch, readContext } from "@/navigation/context";
 
 /** The route parameters of a revision. */
 export interface RevisionParams {
@@ -40,63 +15,19 @@ export interface RevisionParams {
   readonly revisionId: string;
 }
 
-/**
- * The main structure of a revision, and its nodes as the address asks them: sorted, searched,
- * restricted to the filtered sub-project. A read the API refuses, or cannot answer, is thrown
- * for the pages of the shell to say (`readOrFail`): a grid left empty would say the revision
- * has nothing. So is a revision without a main structure, which the contract rules out: an
- * answer of the API that breaks it is unexpected, not an empty grid.
- */
-async function mainStructure(
-  { projectId, revisionId }: RevisionParams,
-  context: ProjectContext,
-  { sort, search }: GridQuery<NodeSortColumn>,
-) {
-  const client = serverClient();
-  const revision = { project_id: projectId, revision_id: revisionId };
-  const structures = await readOrFail("listCostStructures", () =>
-    client.GET("/projects/{project_id}/revisions/{revision_id}/structures", {
-      params: { path: revision },
-    }),
-  );
-  const main = structures.find((structure) => structure.kind === "main");
-  if (main === undefined) {
-    throw new UnexpectedAnswer("listCostStructures", 200);
+/** The query of an address, as Next hands it to a page: a repeated parameter keeps each value. */
+function queryOf(search: PageSearchParams): string {
+  const query = new URLSearchParams();
+  for (const [name, value] of Object.entries(search)) {
+    for (const each of typeof value === "string" ? [value] : (value ?? [])) {
+      query.append(name, each);
+    }
   }
-  const subproject = context.parameters.get("subproject_id");
-  const nodes = await readOrFail("listNodes", () =>
-    client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
-      params: {
-        path: { ...revision, structure_id: main.structure_id },
-        query: {
-          ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
-          ...(search === undefined ? {} : { search }),
-          ...(subproject === null ? {} : { subproject_id: subproject }),
-        },
-      },
-    }),
-  );
-  return { label: main.label, nodes };
+  const text = query.toString();
+  return text === "" ? "" : `?${text}`;
 }
 
-/** The title of the grid, and what it holds: the structure, its tasks and lines retained. */
-function EstimateHeader({ label, nodes }: { readonly label: string; readonly nodes: NodeList }) {
-  const t = useTranslations();
-  return (
-    <PageHeader
-      title={t("functions.estimate")}
-      icon={FUNCTION_ICONS.estimate}
-      density={FUNCTION_DENSITY.estimate}
-      subtitle={t("estimateGrid.summary", {
-        structure: label,
-        tasks: nodes.totals.task_count,
-        lines: nodes.totals.estimate_line_count,
-      })}
-    />
-  );
-}
-
-/** Render the grid of the estimate on the main structure of a revision. */
+/** Lead from a revision to the grid of its estimate, or to « not found » for no revision. */
 export default async function RevisionPage({
   params,
   searchParams,
@@ -106,30 +37,8 @@ export default async function RevisionPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const pathname = `/projects/${revision.projectId}/revisions/${revision.revisionId}`;
-  const address = pageSearch(search);
-  // An address that names no project or no revision is not found before the API is asked.
-  const context = readContext(pathname, address);
-  if (context === undefined) {
+  if (readContext(pathname, pageSearch(search)) === undefined) {
     notFound();
   }
-  const query = readGridQuery(address, ESTIMATE_SORT_COLUMNS);
-  const [structure, read, session] = await Promise.all([
-    mainStructure(revision, context, query),
-    readProjectContext(pathname, context),
-    requestSession(),
-  ]);
-  if (read === "not_found") {
-    notFound();
-  }
-  // A grid the account set back to its defaults is `null`: none kept, as when absent.
-  const preferences = session?.user.display_preferences?.grids?.[ESTIMATE_GRID.key] ?? undefined;
-  return (
-    <>
-      <ContextBanner reading={read} />
-      <Screen density={FUNCTION_DENSITY.estimate}>
-        <EstimateHeader label={structure.label} nodes={structure.nodes} />
-        <EstimateGrid nodes={structure.nodes} query={query} preferences={preferences} />
-      </Screen>
-    </>
-  );
+  redirect(`${pathname}/estimate${queryOf(search)}`);
 }

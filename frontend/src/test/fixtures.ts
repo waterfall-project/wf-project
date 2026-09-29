@@ -152,11 +152,21 @@ function refuse(request: Request): Promise<Response> {
   );
 }
 
+/** How a fake client answers besides what: when. */
+export interface FakeTiming {
+  /**
+   * Hold the answer to a call until the promise given settles — two calls in flight, the
+   * second answered first —; nothing, and the call is answered at once. The call is recorded
+   * before it is held; `index` counts the calls of its route, from 0.
+   */
+  readonly hold?: (route: string, index: number) => Promise<unknown> | undefined;
+}
+
 /**
  * Make a client that answers each route from the examples of the contract. A call to a route
  * it has no answer for fails the test: an unexpected call is a defect, not an empty page.
  */
-export function fakeClient(answers: FakeAnswers): FakeClient {
+export function fakeClient(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
   const table: Readonly<Record<string, AnyAnswer | readonly AnyAnswer[] | undefined>> = answers;
   const served = new Map<string, number>();
   const calls: { -readonly [K in keyof FakeCall]: FakeCall[K] }[] = [];
@@ -184,6 +194,7 @@ export function fakeClient(answers: FakeAnswers): FakeClient {
       };
       calls.push(call);
       call.body = await bodyOf(request);
+      await timing.hold?.(route, index);
       return respond(answer);
     },
   });

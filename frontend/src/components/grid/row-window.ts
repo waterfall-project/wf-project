@@ -6,12 +6,20 @@
  *
  * The virtualizer is read as a store (`useSyncExternalStore`) whose snapshot is data — the
  * rows in view, the heights before and after them —, not through the React adapter of TanStack
- * Virtual: that one hands the component an instance whose methods answer from the state it
- * holds, which the React Compiler would memoize and freeze (`react-hooks/incompatible-library`).
- * The snapshot changes when the virtualizer says its window moved, and only then.
+ * Virtual, which hands the component an instance whose methods answer from the state it holds.
+ * The React Compiler is not enabled in this front (`next.config.ts`), but the lint of React
+ * refuses that adapter all the same (`react-hooks/incompatible-library`): a compiled render
+ * would memoize those answers and freeze them. The snapshot changes when the window moves, and
+ * only then — the same object from one render to the next otherwise.
+ *
+ * The height of a row is given in pixels by the grid, from the size of the root font: the rows
+ * are sized in `rem`, so a font enlarged by the user enlarges them, and the window with them.
  */
 "use client";
 
+// The core of TanStack Virtual, pinned to its exact version: this adapter drives its lifecycle
+// by `_didMount` and `_willUpdate`, which it leaves to the adapters of the frameworks and does
+// not promise from one version to the next.
 import {
   elementScroll,
   observeElementOffset,
@@ -19,7 +27,7 @@ import {
   type VirtualItem,
   Virtualizer,
   type VirtualizerOptions,
-} from "@tanstack/react-virtual";
+} from "@tanstack/virtual-core";
 import { type RefObject, useLayoutEffect, useState, useSyncExternalStore } from "react";
 
 /** The rows in view, and the heights of the rows out of view before and after them. */
@@ -29,10 +37,13 @@ export interface RowWindow {
   readonly after: number;
 }
 
+/** The identity of a row. */
+type RowKey = string | number;
+
 /** What the window is computed from. */
 export interface RowWindowOptions {
-  /** The number of rows. */
-  readonly count: number;
+  /** The rows, whose identity tells a new answer from the same one rendered again. */
+  readonly rows: readonly unknown[];
   /** The element that scrolls. */
   readonly scroller: RefObject<HTMLElement | null>;
   /** The height of a row, in pixels, the same for every one. */
@@ -42,7 +53,7 @@ export interface RowWindowOptions {
   /** The size assumed before the element is measured — on the server, among others. */
   readonly initialRect: { readonly width: number; readonly height: number };
   /** The identity of the row at an index, stable from one answer to the next. */
-  readonly keyOf: (index: number) => string | number;
+  readonly keyOf: (index: number) => RowKey;
 }
 
 type RowVirtualizer = Virtualizer<HTMLElement, HTMLElement>;
@@ -62,16 +73,40 @@ class RowWindowStore {
   readonly virtualizer: RowVirtualizer;
   private snapshot: RowWindow;
   private readonly listeners = new Set<() => void>();
+  private options: RowWindowOptions;
+  // The virtualizer computes its measurements anew when the function that keys its rows
+  // changes: it is made again when the rows or their height change, and only then — a new
+  // `keyOf` at every render would make it measure everything at every render.
+  private itemKey: (index: number) => RowKey;
 
   constructor(options: RowWindowOptions) {
-    this.virtualizer = new Virtualizer(this.resolve(options));
+    this.options = options;
+    this.itemKey = this.keyer();
+    this.virtualizer = new Virtualizer(this.resolve());
     this.snapshot = windowOf(this.virtualizer);
   }
 
-  /** Take the options of a render — a new answer, another count —, and the window they make. */
+  /** Take the options of a render — a new answer, another height —, and the window they make. */
   update(options: RowWindowOptions): void {
-    this.virtualizer.setOptions(this.resolve(options));
+    const before = this.options;
+    this.options = options;
+    if (options.rows !== before.rows || options.rowHeight !== before.rowHeight) {
+      this.itemKey = this.keyer();
+    }
+    this.virtualizer.setOptions(this.resolve());
     this.refresh();
+  }
+
+  /**
+   * Follow the element that scrolls, after a render. When it is first found, the offset the
+   * virtualizer took while rendering — before the element was there, so none — is dropped, and
+   * read from the element: attaching would otherwise scroll it back to the top.
+   */
+  attach(): void {
+    if (this.virtualizer.scrollElement !== this.options.scroller.current) {
+      this.virtualizer.scrollOffset = null;
+    }
+    this.virtualizer._willUpdate();
   }
 
   readonly subscribe = (listener: () => void): (() => void) => {
@@ -82,6 +117,11 @@ class RowWindowStore {
   };
 
   readonly getSnapshot = (): RowWindow => this.snapshot;
+
+  /** A function that keys the rows by the `keyOf` of the last render. */
+  private keyer(): (index: number) => RowKey {
+    return (index) => this.options.keyOf(index);
+  }
 
   /** Keep the window the virtualizer computes, when it moved: the same one otherwise. */
   private refresh(): boolean {
@@ -96,24 +136,35 @@ class RowWindowStore {
     return moved;
   }
 
-  private resolve(options: RowWindowOptions): VirtualizerOptions<HTMLElement, HTMLElement> {
+  private readonly notify = (): void => {
+    if (this.refresh()) {
+      for (const listener of this.listeners) {
+        listener();
+      }
+    }
+  };
+
+  private readonly scrollElement = (): HTMLElement | null => this.options.scroller.current;
+
+  private readonly estimateSize = (): number => this.options.rowHeight;
+
+  // Where the element already is: a grid scrolled before the page came alive — rendered by the
+  // server, not yet hydrated — stays where the user took it.
+  private readonly initialOffset = (): number => this.options.scroller.current?.scrollTop ?? 0;
+
+  private resolve(): VirtualizerOptions<HTMLElement, HTMLElement> {
     return {
-      count: options.count,
-      getScrollElement: () => options.scroller.current,
-      estimateSize: () => options.rowHeight,
-      overscan: options.overscan,
-      initialRect: options.initialRect,
-      getItemKey: options.keyOf,
+      count: this.options.rows.length,
+      getScrollElement: this.scrollElement,
+      estimateSize: this.estimateSize,
+      overscan: this.options.overscan,
+      initialRect: this.options.initialRect,
+      initialOffset: this.initialOffset,
+      getItemKey: this.itemKey,
       observeElementRect,
       observeElementOffset,
       scrollToFn: elementScroll,
-      onChange: () => {
-        if (this.refresh()) {
-          for (const listener of this.listeners) {
-            listener();
-          }
-        }
-      },
+      onChange: this.notify,
     };
   }
 }
@@ -124,7 +175,29 @@ export function useRowWindow(options: RowWindowOptions): RowWindow {
   store.update(options);
   useLayoutEffect(() => store.virtualizer._didMount(), [store]);
   useLayoutEffect(() => {
-    store.virtualizer._willUpdate();
+    store.attach();
   });
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
+
+/** The size of the root font before the browser tells it: the default of the browsers. */
+const DEFAULT_FONT_SIZE = 16;
+
+/** Follow what may change the size of the root font: a zoom resizes the window. */
+function subscribeToResize(listener: () => void): () => void {
+  window.addEventListener("resize", listener);
+  return () => {
+    window.removeEventListener("resize", listener);
+  };
+}
+
+/** The size of the root font, in pixels, as the browser computes it. */
+function computedFontSize(): number {
+  const size = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return Number.isFinite(size) && size > 0 ? size : DEFAULT_FONT_SIZE;
+}
+
+/** The size of the root font, in pixels: its default on the server. */
+export function useRootFontSize(): number {
+  return useSyncExternalStore(subscribeToResize, computedFontSize, () => DEFAULT_FONT_SIZE);
 }

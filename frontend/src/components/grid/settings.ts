@@ -1,16 +1,19 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The settings of a grid — the columns hidden, the widths set —, a display preference of the
- * account (WF-ADM-0040, WF-IHM-0060): personal, and without effect on the data. The grid
- * starts from those the session read, when there are any, and records each change under its
- * key (`updateGridPreferences`), the API replacing that grid whole: what the grid does not set
- * — the sort, the filters kept there — goes back as it came.
+ * The settings of a grid — the columns hidden, the widths set, the sort chosen —, a display
+ * preference of the account (WF-ADM-0040, WF-IHM-0060): personal, and without effect on the
+ * data. The grid starts from those the session read, when there are any — the page sorts by the
+ * one kept when the address asks none —, and records each change under its key
+ * (`updateGridPreferences`), the API replacing that grid whole: what the grid does not set — the
+ * filters kept there — goes back as it came.
  *
- * A change is recorded once the user pauses: a column dragged wider changes its width at every
- * move, and only the last one is written. The last one still waiting is written when the grid
- * goes, so that leaving the screen right after a change keeps it. Only the outcome of the last
- * write is told: an earlier one answering late says nothing of what the grid now shows.
+ * A column shown or widened is recorded once the user pauses: a column dragged wider changes
+ * its width at every move, and only the last one is written. A sort is recorded at once, before
+ * the page reads the address anew, so that a sort lifted is not given back by the preference.
+ * What still waits is written when the page is left or hidden, before a navigation of the grid,
+ * and when the grid goes. Only the outcome of the last write is told: an earlier one answering
+ * late says nothing of what the grid now shows.
  */
 "use client";
 
@@ -21,6 +24,7 @@ import type { components } from "@/api/generated/schema";
 import type { Settled } from "@/api/problem";
 
 import { MAX_WIDTH, MIN_WIDTH } from "./columns";
+import type { GridSort } from "./query";
 
 /** The settings of a grid, as the account keeps them. */
 export type GridPreferences = components["schemas"]["GridPreferences"];
@@ -67,12 +71,13 @@ export function initialSettings(
 }
 
 /**
- * The preferences to record for a grid: its settings, and what the account kept of it besides,
- * as it came — the grid is replaced whole.
+ * The preferences to record for a grid: its settings, the sort it shows — none, the order of
+ * the plan —, and what the account kept of it besides, as it came: the grid is replaced whole.
  */
 export function recordedPreferences(
   preferences: GridPreferences | undefined,
   settings: GridSettings,
+  sort: GridSort<string> | undefined,
 ): GridPreferences {
   return {
     ...preferences,
@@ -82,59 +87,87 @@ export function recordedPreferences(
     column_widths: Object.fromEntries(
       Object.entries(settings.sizing).map(([key, width]) => [key, bounded(width)]),
     ),
+    sort: sort === undefined ? null : { column: sort.column, order: sort.order },
   };
 }
 
 /** What the writer of the settings gives the grid. */
 export interface SettingsWriter {
-  /** Record the settings once the user pauses. */
-  readonly record: (settings: GridSettings) => void;
+  /** Record preferences once the user pauses. */
+  readonly record: (preferences: GridPreferences) => void;
+  /** Record preferences at once, and say when the API answered. */
+  readonly recordNow: (preferences: GridPreferences) => Promise<void>;
+  /** Record at once what waits, if anything. */
+  readonly flush: () => void;
   /** The outcome of the last write that failed; nothing once it succeeded. */
   readonly outcome: Settled | undefined;
   /** Forget the outcome told. */
   readonly clear: () => void;
 }
 
-/** Record the settings of a grid under its key, after a pause, the last change only. */
-export function useSettingsWriter(
-  grid: string,
-  preferences: GridPreferences | undefined,
-): SettingsWriter {
+/** Record the settings of a grid under its key: after a pause, or at once. */
+export function useSettingsWriter(grid: string): SettingsWriter {
   const [outcome, setOutcome] = useState<Settled>();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const waiting = useRef<GridPreferences>(undefined);
   const latest = useRef(0);
 
-  const flush = useCallback(() => {
-    clearTimeout(timer.current);
-    const sent = waiting.current;
-    waiting.current = undefined;
-    if (sent === undefined) {
-      return;
-    }
-    latest.current += 1;
-    const write = latest.current;
-    startTransition(async () => {
+  const send = useCallback(
+    async (sent: GridPreferences) => {
+      latest.current += 1;
+      const write = latest.current;
       const result = await updateGridPreferences(grid, sent);
       if (write === latest.current) {
         setOutcome(result.kind === "done" ? undefined : result);
       }
-    });
-  }, [grid]);
+    },
+    [grid],
+  );
 
-  // The change still waiting when the grid goes is written at once.
-  useEffect(() => flush, [flush]);
+  const flush = useCallback(() => {
+    clearTimeout(timer.current);
+    const sent = waiting.current;
+    waiting.current = undefined;
+    if (sent !== undefined) {
+      startTransition(() => send(sent));
+    }
+  }, [send]);
+
+  // What waits is written when the page is left or hidden — a tab closed, another opened —,
+  // and when the grid goes.
+  useEffect(() => {
+    const hidden = () => {
+      if (document.visibilityState === "hidden") {
+        flush();
+      }
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", hidden);
+      flush();
+    };
+  }, [flush]);
 
   const record = useCallback(
-    (settings: GridSettings) => {
-      waiting.current = recordedPreferences(preferences, settings);
+    (preferences: GridPreferences) => {
+      waiting.current = preferences;
       clearTimeout(timer.current);
       timer.current = setTimeout(flush, WRITE_DELAY);
     },
-    [preferences, flush],
+    [flush],
+  );
+  const recordNow = useCallback(
+    (preferences: GridPreferences) => {
+      clearTimeout(timer.current);
+      waiting.current = undefined;
+      return send(preferences);
+    },
+    [send],
   );
   const clear = useCallback(() => {
     setOutcome(undefined);
   }, []);
-  return { record, outcome, clear };
+  return { record, recordNow, flush, outcome, clear };
 }

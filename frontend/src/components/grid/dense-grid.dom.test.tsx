@@ -1,6 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,10 +17,16 @@ import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+} from "@/test/fixtures";
 
 import type { GridConfig } from "./columns";
-import { DenseGrid, ROW_HEIGHT } from "./dense-grid";
+import { DenseGrid, ROW_REM } from "./dense-grid";
 import {
   ESTIMATE_GRID,
   type Node,
@@ -22,7 +36,7 @@ import {
 } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import type { GridQuery } from "./query";
-import type { GridPreferences } from "./settings";
+import { type GridPreferences, useSettingsWriter, WRITE_DELAY } from "./settings";
 
 // The server of Next, as far as the grid needs it: the fake back behind serverClient, which the
 // server action recording the settings calls; the router, whose address a sort or a search
@@ -41,14 +55,19 @@ vi.mock("next/navigation", async (original) => ({
 
 const PREFERENCES = "PATCH /me/preferences";
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
-// The height of the element that scrolls, as a browser would lay it out: twenty rows.
+// The height of a row at the default size of the root font, and of the element that scrolls,
+// as a browser would lay it out: twenty rows.
+const ROW_HEIGHT = ROW_REM * 16;
 const VIEW = 20 * ROW_HEIGHT;
 
 const witness = example("nodes") as NodeList;
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers = { [PREFERENCES]: "preferences" }): FakeClient {
-  const client = fakeClient(answers);
+function serve(
+  answers: FakeAnswers = { [PREFERENCES]: "preferences" },
+  timing: FakeTiming = {},
+): FakeClient {
+  const client = fakeClient(answers, timing);
   server.client = client;
   return client;
 }
@@ -230,31 +249,96 @@ describe("the sort, the search and the totals, asked of the server", () => {
     page.search = "subproject_id=unassigned";
     const { ask } = renderGrid(witness);
     const heading = () => screen.getByRole("columnheader", { name: /Budgété/ });
-    expect(heading()).toHaveAttribute("aria-sort", "none");
+    // No column is sorted: none says so.
+    expect(grid().querySelectorAll("[aria-sort]")).toHaveLength(0);
 
     await userEvent.click(within(heading()).getByRole("button"));
-    expect(router.push).toHaveBeenLastCalledWith(
-      "/projects/p/revisions/r?subproject_id=unassigned&sort_by=budgeted_amount&sort_order=asc",
-      { scroll: false },
-    );
+    await waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith(
+        "/projects/p/revisions/r?subproject_id=unassigned&sort_by=budgeted_amount&sort_order=asc",
+        { scroll: false },
+      );
+    });
     ask({ sort: { column: "budgeted_amount", order: "asc" }, search: undefined });
     expect(heading()).toHaveAttribute("aria-sort", "ascending");
+    expect(grid().querySelectorAll("[aria-sort]")).toHaveLength(1);
 
     await userEvent.click(within(heading()).getByRole("button"));
-    expect(router.push).toHaveBeenLastCalledWith(
-      "/projects/p/revisions/r?subproject_id=unassigned&sort_by=budgeted_amount&sort_order=desc",
-      { scroll: false },
-    );
+    await waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith(
+        "/projects/p/revisions/r?subproject_id=unassigned&sort_by=budgeted_amount&sort_order=desc",
+        { scroll: false },
+      );
+    });
     ask({ sort: { column: "budgeted_amount", order: "desc" }, search: undefined });
     expect(heading()).toHaveAttribute("aria-sort", "descending");
 
     await userEvent.click(within(heading()).getByRole("button"));
-    expect(router.push).toHaveBeenLastCalledWith(
-      "/projects/p/revisions/r?subproject_id=unassigned",
+    await waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith(
+        "/projects/p/revisions/r?subproject_id=unassigned",
+        { scroll: false },
+      );
+    });
+  });
+
+  it("records the sort chosen in the preferences of the grid before it asks the server, and none once lifted", async () => {
+    const client = serve();
+    const { ask } = renderGrid(witness);
+    const heading = () => screen.getByRole("columnheader", { name: /Qté/ });
+    await userEvent.click(within(heading()).getByRole("button"));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledTimes(1);
+    });
+    // Recorded at once, without the pause of a width, and before the address changed.
+    expect(recorded(client)).toEqual([
       {
-        scroll: false,
+        grids: {
+          estimate: {
+            hidden_columns: [],
+            column_widths: {},
+            sort: { column: "quantity", order: "asc" },
+          },
+        },
       },
+    ]);
+    ask({ sort: { column: "quantity", order: "desc" }, search: undefined });
+    await userEvent.click(within(heading()).getByRole("button"));
+    await waitFor(() => {
+      expect(recorded(client).at(-1)).toEqual({
+        grids: { estimate: { hidden_columns: [], column_widths: {}, sort: null } },
+      });
+    });
+  });
+
+  it("goes on from the sort asked when the header is clicked again before the server answered", async () => {
+    let answer: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    serve(
+      { [PREFERENCES]: "preferences" },
+      { hold: (_route, index) => (index === 0 ? held : undefined) },
     );
+    renderGrid(witness);
+    const button = () =>
+      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button");
+    await userEvent.click(button());
+    // The first sort is still being recorded: the header shows it, and goes on from it.
+    expect(screen.getByRole("columnheader", { name: /Budgété/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    await userEvent.click(button());
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledTimes(1);
+    });
+    answer();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Only the last sort asked is navigated to.
+    expect(router.push.mock.calls).toEqual([
+      ["/projects/p/revisions/r?sort_by=budgeted_amount&sort_order=desc", { scroll: false }],
+    ]);
   });
 
   it("renders the rows in the order the server gave, and the totals it computed for the request, never a sum of its own", () => {
@@ -313,7 +397,11 @@ describe("the columns and their widths, a display preference of the account", ()
         user: { display_preferences: { grids: { estimate: GridPreferences } } };
       }
     ).user.display_preferences.grids.estimate;
-    const { container } = renderGrid(witness, { preferences: settings });
+    // The page sorts by the sort the account keeps when the address asks none.
+    const { container } = renderGrid(witness, {
+      preferences: settings,
+      query: { sort: { column: "budgeted_amount", order: "desc" }, search: undefined },
+    });
     await expectAccessible(container);
     // The quantity was hidden, the label widened.
     expect(screen.queryByRole("columnheader", { name: /Qté/ })).toBeNull();
@@ -358,7 +446,11 @@ describe("the columns and their widths, a display preference of the account", ()
     expect(container.querySelectorAll("col")[5]).toHaveStyle({ width: "144px" });
     await waitFor(() => {
       expect(recorded(client)).toEqual([
-        { grids: { estimate: { hidden_columns: [], column_widths: { budgeted_amount: 144 } } } },
+        {
+          grids: {
+            estimate: { hidden_columns: [], column_widths: { budgeted_amount: 144 }, sort: null },
+          },
+        },
       ]);
     });
 
@@ -378,7 +470,7 @@ describe("the columns and their widths, a display preference of the account", ()
     expect(handle).toHaveAttribute("aria-valuenow", "380");
     await waitFor(() => {
       expect(recorded(client)).toEqual([
-        { grids: { estimate: { hidden_columns: [], column_widths: { label: 380 } } } },
+        { grids: { estimate: { hidden_columns: [], column_widths: { label: 380 }, sort: null } } },
       ]);
     });
   });
@@ -392,6 +484,162 @@ describe("the columns and their widths, a display preference of the account", ()
     handle.focus();
     await userEvent.keyboard("{ArrowRight}");
     expect(await screen.findByRole("alert")).toHaveTextContent("Se connecter");
+  });
+});
+
+describe("the writing of the settings", () => {
+  /** Widen the label by a step of the keyboard. */
+  async function widen() {
+    const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
+    handle.focus();
+    await userEvent.keyboard("{ArrowRight}");
+  }
+
+  /** The body that records a width of the label, without a sort. */
+  const labelAt = (width: number) => ({
+    grids: { estimate: { hidden_columns: [], column_widths: { label: width }, sort: null } },
+  });
+
+  it("writes a change still waiting when the grid goes, once", async () => {
+    const client = serve();
+    const { unmount } = renderGrid(witness);
+    await widen();
+    expect(recorded(client)).toEqual([]);
+    unmount();
+    await waitFor(() => {
+      expect(recorded(client)).toEqual([labelAt(336)]);
+    });
+    await new Promise((resolve) => setTimeout(resolve, WRITE_DELAY + 100));
+    expect(recorded(client)).toEqual([labelAt(336)]);
+  });
+
+  it("writes a change still waiting when the page is left or hidden, and before a search, without waiting", async () => {
+    const client = serve();
+    renderGrid(witness);
+    await widen();
+    window.dispatchEvent(new Event("pagehide"));
+    // At once: well before the pause after which a change is written.
+    await waitFor(
+      () => {
+        expect(recorded(client)).toEqual([labelAt(336)]);
+      },
+      { timeout: WRITE_DELAY / 2 },
+    );
+
+    await widen();
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(
+      () => {
+        expect(recorded(client)).toHaveLength(2);
+      },
+      { timeout: WRITE_DELAY / 2 },
+    );
+    visibility.mockReturnValue("visible");
+    await widen();
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(recorded(client)).toHaveLength(2);
+
+    await userEvent.type(
+      screen.getByRole("searchbox", { name: "Rechercher un libellé" }),
+      "x{Enter}",
+    );
+    expect(recorded(client)).toEqual([labelAt(336), labelAt(352), labelAt(368)]);
+    expect(router.push).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells nothing of an earlier write refused after a later one succeeded", async () => {
+    let answer: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    const client = serve(
+      { [PREFERENCES]: [{ problem: { code: "SESSION_REQUIRED", status: 401 } }, "preferences"] },
+      { hold: (_route, index) => (index === 0 ? held : undefined) },
+    );
+    renderGrid(witness);
+    await widen();
+    await waitFor(() => {
+      expect(recorded(client)).toHaveLength(1);
+    });
+    await widen();
+    await waitFor(() => {
+      expect(recorded(client)).toHaveLength(2);
+    });
+    // The second write succeeded; the first, refused, answers only now.
+    answer();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("takes the refusal away once a later write succeeds", async () => {
+    serve({
+      [PREFERENCES]: [{ problem: { code: "SESSION_REQUIRED", status: 401 } }, "preferences"],
+    });
+    renderGrid(witness);
+    await widen();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Se connecter");
+    await widen();
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+  });
+
+  it("forgets the outcome told when the notice clears it", async () => {
+    serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
+    const { result } = renderHook(() => useSettingsWriter("estimate"));
+    await act(() => result.current.recordNow({ hidden_columns: [] }));
+    expect(result.current.outcome?.kind).toBe("signed_out");
+    act(() => {
+      result.current.clear();
+    });
+    expect(result.current.outcome).toBeUndefined();
+  });
+});
+
+describe("a grid configured without its options", () => {
+  it("shows neither row numbers nor tree, and pins nothing, when its configuration asks none", () => {
+    const plain: GridConfig<Node, NodeSortColumn, NodeTotals> = {
+      key: "plain",
+      name: "estimate",
+      rowKey: (node) => node.node_id,
+      columns: ESTIMATE_GRID.columns.map((column) => ({ ...column, pinned: false })),
+    };
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <DenseGrid
+          config={plain}
+          rows={witness.items}
+          totals={witness.totals}
+          totalsCaption="—"
+          query={NO_QUERY}
+          preferences={undefined}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByRole("columnheader", { name: "N°" })).toBeNull();
+    expect(texts(rowAt(3)).slice(0, 2)).toEqual(["Études de détail", ""]);
+    expect(within(grid()).queryAllByRole("img", { name: /Tâche|Ligne/ })).toEqual([]);
+    expect(
+      [...grid().querySelectorAll<HTMLElement>("td, th")].filter((cell) => cell.style.left !== ""),
+    ).toEqual([]);
+    // Without row numbers, the label is the first column: the caption of the totals is its.
+    expect(texts(rowAt(6))[0]).toBe("—");
+    // Every column may then be hidden.
+    expect(screen.getAllByRole("separator")).toHaveLength(6);
+  });
+
+  it("sizes its rows by the root font, so that an enlarged font shifts no row", () => {
+    document.documentElement.style.fontSize = "24px";
+    try {
+      renderGrid(thousandRows());
+      const rendered = bodyRows();
+      const spacers = [...grid().querySelectorAll<HTMLElement>('tr[aria-hidden="true"] td')];
+      // The rows out of view after those rendered take 1.75 rem each: 42 pixels at 24.
+      expect(spacers.at(-1)).toHaveStyle({ height: `${String((1000 - rendered.length) * 42)}px` });
+    } finally {
+      document.documentElement.style.fontSize = "";
+    }
   });
 });
 

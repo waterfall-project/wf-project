@@ -32,18 +32,26 @@ describe("the settings a grid starts from", () => {
 });
 
 describe("the preferences a grid records", () => {
-  it("replace its columns and widths, and keep the rest as it came", () => {
-    const kept = {
-      hidden_columns: ["quantity"],
-      column_widths: { label: 400 },
-      sort: { column: "hours", order: "asc" as const },
-      filters: { progress: ["started"] },
-    };
+  const kept = {
+    hidden_columns: ["quantity"],
+    column_widths: { label: 400 },
+    sort: { column: "hours", order: "asc" as const },
+    filters: { progress: ["started"] },
+  };
+  const settings = { visibility: { quantity: true, hours: false }, sizing: { label: 412.6 } };
+
+  it("replace its columns, widths and sort, and keep the rest as it came", () => {
     expect(
-      recordedPreferences(kept, {
-        visibility: { quantity: true, hours: false },
-        sizing: { label: 412.6 },
-      }),
-    ).toEqual({ ...kept, hidden_columns: ["hours"], column_widths: { label: 413 } });
+      recordedPreferences(kept, settings, { column: "budgeted_amount", order: "desc" }),
+    ).toEqual({
+      ...kept,
+      hidden_columns: ["hours"],
+      column_widths: { label: 413 },
+      sort: { column: "budgeted_amount", order: "desc" },
+    });
+  });
+
+  it("keep no sort once it is lifted, back to the order of the plan", () => {
+    expect(recordedPreferences(kept, settings, undefined).sort).toBeNull();
   });
 });

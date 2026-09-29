@@ -25,6 +25,17 @@ describe("what the address asks of a grid", () => {
     expect(read("sort_order=desc")).toBeUndefined();
   });
 
+  it("sorts by the sort the account keeps when the address asks none, the address winning", () => {
+    const read = (query: string, kept: { column: string; order: string } | null) =>
+      readGridQuery(new URLSearchParams(query), ESTIMATE_SORT_COLUMNS, kept).sort;
+    const hours = { column: "hours", order: "desc" };
+    expect(read("", hours)).toEqual({ column: "hours", order: "desc" });
+    expect(read("sort_by=label", hours)).toEqual({ column: "label", order: "asc" });
+    expect(read("", { column: "start_date", order: "asc" })).toBeUndefined();
+    expect(read("", { column: "hours", order: "up" })).toEqual({ column: "hours", order: "asc" });
+    expect(read("", null)).toBeUndefined();
+  });
+
   it("reads a search of the length the contract accepts, and none otherwise", () => {
     const read = (search: string) =>
       readGridQuery(new URLSearchParams({ search }), ESTIMATE_SORT_COLUMNS).search;

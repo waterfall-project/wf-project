@@ -22,7 +22,7 @@
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useRef, useState, useTransition } from "react";
+import { type ReactNode, useOptimistic, useRef, useState, useTransition } from "react";
 
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import {
@@ -40,12 +40,20 @@ import { alignment, formatCell, type GridColumn, type GridConfig } from "./colum
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
-import { useRowWindow } from "./row-window";
-import { type GridQuery, searchHref, sortHref } from "./query";
-import { type GridPreferences, initialSettings, useSettingsWriter } from "./settings";
+import { useRootFontSize, useRowWindow } from "./row-window";
+import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
+import {
+  type GridPreferences,
+  initialSettings,
+  recordedPreferences,
+  useSettingsWriter,
+} from "./settings";
 
-/** The height of a row, in pixels: a dense grid. */
-export const ROW_HEIGHT = 28;
+/**
+ * The height of a row, in `rem` — `h-7`, a dense grid —: in pixels, as many times the size of
+ * the root font, so that a font the user enlarges does not shift the rows the grid computes.
+ */
+export const ROW_REM = 1.75;
 
 /** The rows rendered beyond those in view, at each end. */
 const OVERSCAN = 12;
@@ -270,9 +278,14 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const pathname = usePathname();
   const address = useSearchParams();
   const [pending, startTransition] = useTransition();
+  // The sort asked, shown until the server answers: a second click on the header, before the
+  // answer to the first, goes on from it — ascending, then descending.
+  const [sort, showSort] = useOptimistic(query.sort);
+  const sortChanges = useRef(0);
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
-  const writer = useSettingsWriter(config.key, preferences);
+  const writer = useSettingsWriter(config.key);
   const scroller = useRef<HTMLDivElement>(null);
+  const rowHeight = ROW_REM * useRootFontSize();
 
   // A sort or a search changes the address only: the server reads it, and answers anew.
   const navigate = (href: (query: URLSearchParams) => string) => {
@@ -280,25 +293,36 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       router.push(href(new URLSearchParams(address.toString())), { scroll: false });
     });
   };
+  // The sort is recorded before the address changes, so that the page does not read the one
+  // the account kept before; only the last of several sorts asked in a row is navigated to.
+  const changeSort = (next: GridSort<Sort> | undefined) => {
+    sortChanges.current += 1;
+    const change = sortChanges.current;
+    startTransition(async () => {
+      showSort(next);
+      await writer.recordNow(recordedPreferences(preferences, settings, next));
+      if (change === sortChanges.current) {
+        navigate((current) => sortHref(pathname, current, next));
+      }
+    });
+  };
   const table = useGridTable({
     config,
     rows,
-    sort: query.sort,
-    onSort: (sort) => {
-      navigate((current) => sortHref(pathname, current, sort));
-    },
+    sort,
+    onSort: changeSort,
     settings,
     onSettings: (next) => {
       setSettings(next);
-      writer.record(next);
+      writer.record(recordedPreferences(preferences, next, sort));
     },
   });
 
   const model = table.getRowModel().rows;
   const { items, before, after } = useRowWindow({
-    count: model.length,
+    rows: model,
     scroller,
-    rowHeight: ROW_HEIGHT,
+    rowHeight,
     overscan: OVERSCAN,
     initialRect: FIRST_SCREEN,
     keyOf: (index) => model[index]?.id ?? index,
@@ -312,6 +336,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       <GridToolbar
         search={query.search}
         onSearch={(text) => {
+          writer.flush();
           navigate((current) => searchHref(pathname, current, text));
         }}
         columns={toggledColumns(table, config, (column) => t(`columns.${column.label}`))}

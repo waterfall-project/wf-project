@@ -157,12 +157,20 @@ recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`
 `query.ts`) : un en-tête cliqué ou une recherche saisie change l'adresse, la page relit
 l'opération avec eux, et la grille rend les lignes dans l'ordre reçu, les totaux de la
 réponse en pied — TanStack Table n'y enregistre aucun modèle trié, filtré ni groupé. Seules
-les lignes visibles sont rendues (`row-window.ts`, TanStack Virtual lu comme un magasin
-dont l'instantané est une donnée, que le React Compiler ne fige pas) ; l'en-tête et les totaux
-sont collés au haut et au pied de la grille, le numéro et le libellé à son début. Colonnes
-masquées et largeurs sont une préférence d'affichage (`settings.ts`) : lues de la session,
-écrites après une pause par `updateGridPreferences`, la grille remplacée entière, ce qu'elle
-ne règle pas renvoyé tel quel.
+les lignes visibles sont rendues (`row-window.ts`, sur `@tanstack/virtual-core`) : le
+virtualiseur est lu comme un magasin dont l'instantané est une donnée, qui ne change que
+quand la fenêtre bouge. Le React Compiler n'est pas activé dans ce front, mais le lint de
+React refuse l'adaptateur de TanStack Virtual, dont un rendu compilé figerait les réponses
+(`react-hooks/incompatible-library`). La hauteur d'une ligne suit la taille de la police
+racine (1,75 rem). L'en-tête et les totaux sont collés au haut et au pied de la grille, le
+numéro et le libellé à son début. Colonnes masquées, largeurs et tri sont une préférence
+d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
+chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une colonne ou une largeur
+s'écrit après une pause, et ce qui attend part quand la page est quittée ou cachée, avant
+une navigation de la grille et au démontage. Un tri s'écrit tout de suite, avant que
+l'adresse change. L'adresse fait foi ; le tri gardé ne sert que quand elle n'en demande
+aucun. La grille de devis est à la route de sa fonction, `…/revisions/[r]/estimate`, où mène
+la révision elle-même.
 
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
