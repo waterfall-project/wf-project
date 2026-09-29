@@ -149,10 +149,18 @@ enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
 — clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
-calculée ou non, figée ou non, colonne `sort_by` du contrat — et, s'il y en a un, son arbre
-(niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des
-fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
-(`estimate-grid.tsx`), et la page, serveur, ne lui passe que des données. Le tri et la
+calculée ou non, figée ou non, colonne `sort_by` du contrat, et, pour une colonne étroite,
+l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que rend sa cellule en place
+de la valeur formatée (`render`) — et, s'il y en a un, son arbre (niveau, icône de nature par
+`RowNatureIcon`). La configuration lit les lignes par des fonctions : elle se remet à
+`DenseGrid` dans un composant client propre à l'écran (`estimate-grid.tsx`,
+`planning-grid.tsx`), et la page, serveur, ne lui passe que des données. La grille de planning
+et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
+`estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
+lecture de la structure principale (`grid-screen.ts`) ; le planning demande au serveur les
+seules tâches (`kinds=task`). Le mode de planification et l'avancement s'y montrent par une
+icône nommée, le chemin critique par une icône et le gras sur la marge, jamais par la seule
+couleur ; une date se montre dans sa forme courte. Le tri et la
 recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`, `search`,
 `query.ts`) : un en-tête cliqué ou une recherche saisie change l'adresse, la page relit
 l'opération avec eux, et la grille rend les lignes dans l'ordre reçu, les totaux de la
@@ -171,8 +179,12 @@ quittée ou cachée, avant une recherche et au démontage — au mieux : une act
 porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
 d'en-tête écrit le tri, en même temps que la navigation qui le montre. L'adresse fait foi :
 un tri levé y reste, `sort_by` vide, et le tri gardé ne sert que quand elle ne dit rien du
-tri. La grille de devis est à la route de sa fonction, `…/revisions/[r]/estimate`, où mène
-la révision elle-même.
+tri. Chaque grille est à la route de sa fonction, `…/revisions/[r]/planning` et
+`…/revisions/[r]/estimate` ; la révision elle-même mène à la première fonction d'une révision
+que la session peut lire, dans l'ordre de la FBS et de la barre latérale — le planning, ou le
+devis pour un chiffreur qui ne lit pas le planning. L'écran du devis dit au-dessus de sa
+grille les taux horaires qui manquent à son calcul, avec le chemin du référentiel pour qui le
+lit, et ses indicateurs, avec leur date de calcul (`EstimateSummary`).
 
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que

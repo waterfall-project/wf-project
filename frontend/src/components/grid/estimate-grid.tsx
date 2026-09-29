@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The grid of the estimate in the page: the dense grid, given its configuration here, on the
- * side of the browser — a configuration reads the rows by functions, which never cross from a
- * server component to a client one. The page hands it data only: the answer of `listNodes`,
+ * The grid of the estimate in the page: the dense grid — the one component the grid of the
+ * planning renders too —, given its configuration here, on the side of the browser — a
+ * configuration reads the rows by functions, which never cross from a server component to a
+ * client one. The page hands it data only: the answer of `listNodes`,
  * what the address asked, and the settings the session read.
  */
 "use client";
@@ -11,7 +12,8 @@
 import { useTranslations } from "next-intl";
 
 import { DenseGrid } from "./dense-grid";
-import { ESTIMATE_GRID, type NodeList, type NodeSortColumn } from "./estimate";
+import { ESTIMATE_GRID } from "./estimate";
+import type { NodeList, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
 

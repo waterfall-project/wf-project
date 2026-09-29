@@ -1,81 +1,71 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The grid of the estimate of a revision (WF-DEV-0050, US-0110), at the route of its function
- * (`functions.json`): the banner of its reading context (WF-IHM-0020), and the grid on the main
- * structure of the revision. The server reads the structure as the address asks — the sort, the
- * search, the filtered sub-project, all named as the contract names them —, the sort the account
- * keeps for the grid when the address asks none; the grid shows the rows in the order of the
- * answer, with the totals of the answer: a header clicked or a search entered changes the
- * address, and this page reads anew. A project or a revision the API does not find is not
- * found, as at the other screens of a project.
+ * The estimate of a revision (WF-DEV-0050, WF-DEV-0060, US-0220), at the route of its function
+ * (`functions.json`): the banner of its reading context (WF-IHM-0020); the hourly rates its
+ * calculation lacks and its indicators (`EstimateSummary`), read for the sub-project the address
+ * filters; and the grid on the main structure of the revision, its tasks and their lines. The
+ * rows come in the order of the answer, with the totals of the answer: a header clicked or a
+ * search entered changes the address, and this page reads anew (`grid-screen.ts`). The
+ * indicators and the rates are read alongside the grid, and a read the API refuses is thrown
+ * for the pages of the shell to say, as the grid's: the screen never shows a figure it did not
+ * read.
  */
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
-import { readOrFail, UnexpectedAnswer } from "@/api/problem";
+import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
-import { readProjectContext } from "@/components/context/reading";
-import {
-  ESTIMATE_GRID,
-  ESTIMATE_SORT_COLUMNS,
-  type NodeList,
-  type NodeSortColumn,
-} from "@/components/grid/estimate";
+import { EstimateSummary } from "@/components/estimate/estimate-summary";
+import { ESTIMATE_GRID, ESTIMATE_SORT_COLUMNS } from "@/components/grid/estimate";
 import { EstimateGrid } from "@/components/grid/estimate-grid";
-import { type GridQuery, readGridQuery } from "@/components/grid/query";
+import type { NodeList } from "@/components/grid/nodes";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import {
-  type PageSearchParams,
-  pageSearch,
-  type ProjectContext,
-  readContext,
-} from "@/navigation/context";
+import type { PageSearchParams } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 
+import { screenMetadata } from "../../../../../title";
+import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
+/** Title the tab with the function, and with the project. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<RevisionParams>;
+}): Promise<Metadata> {
+  const { projectId } = await params;
+  return screenMetadata("functions.estimate", projectId);
+}
+
 /**
- * The main structure of a revision, and its nodes as the address asks them: sorted, searched,
- * restricted to the filtered sub-project. A read the API refuses, or cannot answer, is thrown
- * for the pages of the shell to say (`readOrFail`): a grid left empty would say the revision
- * has nothing. So is a revision without a main structure, which the contract rules out: an
- * answer of the API that breaks it is unexpected, not an empty grid. The structures are read
- * at once; what is asked of the nodes waits for the session, whose preferences may sort them.
+ * The indicators of the estimate of the revision, for the sub-project the address filters —
+ * the whole project otherwise —, and the hourly rates its calculation lacks.
  */
-async function mainStructure(
-  { projectId, revisionId }: RevisionParams,
-  context: ProjectContext,
-  asked: Promise<GridQuery<NodeSortColumn>>,
-) {
+async function readEstimateFigures({ revision, context }: GridAddress) {
   const client = serverClient();
-  const revision = { project_id: projectId, revision_id: revisionId };
-  const structures = await readOrFail("listCostStructures", () =>
-    client.GET("/projects/{project_id}/revisions/{revision_id}/structures", {
-      params: { path: revision },
-    }),
-  );
-  const main = structures.find((structure) => structure.kind === "main");
-  if (main === undefined) {
-    throw new UnexpectedAnswer("listCostStructures", 200);
-  }
-  const { sort, search } = await asked;
+  const path = { project_id: revision.projectId };
   const subproject = context.parameters.get("subproject_id");
-  const nodes = await readOrFail("listNodes", () =>
-    client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
-      params: {
-        path: { ...revision, structure_id: main.structure_id },
-        query: {
-          ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
-          ...(search === undefined ? {} : { search }),
-          ...(subproject === null ? {} : { subproject_id: subproject }),
+  return Promise.all([
+    readOrFail("getEstimateIndicators", () =>
+      client.GET("/projects/{project_id}/estimate-indicators", {
+        params: {
+          path,
+          query: {
+            revision_id: revision.revisionId,
+            ...(subproject === null ? {} : { scope: subproject }),
+          },
         },
-      },
-    }),
-  );
-  return { label: main.label, nodes };
+      }),
+    ),
+    readOrFail("getMissingRates", () =>
+      client.GET("/projects/{project_id}/estimate-indicators/missing-rates", {
+        params: { path, query: { revision_id: revision.revisionId } },
+      }),
+    ),
+  ]);
 }
 
 /** The title of the grid, and what it holds: the structure, its tasks and lines retained. */
@@ -95,7 +85,7 @@ function EstimateHeader({ label, nodes }: { readonly label: string; readonly nod
   );
 }
 
-/** Render the grid of the estimate on the main structure of a revision. */
+/** Render the estimate of a revision: what its calculation lacks, its indicators, its grid. */
 export default async function EstimatePage({
   params,
   searchParams,
@@ -104,35 +94,23 @@ export default async function EstimatePage({
   searchParams: Promise<PageSearchParams>;
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
-  const pathname = `/projects/${revision.projectId}/revisions/${revision.revisionId}/estimate`;
-  const address = pageSearch(search);
-  // An address that names no project or no revision is not found before the API is asked.
-  const context = readContext(pathname, address);
-  if (context === undefined) {
-    notFound();
-  }
-  // The settings the account keeps for the grid — `null` once set back to its defaults, as
-  // none —, whose sort serves when the address says nothing of the sort. The session, the
-  // structures and the reading context are read together; only the nodes wait for the session.
-  const settings = requestSession().then(
-    (session) => session?.user.display_preferences?.grids?.[ESTIMATE_GRID.key] ?? undefined,
-  );
-  const asked = settings.then((kept) => readGridQuery(address, ESTIMATE_SORT_COLUMNS, kept?.sort));
-  const [structure, read, preferences, query] = await Promise.all([
-    mainStructure(revision, context, asked),
-    readProjectContext(pathname, context),
-    settings,
-    asked,
+  const at = gridAddress(revision, search, "estimate");
+  const [screen, [indicators, missingRates], session] = await Promise.all([
+    readGridScreen(at, { key: ESTIMATE_GRID.key, sortable: ESTIMATE_SORT_COLUMNS }),
+    readEstimateFigures(at),
+    requestSession(),
   ]);
-  if (read === "not_found") {
-    notFound();
-  }
   return (
     <>
-      <ContextBanner reading={read} />
+      <ContextBanner reading={screen.reading} />
       <Screen density={FUNCTION_DENSITY.estimate}>
-        <EstimateHeader label={structure.label} nodes={structure.nodes} />
-        <EstimateGrid nodes={structure.nodes} query={query} preferences={preferences} />
+        <EstimateHeader label={screen.label} nodes={screen.nodes} />
+        <EstimateSummary
+          indicators={indicators}
+          missingRates={missingRates}
+          permissions={session?.permissions ?? []}
+        />
+        <EstimateGrid nodes={screen.nodes} query={screen.query} preferences={screen.preferences} />
       </Screen>
     </>
   );

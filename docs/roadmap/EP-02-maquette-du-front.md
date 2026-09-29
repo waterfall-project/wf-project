@@ -418,6 +418,7 @@ fond d'un utilisateur, la révision ouverte par défaut.
 - L'adresse du front que vise le lien de réinitialisation du mot de passe, écrit par l'API dans le courriel, n'est pas au contrat — US-0320/L1, ouvert en #154. D'ici là, le front attend `/login/reset?token=…`.
 - Aucun code d'erreur ne nomme une règle du mot de passe, et le front ne rend pas encore `Problem.fields` — US-0320/L1, ouvert en #155. D'ici là, un mot de passe refusé l'est par « Les données saisies ne sont pas valides. ».
 - La connexion par le fournisseur d'identité ne peut pas ramener à l'écran visé : `start_url` ne transmet pas `next`, et `completeOidcSession` répond 303 « vers l'application » — US-0320/L1, #152. D'ici là, elle mène à l'accueil.
+- `Predecessor` ne nomme sa tâche que par `predecessor_node_id` : la grille de planning tire le numéro de ligne d'un prédécesseur de la même réponse de `listNodes`, et ne peut plus le nommer quand une recherche retient une tâche sans lui — US-0220/L1, ouvert en #158. D'ici là, un prédécesseur absent de la réponse se dit `?`.
 
 ### Ordre de construction
 
@@ -857,7 +858,7 @@ qu'ils ont à montrer.
 
 ## US-0220 — Écrans du planning et du devis
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — EP-06 et EP-07
 - **opérations** : `getWorkBreakdown`, `listNodes`, `createNode`, `updateTaskFacet`,
   `setPredecessors`, `listTimelines`, `listCostStructures`, `updateEstimateLine`,

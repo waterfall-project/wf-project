@@ -1,13 +1,19 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A revision itself, which is no function of the navigation: the server leads to the grid of
- * its estimate (`…/estimate`), the reading context of the address carried on. The grid of the
- * planning comes with #105: whether a revision then opens on it is decided there.
+ * A revision itself, which is no function of the navigation: the server leads to the first
+ * function of a revision the session may read, in the order of the FBS and of the sidebar —
+ * the planning (FBS-4.3), then the estimate (FBS-4.4) —, the reading context of the address
+ * carried on. The planning comes first as it does in the sidebar and in the mock-up, the tree
+ * drawn before it is costed; an estimator who may not read the planning is led to the estimate
+ * rather than to a planning the API would refuse him. Without a function to read — no session,
+ * or none of a revision —, the planning, whose page leads to the sign-in or is not found.
  */
 import { notFound, redirect } from "next/navigation";
 
 import { type PageSearchParams, pageSearch, readContext } from "@/navigation/context";
+import { functionOf, type NavigationFunction, readableGroups } from "@/navigation/functions";
+import { requestSession } from "@/session/request";
 
 /** The route parameters of a revision. */
 export interface RevisionParams {
@@ -27,7 +33,20 @@ function queryOf(search: PageSearchParams): string {
   return text === "" ? "" : `?${text}`;
 }
 
-/** Lead from a revision to the grid of its estimate, or to « not found » for no revision. */
+/**
+ * The function a revision leads to: the first function of a revision the session may read, in
+ * the order of the FBS; the planning when there is none to read — its page is then not found,
+ * or leads to the sign-in without a session.
+ */
+async function openingFunction(): Promise<NavigationFunction> {
+  const session = await requestSession();
+  const readable = readableGroups(session?.permissions ?? [])
+    .flatMap((group) => group.functions)
+    .find((fn) => fn.scope === "revision");
+  return readable ?? functionOf("planning");
+}
+
+/** Lead from a revision to the first of its functions the session may read. */
 export default async function RevisionPage({
   params,
   searchParams,
@@ -40,5 +59,6 @@ export default async function RevisionPage({
   if (readContext(pathname, pageSearch(search)) === undefined) {
     notFound();
   }
-  redirect(`${pathname}/estimate${queryOf(search)}`);
+  const { route } = await openingFunction();
+  redirect(`${pathname}/${route.slice(route.lastIndexOf("/") + 1)}${queryOf(search)}`);
 }

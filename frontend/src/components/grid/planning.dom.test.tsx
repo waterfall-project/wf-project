@@ -1,0 +1,248 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+import { render, screen, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { ApiClient } from "@/api/client";
+import { CATALOGUES } from "@/i18n/catalogues";
+import type { Locale } from "@/i18n/locale";
+import { expectAccessible } from "@/test/axe";
+import { example, fakeClient } from "@/test/fixtures";
+
+import { DenseGrid } from "./dense-grid";
+import { ESTIMATE_GRID } from "./estimate";
+import { EstimateGrid } from "./estimate-grid";
+import type { NodeList, NodeSortColumn } from "./nodes";
+import { PLANNING_GRID, PLANNING_SORT_COLUMNS } from "./planning";
+import { PlanningGrid } from "./planning-grid";
+import type { GridQuery } from "./query";
+
+// The server of Next, as far as the grid needs it, as for the grid of the estimate.
+const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+const PATHNAME = "/projects/p/revisions/r/planning";
+
+vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => router,
+  usePathname: () => PATHNAME,
+  useSearchParams: () => new URLSearchParams(),
+}));
+// The one dense grid, watched: each screen hands it its configuration.
+vi.mock("./dense-grid", async (original) => {
+  const actual = await original<typeof import("./dense-grid")>();
+  return { ...actual, DenseGrid: vi.fn(actual.DenseGrid) };
+});
+
+const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+const NBSP = " ";
+const planning = example("nodes_planning") as NodeList;
+
+/** Render the grid of the planning on an answer, in a language. */
+function renderPlanning(nodes: NodeList = planning, locale: Locale = "fr") {
+  return render(
+    <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
+      <PlanningGrid nodes={nodes} query={NO_QUERY} preferences={undefined} />
+    </NextIntlClientProvider>,
+  );
+}
+
+/** The rows of the answer rendered, between the header and the totals. */
+function bodyRows(): HTMLElement[] {
+  return screen.getAllByRole("row").slice(1, -1);
+}
+
+/** The texts of the cells of a row. */
+function texts(row: HTMLElement | undefined): string[] {
+  return [...(row?.querySelectorAll("td, th") ?? [])].map((cell) => cell.textContent);
+}
+
+/** The cells of the row of a label. */
+function cellsOf(label: string): HTMLElement[] {
+  const row = bodyRows().find((candidate) => texts(candidate)[1] === label);
+  return [...(row?.querySelectorAll("td") ?? [])];
+}
+
+/** The names of the icons a cell holds. */
+function iconNames(cell: HTMLElement | undefined): (string | null)[] {
+  return cell === undefined
+    ? []
+    : within(cell)
+        .queryAllByRole("img")
+        .map((icon) => icon.getAttribute("aria-label"));
+}
+
+beforeEach(() => {
+  router.push.mockReset();
+  server.client = fakeClient({ "PATCH /me/preferences": "preferences" });
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1000);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("the grids of the planning and of the estimate", () => {
+  it("are two configurations of the one dense grid, not two components", () => {
+    const estimate = example("nodes_estimate") as NodeList;
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PlanningGrid nodes={planning} query={NO_QUERY} preferences={undefined} />
+        <EstimateGrid nodes={estimate} query={NO_QUERY} preferences={undefined} />
+      </NextIntlClientProvider>,
+    );
+    // Each screen renders the same component, each with its own configuration.
+    const configs = vi.mocked(DenseGrid).mock.calls.map(([props]) => props.config);
+    expect(new Set(configs)).toEqual(new Set([PLANNING_GRID, ESTIMATE_GRID]));
+    expect(PLANNING_GRID.key).not.toBe(ESTIMATE_GRID.key);
+    // Both are the same grid: numbered, the tree and the label pinned first, the search and
+    // the choice of the columns above; they differ by their columns.
+    for (const name of ["Grille de planning", "Grille de devis"]) {
+      const grid = screen.getByRole("grid", { name });
+      expect(within(grid).getByRole("columnheader", { name: "N°" })).toBeInTheDocument();
+      expect(within(grid).getByRole("columnheader", { name: "Libellé" })).toBeInTheDocument();
+    }
+    expect(screen.getAllByRole("search")).toHaveLength(2);
+    const planningGrid = screen.getByRole("grid", { name: "Grille de planning" });
+    expect(within(planningGrid).queryByRole("columnheader", { name: /Budgété/ })).toBeNull();
+    expect(
+      within(planningGrid).getByRole("columnheader", { name: "Calculé Marge" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("the grid of the planning", () => {
+  it("shows each task of the answer, in its order: its number, label, duration, dates, float and predecessors", () => {
+    renderPlanning();
+    const days = (count: string) => `${count}${NBSP}j`;
+    expect(bodyRows().map(texts)).toEqual([
+      ["1", "Études", "", days("40"), "02/03/2026", "24/04/2026", "", "", ""],
+      ["2", "Études de détail", "", days("30"), "02/03/2026", "10/04/2026", "", days("0"), ""],
+      ["3", "Pupitres opérateurs", "", days("45"), "02/03/2026", "01/05/2026", "", "", ""],
+      ["4", "Revue de conception", "", days("10"), "13/04/2026", "24/04/2026", "", days("0"), "2"],
+      [
+        "5",
+        "Réception des études",
+        "",
+        days("0"),
+        "24/04/2026",
+        "24/04/2026",
+        "",
+        days("0"),
+        `4;3DD+${days("5")}`,
+      ],
+      [
+        "6",
+        "Dossier de conception",
+        "",
+        days("5"),
+        "08/04/2026",
+        "14/04/2026",
+        "",
+        days("8"),
+        `2FD-${days("2")}`,
+      ],
+    ]);
+    expect(texts(screen.getAllByRole("row").at(-1))[1]).toBe("Total — 6 tâches");
+  });
+
+  it("marks the three sorts of task, the scheduling mode and the progress by icons named for them", () => {
+    renderPlanning();
+    const icons = (label: string) => cellsOf(label).map((cell) => iconNames(cell));
+    // Nature, mode and progress: the second, third and seventh cells.
+    const [, nature, mode, , , , progress] = icons("Études");
+    expect([nature, mode, progress]).toEqual([
+      ["Tâche récapitulative"],
+      ["Automatique"],
+      ["Démarrée"],
+    ]);
+    expect(icons("Pupitres opérateurs")[2]).toEqual(["Manuel"]);
+    expect(icons("Études de détail")[6]).toEqual(["Terminée"]);
+    expect(icons("Réception des études")[1]).toEqual(["Jalon"]);
+    expect(icons("Réception des études")[6]).toEqual(["Non démarrée"]);
+    expect(icons("Dossier de conception")[1]).toEqual(["Tâche"]);
+  });
+
+  it("marks the float of a task on the critical path by an icon and bold type, never by a colour alone", () => {
+    renderPlanning();
+    const float = (label: string) => cellsOf(label)[7];
+    for (const critical of ["Études de détail", "Revue de conception", "Réception des études"]) {
+      expect(iconNames(float(critical))).toEqual(["Chemin critique"]);
+      expect(float(critical)?.querySelector(".font-semibold")).not.toBeNull();
+    }
+    // A task with a float, and one in manual mode, which bears none: no mark.
+    for (const off of ["Dossier de conception", "Pupitres opérateurs"]) {
+      expect(iconNames(float(off))).toEqual([]);
+      expect(float(off)?.querySelector(".font-semibold")).toBeNull();
+    }
+  });
+
+  it("names the icon columns in their headers, and asks the server for their sort", async () => {
+    renderPlanning();
+    const grid = screen.getByRole("grid", { name: "Grille de planning" });
+    // Each named by its heading, which shows on hover too.
+    for (const name of ["Mode de planification", "Avancement"]) {
+      const header = within(grid).getByRole("columnheader", { name });
+      expect(within(header).getByTitle(name)).toBeInTheDocument();
+    }
+    await userEvent.click(
+      within(within(grid).getByRole("columnheader", { name: "Mode de planification" })).getByRole(
+        "button",
+      ),
+    );
+    expect(router.push).toHaveBeenCalledWith(`${PATHNAME}?sort_by=scheduling_mode&sort_order=asc`, {
+      scroll: false,
+    });
+  });
+
+  it("sorts each of its columns by the column of the contract of the same name, whose value it reads", () => {
+    expect(PLANNING_SORT_COLUMNS).toEqual(PLANNING_GRID.columns.map((column) => column.key));
+    const milestone = planning.items[4];
+    expect(
+      milestone === undefined ? [] : PLANNING_GRID.columns.map((c) => c.value(milestone)),
+    ).toEqual([
+      "Réception des études",
+      "automatic",
+      "0",
+      "2026-04-24",
+      "2026-04-24",
+      "not_started",
+      "0",
+      "2",
+    ]);
+  });
+
+  it("says a predecessor the answer does not hold has no number to show", () => {
+    // What a search retaining the review but not the studies it follows would answer.
+    renderPlanning({
+      ...planning,
+      items: planning.items.filter((node) => node.task?.label !== "Études de détail"),
+    });
+    expect(cellsOf("Revue de conception")[8]?.textContent).toBe("?");
+  });
+
+  it("shows its figures, units and links in English too", () => {
+    renderPlanning(planning, "en");
+    expect(texts(bodyRows()[5])).toEqual([
+      "6",
+      "Dossier de conception",
+      "",
+      `5${NBSP}d`,
+      "08/04/2026",
+      "14/04/2026",
+      "",
+      `8${NBSP}d`,
+      `2FS-2${NBSP}d`,
+    ]);
+    expect(iconNames(cellsOf("Revue de conception")[7])).toEqual(["Critical path"]);
+  });
+
+  it("is accessible", async () => {
+    const { container } = renderPlanning();
+    await expectAccessible(container);
+  });
+});
