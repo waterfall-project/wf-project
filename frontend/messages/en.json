@@ -163,6 +163,22 @@
     "predecessorSeparator": ";",
     "unknownRow": "?"
   },
+  "computedValue": {
+    "title": "Computed value",
+    "refused": "{column} cannot be entered: Waterfall computes this value.",
+    "reasons": {
+      "summary": "A summary task takes its dates, its duration and its progress from its subtasks.",
+      "automatic": "A task in automatic mode takes its dates from its duration, its links and the calendar.",
+      "float": "The total float of a task is the gap between its earliest and latest dates.",
+      "taskAmount": "The amount of a task is that of the lines it bears and of its subtasks.",
+      "labour": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year, projected onto its year of consumption.",
+      "disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement, projected onto its year of consumption.",
+      "provision": "A provision line takes its figures from its risk: its severity weighted by its probability.",
+      "budgeted": "The budgeted amount is the one the reference revision set.",
+      "reestimated": "The re-estimated amount follows the reviews of the estimate to complete."
+    },
+    "dependsOn": "It depends on:"
+  },
   "estimateSummary": {
     "title": "Estimate indicators",
     "total": "Estimate total",

@@ -4,8 +4,8 @@
  * The configuration of a dense grid (EP-02, « Composants partagés »): one component, and for
  * each screen — planning, estimate, remaining to commit, risks, actual costs, rates — the
  * columns it shows and the key under which the account keeps its settings. A column says what
- * it reads of a row, how its value shows, where it aligns, how wide it starts, whether the
- * server computes it, and by which column of the contract the server sorts it; the totals row
+ * it reads of a row, how its value shows, where it aligns, how wide it starts, which of its
+ * cells the server computes, and by which column of the contract the server sorts it; the totals row
  * reads the totals of the answer, never a sum of the rows (WF-ARC-0020).
  *
  * Neither server nor client: the page reads the sortable columns of a configuration to check
@@ -55,8 +55,11 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    * cells are icons too. The menu of the columns names it by its heading all the same.
    */
   readonly icon?: LucideIcon;
-  /** Whether the server computes it: a shaded column, marked Σ in its header. */
-  readonly computed?: boolean;
+  /**
+   * Which of its cells the server computes, and what their values depend on: none, and every
+   * cell holds what was entered.
+   */
+  readonly computed?: ComputedCells<Row>;
   /**
    * The identifying column: it stays at the start when the grid scrolls sideways, and cannot
    * be hidden. The first of them carries the tree, when the grid has one.
@@ -77,6 +80,31 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   readonly render?: (row: Row) => ReactNode;
   /** What it reads of the totals of the answer, for the totals row; none, and it is blank. */
   readonly total?: (totals: Totals) => CellValue;
+}
+
+/** Why the server computes a value: a sentence of the catalogue, under `computedValue.reasons`. */
+export type DependencyReason = keyof Catalogue["computedValue"]["reasons"];
+
+/**
+ * What a computed value depends on (WF-IHM-0030): why the server computes it, and the rows it is
+ * drawn from — their indices among the rows of the answer —, which the refusal of an entry names.
+ */
+export interface Dependency {
+  readonly reasons: readonly DependencyReason[];
+  readonly rows: readonly number[];
+}
+
+/**
+ * The cells of a column the server computes (WF-IHM-0030), row by row: a computed cell is shaded
+ * and marked Σ, named, never entered, and says what its value depends on when one tries.
+ */
+export interface ComputedCells<Row> {
+  /** Whether the server computes the whole column — a field no entry writes —: Σ in its header. */
+  readonly whole: boolean;
+  /** Whether the server computes the cell of a row. */
+  readonly in: (row: Row) => boolean;
+  /** What the value of the cell of the row at `index` among the rows of the answer depends on. */
+  readonly dependsOn: (rows: readonly Row[], index: number) => Dependency;
 }
 
 /** The tree of a grid: the depth of a row, the icon of its nature, how its label stands out. */

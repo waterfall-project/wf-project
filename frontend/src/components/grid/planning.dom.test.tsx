@@ -162,12 +162,13 @@ describe("the grid of the planning", () => {
   it("marks the three sorts of task, the scheduling mode and the progress by icons named for them", () => {
     renderPlanning();
     const icons = (label: string) => cellsOf(label).map((cell) => iconNames(cell));
-    // Nature, mode and progress: the second, third and seventh cells.
+    // Nature, mode and progress: the second, third and seventh cells — the progress of a
+    // summary computed from its subordinates, and marked so.
     const [, nature, mode, , , , progress] = icons("Études");
     expect([nature, mode, progress]).toEqual([
       ["Tâche récapitulative"],
       ["Automatique"],
-      ["Démarrée"],
+      ["Calculé", "Démarrée"],
     ]);
     expect(icons("Pupitres opérateurs")[2]).toEqual(["Manuel"]);
     expect(icons("Études de détail")[6]).toEqual(["Terminée"]);
@@ -184,14 +185,15 @@ describe("the grid of the planning", () => {
   it("marks the float of a task on the critical path by an icon and bold type, never by a colour alone", () => {
     renderPlanning();
     const float = (label: string) => cellsOf(label)[7];
+    // The float is computed in every task: its cell bears the mark of a computed value first.
     for (const critical of ["Études de détail", "Revue de conception", "Réception des études"]) {
-      expect(iconNames(float(critical))).toEqual(["Chemin critique"]);
+      expect(iconNames(float(critical))).toEqual(["Calculé", "Chemin critique"]);
       expect(float(critical)?.querySelector(".font-semibold")).not.toBeNull();
       expect(within(float(critical) ?? document.body).getByTitle("Chemin critique")).toBeVisible();
     }
     // A task with a float, and one in manual mode, which bears none: no mark.
     for (const off of ["Dossier de conception", "Pupitres opérateurs"]) {
-      expect(iconNames(float(off))).toEqual([]);
+      expect(iconNames(float(off))).toEqual(["Calculé"]);
       expect(float(off)?.querySelector(".font-semibold")).toBeNull();
     }
   });
@@ -252,7 +254,7 @@ describe("the grid of the planning", () => {
       `7${NBSP}d`,
       `2FS-2${NBSP}d`,
     ]);
-    expect(iconNames(cellsOf("Revue de conception")[7])).toEqual(["Critical path"]);
+    expect(iconNames(cellsOf("Revue de conception")[7])).toEqual(["Computed", "Critical path"]);
   });
 
   it("is accessible", async () => {

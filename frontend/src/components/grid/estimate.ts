@@ -5,15 +5,17 @@
  * (`listNodes`), its tasks and the lines they bear, each row numbered and marked by the icon of
  * its nature; the label, the quantity, the effort, the unit disbursement, and the two amounts,
  * which the server computes and never lets anyone enter — the budgeted, fixed by the reference,
- * and the re-estimated (WF-DEV-0020, WF-DEV-0030). The totals are those of the answer: the
- * hours and the amounts of the lines retained, never the amounts of the tasks, which would
- * count them twice.
+ * and the re-estimated (WF-DEV-0020, WF-DEV-0030). The figures of a provision are computed too,
+ * from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals are those of
+ * the answer: the hours and the amounts of the lines retained, never the amounts of the tasks,
+ * which would count them twice.
  *
  * Each column sorts by the column of the contract of the same name. The categories, roles and
  * sub-projects, which the answer names by identifier only, come with the reference data their
  * names are read from.
  */
 import { type GridConfig, sortColumns } from "./columns";
+import { computedAlways, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
   LABEL_COLUMN,
@@ -52,6 +54,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "quantity",
       format: "decimal",
       width: 72,
+      computed: computedWhereNamed("estimate_line.quantity", "figure"),
       sortBy: "quantity",
       value: (node) => node.estimate_line?.quantity,
     },
@@ -60,6 +63,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "hours",
       format: "decimal",
       width: 96,
+      computed: computedWhereNamed("estimate_line.hours", "figure"),
       sortBy: "hours",
       value: (node) => node.estimate_line?.hours,
       total: (totals) => totals.hours,
@@ -69,6 +73,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "unitDisbursement",
       format: "money",
       width: 128,
+      computed: computedWhereNamed("estimate_line.unit_disbursement", "figure"),
       sortBy: "unit_disbursement",
       value: (node) => node.estimate_line?.unit_disbursement,
     },
@@ -77,7 +82,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "budgetedAmount",
       format: "money",
       width: 128,
-      computed: true,
+      computed: computedAlways("budgeted"),
       sortBy: "budgeted_amount",
       value: (node) => node.task?.budgeted_amount ?? node.estimate_line?.budgeted_amount,
       total: (totals) => totals.budgeted_amount,
@@ -87,7 +92,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "reestimatedAmount",
       format: "money",
       width: 128,
-      computed: true,
+      computed: computedAlways("reestimated"),
       sortBy: "reestimated_amount",
       value: (node) => node.task?.reestimated_amount ?? node.estimate_line?.reestimated_amount,
       total: (totals) => totals.reestimated_amount,
