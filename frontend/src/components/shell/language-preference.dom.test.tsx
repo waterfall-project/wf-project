@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import { requestLanguage } from "@/i18n/request";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { Shell } from "./shell";
 
@@ -35,20 +36,24 @@ vi.mock("next/headers", () => ({
 vi.mock("next/cache", () => ({ refresh: () => server.refresh() }));
 
 const PREFERENCES = "PATCH /me/preferences";
+const { user } = example("session") as components["schemas"]["Session"];
 
 /**
  * Render the shell as the root layout does: the language of the request, then the page. The
- * mode and the navigation are not this file's: they are left out, and their reads with them.
+ * mode and the navigation are not this file's: they are left out, and their reads with them;
+ * the account is the one of the session of the contract.
  */
 async function layout() {
   const { locale, preference } = await requestLanguage();
   return (
     <Shell
       locale={locale}
+      account={user}
       preference={preference}
       theme={undefined}
       permissions={undefined}
       remembered={undefined}
+      sidebarOpen
     >
       <main />
     </Shell>
@@ -71,17 +76,44 @@ function sent(client: FakeClient, route: string): unknown[] {
   return client.calls.filter((call) => call.route === route).map((call) => call.body);
 }
 
+/** The button of the avatar, in the language of the page. */
+function avatar(name = /^(Compte de|Account of) Camille Martin$/) {
+  return screen.getByRole("button", { name });
+}
+
+/** Open the menu of the account, then the choice of the language; its values. */
+async function languages(entry = /^Langue/) {
+  await userEvent.click(avatar());
+  await userEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: entry }));
+  return screen.findAllByRole("menuitemradio");
+}
+
+/** Choose a language in the menu of the account. */
+async function choose(language: string) {
+  await languages();
+  await userEvent.click(screen.getByRole("menuitemradio", { name: language }));
+}
+
 beforeEach(() => {
   server.refresh = () => undefined;
 });
 
-describe("the language selector", () => {
+describe("the language in the menu of the account", () => {
   it("offers the browser's language, French and English, in the language of the page", async () => {
     await open({ "GET /session": "session" });
-    const select = screen.getByRole("combobox", { name: "Langue" });
-    expect(select).toHaveValue("default");
-    const options = screen.getAllByRole("option").map((option) => option.textContent);
-    expect(options).toEqual(["Langue du navigateur", "Français", "English"]);
+    const values = await languages();
+    expect(values.map((value) => value.textContent)).toEqual([
+      "Langue du navigateur",
+      "Français",
+      "English",
+    ]);
+    expect(screen.getByRole("menuitemradio", { name: "Langue du navigateur" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("menuitem", { name: /^Langue/ })).toHaveTextContent(
+      "LangueLangue du navigateur",
+    );
   });
 
   it("applies the chosen language without signing in again [WF-INTF-0160-A]", async () => {
@@ -92,12 +124,17 @@ describe("the language selector", () => {
       [PREFERENCES]: "preferences",
     });
 
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "en");
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer la langue" }));
+    await choose("English");
 
-    const select = await screen.findByRole("combobox", { name: "Language" });
-    expect(select).toHaveValue("en");
-    expect(screen.getByRole("option", { name: "Browser language" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(avatar(/^Account of Camille Martin$/)).toBeInTheDocument();
+    });
+    await languages(/^Language/);
+    expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("menuitemradio", { name: "Browser language" })).toBeInTheDocument();
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
     // Two reads of the session and one write: no session was opened anew.
     expect(client.calls.map((call) => call.route)).toEqual([
@@ -107,28 +144,30 @@ describe("the language selector", () => {
     ]);
   });
 
-  it("sends nothing until the choice is applied, and keeps the focus on the keyboard", async () => {
+  it("sends nothing while the keyboard moves through the languages, and gives the focus back once one is chosen", async () => {
     const client = await open({
       "GET /session": ["session", "session_english"],
       [PREFERENCES]: "preferences",
     });
-    // The logo, which leads home, comes first; the selector next.
-    await userEvent.tab();
-    await userEvent.tab();
-    const select = screen.getByRole("combobox", { name: "Langue" });
-    expect(select).toHaveFocus();
+    avatar().focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("menuitem", { name: /^Langue/ })).toHaveFocus();
 
-    await userEvent.selectOptions(select, "fr");
-    await userEvent.selectOptions(select, "en");
-    expect(select).toHaveFocus();
+    await userEvent.keyboard("{ArrowRight}");
+    await waitFor(() => {
+      expect(screen.getByRole("menuitemradio", { name: "Langue du navigateur" })).toHaveFocus();
+    });
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveFocus();
     expect(sent(client, PREFERENCES)).toEqual([]);
 
-    await userEvent.tab();
     await userEvent.keyboard("{Enter}");
 
-    const apply = await screen.findByRole("button", { name: "Apply language" });
-    expect(apply).toHaveFocus();
-    expect(apply.closest("form")).toHaveAttribute("aria-busy", "false");
+    await waitFor(() => {
+      expect(avatar(/^Account of Camille Martin$/)).toHaveFocus();
+    });
+    expect(avatar(/^Account of Camille Martin$/)).toHaveAttribute("aria-busy", "false");
+    expect(screen.queryByRole("menu")).toBeNull();
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
   });
 
@@ -138,18 +177,22 @@ describe("the language selector", () => {
     const client = await open({ "GET /session": "session", [PREFERENCES]: expired });
     server.refresh = refresh;
 
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "fr");
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer la langue" }));
+    await choose("Français");
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Votre session a expiré\u202F; reconnectez-vous.Se connecter");
+    expect(alert.textContent).toBe("Votre session a expiré ; reconnectez-vous.Se connecter");
     const signIn = within(alert).getByRole("link", { name: "Se connecter" });
     const next = new URL(signIn.getAttribute("href") ?? "", "http://front.invalid");
     expect(next.pathname).toBe("/login");
     expect(next.searchParams.get("next")).toBe(`${SCREEN}?revision_id=${REVISION}`);
     expect(sent(client, PREFERENCES)).toEqual([{ language: "fr" }]);
     expect(refresh).not.toHaveBeenCalled();
-    expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("fr");
+    // The account kept its preference: the menu says so.
+    await languages();
+    expect(screen.getByRole("menuitemradio", { name: "Langue du navigateur" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 
   it("says the API is out of reach rather than leave the page blank", async () => {
@@ -159,12 +202,11 @@ describe("the language selector", () => {
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
 
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "en");
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer la langue" }));
+    await choose("English");
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Le service est injoignable\u202F; réessayez dans un instant.");
-    expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("en");
+    expect(alert.textContent).toBe("Le service est injoignable ; réessayez dans un instant.");
+    expect(screen.getByRole("main")).toBeInTheDocument();
   });
 
   it("shows the preference a new render reads, not the one it was first given", async () => {
@@ -173,21 +215,13 @@ describe("the language selector", () => {
     const client = fakeClient({ "GET /session": ["session", "session_english"] });
     server.client = client;
     const view = render(await layout());
-    expect(screen.getByRole("combobox", { name: "Langue" })).toHaveValue("default");
 
     view.rerender(await layout());
 
-    expect(screen.getByRole("combobox", { name: "Language" })).toHaveValue("en");
-  });
-
-  it("keeps the last preference chosen when handed a value that is not one", async () => {
-    const client = await open({ "GET /session": "session", [PREFERENCES]: "preferences" });
-    fireEvent.change(screen.getByRole("combobox", { name: "Langue" }), {
-      target: { value: "de" },
-    });
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer la langue" }));
-    await waitFor(() => {
-      expect(sent(client, PREFERENCES)).toEqual([{ language: "default" }]);
-    });
+    await languages(/^Language/);
+    expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 });

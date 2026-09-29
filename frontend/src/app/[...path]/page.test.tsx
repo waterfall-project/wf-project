@@ -54,6 +54,12 @@ function text(markup: string): string {
     .trim();
 }
 
+/** What the heading of a page says, its icon left out. */
+function heading(markup: string): string | undefined {
+  const found = /<h1[^>]*>(.*?)<\/h1>/.exec(markup)?.[1];
+  return found === undefined ? undefined : text(found);
+}
+
 /** The addresses the links of a page lead to. */
 function links(markup: string): string[] {
   return [...markup.matchAll(/href="([^"]*)"/g)].map(
@@ -88,19 +94,19 @@ describe("the page of a function still to come", () => {
   ])(
     "exists at %s without any project open, and names its function [WF-IHM-0010-A]",
     async (address, name) => {
-      expect(html(await ScreenPage(at(address)))).toBe(
-        `<main class="space-y-2 p-6"><h1 class="text-2xl font-semibold">${name}</h1>` +
-          '<p class="text-muted-foreground">Cet écran est à venir.</p></main>',
-      );
+      const page = html(await ScreenPage(at(address)));
+      expect(page.startsWith("<main")).toBe(true);
+      expect(heading(page)).toBe(name);
+      expect(text(page)).toBe(`${name} Cet écran est à venir.`);
+      // The heading bears the icon of the function, which a screen reader leaves out.
+      expect(page).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"/);
       expect((await generateMetadata(at(address))).title).toBe(`${name} — Waterfall`);
     },
   );
 
   it("exists in the revision of a project, whose tab names the function and the project", async () => {
     const address = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
-    expect(html(await ScreenPage(at(address)))).toContain(
-      '<h1 class="text-2xl font-semibold">Estimation du reste à engager</h1>',
-    );
+    expect(heading(html(await ScreenPage(at(address))))).toBe("Estimation du reste à engager");
     expect((await generateMetadata(at(address))).title).toBe(
       "Estimation du reste à engager · Modernisation du poste de commande — Waterfall",
     );
@@ -114,9 +120,7 @@ describe("the page of a function still to come", () => {
 
   it("exists for a function of the project itself, without a revision", async () => {
     const address = `/projects/${PROJECT}/lifecycle`;
-    expect(html(await ScreenPage(at(address)))).toContain(
-      '<h1 class="text-2xl font-semibold">Cycle de vie du projet</h1>',
-    );
+    expect(heading(html(await ScreenPage(at(address))))).toBe("Cycle de vie du projet");
     expect((await generateMetadata(at(address))).title).toBe(
       "Cycle de vie du projet · Modernisation du poste de commande — Waterfall",
     );
@@ -244,8 +248,8 @@ describe("the banner of the reading context of a screen of a project", () => {
 
 /** The opening tag of the button a page names so, or `undefined` when it has none. */
 function button(markup: string, name: string): string | undefined {
-  return [...markup.matchAll(/(<button[^>]*>)([^<]*)<\/button>/g)].find(
-    (match) => match[2] === name,
+  return [...markup.matchAll(/(<button[^>]*>)(.*?)<\/button>/g)].find(
+    (match) => text(match[2] ?? "") === name,
   )?.[1];
 }
 

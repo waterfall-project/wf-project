@@ -20,7 +20,7 @@ const ROOT = join(import.meta.dirname, "../..");
 
 // A server component and a client component of the project, both in TSX.
 const PAGE = "src/app/page.tsx";
-const COMPONENT = "src/components/shell/language-selector.tsx";
+const COMPONENT = "src/components/shell/account-menu.tsx";
 
 const TEXT = "Write the text in the catalogues of messages/, and read it with next-intl.";
 const NETWORK = "Call the API through the generated client, src/api/client.ts.";

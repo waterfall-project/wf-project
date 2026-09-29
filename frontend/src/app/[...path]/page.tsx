@@ -21,6 +21,7 @@ import { ProjectCommands, RevisionCommands } from "@/components/commands/object-
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readAddress } from "@/components/context/reading";
 import { ComingSoon } from "@/components/shell/coming-soon";
+import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { findScreen, type NavigationFunction } from "@/navigation/functions";
 
@@ -84,7 +85,11 @@ export default async function ScreenPage({
   return (
     <>
       {read === undefined ? null : <ContextBanner reading={read} />}
-      <ComingSoon label={screen.fn.label}>
+      <ComingSoon
+        label={screen.fn.label}
+        icon={FUNCTION_ICONS[screen.fn.permission]}
+        density={FUNCTION_DENSITY[screen.fn.permission]}
+      >
         <PlacedCommands fn={screen.fn} reading={read} />
       </ComingSoon>
     </>

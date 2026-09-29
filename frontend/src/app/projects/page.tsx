@@ -13,6 +13,7 @@ import Link from "next/link";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { Screen } from "@/components/shell/page-header";
 import { NoProjects, ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -43,7 +44,7 @@ export default async function ProjectsPage({
     requestSession(),
   ]);
   return (
-    <main>
+    <Screen>
       <ReferenceIncomplete readiness={readiness} permissions={session?.permissions ?? []} />
       {projects.items.length === 0 ? (
         <NoProjects unfiltered={contributor ? PROJECTS : undefined} />
@@ -56,6 +57,6 @@ export default async function ProjectsPage({
           ))}
         </ul>
       )}
-    </main>
+    </Screen>
   );
 }

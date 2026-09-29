@@ -13,7 +13,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { type Ref, useId, useState, useTransition } from "react";
+import { type ReactElement, type Ref, useId, useState, useTransition } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,11 @@ export interface CommandProps {
   /** What the screen offers of the command; `undefined` when the user may not exercise it. */
   readonly offer: CommandOffer | undefined;
   readonly label: string;
+  /**
+   * The icon before its name, hidden from a screen reader (`commandIcon`): an element, which a
+   * server component hands over as it hands over any child — a component would not cross.
+   */
+  readonly icon: ReactElement;
   /**
    * The server action the command runs. A command whose operation is still to be wired does
    * nothing when pressed.
@@ -54,7 +59,7 @@ export interface Disclosure {
 const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 /** Render a command as the screen offers it, and tell of the outcome of running it. */
-export function Command({ offer, label, action, names, disclosure }: CommandProps) {
+export function Command({ offer, label, icon, action, names, disclosure }: CommandProps) {
   const t = useTranslations("commands");
   const conditionLabel = useTranslations("enums.CommandCondition");
   const locale = useLocale();
@@ -86,6 +91,7 @@ export function Command({ offer, label, action, names, disclosure }: CommandProp
       <Button
         type="button"
         variant="outline"
+        size="sm"
         aria-disabled={offer.is_available ? undefined : true}
         aria-describedby={unmet}
         aria-busy={pending}
@@ -95,10 +101,11 @@ export function Command({ offer, label, action, names, disclosure }: CommandProp
         className={UNAVAILABLE}
         onClick={run}
       >
+        {icon}
         {label}
       </Button>
       {unmet === undefined ? null : (
-        <p id={unmet} className="text-sm text-muted-foreground">
+        <p id={unmet} className="max-w-64 text-xs text-muted-foreground">
           {t("unmet", {
             count: missing.length,
             conditions: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(

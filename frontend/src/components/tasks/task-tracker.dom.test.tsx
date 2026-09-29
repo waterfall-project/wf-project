@@ -15,7 +15,7 @@ import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/f
 
 import { STORAGE_KEY } from "./storage";
 import { POLL_INTERVAL } from "./task-entry";
-import { TaskPanel, TaskTracker, useTrackTask } from "./task-tracker";
+import { TaskPanel, TasksButton, TaskTracker, useTrackTask } from "./task-tracker";
 import type { Launch } from "./tracking";
 
 // The server of Next, as far as the tracker needs it: the fake back behind serverClient, which
@@ -86,16 +86,27 @@ function Starting({
   );
 }
 
-/** The shell, as far as the tracker goes: the texts, the tracker, its panel, the page. */
+/**
+ * The shell, as far as the tracker goes: the texts, the tracker, the button of its panel in the
+ * bar, its panel, the page.
+ */
 function shell(page: ReactNode) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker>
+        <header>
+          <TasksButton />
+        </header>
         <TaskPanel />
         {page}
       </TaskTracker>
     </NextIntlClientProvider>
   );
+}
+
+/** The button of the bar that shows or hides the panel, whatever the number it names. */
+function panelButton() {
+  return screen.getByRole("button", { name: /^Tâches de fond/ });
 }
 
 /** Render a screen that starts a task, and start it. */
@@ -576,5 +587,57 @@ describe("the follow-up across a full reload of the tab", () => {
     await started(task("task_mark_queued"));
     await tick();
     expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
+  });
+
+  it("shows the panel from the button of the bar, which names the number of the tasks followed", async () => {
+    serve({ [TASK]: "task_running" });
+    render(shell(<Starting given={task("task_mark_queued")} />));
+    const button = panelButton();
+    expect(button).toHaveAccessibleName("Tâches de fond");
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button).toHaveAttribute("aria-controls", panel().id);
+    expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+
+    // Shown before any task, the panel says it follows none.
+    await userEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(within(panel()).getByText("Aucune tâche de fond suivie.")).toBeVisible();
+    await userEvent.click(button);
+    expect(within(panel()).queryByText("Aucune tâche de fond suivie.")).toBeNull();
+
+    // A task handed over shows the panel, and the button counts it.
+    await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
+    expect(button).toHaveAccessibleName("Tâches de fond\u00A0: 1 suivie");
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(within(entries()).getByText("Marquage d’une révision")).toBeVisible();
+    await expectAccessible(document.body);
+  });
+
+  it("follows the tasks still, and reads out their ends, with the panel hidden", async () => {
+    const client = serve({ [TASK]: ["task_running", "task_succeeded"] });
+    await started(task("task_mark_queued"));
+    await userEvent.click(panelButton());
+    expect(panelButton()).toHaveAttribute("aria-expanded", "false");
+    expect(within(panel()).queryByRole("list")).toBeNull();
+
+    await tick(2);
+    expect(reads(client)).toHaveLength(2);
+    expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision."]]);
+
+    // Shown again, the panel lists the task as it now stands.
+    await userEvent.click(panelButton());
+    expect(within(entries()).getByText("Réussie")).toBeVisible();
+  });
+
+  it("shows the panel again on the next task handed over, once the user hid it", async () => {
+    serve({ [TASK]: "task_running" });
+    const view = await started(task("task_mark_queued"));
+    await userEvent.click(panelButton());
+    expect(within(panel()).queryByRole("list")).toBeNull();
+
+    view.rerender(shell(<Starting given={task("task_import_queued")} />));
+    await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
+    expect(panelButton()).toHaveAttribute("aria-expanded", "true");
+    expect(panelButton()).toHaveAccessibleName("Tâches de fond\u00A0: 2 suivies");
   });
 });

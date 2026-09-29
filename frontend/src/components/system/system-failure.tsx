@@ -13,6 +13,7 @@
  */
 "use client";
 
+import { CircleAlert, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { SignIn } from "@/components/commands/outcome-notice";
@@ -39,16 +40,20 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
   const failure = failureOf(error);
   const reference = failure.kind === "unexpected" ? failure.reference : undefined;
   return (
-    <main className="space-y-4 p-6">
+    <main className="space-y-4 px-5 py-4">
       <div role="alert" className="space-y-2">
-        <h1 className="text-2xl font-semibold">{t(`${TEXTS[failure.kind]}.title`)}</h1>
+        <h1 className="flex items-center gap-2 text-lg font-semibold">
+          <CircleAlert aria-hidden="true" className="size-5 shrink-0 text-destructive" />
+          {t(`${TEXTS[failure.kind]}.title`)}
+        </h1>
         <p>{t(`${TEXTS[failure.kind]}.explanation`)}</p>
         {reference === undefined ? null : (
           <p className="text-muted-foreground">{t("reference", { reference })}</p>
         )}
         {failure.kind === "signed_out" ? <SignIn /> : null}
       </div>
-      <Button type="button" onClick={retry}>
+      <Button type="button" size="sm" onClick={retry}>
+        <RotateCcw aria-hidden="true" />
         {t("retry")}
       </Button>
     </main>

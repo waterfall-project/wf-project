@@ -28,8 +28,10 @@ describe("the screen not found", () => {
     expect(text(html)).toBe(
       "Introuvable Cette adresse ne mène à rien que vous puissiez consulter. Retour à l’accueil",
     );
-    expect(html).toMatch(/^<main[^>]*><h1[^>]*>Introuvable<\/h1>/);
-    expect(html).toContain('<a class="font-medium underline" href="/">');
+    expect(html).toMatch(
+      /^<main[^>]*>.*<h1[^>]*><svg[^>]*aria-hidden="true".*<\/svg>Introuvable<\/h1>/,
+    );
+    expect(html).toMatch(/<a class="[^"]*" href="\/"><svg[^>]*aria-hidden="true"/);
   });
 });
 

@@ -163,3 +163,9 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     JSX en commentaire se supprime : l'historique git garde tout.
 11. **Test qui passe sur les lignes sans rien vérifier.** Il rend le composant, fait monter
     la couverture, et n'affirme rien de ce que l'utilisateur voit.
+12. **Fonction passée d'un composant serveur à un composant client.** Une icône Lucide, un
+    rappel donnés en prop à un composant `"use client"` depuis un composant serveur : le rendu
+    au serveur échoue, et l'écran de panne s'affiche. Un test unitaire qui rend l'arbre entier
+    par `renderToStaticMarkup` ne franchit pas cette frontière et passe ; seul le parcours de
+    bout en bout la voit. Ce qui la franchit est une donnée ou un élément déjà dessiné
+    (`commandIcon`), jamais une fonction.

@@ -19,6 +19,7 @@ import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
 
 import { Command } from "./command";
+import { commandIcon, PROJECT_COMMAND_ICONS, REVISION_COMMAND_ICONS } from "./icons";
 import { MarkCommand } from "./mark-command";
 
 /** A list of commands, named for what it is; nothing when the caller may exercise none. */
@@ -26,7 +27,7 @@ function CommandList({ children }: { readonly children: readonly ReactNode[] }) 
   const t = useTranslations("commands");
   return children.length === 0 ? null : (
     <section aria-label={t("label")}>
-      <ul className="flex flex-wrap items-start gap-4">{children}</ul>
+      <ul className="flex flex-wrap items-start gap-2">{children}</ul>
     </section>
   );
 }
@@ -40,7 +41,12 @@ export function ProjectCommands({ project }: { readonly project: Project }) {
       {project.available_commands.map((offer) => (
         // Keyed by the project too: the outcome of a command never outlives its project.
         <li key={`${project.project_id}:${offer.command}`}>
-          <Command offer={offer} label={t(offer.command)} names={names} />
+          <Command
+            offer={offer}
+            label={t(offer.command)}
+            icon={commandIcon(PROJECT_COMMAND_ICONS[offer.command])}
+            names={names}
+          />
         </li>
       ))}
     </CommandList>
@@ -63,6 +69,7 @@ export function RevisionCommands({ revision }: { readonly revision: Revision }) 
             <Command
               offer={offer}
               label={t(`enums.RevisionCommand.${offer.command}`)}
+              icon={commandIcon(REVISION_COMMAND_ICONS[offer.command])}
               names={names}
             />
           )}

@@ -10,9 +10,16 @@
  * One tracker for every kind of task, in the root layout: a navigation within the application
  * keeps it, and nothing of it blocks the screen — no dialog, no control disabled. A full
  * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`).
+ *
+ * Its panel lies under the bar of the shell, in the flow of the page, and a button of the bar
+ * shows or hides it, with the number of the tasks followed. Until the user decides, it shows
+ * while tasks are followed — a task handed over, or found again after a reload —; a task handed
+ * over shows it again. Hidden, the tasks are still followed — their entries stay mounted and
+ * ask where they stand —, and the log of their ends, outside what hides, still speaks.
  */
 "use client";
 
+import { ListChecks } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -21,12 +28,16 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useReducer,
   useRef,
+  useState,
 } from "react";
 
 import type { BackgroundTask } from "@/api/problem";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 import { restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry } from "./task-entry";
@@ -44,6 +55,10 @@ export type TrackTask = (task: BackgroundTask, launch?: Launch) => void;
 interface TrackerState {
   readonly state: Tracking;
   readonly dispatch: Dispatch<TrackingEvent>;
+  /** Whether the panel shows the tasks followed, and the identifier the button controls. */
+  readonly open: boolean;
+  readonly setOpen: (open: boolean) => void;
+  readonly panelId: string;
 }
 
 // Two contexts: the screens that hand a task over read a function that never changes, and are
@@ -67,6 +82,10 @@ export function useTrackTask(): TrackTask {
 /** Follow the background tasks the screens within it start. */
 export function TaskTracker({ children }: { readonly children: ReactNode }) {
   const [state, dispatch] = useReducer(tracking, NOTHING_TRACKED);
+  // Whether the user showed or hid the panel; `undefined` while it follows the tasks.
+  const [shown, setShown] = useState<boolean>();
+  const open = shown ?? state.tasks.length > 0;
+  const panelId = useId();
   // The storage of the tab is the browser's: read once mounted, never while rendering on the
   // server, and written only once read, lest an empty list erase it.
   useEffect(() => {
@@ -79,8 +98,12 @@ export function TaskTracker({ children }: { readonly children: ReactNode }) {
   }, [state.restored, state.tasks]);
   const track = useCallback<TrackTask>((task, launch = {}) => {
     dispatch({ type: "track", task, launch });
+    setShown(undefined);
   }, []);
-  const value = useMemo(() => ({ state, dispatch }), [state]);
+  const value = useMemo(
+    () => ({ state, dispatch, open, setOpen: setShown, panelId }),
+    [state, open, panelId],
+  );
   return (
     <TrackContext value={track}>
       <StateContext value={value}>{children}</StateContext>
@@ -89,6 +112,33 @@ export function TaskTracker({ children }: { readonly children: ReactNode }) {
 }
 
 const PANEL = "border-b bg-card px-4 py-2 text-card-foreground";
+
+/**
+ * The button of the bar of the shell that shows or hides the panel of the tasks, with the
+ * number of the tasks followed, which its name says too.
+ */
+export function TasksButton() {
+  const t = useTranslations("tasks");
+  const { state, open, setOpen, panelId } = inTracker(useContext(StateContext));
+  const count = state.tasks.length;
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      aria-label={t("toggle", { count })}
+      aria-expanded={open}
+      aria-controls={panelId}
+      onClick={() => {
+        setOpen(!open);
+      }}
+    >
+      <ListChecks aria-hidden="true" />
+      <span className="hidden lg:inline">{t("label")}</span>
+      {count === 0 ? null : <Badge aria-hidden="true">{count}</Badge>}
+    </Button>
+  );
+}
 
 /**
  * The main content of the page, made a target of the focus — outside the order of the
@@ -111,7 +161,7 @@ function mainContent(): HTMLElement | null {
  */
 export function TaskPanel() {
   const t = useTranslations("tasks");
-  const { state, dispatch } = inTracker(useContext(StateContext));
+  const { state, dispatch, open, panelId } = inTracker(useContext(StateContext));
   const region = useRef<HTMLElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const dismissRef = useCallback((key: string, button: HTMLButtonElement | null) => {
@@ -135,13 +185,15 @@ export function TaskPanel() {
   return (
     <section
       ref={region}
+      id={panelId}
       tabIndex={-1}
       aria-label={t("label")}
-      className={followed ? PANEL : undefined}
+      className={open ? PANEL : undefined}
     >
       <EndLog log={state.log} />
+      {open && !followed ? <p className="text-sm text-muted-foreground">{t("none")}</p> : null}
       {followed ? (
-        <ul className="flex flex-wrap gap-x-8 gap-y-2">
+        <ul hidden={!open} className="flex flex-wrap gap-x-8 gap-y-2">
           {state.tasks.map((entry) => (
             <li key={entry.key} className="min-w-64 flex-1">
               <TaskEntry

@@ -2,14 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import {
-  browserLocale,
-  isLanguagePreference,
-  isLocale,
-  LOCALES,
-  PREFERENCES,
-  resolveLocale,
-} from "./locale";
+import { browserLocale, isLocale, LOCALES, PREFERENCES, resolveLocale } from "./locale";
 
 describe("the offered languages", () => {
   it("are French, the reference, then English", () => {
@@ -17,14 +10,10 @@ describe("the offered languages", () => {
     expect(PREFERENCES).toEqual(["default", "fr", "en"]);
   });
 
-  it("tell an offered language and a preference from anything else", () => {
+  it("tell an offered language from anything else", () => {
     expect(isLocale("en")).toBe(true);
     expect(isLocale("default")).toBe(false);
     expect(isLocale("de")).toBe(false);
-    expect(isLanguagePreference("default")).toBe(true);
-    expect(isLanguagePreference("fr")).toBe(true);
-    expect(isLanguagePreference("de")).toBe(false);
-    expect(isLanguagePreference(undefined)).toBe(false);
   });
 });
 

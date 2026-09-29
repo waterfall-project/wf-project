@@ -23,6 +23,7 @@ import {
   UNREACHABLE_DIGEST,
 } from "./failure";
 import { ScreenSkeleton } from "./screen-skeleton";
+import { SCREEN } from "@/components/shell/page-header";
 import { SystemFailure } from "./system-failure";
 
 type ReferenceReadiness = components["schemas"]["ReferenceReadiness"];
@@ -151,6 +152,8 @@ describe("the skeleton of a screen that loads", () => {
     expect(main.lastElementChild).toHaveAttribute("aria-hidden", "true");
     expect(main.lastElementChild).toHaveAttribute("aria-busy", "true");
     expect(main.querySelectorAll("div > div")).toHaveLength(5);
+    // The template of a dense screen, which the page takes in its place: nothing jumps.
+    expect(main).toHaveAttribute("class", SCREEN.dense);
     await expectAccessible(container);
   });
 

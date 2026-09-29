@@ -124,7 +124,10 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 // watches files, is not used. Nor do those of the charter (US-0090): class-variance-authority,
 // clsx and tailwind-merge compose class names; lucide-react draws its icons inline, in SVG;
 // geist ships its font files, which next/font serves from the front; Tailwind CSS and its
-// PostCSS plugin read the sources at build time; axe-core reads the document of a test.
+// PostCSS plugin read the sources at build time; axe-core reads the document of a test. Nor do
+// the primitives of Radix under the components of shadcn/ui (US-0090/L4), radix-ui: menus,
+// tooltips, dialogs and their focus, in the document — its avatar would load an image as an
+// <img> does, from an address it is given, and the shell gives it none.
 const DEPENDENCIES = [
   "class-variance-authority",
   "clsx",
@@ -133,6 +136,7 @@ const DEPENDENCIES = [
   "next",
   "next-intl",
   "openapi-fetch",
+  "radix-ui",
   "react",
   "react-dom",
   "server-only",

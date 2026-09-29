@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient, Unreachable } from "@/api/client";
 import { SignedOut, UnexpectedAnswer } from "@/api/problem";
+import { SCREEN } from "@/components/shell/page-header";
 import { SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -107,6 +108,7 @@ beforeEach(() => {
 describe("the witness path", () => {
   it("lists the projects, each a link to its page", async () => {
     const html = renderToStaticMarkup(inEnglish(await ProjectsPage({ searchParams: NO_SEARCH })));
+    expect(html.startsWith(`<main class="${SCREEN.dense}">`)).toBe(true);
     expect(html).toContain(`<a href="/projects/${PROJECT}">Modernisation du poste de commande</a>`);
     expect(html).toContain("Extension de la ligne d&#x27;essais");
   });
@@ -117,7 +119,8 @@ describe("the witness path", () => {
       searchParams: NO_SEARCH,
     });
     const html = renderToStaticMarkup(inEnglish(page));
-    expect(html).toContain("<h1>Modernisation du poste de commande</h1>");
+    expect(html).toContain(`<main class="${SCREEN.dense}">`);
+    expect(html).toMatch(/<h1[^>]*><svg[^>]*>.*?<\/svg>Modernisation du poste de commande<\/h1>/);
     expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}"`);
     expect(html).toContain(">Référence</a>");
   });
@@ -127,9 +130,15 @@ describe("the witness path", () => {
     const html = renderToStaticMarkup(
       inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
     );
+    expect(html).toContain(`<main class="${SCREEN.dense}"><table>`);
     expect(html.match(/<tr /g)).toHaveLength(4);
-    expect(html).toContain(
-      '<tr data-kind="estimate_line"><td>3</td><td>Ingénierie de détail</td></tr>',
+    // Each row shows the icon of its nature, named for it: a summary task, a task, a line.
+    const natures = [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)].map(
+      (match) => match[1],
+    );
+    expect(natures).toEqual(["Summary task", "Task", "Estimate line", "Task"]);
+    expect(html).toMatch(
+      /<tr data-kind="estimate_line"><td>3<\/td><td><svg[^>]*>.*?<\/svg><\/td><td>Ingénierie de détail<\/td><\/tr>/,
     );
   });
 
@@ -362,7 +371,9 @@ describe("the empty states of the shell", () => {
       "GET /reference/readiness": "reference_readiness_incomplete",
     };
     const html = await projectsPage();
-    expect(html).toMatch(/^<main><section aria-labelledby="[^"]+"/);
+    expect(html).toMatch(
+      new RegExp(`^<main class="${SCREEN.dense}"><section aria-labelledby="[^"]+"`),
+    );
     expect(text(html)).toBe(
       "Incomplete reference data No project can be created until the common reference data has: " +
         "a default calendar with working hours an active cost category No project.",

@@ -12,10 +12,12 @@ import { createTranslator } from "next-intl";
 import { readProject } from "@/components/context/reading";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { requestLanguage } from "@/i18n/request";
+import type { AccountEntry } from "@/navigation/account";
 import type { NavigationFunction } from "@/navigation/functions";
 
-/** What a title names: a function, or the list of projects. */
-export type ScreenLabel = NavigationFunction["label"] | "functionGroups.projects";
+/** What a title names: a function, the list of projects, or a page of the account. */
+export type ScreenLabel =
+  NavigationFunction["label"] | "functionGroups.projects" | AccountEntry["label"];
 
 /**
  * The label of a project, or `undefined` when it cannot be read — read once for the request,

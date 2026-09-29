@@ -5,19 +5,60 @@
     "projectTitle": "{screen} · {project} — Waterfall"
   },
   "languageSelector": {
-    "label": "Language",
-    "apply": "Apply language"
+    "label": "Language"
   },
   "themeSelector": {
-    "label": "Display mode",
-    "apply": "Apply display mode"
+    "label": "Display mode"
+  },
+  "sidebar": {
+    "label": "Side bar",
+    "description": "The functions of Waterfall, and the open project.",
+    "collapse": "Collapse the side bar",
+    "expand": "Expand the side bar"
   },
   "navigation": {
     "label": "Functions",
-    "returnToProject": "Back to the project"
+    "returnToProject": "Back to the project",
+    "scopes": {
+      "platform": "Platform",
+      "project": "Project",
+      "revision": "Current revision"
+    }
+  },
+  "projectSwitcher": {
+    "none": "No project open",
+    "unnamed": "Open project",
+    "summary": "{code} · {state}",
+    "allProjects": "All projects",
+    "projectPage": "Project page"
+  },
+  "breadcrumbs": {
+    "label": "Breadcrumb",
+    "home": "Home",
+    "revision": "Revision"
+  },
+  "search": {
+    "label": "Search",
+    "placeholder": "Search for a function, a project…",
+    "comingSoon": "Search is to come: it arrives with the screens that list the functions and the projects."
+  },
+  "accountMenu": {
+    "label": "Account of {name}",
+    "name": "{first} {last}",
+    "preferences": "Preferences",
+    "account": "My account",
+    "password": "Change password",
+    "avatar": "Change avatar",
+    "signOut": "Sign out"
   },
   "screen": {
     "comingSoon": "This screen is still to come."
+  },
+  "rowNature": {
+    "summary": "Summary task",
+    "task": "Task",
+    "milestone": "Milestone",
+    "estimateLine": "Estimate line"
   },
   "contextBanner": {
     "label": "Reading context",
@@ -66,7 +107,9 @@
     "relaunchFromScreen": "To run this task again, start from the screen of its object.",
     "interrupted": "Follow-up interrupted",
     "interruptedLine": "Follow-up interrupted: {task}.",
-    "dismiss": "Stop following: {task}"
+    "dismiss": "Stop following: {task}",
+    "toggle": "{count, plural, =0 {Background tasks} one {Background tasks: # followed} other {Background tasks: # followed}}",
+    "none": "No background task followed."
   },
   "markRevision": {
     "versionName": "Version name",

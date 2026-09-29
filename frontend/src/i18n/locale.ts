@@ -36,11 +36,6 @@ export function isLocale(value: unknown): value is Locale {
   return LOCALES.some((locale) => locale === value);
 }
 
-/** Whether a value is one of the three values of the preference. */
-export function isLanguagePreference(value: unknown): value is LanguagePreference {
-  return PREFERENCES.some((preference) => preference === value);
-}
-
 // A range of Accept-Language names a language, or any (`*`); its weight goes from 0 to 1,
 // three decimals at most (RFC 9110, §12.4.2).
 const TAG = /^([a-z]{1,8}(-[a-z\d]{1,8})*|\*)$/i;

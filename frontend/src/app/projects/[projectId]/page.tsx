@@ -7,6 +7,7 @@
  * found, as at the other screens of a project. Scaffolding: EP-02 replaces it and keeps the
  * path (US-0210).
  */
+import { FolderOpen } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -14,6 +15,7 @@ import { notFound } from "next/navigation";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
+import { PageHeader, Screen } from "@/components/shell/page-header";
 import { readProjectContext } from "@/components/context/reading";
 import { NoRevisions } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, readContext } from "@/navigation/context";
@@ -70,8 +72,8 @@ export default async function ProjectPage({
   return (
     <>
       <ContextBanner reading={read} />
-      <main>
-        <h1>{read.project.label}</h1>
+      <Screen>
+        <PageHeader title={read.project.label} icon={FolderOpen} />
         {revisions.items.length === 0 ? (
           <NoRevisions
             revisions={
@@ -89,7 +91,7 @@ export default async function ProjectPage({
             ))}
           </ul>
         )}
-      </main>
+      </Screen>
     </>
   );
 }

@@ -11,14 +11,19 @@
  * Each is shown on an example of the contract named after it (`fixtures/api/`): `empty` for
  * the projects and the revisions, `incomplete` for the reference.
  */
+import { FolderSearch, GitBranch, Inbox, ListFilter, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
 import type { components } from "@/api/generated/schema";
+import { buttonVariants } from "@/components/ui/button";
 import { functionOf, type PlatformFunction } from "@/navigation/functions";
 
-const EMPTY = "space-y-2 p-6 text-muted-foreground";
+const EMPTY = "flex flex-col items-start gap-2 py-6 text-sm text-muted-foreground";
+const SENTENCE = "flex items-center gap-2";
+const ICON = "size-4 shrink-0";
+const ACTION = buttonVariants({ variant: "outline", size: "sm", className: "text-foreground" });
 const LINK = "font-medium text-foreground underline";
 
 /** Where the list of projects leads when it is empty: the list unfiltered, if it was filtered. */
@@ -32,9 +37,13 @@ export function NoProjects({ unfiltered }: NoProjectsProps) {
   const t = useTranslations("emptyStates");
   return (
     <div className={EMPTY}>
-      <p>{t(unfiltered === undefined ? "noProjects" : "noContributedProjects")}</p>
+      <p className={SENTENCE}>
+        <FolderSearch aria-hidden="true" className={ICON} />
+        {t(unfiltered === undefined ? "noProjects" : "noContributedProjects")}
+      </p>
       {unfiltered === undefined ? null : (
-        <Link href={unfiltered} className={LINK}>
+        <Link href={unfiltered} className={ACTION}>
+          <ListFilter aria-hidden="true" />
           {t("allProjects")}
         </Link>
       )}
@@ -56,9 +65,13 @@ export function NoRevisions({ revisions }: NoRevisionsProps) {
   const t = useTranslations("emptyStates");
   return (
     <div className={EMPTY}>
-      <p>{t("noRevisions")}</p>
+      <p className={SENTENCE}>
+        <Inbox aria-hidden="true" className={ICON} />
+        {t("noRevisions")}
+      </p>
       {revisions === undefined ? null : (
-        <Link href={revisions} className={LINK}>
+        <Link href={revisions} className={ACTION}>
+          <GitBranch aria-hidden="true" />
           {t("revisions")}
         </Link>
       )}
@@ -93,8 +106,9 @@ export function ReferenceIncomplete({ readiness, permissions }: ReferenceIncompl
     return null;
   }
   return (
-    <section aria-labelledby={title} className="space-y-2 border-b p-6">
-      <h2 id={title} className="text-lg font-semibold">
+    <section aria-labelledby={title} className="space-y-2 border-b pb-4 text-sm">
+      <h2 id={title} className="flex items-center gap-2 text-base font-semibold">
+        <TriangleAlert aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         {t("referenceReadiness.title")}
       </h2>
       <p>{t("referenceReadiness.explanation")}</p>

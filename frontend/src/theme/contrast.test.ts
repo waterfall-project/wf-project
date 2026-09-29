@@ -98,6 +98,19 @@ const TEXTS: readonly [string, string][] = [
   ["primary", "background"],
   ["destructive", "background"],
   ["destructive", "card"],
+  // The banner of the reading context, on its muted strip; a tooltip, the page inverted.
+  ["foreground", "muted"],
+  ["background", "foreground"],
+  // A menu of the shell, its entries, their muted values, the entry under the focus.
+  ["popover-foreground", "popover"],
+  ["muted-foreground", "popover"],
+  ["destructive", "popover"],
+  // The side bar: its entries, the labels of its groups, the current entry and the entry
+  // under the pointer, the project whose icon it shows.
+  ["sidebar-foreground", "sidebar"],
+  ["muted-foreground", "sidebar"],
+  ["sidebar-accent-foreground", "sidebar-accent"],
+  ["muted-foreground", "sidebar-accent"],
   // The name and the icon of a signal, wherever a screen sets one: a page, a card, a muted
   // row, a selected row.
   ...Object.values(SIGNALS).flatMap((signal) =>
@@ -116,6 +129,11 @@ const CONTROLS: readonly [string, string][] = [
   ["ring", "card"],
   // The focus of the link that lifts a filter, drawn on its chip.
   ["ring", "accent"],
+  // The focus in the banner, in a menu, and in the side bar on its entries.
+  ["ring", "muted"],
+  ["ring", "popover"],
+  ["sidebar-ring", "sidebar"],
+  ["sidebar-ring", "sidebar-accent"],
 ];
 
 const MODES: readonly Mode[] = ["light", "dark"];

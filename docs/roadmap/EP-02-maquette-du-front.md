@@ -158,7 +158,7 @@ verrou.
 
 | Chemin | Contenu |
 |---|---|
-| `frontend/src/app/` | les routes, en anglais : `/` (l'accueil), `/login`, `/me`, `/projects/[projectId]/revisions/[revisionId]/<fonction>` (`planning`, `estimate`, `remaining`, `risks`, `actual-costs`, `indicators`…), `/portfolio/…`, `/reference/…`, `/admin/…`, `/system`, et la page « introuvable » |
+| `frontend/src/app/` | les routes, en anglais : `/` (l'accueil), `/login`, `/account/…` (le compte : préférences, mot de passe, avatar), `/projects/[projectId]/<fonction>` pour les fonctions du projet lui-même (`revisions`, `settings`, `lifecycle`), `/projects/[projectId]/revisions/[revisionId]/<fonction>` pour celles d'une révision (`planning`, `estimate`, `remaining`, `risks`, `actual-costs`, `indicators`…), `/portfolio/…`, `/reference/…`, `/admin/…`, `/system`, et la page « introuvable » |
 | `frontend/src/api/` | le client engendré ; `server.ts` ; `actions/`, les actions serveur d'écriture et de suivi, une par famille du contrat ; `problem.ts`, le décodeur de l'enveloppe d'erreur |
 | `frontend/src/components/` | les composants partagés : `grid/`, `signal/`, `context/`, `commands/`, `tasks/`, `charts/`, `gantt/`, `tree/` |
 | `frontend/src/components/ui/` | les composants shadcn/ui copiés — seulement ceux qu'un écran emploie |
@@ -181,6 +181,14 @@ verrou.
   next-themes, une dépendance pour un attribut que la coquille sait poser.
 - Le logo emploie ses deux variantes, déjà dans `docs/assets`. Le titre de l'onglet nomme
   l'écran et le projet ; le favicon vient de `waterfall_icon.svg`.
+- **La mise en page suit la maquette validée par l'utilisateur** (2026-09-29,
+  https://claude.ai/artifact/FZCXeHGRQVZEjgaooh9vJf) : shadcn/ui partout où un composant
+  existe ; la barre latérale est le Sidebar de shadcn, repliable en rail d'icônes ; la barre
+  du haut porte à droite l'avatar, qui déroule le menu du compte — préférences, mot de
+  passe, avatar, déconnexion ; une icône Lucide sur chaque entrée, chaque bouton et chaque
+  nature de ligne. Le style est sobre et professionnel, sans autre ornement que les icônes.
+  Les grilles sont denses — le plus d'informations sous les yeux —, les écrans d'indicateurs
+  aérés. Le lot US-0090/L4 (#149) refait la coquille ainsi, avant la grille.
 
 ### Qui appelle l'API
 

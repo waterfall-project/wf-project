@@ -27,6 +27,7 @@
     "next": "^16.3.6",
     "next-intl": "^4.14.7",
     "openapi-fetch": "^0.17.0",
+    "radix-ui": "^1.6.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",

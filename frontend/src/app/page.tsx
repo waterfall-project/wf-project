@@ -4,14 +4,17 @@
  * Home page. The screens arrive with EP-02; until then the page names the product, whose
  * name the catalogue gives like any other text.
  */
+import { House } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+import { PageHeader, Screen } from "@/components/shell/page-header";
 
 /** Render the home page. */
 export default function HomePage() {
   const t = useTranslations("app");
   return (
-    <main>
-      <h1>{t("name")}</h1>
-    </main>
+    <Screen>
+      <PageHeader title={t("name")} icon={House} />
+    </Screen>
   );
 }

@@ -5,19 +5,60 @@
     "projectTitle": "{screen} · {project} — Waterfall"
   },
   "languageSelector": {
-    "label": "Langue",
-    "apply": "Appliquer la langue"
+    "label": "Langue"
   },
   "themeSelector": {
-    "label": "Mode d’affichage",
-    "apply": "Appliquer le mode"
+    "label": "Mode d’affichage"
+  },
+  "sidebar": {
+    "label": "Barre latérale",
+    "description": "Les fonctions de Waterfall, et le projet ouvert.",
+    "collapse": "Replier la barre latérale",
+    "expand": "Déplier la barre latérale"
   },
   "navigation": {
     "label": "Fonctions",
-    "returnToProject": "Retour au projet"
+    "returnToProject": "Retour au projet",
+    "scopes": {
+      "platform": "Plateforme",
+      "project": "Projet",
+      "revision": "Révision en cours"
+    }
+  },
+  "projectSwitcher": {
+    "none": "Aucun projet ouvert",
+    "unnamed": "Projet ouvert",
+    "summary": "{code} · {state}",
+    "allProjects": "Tous les projets",
+    "projectPage": "Page du projet"
+  },
+  "breadcrumbs": {
+    "label": "Fil d’Ariane",
+    "home": "Accueil",
+    "revision": "Révision"
+  },
+  "search": {
+    "label": "Rechercher",
+    "placeholder": "Rechercher une fonction, un projet…",
+    "comingSoon": "La recherche est à venir : elle arrive avec les écrans qui listent les fonctions et les projets."
+  },
+  "accountMenu": {
+    "label": "Compte de {name}",
+    "name": "{first} {last}",
+    "preferences": "Préférences",
+    "account": "Mon compte",
+    "password": "Changer le mot de passe",
+    "avatar": "Changer l’avatar",
+    "signOut": "Se déconnecter"
   },
   "screen": {
     "comingSoon": "Cet écran est à venir."
+  },
+  "rowNature": {
+    "summary": "Tâche récapitulative",
+    "task": "Tâche",
+    "milestone": "Jalon",
+    "estimateLine": "Ligne de devis"
   },
   "contextBanner": {
     "label": "Contexte de lecture",
@@ -66,7 +107,9 @@
     "relaunchFromScreen": "Pour relancer cette tâche, repartez de l’écran de son objet.",
     "interrupted": "Suivi interrompu",
     "interruptedLine": "Suivi interrompu : {task}.",
-    "dismiss": "Retirer du suivi : {task}"
+    "dismiss": "Retirer du suivi : {task}",
+    "toggle": "{count, plural, =0 {Tâches de fond} one {Tâches de fond : # suivie} other {Tâches de fond : # suivies}}",
+    "none": "Aucune tâche de fond suivie."
   },
   "markRevision": {
     "versionName": "Nom de version",

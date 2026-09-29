@@ -12,6 +12,7 @@
  */
 "use client";
 
+import { CircleAlert, LogIn, RefreshCw, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
@@ -37,6 +38,8 @@ export interface OutcomeNoticeProps {
 }
 
 const ALERT = "space-y-1 text-sm text-destructive";
+const SENTENCE = "flex items-start gap-1.5";
+const ICON = "mt-0.5 size-4 shrink-0";
 
 /**
  * The link to the sign-in page, which comes back to the screen shown: its path and its query,
@@ -47,7 +50,11 @@ export function SignIn() {
   const query = useSearchParams().toString();
   const screen = `${usePathname()}${query === "" ? "" : `?${query}`}`;
   return (
-    <Link href={loginHref(screen)} className="font-medium underline">
+    <Link
+      href={loginHref(screen)}
+      className="inline-flex items-center gap-1.5 font-medium underline"
+    >
+      <LogIn aria-hidden="true" className="size-4" />
       {t("signIn")}
     </Link>
   );
@@ -63,6 +70,7 @@ function Reload({ onClear }: { readonly onClear: () => void }) {
   };
   return (
     <Button type="button" variant="outline" size="sm" onClick={reload}>
+      <RefreshCw aria-hidden="true" />
       {t("reload")}
     </Button>
   );
@@ -78,7 +86,8 @@ export function OutcomeNotice({ outcome, names = {}, onClear }: OutcomeNoticePro
   }
   if (outcome.kind === "unreachable") {
     return (
-      <p role="alert" className={ALERT}>
+      <p role="alert" className={`${ALERT} ${SENTENCE}`}>
+        <WifiOff aria-hidden="true" className={ICON} />
         {t("unreachable")}
       </p>
     );
@@ -87,7 +96,10 @@ export function OutcomeNotice({ outcome, names = {}, onClear }: OutcomeNoticePro
   const name = conflictingObjectId === null ? undefined : names[conflictingObjectId];
   return (
     <div role="alert" className={ALERT}>
-      <p>{problemMessage(problem, { locale, messages })}</p>
+      <p className={SENTENCE}>
+        <CircleAlert aria-hidden="true" className={ICON} />
+        {problemMessage(problem, { locale, messages })}
+      </p>
       {name === undefined ? null : <p>{t("conflictingObject", { name })}</p>}
       {kind === "signed_out" ? <SignIn /> : null}
       {kind === "stale" ? <Reload onClear={onClear} /> : null}

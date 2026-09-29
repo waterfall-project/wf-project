@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { SCREEN } from "@/components/shell/page-header";
 import { CATALOGUES } from "@/i18n/catalogues";
 
 import HomePage from "./page";
@@ -15,6 +16,8 @@ describe("HomePage", () => {
         <HomePage />
       </NextIntlClientProvider>,
     );
-    expect(html).toBe("<main><h1>Waterfall</h1></main>");
+    // In the template of a dense screen, its heading with an icon.
+    expect(html).toMatch(new RegExp(`^<main class="${SCREEN.dense}">`));
+    expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true".*<\/svg>Waterfall<\/h1>/);
   });
 });

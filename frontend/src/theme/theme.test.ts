@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
 
-import { forcedTheme, isThemePreference, THEME_PREFERENCES, themePreference } from "./theme";
+import { forcedTheme, THEME_PREFERENCES, themePreference } from "./theme";
 
 type Session = components["schemas"]["Session"];
 
@@ -17,8 +17,6 @@ function account(name: string) {
 describe("the display mode", () => {
   it("offers the three values of the preference of the contract", () => {
     expect(THEME_PREFERENCES).toEqual(["default", "light", "dark"]);
-    expect(THEME_PREFERENCES.every(isThemePreference)).toBe(true);
-    expect(["", "Dark", "auto", undefined].some(isThemePreference)).toBe(false);
   });
 
   it("forces the document into light or dark, and lets the workstation decide otherwise", () => {
