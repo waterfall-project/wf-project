@@ -558,13 +558,36 @@ les serveurs que `make` et `pnpm` lancent survivraient. `make e2e-browsers` inst
 navigateur. À partir d'EP-03, les mêmes parcours se jouent contre le vrai service en
 changeant `WATERFALL_API_ADDRESS`.
 
+La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
+`frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
+back, pour la grille de devis et pour celle de planning. Une ouverture va de son début — le
+début de la navigation pour une grille ouverte par son adresse, le clic pour une grille
+ouverte depuis la barre latérale — à la première image que le navigateur dessine avec la
+grille utilisable : l'en-tête de ses colonnes, la légende de ses totaux et la première ligne
+de la réponse entièrement dans la fenêtre. Un script remis à chaque document guette chaque
+image et note l'instant sur l'horloge du système (`performance.timeOrigin`), qu'un document
+remplacé ne perd pas : ni les allers-retours de Playwright ni son attente n'y comptent. Elle
+se joue contre le front construit pour la production (`next build`, puis `next start` sur le
+port 3001), que `playwright.config.ts` démarre après le faux back, à côté du serveur de
+développement — celui-ci compile une route à sa première demande et rend avec les contrôles
+de React en développement : il dirait la vitesse du poste du développeur. Chaque grille
+s'ouvre une fois sans être mesurée, puis cinq fois par son adresse et cinq fois depuis la
+barre latérale, et chaque ouverture doit tenir la seconde ; la médiane et la pire s'écrivent
+dans le journal du parcours. Son projet Playwright, `production`, dépend du projet `chromium` :
+il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
+d'eux échoue. Elle tourne donc là où tournent les parcours, au palier complet de la chaîne ;
+sur un poste, `make e2e`, ou la mesure seule, contre des serveurs déjà démarrés :
+`pnpm exec playwright test --project production --no-deps` dans `frontend/`. La mesure est
+faite pour un utilisateur seul et contre le faux back : le jeu de référence et les cinquante
+utilisateurs simultanés du §4.6.2 restent à mesurer contre le vrai service.
+
 Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
 sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté
 serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
 contrat par `frontend/src/test/fixtures.ts`, les mêmes données que sert le faux back.
 
-*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
-échouer.
+*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours, ou une
+ouverture de grille qui dépasse la seconde, la fait échouer.
 
 ### Couverture du code
 
