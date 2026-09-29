@@ -451,7 +451,8 @@ def _compact(value: JsonValue) -> str:
 def write(directory: Path) -> list[Path]:
     """Write every volume in the directory, removing a file it no longer makes.
 
-    A directory left in it is not removed: the check names it.
+    A directory left in it is not removed: the check names it, to be removed by hand. The
+    text is written with plain line ends whatever the system, as the check reads it.
     """
     directory.mkdir(parents=True, exist_ok=True)
     expected = {name: render(example) for name, example in volumes().items()}
@@ -461,7 +462,7 @@ def write(directory: Path) -> list[Path]:
     written: list[Path] = []
     for name, text in expected.items():
         path = directory / name
-        path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8", newline="\n")
         written.append(path)
     return written
 
@@ -470,13 +471,24 @@ def check(directory: Path) -> list[str]:
     """Return what differs between the directory and what the generator writes."""
     expected = {name: render(example) for name, example in volumes().items()}
     present = _entries(directory)
-    problems = [f"{name} is left over" for name in sorted(set(present) - expected.keys())]
+    problems = [_left_over(directory / name) for name in sorted(set(present) - expected.keys())]
     for name, text in expected.items():
         if name not in present:
             problems.append(f"{name} is missing")
         elif not _holds(directory / name, text):
             problems.append(f"{name} is outdated")
     return problems
+
+
+def _left_over(path: Path) -> str:
+    """Name an entry the generator does not make: a directory, `write` does not remove."""
+    if path.is_dir():
+        return f"{path.name} is a directory left over, {BY_HAND}"
+    return f"{path.name} is left over"
+
+
+BY_HAND = "remove it by hand"
+"""What `write` cannot do for a directory: the check says so instead of `make mock-data`."""
 
 
 def _entries(directory: Path) -> list[str]:
@@ -503,7 +515,8 @@ def main(arguments: list[str], directory: Path = VOLUME) -> int:
     if options.check:
         problems = check(directory)
         for problem in problems:
-            print(f"  {directory}: {problem}, run make mock-data", file=sys.stderr)
+            remedy = "" if problem.endswith(BY_HAND) else ", run make mock-data"
+            print(f"  {directory}: {problem}{remedy}", file=sys.stderr)
         return 1 if problems else 0
     for path in write(directory):
         print(f"  -> {path} ({path.stat().st_size:,} bytes)")

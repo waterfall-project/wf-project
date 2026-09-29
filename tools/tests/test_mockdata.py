@@ -265,7 +265,7 @@ def test_any_entry_left_over_or_unreadable_fails_the_check(tmp_path: Path) -> No
     (tmp_path / "cost_categories.json").unlink()
     (tmp_path / "cost_categories.json").mkdir()
     assert mockdata.check(tmp_path) == [
-        "archive is left over",
+        "archive is a directory left over, remove it by hand",
         "old.txt is left over",
         "cost_categories.json is outdated",
         "hourly_rates.json is outdated",
@@ -277,10 +277,30 @@ def test_writing_removes_a_file_the_generator_no_longer_makes(tmp_path: Path) ->
     (tmp_path / "archive").mkdir()
     mockdata.write(tmp_path)
     assert not (tmp_path / "old.json").exists()
-    assert mockdata.check(tmp_path) == ["archive is left over"]
+    assert mockdata.check(tmp_path) == ["archive is a directory left over, remove it by hand"]
     assert mockdata.check(tmp_path / "absent") == [
         f"{name} is missing" for name in mockdata.volumes()
     ]
+
+
+def test_a_directory_left_over_is_not_sent_to_make_mock_data(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mockdata.write(tmp_path)
+    (tmp_path / "archive").mkdir()
+    assert mockdata.main(["--check"], tmp_path) == 1
+    err = capsys.readouterr().err
+    assert "archive is a directory left over, remove it by hand" in err
+    assert "run make mock-data" not in err
+
+
+def test_the_volumes_are_written_with_plain_line_ends_whatever_was_there(tmp_path: Path) -> None:
+    for name, example in mockdata.volumes().items():
+        (tmp_path / name).write_bytes(mockdata.render(example).replace("\n", "\r\n").encode())
+    assert mockdata.check(tmp_path) != []
+    mockdata.write(tmp_path)
+    assert mockdata.check(tmp_path) == []
+    assert all(b"\r\n" not in path.read_bytes() for path in tmp_path.iterdir())
 
 
 def test_the_contract_cites_every_volume_so_that_its_lint_checks_it() -> None:
