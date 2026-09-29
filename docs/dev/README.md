@@ -166,10 +166,12 @@ racine (1,75 rem). L'en-tête et les totaux sont collés au haut et au pied de l
 numéro et le libellé à son début. Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
 chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une colonne ou une largeur
-s'écrit après une pause, et ce qui attend part quand la page est quittée ou cachée, avant
-une navigation de la grille et au démontage. Un tri s'écrit tout de suite, avant que
-l'adresse change. L'adresse fait foi ; le tri gardé ne sert que quand elle n'en demande
-aucun. La grille de devis est à la route de sa fonction, `…/revisions/[r]/estimate`, où mène
+s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
+quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
+porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
+d'en-tête écrit le tri, en même temps que la navigation qui le montre. L'adresse fait foi :
+un tri levé y reste, `sort_by` vide, et le tri gardé ne sert que quand elle ne dit rien du
+tri. La grille de devis est à la route de sa fonction, `…/revisions/[r]/estimate`, où mène
 la révision elle-même.
 
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :

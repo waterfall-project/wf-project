@@ -281,29 +281,31 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   // The sort asked, shown until the server answers: a second click on the header, before the
   // answer to the first, goes on from it — ascending, then descending.
   const [sort, showSort] = useOptimistic(query.sort);
-  const sortChanges = useRef(0);
+  // The sort the account keeps for the grid: the session's, then the last one a header asked.
+  // Only a header writes it; a column shown or widened sends it back as it is.
+  const keptSort = useRef(preferences?.sort);
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
   const writer = useSettingsWriter(config.key);
   const scroller = useRef<HTMLDivElement>(null);
   const rowHeight = ROW_REM * useRootFontSize();
 
-  // A sort or a search changes the address only: the server reads it, and answers anew.
-  const navigate = (href: (query: URLSearchParams) => string) => {
-    startTransition(() => {
-      router.push(href(new URLSearchParams(address.toString())), { scroll: false });
-    });
-  };
-  // The sort is recorded before the address changes, so that the page does not read the one
-  // the account kept before; only the last of several sorts asked in a row is navigated to.
+  /** The address of the screen, as the browser shows it now. */
+  const current = () => new URLSearchParams(address.toString());
+  // A sort or a search changes the address only: the server reads it, and answers anew. A sort
+  // navigates at once, and its preference is written alongside: the address carries it — a
+  // sort lifted included —, so the page never waits for the preference, nor reads it for it.
   const changeSort = (next: GridSort<Sort> | undefined) => {
-    sortChanges.current += 1;
-    const change = sortChanges.current;
-    startTransition(async () => {
+    startTransition(() => {
       showSort(next);
-      await writer.recordNow(recordedPreferences(preferences, settings, next));
-      if (change === sortChanges.current) {
-        navigate((current) => sortHref(pathname, current, next));
-      }
+      router.push(sortHref(pathname, current(), next), { scroll: false });
+    });
+    keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
+    writer.recordNow(recordedPreferences(preferences, settings, keptSort.current));
+  };
+  const search = (text: string) => {
+    writer.flush();
+    startTransition(() => {
+      router.push(searchHref(pathname, current(), text), { scroll: false });
     });
   };
   const table = useGridTable({
@@ -314,7 +316,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     settings,
     onSettings: (next) => {
       setSettings(next);
-      writer.record(recordedPreferences(preferences, next, sort));
+      writer.record(recordedPreferences(preferences, next, keptSort.current));
     },
   });
 
@@ -335,10 +337,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     <div className="flex min-h-0 flex-col gap-2">
       <GridToolbar
         search={query.search}
-        onSearch={(text) => {
-          writer.flush();
-          navigate((current) => searchHref(pathname, current, text));
-        }}
+        onSearch={search}
         columns={toggledColumns(table, config, (column) => t(`columns.${column.label}`))}
       />
       <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} />

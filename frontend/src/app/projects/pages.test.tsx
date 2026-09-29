@@ -10,7 +10,13 @@ import { SignedOut, UnexpectedAnswer } from "@/api/problem";
 import { SCREEN } from "@/components/shell/page-header";
 import { SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+} from "@/test/fixtures";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
 import EstimatePage from "./[projectId]/revisions/[revisionId]/estimate/page";
@@ -23,11 +29,13 @@ const server = vi.hoisted(
     clients: FakeClient[];
     unreachable: boolean;
     structures: (() => Response) | undefined;
+    timing: FakeTiming;
   } => ({
     answers: {},
     clients: [],
     unreachable: false,
     structures: undefined,
+    timing: {},
   }),
 );
 
@@ -59,7 +67,7 @@ vi.mock("@/api/server", () => ({
         },
       });
     }
-    const client = fakeClient(server.answers);
+    const client = fakeClient(server.answers, server.timing);
     server.clients.push(client);
     return client;
   },
@@ -111,6 +119,7 @@ beforeEach(() => {
   server.clients = [];
   server.unreachable = false;
   server.structures = undefined;
+  server.timing = {};
   server.answers = {
     "GET /session": "session",
     "GET /projects": "projects",
@@ -210,6 +219,38 @@ describe("the witness path", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toContain("Total — 3 tasks, 3 lines 12.5 2,734.56 2,734.56");
+  });
+
+  it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
+    let answer: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    server.timing = { hold: (route) => (route === "GET /session" ? held : undefined) };
+    const routes = () => server.clients.flatMap((client) => client.calls).map((call) => call.route);
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const page = EstimatePage({ params, searchParams: NO_SEARCH });
+    await vi.waitFor(() => {
+      expect(routes()).toEqual(
+        expect.arrayContaining([
+          "GET /session",
+          "GET /projects/{project_id}/revisions/{revision_id}/structures",
+          "GET /projects/{project_id}",
+          "GET /projects/{project_id}/revisions/{revision_id}",
+        ]),
+      );
+    });
+    expect(nodesCall()).toBeUndefined();
+    answer();
+    await page;
+    expect(nodesCall()).toBeDefined();
+  });
+
+  it("asks no sort when the address lifted it, whatever the account keeps", async () => {
+    server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "" }) });
+    expect([...(nodesCall()?.query.keys() ?? [])]).toEqual([]);
   });
 
   it("hands the grid the settings of the account the session read", async () => {

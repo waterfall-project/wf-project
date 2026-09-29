@@ -36,6 +36,14 @@ describe("what the address asks of a grid", () => {
     expect(read("", null)).toBeUndefined();
   });
 
+  it("asks no sort, and falls back on none, when the address lifted it", () => {
+    const kept = { column: "hours", order: "desc" };
+    expect(
+      readGridQuery(new URLSearchParams("sort_by=&sort_order=desc"), ESTIMATE_SORT_COLUMNS, kept)
+        .sort,
+    ).toBeUndefined();
+  });
+
   it("reads a search of the length the contract accepts, and none otherwise", () => {
     const read = (search: string) =>
       readGridQuery(new URLSearchParams({ search }), ESTIMATE_SORT_COLUMNS).search;
@@ -55,10 +63,12 @@ describe("the address a grid leads to", () => {
     );
   });
 
-  it("lifts the sort back to the order of the plan", () => {
+  it("lifts the sort back to the order of the plan, by an empty sort_by", () => {
     const sorted = new URLSearchParams("sort_by=hours&sort_order=desc");
-    expect(sortHref("/p", sorted, undefined)).toBe("/p");
-    expect(sortHref("/p", current, undefined)).toBe("/p?subproject_id=unassigned&search=revue");
+    expect(sortHref("/p", sorted, undefined)).toBe("/p?sort_by=");
+    expect(sortHref("/p", current, undefined)).toBe(
+      "/p?subproject_id=unassigned&search=revue&sort_by=",
+    );
   });
 
   it("sets the search, trimmed, or lifts it when empty", () => {

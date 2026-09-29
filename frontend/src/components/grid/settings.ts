@@ -9,11 +9,12 @@
  * filters kept there — goes back as it came.
  *
  * A column shown or widened is recorded once the user pauses: a column dragged wider changes
- * its width at every move, and only the last one is written. A sort is recorded at once, before
- * the page reads the address anew, so that a sort lifted is not given back by the preference.
- * What still waits is written when the page is left or hidden, before a navigation of the grid,
- * and when the grid goes. Only the outcome of the last write is told: an earlier one answering
- * late says nothing of what the grid now shows.
+ * its width at every move, and only the last one is written; it sends back the sort as the
+ * account keeps it. A sort is recorded at once, alongside the navigation that shows it — only a
+ * header writes the sort. What still waits is written when the page is left or hidden, before a
+ * search, and when the grid goes: at best, for a server action carries no `keepalive`, and a
+ * browser closing a tab may cut it short. Only the outcome of the last write is told: an
+ * earlier one answering late says nothing of what the grid now shows.
  */
 "use client";
 
@@ -24,7 +25,6 @@ import type { components } from "@/api/generated/schema";
 import type { Settled } from "@/api/problem";
 
 import { MAX_WIDTH, MIN_WIDTH } from "./columns";
-import type { GridSort } from "./query";
 
 /** The settings of a grid, as the account keeps them. */
 export type GridPreferences = components["schemas"]["GridPreferences"];
@@ -70,16 +70,20 @@ export function initialSettings(
   };
 }
 
+/** The sort the account keeps for a grid, as the contract gives it: none is `null`. */
+export type KeptGridSort = GridPreferences["sort"];
+
 /**
- * The preferences to record for a grid: its settings, the sort it shows — none, the order of
- * the plan —, and what the account kept of it besides, as it came: the grid is replaced whole.
+ * The preferences to record for a grid: its settings, the sort to keep — the one a header just
+ * asked, or the one the account kept, as it came —, and what the account kept of it besides,
+ * as it came: the grid is replaced whole.
  */
 export function recordedPreferences(
   preferences: GridPreferences | undefined,
   settings: GridSettings,
-  sort: GridSort<string> | undefined,
+  sort: KeptGridSort,
 ): GridPreferences {
-  return {
+  const recorded: GridPreferences = {
     ...preferences,
     hidden_columns: Object.entries(settings.visibility)
       .filter(([, visible]) => !visible)
@@ -87,16 +91,16 @@ export function recordedPreferences(
     column_widths: Object.fromEntries(
       Object.entries(settings.sizing).map(([key, width]) => [key, bounded(width)]),
     ),
-    sort: sort === undefined ? null : { column: sort.column, order: sort.order },
   };
+  return sort === undefined ? recorded : { ...recorded, sort };
 }
 
 /** What the writer of the settings gives the grid. */
 export interface SettingsWriter {
   /** Record preferences once the user pauses. */
   readonly record: (preferences: GridPreferences) => void;
-  /** Record preferences at once, and say when the API answered. */
-  readonly recordNow: (preferences: GridPreferences) => Promise<void>;
+  /** Record preferences at once, whatever waited dropped: they replace it. */
+  readonly recordNow: (preferences: GridPreferences) => void;
   /** Record at once what waits, if anything. */
   readonly flush: () => void;
   /** The outcome of the last write that failed; nothing once it succeeded. */
@@ -134,7 +138,7 @@ export function useSettingsWriter(grid: string): SettingsWriter {
   }, [send]);
 
   // What waits is written when the page is left or hidden — a tab closed, another opened —,
-  // and when the grid goes.
+  // and when the grid goes; at best, as said above.
   useEffect(() => {
     const hidden = () => {
       if (document.visibilityState === "hidden") {
@@ -162,7 +166,7 @@ export function useSettingsWriter(grid: string): SettingsWriter {
     (preferences: GridPreferences) => {
       clearTimeout(timer.current);
       waiting.current = undefined;
-      return send(preferences);
+      startTransition(() => send(preferences));
     },
     [send],
   );

@@ -52,6 +52,11 @@ describe("the preferences a grid records", () => {
   });
 
   it("keep no sort once it is lifted, back to the order of the plan", () => {
-    expect(recordedPreferences(kept, settings, undefined).sort).toBeNull();
+    expect(recordedPreferences(kept, settings, null).sort).toBeNull();
+  });
+
+  it("send back the sort as it came when the account kept none, and name none", () => {
+    expect(recordedPreferences(kept, settings, undefined).sort).toEqual(kept.sort);
+    expect(recordedPreferences(undefined, settings, undefined)).not.toHaveProperty("sort");
   });
 });

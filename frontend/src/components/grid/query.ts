@@ -58,7 +58,7 @@ function sortOf<Sort extends string>(
  * unless the address says descending — the default of the contract —; a search of the length
  * the contract accepts. Anything else in the address is not asked: the API would refuse it.
  * The address is the truth of the screen: the sort the account keeps for the grid serves only
- * when the address asks none (WF-IHM-0060).
+ * when the address says nothing of the sort (WF-IHM-0060).
  */
 export function readGridQuery<Sort extends string>(
   search: SearchParameters,
@@ -66,17 +66,23 @@ export function readGridQuery<Sort extends string>(
   kept?: KeptSort | null,
 ): GridQuery<Sort> {
   const text = search.get(SEARCH) ?? "";
+  const by = search.get(SORT_BY);
   return {
+    // `sort_by` empty is a sort lifted: the order of the plan, whatever the account keeps.
     sort:
-      sortOf(sortable, search.get(SORT_BY), search.get(SORT_ORDER)) ??
-      sortOf(sortable, kept?.column, kept?.order),
+      by === ""
+        ? undefined
+        : (sortOf(sortable, by, search.get(SORT_ORDER)) ??
+          sortOf(sortable, kept?.column, kept?.order)),
     search: text === "" || text.length > SEARCH_LENGTH ? undefined : text,
   };
 }
 
 /**
- * The address of the same screen with the sort changed — or lifted, back to the order of the
- * plan —, the rest of its query kept: the reading context, the search.
+ * The address of the same screen with the sort changed, the rest of its query kept — the
+ * reading context, the search. A sort lifted, back to the order of the plan, keeps `sort_by`,
+ * empty: the page then asks no sort, and does not fall back on the one the account keeps,
+ * whether or not the preference has been written yet.
  */
 export function sortHref<Sort extends string>(
   pathname: string,
@@ -86,8 +92,8 @@ export function sortHref<Sort extends string>(
   const next = new URLSearchParams(query);
   next.delete(SORT_BY);
   next.delete(SORT_ORDER);
+  next.set(SORT_BY, sort?.column ?? "");
   if (sort !== undefined) {
-    next.set(SORT_BY, sort.column);
     next.set(SORT_ORDER, sort.order);
   }
   return address(pathname, next);

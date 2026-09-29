@@ -42,12 +42,13 @@ import type { RevisionParams } from "../page";
  * restricted to the filtered sub-project. A read the API refuses, or cannot answer, is thrown
  * for the pages of the shell to say (`readOrFail`): a grid left empty would say the revision
  * has nothing. So is a revision without a main structure, which the contract rules out: an
- * answer of the API that breaks it is unexpected, not an empty grid.
+ * answer of the API that breaks it is unexpected, not an empty grid. The structures are read
+ * at once; what is asked of the nodes waits for the session, whose preferences may sort them.
  */
 async function mainStructure(
   { projectId, revisionId }: RevisionParams,
   context: ProjectContext,
-  { sort, search }: GridQuery<NodeSortColumn>,
+  asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
   const client = serverClient();
   const revision = { project_id: projectId, revision_id: revisionId };
@@ -60,6 +61,7 @@ async function mainStructure(
   if (main === undefined) {
     throw new UnexpectedAnswer("listCostStructures", 200);
   }
+  const { sort, search } = await asked;
   const subproject = context.parameters.get("subproject_id");
   const nodes = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
@@ -110,13 +112,17 @@ export default async function EstimatePage({
     notFound();
   }
   // The settings the account keeps for the grid — `null` once set back to its defaults, as
-  // none —, whose sort serves when the address asks none.
-  const session = await requestSession();
-  const preferences = session?.user.display_preferences?.grids?.[ESTIMATE_GRID.key] ?? undefined;
-  const query = readGridQuery(address, ESTIMATE_SORT_COLUMNS, preferences?.sort);
-  const [structure, read] = await Promise.all([
-    mainStructure(revision, context, query),
+  // none —, whose sort serves when the address says nothing of the sort. The session, the
+  // structures and the reading context are read together; only the nodes wait for the session.
+  const settings = requestSession().then(
+    (session) => session?.user.display_preferences?.grids?.[ESTIMATE_GRID.key] ?? undefined,
+  );
+  const asked = settings.then((kept) => readGridQuery(address, ESTIMATE_SORT_COLUMNS, kept?.sort));
+  const [structure, read, preferences, query] = await Promise.all([
+    mainStructure(revision, context, asked),
     readProjectContext(pathname, context),
+    settings,
+    asked,
   ]);
   if (read === "not_found") {
     notFound();
