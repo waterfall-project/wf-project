@@ -115,6 +115,11 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              succeeded: { $ref: ../../../fixtures/api/task_succeeded.json }
+              running: { $ref: ../../../fixtures/api/task_running.json }
+              failed: { $ref: ../../../fixtures/api/task_failed.json }
+              import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

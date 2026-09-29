@@ -11,7 +11,15 @@ import {
 } from "@/components/system/failure";
 
 import { createApiClient, Unreachable } from "./client";
-import { decode, reach, readOrFail, SignedOut, UnexpectedAnswer } from "./problem";
+import {
+  type BackgroundTask,
+  decode,
+  decodeTask,
+  reach,
+  readOrFail,
+  SignedOut,
+  UnexpectedAnswer,
+} from "./problem";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -271,5 +279,54 @@ describe("a read a screen cannot do without", () => {
     );
     expect(error.digest?.startsWith("NEXT_")).toBe(false);
     expect(failureOf(error)).toEqual({ kind: "unexpected", reference: hostile });
+  });
+});
+
+describe("the decoder of a background task", () => {
+  const TASK_ID = "01926f3a-7c00-7000-8000-000000000901";
+
+  /** Read a task whose answer is the one given, as the API would send it. */
+  function readTask(body: unknown) {
+    const client = answering(() => Promise.resolve(Response.json(body)));
+    return decodeTask(() =>
+      client.GET("/tasks/{task_id}", { params: { path: { task_id: TASK_ID } } }),
+    );
+  }
+
+  it("gives back a task that runs, or that failed with a motive the catalogue renders", async () => {
+    for (const name of ["task_running", "task_succeeded", "task_failed"]) {
+      expect(await readTask(example(name))).toEqual({ kind: "done", data: example(name) });
+    }
+  });
+
+  it("takes the motive of a failure the catalogue does not know for the unexpected error", async () => {
+    const failed = example("task_failed") as BackgroundTask;
+    const unknown = { ...failed, problem: { code: "NEWER_THAN_THE_FRONT", status: 422 } };
+    expect(await readTask(unknown)).toEqual({
+      kind: "done",
+      data: { ...failed, problem: { code: "INTERNAL_ERROR", status: 422 } },
+    });
+  });
+
+  it("gives a failure without a motive the unexpected error, never a failure without one", async () => {
+    const failed = example("task_failed") as BackgroundTask;
+    expect(await readTask({ ...failed, problem: null })).toEqual({
+      kind: "done",
+      data: { ...failed, problem: { code: "INTERNAL_ERROR", status: 500 } },
+    });
+  });
+
+  it("keeps a refusal to say where the task stands", async () => {
+    const client = fakeClient({
+      "GET /tasks/{task_id}": { problem: { code: "NOT_FOUND", status: 404 } },
+    });
+    const outcome = await decodeTask(() =>
+      client.GET("/tasks/{task_id}", { params: { path: { task_id: TASK_ID } } }),
+    );
+    expect(outcome).toEqual({
+      kind: "refused",
+      problem: { code: "NOT_FOUND", status: 404 },
+      conflictingObjectId: null,
+    });
   });
 });

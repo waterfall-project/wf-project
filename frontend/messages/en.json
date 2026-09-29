@@ -54,6 +54,22 @@
     "reload": "Reload",
     "signIn": "Sign in"
   },
+  "tasks": {
+    "label": "Background tasks",
+    "named": "{kind} ‘{subject}’",
+    "progress": "{progress}%",
+    "succeeded": "Task finished: {task}.",
+    "failed": "Task failed: {task}.",
+    "relaunch": "Run again",
+    "dismiss": "Stop following: {task}"
+  },
+  "markRevision": {
+    "versionName": "Version name",
+    "versionNameRequired": "The version name is required.",
+    "description": "Description (optional)",
+    "submit": "Mark",
+    "cancel": "Cancel"
+  },
   "notFound": {
     "title": "Not found",
     "explanation": "This address leads to nothing you can consult.",

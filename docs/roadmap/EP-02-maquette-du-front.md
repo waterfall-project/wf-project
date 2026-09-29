@@ -378,6 +378,12 @@ fond d'un utilisateur, la révision ouverte par défaut.
   contrat a partout ailleurs remplacé la phrase par un code (`ErrorCode`,
   `CommandCondition`) — US-0100/L1, ouvert en #137. D'ici là, le front affiche le motif tel
   que l'API le donne.
+- Le contrat n'a pas de liste des tâches de fond d'un utilisateur : une tâche ne se relit que
+  par son `task_id`, que seul l'onglet qui l'a lancée connaît — US-0180/L1, ouvert en #146.
+  D'ici là, le suivi garde les références des tâches qui courent dans le stockage de session
+  de l'onglet (`sessionStorage`) : un rechargement complet les suit encore, sans la commande
+  qui les a lancées — une tâche suivie après un rechargement ne se relance que de son écran —,
+  mais un autre onglet ou un autre poste n'en sait rien.
 
 ### Ordre de construction
 
@@ -664,7 +670,7 @@ pas une protection.
 
 ## US-0180 — Traitements longs : suivi et signalement
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`
 - **opérations** : `getBackgroundTask`, `getBackgroundTaskResult`, `markRevision`
 - **issue** : #82

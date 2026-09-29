@@ -213,3 +213,27 @@ export async function decode<T>(call: () => Promise<Answer<T>>): Promise<Outcome
   const answer = await reach(call);
   return answer === undefined ? { kind: "unreachable" } : decodeAnswer(answer);
 }
+
+/** The reference of a background task (WF-ARC-0090). */
+export type BackgroundTask = components["schemas"]["BackgroundTaskRef"];
+
+/**
+ * Call an operation that answers with a background task — one that starts it, or the read of
+ * its progress — and decode its answer. The motive of a failed task is an envelope within a
+ * success, which the decoding of a refusal does not see: it is held to the same rule — a code
+ * the catalogue does not know is the unexpected error —, and a failure without a motive is the
+ * unexpected error too, so that the screen always has a motive to render.
+ */
+export async function decodeTask(
+  call: () => Promise<Answer<BackgroundTask>>,
+): Promise<Outcome<BackgroundTask>> {
+  const outcome = await decode(call);
+  if (outcome.kind !== "done" || outcome.data.status !== "failed") {
+    return outcome;
+  }
+  const motive = outcome.data.problem ?? undefined;
+  return {
+    kind: "done",
+    data: { ...outcome.data, problem: envelope(motive, motive?.status ?? 500) },
+  };
+}

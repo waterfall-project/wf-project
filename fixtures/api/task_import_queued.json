@@ -1,0 +1,13 @@
+{
+  "summary": "L'application d'un import au projet, mise en file : elle n'a pas encore commencé.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000902",
+    "kind": "import_apply",
+    "status": "queued",
+    "progress": 0,
+    "submitted_at": "2026-06-01T09:00:00Z",
+    "finished_at": null,
+    "problem": null,
+    "result_url": null
+  }
+}
