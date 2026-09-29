@@ -166,6 +166,26 @@ describe("fakeClient", () => {
     expect(client.calls).toHaveLength(3);
   });
 
+  it("holds an answer until told, so that a later call is answered first", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const client = fakeClient(
+      { "GET /projects": ["projects", NOT_FOUND] },
+      { hold: (route, index) => (route === "GET /projects" && index === 0 ? held : undefined) },
+    );
+    const settled: number[] = [];
+    const first = client.GET("/projects").then(({ response }) => settled.push(response.status));
+    const second = client.GET("/projects").then(({ response }) => settled.push(response.status));
+    await second;
+    expect(settled).toEqual([404]);
+    release();
+    await first;
+    expect(settled).toEqual([404, 200]);
+    expect(client.calls).toHaveLength(2);
+  });
+
   it("keeps a sequence per route", async () => {
     const client = fakeClient({
       "GET /projects": ["projects", NOT_FOUND],

@@ -11,6 +11,8 @@ test("opens the list of projects, a project, and reads a grid [WF-QUA-0050-A]", 
     "Modernisation du poste de commande",
   );
   await page.getByRole("link", { name: "Référence" }).click();
-  await expect(page.locator("tbody tr")).toHaveCount(4);
-  await expect(page.getByRole("cell", { name: "Ingénierie de détail" })).toBeVisible();
+  // The grid of the estimate: its header, the four nodes of the structure, its totals.
+  const grid = page.getByRole("grid", { name: "Grille de devis" });
+  await expect(grid.getByRole("row")).toHaveCount(6);
+  await expect(grid.getByRole("gridcell", { name: "Ingénierie de détail" })).toBeVisible();
 });

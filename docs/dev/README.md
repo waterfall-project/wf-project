@@ -146,6 +146,34 @@ aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une val
 enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext` (`indicator.tsx`).
 
+Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
+écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
+— clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
+calculée ou non, figée ou non, colonne `sort_by` du contrat — et, s'il y en a un, son arbre
+(niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des
+fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
+(`estimate-grid.tsx`), et la page, serveur, ne lui passe que des données. Le tri et la
+recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`, `search`,
+`query.ts`) : un en-tête cliqué ou une recherche saisie change l'adresse, la page relit
+l'opération avec eux, et la grille rend les lignes dans l'ordre reçu, les totaux de la
+réponse en pied — TanStack Table n'y enregistre aucun modèle trié, filtré ni groupé. Seules
+les lignes visibles sont rendues (`row-window.ts`, sur `@tanstack/virtual-core`) : le
+virtualiseur est lu comme un magasin dont l'instantané est une donnée, qui ne change que
+quand la fenêtre bouge. Le React Compiler n'est pas activé dans ce front, mais le lint de
+React refuse l'adaptateur de TanStack Virtual, dont un rendu compilé figerait les réponses
+(`react-hooks/incompatible-library`). La hauteur d'une ligne suit la taille de la police
+racine (1,75 rem). L'en-tête et les totaux sont collés au haut et au pied de la grille, le
+numéro et le libellé à son début. Colonnes masquées, largeurs et tri sont une préférence
+d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
+chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une colonne ou une largeur
+s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
+quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
+porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
+d'en-tête écrit le tri, en même temps que la navigation qui le montre. L'adresse fait foi :
+un tri levé y reste, `sort_by` vide, et le tri gardé ne sert que quand elle ne dit rien du
+tri. La grille de devis est à la route de sa fonction, `…/revisions/[r]/estimate`, où mène
+la révision elle-même.
+
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
 celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission
@@ -724,7 +752,7 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   ligne.** Pour les fonctions, les blocs, les commandes, les pages du compte et les natures de
   ligne, elle est tirée d'une table typée sur ce qu'elle représente — `FUNCTION_ICONS`,
   `GROUP_ICONS`, `PROJECT_COMMAND_ICONS` et `REVISION_COMMAND_ICONS`, `ACCOUNT_ICONS`,
-  `RowNatureIcon` —, de sorte qu'une valeur ajoutée sans icône casse le typage ; ailleurs — un
+  `ROW_NATURE_ICONS` —, de sorte qu'une valeur ajoutée sans icône casse le typage ; ailleurs — un
   bouton de la coquille, un avis, une page système —, elle est posée en ligne. Une icône à côté de son texte est `aria-hidden` ; une
   icône seule porte un nom — le bouton qui la porte, ou l'icône elle-même (`role="img"`), la
   nature d'une ligne dans sa cellule.

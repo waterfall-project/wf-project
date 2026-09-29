@@ -2,32 +2,59 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The nature of a row of a structure, shown by its icon (charter, guide « Charte graphique »):
- * a summary task, a milestone, a task, a line of the estimate — read from the node as the API
- * gives it, its kind and the flags of its task, never deduced from its figures. The icon bears
- * the name of the nature: in a dense grid it stands alone in its cell.
+ * a summary task, a task, a milestone; a line of labour, of disbursement, of provision — read
+ * from the node as the API gives it, its kind and its flags, never deduced from its figures.
+ * A line is a provision when the API says its amount is computed from a risk (`is_computed`),
+ * and labour when it names a resource role, which the contract requires of a labour category
+ * and forbids to the others (WF-DEV-0020). The icon bears the name of the nature: in a dense
+ * grid it stands alone before the label.
  */
-import { ClipboardList, Diamond, Folder, type LucideIcon, Receipt } from "lucide-react";
+import {
+  ClipboardList,
+  Diamond,
+  Folder,
+  type LucideIcon,
+  Receipt,
+  ShieldAlert,
+  User,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 
-/** The nature of a row. */
-export type RowNature = "summary" | "milestone" | "task" | "estimateLine";
-
 /** A node of a structure, as the API reads it. */
 type Node = components["schemas"]["Node"];
 
-const ICONS: Readonly<Record<RowNature, LucideIcon>> = {
+/** The icon of each nature of a row: a nature added without one breaks the typing. */
+export const ROW_NATURE_ICONS = {
   summary: Folder,
-  milestone: Diamond,
   task: ClipboardList,
-  estimateLine: Receipt,
-};
+  milestone: Diamond,
+  labour: User,
+  disbursement: Receipt,
+  provision: ShieldAlert,
+} as const satisfies Readonly<Record<string, LucideIcon>>;
 
-/** The nature of a node, from its kind and the flags of its task. */
+/** The nature of a row. */
+export type RowNature = keyof typeof ROW_NATURE_ICONS;
+
+/** The nature of a line of the estimate, from the flags of its facet. */
+function lineNature(line: Node["estimate_line"]): RowNature {
+  if (line?.is_computed === true) {
+    return "provision";
+  }
+  return line?.resource_role_id === undefined || line.resource_role_id === null
+    ? "disbursement"
+    : "labour";
+}
+
+/**
+ * The nature of a node: its kind tells a task from a line, the flags of its facet the rest —
+ * a facet the API left out has none raised.
+ */
 export function rowNature(node: Node): RowNature {
   if (node.kind === "estimate_line") {
-    return "estimateLine";
+    return lineNature(node.estimate_line);
   }
   if (node.task?.is_summary === true) {
     return "summary";
@@ -39,8 +66,8 @@ export function rowNature(node: Node): RowNature {
 export function RowNatureIcon({ node }: { readonly node: Node }) {
   const t = useTranslations("rowNature");
   const nature = rowNature(node);
-  const Icon = ICONS[nature];
+  const Icon = ROW_NATURE_ICONS[nature];
   return (
-    <Icon role="img" aria-label={t(nature)} className="size-4 shrink-0 text-muted-foreground" />
+    <Icon role="img" aria-label={t(nature)} className="size-3.5 shrink-0 text-muted-foreground" />
   );
 }

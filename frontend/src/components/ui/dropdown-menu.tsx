@@ -99,6 +99,28 @@ export function DropdownMenuRadioItem({
   );
 }
 
+/** An entry that is on or off — a column of a grid shown or hidden —: a mark in front when on. */
+export function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      data-slot="dropdown-menu-checkbox-item"
+      className={cn(ENTRY, "pl-8", className)}
+      {...props}
+    >
+      <span className="pointer-events-none absolute left-2 flex size-4 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Check aria-hidden="true" className="size-4 text-foreground" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.CheckboxItem>
+  );
+}
+
 /** A label within a menu: what the entries after it are about. */
 export function DropdownMenuLabel({
   className,

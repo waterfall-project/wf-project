@@ -113,7 +113,40 @@
     "summary": "Tâche récapitulative",
     "task": "Tâche",
     "milestone": "Jalon",
-    "estimateLine": "Ligne de devis"
+    "labour": "Ligne de main-d’œuvre",
+    "disbursement": "Ligne de débours",
+    "provision": "Ligne de provision"
+  },
+  "grid": {
+    "names": {
+      "estimate": "Grille de devis"
+    },
+    "columns": {
+      "rowNumber": "N°",
+      "label": "Libellé",
+      "quantity": "Qté",
+      "hours": "Charge (h)",
+      "unitDisbursement": "Débours unit.",
+      "budgetedAmount": "Budgété",
+      "reestimatedAmount": "Réestimé",
+      "startDate": "Début",
+      "finishDate": "Fin"
+    },
+    "computed": "Calculé",
+    "resize": "Largeur de la colonne {column}",
+    "empty": "Aucune ligne ne répond à la demande.",
+    "search": {
+      "label": "Rechercher un libellé",
+      "placeholder": "Rechercher un libellé"
+    },
+    "columnsMenu": {
+      "open": "Colonnes",
+      "title": "Colonnes affichées"
+    }
+  },
+  "estimateGrid": {
+    "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}",
+    "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}"
   },
   "contextBanner": {
     "label": "Contexte de lecture",

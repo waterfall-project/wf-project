@@ -1,0 +1,157 @@
+{
+  "summary": "Un devis d'une ligne de chaque nature : sous une tâche qui s'achève le 30 juin, une ligne de main-d'œuvre, un débours de 1 234,56 et une provision ; le jalon de réception, le 30 juin (WF-INTF-0180, WF-DAT-0100).",
+  "value": {
+    "items": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000521",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+        "kind": "task",
+        "parent_id": null,
+        "position": 0,
+        "row_number": 1,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Poste de commande",
+          "scheduling_mode": "automatic",
+          "duration_days": 42,
+          "start_date": "2026-05-04",
+          "finish_date": "2026-06-30",
+          "progress": "not_started",
+          "is_summary": true,
+          "is_milestone": false,
+          "budgeted_amount": "2734.56",
+          "reestimated_amount": "2734.56"
+        },
+        "computed_fields": ["task.duration_days", "task.start_date", "task.finish_date", "task.progress"]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000522",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 0,
+        "row_number": 2,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Câblage des armoires",
+          "scheduling_mode": "automatic",
+          "duration_days": 42,
+          "start_date": "2026-05-04",
+          "finish_date": "2026-06-30",
+          "progress": "not_started",
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "2734.56",
+          "reestimated_amount": "2734.56"
+        },
+        "computed_fields": ["task.start_date", "task.finish_date"]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000523",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+        "kind": "estimate_line",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000522",
+        "position": 0,
+        "row_number": 3,
+        "level": 3,
+        "lock_version": 1,
+        "estimate_line": {
+          "label": "Raccordement des borniers",
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+          "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+          "quantity": "1",
+          "hours": "12.5",
+          "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "budgeted_amount": "1000.00",
+          "reestimated_amount": "1000.00",
+          "previous_reestimated_amount": null,
+          "is_computed": false,
+          "remaining_entry": { "is_available": true, "missing_conditions": [] }
+        },
+        "computed_fields": []
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000524",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000624",
+        "kind": "estimate_line",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000522",
+        "position": 1,
+        "row_number": 4,
+        "level": 3,
+        "lock_version": 1,
+        "estimate_line": {
+          "label": "Borniers",
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+          "resource_role_id": null,
+          "quantity": "1",
+          "hours": null,
+          "unit_disbursement": "1234.56",
+          "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "budgeted_amount": "1234.56",
+          "reestimated_amount": "1234.56",
+          "previous_reestimated_amount": null,
+          "is_computed": false,
+          "remaining_entry": { "is_available": true, "missing_conditions": [] }
+        },
+        "computed_fields": []
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000525",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000625",
+        "kind": "estimate_line",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000522",
+        "position": 2,
+        "row_number": 5,
+        "level": 3,
+        "lock_version": 1,
+        "estimate_line": {
+          "label": "Provision — risque de reprise du câblage",
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000404",
+          "resource_role_id": null,
+          "quantity": "1",
+          "hours": null,
+          "unit_disbursement": "500.00",
+          "subproject_id": null,
+          "budgeted_amount": "500.00",
+          "reestimated_amount": "500.00",
+          "previous_reestimated_amount": null,
+          "is_computed": true,
+          "remaining_entry": { "is_available": true, "missing_conditions": [] }
+        },
+        "computed_fields": ["estimate_line.quantity", "estimate_line.unit_disbursement"]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000526",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000626",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 1,
+        "row_number": 6,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Réception usine",
+          "scheduling_mode": "automatic",
+          "duration_days": 0,
+          "start_date": "2026-06-30",
+          "finish_date": "2026-06-30",
+          "progress": "not_started",
+          "is_summary": false,
+          "is_milestone": true,
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00"
+        },
+        "computed_fields": ["task.start_date", "task.finish_date"]
+      }
+    ],
+    "totals": {
+      "task_count": 3,
+      "estimate_line_count": 3,
+      "hours": "12.5",
+      "budgeted_amount": "2734.56",
+      "reestimated_amount": "2734.56"
+    }
+  }
+}

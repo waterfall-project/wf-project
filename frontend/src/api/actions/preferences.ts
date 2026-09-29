@@ -10,10 +10,11 @@
 import { refresh } from "next/cache";
 
 import type { components } from "@/api/generated/schema";
-import { decode, type Outcome } from "@/api/problem";
+import { decode, type Outcome, type Settled, settled } from "@/api/problem";
 import { serverClient } from "@/api/server";
 
 type DisplayPreferences = components["schemas"]["DisplayPreferences"];
+type GridPreferences = components["schemas"]["GridPreferences"];
 
 /**
  * Record a display preference of the account, and render the page again: the next render
@@ -46,6 +47,23 @@ export async function updateDisplay(
   preferences: Required<Pick<DisplayPreferences, "language" | "theme">>,
 ): Promise<Outcome<DisplayPreferences>> {
   return update({ language: preferences.language, theme: preferences.theme });
+}
+
+/**
+ * Record the settings of one grid — its hidden columns, its widths — under its key, which the
+ * API replaces whole and alone among the grids (WF-IHM-0060, WF-ADM-0040). The page is not
+ * rendered again: the grid already shows what it records, and reading the structure anew for
+ * a width would cost the second of §4.6.2 for nothing.
+ */
+export async function updateGridPreferences(
+  grid: string,
+  preferences: GridPreferences,
+): Promise<Settled> {
+  return settled(
+    await decode(() =>
+      serverClient().PATCH("/me/preferences", { body: { grids: { [grid]: preferences } } }),
+    ),
+  );
 }
 
 /** Record the display mode: `default`, which follows the workstation, `light` or `dark`. */

@@ -12,19 +12,28 @@ import { rowNature, RowNatureIcon } from "./row-nature";
 
 type Node = components["schemas"]["Node"];
 
-const [summary, task, line] = (example("nodes") as { items: Node[] }).items;
+const nodes = (name: string) => (example(name) as { items: Node[] }).items;
 
 // A milestone of the contract, carried by its summary task (`nodes_milestone`).
-const [, milestone] = (example("nodes_milestone") as { items: Node[] }).items;
+const [, milestone] = nodes("nodes_milestone");
 
 describe("the nature of a row", () => {
-  it("is read from the kind of the node and the flags of its task", () => {
-    expect([summary, task, line].map((node) => node && rowNature(node))).toEqual([
+  it("is read from the kind of the node and the flags of its facet", () => {
+    expect(nodes("nodes").map(rowNature)).toEqual(["summary", "task", "disbursement", "task"]);
+    expect(nodes("nodes_estimate").map(rowNature)).toEqual([
       "summary",
       "task",
-      "estimateLine",
+      "labour",
+      "disbursement",
+      "provision",
+      "milestone",
     ]);
-    expect(milestone && rowNature(milestone)).toBe("milestone");
+  });
+
+  it("takes a line without its facet for a disbursement, and a task without its facet for a task", () => {
+    const [summary, , line] = nodes("nodes");
+    expect(line && rowNature({ ...line, estimate_line: null })).toBe("disbursement");
+    expect(summary && rowNature({ ...summary, task: null })).toBe("task");
   });
 
   it("shows as an icon named for it, in the language of the page", () => {

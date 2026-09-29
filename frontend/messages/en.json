@@ -113,7 +113,40 @@
     "summary": "Summary task",
     "task": "Task",
     "milestone": "Milestone",
-    "estimateLine": "Estimate line"
+    "labour": "Labour line",
+    "disbursement": "Disbursement line",
+    "provision": "Provision line"
+  },
+  "grid": {
+    "names": {
+      "estimate": "Estimate grid"
+    },
+    "columns": {
+      "rowNumber": "No.",
+      "label": "Label",
+      "quantity": "Qty",
+      "hours": "Effort (h)",
+      "unitDisbursement": "Unit disbursement",
+      "budgetedAmount": "Budgeted",
+      "reestimatedAmount": "Re-estimated",
+      "startDate": "Start",
+      "finishDate": "Finish"
+    },
+    "computed": "Computed",
+    "resize": "Width of the column {column}",
+    "empty": "No row matches the request.",
+    "search": {
+      "label": "Search a label",
+      "placeholder": "Search a label"
+    },
+    "columnsMenu": {
+      "open": "Columns",
+      "title": "Columns shown"
+    }
+  },
+  "estimateGrid": {
+    "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}",
+    "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}"
   },
   "contextBanner": {
     "label": "Reading context",
