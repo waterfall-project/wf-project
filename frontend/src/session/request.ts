@@ -8,7 +8,9 @@
  * a second time.
  *
  * Without a session — none open, or an API out of reach — the session is `undefined`: the
- * page renders without preferences, and the shell offers neither selectors nor functions.
+ * page renders without preferences, and the shell offers no selectors. Its state tells the
+ * two apart for the navigation: none open, it offers no function; none that can be read, the
+ * status screen still (WF-ADM-0130).
  */
 import "server-only";
 
@@ -28,10 +30,28 @@ export type Account = Session["user"];
 export type Permission = components["schemas"]["PermissionCode"];
 
 /**
+ * What a request knows of its session: `open`, with its account and its permissions;
+ * `signed_out`, the API saying there is none (401); `unreadable`, when there is none to read
+ * — the API out of reach, or an answer that is neither.
+ */
+export type SessionState =
+  | { readonly kind: "open"; readonly session: Session }
+  | { readonly kind: "signed_out" | "unreadable" };
+
+/** The state of the session of the request, read once per request, however many ask. */
+export const requestSessionState = cache(async (): Promise<SessionState> => {
+  const answer = await reach(() => serverClient().GET("/session"));
+  if (answer?.data !== undefined) {
+    return { kind: "open", session: answer.data };
+  }
+  return { kind: answer?.response.status === 401 ? "signed_out" : "unreadable" };
+});
+
+/**
  * The session of the request, its permissions evaluated by the API at every request
  * (WF-ADM-0110), or `undefined` without one.
  */
 export const requestSession = cache(async (): Promise<Session | undefined> => {
-  const answer = await reach(() => serverClient().GET("/session"));
-  return answer?.data;
+  const state = await requestSessionState();
+  return state.kind === "open" ? state.session : undefined;
 });

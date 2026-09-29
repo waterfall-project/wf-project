@@ -11,8 +11,9 @@ import "server-only";
 
 import { cache } from "react";
 
+import { Unreachable } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { isGatewayFailure, reach } from "@/api/problem";
+import { isGatewayFailure, reach, refusalOf } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
   type ContextParameter,
@@ -65,31 +66,14 @@ export interface ProjectReading {
   readonly filters: readonly ContextFilter[];
 }
 
-/**
- * An answer of the API to a read of a screen that is neither a success nor "not found": a
- * refusal without a session — a screen of a project means nothing without an account — or a
- * failure of the server. The page does not swallow it: it throws, and the screen of failure
- * shows it (US-0090/L2, #101).
- */
-export class UnexpectedAnswer extends Error {
-  /** The answer of an operation, by its `operationId` and its status. */
-  constructor(
-    readonly operation: string,
-    readonly status: number,
-  ) {
-    super(`${operation} answered ${String(status)}`);
-    this.name = "UnexpectedAnswer";
-  }
-}
-
 /** Throw on an answer that is neither a success nor "not found"; leave the others be. */
 function refuseUnexpected(
   operation: string,
-  answer: { readonly response: Response } | undefined,
+  answer: { readonly response: Response; readonly error?: unknown } | undefined,
 ): void {
   const status = answer?.response.status;
   if (status !== undefined && status !== 404 && !answer?.response.ok) {
-    throw new UnexpectedAnswer(operation, status);
+    throw refusalOf(operation, status, answer?.error);
   }
 }
 
@@ -166,17 +150,18 @@ async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
  * - `"not_found"` when the API finds neither the project nor the revision the address names
  *   — or does not let the user read them, which it answers alike (WF-ADM-0110): the page is
  *   not found;
- * - `undefined` when the API cannot be reached at all — `fetch` rejected, or a gateway said
- *   the service is down (`isGatewayFailure`): there is nothing to name, so no banner, and the page goes on to say the API is out of reach (US-0090/L2, #101);
  * - the reading itself on success.
  *
- * Any other answer — no session, a failure of the server — throws `UnexpectedAnswer`: a
- * banner left out on such an answer would hide which revision the screen reads in.
+ * The API out of reach — `fetch` rejected, or a gateway said the service is down
+ * (`isGatewayFailure`) — throws `Unreachable`, which the screen of failure announces as such;
+ * a 401 throws `SignedOut`, which leads to the sign-in page; any other answer — a failure of
+ * the server — throws `UnexpectedAnswer`: a screen of a project left without its banner would
+ * hide which revision it reads in.
  */
 export async function readProjectContext(
   pathname: string,
   context: ProjectContext,
-): Promise<ProjectReading | "not_found" | undefined> {
+): Promise<ProjectReading | "not_found"> {
   const { projectId, revisionId } = context;
   const [project, revision, filters] = await Promise.all([
     readProject(projectId),
@@ -188,8 +173,9 @@ export async function readProjectContext(
   }
   refuseUnexpected("getProject", project);
   refuseUnexpected("getRevision", revision);
+  // What is left without its data is out of reach: every other answer was refused above.
   if (project?.data === undefined || (revisionId !== undefined && revision?.data === undefined)) {
-    return undefined;
+    throw new Unreachable();
   }
   const read = revision?.data;
   return {
@@ -211,7 +197,7 @@ export async function readProjectContext(
 export async function readAddress(
   pathname: string,
   search: SearchParameters,
-): Promise<ProjectReading | "not_found" | undefined> {
+): Promise<ProjectReading | "not_found"> {
   const context = readContext(pathname, search);
   return context === undefined ? "not_found" : readProjectContext(pathname, context);
 }

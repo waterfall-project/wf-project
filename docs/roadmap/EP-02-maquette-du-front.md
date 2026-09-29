@@ -444,7 +444,7 @@ chaque écran s'invente le sien.
 
 ## US-0100 — Bandeau de contexte de lecture
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0020-A`
 - **opérations** : `getRevision`, `listRevisions`, `listSubprojects`
 - **issue** : #74

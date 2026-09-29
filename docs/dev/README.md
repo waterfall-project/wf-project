@@ -75,6 +75,28 @@ existe dès la coquille, servie par la page d'attente `frontend/src/app/[...path
 qui répond « introuvable » quand l'API ne trouve pas le projet ou la révision ; le lot d'un
 écran écrit sa page à la même route, qui l'emporte sur elle.
 
+Les pages système sont des pièces de la coquille (`frontend/src/app/`,
+`frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
+`readOrFail` de `frontend/src/api/problem.ts`, qui rend ses données ou lève : un 404 mène à
+l'écran « introuvable » unique (`not-found.tsx`), qu'une adresse inexistante et une lecture
+refusée atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Unreachable`, et
+toute autre réponse `UnexpectedAnswer`. L'écran de panne (`error.tsx` dans la coquille,
+`global-error.tsx` quand le layout racine échoue) ne reçoit en production que le `digest` de
+l'erreur levée côté serveur : `Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme
+tel, `SignedOut` (un 401) `SESSION_REQUIRED_DIGEST`, qui mène à la connexion
+(`loginHref`), `UnexpectedAnswer` l'identifiant de corrélation de l'enveloppe, préfixé de
+`WATERFALL_CORRELATION;` pour qu'aucune valeur de l'API ne prenne un sens pour Next
+(`NEXT_REDIRECT;…`), et qu'il affiche en référence sans le préfixe (`failure.ts`). Sans
+enveloppe, ou sans `correlation_id`, la référence affichée est le digest que Next calcule,
+celui de ses propres journaux. Un écran ne dit jamais « vide » sur une réponse qu'il n'a pas
+lue. Quand la session est illisible, la navigation garde l'écran d'état (WF-ADM-0130).
+Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, qui
+porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujours ; la réponse est alors diffusée, et « introuvable » répond
+200 et non 404 — un 404 doux, que Next marque `noindex` : le statut part avec le squelette,
+avant que la page sache l'objet introuvable. Il est le même pour toute adresse introuvable,
+ce qui compte ici. Chaque état vide — aucun projet, projet sans révision, référentiel
+incomplet — se montre sur un exemple nommé du contrat (`empty`, `incomplete`).
+
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
 fois par requête — et le montre par `ContextBanner`, au-dessus de son `<main>`

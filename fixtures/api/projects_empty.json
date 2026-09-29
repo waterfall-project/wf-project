@@ -1,0 +1,11 @@
+{
+  "summary": "Aucun projet : une installation neuve, ou un appelant contributeur d'aucun projet quand la liste est filtrée sur les siens.",
+  "value": {
+    "items": [],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 0
+    }
+  }
+}

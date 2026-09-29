@@ -8,9 +8,11 @@ import { example } from "@/test/fixtures";
 
 import { readContext } from "./context";
 import {
+  diagnosticGroups,
   findScreen,
   FUNCTION_GROUPS,
   functionHref,
+  functionOf,
   PLATFORM_FUNCTIONS,
   readableGroups,
 } from "./functions";
@@ -124,6 +126,25 @@ describe("the functions offered", () => {
   it("keep the list of projects when no function of a project may be read", () => {
     expect(readableGroups(["users.read"]).map((group) => group.code)).toEqual(["FBS-1", "FBS-4"]);
     expect(readableGroups(["users.write"]).map((group) => group.code)).toEqual(["FBS-4"]);
+  });
+
+  it("keep the status screen alone when the session cannot be read", () => {
+    expect(
+      diagnosticGroups().map((group) => [group.code, ...group.functions.map((fn) => fn.route)]),
+    ).toEqual([["FBS-1", "/system"]]);
+  });
+});
+
+describe("the function of a permission", () => {
+  it("is the function of the table that reads with it", () => {
+    expect(functionOf("revisions").route).toBe("/projects/[projectId]/revisions");
+    expect(functionOf("cost_settings").code).toBe("FBS-3.1");
+  });
+
+  it("is a defect of the table when no function reads with it", () => {
+    expect(() => functionOf("platform_restore" as "users")).toThrow(
+      "no function of the table reads with platform_restore.read",
+    );
   });
 });
 

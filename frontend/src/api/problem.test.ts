@@ -4,8 +4,14 @@ import { describe, expect, it } from "vitest";
 
 import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
 
-import { createApiClient } from "./client";
-import { decode, reach } from "./problem";
+import {
+  failureOf,
+  SESSION_REQUIRED_DIGEST,
+  UNREACHABLE_DIGEST,
+} from "@/components/system/failure";
+
+import { createApiClient, Unreachable } from "./client";
+import { decode, reach, readOrFail, SignedOut, UnexpectedAnswer } from "./problem";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -185,5 +191,85 @@ describe("the decoder of an answer of the API", () => {
     await expect(decode(() => client.PATCH("/me/preferences", { body: {} }))).rejects.toThrow(
       "a defect",
     );
+  });
+});
+
+/** A failure of the service, in the envelope of the contract, with its correlation identifier. */
+function failure(correlationId: string): Response {
+  return Response.json(
+    { code: "INTERNAL_ERROR", status: 500, correlation_id: correlationId },
+    { status: 500, headers: { "content-type": "application/problem+json" } },
+  );
+}
+
+describe("a read a screen cannot do without", () => {
+  const readiness = (client: ReturnType<typeof answering>) =>
+    readOrFail("getReferenceReadiness", () => client.GET("/reference/readiness"));
+
+  it("gives the data of a success", async () => {
+    const client = fakeClient({ "GET /reference/readiness": "reference_readiness" });
+    expect(await readiness(client)).toEqual(example("reference_readiness"));
+  });
+
+  it("is not found on a 404: the object does not exist, or may not be read", async () => {
+    const client = fakeClient({
+      "GET /projects/{project_id}/revisions": { problem: { code: "NOT_FOUND", status: 404 } },
+    });
+    const read = readOrFail("listRevisions", () =>
+      client.GET("/projects/{project_id}/revisions", {
+        params: { path: { project_id: PROJECT } },
+      }),
+    );
+    await expect(read).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+  });
+
+  it("throws the API out of reach, marked so for the screen of failure, when fetch rejects", async () => {
+    const read = readiness(answering(() => Promise.reject(new TypeError("fetch failed"))));
+    await expect(read).rejects.toBeInstanceOf(Unreachable);
+    await expect(read).rejects.toMatchObject({ digest: UNREACHABLE_DIGEST });
+  });
+
+  it("throws the API out of reach when a gateway says the service is down", async () => {
+    const page = new Response("<html>Bad gateway</html>", { status: 502 });
+    const read = readiness(answering(() => Promise.resolve(page)));
+    await expect(read).rejects.toMatchObject({ digest: UNREACHABLE_DIGEST });
+  });
+
+  it("throws a refusal for want of a session as such, for the screen of failure to lead to the sign-in page", async () => {
+    const client = fakeClient({
+      "GET /reference/readiness": {
+        problem: { code: "SESSION_REQUIRED", status: 401, correlation_id: "req-7f3a" },
+      },
+    });
+    const read = readiness(client);
+    await expect(read).rejects.toBeInstanceOf(SignedOut);
+    await expect(read).rejects.toMatchObject({
+      operation: "getReferenceReadiness",
+      digest: SESSION_REQUIRED_DIGEST,
+    });
+  });
+
+  it("throws any other answer as unexpected, with the correlation identifier of the envelope", async () => {
+    const read = readiness(answering(() => Promise.resolve(failure("req-7f3a"))));
+    await expect(read).rejects.toBeInstanceOf(UnexpectedAnswer);
+    await expect(read).rejects.toMatchObject({
+      operation: "getReferenceReadiness",
+      status: 500,
+      digest: "WATERFALL_CORRELATION;req-7f3a",
+    });
+    const bare = readiness(answering(() => Promise.resolve(new Response("oops", { status: 500 }))));
+    await expect(bare).rejects.toMatchObject({ status: 500, digest: undefined });
+  });
+
+  it("never lets a correlation identifier stand as a digest Next gives a meaning to", async () => {
+    const hostile = "NEXT_REDIRECT;replace;https://evil.example;307;";
+    const error = await readiness(answering(() => Promise.resolve(failure(hostile)))).then(
+      () => {
+        throw new Error("the read should have been refused");
+      },
+      (thrown: unknown) => thrown as UnexpectedAnswer,
+    );
+    expect(error.digest?.startsWith("NEXT_")).toBe(false);
+    expect(failureOf(error)).toEqual({ kind: "unexpected", reference: hostile });
   });
 });

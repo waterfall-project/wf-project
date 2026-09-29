@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type ApiClient, createApiClient } from "@/api/client";
+import { type ApiClient, createApiClient, Unreachable } from "@/api/client";
+import { SignedOut, UnexpectedAnswer } from "@/api/problem";
 import { readContext } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import { readAddress, readProject, readProjectContext, UnexpectedAnswer } from "./reading";
+import { readAddress, readProject, readProjectContext } from "./reading";
 
 const server = vi.hoisted(() => ({
   client: undefined as ApiClient | undefined,
@@ -139,7 +140,7 @@ describe("what a screen of a project reads in", () => {
     request({
       "GET /projects/{project_id}": { problem: { code: "SESSION_REQUIRED", status: 401 } },
     });
-    await expect(read(LIFECYCLE)).rejects.toThrow(new UnexpectedAnswer("getProject", 401));
+    await expect(read(LIFECYCLE)).rejects.toBeInstanceOf(SignedOut);
     request({ "GET /projects/{project_id}/subprojects": NOT_FOUND });
     const reading = await read(`${LIFECYCLE}?subproject_id=${SUBPROJECT}`);
     expect(reading).toMatchObject({ filters: [{ name: "subproject_id", subproject: undefined }] });
@@ -150,17 +151,19 @@ describe("what a screen of a project reads in", () => {
     expect(await read("/system")).toBe("not_found");
   });
 
-  it("is nothing when the API is out of reach, which the page says", async () => {
+  it("throws the API out of reach, which the screen of failure announces", async () => {
     server.client = createApiClient({
       address: "http://unreachable.invalid",
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
     const context = readContext(REMAINING, new URLSearchParams());
-    expect(context && (await readProjectContext(REMAINING, context))).toBeUndefined();
+    await expect(context && readProjectContext(REMAINING, context)).rejects.toBeInstanceOf(
+      Unreachable,
+    );
   });
 
   it.each([502, 503, 504])(
-    "is nothing when a gateway answers %i without the envelope: the API is out of reach",
+    "throws the API out of reach when a gateway answers %i without the envelope",
     async (status) => {
       server.cached.clear();
       server.client = createApiClient({
@@ -175,26 +178,36 @@ describe("what a screen of a project reads in", () => {
       });
       const search = new URLSearchParams({ subproject_id: SUBPROJECT });
       const context = readContext(REMAINING, search);
-      expect(context && (await readProjectContext(REMAINING, context))).toBeUndefined();
+      await expect(context && readProjectContext(REMAINING, context)).rejects.toBeInstanceOf(
+        Unreachable,
+      );
     },
   );
 
-  it("still refuses a failure of the service the API tells in its envelope", async () => {
+  it("still refuses a failure of the service the API tells in its envelope, by its correlation identifier", async () => {
     server.cached.clear();
     server.client = createApiClient({
       address: "http://api.invalid",
       fetch: () =>
         Promise.resolve(
           Response.json(
-            { code: "COMPONENT_UNAVAILABLE", status: 503, params: { component: "database" } },
+            {
+              code: "COMPONENT_UNAVAILABLE",
+              status: 503,
+              params: { component: "database" },
+              correlation_id: "req-7f3a",
+            },
             { status: 503, headers: { "content-type": "application/problem+json" } },
           ),
         ),
     });
     const context = readContext(LIFECYCLE, new URLSearchParams());
-    await expect(context && readProjectContext(LIFECYCLE, context)).rejects.toBeInstanceOf(
-      UnexpectedAnswer,
-    );
+    const failure = context && readProjectContext(LIFECYCLE, context);
+    await expect(failure).rejects.toBeInstanceOf(UnexpectedAnswer);
+    await expect(failure).rejects.toMatchObject({
+      status: 503,
+      digest: "WATERFALL_CORRELATION;req-7f3a",
+    });
   });
 
   it("reads the project once for the request, however many ask", async () => {

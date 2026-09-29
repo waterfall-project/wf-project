@@ -38,8 +38,11 @@ export interface OutcomeNoticeProps {
 
 const ALERT = "space-y-1 text-sm text-destructive";
 
-/** The link to the sign-in page, which comes back to the screen shown: its path and its query. */
-function SignIn() {
+/**
+ * The link to the sign-in page, which comes back to the screen shown: its path and its query,
+ * as the browser shows them. The screen of failure offers it too, when a read wanted a session.
+ */
+export function SignIn() {
   const t = useTranslations("outcome");
   const query = useSearchParams().toString();
   const screen = `${usePathname()}${query === "" ? "" : `?${query}`}`;
