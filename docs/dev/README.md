@@ -575,10 +575,11 @@ non sur les mille tâches que le service rendra. Une ouverture va de son début 
 la navigation pour une grille ouverte par son adresse, le clic pour une grille ouverte depuis
 la barre latérale — jusqu'à la grille utilisable, c'est-à-dire dessinée et hydratée : dessinée,
 la première image où l'en-tête de ses colonnes, la légende de ses totaux et la première ligne
-de la réponse sont entièrement dans la fenêtre ; hydratée, la première image où React a repris
-la grille — le serveur en rend le premier écran, qui peut s'afficher avant qu'un clic n'y fasse
-rien —, que le parcours reconnaît aux clés que React pose sur le bouton d'un en-tête
-(`__reactProps$…`), un détail interne de React, lu par le test seul. Le plus tardif des deux
+de la réponse sont entièrement dans la fenêtre ; hydratée, la première image où la grille
+entière est rendue par React — le serveur en rend le premier écran, qui peut s'afficher avant
+qu'un clic n'y fasse rien —, que le parcours reconnaît aux clés que React pose, en l'hydratant,
+sur le dernier élément de la grille, la dernière cellule de ses totaux (`__reactProps$…`) : un
+détail interne de React, lu par le test seul. Le plus tardif des deux
 instants doit tenir la seconde. Un script remis à chaque document guette chaque image et note
 les instants sur l'horloge du système (`performance.timeOrigin`), qu'un document remplacé ne
 perd pas : ni les allers-retours de Playwright ni son attente n'y comptent. Elle se joue contre

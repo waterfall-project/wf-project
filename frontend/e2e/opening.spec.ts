@@ -12,9 +12,10 @@ import { expect, type Page, test } from "@playwright/test";
 // address; the click, for a grid opened from the navigation — until the grid is usable: drawn and
 // hydrated. Drawn is the first frame the browser draws with the header of its columns, the
 // caption of its totals and the first row of the answer wholly within the window; hydrated, the
-// first frame at which React has taken over the grid — the server renders its first screen, which
-// may show before a click does anything —, which the test tells by the keys React gives the
-// button of a header (`__reactProps$…`), an internal of React, read here and nowhere in the front.
+// first frame at which React has taken over the whole grid — the server renders its first screen,
+// which may show before a click does anything —, which the test tells by the keys React gives the
+// last element of the grid, the last cell of its totals (`__reactProps$…`), as it hydrates it: an
+// internal of React, read here and nowhere in the front.
 // The later of the two must hold the second. A script given to each document watches every frame
 // for them, and writes the times it finds, as the start, on the clock of the operating system
 // (`performance.timeOrigin`), which survives the document when a click loads another. Nothing of
@@ -71,7 +72,8 @@ function address(screen: GridScreen): string {
 /**
  * Run in each document from its start: keep the time of each click, and mark, for each grid, the
  * first frame at which its header, its totals and its first row are wholly within the window —
- * `drawn:` — and the first at which React has hydrated the button of a header — `hydrated:`. A
+ * `drawn:` — and the first at which React has hydrated the last cell of its totals, the last
+ * element of the grid — `hydrated:`. A
  * mark is named for the grid it marks; its detail is the time it was reached on the clock of the
  * operating system. Self-contained: Playwright hands its source to the page.
  */
@@ -96,8 +98,8 @@ function markUsableGrids(clicked: string): void {
       inWindow(grid.querySelector("tfoot td")) &&
       inWindow(grid.querySelector('tbody tr[aria-rowindex="2"] td')),
     hydrated: (grid: Element): boolean => {
-      const button = grid.querySelector("thead button");
-      return button !== null && Object.keys(button).some((key) => key.startsWith("__reactProps$"));
+      const last = grid.querySelector("tfoot tr:last-child td:last-child");
+      return last !== null && Object.keys(last).some((key) => key.startsWith("__reactProps$"));
     },
   };
   document.addEventListener(
