@@ -8,9 +8,12 @@
  * hold back what it contains —, says that the screen loads: a reader finds it by its role and
  * its name. Whether it is spoken as it appears depends on the reader: a live region inserted
  * with its text already in it is not announced by every one. The pulse stops when the
- * workstation asks for less motion.
+ * workstation asks for less motion. It takes the template of a dense screen (`SCREEN`), so that
+ * the page does not jump when it replaces it.
  */
 import { useTranslations } from "next-intl";
+
+import { SCREEN } from "@/components/shell/page-header";
 
 const ROWS = ["w-full", "w-11/12", "w-5/6", "w-2/3"] as const;
 const BLOCK = "rounded-md bg-muted motion-safe:animate-pulse";
@@ -19,7 +22,7 @@ const BLOCK = "rounded-md bg-muted motion-safe:animate-pulse";
 export function ScreenSkeleton() {
   const t = useTranslations("loading");
   return (
-    <main aria-label={t("label")} className="space-y-4 p-6">
+    <main aria-label={t("label")} className={SCREEN.dense}>
       <p role="status" aria-label={t("label")} className="sr-only">
         {t("label")}
       </p>

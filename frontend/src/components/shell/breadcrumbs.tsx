@@ -34,6 +34,10 @@ export function Breadcrumbs() {
   const crumbs = crumbsOf(pathname, context);
   const text = (crumb: Crumb) =>
     crumb.kind === "label" ? t(crumb.label) : (project?.label ?? t("projectSwitcher.unnamed"));
+  // An address that leads nowhere sits nowhere: no navigation without a step.
+  if (crumbs.length === 0) {
+    return null;
+  }
   return (
     <Breadcrumb aria-label={t("breadcrumbs.label")} className="min-w-0 flex-1">
       <BreadcrumbList className="flex-nowrap">

@@ -95,7 +95,14 @@ export function ContextBanner({ reading }: ContextBannerProps) {
       aria-label={t("contextBanner.label")}
       className="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted px-5 py-1.5 text-xs text-foreground"
     >
-      <ShowProject project={project} />
+      <ShowProject
+        project={{
+          project_id: project.project_id,
+          label: project.label,
+          code: project.code ?? null,
+          state: project.state,
+        }}
+      />
       <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <div className={FACT}>
           <dt>

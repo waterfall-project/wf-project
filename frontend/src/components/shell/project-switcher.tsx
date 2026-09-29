@@ -63,7 +63,11 @@ export function ProjectSwitcher() {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton size="lg" tooltip={title}>
+            <SidebarMenuButton
+              size="lg"
+              tooltip={title}
+              className="data-[state=open]:bg-sidebar-accent"
+            >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                 <Waves aria-hidden="true" className="size-4" />
               </span>

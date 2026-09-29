@@ -157,7 +157,8 @@ function functionEntries(
  * A block of the FBS outside any project, which opens on its functions: open at first when it
  * holds the page shown — or always, when the session cannot be read and the status screen is
  * all there is —, and as the user leaves it after. Once the bar is a rail, its functions are
- * hidden: pressing the block unfolds the bar on them.
+ * hidden and the block says it is closed; the block of the page shown is marked current, and
+ * pressing a block unfolds the bar on its functions.
  */
 function PlatformBlock({
   group,
@@ -170,7 +171,8 @@ function PlatformBlock({
 }) {
   const t = useTranslations();
   const { state, isMobile, setOpen: unfold } = useSidebar();
-  const holdsPage = diagnostic || entries.some((entry) => entry.current);
+  const current = entries.some((entry) => entry.current);
+  const holdsPage = diagnostic || current;
   const [toggled, toggle] = useState<boolean>();
   // A page of the block shown anew opens it again, whatever the user did before.
   const [held, hold] = useState(holdsPage);
@@ -184,18 +186,22 @@ function PlatformBlock({
   return (
     <Collapsible
       asChild
-      open={toggled ?? holdsPage}
+      open={rail ? false : (toggled ?? holdsPage)}
       onOpenChange={(open) => {
         if (rail) {
           unfold(true);
         }
-        toggle(rail || open);
+        toggle(open);
       }}
       className="group/collapsible"
     >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton type="button" tooltip={label}>
+          <SidebarMenuButton
+            type="button"
+            tooltip={label}
+            aria-current={rail && current ? "true" : undefined}
+          >
             <Icon aria-hidden="true" />
             <span>{label}</span>
             <ChevronRight
@@ -348,6 +354,7 @@ export function Navigation({ permissions, remembered, theme }: NavigationProps) 
       <SidebarHeader>
         <Link
           href="/"
+          data-rail-hidden=""
           className="rounded-md px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:hidden"
         >
           <Logo theme={theme} />

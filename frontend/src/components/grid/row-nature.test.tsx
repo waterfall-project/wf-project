@@ -14,7 +14,11 @@ type Node = components["schemas"]["Node"];
 
 const [summary, task, line] = (example("nodes") as { items: Node[] }).items;
 
-/** A task of the contract made a milestone, as the API flags one. */
+/**
+ * A task of the contract made a milestone, as the API flags one. An exception to the examples of
+ * the contract, which the coordinator of EP-02 accepted: no example has a milestone yet, and
+ * adding one to `nodes` would change totals that other tests hold fixed.
+ */
 function milestone(node: Node): Node {
   return node.task == null ? node : { ...node, task: { ...node.task, is_milestone: true } };
 }

@@ -21,11 +21,6 @@ export const THEME_PREFERENCES = [
   "dark",
 ] as const satisfies readonly ThemePreference[];
 
-/** Whether a value is one of the three values of the preference. */
-export function isThemePreference(value: unknown): value is ThemePreference {
-  return THEME_PREFERENCES.some((preference) => preference === value);
-}
-
 /**
  * The mode the document is forced into, for its `data-theme` attribute: none when the
  * preference follows the workstation, or when there is no account to have one.

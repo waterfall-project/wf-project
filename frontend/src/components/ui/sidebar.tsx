@@ -3,8 +3,11 @@
 /**
  * The side bar of shadcn/ui, copied into the repository as far as the shell needs it: unfolded,
  * or folded into a rail of icons whose entries keep their names — a tooltip shows each on hover
- * and on the focus —; on a narrow screen, a sheet over the page. Its state is kept as shadcn/ui
- * keeps it, in a cookie (`sidebar-state.ts`), and Ctrl+B or Cmd+B folds and unfolds it.
+ * and on the focus —; on a narrow screen, a sheet over the page, which closes once the user goes
+ * to another page. Its state is kept as shadcn/ui keeps it, in a cookie (`sidebar-state.ts`),
+ * and Ctrl+B or Cmd+B folds and unfolds it, while a bar is rendered. Folded, it gives the focus
+ * of what the rail hides — a function of a block, the logo — to what stays: the block, or the
+ * button that folds it.
  *
  * Adapted to the rules of the repository: its widths are tokens of the charter, not variables
  * set in a `style`; its texts come from the catalogue; its colours are the `sidebar-*` tokens,
@@ -16,6 +19,7 @@
 
 import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeft } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Slot } from "radix-ui";
 import {
@@ -41,6 +45,9 @@ const MOBILE = "(max-width: 767px)";
 
 /** The key that folds and unfolds the bar, with Ctrl or Cmd. */
 const SHORTCUT = "b";
+
+/** What the rail hides: the functions of a block, the logo. */
+const RAIL_HIDDEN = "data-rail-hidden";
 
 /** What the bar and its pieces share: whether it is unfolded, and how to fold it. */
 export interface SidebarState {
@@ -82,6 +89,21 @@ function useIsMobile(): boolean {
   );
 }
 
+/**
+ * Give the focus of what the rail is about to hide to what stays of it: the block of a function,
+ * or else the button that folds the bar — never to the document.
+ */
+function keepFocus() {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || active.closest(`[${RAIL_HIDDEN}]`) === null) {
+    return;
+  }
+  const block = active
+    .closest("[data-sidebar=menu-item]")
+    ?.querySelector<HTMLElement>("[data-sidebar=menu-button]");
+  (block ?? document.querySelector<HTMLElement>("[data-sidebar=trigger]"))?.focus();
+}
+
 /** Fold and unfold the bar with Ctrl+B or Cmd+B, wherever the focus is. */
 function useShortcut(toggle: () => void) {
   useEffect(() => {
@@ -112,8 +134,19 @@ export function SidebarProvider({
 }: SidebarProviderProps) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = useState(false);
+  // The sheet over the page closes once the user goes to another page: open, it would keep
+  // the page hidden from a screen reader and hold the focus. Adjusted while rendering.
+  const pathname = usePathname();
+  const [shownAt, showAt] = useState(pathname);
+  if (pathname !== shownAt) {
+    showAt(pathname);
+    setOpenMobile(false);
+  }
   const [open, setOpenState] = useState(defaultOpen);
   const setOpen = useCallback((value: boolean) => {
+    if (!value) {
+      keepFocus();
+    }
     setOpenState(value);
     document.cookie = sidebarCookie(value);
   }, []);
@@ -124,7 +157,6 @@ export function SidebarProvider({
       setOpen(!open);
     }
   }, [isMobile, open, setOpen]);
-  useShortcut(toggleSidebar);
   const value = useMemo<SidebarState>(
     () => ({
       state: open ? "expanded" : "collapsed",
@@ -152,10 +184,14 @@ export function SidebarProvider({
   );
 }
 
-/** The bar: fixed along the left edge on a wide screen, a sheet on a narrow one. */
+/**
+ * The bar: fixed along the left edge on a wide screen, a sheet on a narrow one; a landmark named
+ * for it. The shortcut that folds it listens while it is rendered.
+ */
 export function Sidebar({ className, children, ...props }: ComponentProps<"div">) {
   const t = useTranslations("sidebar");
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
+  useShortcut(toggleSidebar);
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
@@ -175,7 +211,8 @@ export function Sidebar({ className, children, ...props }: ComponentProps<"div">
     );
   }
   return (
-    <div
+    <aside
+      aria-label={t("label")}
       className="group peer hidden text-sidebar-foreground md:block"
       data-state={state}
       data-collapsible={state === "collapsed" ? "icon" : ""}
@@ -201,7 +238,7 @@ export function Sidebar({ className, children, ...props }: ComponentProps<"div">
           {children}
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 
@@ -349,7 +386,7 @@ export function SidebarMenuItem({ className, ...props }: ComponentProps<"li">) {
 
 /** The classes of the control of an entry, by size: the page shown marked `aria-current`. */
 export const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-sidebar-accent-foreground aria-[current=true]:bg-sidebar-accent aria-[current=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       size: {
@@ -408,6 +445,7 @@ export function SidebarMenuButton({
 export function SidebarMenuSub({ className, ...props }: ComponentProps<"ul">) {
   return (
     <ul
+      data-rail-hidden=""
       data-slot="sidebar-menu-sub"
       data-sidebar="menu-sub"
       className={cn(

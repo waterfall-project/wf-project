@@ -14,6 +14,7 @@ import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
 import { RowNatureIcon } from "@/components/grid/row-nature";
+import { Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch, readContext } from "@/navigation/context";
 
 /** The route parameters of a revision. */
@@ -73,7 +74,7 @@ export default async function RevisionPage({
   return (
     <>
       <ContextBanner reading={read} />
-      <main>
+      <Screen>
         <table>
           <tbody>
             {nodes.map((node) => (
@@ -87,7 +88,7 @@ export default async function RevisionPage({
             ))}
           </tbody>
         </table>
-      </main>
+      </Screen>
     </>
   );
 }

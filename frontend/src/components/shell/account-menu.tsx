@@ -20,7 +20,7 @@
 import { ChevronDown, Languages, LogOut, type LucideIcon, SunMoon } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 
 import { updateLanguage, updateTheme } from "@/api/actions/preferences";
 import type { components } from "@/api/generated/schema";
@@ -129,14 +129,15 @@ function Preferences({
   readonly write: (apply: () => Promise<Written>) => void;
 }) {
   const t = useTranslations();
+  const label = useId();
   if (language === undefined && theme === undefined) {
     return null;
   }
   return (
     <>
       <DropdownMenuSeparator />
-      <DropdownMenuGroup>
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
+      <DropdownMenuGroup aria-labelledby={label}>
+        <DropdownMenuLabel id={label} className="text-xs text-muted-foreground">
           {t("accountMenu.preferences")}
         </DropdownMenuLabel>
         {language === undefined ? null : (

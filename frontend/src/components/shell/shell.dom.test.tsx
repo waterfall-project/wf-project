@@ -27,9 +27,9 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const { user, permissions } = example("session") as components["schemas"]["Session"];
 const project = example("project") as components["schemas"]["Project"];
 
-/** Render a page in the shell, in French, for the account and the session of the contract. */
-function shell(props: Partial<ShellProps> = {}, page = <main />) {
-  return render(
+/** A page in the shell, in French, for the account and the session of the contract. */
+function inShell(props: Partial<ShellProps> = {}, page = <main />) {
+  return (
     <Shell
       locale="fr"
       account={user}
@@ -41,8 +41,13 @@ function shell(props: Partial<ShellProps> = {}, page = <main />) {
       {...props}
     >
       {page}
-    </Shell>,
+    </Shell>
   );
+}
+
+/** Render a page in the shell. */
+function shell(props: Partial<ShellProps> = {}, page = <main />) {
+  return render(inShell(props, page));
 }
 
 /** The bar of the shell. */
@@ -274,5 +279,92 @@ describe("the shell", () => {
       "href",
       `/projects/${PROJECT}`,
     );
+  });
+
+  it("closes the sheet of the side bar once the user goes to another page, which the sheet no longer hides", async () => {
+    narrow();
+    const view = shell();
+    await userEvent.click(bar().getByRole("button", { name: "Déplier la barre latérale" }));
+    const sheet = await screen.findByRole("dialog", { name: "Barre latérale" });
+    // The link is followed by the router of Next, which the test stands in for: the click is
+    // kept from the document, and the address changes.
+    const keep = (event: Event) => {
+      event.preventDefault();
+    };
+    document.addEventListener("click", keep, { capture: true });
+    await userEvent.click(within(sheet).getByRole("link", { name: "Projets" }));
+    document.removeEventListener("click", keep, { capture: true });
+    expect(screen.getByRole("dialog", { name: "Barre latérale" })).toBeInTheDocument();
+    visit("/projects");
+    view.rerender(inShell());
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(screen.getByRole("banner")).not.toHaveAttribute("aria-hidden");
+  });
+
+  it("folds nothing with Ctrl+B when no side bar is rendered", async () => {
+    shell({ account: undefined, preference: undefined, theme: undefined, permissions: undefined });
+    await userEvent.keyboard("{Control>}b{/Control}");
+    expect(document.cookie).not.toContain(SIDEBAR_COOKIE);
+  });
+
+  it("gives the focus of what the rail hides to the block, or to the button that folds the bar", async () => {
+    visit("/portfolio/projects");
+    shell();
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    act(() => {
+      within(nav).getByRole("link", { name: "Portefeuille de projets" }).focus();
+    });
+    await userEvent.keyboard("{Control>}b{/Control}");
+    expect(within(nav).getByRole("button", { name: "Portefeuille" })).toHaveFocus();
+
+    await userEvent.keyboard("{Control>}b{/Control}");
+    act(() => {
+      screen.getByRole("link", { name: "Waterfall" }).focus();
+    });
+    await userEvent.keyboard("{Control>}b{/Control}");
+    expect(bar().getByRole("button", { name: "Déplier la barre latérale" })).toHaveFocus();
+  });
+
+  it("says in the rail that a block is closed on its functions, and marks the block of the page shown", () => {
+    visit("/portfolio/projects");
+    shell({ sidebarOpen: false });
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    const block = within(nav).getByRole("button", { name: "Portefeuille" });
+    expect(block).toHaveAttribute("aria-expanded", "false");
+    expect(block).toHaveAttribute("aria-current", "true");
+    expect(within(nav).getByRole("button", { name: "Administration" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    expect(within(nav).queryByRole("link", { name: "Portefeuille de projets" })).toBeNull();
+  });
+
+  it("shows no breadcrumb where the address leads nowhere", () => {
+    visit("/admin/nobody");
+    shell();
+    expect(bar().queryByRole("navigation", { name: "Fil d’Ariane" })).toBeNull();
+  });
+
+  it("names the group of the preferences in the menu of the account", async () => {
+    shell();
+    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin" }));
+    const group = screen.getByRole("group", { name: "Préférences" });
+    expect(within(group).getByRole("menuitem", { name: /^Langue/ })).toBeInTheDocument();
+    expect(within(group).getByRole("menuitem", { name: /^Mode d’affichage/ })).toBeInTheDocument();
+  });
+
+  it("says the search is to come", () => {
+    shell();
+    expect(bar().getByRole("searchbox", { name: "Rechercher" })).toHaveAccessibleDescription(
+      "La recherche est à venir\u00a0: elle arrive avec les écrans qui listent les fonctions et les projets.",
+    );
+  });
+
+  it("sets the side bar in a landmark named for it", () => {
+    shell();
+    const aside = screen.getByRole("complementary", { name: "Barre latérale" });
+    expect(within(aside).getByRole("navigation", { name: "Fonctions" })).toBeInTheDocument();
   });
 });

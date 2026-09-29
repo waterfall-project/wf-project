@@ -48,7 +48,10 @@ export function DropdownMenuContent({
   );
 }
 
-/** A group of entries, named by the label it holds. */
+/**
+ * A group of entries. It is named only by what `aria-labelledby` points to — the label it holds,
+ * given an identifier —: Radix does not tie them.
+ */
 export function DropdownMenuGroup(props: ComponentProps<typeof DropdownMenuPrimitive.Group>) {
   return <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />;
 }

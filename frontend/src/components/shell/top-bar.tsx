@@ -12,6 +12,7 @@
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useId } from "react";
 
 import { TasksButton } from "@/components/tasks/task-tracker";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ export interface TopBarProps {
 /** Render the bar of the shell. */
 export function TopBar({ navigable, account, language, theme }: TopBarProps) {
   const t = useTranslations();
+  const soon = useId();
   return (
     <header className="flex min-h-13 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2">
       {navigable ? (
@@ -55,9 +57,13 @@ export function TopBar({ navigable, account, language, theme }: TopBarProps) {
         <Input
           type="search"
           aria-label={t("search.label")}
+          aria-describedby={soon}
           placeholder={t("search.placeholder")}
           className="pl-8"
         />
+        <p id={soon} className="sr-only">
+          {t("search.comingSoon")}
+        </p>
       </div>
       <TasksButton />
       {account === undefined ? null : (

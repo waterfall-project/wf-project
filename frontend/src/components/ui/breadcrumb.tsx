@@ -47,7 +47,7 @@ export function BreadcrumbLink({ className, ...props }: ComponentProps<typeof Li
   return (
     <Link
       data-slot="breadcrumb-link"
-      className={cn("truncate rounded-sm transition-colors hover:text-foreground", className)}
+      className={cn("truncate rounded-sm hover:text-foreground", className)}
       {...props}
     />
   );

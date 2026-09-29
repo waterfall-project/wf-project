@@ -90,8 +90,12 @@ de l'écran, qui l'a déjà lu pour son bandeau — `ContextBanner` le remet à 
 `ShowProject` (`shown-project.tsx`), qui ne le nomme que tant que l'adresse montre ce même
 projet. Le menu du compte (`account-menu.tsx`) porte les préférences d'affichage — langue et
 mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le parcours au
-clavier n'envoyant rien —, les pages du compte et la déconnexion, inerte jusqu'à US-0320 ;
-sans compte, il n'y a ni menu du compte ni barre latérale.
+clavier n'envoyant rien —, les pages du compte et la déconnexion, inerte jusqu'à US-0320.
+Sans compte (401), il n'y a ni menu du compte ni barre latérale ; quand la session est
+illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ouvert, et sans
+menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur écran étroit, c'est
+une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que si elle est
+rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au déclencheur.
 
 Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
@@ -701,15 +705,18 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   yeux —, les écrans d'indicateurs aérés ; chaque fonction a la sienne, dans une table typée
   (`FUNCTION_DENSITY`, `function-display.ts`), que `Screen` et `PageHeader` reçoivent.
 - **Une icône Lucide sur chaque entrée de navigation, chaque bouton et chaque nature de
-  ligne**, tirée d'une table typée sur ce qu'elle représente — `FUNCTION_ICONS` et
-  `GROUP_ICONS` pour la navigation, `PROJECT_COMMAND_ICONS` et `REVISION_COMMAND_ICONS` pour
-  les commandes, `RowNatureIcon` pour les lignes d'une structure —, de sorte qu'une valeur
-  ajoutée sans icône casse le typage. Une icône à côté de son texte est `aria-hidden` ; une
+  ligne.** Pour les fonctions, les blocs, les commandes, les pages du compte et les natures de
+  ligne, elle est tirée d'une table typée sur ce qu'elle représente — `FUNCTION_ICONS`,
+  `GROUP_ICONS`, `PROJECT_COMMAND_ICONS` et `REVISION_COMMAND_ICONS`, `ACCOUNT_ICONS`,
+  `RowNatureIcon` —, de sorte qu'une valeur ajoutée sans icône casse le typage ; ailleurs — un
+  bouton de la coquille, un avis, une page système —, elle est posée en ligne. Une icône à côté de son texte est `aria-hidden` ; une
   icône seule porte un nom — le bouton qui la porte, ou l'icône elle-même (`role="img"`), la
   nature d'une ligne dans sa cellule.
 - **La sobriété** : aucun ornement hors des icônes — ni dégradé, ni ombre décorative, ni
-  animation ; une seule ombre, `shadow-md`, sur ce qui flotte au-dessus de la page (un menu),
-  pour l'en détacher. Un état se dit en mots — un badge, une pastille —, jamais par la seule
+  transition, ni animation, hors la pulsation du squelette de chargement, qui dit un état et
+  s'arrête quand le poste demande moins de mouvement ; une seule ombre, `shadow-md`, sur ce qui
+  flotte au-dessus de la page (un menu), pour l'en détacher. `src/components/ui/sobriety.test.ts`
+  le vérifie pour les composants copiés. Un état se dit en mots — un badge, une pastille —, jamais par la seule
   couleur.
 - **Le logo et le favicon** sont les fichiers de `docs/assets`, copiés à l'octet près dans
   `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où

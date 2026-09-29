@@ -106,7 +106,7 @@ export function ReferenceIncomplete({ readiness, permissions }: ReferenceIncompl
     return null;
   }
   return (
-    <section aria-labelledby={title} className="space-y-2 border-b px-5 py-4 text-sm">
+    <section aria-labelledby={title} className="space-y-2 border-b pb-4 text-sm">
       <h2 id={title} className="flex items-center gap-2 text-base font-semibold">
         <TriangleAlert aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         {t("referenceReadiness.title")}

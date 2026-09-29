@@ -33,6 +33,19 @@ test("the side bar folds into a rail of icons, whose entries keep their names in
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des utilisateurs");
 });
 
+test("an open block of the FBS is not painted as the page shown", async ({ page }) => {
+  await page.goto("/portfolio/projects");
+  const nav = page.getByRole("navigation", { name: "Fonctions" });
+  const block = nav.getByRole("button", { name: "Portefeuille", exact: true });
+  const current = nav.getByRole("link", { name: "Portefeuille de projets" });
+  await expect(block).toHaveAttribute("aria-expanded", "true");
+  await expect(current).toHaveAttribute("aria-current", "page");
+  // Nothing under the pointer: each shows its own background.
+  await page.mouse.move(900, 600);
+  const background = (element: HTMLElement) => getComputedStyle(element).backgroundColor;
+  expect(await block.evaluate(background)).not.toBe(await current.evaluate(background));
+});
+
 test("the bar shows where the page sits, and the side bar names the project its screen reads", async ({
   page,
 }) => {

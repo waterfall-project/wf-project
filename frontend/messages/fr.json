@@ -39,7 +39,8 @@
   },
   "search": {
     "label": "Rechercher",
-    "placeholder": "Rechercher une fonction, un projet…"
+    "placeholder": "Rechercher une fonction, un projet…",
+    "comingSoon": "La recherche est à venir : elle arrive avec les écrans qui listent les fonctions et les projets."
   },
   "accountMenu": {
     "label": "Compte de {name}",

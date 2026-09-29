@@ -14,7 +14,8 @@ import { cn } from "@/components/ui/utils";
 /** How much a screen holds: dense for a grid or a list, airy for indicators. */
 export type Density = "dense" | "airy";
 
-const SCREEN: Readonly<Record<Density, string>> = {
+/** The classes of the `<main>` of a screen, by density: what its skeleton takes too. */
+export const SCREEN: Readonly<Record<Density, string>> = {
   dense: "flex min-w-0 flex-1 flex-col gap-3 px-5 py-3",
   airy: "flex min-w-0 flex-1 flex-col gap-7 px-10 py-8",
 };
