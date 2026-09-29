@@ -185,3 +185,11 @@ export function contextCookie(address: string): string {
   const value = encodeURIComponent(address);
   return `${LAST_CONTEXT_COOKIE}=${value}; path=/; max-age=${String(COOKIE_AGE)}; samesite=lax`;
 }
+
+/**
+ * The cookie that forgets the last project context, for `document.cookie`: it is no account's,
+ * and signing out leaves nothing of it to the next user of the workstation.
+ */
+export function forgottenContextCookie(): string {
+  return `${LAST_CONTEXT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}

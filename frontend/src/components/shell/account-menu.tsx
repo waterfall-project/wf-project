@@ -12,8 +12,10 @@
  * again with the preference it now reads — no new session. The outcome is told under the bar,
  * once the menu has closed: a refusal, the way to sign in again, the API out of reach.
  *
- * Signing out waits for the connection (US-0320), and for EP-03 which opens real sessions: the
- * entry is shown, unavailable.
+ * Signing out closes the session, then forgets what the browser kept of it — the last project
+ * context, the background tasks the tab followed — and loads the sign-in page anew: nothing of
+ * the session stays in the page for the next user of the workstation. A refusal, or the API out
+ * of reach, is told under the bar, and the session stands.
  */
 "use client";
 
@@ -23,9 +25,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 
 import { updateLanguage, updateTheme } from "@/api/actions/preferences";
+import { signOut } from "@/api/actions/session";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { initials } from "@/components/account/initials";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { useForgetTasks } from "@/components/tasks/task-tracker";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +49,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { type LanguagePreference, PREFERENCES } from "@/i18n/locale";
 import { ACCOUNT_PAGES } from "@/navigation/account";
+import { forgottenContextCookie } from "@/navigation/context";
+import { loadDocument } from "@/navigation/document";
+import { LOGIN_ROUTE } from "@/navigation/login";
 import { THEME_PREFERENCES, type ThemePreference } from "@/theme/theme";
 
 import { ACCOUNT_ICONS } from "./function-display";
@@ -63,12 +71,6 @@ export interface AccountMenuProps {
 
 /** The outcome of writing a preference to the account. */
 type Written = Outcome<components["schemas"]["DisplayPreferences"]>;
-
-/** The initials of a name, as the avatar shows them: a letter of each part. */
-function initials(account: MenuAccount, locale: string): string {
-  const first = (text: string) => Array.from(text.trim())[0] ?? "";
-  return `${first(account.first_name)}${first(account.last_name)}`.toLocaleUpperCase(locale);
-}
 
 /** What a preference offers, and how its choice is written. */
 interface PreferenceProps<V extends string> {
@@ -177,13 +179,26 @@ function Preferences({
 export function AccountMenu({ account, language, theme }: AccountMenuProps) {
   const t = useTranslations();
   const locale = useLocale();
+  const forgetTasks = useForgetTasks();
   const [pending, startTransition] = useTransition();
-  const [outcome, setOutcome] = useState<Written>();
+  const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const name = t("accountMenu.name", { first: account.first_name, last: account.last_name });
   const mark = initials(account, locale);
   const write = (apply: () => Promise<Written>) => {
     startTransition(async () => {
       setOutcome(await apply());
+    });
+  };
+  const leave = () => {
+    startTransition(async () => {
+      const closed = await signOut();
+      if (closed.kind !== "done") {
+        setOutcome(closed);
+        return;
+      }
+      forgetTasks();
+      document.cookie = forgottenContextCookie();
+      loadDocument(LOGIN_ROUTE);
     });
   };
   return (
@@ -229,7 +244,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
             })}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>
+          <DropdownMenuItem onSelect={leave}>
             <LogOut aria-hidden="true" />
             {t("accountMenu.signOut")}
           </DropdownMenuItem>

@@ -39,7 +39,7 @@ import type { BackgroundTask } from "@/api/problem";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { restoreTasks, saveTasks } from "./storage";
+import { forgetTasks, restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry } from "./task-entry";
 import {
   type Launch,
@@ -61,9 +61,15 @@ interface TrackerState {
   readonly panelId: string;
 }
 
-// Two contexts: the screens that hand a task over read a function that never changes, and are
+/** What the screens and the shell ask of the tracker: to follow a task, to forget them all. */
+interface TrackerCommands {
+  readonly track: TrackTask;
+  readonly forget: () => void;
+}
+
+// Two contexts: the screens that hand a task over read functions that never change, and are
 // not rendered again at each read of a task; the panel alone reads what changes.
-const TrackContext = createContext<TrackTask | undefined>(undefined);
+const TrackContext = createContext<TrackerCommands | undefined>(undefined);
 const StateContext = createContext<TrackerState | undefined>(undefined);
 
 /** What a context of the tracker holds; a component outside the tracker is a defect. */
@@ -76,7 +82,15 @@ function inTracker<T>(value: T | undefined): T {
 
 /** The function that hands a task the screen started over to the tracker of the shell. */
 export function useTrackTask(): TrackTask {
-  return inTracker(useContext(TrackContext));
+  return inTracker(useContext(TrackContext)).track;
+}
+
+/**
+ * The function that forgets every task the tracker follows, and what the tab kept of them for a
+ * reload: signing out leaves nothing of the session to the next user of the tab.
+ */
+export function useForgetTasks(): () => void {
+  return inTracker(useContext(TrackContext)).forget;
 }
 
 /** Follow the background tasks the screens within it start. */
@@ -96,16 +110,25 @@ export function TaskTracker({ children }: { readonly children: ReactNode }) {
       saveTasks(state.tasks);
     }
   }, [state.restored, state.tasks]);
-  const track = useCallback<TrackTask>((task, launch = {}) => {
-    dispatch({ type: "track", task, launch });
-    setShown(undefined);
-  }, []);
+  const commands = useMemo<TrackerCommands>(
+    () => ({
+      track: (task, launch = {}) => {
+        dispatch({ type: "track", task, launch });
+        setShown(undefined);
+      },
+      forget: () => {
+        dispatch({ type: "forget" });
+        forgetTasks();
+      },
+    }),
+    [],
+  );
   const value = useMemo(
     () => ({ state, dispatch, open, setOpen: setShown, panelId }),
     [state, open, panelId],
   );
   return (
-    <TrackContext value={track}>
+    <TrackContext value={commands}>
       <StateContext value={value}>{children}</StateContext>
     </TrackContext>
   );

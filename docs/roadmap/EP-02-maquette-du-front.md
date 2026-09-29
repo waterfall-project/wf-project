@@ -408,6 +408,13 @@ fond d'un utilisateur, la révision ouverte par défaut.
   l'utilisateur), à faire avant #113. D'ici là, le suivi offre « Recharger l'écran » à
   l'aboutissement d'une tâche ; le 409 de `markRevision` ne vaut qu'une fois la révision
   marquée, et pendant le marquage rien au contrat n'empêche un second envoi.
+- `AuthProvider.start_url` ne dit pas ce qu'il désigne — l'adresse de `startOidcSession` vue du
+  navigateur, ou celle du fournisseur —, et le 303 de `startOidcSession` ne déclare pas son
+  `Location` — US-0320/L1, ouvert en #152. D'ici là, la page de connexion offre le fournisseur
+  d'identité par un lien vers `start_url`, et ne l'offre pas sans lui.
+- La taille admise d'un avatar n'est pas au contrat, quand Next borne le corps d'une action
+  serveur à 1 Mo — US-0320/L1, ouvert en #153. D'ici là, une image plus lourde échoue avant
+  l'API, sur l'écran de panne.
 
 ### Ordre de construction
 
@@ -1019,7 +1026,7 @@ et les deux largeurs, 1366 points partout, 360 pour les vues d'indicateurs.
 
 ## US-0320 — Connexion et compte personnel
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — l'authentification réelle est EP-03
 - **opérations** : `listAuthProviders`, `openSession`, `closeSession`, `startOidcSession`,
   `requestPasswordReset`, `confirmPasswordReset`, `getMe`, `updateMyPreferences`,

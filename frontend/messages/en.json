@@ -51,6 +51,61 @@
     "avatar": "Change avatar",
     "signOut": "Sign out"
   },
+  "signIn": {
+    "title": "Sign in",
+    "local": "With your Waterfall account.",
+    "directory": "With your Waterfall account or your account in the company directory.",
+    "namedDirectory": "With your Waterfall account or your account in the “{directory}” directory.",
+    "email": "Email address",
+    "password": "Password",
+    "submit": "Sign in",
+    "or": "or",
+    "identityProvider": "Sign in with the identity provider",
+    "namedIdentityProvider": "Sign in with {provider}",
+    "forgotten": "Forgotten your password?"
+  },
+  "passwordReset": {
+    "title": "Forgotten password",
+    "request": "Give the email address of your account: a link to choose a new password will be sent to it.",
+    "email": "Email address",
+    "send": "Send the link",
+    "sent": "If an account has this address, a link has just been sent to it.",
+    "chooseTitle": "New password",
+    "choose": "Choose the new password of your account.",
+    "newPassword": "New password",
+    "save": "Save the password",
+    "saved": "Your password is saved: you may sign in.",
+    "askAgain": "Ask for a new link",
+    "back": "Back to sign in",
+    "signIn": "Sign in"
+  },
+  "account": {
+    "details": "Account details",
+    "name": "Name",
+    "email": "Email address",
+    "origin": "Origin of the account",
+    "preferences": "Display preferences",
+    "preferencesHelp": "The same as in the menu of the account: they apply without signing in again.",
+    "save": "Save",
+    "saved": "Your preferences are saved.",
+    "password": {
+      "current": "Current password",
+      "new": "New password",
+      "submit": "Change the password",
+      "changed": "Your password is changed.",
+      "external": "Your password is the one of the directory or of the identity provider your account comes from: it is not changed in Waterfall."
+    },
+    "avatar": {
+      "current": "Your avatar",
+      "initials": "No picture: your initials stand in for it.",
+      "file": "PNG or JPEG image",
+      "wrongType": "Choose a PNG or JPEG image.",
+      "upload": "Upload the image",
+      "remove": "Remove the avatar",
+      "uploaded": "Your avatar is saved.",
+      "removed": "Your avatar is removed."
+    }
+  },
   "screen": {
     "comingSoon": "This screen is still to come."
   },

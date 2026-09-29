@@ -15,9 +15,16 @@ import { requestLanguage } from "@/i18n/request";
 import type { AccountEntry } from "@/navigation/account";
 import type { NavigationFunction } from "@/navigation/functions";
 
-/** What a title names: a function, the list of projects, or a page of the account. */
+/**
+ * What a title names: a function, the list of projects, a page of the account, or a page of the
+ * way in.
+ */
 export type ScreenLabel =
-  NavigationFunction["label"] | "functionGroups.projects" | AccountEntry["label"];
+  | NavigationFunction["label"]
+  | "functionGroups.projects"
+  | AccountEntry["label"]
+  | "signIn.title"
+  | "passwordReset.title";
 
 /**
  * The label of a project, or `undefined` when it cannot be read — read once for the request,

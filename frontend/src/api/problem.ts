@@ -214,6 +214,17 @@ export async function decode<T>(call: () => Promise<Answer<T>>): Promise<Outcome
   return answer === undefined ? { kind: "unreachable" } : decodeAnswer(answer);
 }
 
+/** The outcome of an action whose success is all the screen needs to know. */
+export type Settled = Outcome<null>;
+
+/**
+ * An outcome, its data left on the server: what an action gives back when the screen only needs
+ * to know it succeeded — a session opened, a password changed —, and nothing of the answer.
+ */
+export function settled<T>(outcome: Outcome<T>): Settled {
+  return outcome.kind === "done" ? { kind: "done", data: null } : outcome;
+}
+
 /** The reference of a background task (WF-ARC-0090). */
 export type BackgroundTask = components["schemas"]["BackgroundTaskRef"];
 

@@ -99,4 +99,21 @@ describe("what the tracker follows", () => {
     ).toBe(false);
     expect(isPolled({ ...running, task: task("task_succeeded") })).toBe(false);
   });
+
+  it("forgets every task and every end once signed out, and drops an answer still on its way", () => {
+    const followed = tracking(
+      tracking(following(task("task_succeeded")), { type: "restore", tasks: [] }),
+      { type: "track", task: task("task_running"), launch: {} },
+    );
+    const forgotten = tracking(followed, { type: "forget" });
+    expect(forgotten).toEqual({ tasks: [], log: [], restored: true });
+    const late = tracking(forgotten, {
+      type: "answer",
+      source: "read",
+      key: MARKING,
+      taskId: MARKING,
+      outcome: { kind: "done", data: task("task_succeeded") },
+    });
+    expect(late).toBe(forgotten);
+  });
 });

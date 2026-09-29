@@ -14,12 +14,15 @@
  *
  * The shell follows the background tasks the screens start, in a panel under its bar, whatever
  * screen the user goes to meanwhile (WF-IHM-0080).
+ *
+ * The way in — the sign-in page, the password forgotten — stands outside it: the texts and the
+ * mode still, but neither side bar, nor bar, nor tasks (`ShellFrame`).
  */
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 
-import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { TaskTracker } from "@/components/tasks/task-tracker";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { TIME_ZONE } from "@/i18n/format";
 import type { LanguagePreference, Locale } from "@/i18n/locale";
@@ -27,6 +30,7 @@ import type { ThemePreference } from "@/theme/theme";
 
 import type { MenuAccount } from "./account-menu";
 import { Navigation, type NavigationProps } from "./navigation";
+import { ShellFrame } from "./shell-frame";
 import { ShownProjectProvider } from "./shown-project";
 import { TopBar } from "./top-bar";
 
@@ -63,19 +67,23 @@ export function Shell({
       <TaskTracker>
         <ShownProjectProvider>
           <SidebarProvider defaultOpen={sidebarOpen}>
-            {permissions === undefined ? null : (
-              <Navigation permissions={permissions} remembered={remembered} theme={theme} />
-            )}
-            <SidebarInset>
-              <TopBar
-                navigable={permissions !== undefined}
-                account={account}
-                language={preference}
-                theme={theme}
-              />
-              <TaskPanel />
+            <ShellFrame
+              navigation={
+                permissions === undefined ? null : (
+                  <Navigation permissions={permissions} remembered={remembered} theme={theme} />
+                )
+              }
+              bar={
+                <TopBar
+                  navigable={permissions !== undefined}
+                  account={account}
+                  language={preference}
+                  theme={theme}
+                />
+              }
+            >
               {children}
-            </SidebarInset>
+            </ShellFrame>
           </SidebarProvider>
         </ShownProjectProvider>
       </TaskTracker>
