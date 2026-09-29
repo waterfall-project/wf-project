@@ -139,7 +139,7 @@ describe("the language of the screen of failure of the root layout", () => {
 });
 
 describe("the skeleton of a screen that loads", () => {
-  it("shows the page region busy, and names it, its shapes hidden from a screen reader", async () => {
+  it("names the page region for the loading, its shapes hidden and busy", async () => {
     const { container } = inLanguage(<ScreenSkeleton />);
     const main = screen.getByRole("main", { name: "Chargement de l’écran" });
     // A status, hidden from the eye, says the screen loads — outside any busy region, which

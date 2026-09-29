@@ -91,7 +91,7 @@ enveloppe, ou sans `correlation_id`, la référence affichée est le digest que 
 celui de ses propres journaux. Un écran ne dit jamais « vide » sur une réponse qu'il n'a pas
 lue. Quand la session est illisible, la navigation garde l'écran d'état (WF-ADM-0130).
 Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, qui
-s'annonce par un `role="status"` ; la réponse est alors diffusée, et « introuvable » répond
+porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujours ; la réponse est alors diffusée, et « introuvable » répond
 200 et non 404 — un 404 doux, que Next marque `noindex` : le statut part avec le squelette,
 avant que la page sache l'objet introuvable. Il est le même pour toute adresse introuvable,
 ce qui compte ici. Chaque état vide — aucun projet, projet sans révision, référentiel
