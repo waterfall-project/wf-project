@@ -417,6 +417,63 @@ describe("the sort, the search and the totals, asked of the server", () => {
     );
   });
 
+  describe("a sort and a search asked in a row, before the server answered", () => {
+    /** The query of the last address the grid navigated to. */
+    function lastAsked(): Record<string, string> {
+      const [href] = router.push.mock.calls.at(-1) as [string];
+      return Object.fromEntries(new URL(href, "http://front.invalid").searchParams);
+    }
+    const sortByBudget = () =>
+      userEvent.click(
+        within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+      );
+    const searchCabling = () =>
+      userEvent.type(
+        screen.getByRole("searchbox", { name: "Rechercher un libellé" }),
+        "câblage{Enter}",
+      );
+
+    // The navigations stay under way: the address of the screen is still the one before.
+    beforeEach(() => {
+      page.search = "subproject_id=unassigned";
+    });
+
+    it("keeps the sort in the search asked right after it", async () => {
+      renderGrid(witness);
+      await sortByBudget();
+      await searchCabling();
+      expect(lastAsked()).toEqual({
+        subproject_id: "unassigned",
+        sort_by: "budgeted_amount",
+        sort_order: "asc",
+        search: "câblage",
+      });
+    });
+
+    it("keeps the search in the sort asked right after it", async () => {
+      renderGrid(witness);
+      await searchCabling();
+      await sortByBudget();
+      expect(lastAsked()).toEqual({
+        subproject_id: "unassigned",
+        search: "câblage",
+        sort_by: "budgeted_amount",
+        sort_order: "asc",
+      });
+    });
+
+    it("starts again from the address of the screen once it has changed", async () => {
+      const { ask } = renderGrid(witness);
+      await sortByBudget();
+      // Back in the history: the screen shows another address, which the next search starts from.
+      page.search = "search=revue";
+      ask({ sort: undefined, search: "revue" });
+      await userEvent.clear(screen.getByRole("searchbox", { name: "Rechercher un libellé" }));
+      await searchCabling();
+      expect(lastAsked()).toEqual({ search: "câblage" });
+    });
+  });
+
   it("says no row matches when the server retains none, between the header and the totals", () => {
     renderGrid({ items: [], totals: { ...witness.totals, task_count: 0, estimate_line_count: 0 } });
     expect(grid()).toHaveAttribute("aria-rowcount", "3");

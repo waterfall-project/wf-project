@@ -289,15 +289,26 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const scroller = useRef<HTMLDivElement>(null);
   const rowHeight = ROW_REM * useRootFontSize();
 
-  /** The address of the screen, as the browser shows it now. */
-  const current = () => new URLSearchParams(address.toString());
+  // The address the last navigation of the grid asked for, and the address it was asked from.
+  // Until it arrives, the address of the screen is still the one before, and Next drops a
+  // navigation under way for the next one: a search entered right after a sort, before the
+  // server answered, must carry the sort too. Forgotten once the address of the screen changes.
+  const asked = useRef<{ readonly from: string; readonly query: string }>(undefined);
+  /** Navigate to an address built from the last one asked, or from that of the screen. */
+  const request = (build: (query: URLSearchParams) => string) => {
+    const from = address.toString();
+    const base = asked.current?.from === from ? asked.current.query : from;
+    const href = build(new URLSearchParams(base));
+    asked.current = { from, query: href.split("?")[1] ?? "" };
+    router.push(href, { scroll: false });
+  };
   // A sort or a search changes the address only: the server reads it, and answers anew. A sort
   // navigates at once, and its preference is written alongside: the address carries it — a
   // sort lifted included —, so the page never waits for the preference, nor reads it for it.
   const changeSort = (next: GridSort<Sort> | undefined) => {
     startTransition(() => {
       showSort(next);
-      router.push(sortHref(pathname, current(), next), { scroll: false });
+      request((query) => sortHref(pathname, query, next));
     });
     keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
     writer.recordNow(recordedPreferences(preferences, settings, keptSort.current));
@@ -305,7 +316,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const search = (text: string) => {
     writer.flush();
     startTransition(() => {
-      router.push(searchHref(pathname, current(), text), { scroll: false });
+      request((query) => searchHref(pathname, query, text));
     });
   };
   const table = useGridTable({
