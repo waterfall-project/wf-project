@@ -29,7 +29,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec dev dev-down lint-compose \
+	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release reuse lint-workflows \
 	lint-shell check \
@@ -77,6 +77,12 @@ allocate-pbs: ## Write the PBS field of every requirement into the Word document
 mock-spec: lint-openapi ## Derive from the contract the variant the fake back serves
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(MOCK_SPEC)) >/dev/null
 	@$(WFTOOLS).mock $(MOCK_SPEC)
+
+mock-data: ## Regenerate the volumes of §4.6.2 the fake back serves, in fixtures/api/volume
+	@$(WFTOOLS).mockdata
+
+mock-data-up-to-date: ## The versioned volumes are the ones the generator writes
+	@$(WFTOOLS).mockdata --check
 
 mock: mock-spec ## Serve the fake back on http://localhost:4010, from the contract's examples
 	@$(PRISM) mock $(MOCK_SPEC) --host 0.0.0.0 --port 4010
@@ -145,7 +151,7 @@ check-spec: build-doc-strict ## The projection builds without warning and is up 
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
 		|| { echo "  the projection is not the one the Word document produces: run make build-doc"; exit 1; }
 
-check-contract: lint-openapi inventory ## The contract lints and its inventory is up to date
+check-contract: lint-openapi inventory mock-data-up-to-date ## The contract lints, its inventory and its volumes are up to date
 	@git diff --exit-code --stat -- $(API)/INVENTORY.md \
 		|| { echo "  INVENTORY.md is not the one the contract produces: run make inventory"; exit 1; }
 

@@ -264,6 +264,17 @@ Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summ
 `value`), et le contrat le cite par `$ref` ; le bundle l'embarque. Ses nombres reprennent
 ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
 
+Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`) les
+engendre dans `fixtures/api/volume/`, qu'on ne retouche pas — la structure de mille tâches et
+de cinq mille lignes, premier exemple de `listNodes`, les trois cents projets de
+`getPortfolioProjects`, les deux cents catégories de `listCostCategories` et quinze ans de
+taux de `listHourlyRates`. Ils restent dans l'univers des autres exemples — le projet, sa
+révision, ses sous-projets, ses catégories et ses rôles gardent leurs identifiants —, et
+l'engendrement ne lit ni l'horloge ni le hasard : chaque valeur tirée vient de l'empreinte
+d'une graine fixe et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets.
+Un exemple de volume s'écrit une ligne par élément, pour qu'un changement se lise dans le
+diff.
+
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde
 celle dont part la maquette (EP-02). Rien d'autre ne change.
@@ -277,7 +288,9 @@ Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'app
 la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
 front qui ne font que lire, jamais à éprouver une écriture.
 
-*Contrôles* : `make lint-openapi` (exemples conformes aux schémas), `make lint-compose`.
+*Contrôles* : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
+`make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
+famille contract, que `fixtures/api/` réveille comme le contrat), `make lint-compose`.
 
 ## Commandes
 

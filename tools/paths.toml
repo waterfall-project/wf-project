@@ -30,7 +30,9 @@ paths = ["docs/spec/**"]
 target = "check-spec"
 
 [families.contract]
-paths = ["docs/api/**"]
+# The long examples of the contract live under fixtures/api/: the contract cites them, its lint
+# checks them against their schemas, and the volumes among them are checked up to date.
+paths = ["docs/api/**", "fixtures/api/**"]
 target = "check-contract"
 
 [families.back]
@@ -50,8 +52,10 @@ paths = [
 target = "check-roadmap"
 
 [families.front]
-# The client of the front is generated from the contract: a contract change checks it.
-paths = ["frontend/**", "docs/api/**"]
+# The client of the front is generated from the contract: a contract change checks it. The
+# examples of the contract are what the fake back serves to the end-to-end paths, and what
+# the unit tests of the front read.
+paths = ["frontend/**", "docs/api/**", "fixtures/api/**"]
 target = "check-front"
 
 [[generated]]
@@ -81,6 +85,10 @@ by = "make generate-client"
 [[generated]]
 paths = ["fixtures/examples.json"]
 by = "make fixtures"
+
+[[generated]]
+paths = ["fixtures/api/volume/**"]
+by = "make mock-data"
 
 [tests]
 paths = ["tools/tests/**", "backend/tests/**", "fixtures/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/e2e/**"]

@@ -482,6 +482,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/cost_categories.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -574,6 +576,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/reference.yaml#/HourlyRate }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/hourly_rates.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

@@ -34,6 +34,8 @@
                   type: array
                   items: { $ref: ../components/schemas/portfolio.yaml#/PortfolioProjectRow }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_projects.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
