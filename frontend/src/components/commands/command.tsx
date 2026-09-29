@@ -13,7 +13,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { type Ref, useId, useState, useTransition } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
@@ -34,12 +34,27 @@ export interface CommandProps {
   readonly action?: (() => Promise<Outcome<unknown>>) | undefined;
   /** The names of the objects the screen shows, which name the object of a conflict. */
   readonly names?: ObjectNames | undefined;
+  /**
+   * What the command opens rather than running at once — the form of what it asks, a version
+   * name —, in place of an action: pressed available, it opens or closes it.
+   */
+  readonly disclosure?: Disclosure | undefined;
+}
+
+/** A command that opens what it asks before it runs. */
+export interface Disclosure {
+  readonly expanded: boolean;
+  /** The identifier of what it opens. */
+  readonly controls: string;
+  readonly toggle: () => void;
+  /** The button, which takes the focus back once what it opened has closed. */
+  readonly ref?: Ref<HTMLButtonElement> | undefined;
 }
 
 const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 /** Render a command as the screen offers it, and tell of the outcome of running it. */
-export function Command({ offer, label, action, names }: CommandProps) {
+export function Command({ offer, label, action, names, disclosure }: CommandProps) {
   const t = useTranslations("commands");
   const conditionLabel = useTranslations("enums.CommandCondition");
   const locale = useLocale();
@@ -52,7 +67,14 @@ export function Command({ offer, label, action, names }: CommandProps) {
   const missing = offer.missing_conditions.map((condition) => conditionLabel(condition));
   const unmet = offer.is_available || missing.length === 0 ? undefined : `${id}-unmet`;
   const run = () => {
-    if (!offer.is_available || pending || action === undefined) {
+    if (!offer.is_available || pending) {
+      return;
+    }
+    if (disclosure !== undefined) {
+      disclosure.toggle();
+      return;
+    }
+    if (action === undefined) {
       return;
     }
     startTransition(async () => {
@@ -67,6 +89,9 @@ export function Command({ offer, label, action, names }: CommandProps) {
         aria-disabled={offer.is_available ? undefined : true}
         aria-describedby={unmet}
         aria-busy={pending}
+        aria-expanded={disclosure?.expanded}
+        aria-controls={disclosure?.expanded === true ? disclosure.controls : undefined}
+        ref={disclosure?.ref}
         className={UNAVAILABLE}
         onClick={run}
       >

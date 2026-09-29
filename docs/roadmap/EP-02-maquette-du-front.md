@@ -81,7 +81,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0050-A` | Collage depuis un tableur | entière | US-0130 |
 | `WF-IHM-0060-A` | Lecture d'une grille | début — close en EP-03 | US-0110 |
 | `WF-IHM-0070-A` | Une échelle de signalement commune, lisible sans couleur | entière | US-0160 |
-| `WF-IHM-0080-A` | Traitements longs | entière | US-0180 |
+| `WF-IHM-0080-A` | Traitements longs | début — close en EP-04 | US-0180 |
 | `WF-IHM-0090-A` | Refus et commandes indisponibles | entière | US-0170 |
 | `WF-IHM-0100-A` | Accessibilité minimale | entière | US-0200 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | début — close en EP-06 | US-0140 |
@@ -93,10 +93,11 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
 | `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
-Neuf des onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface,
-et l'interface existe ici pour de bon. Sept exigences ne font que commencer, et leurs US
+Huit des onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface,
+et l'interface existe ici pour de bon. Huit exigences ne font que commencer, et leurs US
 disent quelle phrase attend quoi : WF-IHM-0060 (le tri effectif et les réglages par compte —
-EP-03), WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-ADM-0040 et WF-INTF-0160 (la
+EP-03), WF-IHM-0080 (le marquage de dix mille objets, sur le marquage réel — EP-04),
+WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-ADM-0040 et WF-INTF-0160 (la
 conservation des préférences et de la langue dans le compte — EP-03), WF-INTF-0180 (le
 format des fichiers d'échange — EP-12), WF-CMP-0010 (la version majeure précédente et le
 Safari réel — EP-13, en recette), et WF-DAT-0100 (l'affichage des dates sans fuseau est
@@ -378,6 +379,27 @@ fond d'un utilisateur, la révision ouverte par défaut.
   contrat a partout ailleurs remplacé la phrase par un code (`ErrorCode`,
   `CommandCondition`) — US-0100/L1, ouvert en #137. D'ici là, le front affiche le motif tel
   que l'API le donne.
+- Le contrat n'a pas de liste des tâches de fond d'un utilisateur : une tâche ne se relit que
+  par son `task_id`, que seul l'onglet qui l'a lancée connaît — US-0180/L1, ouvert en #146.
+  D'ici là, le suivi garde les références des tâches qui courent dans le stockage de session
+  de l'onglet (`sessionStorage`) : un rechargement complet les suit encore, sans la commande
+  qui les a lancées — une tâche suivie après un rechargement ne se relance que de son écran —,
+  mais un autre onglet ou un autre poste n'en sait rien.
+- Deux signalements n'ont pas de zone au contrat — le dépassement du budget d'un sous-projet
+  (`SubprojectBalance.is_over_budget`) et les signaux de santé du pilotage
+  (`PilotHealth.signals`) — US-0160/L1, ouvert en #139, à faire avant #115 et #120. D'ici
+  là, aucun écran ne les montre par `Signal` : le front n'invente pas de zone.
+- Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
+  US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
+  tests ne peuvent pas le simuler sur ces opérations.
+- `correlation_id` n'a pas de motif, ni de longueur minimale — US-0090/L2, ouvert en #144.
+  D'ici là, le front le préfixe dans le digest de Next et traite une valeur vide comme
+  absente.
+- `CommandCondition` n'a pas de condition « traitement en cours » : pendant un marquage, une
+  révision relue liste toujours `mark` disponible — US-0180/L1, ouvert en #147 (décision de
+  l'utilisateur), à faire avant #113. D'ici là, le suivi offre « Recharger l'écran » à
+  l'aboutissement d'une tâche ; le 409 de `markRevision` ne vaut qu'une fois la révision
+  marquée, et pendant le marquage rien au contrat n'empêche un second envoi.
 
 ### Ordre de construction
 
@@ -664,9 +686,9 @@ pas une protection.
 
 ## US-0180 — Traitements longs : suivi et signalement
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0080-A`
-- **opérations** : `getBackgroundTask`, `getBackgroundTaskResult`, `markRevision`
+- **opérations** : `getBackgroundTask`, `markRevision` — `getBackgroundTaskResult` passe à l'US-0260, qui décide du téléchargement d'un résultat (décision de l'utilisateur, 2026-09-29)
 - **issue** : #82
 
 **En tant que** chef de projet, **je veux** qu'une action longue me rende la main et me
@@ -676,7 +698,9 @@ pendant qu'un marquage ou un import se fait.
 **Critères d'acceptation.**
 
 - `WF-IHM-0080-A` — « Le marquage d'une révision de dix mille objets laisse l'écran utilisable
-  et présente son avancement. »
+  et présente son avancement. » — ici, l'écran utilisable et l'avancement présenté, sur le
+  faux back ; le volume de dix mille objets se constate sur le marquage réel, en EP-04
+  (décision de l'utilisateur, 2026-09-29).
 - `WF-IHM-0080-A` — « Un utilisateur qui change d'écran pendant un import est informé de son
   aboutissement. »
 - `WF-IHM-0080-A` — « L'échec d'un traitement de fond est signalé avec son motif, et le même
@@ -911,7 +935,7 @@ s'atteignent sans projet ouvert et que la matrice des permissions se lit.
 - **statut** : à faire
 - **exigences** : aucune en propre — EP-09 et EP-12
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
-  `listImports`, `requestExport`
+  `listImports`, `requestExport`, `getBackgroundTaskResult`
 - **issue** : #90
 
 **En tant que** chef de projet, **je veux** l'écran qui dépose un fichier, présente le compte

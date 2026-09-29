@@ -9,6 +9,9 @@
  * the shell then offers neither selectors nor navigation — the browser and the workstation
  * decide the language and the mode. When the session cannot be read at all — the API out of
  * reach —, the navigation still offers the status screen (WF-ADM-0130).
+ *
+ * The shell follows the background tasks the screens start, above the page, whatever screen
+ * the user goes to meanwhile (WF-IHM-0080).
  */
 import Link from "next/link";
 import { NextIntlClientProvider } from "next-intl";
@@ -16,6 +19,7 @@ import type { ReactNode } from "react";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import { TIME_ZONE } from "@/i18n/format";
+import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
 import type { LanguagePreference, Locale } from "@/i18n/locale";
 import type { ThemePreference } from "@/theme/theme";
 
@@ -50,19 +54,24 @@ export function Shell({
 }: ShellProps) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone={TIME_ZONE}>
-      <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr] md:grid-rows-[auto_1fr]">
-        <header className="flex flex-wrap items-center gap-4 border-b bg-card px-4 py-2 text-card-foreground md:col-span-2">
-          <Link href="/" className="mr-auto rounded-md">
-            <Logo theme={theme} />
-          </Link>
-          {preference === undefined ? null : <LanguageSelector preference={preference} />}
-          {theme === undefined ? null : <ThemeSelector preference={theme} />}
-        </header>
-        {permissions === undefined ? null : (
-          <Navigation permissions={permissions} remembered={remembered} />
-        )}
-        <div className="min-w-0 md:col-start-2">{children}</div>
-      </div>
+      <TaskTracker>
+        <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr] md:grid-rows-[auto_1fr]">
+          <header className="flex flex-wrap items-center gap-4 border-b bg-card px-4 py-2 text-card-foreground md:col-span-2">
+            <Link href="/" className="mr-auto rounded-md">
+              <Logo theme={theme} />
+            </Link>
+            {preference === undefined ? null : <LanguageSelector preference={preference} />}
+            {theme === undefined ? null : <ThemeSelector preference={theme} />}
+          </header>
+          {permissions === undefined ? null : (
+            <Navigation permissions={permissions} remembered={remembered} />
+          )}
+          <div className="min-w-0 md:col-start-2">
+            <TaskPanel />
+            {children}
+          </div>
+        </div>
+      </TaskTracker>
     </NextIntlClientProvider>
   );
 }

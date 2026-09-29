@@ -96,6 +96,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0050-A` | Partitionnement par projet | entière | — |
 | `WF-EXP-0020-A` | Amorçage d'une installation neuve | fin — amorcée en EP-03, EP-05 | — |
 | `WF-QUA-0040-A` | Jeu de données de référence | début — close en EP-13 | — |
+| `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02 | — |
 
 ## Opérations du contrat
 

@@ -54,6 +54,27 @@
     "reload": "Recharger",
     "signIn": "Se connecter"
   },
+  "tasks": {
+    "label": "Tâches de fond",
+    "named": "{kind} « {subject} »",
+    "progress": "{progress} %",
+    "succeeded": "Tâche terminée : {task}.",
+    "failed": "Tâche échouée : {task}.",
+    "relaunch": "Relancer",
+    "reload": "Recharger l’écran",
+    "relaunchLabel": "Relancer : {task}",
+    "relaunchFromScreen": "Pour relancer cette tâche, repartez de l’écran de son objet.",
+    "interrupted": "Suivi interrompu",
+    "interruptedLine": "Suivi interrompu : {task}.",
+    "dismiss": "Retirer du suivi : {task}"
+  },
+  "markRevision": {
+    "versionName": "Nom de version",
+    "versionNameRequired": "Le nom de version est obligatoire.",
+    "description": "Description (facultative)",
+    "submit": "Marquer",
+    "cancel": "Annuler"
+  },
   "notFound": {
     "title": "Introuvable",
     "explanation": "Cette adresse ne mène à rien que vous puissiez consulter.",
