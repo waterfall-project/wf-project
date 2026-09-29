@@ -27,21 +27,32 @@ function text(markup: string): string {
     .trim();
 }
 
-/** The summary of the estimate on examples of the contract, in a language. */
+/** The summary of the estimate on answers of the API, in a language. */
+function renderSummary(
+  indicators: EstimateIndicators | undefined,
+  rates: MissingRates,
+  permissions: readonly Permission[] = all,
+  locale: Locale = "fr",
+): string {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
+      <EstimateSummary indicators={indicators} missingRates={rates} permissions={permissions} />
+    </NextIntlClientProvider>,
+  );
+}
+
+/** The summary of the estimate on examples of the contract, named, in a language. */
 function summary(
   indicators: string,
   rates: string,
   permissions: readonly Permission[] = all,
   locale: Locale = "fr",
 ): string {
-  return renderToStaticMarkup(
-    <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <EstimateSummary
-        indicators={example(indicators) as EstimateIndicators}
-        missingRates={example(rates) as MissingRates}
-        permissions={permissions}
-      />
-    </NextIntlClientProvider>,
+  return renderSummary(
+    example(indicators) as EstimateIndicators,
+    example(rates) as MissingRates,
+    permissions,
+    locale,
   );
 }
 
@@ -83,10 +94,51 @@ describe("the summary of the estimate", () => {
     expect(html).toMatch(/<a [^>]*href="\/reference\/costs"/);
   });
 
-  it("names the missing rates without a way to a reference the session may not read", () => {
+  it("leads a session that may read the reference but not write it to see the rates, by a link bearing the icon of the function", () => {
     const html = summary("estimate_indicators", "missing_rates", estimator);
+    expect(text(html)).toContain("Mise en service — 2026 Voir les taux horaires Indicateurs");
+    expect(html).toMatch(
+      /<a [^>]*href="\/reference\/costs"[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Voir les taux horaires<\/a>/,
+    );
+  });
+
+  it("names the missing rates without a way to a reference the session may not read", () => {
+    // No session: no permission at all.
+    const html = summary("estimate_indicators", "missing_rates", []);
     expect(text(html)).toContain("Ingénierie électrique — 2026 Mise en service — 2026");
     expect(html).not.toContain("<a ");
+  });
+
+  it("never names a category or a nature by its identifier when the API gives no label", () => {
+    const unlabelled = <T extends { label?: string }>(items: readonly T[]) =>
+      items.map((item) => ({ ...item, label: undefined }));
+    const breakdown = example("estimate_indicators_breakdown") as EstimateIndicators;
+    const html = text(
+      renderSummary(
+        { ...breakdown, by_cost_type: unlabelled(breakdown.by_cost_type) },
+        unlabelled(example("missing_rates") as MissingRates),
+      ),
+    );
+    expect(html).toContain("Sans libellé — 2026 Sans libellé — 2026");
+    expect(html).toContain("Par nature de coût Sans libellé 1 000,00 (36,57 %) Sans libellé");
+    expect(html).not.toMatch(/01926f3a-/);
+  });
+
+  it("leaves out a breakdown the API gives empty", () => {
+    const indicators = example("estimate_indicators") as EstimateIndicators;
+    const html = text(
+      renderSummary({ ...indicators, by_subproject: [] }, [] satisfies MissingRates),
+    );
+    expect(html).toContain("Par nature de coût Débours");
+    expect(html).not.toContain("Par sous-projet");
+  });
+
+  it("says the indicators are unavailable when the API did not give them, the missing rates still named", () => {
+    const html = text(renderSummary(undefined, example("missing_rates") as MissingRates));
+    expect(html).toMatch(
+      /^Taux horaires manquants .* Indicateurs du devis Les indicateurs du devis sont indisponibles\.$/,
+    );
+    expect(html).not.toContain("Calculé le");
   });
 
   it("says nothing of the rates when none is missing", () => {

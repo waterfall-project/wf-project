@@ -1,5 +1,5 @@
 {
-  "summary": "La session d'un chiffreur : il lit les révisions, les paramètres, le reste à engager et les indicateurs du projet, et saisit le devis ; il ne lit ni le planning ni le référentiel.",
+  "summary": "La session d'un chiffreur : il lit les révisions, les paramètres, le reste à engager et les indicateurs du projet, consulte les paramètres de coûts du référentiel sans les modifier, et saisit le devis ; il ne lit pas le planning.",
   "value": {
     "user": {
       "user_id": "01926f3a-7c00-7000-8000-000000000301",
@@ -34,6 +34,7 @@
       }
     },
     "permissions": [
+      "cost_settings.read",
       "revisions.read",
       "project_settings.read",
       "estimate.read",

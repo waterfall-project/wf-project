@@ -55,9 +55,18 @@ function bodyRows(): HTMLElement[] {
   return screen.getAllByRole("row").slice(1, -1);
 }
 
-/** The texts of the cells of a row. */
+/** The texts a cell shows: its text, without the names its icons show on hover. */
+function shown(cell: Element): string {
+  const copy = cell.cloneNode(true) as Element;
+  copy.querySelectorAll("title").forEach((title) => {
+    title.remove();
+  });
+  return copy.textContent;
+}
+
+/** The texts the cells of a row show. */
 function texts(row: HTMLElement | undefined): string[] {
-  return [...(row?.querySelectorAll("td, th") ?? [])].map((cell) => cell.textContent);
+  return [...(row?.querySelectorAll("td, th") ?? [])].map(shown);
 }
 
 /** The cells of the row of a label. */
@@ -122,7 +131,7 @@ describe("the grid of the planning", () => {
     expect(bodyRows().map(texts)).toEqual([
       ["1", "Études", "", days("40"), "02/03/2026", "24/04/2026", "", "", ""],
       ["2", "Études de détail", "", days("30"), "02/03/2026", "10/04/2026", "", days("0"), ""],
-      ["3", "Pupitres opérateurs", "", days("45"), "02/03/2026", "01/05/2026", "", "", ""],
+      ["3", "Pupitres opérateurs", "", days("40"), "02/03/2026", "24/04/2026", "", "", ""],
       ["4", "Revue de conception", "", days("10"), "13/04/2026", "24/04/2026", "", days("0"), "2"],
       [
         "5",
@@ -140,10 +149,10 @@ describe("the grid of the planning", () => {
         "Dossier de conception",
         "",
         days("5"),
-        "08/04/2026",
-        "14/04/2026",
+        "09/04/2026",
+        "15/04/2026",
         "",
-        days("8"),
+        days("7"),
         `2FD-${days("2")}`,
       ],
     ]);
@@ -165,6 +174,11 @@ describe("the grid of the planning", () => {
     expect(icons("Réception des études")[1]).toEqual(["Jalon"]);
     expect(icons("Réception des études")[6]).toEqual(["Non démarrée"]);
     expect(icons("Dossier de conception")[1]).toEqual(["Tâche"]);
+    // Each shows its name on hover too, to whoever does not read the icon.
+    const [, , manual] = cellsOf("Pupitres opérateurs");
+    expect(within(manual ?? document.body).getByTitle("Manuel")).toBeInTheDocument();
+    const [, , , , , , completed] = cellsOf("Études de détail");
+    expect(within(completed ?? document.body).getByTitle("Terminée")).toBeInTheDocument();
   });
 
   it("marks the float of a task on the critical path by an icon and bold type, never by a colour alone", () => {
@@ -173,6 +187,7 @@ describe("the grid of the planning", () => {
     for (const critical of ["Études de détail", "Revue de conception", "Réception des études"]) {
       expect(iconNames(float(critical))).toEqual(["Chemin critique"]);
       expect(float(critical)?.querySelector(".font-semibold")).not.toBeNull();
+      expect(within(float(critical) ?? document.body).getByTitle("Chemin critique")).toBeVisible();
     }
     // A task with a float, and one in manual mode, which bears none: no mark.
     for (const off of ["Dossier de conception", "Pupitres opérateurs"]) {
@@ -201,10 +216,10 @@ describe("the grid of the planning", () => {
 
   it("sorts each of its columns by the column of the contract of the same name, whose value it reads", () => {
     expect(PLANNING_SORT_COLUMNS).toEqual(PLANNING_GRID.columns.map((column) => column.key));
+    // The predecessors, which their cell renders, give an accessor to the sort alone.
     const milestone = planning.items[4];
-    expect(
-      milestone === undefined ? [] : PLANNING_GRID.columns.map((c) => c.value(milestone)),
-    ).toEqual([
+    const columns = PLANNING_GRID.columns.filter((column) => column.key !== "predecessors");
+    expect(milestone === undefined ? [] : columns.map((c) => c.value(milestone))).toEqual([
       "Réception des études",
       "automatic",
       "0",
@@ -212,7 +227,6 @@ describe("the grid of the planning", () => {
       "2026-04-24",
       "not_started",
       "0",
-      "2",
     ]);
   });
 
@@ -222,7 +236,7 @@ describe("the grid of the planning", () => {
       ...planning,
       items: planning.items.filter((node) => node.task?.label !== "Études de détail"),
     });
-    expect(cellsOf("Revue de conception")[8]?.textContent).toBe("?");
+    expect(texts(bodyRows().find((row) => texts(row)[1] === "Revue de conception"))[8]).toBe("?");
   });
 
   it("shows its figures, units and links in English too", () => {
@@ -232,10 +246,10 @@ describe("the grid of the planning", () => {
       "Dossier de conception",
       "",
       `5${NBSP}d`,
-      "08/04/2026",
-      "14/04/2026",
+      "09/04/2026",
+      "15/04/2026",
       "",
-      `8${NBSP}d`,
+      `7${NBSP}d`,
       `2FS-2${NBSP}d`,
     ]);
     expect(iconNames(cellsOf("Revue de conception")[7])).toEqual(["Critical path"]);

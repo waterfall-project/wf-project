@@ -171,11 +171,14 @@
     "byCostType": "Par nature de coût",
     "bySubproject": "Par sous-projet",
     "share": "{amount} ({share})",
+    "unavailable": "Les indicateurs du devis sont indisponibles.",
+    "unnamed": "Sans libellé",
     "missingRates": {
       "title": "Taux horaires manquants",
       "explanation": "Le devis ne peut pas être calculé tant que ces catégories de coût n’ont pas de taux horaire pour son année de référence :",
       "rate": "{category} — {year}",
-      "enter": "Renseigner les taux horaires"
+      "enter": "Renseigner les taux horaires",
+      "see": "Voir les taux horaires"
     }
   },
   "contextBanner": {

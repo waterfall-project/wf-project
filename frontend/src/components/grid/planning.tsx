@@ -112,6 +112,7 @@ export const PLANNING_GRID: GridConfig<Node, NodeSortColumn, NodeTotals> = {
       format: "text",
       width: 104,
       sortBy: "predecessors",
+      // The accessor of the sort alone: the cell renders the links, named by row number.
       value: (node) => node.predecessors?.length.toString(),
       render: (node) => <PredecessorsCell node={node} />,
     },

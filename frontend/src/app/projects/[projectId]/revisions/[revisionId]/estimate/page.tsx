@@ -7,14 +7,14 @@
  * filters; and the grid on the main structure of the revision, its tasks and their lines. The
  * rows come in the order of the answer, with the totals of the answer: a header clicked or a
  * search entered changes the address, and this page reads anew (`grid-screen.ts`). The
- * indicators and the rates are read alongside the grid, and a read the API refuses is thrown
- * for the pages of the shell to say, as the grid's: the screen never shows a figure it did not
- * read.
+ * indicators and the rates are read alongside the grid. A refused read of the rates is thrown
+ * for the pages of the shell to say, as the grid's; indicators refused are said unavailable,
+ * the rest of the screen shown: the screen never shows a figure it did not read.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
-import { readOrFail } from "@/api/problem";
+import { reach, readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
@@ -42,24 +42,36 @@ export async function generateMetadata({
 
 /**
  * The indicators of the estimate of the revision, for the sub-project the address filters —
- * the whole project otherwise —, and the hourly rates its calculation lacks.
+ * the whole project otherwise —; none when the API refuses them or cannot answer. The contract
+ * does not say what they are while hourly rates are missing (#159): a refusal leaves the rest
+ * of the screen, which says the indicators are unavailable, rather than bringing it down.
  */
-async function readEstimateFigures({ revision, context }: GridAddress) {
+async function readIndicators({ revision, context }: GridAddress) {
+  const subproject = context.parameters.get("subproject_id");
+  const answer = await reach(() =>
+    serverClient().GET("/projects/{project_id}/estimate-indicators", {
+      params: {
+        path: { project_id: revision.projectId },
+        query: {
+          revision_id: revision.revisionId,
+          ...(subproject === null ? {} : { scope: subproject }),
+        },
+      },
+    }),
+  );
+  return answer?.data;
+}
+
+/**
+ * The indicators of the estimate of the revision, if the API gives them, and the hourly rates
+ * its calculation lacks, which the screen cannot do without.
+ */
+async function readEstimateFigures(at: GridAddress) {
+  const { revision } = at;
   const client = serverClient();
   const path = { project_id: revision.projectId };
-  const subproject = context.parameters.get("subproject_id");
   return Promise.all([
-    readOrFail("getEstimateIndicators", () =>
-      client.GET("/projects/{project_id}/estimate-indicators", {
-        params: {
-          path,
-          query: {
-            revision_id: revision.revisionId,
-            ...(subproject === null ? {} : { scope: subproject }),
-          },
-        },
-      }),
-    ),
+    readIndicators(at),
     readOrFail("getMissingRates", () =>
       client.GET("/projects/{project_id}/estimate-indicators/missing-rates", {
         params: { path, query: { revision_id: revision.revisionId } },

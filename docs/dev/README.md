@@ -184,7 +184,8 @@ tri. Chaque grille est à la route de sa fonction, `…/revisions/[r]/planning` 
 que la session peut lire, dans l'ordre de la FBS et de la barre latérale — le planning, ou le
 devis pour un chiffreur qui ne lit pas le planning. L'écran du devis dit au-dessus de sa
 grille les taux horaires qui manquent à son calcul, avec le chemin du référentiel pour qui le
-lit, et ses indicateurs, avec leur date de calcul (`EstimateSummary`).
+lit, et ses indicateurs, avec leur date de calcul, ou qu'ils sont indisponibles quand l'API
+les refuse — ce refus ne fait pas tomber l'écran (`EstimateSummary`).
 
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
@@ -761,10 +762,10 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   yeux —, les écrans d'indicateurs aérés ; chaque fonction a la sienne, dans une table typée
   (`FUNCTION_DENSITY`, `function-display.ts`), que `Screen` et `PageHeader` reçoivent.
 - **Une icône Lucide sur chaque entrée de navigation, chaque bouton et chaque nature de
-  ligne.** Pour les fonctions, les blocs, les commandes, les pages du compte et les natures de
-  ligne, elle est tirée d'une table typée sur ce qu'elle représente — `FUNCTION_ICONS`,
+  ligne.** Pour les fonctions, les blocs, les commandes, les pages du compte, les natures de ligne,
+  les modes de planification et les états d'avancement, elle est tirée d'une table typée sur ce qu'elle représente — `FUNCTION_ICONS`,
   `GROUP_ICONS`, `PROJECT_COMMAND_ICONS` et `REVISION_COMMAND_ICONS`, `ACCOUNT_ICONS`,
-  `ROW_NATURE_ICONS` —, de sorte qu'une valeur ajoutée sans icône casse le typage ; ailleurs — un
+  `ROW_NATURE_ICONS`, `SCHEDULING_MODE_ICONS` et `PROGRESS_ICONS` —, de sorte qu'une valeur ajoutée sans icône casse le typage ; ailleurs — un
   bouton de la coquille, un avis, une page système —, elle est posée en ligne. Une icône à côté de son texte est `aria-hidden` ; une
   icône seule porte un nom — le bouton qui la porte, ou l'icône elle-même (`role="img"`), la
   nature d'une ligne dans sa cellule.

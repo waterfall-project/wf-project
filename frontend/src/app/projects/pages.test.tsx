@@ -517,7 +517,7 @@ describe("the indicators and the missing rates of the estimate", () => {
     });
   });
 
-  it("names the categories whose hourly rate is missing, with the way to the reference for a session that may read it", async () => {
+  it("names the categories whose hourly rate is missing, with the way to the reference, to enter them or to see them", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates",
@@ -534,18 +534,24 @@ describe("the indicators and the missing rates of the estimate", () => {
     const estimator = renderToStaticMarkup(
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
-    expect(text(estimator)).toContain("Ingénierie électrique — 2026");
-    expect(links(estimator)).not.toContain("/reference/costs");
+    // An estimator reads the rates, and may not enter them.
+    expect(text(estimator)).toContain("Mise en service — 2026 See the hourly rates");
+    expect(links(estimator)).toContain("/reference/costs");
   });
 
-  it("never shows figures it did not read: indicators the API does not find leave the screen not found", async () => {
+  it("says the indicators unavailable when the API refuses them, and still shows the missing rates and the grid", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/estimate-indicators": NOT_FOUND,
+      "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates",
     };
-    await expect(EstimatePage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
-      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
-    });
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(text(html)).toContain(
+      "Mise en service — 2026 Enter the hourly rates Estimate indicators The estimate indicators are unavailable.",
+    );
+    expect(html).toMatch(/<table[^>]*role="grid"[^>]*aria-label="Estimate grid"/);
   });
 });
 

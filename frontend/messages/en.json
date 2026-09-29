@@ -171,11 +171,14 @@
     "byCostType": "By nature of cost",
     "bySubproject": "By subproject",
     "share": "{amount} ({share})",
+    "unavailable": "The estimate indicators are unavailable.",
+    "unnamed": "No label",
     "missingRates": {
       "title": "Missing hourly rates",
       "explanation": "The estimate cannot be calculated until these cost categories have an hourly rate for its reference year:",
       "rate": "{category} — {year}",
-      "enter": "Enter the hourly rates"
+      "enter": "Enter the hourly rates",
+      "see": "See the hourly rates"
     }
   },
   "contextBanner": {

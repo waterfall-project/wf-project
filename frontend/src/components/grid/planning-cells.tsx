@@ -43,7 +43,10 @@ export const PROGRESS_ICONS = {
   completed: CircleCheck,
 } as const satisfies Readonly<Record<TaskProgress, LucideIcon>>;
 
-/** The classes of an icon alone in a cell. */
+/**
+ * The classes of an icon alone in a cell, which bears its name and shows it on hover (`<title>`)
+ * to whoever does not read the icon.
+ */
 const CELL_ICON = "inline size-3.5 text-muted-foreground";
 
 /**
@@ -60,7 +63,11 @@ export function SchedulingModeCell({ node }: { readonly node: Node }) {
     return null;
   }
   const Icon = SCHEDULING_MODE_ICONS[mode];
-  return <Icon role="img" aria-label={t(mode)} className={CELL_ICON} />;
+  return (
+    <Icon role="img" aria-label={t(mode)} className={CELL_ICON}>
+      <title>{t(mode)}</title>
+    </Icon>
+  );
 }
 
 /** Render the progress of a task, an icon named for it; nothing for a line. */
@@ -71,7 +78,11 @@ export function ProgressCell({ node }: { readonly node: Node }) {
     return null;
   }
   const Icon = PROGRESS_ICONS[progress];
-  return <Icon role="img" aria-label={t(progress)} className={CELL_ICON} />;
+  return (
+    <Icon role="img" aria-label={t(progress)} className={CELL_ICON}>
+      <title>{t(progress)}</title>
+    </Icon>
+  );
 }
 
 /** Render a number of days with its unit, in the language of the interface. */
@@ -93,7 +104,9 @@ export function FloatCell({ node }: { readonly node: Node }) {
   }
   return (
     <span className="inline-flex items-center gap-1 font-semibold text-foreground">
-      <Flame role="img" aria-label={t("critical")} className="size-3 shrink-0" />
+      <Flame role="img" aria-label={t("critical")} className="size-3 shrink-0">
+        <title>{t("critical")}</title>
+      </Flame>
       <DaysCell days={task.total_float_days} />
     </span>
   );

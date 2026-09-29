@@ -1,5 +1,5 @@
 {
-  "summary": "Le planning d'une structure, lu sans ses lignes (kinds=task) : une récapitulative, une tâche terminée et une démarrée sur le chemin critique, une tâche en mode manuel sans marge, le jalon de réception, lié en fin à début et en début à début avec cinq jours de décalage, et une tâche liée avec deux jours d'avance, qui porte huit jours de marge (WF-PLA-0080, WF-PLA-0100). Les totaux restent ceux des lignes de la structure : kinds ne les change pas.",
+  "summary": "Le planning d'une structure, lu sans ses lignes (kinds=task) : une récapitulative, une tâche terminée et une démarrée sur le chemin critique, une tâche en mode manuel sans marge, le jalon de réception, lié en fin à début et en début à début avec cinq jours de décalage, et une tâche liée avec deux jours d'avance, qui porte sept jours de marge (WF-PLA-0040, WF-PLA-0080, WF-PLA-0100). Les numéros de ligne ne comptent que les lignes rendues, ici les seules tâches — ce que le contrat ne dit pas encore (#158). Les totaux restent ceux des lignes de la structure : kinds ne les change pas.",
   "value": {
     "items": [
       {
@@ -73,9 +73,9 @@
         "task": {
           "label": "Pupitres opérateurs",
           "scheduling_mode": "manual",
-          "duration_days": 45,
+          "duration_days": 40,
           "start_date": "2026-03-02",
-          "finish_date": "2026-05-01",
+          "finish_date": "2026-04-24",
           "progress": "not_started",
           "is_summary": false,
           "is_milestone": false,
@@ -175,14 +175,14 @@
           "label": "Dossier de conception",
           "scheduling_mode": "automatic",
           "duration_days": 5,
-          "start_date": "2026-04-08",
-          "finish_date": "2026-04-14",
+          "start_date": "2026-04-09",
+          "finish_date": "2026-04-15",
           "progress": "not_started",
           "is_summary": false,
           "is_milestone": false,
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
-          "total_float_days": 8,
+          "total_float_days": 7,
           "is_critical": false
         },
         "predecessors": [
