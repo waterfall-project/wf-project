@@ -20,14 +20,15 @@ import { Contrast, Zap } from "lucide-react";
 
 import { type GridConfig, sortColumns } from "./columns";
 import {
+  type AnyNodeFields,
   LABEL_COLUMN,
   NODE_TREE,
-  type Node,
   type NodeKind,
   nodeKey,
   nodeNumber,
   type NodeSortColumn,
   type NodeTotals,
+  type RowOf,
 } from "./nodes";
 import {
   DaysCell,
@@ -40,8 +41,30 @@ import {
 /** What the grid of the planning asks the server to render: the tasks, not the lines. */
 export const PLANNING_KINDS: readonly NodeKind[] = ["task"];
 
+/**
+ * What the columns of the planning read of a node, beyond what every grid reads: its
+ * predecessors, and the schedule of its task. The page hands the grid these alone
+ * (`projectNodes`).
+ */
+export const PLANNING_FIELDS = {
+  node: ["predecessors"],
+  task: [
+    "scheduling_mode",
+    "duration_days",
+    "start_date",
+    "finish_date",
+    "progress",
+    "total_float_days",
+    "is_critical",
+  ],
+  line: [],
+} as const satisfies AnyNodeFields;
+
+/** A node as the grid of the planning reads it. */
+export type PlanningNode = RowOf<typeof PLANNING_FIELDS>;
+
 /** The grid of the planning. */
-export const PLANNING_GRID: GridConfig<Node, NodeSortColumn, NodeTotals> = {
+export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals> = {
   key: "planning",
   name: "planning",
   rowKey: nodeKey,

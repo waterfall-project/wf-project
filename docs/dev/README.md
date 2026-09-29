@@ -154,7 +154,15 @@ l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que rend sa 
 de la valeur formatée (`render`) — et, s'il y en a un, son arbre (niveau, icône de nature par
 `RowNatureIcon`). La configuration lit les lignes par des fonctions : elle se remet à
 `DenseGrid` dans un composant client propre à l'écran (`estimate-grid.tsx`,
-`planning-grid.tsx`), et la page, serveur, ne lui passe que des données. La grille de planning
+`planning-grid.tsx`), et la page, serveur, ne lui passe que des données — et de chaque nœud,
+les seuls champs que la grille lit : ceux de toute grille (identité, version, champs calculés,
+numéro, niveau, nature, libellé) et ceux de ses colonnes, que nomme sa configuration
+(`ESTIMATE_FIELDS`, `PLANNING_FIELDS`), projetés par `projectNodes` : les six mille nœuds
+entiers de `listNodes` pèsent quatre mégaoctets dans la page, projetés, environ la moitié
+(#166). Une colonne qui lit
+un champ nouveau l'ajoute à cette liste : le typage de la ligne le demande, et
+`projection.test.tsx` vérifie que la grille lit la même chose de la ligne projetée que du nœud
+entier. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
 `estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
 lecture de la structure principale (`grid-screen.ts`) ; le planning demande au serveur les
@@ -253,8 +261,9 @@ hors de `src/api/client.ts` les moyens connus d'atteindre le réseau — `fetch`
 la liste des dépendances de `package.json`, pour qu'une nouvelle soit examinée pour la
 garde avant d'entrer. Le cas transitif — un module sans directive qui importe
 `@/api/server`, et qu'un composant client importe — échappe à ESLint : `client.ts` et
-`server.ts` importent `server-only`, le filet de `next build`, qu'aucun contrôle ne lance
-encore (#131), pas un contrôle de la chaîne. `make typecheck-front`, `make test-front` ;
+`server.ts` importent `server-only`, le filet de `next build`, que la chaîne ne lance qu'au
+palier complet, pour la mesure de la seconde (`make e2e`, `playwright.config.ts`), et une fois
+le faux back démarré (#131). `make typecheck-front`, `make test-front` ;
 `make lint-docker` (hadolint).
 
 ## Le faux back
@@ -558,13 +567,56 @@ les serveurs que `make` et `pnpm` lancent survivraient. `make e2e-browsers` inst
 navigateur. À partir d'EP-03, les mêmes parcours se jouent contre le vrai service en
 changeant `WATERFALL_API_ADDRESS`.
 
+La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
+`frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
+back, pour la grille de devis et pour celle de planning ; le faux back sert le planning sans
+tenir compte de `kinds=task`, et sa mesure est pessimiste : elle porte sur six mille lignes, et
+non sur les mille tâches que le service rendra. Une ouverture va de son début — le début de
+la navigation pour une grille ouverte par son adresse, le clic pour une grille ouverte depuis
+la barre latérale — jusqu'à la grille utilisable, c'est-à-dire dessinée et hydratée : dessinée,
+la première image où l'en-tête de ses colonnes, la légende de ses totaux et la première ligne
+de la réponse sont entièrement dans la fenêtre ; hydratée, la première image où la grille
+entière est rendue par React — le serveur en rend le premier écran, qui peut s'afficher avant
+qu'un clic n'y fasse rien —, que le parcours reconnaît aux clés que React pose, en l'hydratant,
+sur le dernier élément de la grille, la dernière cellule de ses totaux (`__reactProps$…`) : un
+détail interne de React, lu par le test seul. Le plus tardif des deux
+instants doit tenir la seconde. Un script remis à chaque document guette chaque image et note
+les instants sur l'horloge du système (`performance.timeOrigin`), qu'un document remplacé ne
+perd pas : ni les allers-retours de Playwright ni son attente n'y comptent. Elle se joue contre
+le front construit pour la production (`next build`, puis `next start` sur le port 3001), que
+`playwright.config.ts` démarre après le faux back, à côté du serveur de développement —
+celui-ci compile une route à sa première demande et rend avec les contrôles de React en
+développement : il dirait la vitesse du poste du développeur. Avant chaque série de cinq
+ouvertures — cinq par l'adresse, cinq depuis la barre latérale, pour chaque grille —, une
+ouverture n'est pas mesurée : le premier chargement des modules du serveur ne compte pas, et
+le cache du navigateur est chaud, comme pour un utilisateur qui a déjà ouvert l'application.
+Chaque ouverture ne commence qu'une fois la précédente entièrement servie, préchargements
+compris — la grille hydratée, ses liens de la barre latérale demandent encore au serveur les
+écrans où ils mènent, et une navigation lancée avant leur réponse les couperait pendant que le
+serveur les rend, dans le temps de l'ouverture suivante — : le parcours suit les requêtes de la
+page, qu'elles partent d'un document nouveau ou d'une navigation dans la même page, et attend,
+hors de la mesure, qu'aucune ne soit en cours depuis une demi-seconde, en quinze secondes au
+plus ; le journal écrit combien étaient en cours au départ de chaque ouverture mesurée, et il
+n'en faut aucune.
+Chaque ouverture doit tenir la seconde, comparée sans arrondi ; le journal du parcours écrit la
+médiane et la pire, utilisable, dessinée et hydratée, et, pour l'ouverture par l'adresse, où va
+le temps : les instants médians où le serveur a fini d'envoyer le document et où le navigateur
+l'a lu. Le parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
+ne lit pas (`lineage_id`). Son projet Playwright, `production`, dépend du projet `chromium` :
+il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
+d'eux échoue —, et sans trace. Elle tourne donc là où tournent les parcours, au palier complet
+de la chaîne ; sur un poste, `make e2e`, ou la mesure seule, contre des serveurs déjà
+démarrés : `pnpm exec playwright test --project production --no-deps` dans `frontend/`. La
+mesure est faite pour un utilisateur seul et contre le faux back : le jeu de référence et les
+cinquante utilisateurs simultanés du §4.6.2 restent à mesurer contre le vrai service.
+
 Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
 sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté
 serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
 contrat par `frontend/src/test/fixtures.ts`, les mêmes données que sert le faux back.
 
-*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
-échouer.
+*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours, ou une
+ouverture de grille qui dépasse la seconde, la fait échouer.
 
 ### Couverture du code
 

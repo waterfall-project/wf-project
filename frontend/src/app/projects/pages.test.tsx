@@ -9,6 +9,11 @@ import { createApiClient, Unreachable } from "@/api/client";
 import { SignedOut, UnexpectedAnswer } from "@/api/problem";
 import { SCREEN } from "@/components/shell/page-header";
 import { SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
+import { ESTIMATE_FIELDS } from "@/components/grid/estimate";
+import type { EstimateGridProps } from "@/components/grid/estimate-grid";
+import { COMMON_FIELDS, type AnyNodeFields, type NodeList } from "@/components/grid/nodes";
+import { PLANNING_FIELDS } from "@/components/grid/planning";
+import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import {
   example,
@@ -75,6 +80,36 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The grids render as they would, and keep what their page handed them.
+const grids = vi.hoisted((): { estimate: EstimateGridProps[]; planning: PlanningGridProps[] } => ({
+  estimate: [],
+  planning: [],
+}));
+
+vi.mock("@/components/grid/estimate-grid", async (original) => {
+  const actual = await original<typeof import("@/components/grid/estimate-grid")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    EstimateGrid: (props: EstimateGridProps) => {
+      grids.estimate.push(props);
+      return createElement(actual.EstimateGrid, props);
+    },
+  };
+});
+
+vi.mock("@/components/grid/planning-grid", async (original) => {
+  const actual = await original<typeof import("@/components/grid/planning-grid")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    PlanningGrid: (props: PlanningGridProps) => {
+      grids.planning.push(props);
+      return createElement(actual.PlanningGrid, props);
+    },
+  };
+});
+
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
@@ -139,6 +174,8 @@ function inEnglish(page: ReactNode) {
 }
 
 beforeEach(() => {
+  grids.estimate = [];
+  grids.planning = [];
   server.clients = [];
   server.unreachable = false;
   server.undeclared = undefined;
@@ -821,5 +858,57 @@ describe("the empty states of the shell", () => {
       searchParams: NO_SEARCH,
     });
     await expect(page).rejects.toBeInstanceOf(Unreachable);
+  });
+});
+
+describe("the rows a page hands its grid", () => {
+  const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+  const VOLUME = "volume/nodes_thousand";
+
+  beforeEach(() => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": VOLUME,
+    };
+  });
+
+  /**
+   * Check that each row a grid was handed holds the fields of its list that its node has — the
+   * fields every grid reads and those of its columns —, and those alone, its facets alike.
+   */
+  function projected(items: readonly object[], fields: AnyNodeFields) {
+    const answer = example(VOLUME) as NodeList;
+    const listed = {
+      node: [...COMMON_FIELDS.node, ...fields.node, "task", "estimate_line"],
+      task: [...COMMON_FIELDS.task, ...fields.task],
+      line: [...COMMON_FIELDS.line, ...fields.line],
+    };
+    const kept = (source: object, keys: readonly string[]) =>
+      keys.filter((key) => key in source).sort();
+    expect(items).toHaveLength(answer.items.length);
+    for (const [index, node] of answer.items.entries()) {
+      const row = items[index] ?? {};
+      expect(Object.keys(row).sort()).toEqual(kept(node, listed.node));
+      for (const left of ["lineage_id", "parent_id", "position"]) {
+        expect(row).not.toHaveProperty(left);
+      }
+      const facets = row as { task?: object | null; estimate_line?: object | null };
+      expect(Object.keys(facets.task ?? {}).sort()).toEqual(kept(node.task ?? {}, listed.task));
+      expect(Object.keys(facets.estimate_line ?? {}).sort()).toEqual(
+        kept(node.estimate_line ?? {}, listed.line),
+      );
+    }
+  }
+
+  it("the estimate hands its grid the fields it shows of each node, and those alone", async () => {
+    renderToStaticMarkup(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
+    expect(grids.estimate).toHaveLength(1);
+    projected(grids.estimate[0]?.nodes.items ?? [], ESTIMATE_FIELDS);
+  });
+
+  it("the planning hands its grid the fields it shows of each node, and those alone", async () => {
+    renderToStaticMarkup(inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })));
+    expect(grids.planning).toHaveLength(1);
+    projected(grids.planning[0]?.nodes.items ?? [], PLANNING_FIELDS);
   });
 });

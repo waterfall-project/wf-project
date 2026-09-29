@@ -363,10 +363,10 @@ verrou.
   WebKit pour Safari — pour les parcours de WF-CMP-0010, grilles, Gantt et courbes à 1366
   points, vues d'indicateurs à 360. `make e2e-browsers` les installe tous.
 - **Performance** : au palier complet, sur chromium, l'ouverture de la grille de devis de
-  mille tâches — du clic à la première ligne rendue — tient en une seconde ; la mesure
-  s'écrit au relevé de livraison. Le plafond n'est pas acquis : une réponse `listNodes` de
-  plusieurs mégaoctets rendue côté serveur peut le crever, et ce serait alors un constat
-  sur le contrat (représentation d'un nœud trop lourde).
+  mille tâches — du clic à la grille utilisable, dessinée et hydratée — tient en une
+  seconde ; la mesure s'écrit au relevé de livraison. Le plafond n'est pas acquis : une
+  réponse `listNodes` de plusieurs mégaoctets rendue côté serveur peut le crever, et ce serait
+  alors un constat sur le contrat (représentation d'un nœud trop lourde).
 - **Complétude des écrans** : `make screens` (`wftools.screens`) confronte
   `functions.json` aux fonctions feuilles de la FBS de la projection — une fonction sans
   adresse fait échouer la chaîne —, et un parcours ouvre chaque route depuis la navigation.
@@ -421,6 +421,7 @@ fond d'un utilisateur, la révision ouverte par défaut.
 - `Predecessor` ne nomme sa tâche que par `predecessor_node_id` : la grille de planning tire le numéro de ligne d'un prédécesseur de la même réponse de `listNodes`, et ne peut plus le nommer quand une recherche retient une tâche sans lui — US-0220/L1, ouvert en #158 ; le décalage n'a pas d'unité (`lag_days`), alors que WF-PLA-0030 le garde en jours, semaines ou mois. D'ici là, un prédécesseur absent de la réponse se dit `?`.
 - Le contrat ne dit pas ce que rend `getEstimateIndicators` quand des taux horaires manquent (WF-DEV-0010) — US-0220/L1, ouvert en #159. D'ici là, l'écran du devis montre l'avis des taux manquants et ce que les indicateurs rendent ; quand l'API ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`), l'écran reste debout et les dit indisponibles ; toute autre réponse suit la règle des lectures.
 - `EstimateIndicators` ne porte que l'écart à la révision précédente et aucun total par poste, là où WF-DEV-0060 demande l'écart à la référence et les totaux par poste — US-0220/L1, ouvert en #160. D'ici là, l'écran affiche l'écart que le contrat rend, sous son nom exact.
+- `listNodes` rend chaque nœud entier — identifiants de lignée, de parent, de catégorie, de rôle et de sous-projet, disponibilité de la saisie du reste, noms de clés répétés sur six mille nœuds — : quatre mégaoctets pour mille tâches et leurs lignes, que le serveur de Next lit puis écrivait entiers dans la page, et l'ouverture d'une grille ne tenait la seconde du §4.6.2 qu'à la marge — US-0110/L2, ouvert en #166. D'ici là, la page ne passe à la grille que les champs qu'elle affiche.
 
 ### Ordre de construction
 
@@ -508,7 +509,7 @@ suis, si elle est marquée, si elle est la référence, et ce qu'un filtre actif
 
 ## US-0110 — Grille dense : lecture, tri, colonnes et préférences
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0060-A`, `WF-ADM-0040-A`
 - **opérations** : `listNodes`, `getMe`, `updateMyPreferences`
 - **issue** : #75

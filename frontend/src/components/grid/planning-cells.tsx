@@ -19,7 +19,7 @@ import { createContext, useContext } from "react";
 
 import type { components } from "@/api/generated/schema";
 
-import type { Node } from "./nodes";
+import type { PlanningNode } from "./planning";
 
 /** The scheduling mode of a task (WF-PLA-0020). */
 type SchedulingMode = components["schemas"]["SchedulingMode"];
@@ -56,7 +56,7 @@ const CELL_ICON = "inline size-3.5 text-muted-foreground";
 export const RowNumbers = createContext<ReadonlyMap<string, number>>(new Map());
 
 /** Render the scheduling mode of a task, an icon named for it; nothing for a line. */
-export function SchedulingModeCell({ node }: { readonly node: Node }) {
+export function SchedulingModeCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations("enums.SchedulingMode");
   const mode = node.task?.scheduling_mode;
   if (mode === undefined) {
@@ -71,7 +71,7 @@ export function SchedulingModeCell({ node }: { readonly node: Node }) {
 }
 
 /** Render the progress of a task, an icon named for it; nothing for a line. */
-export function ProgressCell({ node }: { readonly node: Node }) {
+export function ProgressCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations("enums.TaskProgress");
   const progress = node.task?.progress;
   if (progress === undefined) {
@@ -96,7 +96,7 @@ export function DaysCell({ days }: { readonly days: number | null | undefined })
  * float (WF-PLA-0100) —, and, on the critical path, the icon that names it before the float set
  * in bold: the mark reads without its colour.
  */
-export function FloatCell({ node }: { readonly node: Node }) {
+export function FloatCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations("planningGrid");
   const task = node.task;
   if (task?.is_critical !== true) {
@@ -134,7 +134,7 @@ function shownLink({ link_type, lag_days }: Predecessor): string {
  * A predecessor the answer does not hold — outside what a search retained — has no number to
  * show, and says so.
  */
-export function PredecessorsCell({ node }: { readonly node: Node }) {
+export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations("planningGrid");
   const rows = useContext(RowNumbers);
   const name = (predecessor: Predecessor) =>

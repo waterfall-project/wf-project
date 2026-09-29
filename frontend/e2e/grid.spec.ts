@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, test } from "@playwright/test";
 
-import { scrollPageToGrid, scroller, scrollToFoot, withinBox } from "./scroll";
+import { scrollPageToGrid, scroller, scrollToFoot, scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2): a thousand tasks and five thousand lines, six thousand rows, of which the grid
@@ -10,7 +10,7 @@ import { scrollPageToGrid, scroller, scrollToFoot, withinBox } from "./scroll";
 // `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds — the summary task
 // of row 1, « Études », the lot of row 2, the task of row 3, the milestone of row 6000, the totals
 // of the answer —, and never count the rows rendered: the row count of the grid says how many
-// there are. Measuring the second of §4.6.2 is US-0110/L2 (#107).
+// there are. The second of §4.6.2 is measured in `opening.spec.ts`.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
@@ -62,6 +62,30 @@ test("opens the estimate of a thousand tasks and five thousand lines, and scroll
   await expect(first).toHaveCount(0);
   expect(await withinBox(grid(page), header)).toBe(true);
   expect(await withinBox(grid(page), totals)).toBe(true);
+});
+
+/** The rows a step of the scroll goes through, down the six thousand of the answer. */
+const STEP = 200;
+
+test("scrolls through the thousand tasks and their lines, its header and its totals in view all the way down [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  // Thirty steps, each checked by a few round trips to the browser: slow beside the other paths.
+  test.slow();
+  await page.goto(GRID);
+  await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
+  const { header, totals, last } = edges(page);
+  // Two hundred rows at a time, as a scroll bar dragged down: each row reached is in view, between
+  // the header and the totals, which have not moved from the window.
+  for (let position = STEP; position <= 6000; position += STEP) {
+    const row = await scrollToPosition(grid(page), position);
+    expect(await withinBox(grid(page), row), `row ${position.toString()}`).toBe(true);
+    expect(await withinBox(grid(page), header), `header at ${position.toString()}`).toBe(true);
+    expect(await withinBox(grid(page), totals), `totals at ${position.toString()}`).toBe(true);
+  }
+  await expect(last).toBeInViewport({ ratio: 1 });
+  await expect(header).toBeInViewport({ ratio: 1 });
+  await expect(totals).toBeInViewport({ ratio: 1 });
 });
 
 test.describe("on a low window", () => {

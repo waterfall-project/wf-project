@@ -3,9 +3,10 @@
 /**
  * The grid of the planning in the page: the dense grid — the one component the grid of the
  * estimate renders too —, given its configuration here, on the side of the browser, where the
- * functions of a configuration live. The page hands it data only: the answer of `listNodes`,
- * what the address asked, and the settings the session read. It also lends the cells the row
- * numbers of the answer, by which a predecessor is named.
+ * functions of a configuration live. The page hands it data only: the rows of the answer of
+ * `listNodes` as the grid reads them (`projectNodes`), what the address asked, and the settings
+ * the session read. It also lends the cells the row numbers of the answer, by which a
+ * predecessor is named.
  */
 "use client";
 
@@ -13,15 +14,16 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { DenseGrid } from "./dense-grid";
-import type { NodeList, NodeSortColumn } from "./nodes";
-import { PLANNING_GRID } from "./planning";
+import type { NodeRows, NodeSortColumn } from "./nodes";
+import { PLANNING_GRID, type PlanningNode } from "./planning";
 import { RowNumbers } from "./planning-cells";
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
 
 /** What the grid of the planning shows. */
 export interface PlanningGridProps {
-  readonly nodes: NodeList;
+  /** The rows of the answer of `listNodes`, as the grid reads them, and its totals. */
+  readonly nodes: NodeRows<PlanningNode>;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
