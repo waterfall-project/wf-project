@@ -3,6 +3,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createApiClient } from "@/api/client";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -136,6 +137,25 @@ describe("RootLayout", () => {
     expect(html).not.toContain("<select");
     expect(html).not.toContain("<nav");
     expect(html).toContain('alt="Waterfall"');
+    expect(html).toContain("<p>page</p>");
+  });
+
+  it("still offers the status screen when the session cannot be read: the API is out of reach", async () => {
+    server.client = Object.assign(
+      createApiClient({
+        address: "http://unreachable.invalid",
+        fetch: () => Promise.reject(new TypeError("fetch failed")),
+      }),
+      { calls: [] },
+    );
+    server.acceptLanguage = "fr";
+    const html = await page();
+    expect(html).not.toContain("<select");
+    expect(html).toContain('<nav aria-label="Fonctions"');
+    expect([...html.matchAll(/<a [^>]*href="([^"]*)"/g)].map((match) => match[1])).toEqual([
+      "/",
+      "/system",
+    ]);
     expect(html).toContain("<p>page</p>");
   });
 

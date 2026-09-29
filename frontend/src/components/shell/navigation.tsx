@@ -6,7 +6,9 @@
  * one; in a project, the links carry its context — the revision read, the filtered
  * sub-project, the calculation date —, and a project without a revision offers the functions
  * of the project itself; outside, a link leads back to the last project
- * context, which a cookie of the front keeps across visits.
+ * context, which a cookie of the front keeps across visits. When the session cannot be read,
+ * the status screen is still offered, alone: it is what is consulted when nothing else works
+ * (WF-ADM-0130).
  *
  * A client component: the shell persists from one page to the next, and only the browser
  * knows the address it now shows.
@@ -26,12 +28,20 @@ import {
   type ProjectContext,
   readContext,
 } from "@/navigation/context";
-import { type FunctionGroup, functionHref, readableGroups } from "@/navigation/functions";
+import {
+  diagnosticGroups,
+  type FunctionGroup,
+  functionHref,
+  readableGroups,
+} from "@/navigation/functions";
 
 /** What the navigation offers, and where it leads back to. */
 export interface NavigationProps {
-  /** The effective permissions of the session. */
-  readonly permissions: readonly components["schemas"]["PermissionCode"][];
+  /**
+   * The effective permissions of the session, or `unreadable` when the session could not be
+   * read: the status screen alone is offered then (`diagnosticGroups`).
+   */
+  readonly permissions: readonly components["schemas"]["PermissionCode"][] | "unreadable";
   /** The address of the last project context, from the cookie of the request. */
   readonly remembered: string | undefined;
 }
@@ -82,6 +92,7 @@ export function Navigation({ permissions, remembered }: NavigationProps) {
   if (here !== undefined && here !== last) {
     remember(here);
   }
+  const groups = permissions === "unreadable" ? diagnosticGroups() : readableGroups(permissions);
   useEffect(() => {
     if (here !== undefined) {
       document.cookie = contextCookie(here);
@@ -96,7 +107,7 @@ export function Navigation({ permissions, remembered }: NavigationProps) {
           {t("navigation.returnToProject")}
         </Link>
       ) : null}
-      {readableGroups(permissions).map((group) => (
+      {groups.map((group) => (
         <section key={group.code} className="space-y-1">
           <h2 className="px-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             {group.route === undefined ? (

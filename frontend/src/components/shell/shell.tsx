@@ -7,13 +7,13 @@
  *
  * Without an account there is no preference to write, and no permission to read a function:
  * the shell then offers neither selectors nor navigation — the browser and the workstation
- * decide the language and the mode.
+ * decide the language and the mode. When the session cannot be read at all — the API out of
+ * reach —, the navigation still offers the status screen (WF-ADM-0130).
  */
 import Link from "next/link";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 
-import type { components } from "@/api/generated/schema";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { TIME_ZONE } from "@/i18n/format";
 import type { LanguagePreference, Locale } from "@/i18n/locale";
@@ -21,19 +21,20 @@ import type { ThemePreference } from "@/theme/theme";
 
 import { LanguageSelector } from "./language-selector";
 import { Logo } from "./logo";
-import { Navigation } from "./navigation";
+import { Navigation, type NavigationProps } from "./navigation";
 import { ThemeSelector } from "./theme-selector";
 
 /**
  * The language of the request; the preferences of the account it came from and the
- * permissions of its session — `undefined` without an account —; the address of the last
- * project context the cookie keeps; and the page.
+ * permissions of its session — `undefined` without an account, `unreadable` when the session
+ * could not be read —; the address of the last project context the cookie keeps; and the
+ * page.
  */
 export interface ShellProps {
   readonly locale: Locale;
   readonly preference: LanguagePreference | undefined;
   readonly theme: ThemePreference | undefined;
-  readonly permissions: readonly components["schemas"]["PermissionCode"][] | undefined;
+  readonly permissions: NavigationProps["permissions"] | undefined;
   readonly remembered: string | undefined;
   readonly children: ReactNode;
 }

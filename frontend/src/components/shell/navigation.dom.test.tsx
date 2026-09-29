@@ -73,6 +73,22 @@ describe("the navigation", () => {
     await expectAccessible(container);
   });
 
+  it("still leads to the status screen, alone, when the session cannot be read", async () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <Navigation permissions="unreadable" remembered={undefined} />
+      </NextIntlClientProvider>,
+    );
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    expect(
+      within(nav)
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href")),
+    ).toEqual(["/system"]);
+    expect(href("Surveillance de l’état du système")).toBe("/system");
+    await expectAccessible(container);
+  });
+
   it("names the blocks of the FBS, and offers each function the session may read", () => {
     render(navigation());
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);

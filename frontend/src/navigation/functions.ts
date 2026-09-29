@@ -98,6 +98,29 @@ export function readableGroups(permissions: readonly PermissionCode[]): Function
 }
 
 /**
+ * The functions offered when the session cannot be read — the API out of reach, or an answer
+ * that is neither a session nor its absence: the status screen alone, which must stay
+ * reachable when nothing else works (WF-ADM-0130). What it can show then is its own affair.
+ */
+export function diagnosticGroups(): FunctionGroup[] {
+  return FUNCTION_GROUPS.map((group) => ({
+    ...group,
+    functions: group.functions.filter((fn) => fn.permission === "system_status"),
+  })).filter((group) => group.functions.length > 0);
+}
+
+/** The function of the table whose permissions bear a name. */
+export function functionOf(permission: FunctionPermission): NavigationFunction {
+  const found = FUNCTION_GROUPS.flatMap((group) => group.functions).find(
+    (fn) => fn.permission === permission,
+  );
+  if (found === undefined) {
+    throw new Error(`no function of the table reads with ${permission}.read`);
+  }
+  return found;
+}
+
+/**
  * The address of a function: its route outside a project; in a project, its route in the
  * context given — the same revision, sub-project and calculation date, the revision as the
  * parameter `revision_id` on a function of the project itself, so that the next function of

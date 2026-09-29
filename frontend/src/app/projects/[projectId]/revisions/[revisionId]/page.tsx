@@ -56,7 +56,7 @@ export default async function RevisionPage({
   }
   return (
     <>
-      {read === undefined ? null : <ContextBanner reading={read} />}
+      <ContextBanner reading={read} />
       <main>
         <table>
           <tbody>

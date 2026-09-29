@@ -54,6 +54,37 @@
     "reload": "Recharger",
     "signIn": "Se connecter"
   },
+  "notFound": {
+    "title": "Introuvable",
+    "explanation": "Cette adresse ne mène à rien que vous puissiez consulter.",
+    "home": "Retour à l’accueil"
+  },
+  "failure": {
+    "unreachable": {
+      "title": "Service injoignable",
+      "explanation": "Le service ne répond pas : l’écran n’a pas pu lire ses données. Réessayez dans un instant."
+    },
+    "unexpected": {
+      "title": "Erreur inattendue",
+      "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."
+    },
+    "reference": "Référence : {reference}",
+    "retry": "Réessayer"
+  },
+  "loading": {
+    "label": "Chargement de l’écran"
+  },
+  "emptyStates": {
+    "noProjects": "Aucun projet.",
+    "noContributedProjects": "Vous n’êtes contributeur d’aucun projet.",
+    "allProjects": "Voir tous les projets",
+    "noRevisions": "Ce projet n’a encore aucune révision.",
+    "revisions": "Aller aux révisions du projet"
+  },
+  "referenceReadiness": {
+    "title": "Référentiel incomplet",
+    "explanation": "Aucun projet ne peut être créé tant que le référentiel commun n’a pas :"
+  },
   "functionGroups": {
     "administration": "Administration",
     "portfolio": "Portefeuille",

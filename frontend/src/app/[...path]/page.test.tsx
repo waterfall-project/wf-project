@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient } from "@/api/client";
 import { serverClient } from "@/api/server";
+import { UNREACHABLE_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { type FakeAnswers, fakeClient } from "@/test/fixtures";
 
@@ -140,6 +141,20 @@ describe("the page of a function still to come", () => {
     });
   });
 
+  it("leads an address that leads nowhere and a project the user may not read to the same screen", async () => {
+    // The API answers a project the user may not read as one it does not find: the page
+    // cannot tell them apart, and throws the same verdict for both, which Next renders by
+    // the one screen not found — telling them apart would reveal the project exists.
+    server.answers = { ...ANSWERS, "GET /projects/{project_id}": NOT_FOUND };
+    const nowhere = await ScreenPage(at("/admin/nobody")).catch((error: unknown) => error);
+    const refused = await ScreenPage(at(`/projects/${PROJECT}/lifecycle`)).catch(
+      (error: unknown) => error,
+    );
+    expect(nowhere).toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    expect(refused).toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    expect(String(refused)).toBe(String(nowhere));
+  });
+
   it("is not found at an address that leads to no function", async () => {
     await expect(ScreenPage(at("/admin/nobody"))).rejects.toMatchObject({
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",
@@ -206,11 +221,11 @@ describe("the banner of the reading context of a screen of a project", () => {
     expect(html(await ScreenPage(at("/system?as_of=2026-05-31")))).not.toContain(BANNER);
   });
 
-  it("leaves the page to say the API is out of reach, without a banner it could not fill", async () => {
+  it("leaves the screen of failure to announce the API out of reach, rather than a screen without its banner", async () => {
     vi.mocked(serverClient).mockReturnValueOnce(unreachable()).mockReturnValueOnce(unreachable());
-    const page = html(await ScreenPage(at(REMAINING)));
-    expect(page).not.toContain(BANNER);
-    expect(text(page)).toBe("Estimation du reste à engager Cet écran est à venir.");
+    await expect(ScreenPage(at(REMAINING))).rejects.toMatchObject({
+      digest: UNREACHABLE_DIGEST,
+    });
   });
 
   it.each([

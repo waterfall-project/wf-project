@@ -13,6 +13,8 @@ import "server-only";
 
 import createClient, { type Client } from "openapi-fetch";
 
+import { UNREACHABLE_DIGEST } from "@/components/system/failure";
+
 import type { paths } from "./generated/schema";
 
 /** The path every operation of the contract lives under: the `servers` of the contract. */
@@ -33,10 +35,17 @@ export interface ApiClientOptions {
  * The API did not answer at all: `fetch` itself rejected, as it does when the network or the
  * service is down. Marked here, where `fetch` is called, so that the API out of reach is told
  * apart from a defect that happens to throw a `TypeError` too (`reach`, `src/api/problem.ts`).
+ * A read a screen cannot do without throws it too when a gateway says the service is down.
+ *
+ * Its digest is what the screen of failure receives of it in production, where Next forwards
+ * nothing else of an error thrown on the server: it announces the API out of reach, not a
+ * defect (`src/components/system/failure.ts`).
  */
 export class Unreachable extends Error {
-  /** The rejection of `fetch`, kept as the cause. */
-  constructor(cause: unknown) {
+  readonly digest = UNREACHABLE_DIGEST;
+
+  /** The rejection of `fetch`, kept as the cause; none when a gateway answered. */
+  constructor(cause?: unknown) {
     super("the API cannot be reached", { cause });
     this.name = "Unreachable";
   }

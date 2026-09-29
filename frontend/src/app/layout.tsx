@@ -13,11 +13,11 @@ import { cookies } from "next/headers";
 import { createTranslator } from "next-intl";
 import type { ReactNode } from "react";
 
-import { Shell } from "@/components/shell/shell";
+import { Shell, type ShellProps } from "@/components/shell/shell";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { requestLanguage } from "@/i18n/request";
 import { LAST_CONTEXT_COOKIE, rememberedAddress } from "@/navigation/context";
-import { requestSession } from "@/session/request";
+import { requestSessionState, type SessionState } from "@/session/request";
 import { forcedTheme, themePreference } from "@/theme/theme";
 
 /** Title the document, in the language of the request; a page names its screen. */
@@ -27,17 +27,28 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("app.name") };
 }
 
+/**
+ * What the navigation offers for a session: its permissions when it is open; none when the
+ * API says there is no session; the status screen alone when it cannot be read.
+ */
+function offered(state: SessionState): ShellProps["permissions"] {
+  if (state.kind === "open") {
+    return state.session.permissions;
+  }
+  return state.kind === "unreadable" ? "unreadable" : undefined;
+}
+
 /** Render the document around a page. */
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   // One read of the session for the request, whose account decides the language and the
   // mode, and whose permissions the navigation offers; the language is the request's, read
   // once, whatever else asks for it.
-  const [session, { locale, preference }, jar] = await Promise.all([
-    requestSession(),
+  const [state, { locale, preference }, jar] = await Promise.all([
+    requestSessionState(),
     requestLanguage(),
     cookies(),
   ]);
-  const theme = themePreference(session?.user);
+  const theme = themePreference(state.kind === "open" ? state.session.user : undefined);
   return (
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>
       <body>
@@ -45,7 +56,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           locale={locale}
           preference={preference}
           theme={theme}
-          permissions={session?.permissions}
+          permissions={offered(state)}
           remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
         >
           {children}

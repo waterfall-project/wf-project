@@ -5,7 +5,9 @@
  * each exists from the shell on (`functions.json`), and the lot of a screen replaces it by a
  * page of its own — a route written out wins over this one. An address that leads to no
  * function is not found, and neither is one whose project or revision the API does not find
- * — or does not let the user read, which it answers alike (WF-ADM-0110).
+ * — or does not let the user read, which it answers alike (WF-ADM-0110): the same screen
+ * (`not-found.tsx`). The API out of reach is announced by the screen of failure
+ * (`error.tsx`).
  *
  * A function of a project shows the banner of its reading context above it (WF-IHM-0020).
  * Until their screens come (US-0210), the lifecycle of a project shows the commands of the

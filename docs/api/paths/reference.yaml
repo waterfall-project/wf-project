@@ -14,6 +14,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ReferenceReadiness }
+            examples:
+              witness: { $ref: ../../../fixtures/api/reference_readiness.json }
+              incomplete: { $ref: ../../../fixtures/api/reference_readiness_incomplete.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 
 /reference/settings:

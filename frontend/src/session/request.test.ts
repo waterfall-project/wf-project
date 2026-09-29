@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { type ApiClient, createApiClient } from "@/api/client";
 import { fakeClient } from "@/test/fixtures";
 
-import { requestSession } from "./request";
+import { requestSession, requestSessionState } from "./request";
 
 const server = vi.hoisted(() => ({ client: undefined as ApiClient | undefined }));
 
@@ -32,6 +32,23 @@ describe("the session of a request", () => {
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
     expect(await requestSession()).toBeUndefined();
+  });
+
+  it("tells a session the API says is none from one that cannot be read", async () => {
+    server.client = fakeClient({ "GET /session": UNAUTHORIZED });
+    expect(await requestSessionState()).toEqual({ kind: "signed_out" });
+    server.client = createApiClient({
+      address: "http://unreachable.invalid",
+      fetch: () => Promise.reject(new TypeError("fetch failed")),
+    });
+    expect(await requestSessionState()).toEqual({ kind: "unreadable" });
+    server.client = createApiClient({
+      address: "http://gateway.invalid",
+      fetch: () => Promise.resolve(new Response("<html>Bad gateway</html>", { status: 502 })),
+    });
+    expect(await requestSessionState()).toEqual({ kind: "unreadable" });
+    server.client = fakeClient({ "GET /session": "session" });
+    expect(await requestSessionState()).toMatchObject({ kind: "open" });
   });
 
   it("lets a defect through rather than take it for an API out of reach", async () => {
