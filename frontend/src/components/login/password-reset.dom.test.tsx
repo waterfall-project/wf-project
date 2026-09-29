@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -76,10 +76,12 @@ describe("the password forgotten", () => {
     expect(status).toHaveTextContent(
       "Votre mot de passe est enregistré : vous pouvez vous connecter.",
     );
-    expect(within(status).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    // The button goes once the password is saved: the focus goes to the way on.
+    const signIn = within(status).getByRole("link", { name: "Se connecter" });
+    expect(signIn).toHaveAttribute("href", "/login");
+    await waitFor(() => {
+      expect(signIn).toHaveFocus();
+    });
     expect(screen.queryByRole("button", { name: "Enregistrer le mot de passe" })).toBeNull();
   });
 
@@ -90,7 +92,7 @@ describe("the password forgotten", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Les données saisies ne sont pas valides.",
     );
-    expect(screen.getByRole("button", { name: "Enregistrer le mot de passe" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Enregistrer le mot de passe" })).toHaveFocus();
   });
 
   it("offers to ask for a new link when the one followed has expired or served already", async () => {

@@ -12,12 +12,12 @@
 import { LogIn, RotateCcw, Save, Send } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState, useTransition } from "react";
+import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { askPasswordReset, resetPassword } from "@/api/actions/session";
 import type { Outcome } from "@/api/problem";
 import { DoneNotice } from "@/components/account/done-notice";
-import { textOf } from "@/components/account/form";
+import { textOf, WAITING } from "@/components/account/form";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,11 @@ const LINK = "inline-flex items-center gap-1.5 font-medium underline";
 function useRequest() {
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  // A request under way: a second one waits for its outcome, the button keeping the focus.
   const send = (request: () => Promise<Outcome<unknown>>) => {
+    if (pending) {
+      return;
+    }
     startTransition(async () => {
       setOutcome(await request());
     });
@@ -59,7 +63,7 @@ export function AskResetLink() {
       </div>
       <OutcomeNotice outcome={outcome} onClear={clear} />
       <DoneNotice title={outcome?.kind === "done" ? t("sent") : undefined} />
-      <Button type="submit" disabled={pending} className="w-full">
+      <Button type="submit" aria-disabled={pending} className={`w-full ${WAITING}`}>
         <Send aria-hidden="true" />
         {t("send")}
       </Button>
@@ -78,6 +82,13 @@ export function ChoosePassword({ token }: ChoosePasswordProps) {
   const id = useId();
   const { outcome, pending, send, clear } = useRequest();
   const saved = outcome?.kind === "done";
+  const signIn = useRef<HTMLAnchorElement>(null);
+  // The button goes once the password is saved: the focus goes to the way on, the sign-in page.
+  useEffect(() => {
+    if (saved) {
+      signIn.current?.focus();
+    }
+  }, [saved]);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const password = textOf(new FormData(event.currentTarget), "password");
@@ -105,14 +116,14 @@ export function ChoosePassword({ token }: ChoosePasswordProps) {
       ) : null}
       <DoneNotice title={saved ? t("saved") : undefined}>
         {saved ? (
-          <Link href={LOGIN_ROUTE} className={LINK}>
+          <Link ref={signIn} href={LOGIN_ROUTE} className={LINK}>
             <LogIn aria-hidden="true" className="size-4" />
             {t("signIn")}
           </Link>
         ) : undefined}
       </DoneNotice>
       {saved ? null : (
-        <Button type="submit" disabled={pending} className="w-full">
+        <Button type="submit" aria-disabled={pending} className={`w-full ${WAITING}`}>
           <Save aria-hidden="true" />
           {t("save")}
         </Button>

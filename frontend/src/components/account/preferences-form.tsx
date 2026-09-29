@@ -8,7 +8,8 @@
  * again with what the account now holds, without signing in again.
  *
  * The page rendered again gives the preferences the account holds: a choice made in the menu
- * meanwhile shows here too.
+ * meanwhile shows here too. While a choice is recorded, the values are held: none chosen then
+ * would be lost without a word.
  */
 "use client";
 
@@ -26,6 +27,7 @@ import { type LanguagePreference, PREFERENCES } from "@/i18n/locale";
 import { THEME_PREFERENCES, type ThemePreference } from "@/theme/theme";
 
 import { DoneNotice } from "./done-notice";
+import { WAITING } from "./form";
 
 /** The preferences the account holds: `default` when it never chose. */
 export interface PreferencesFormProps {
@@ -95,13 +97,17 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
   }
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (pending) {
+      return;
+    }
     startTransition(async () => {
       setOutcome(await updateDisplay(chosen));
     });
   };
   return (
     <form aria-busy={pending} onSubmit={submit} className="grid gap-5">
-      <div className="grid gap-6 sm:grid-cols-2">
+      {/* Held while the choice is recorded: a value chosen meanwhile would be lost unsaid. */}
+      <fieldset disabled={pending} className="grid gap-6 sm:grid-cols-2">
         <Choice
           icon={Languages}
           legend={t("languageSelector.label")}
@@ -126,7 +132,7 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
             setChosen({ ...chosen, theme: value });
           }}
         />
-      </div>
+      </fieldset>
       <OutcomeNotice
         outcome={outcome}
         onClear={() => {
@@ -135,7 +141,7 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
       />
       <DoneNotice title={outcome?.kind === "done" ? t("account.saved") : undefined} />
       <div>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" aria-disabled={pending} className={WAITING}>
           <Save aria-hidden="true" />
           {t("account.save")}
         </Button>

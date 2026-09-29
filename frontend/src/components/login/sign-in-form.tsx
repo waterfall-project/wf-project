@@ -17,7 +17,7 @@ import { type SubmitEvent, useId, useState, useTransition } from "react";
 
 import { signIn } from "@/api/actions/session";
 import type { Outcome } from "@/api/problem";
-import { textOf } from "@/components/account/form";
+import { textOf, WAITING } from "@/components/account/form";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,9 @@ export function SignInForm({ target }: SignInFormProps) {
   const [pending, startTransition] = useTransition();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (pending) {
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const credentials = { email: textOf(form, "email"), password: textOf(form, "password") };
     startTransition(async () => {
@@ -70,7 +73,7 @@ export function SignInForm({ target }: SignInFormProps) {
           setOutcome(undefined);
         }}
       />
-      <Button type="submit" disabled={pending} className="w-full">
+      <Button type="submit" aria-disabled={pending} className={`w-full ${WAITING}`}>
         <LogIn aria-hidden="true" />
         {t("submit")}
       </Button>

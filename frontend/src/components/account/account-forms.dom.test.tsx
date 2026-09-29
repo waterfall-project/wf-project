@@ -6,12 +6,13 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ApiClient } from "@/api/client";
+import { type ApiClient, createApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { AvatarForm } from "./avatar-form";
+import { AvatarPicture } from "./avatar-picture";
 import { PasswordForm } from "./password-form";
 import { PreferencesForm } from "./preferences-form";
 
@@ -47,6 +48,21 @@ function inFrench(page: ReactNode) {
       {page}
     </NextIntlClientProvider>
   );
+}
+
+/**
+ * Serve an API that holds its answer until the test gives it: what the screen shows while a
+ * request is under way.
+ */
+function holding(): (response: Response) => void {
+  let give: (response: Response) => void = () => undefined;
+  const answer = new Promise<Response>((resolve) => {
+    give = resolve;
+  });
+  server.client = createApiClient({ address: "http://api.invalid", fetch: () => answer });
+  return (response) => {
+    give(response);
+  };
 }
 
 /** The bodies sent to an operation. */
@@ -88,6 +104,26 @@ describe("the preferences on the screen of the account", () => {
     await userEvent.keyboard(" ");
     expect(screen.getByRole("radio", { name: "English" })).toBeChecked();
     expect(sent(client, PREFERENCES)).toEqual([]);
+  });
+
+  it("holds the values while the choice is recorded, so that none chosen meanwhile is lost", async () => {
+    const answer = holding();
+    render(inFrench(<PreferencesForm language="default" theme="default" />));
+    await userEvent.click(screen.getByRole("radio", { name: "English" }));
+    const save = screen.getByRole("button", { name: "Enregistrer" });
+    await userEvent.click(save);
+
+    expect(screen.getByRole("radio", { name: "Français" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Sombre" })).toBeDisabled();
+    // The button stays where the focus is, and does nothing more meanwhile.
+    expect(save).toHaveFocus();
+    expect(save).toHaveAttribute("aria-disabled", "true");
+
+    answer(Response.json(example("preferences")));
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: "Français" })).toBeEnabled();
+    });
+    expect(screen.getByRole("radio", { name: "English" })).toBeChecked();
   });
 
   it("starts again from the preferences a new render gives: those saved, or those chosen in the menu", () => {
@@ -140,6 +176,8 @@ describe("the change of the password", () => {
     );
     expect(screen.getByLabelText("Nouveau mot de passe")).toHaveValue("court");
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    // The focus stays on the button pressed, from which the refusal is read next.
+    expect(screen.getByRole("button", { name: "Changer le mot de passe" })).toHaveFocus();
   });
 });
 
@@ -149,7 +187,7 @@ describe("the avatar of the account", () => {
     const { container } = render(inFrench(<AvatarForm hasAvatar={false} />));
     await expectAccessible(container);
     const upload = screen.getByRole("button", { name: "Déposer l’image" });
-    expect(upload).toBeDisabled();
+    expect(upload).toHaveAttribute("aria-disabled", "true");
     expect(screen.queryByRole("button", { name: "Retirer l’avatar" })).toBeNull();
 
     await userEvent.upload(
@@ -164,7 +202,7 @@ describe("the avatar of the account", () => {
     expect(refresh).toHaveBeenCalledOnce();
     expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est enregistré.");
     await waitFor(() => {
-      expect(upload).toBeDisabled();
+      expect(upload).toHaveAttribute("aria-disabled", "true");
     });
   });
 
@@ -178,8 +216,25 @@ describe("the avatar of the account", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Choisissez une image PNG ou JPEG.");
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(field).toHaveAccessibleDescription("Choisissez une image PNG ou JPEG.");
-    expect(screen.getByRole("button", { name: "Déposer l’image" })).toBeDisabled();
+    const upload = screen.getByRole("button", { name: "Déposer l’image" });
+    expect(upload).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(upload);
     expect(client.calls).toEqual([]);
+  });
+
+  it("holds the choice of an image while one is sent", async () => {
+    const answer = holding();
+    render(inFrench(<AvatarForm hasAvatar={false} />));
+    const field = screen.getByLabelText("Image PNG ou JPEG");
+    await userEvent.upload(field, new File([PNG], "camille.png", { type: "image/png" }));
+    await userEvent.click(screen.getByRole("button", { name: "Déposer l’image" }));
+    expect(field).toBeDisabled();
+
+    answer(new Response(null, { status: 204 }));
+    await waitFor(() => {
+      expect(field).toBeEnabled();
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est enregistré.");
   });
 
   it("tells an image the API finds too large", async () => {
@@ -203,5 +258,37 @@ describe("the avatar of the account", () => {
     expect(client.calls.map((call) => call.route)).toEqual(["DELETE /me/avatar"]);
     expect(refresh).toHaveBeenCalledOnce();
     expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est retiré.");
+    // Its button goes with the avatar: the focus goes to the choice of an image.
+    expect(screen.getByLabelText("Image PNG ou JPEG")).toHaveFocus();
+  });
+});
+
+describe("the picture of the avatar", () => {
+  it("shows the image the page holds, named after the account, once loaded", async () => {
+    const source = `data:image/png;base64,${Buffer.from(PNG).toString("base64")}`;
+    const account = { first_name: "Camille", last_name: "Martin" };
+    // happy-dom loads an image without decoding it: its width, which says a browser decoded it,
+    // is given here.
+    const decoded = vi
+      .spyOn(window.HTMLImageElement.prototype, "naturalWidth", "get")
+      .mockReturnValue(96);
+    render(inFrench(<AvatarPicture account={account} source={source} />));
+    const image = await screen.findByRole("img", { name: "Camille Martin" });
+    expect(image).toHaveAttribute("src", source);
+    expect(screen.queryByText("CM")).toBeNull();
+    decoded.mockRestore();
+  });
+
+  it("shows the initials of an account without an image", () => {
+    render(
+      inFrench(
+        <AvatarPicture
+          account={{ first_name: "Camille", last_name: "Martin" }}
+          source={undefined}
+        />,
+      ),
+    );
+    expect(screen.getByText("CM")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).toBeNull();
   });
 });

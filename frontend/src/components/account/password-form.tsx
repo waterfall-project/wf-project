@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { DoneNotice } from "./done-notice";
-import { textOf } from "./form";
+import { textOf, WAITING } from "./form";
 
 /** Render the form of the change of password, emptied once the API has changed it. */
 export function PasswordForm() {
@@ -30,6 +30,9 @@ export function PasswordForm() {
   const [pending, startTransition] = useTransition();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (pending) {
+      return;
+    }
     const form = event.currentTarget;
     const data = new FormData(form);
     const change = { current_password: textOf(data, "current"), new_password: textOf(data, "new") };
@@ -65,7 +68,7 @@ export function PasswordForm() {
       />
       <DoneNotice title={outcome?.kind === "done" ? t("changed") : undefined} />
       <div>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" aria-disabled={pending} className={WAITING}>
           <KeyRound aria-hidden="true" />
           {t("submit")}
         </Button>

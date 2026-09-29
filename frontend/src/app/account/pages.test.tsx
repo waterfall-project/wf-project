@@ -130,9 +130,12 @@ describe("the avatar of the account", () => {
       "GET /me": "me_with_avatar",
       [AVATAR]: { body: new Blob([PNG], { type: "image/png" }), type: "image/png", status: 200 },
     };
-    const page = html(await AvatarPage());
+    const screen = await AvatarPage();
+    const page = html(screen);
+    // The image, loaded by the browser from the page itself (AvatarImage); the initials until then.
     const source = `data:image/png;base64,${Buffer.from(PNG).toString("base64")}`;
-    expect(page).toMatch(new RegExp(`<img[^>]*alt="Votre avatar"[^>]*src="${source}"`));
+    expect(screen.props).toMatchObject({ source });
+    expect(text(page)).toContain("CM");
     expect(routes()).toEqual(["/me", "/users/01926f3a-7c00-7000-8000-000000000301/avatar"]);
     expect(text(page)).toContain("Retirer l’avatar");
     expect(await avatarMetadata()).toEqual({ title: "Changer l’avatar — Waterfall" });

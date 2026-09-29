@@ -109,6 +109,7 @@ describe("the witness path", () => {
   it("lists the projects, each a link to its page", async () => {
     const html = renderToStaticMarkup(inEnglish(await ProjectsPage({ searchParams: NO_SEARCH })));
     expect(html.startsWith(`<main class="${SCREEN.dense}">`)).toBe(true);
+    expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Projects<\/h1>/);
     expect(html).toContain(`<a href="/projects/${PROJECT}">Modernisation du poste de commande</a>`);
     expect(html).toContain("Extension de la ligne d&#x27;essais");
   });
@@ -279,14 +280,14 @@ describe("the empty states of the shell", () => {
   it("says there is no project, on the example of an empty list", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await projectsPage();
-    expect(text(html)).toBe("No project.");
+    expect(text(html)).toBe("Projects No project.");
     expect(html).not.toContain("<ul");
   });
 
   it("lifts the contributor filter when it is what empties the list", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await projectsPage({ is_contributor: "true" });
-    expect(text(html)).toBe("You contribute to no project. Show all projects");
+    expect(text(html)).toBe("Projects You contribute to no project. Show all projects");
     expect(links(html)).toEqual(["/projects"]);
     const list = server.clients
       .flatMap((client) => client.calls)
@@ -309,7 +310,7 @@ describe("the empty states of the shell", () => {
     };
     const html = await projectsPage();
     expect(text(html)).toMatch(
-      /^Incomplete reference data No project can be created until the common reference data has: a default calendar with working hours an active cost category Modernisation/,
+      /^Projects Incomplete reference data No project can be created until the common reference data has: a default calendar with working hours an active cost category Modernisation/,
     );
     expect(links(html).slice(0, 2)).toEqual(["/reference/resources", "/reference/costs"]);
   });
@@ -372,10 +373,10 @@ describe("the empty states of the shell", () => {
     };
     const html = await projectsPage();
     expect(html).toMatch(
-      new RegExp(`^<main class="${SCREEN.dense}"><section aria-labelledby="[^"]+"`),
+      new RegExp(`^<main class="${SCREEN.dense}">.*?</h1>.*?<section aria-labelledby="[^"]+"`),
     );
     expect(text(html)).toBe(
-      "Incomplete reference data No project can be created until the common reference data has: " +
+      "Projects Incomplete reference data No project can be created until the common reference data has: " +
         "a default calendar with working hours an active cost category No project.",
     );
     expect(links(html)).toEqual(["/reference/resources", "/reference/costs"]);

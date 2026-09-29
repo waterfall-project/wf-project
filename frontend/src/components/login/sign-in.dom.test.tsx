@@ -113,7 +113,12 @@ describe("the form of the sign-in page", () => {
     // A refusal of the credentials, not a session to open: no way to the page it is on.
     expect(within(alert).queryByRole("link")).toBeNull();
     expect(loadDocument).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Se connecter" })).toBeEnabled();
+    // The focus stays on the button pressed, from which the refusal is read next.
+    expect(screen.getByRole("button", { name: "Se connecter" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Se connecter" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("gives every field its name, and its button its icon", () => {

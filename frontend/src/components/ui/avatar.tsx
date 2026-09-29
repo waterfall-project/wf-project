@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The avatar of shadcn/ui, copied into the repository as far as the shell needs it: the round
- * mark of the account, its initials on the muted token. Without its image: the picture of an
- * account is served by the API (`GET /users/{user_id}/avatar`), which only the server of Next
- * calls — the browser could not load it —, so the image waits for the screen of the account
- * (US-0320).
+ * The avatar of shadcn/ui, copied into the repository: the round mark of the account, its image
+ * or, until the image is loaded or without one, its initials on the muted token. The image of an
+ * account is served by the API (`getUserAvatar`), which only the server of Next calls: the
+ * screen of the avatar writes it into the page as a `data:` address (`avatar-source.ts`); the
+ * menu of the account shows the initials.
  */
 "use client";
 
@@ -23,6 +23,17 @@ export function Avatar({ className, ...props }: ComponentProps<typeof AvatarPrim
         "relative flex size-7 shrink-0 overflow-hidden rounded-full select-none",
         className,
       )}
+      {...props}
+    />
+  );
+}
+
+/** The image of an avatar, shown once the browser has loaded it. */
+export function AvatarImage({ className, ...props }: ComponentProps<typeof AvatarPrimitive.Image>) {
+  return (
+    <AvatarPrimitive.Image
+      data-slot="avatar-image"
+      className={cn("aspect-square size-full object-cover", className)}
       {...props}
     />
   );

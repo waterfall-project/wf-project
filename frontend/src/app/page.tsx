@@ -1,20 +1,16 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Home page. The screens arrive with EP-02; until then the page names the product, whose
- * name the catalogue gives like any other text.
+ * Home page. The home is the list of projects (EP-02, « Contexte de lecture, accueil et pages
+ * système »): until US-0210/L1 (#112) makes that list the home page itself, the home leads to
+ * it, on the server — the sign-in page, without a screen to come back to, lands there too.
  */
-import { House } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { redirect } from "next/navigation";
 
-import { PageHeader, Screen } from "@/components/shell/page-header";
+// The list of projects, which the home stands for until it is the home itself.
+const PROJECTS_ROUTE = "/projects";
 
-/** Render the home page. */
-export default function HomePage() {
-  const t = useTranslations("app");
-  return (
-    <Screen>
-      <PageHeader title={t("name")} icon={House} />
-    </Screen>
-  );
+/** Lead to the list of projects. */
+export default function HomePage(): never {
+  redirect(PROJECTS_ROUTE);
 }

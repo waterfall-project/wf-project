@@ -15,7 +15,7 @@ describe("the way back from the sign-in page", () => {
     expect(returnTarget(href.searchParams.get("next"))).toBe(SCREEN);
   });
 
-  it.each([
+  const ELSEWHERE: readonly (readonly [string, string | null | undefined])[] = [
     ["another site", "https://elsewhere.example/"],
     ["another site without its scheme", "//elsewhere.example/"],
     ["another site behind a backslash", "/\\elsewhere.example/"],
@@ -29,8 +29,24 @@ describe("the way back from the sign-in page", () => {
     ["a relative path", "projects"],
     ["nothing", null],
     ["no parameter", undefined],
-  ])("leads home rather than to %s", (_, next) => {
+    ["another site behind a dot segment", "/.//elsewhere.example"],
+    ["another site behind an encoded dot segment", "/%2e//elsewhere.example"],
+    ["another site behind a parent segment", "/a/..//elsewhere.example"],
+    ["another site behind a dot segment and a backslash", "/./\\elsewhere.example"],
+  ];
+
+  it.each(ELSEWHERE)("leads home rather than to %s", (_, next) => {
     expect(returnTarget(next)).toBe("/");
+  });
+
+  it("gives back only a path that a browser resolves on this front, whatever it is given", () => {
+    for (const next of [...ELSEWHERE.map(([, value]) => value), SCREEN, "/%2F%2Fx", "/a/../b"]) {
+      const target = returnTarget(next);
+      expect(target.startsWith("/"), String(next)).toBe(true);
+      expect(new URL(target, "http://front.invalid").origin, String(next)).toBe(
+        "http://front.invalid",
+      );
+    }
   });
 
   it("keeps on the front a path whose slashes are encoded", () => {

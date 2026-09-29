@@ -3,12 +3,11 @@
 /**
  * The avatar of the account on the screen of its avatar: the image the account has, written into
  * the page by the server (`avatarSource`), or its initials, the default image of an account
- * without one (WF-ADM-0080).
+ * without one (WF-ADM-0080) — shown too while the image loads.
  */
-import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { initials, type NamedAccount } from "./initials";
 
@@ -18,28 +17,20 @@ export interface AvatarPictureProps {
   readonly source: string | undefined;
 }
 
-/** Render the avatar of the account, large. */
+/** Render the avatar of the account, large, named after the account. */
 export function AvatarPicture({ account, source }: AvatarPictureProps) {
-  const t = useTranslations("account.avatar");
+  const t = useTranslations();
   const locale = useLocale();
-  if (source !== undefined) {
-    return (
-      <Image
-        src={source}
-        alt={t("current")}
-        width={96}
-        height={96}
-        unoptimized
-        className="size-24 rounded-full border object-cover"
-      />
-    );
-  }
+  const name = t("accountMenu.name", { first: account.first_name, last: account.last_name });
   return (
     <div className="flex items-center gap-4">
-      <Avatar className="size-24">
+      <Avatar className="size-24 border">
+        {source === undefined ? null : <AvatarImage src={source} alt={name} />}
         <AvatarFallback className="text-2xl">{initials(account, locale)}</AvatarFallback>
       </Avatar>
-      <p className="text-sm text-muted-foreground">{t("initials")}</p>
+      {source === undefined ? (
+        <p className="text-sm text-muted-foreground">{t("account.avatar.initials")}</p>
+      ) : null}
     </div>
   );
 }

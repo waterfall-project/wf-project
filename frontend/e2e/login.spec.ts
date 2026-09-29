@@ -63,6 +63,16 @@ test("signs in, comes to the screen aimed at, then signs out to the sign-in page
   ).toBeNull();
 });
 
+test("signs in without a screen aimed at, and comes to the list of projects", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Adresse électronique").fill("camille.martin@example.com");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("le mot de passe de Camille");
+  await page.getByRole("button", { name: "Se connecter" }).click();
+
+  await expect(page).toHaveURL("/projects");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
+});
+
 test("asks for the link of a forgotten password, outside the shell", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("link", { name: "Mot de passe oublié ?" }).click();
@@ -71,10 +81,13 @@ test("asks for the link of a forgotten password, outside the shell", async ({ pa
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mot de passe oublié");
   await expect(page.getByRole("banner")).toHaveCount(0);
   await page.getByLabel("Adresse électronique").fill("camille.martin@example.com");
-  await page.getByRole("button", { name: "Envoyer le lien" }).click();
+  const send = page.getByRole("button", { name: "Envoyer le lien" });
+  await send.click();
   await expect(page.getByRole("status")).toHaveText(
     "Si un compte correspond à cette adresse, un lien vient de lui être envoyé.",
   );
+  // The focus stays on the button pressed: it was never disabled under it.
+  await expect(send).toBeFocused();
 });
 
 test("the screens of the account show it, and offer its password and its avatar", async ({

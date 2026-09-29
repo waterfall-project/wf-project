@@ -17,7 +17,8 @@ test("an address that leads nowhere shows the screen not found, inside the shell
   await page.goto("/admin/nobody");
   await expectNotFound(page);
   await page.getByRole("link", { name: "Retour à l’accueil" }).click();
-  await expect(page).toHaveURL("/");
+  // The home leads to the list of projects, until it is that list itself (#112).
+  await expect(page).toHaveURL("/projects");
 });
 
 test("an address that names no project shows the same screen not found", async ({ page }) => {

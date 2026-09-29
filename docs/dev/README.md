@@ -104,7 +104,8 @@ ni tâches (`shell-frame.tsx`, `isOutsideShell`), le logo au-dessus d'une carte.
 connexion présente les fournisseurs de `listAuthProviders` : le compte local toujours, que
 l'annuaire partage quand il est activé, et le fournisseur d'identité activé par un lien vers
 son `start_url`. La session ouverte, le navigateur charge en document entier l'écran visé
-(`returnTarget(next)`, `frontend/src/navigation/document.ts`) : le layout relit la session, et
+(`returnTarget(next)`, `frontend/src/navigation/document.ts`) — sans lui, l'accueil, qui mène
+à la liste des projets jusqu'à ce qu'elle soit l'accueil même (#112) — : le layout relit la session, et
 le suivi reprend les tâches qu'une session perdue avait interrompues.
 Sans compte (401), il n'y a ni menu du compte ni barre latérale ; quand la session est
 illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ouvert, et sans

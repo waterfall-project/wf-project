@@ -54,7 +54,18 @@ export function returnTarget(next: string | null | undefined): string {
     return HOME;
   }
   const target = new URL(next, FRONT);
-  return target.origin === FRONT ? `${target.pathname}${target.search}${target.hash}` : HOME;
+  if (target.origin !== FRONT) {
+    return HOME;
+  }
+  // The path is normalised only once resolved: `/.//host` or `/a/..//host` come out as
+  // `//host`, which a browser reads as another site. The path given back is checked again.
+  const path = `${target.pathname}${target.search}${target.hash}`;
+  return path.startsWith("//") || path.startsWith("/\\") || !staysOnFront(path) ? HOME : path;
+}
+
+/** Whether a path, resolved as a browser would, stays on this front. */
+function staysOnFront(path: string): boolean {
+  return URL.canParse(path, FRONT) && new URL(path, FRONT).origin === FRONT;
 }
 
 /** The address of the sign-in page, which comes back to a screen: its path and its query. */

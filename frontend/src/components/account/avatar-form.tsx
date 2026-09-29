@@ -11,7 +11,7 @@
 
 import { Trash2, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState, useTransition } from "react";
+import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { removeAvatar, replaceAvatar } from "@/api/actions/account";
 import type { Outcome, Settled } from "@/api/problem";
@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 
 import { AVATAR_ACCEPT, isAvatarType } from "./avatar-types";
 import { DoneNotice } from "./done-notice";
+import { WAITING } from "./form";
 
 /** Whether the account has an avatar to withdraw. */
 export interface AvatarFormProps {
@@ -39,8 +40,19 @@ export function AvatarForm({ hasAvatar }: AvatarFormProps) {
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [done, setDone] = useState<Done>();
   const [pending, startTransition] = useTransition();
+  const field = useRef<HTMLInputElement>(null);
   const wrongType = file !== undefined && !isAvatarType(file.type);
+  const blocked = pending || file === undefined || wrongType;
+  // Withdrawn, the avatar takes its button with it: the focus goes to the choice of an image.
+  useEffect(() => {
+    if (done === "removed") {
+      field.current?.focus();
+    }
+  }, [done]);
   const run = (action: () => Promise<Settled>, success: Done, form?: HTMLFormElement) => {
+    if (pending) {
+      return;
+    }
     startTransition(async () => {
       const result = await action();
       setOutcome(result);
@@ -53,7 +65,7 @@ export function AvatarForm({ hasAvatar }: AvatarFormProps) {
   };
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (file === undefined || wrongType) {
+    if (blocked) {
       return;
     }
     const data = new FormData();
@@ -62,9 +74,11 @@ export function AvatarForm({ hasAvatar }: AvatarFormProps) {
   };
   return (
     <form aria-busy={pending} onSubmit={submit} className="grid gap-4">
-      <div className="grid max-w-sm gap-2">
+      {/* Held while an image is sent: one chosen meanwhile would be lost unsaid. */}
+      <fieldset disabled={pending} className="grid max-w-sm gap-2">
         <Label htmlFor={`${id}-file`}>{t("file")}</Label>
         <Input
+          ref={field}
           id={`${id}-file`}
           name="avatar"
           type="file"
@@ -81,7 +95,7 @@ export function AvatarForm({ hasAvatar }: AvatarFormProps) {
             {t("wrongType")}
           </p>
         ) : null}
-      </div>
+      </fieldset>
       <OutcomeNotice
         outcome={outcome}
         onClear={() => {
@@ -90,7 +104,7 @@ export function AvatarForm({ hasAvatar }: AvatarFormProps) {
       />
       <DoneNotice title={done === undefined ? undefined : t(done)} />
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={pending || file === undefined || wrongType}>
+        <Button type="submit" aria-disabled={blocked} className={WAITING}>
           <Upload aria-hidden="true" />
           {t("upload")}
         </Button>
@@ -98,7 +112,8 @@ export function AvatarForm({ hasAvatar }: AvatarFormProps) {
           <Button
             type="button"
             variant="outline"
-            disabled={pending}
+            aria-disabled={pending}
+            className={WAITING}
             onClick={() => {
               run(removeAvatar, "removed");
             }}
