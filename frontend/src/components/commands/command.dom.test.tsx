@@ -14,6 +14,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, fakeClient, type Problem } from "@/test/fixtures";
 
 import { Command } from "./command";
+import { commandIcon, PROJECT_COMMAND_ICONS, REVISION_COMMAND_ICONS } from "./icons";
 import { ProjectCommands, RevisionCommands } from "./object-commands";
 import { findOffer } from "./offer";
 
@@ -51,6 +52,7 @@ function available(action: () => Promise<Outcome<unknown>>, names?: Record<strin
     <Command
       offer={{ is_available: true, missing_conditions: [] }}
       label="Terminer le projet"
+      icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
       action={action}
       names={names}
     />
@@ -107,6 +109,22 @@ describe("a command of a project", () => {
     ]);
   });
 
+  it("gives each command the icon of its kind, hidden from a screen reader beside its name", () => {
+    french(
+      <>
+        <ProjectCommands project={example("project") as Project} />
+        {revisionCommands("revision")}
+      </>,
+    );
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.length).toBeGreaterThan(10);
+    for (const button of buttons) {
+      expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    }
+    const icons = buttons.map((button) => button.querySelector("svg")?.getAttribute("class"));
+    expect(new Set(icons).size).toBeGreaterThan(10);
+  });
+
   it("names every condition a command lacks", () => {
     french(
       <Command
@@ -115,6 +133,7 @@ describe("a command of a project", () => {
           missing_conditions: ["project_in_progress", "reference_revision_designated"],
         }}
         label="Déclarer la survenance d’un risque"
+        icon={commandIcon(PROJECT_COMMAND_ICONS.declare_risk_occurrence)}
       />,
     );
     expect(
@@ -130,6 +149,7 @@ describe("a command of a project", () => {
       <Command
         offer={{ is_available: false, missing_conditions: ["project_in_progress"] }}
         label="Terminer le projet"
+        icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
         action={action}
       />,
     );
@@ -154,7 +174,11 @@ describe("a command of a revision", () => {
     french(
       <>
         {revisionCommands("revision_estimator")}
-        <Command offer={findOffer(reader.available_commands, "mark")} label="Marquer la révision" />
+        <Command
+          offer={findOffer(reader.available_commands, "mark")}
+          label="Marquer la révision"
+          icon={commandIcon(REVISION_COMMAND_ICONS.mark)}
+        />
       </>,
     );
     expect(screen.queryByRole("button", { name: "Marquer la révision" })).toBeNull();
@@ -231,6 +255,7 @@ describe("the outcome of a command", () => {
       <Command
         offer={{ is_available: true, missing_conditions: [] }}
         label="Modifier le planning"
+        icon={commandIcon(REVISION_COMMAND_ICONS.edit_planning)}
         action={write}
       />,
     );

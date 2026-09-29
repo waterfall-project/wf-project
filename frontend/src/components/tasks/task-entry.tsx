@@ -15,7 +15,7 @@
  */
 "use client";
 
-import { X } from "lucide-react";
+import { RefreshCw, RotateCcw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { type Dispatch, useCallback, useEffect, useRef, useTransition } from "react";
@@ -134,6 +134,7 @@ function ReloadScreen() {
         router.refresh();
       }}
     >
+      <RefreshCw aria-hidden="true" />
       {t("reload")}
     </Button>
   );
@@ -259,6 +260,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
           aria-busy={pending}
           onClick={relaunch}
         >
+          <RotateCcw aria-hidden="true" />
           {t("tasks.relaunch")}
         </Button>
       ) : null}

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The button of shadcn/ui, copied into the repository and held to its rules: its colours are
- * the tokens of the charter. Without `asChild` and its dependency: no screen renders a link
- * as a button yet.
+ * the tokens of the charter, and it casts no shadow. Without `asChild`: a link that looks like
+ * a button takes `buttonVariants` on the link itself.
  */
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
@@ -23,6 +23,7 @@ export const buttonVariants = cva(
       size: {
         default: "h-9 px-4 py-2",
         sm: "h-8 px-3",
+        icon: "size-8",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

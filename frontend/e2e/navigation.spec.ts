@@ -10,9 +10,19 @@ const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
 // A sub-project of the project, in the examples of the contract (`subprojects.json`).
 const CONTEXT = "?subproject_id=01926f3a-7c00-7000-8000-000000000801&as_of=2026-05-31";
 
-/** Follow a link of the navigation, and check the screen it leads to names its function. */
-async function open(page: Page, name: string) {
-  await page.getByRole("navigation", { name: "Fonctions" }).getByRole("link", { name }).click();
+/**
+ * Follow a link of the navigation — opening first the block of the FBS it is in, outside any
+ * project —, and check the screen it leads to names its function.
+ */
+async function open(page: Page, name: string, block?: string) {
+  const nav = page.getByRole("navigation", { name: "Fonctions" });
+  if (block !== undefined) {
+    const button = nav.getByRole("button", { name: block, exact: true });
+    if ((await button.getAttribute("aria-expanded")) === "false") {
+      await button.click();
+    }
+  }
+  await nav.getByRole("link", { name }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 }
 
@@ -20,11 +30,11 @@ test("a user who opened no project reaches the portfolio, the reference, the adm
   page,
 }) => {
   await page.goto("/");
-  await open(page, "Portefeuille de projets");
+  await open(page, "Portefeuille de projets", "Portefeuille");
   await expect(page).toHaveURL("/portfolio/projects");
-  await open(page, "Paramètres de coûts");
-  await open(page, "Gestion des utilisateurs");
-  await open(page, "Surveillance de l’état du système");
+  await open(page, "Paramètres de coûts", "Paramètres applicatifs");
+  await open(page, "Gestion des utilisateurs", "Administration");
+  await open(page, "Surveillance de l’état du système", "Administration");
   await expect(page).toHaveURL("/system");
   await expect(page).toHaveTitle("Surveillance de l’état du système — Waterfall");
   // No project was opened: there is none to go back to.
@@ -41,7 +51,7 @@ test("the way back to the previous project from a function outside any project f
     "Gestion des risques · Modernisation du poste de commande — Waterfall",
   );
 
-  await open(page, "Portefeuille de projets");
+  await open(page, "Portefeuille de projets", "Portefeuille");
   await page.getByRole("link", { name: "Retour au projet" }).click();
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des risques");

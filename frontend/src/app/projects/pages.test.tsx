@@ -128,8 +128,13 @@ describe("the witness path", () => {
       inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
     );
     expect(html.match(/<tr /g)).toHaveLength(4);
-    expect(html).toContain(
-      '<tr data-kind="estimate_line"><td>3</td><td>Ingénierie de détail</td></tr>',
+    // Each row shows the icon of its nature, named for it: a summary task, a task, a line.
+    const natures = [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)].map(
+      (match) => match[1],
+    );
+    expect(natures).toEqual(["Summary task", "Task", "Estimate line", "Task"]);
+    expect(html).toMatch(
+      /<tr data-kind="estimate_line"><td>3<\/td><td><svg[^>]*>.*?<\/svg><\/td><td>Ingénierie de détail<\/td><\/tr>/,
     );
   });
 

@@ -14,19 +14,26 @@
  * seen at once is worth more to an application behind a session than a status no crawler
  * reads.
  */
+import { House, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+
+import { PageHeader, Screen } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
 
 /** Render the screen "not found". */
 export default function NotFound() {
   const t = useTranslations("notFound");
   return (
-    <main className="space-y-2 p-6">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
-      <p className="text-muted-foreground">{t("explanation")}</p>
-      <Link href="/" className="font-medium underline">
+    <Screen>
+      <PageHeader title={t("title")} icon={SearchX} subtitle={t("explanation")} />
+      <Link
+        href="/"
+        className={buttonVariants({ variant: "outline", size: "sm", className: "w-fit" })}
+      >
+        <House aria-hidden="true" />
         {t("home")}
       </Link>
-    </main>
+    </Screen>
   );
 }

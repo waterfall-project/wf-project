@@ -4,8 +4,8 @@
  * The grid of a revision, last step of the witness path (US-0080): the banner of its reading
  * context (WF-IHM-0020), and the nodes of its main structure, one row each. A project or a
  * revision the API does not find is not found, as at the other screens of a project.
- * Scaffolding without text of its own: EP-02 replaces it with the dense grid and keeps the
- * path.
+ * Scaffolding without text of its own — each row shows the icon of its nature —: EP-02
+ * replaces it with the dense grid and keeps the path.
  */
 import { notFound } from "next/navigation";
 
@@ -13,6 +13,7 @@ import { readOrFail, UnexpectedAnswer } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
+import { RowNatureIcon } from "@/components/grid/row-nature";
 import { type PageSearchParams, pageSearch, readContext } from "@/navigation/context";
 
 /** The route parameters of a revision. */
@@ -78,6 +79,9 @@ export default async function RevisionPage({
             {nodes.map((node) => (
               <tr key={node.node_id} data-kind={node.kind}>
                 <td>{node.row_number}</td>
+                <td>
+                  <RowNatureIcon node={node} />
+                </td>
                 <td>{node.task?.label ?? node.estimate_line?.label}</td>
               </tr>
             ))}

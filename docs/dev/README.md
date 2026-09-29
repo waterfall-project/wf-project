@@ -73,7 +73,25 @@ et un témoin du front, `wf_last_project`, garde le dernier, dont la coquille ti
 au projet » (WF-IHM-0010) ; il ne ramène qu'à un écran de projet de la table. Chaque route
 existe dès la coquille, servie par la page d'attente `frontend/src/app/[...path]/page.tsx`,
 qui répond « introuvable » quand l'API ne trouve pas le projet ou la révision ; le lot d'un
-écran écrit sa page à la même route, qui l'emporte sur elle.
+écran écrit sa page à la même route, qui l'emporte sur elle. Les pages du compte
+(`/account`, `/account/password`, `/account/avatar`, `frontend/src/navigation/account.ts`)
+attendent de même leurs écrans (US-0320), servies par `frontend/src/app/account/[[...section]]/page.tsx`.
+
+La coquille se compose ainsi (`shell.tsx`, mise en page de la charte) : à gauche la barre
+latérale (`navigation.tsx`), le logo et le choix du projet en tête, les fonctions en trois
+groupes — la plateforme, par bloc de la FBS repliable ; le projet, avec la liste des projets et
+le « retour au projet » ; la révision lue —, le bouton qui la replie au pied ; au-dessus de la
+page, la barre (`top-bar.tsx`) : le bouton qui replie la barre latérale, le fil d'Ariane
+(`frontend/src/navigation/breadcrumbs.ts`), la recherche — en place, sans fonction encore —, le
+bouton des tâches de fond et le menu du compte. La barre latérale repliée garde son état dans
+un témoin du front, `wf_sidebar_state`, que le layout racine lit pour la rendre telle
+côté serveur. Le layout, rendu une fois, ne connaît pas l'adresse : le libellé du projet vient
+de l'écran, qui l'a déjà lu pour son bandeau — `ContextBanner` le remet à la coquille par
+`ShowProject` (`shown-project.tsx`), qui ne le nomme que tant que l'adresse montre ce même
+projet. Le menu du compte (`account-menu.tsx`) porte les préférences d'affichage — langue et
+mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le parcours au
+clavier n'envoyant rien —, les pages du compte et la déconnexion, inerte jusqu'à US-0320 ;
+sans compte, il n'y a ni menu du compte ni barre latérale.
 
 Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
@@ -131,7 +149,11 @@ y en a un, le nom que l'utilisateur lui a donné (WF-IHM-0080). Le suivi est com
 genres de tâche : il relit la tâche toutes les deux secondes tant qu'elle court, par l'action
 serveur `readBackgroundTask`, en montre l'avancement, ajoute sa fin à un journal
 (`role="log"`) lu quel que soit l'écran, offre de recharger l'écran quand elle a abouti — il
-ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Une relance
+ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Son panneau est
+sous la barre de la coquille, dans le flux de la page ; le bouton des tâches de fond
+(`TasksButton`), qui en dit le nombre, le montre ou le cache, et une tâche remise le montre.
+Caché, le panneau suit encore ses tâches — ses entrées restent montées — et son journal, hors
+de ce qui se cache, parle toujours. Une relance
 refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
 (404, 401) interrompt le suivi, qui le dit. Aucun écran ne suit ses tâches lui-même. Une
 réponse ne s'applique qu'à la tâche pour laquelle elle a été demandée, jamais à celle qu'une
@@ -544,7 +566,8 @@ que demande `Accept-Language`, sinon la langue par défaut de l'installation
 (`getInstallation`). Un `*` placé devant toute langue offerte dans `Accept-Language` laisse
 décider l'installation ; une installation illisible ou injoignable donne `fr`, la langue du
 catalogue de référence. Sans compte — pas de session, ou une API injoignable — il n'y a pas
-de préférence : le navigateur décide, et la coquille n'offre pas le sélecteur de langue.
+de préférence : le navigateur décide, et la coquille n'offre pas le menu du compte, où la
+langue se choisit.
 
 - **Une clé est hiérarchique, en anglais.** Un texte propre à l'interface se range sous le
   composant ou l'écran qui l'emploie, en camelCase (`languageSelector.label`). Ce que le
@@ -656,12 +679,38 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   Qu'aucun écran ne distingue deux états par la seule couleur — une pastille, une ligne
   teintée sans forme ni texte —, c'est pour le reste la revue qui le tient ; les tests de
   `Signal` le prouvent pour le composant.
-- **shadcn/ui** : un composant s'ajoute en copiant son source dans
-  `frontend/src/components/ui/` (`frontend/components.json` en donne les chemins), et seulement
-  quand un écran l'emploie. Copié, il est du code du dépôt, soumis à toutes ses règles :
-  en-tête, lint, JSDoc, couverture, textes par le catalogue. Les icônes sont celles de Lucide
-  (`lucide-react`) ; une icône seule porte un nom, une icône à côté de son texte est
-  `aria-hidden`.
+- **shadcn/ui partout où un composant existe** : un composant s'ajoute en copiant son source
+  dans `frontend/src/components/ui/` (`frontend/components.json` en donne les chemins), et
+  seulement quand un écran l'emploie ; ce qu'il offre et qu'aucun écran n'emploie — une
+  variante, une pièce — ne se copie pas. Copié, il est du code du dépôt, soumis à toutes ses
+  règles : en-tête, lint, JSDoc, couverture, textes par le catalogue, couleurs par les jetons
+  — ses classes se récrivent sur les jetons de la charte (`bg-popover`, `bg-sidebar-accent`),
+  et un jeton qu'il attend et que la charte n'a pas s'y ajoute, mesuré. Une variable CSS ne se
+  pose pas dans un `style` : la charte la déclare (`--sidebar-width`). Radix, son socle, vient
+  du paquet `radix-ui`, un seul, examiné pour la garde réseau. Un composant qui en passe un
+  autre à un composant client depuis un composant serveur lui passe un élément, jamais une
+  fonction — une icône se remet dessinée (`commandIcon`).
+- **La mise en page** suit la maquette validée par l'utilisateur (EP-02, « Charte
+  graphique ») : la barre latérale est le Sidebar de shadcn/ui, repliable en rail d'icônes dont
+  chaque entrée garde son nom et le montre en infobulle ; la barre du haut porte le fil
+  d'Ariane, la recherche, les tâches de fond et, à droite, le bouton de l'avatar qui déroule le
+  menu du compte (DropdownMenu). Un écran se construit sur le gabarit de
+  `frontend/src/components/shell/page-header.tsx` : `Screen`, son `<main>`, et `PageHeader`,
+  le titre et l'icône de sa fonction, une ligne dessous, ses commandes à droite.
+- **La densité** : les grilles et les listes sont denses — le plus d'informations sous les
+  yeux —, les écrans d'indicateurs aérés ; chaque fonction a la sienne, dans une table typée
+  (`FUNCTION_DENSITY`, `function-display.ts`), que `Screen` et `PageHeader` reçoivent.
+- **Une icône Lucide sur chaque entrée de navigation, chaque bouton et chaque nature de
+  ligne**, tirée d'une table typée sur ce qu'elle représente — `FUNCTION_ICONS` et
+  `GROUP_ICONS` pour la navigation, `PROJECT_COMMAND_ICONS` et `REVISION_COMMAND_ICONS` pour
+  les commandes, `RowNatureIcon` pour les lignes d'une structure —, de sorte qu'une valeur
+  ajoutée sans icône casse le typage. Une icône à côté de son texte est `aria-hidden` ; une
+  icône seule porte un nom — le bouton qui la porte, ou l'icône elle-même (`role="img"`), la
+  nature d'une ligne dans sa cellule.
+- **La sobriété** : aucun ornement hors des icônes — ni dégradé, ni ombre décorative, ni
+  animation ; une seule ombre, `shadow-md`, sur ce qui flotte au-dessus de la page (un menu),
+  pour l'en détacher. Un état se dit en mots — un badge, une pastille —, jamais par la seule
+  couleur.
 - **Le logo et le favicon** sont les fichiers de `docs/assets`, copiés à l'octet près dans
   `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où
   le mode sombre s'applique.
@@ -683,7 +732,10 @@ contrôle dans le navigateur (US-0200) ; le reste de l'accessibilité d'un compo
 tests, par `expectAccessible` (`frontend/src/test/axe.ts`, axe-core sous happy-dom, qui ne
 calcule pas les couleurs). Reste à la revue : une couleur bâtie par un gabarit à expressions
 ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt qu'un
-objet ou un littéral écrit sur place.
+objet ou un littéral écrit sur place ; et, pour la mise en page, qu'un bouton ou une entrée
+porte son icône hors des tables typées — un bouton écrit à la main —, qu'aucune ombre, aucun
+dégradé ni aucune animation n'orne un composant copié, qu'un écran prenne le gabarit et la
+densité de sa fonction, et qu'un composant copié n'entre qu'avec l'écran qui l'emploie.
 
 ## Migrations
 

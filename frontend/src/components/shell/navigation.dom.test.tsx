@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { render, screen, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { expectAccessible } from "@/test/axe";
@@ -42,9 +44,23 @@ function visit(pathname: string, search = "") {
 function navigation(session = "session", remembered?: string) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <Navigation permissions={permissions(session)} remembered={remembered} />
+      <SidebarProvider>
+        <Navigation permissions={permissions(session)} remembered={remembered} theme="default" />
+      </SidebarProvider>
     </NextIntlClientProvider>
   );
+}
+
+/** Open every block of the FBS the navigation shows closed, and give back their names. */
+async function openBlocks(): Promise<string[]> {
+  const nav = screen.getByRole("navigation", { name: "Fonctions" });
+  const closed = within(nav)
+    .queryAllByRole("button")
+    .filter((button) => button.getAttribute("aria-expanded") === "false");
+  for (const block of closed) {
+    await userEvent.click(block);
+  }
+  return closed.map((block) => block.textContent);
 }
 
 /** The address a link of the navigation leads to, found by its name. */
@@ -62,6 +78,11 @@ describe("the navigation", () => {
     const { container } = render(navigation());
 
     const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    expect(await openBlocks()).toEqual([
+      "Administration",
+      "Portefeuille",
+      "Paramètres applicatifs",
+    ]);
     expect(href("Portefeuille de projets")).toBe("/portfolio/projects");
     expect(href("Paramètres de coûts")).toBe("/reference/costs");
     expect(href("Gestion des utilisateurs")).toBe("/admin/users");
@@ -76,10 +97,14 @@ describe("the navigation", () => {
   it("still leads to the status screen, alone, when the session cannot be read", async () => {
     const { container } = render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <Navigation permissions="unreadable" remembered={undefined} />
+        <SidebarProvider>
+          <Navigation permissions="unreadable" remembered={undefined} theme={undefined} />
+        </SidebarProvider>
       </NextIntlClientProvider>,
     );
     const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    // Its block is open from the start: there is nothing else to look for.
+    expect(await openBlocks()).toEqual([]);
     expect(
       within(nav)
         .getAllByRole("link")
@@ -89,21 +114,69 @@ describe("the navigation", () => {
     await expectAccessible(container);
   });
 
-  it("names the blocks of the FBS, and offers each function the session may read", () => {
+  it("groups the functions by where they live, the blocks of the FBS closed on theirs, and offers each function the session may read", async () => {
     render(navigation());
-    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual([
-      "Administration",
-      "Portefeuille",
-      "Paramètres applicatifs",
-      "Projets",
-    ]);
-    expect(screen.getAllByRole("link")).toHaveLength(4 + 7 + 4 + 1);
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    const headings = within(nav)
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent);
+    // No project is open: the functions of a revision wait for one, and so does their group.
+    expect(headings).toEqual(["Plateforme", "Projet"]);
+    // No page of a block is shown: each is closed, and the list of projects alone is a link.
+    expect(
+      within(nav)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Projets"]);
+    await openBlocks();
+    expect(within(nav).getAllByRole("link")).toHaveLength(4 + 7 + 4 + 1);
+    for (const block of ["Administration", "Portefeuille", "Paramètres applicatifs"]) {
+      expect(within(nav).getByRole("button", { name: block })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+    }
   });
 
-  it("offers no function whose read permission the session lacks", () => {
+  it("opens the block of the page shown, and closes it at the user's wish", async () => {
+    visit("/reference/risks");
+    render(navigation());
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    const block = within(nav).getByRole("button", { name: "Paramètres applicatifs" });
+    expect(block).toHaveAttribute("aria-expanded", "true");
+    expect(within(nav).getByRole("link", { name: "Paramètres de risques" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(nav).getByRole("button", { name: "Portefeuille" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    await userEvent.click(block);
+    expect(block).toHaveAttribute("aria-expanded", "false");
+    expect(within(nav).queryByRole("link", { name: "Paramètres de risques" })).toBeNull();
+  });
+
+  it("gives every entry an icon, hidden from a screen reader beside the name it keeps", async () => {
+    visit(`${IN_PROJECT}/remaining`);
+    render(navigation());
+    await openBlocks();
+    const nav = screen.getByRole("navigation", { name: "Fonctions" });
+    const headings = within(nav)
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent);
+    expect(headings).toEqual(["Plateforme", "Projet", "Révision en cours"]);
+    const links = within(nav).getAllByRole("link");
+    expect(links).toHaveLength(15 + 1 + 3 + 6);
+    for (const link of [...links, ...within(nav).getAllByRole("button")]) {
+      expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+      expect(link.textContent).not.toBe("");
+    }
+  });
+
+  it("offers no function whose read permission the session lacks", async () => {
     render(navigation("session_without_administration"));
-    expect(screen.queryByRole("heading", { name: "Administration" })).toBeNull();
+    expect(await openBlocks()).toEqual(["Portefeuille", "Paramètres applicatifs"]);
     expect(screen.queryByRole("link", { name: "Surveillance de l’état du système" })).toBeNull();
     expect(screen.getByRole("link", { name: "Portefeuille de projets" })).toBeInTheDocument();
   });
@@ -111,6 +184,7 @@ describe("the navigation", () => {
   it("carries the revision, the sub-project and the calculation date from one function of a project to the others", async () => {
     visit(`${IN_PROJECT}/remaining`, `${CONTEXT}&sort_by=label`);
     const { container } = render(navigation());
+    await openBlocks();
 
     expect(href("Gestion des risques")).toBe(`${IN_PROJECT}/risks${CONTEXT}`);
     expect(href("Indicateurs projets")).toBe(`${IN_PROJECT}/indicators${CONTEXT}`);

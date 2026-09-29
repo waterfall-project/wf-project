@@ -13,8 +13,15 @@ test.describe("a browser asking for English", () => {
   }) => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page.getByRole("combobox", { name: "Language" })).toHaveValue("default");
-    await expect(page.getByRole("option", { name: "Browser language" })).toBeAttached();
+    await page.getByRole("button", { name: "Account of Camille Martin" }).click();
+    const language = page.getByRole("menuitem", { name: /^Language/ });
+    await expect(language).toContainText("Browser language");
+    await language.click();
+    await expect(page.getByRole("menuitemradio", { name: "Browser language" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(page.getByRole("menuitemradio", { name: "Français" })).toBeVisible();
   });
 });
 
@@ -24,7 +31,10 @@ test.describe("a browser asking for French", () => {
   test("gets the interface in French [WF-INTF-0160-A]", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-    await expect(page.getByRole("combobox", { name: "Langue" })).toHaveValue("default");
+    await page.getByRole("button", { name: "Compte de Camille Martin" }).click();
+    await expect(page.getByRole("menuitem", { name: /^Langue/ })).toContainText(
+      "Langue du navigateur",
+    );
   });
 });
 
@@ -34,6 +44,7 @@ test.describe("a browser asking for a language not offered", () => {
   test("gets the default language of the installation [WF-INTF-0160-A]", async ({ page }) => {
     await page.goto("/projects");
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-    await expect(page.getByRole("combobox", { name: "Langue" })).toBeVisible();
+    await page.getByRole("button", { name: "Compte de Camille Martin" }).click();
+    await expect(page.getByRole("menuitem", { name: /^Langue/ })).toBeVisible();
   });
 });

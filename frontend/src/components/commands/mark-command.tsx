@@ -13,6 +13,7 @@
  */
 "use client";
 
+import { Stamp, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
 
@@ -23,6 +24,7 @@ import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
 import { Command } from "./command";
+import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
 
@@ -136,9 +138,11 @@ function MarkForm({ id, revision, names, onClose }: MarkFormProps) {
       />
       <div className="flex gap-2">
         <Button type="submit" size="sm">
+          <Stamp aria-hidden="true" />
           {t("markRevision.submit")}
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          <X aria-hidden="true" />
           {t("markRevision.cancel")}
         </Button>
       </div>
@@ -168,6 +172,7 @@ export function MarkCommand({ offer, revision, names }: MarkCommandProps) {
       <Command
         offer={offer}
         label={t("mark")}
+        icon={commandIcon(REVISION_COMMAND_ICONS.mark)}
         names={names}
         disclosure={{
           expanded: open,

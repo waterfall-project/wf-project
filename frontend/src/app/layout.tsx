@@ -3,7 +3,7 @@
 /**
  * Root layout of the application: the HTML document every page renders into, in the
  * language of the request (WF-INTF-0160) and in the mode the account asks for — none forced
- * when it follows the workstation —, inside the shell.
+ * when it follows the workstation —, inside the shell, its side bar as the user left it.
  */
 import "@/theme/globals.css";
 
@@ -14,6 +14,7 @@ import { createTranslator } from "next-intl";
 import type { ReactNode } from "react";
 
 import { Shell, type ShellProps } from "@/components/shell/shell";
+import { SIDEBAR_COOKIE, sidebarOpen } from "@/components/ui/sidebar-state";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { requestLanguage } from "@/i18n/request";
 import { LAST_CONTEXT_COOKIE, rememberedAddress } from "@/navigation/context";
@@ -48,16 +49,19 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     requestLanguage(),
     cookies(),
   ]);
-  const theme = themePreference(state.kind === "open" ? state.session.user : undefined);
+  const account = state.kind === "open" ? state.session.user : undefined;
+  const theme = themePreference(account);
   return (
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>
       <body>
         <Shell
           locale={locale}
+          account={account}
           preference={preference}
           theme={theme}
           permissions={offered(state)}
           remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
+          sidebarOpen={sidebarOpen(jar.get(SIDEBAR_COOKIE)?.value)}
         >
           {children}
         </Shell>

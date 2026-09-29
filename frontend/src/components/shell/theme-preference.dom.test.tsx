@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { components } from "@/api/generated/schema";
 import { requestSession } from "@/session/request";
 import { expectAccessible } from "@/test/axe";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { themePreference } from "@/theme/theme";
 
 import { Shell } from "./shell";
@@ -19,23 +20,31 @@ const server = vi.hoisted((): { client: FakeClient | undefined; refresh: () => u
 }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("next/cache", () => ({ refresh: () => server.refresh() }));
 
 const PREFERENCES = "PATCH /me/preferences";
+const { user } = example("session") as components["schemas"]["Session"];
 
 /**
- * Render the shell as the root layout does for the mode: the preference of the account, read
+ * Render the shell as the root layout does for the mode: the account, and its preference read
  * once. The language and the navigation are not this file's: French, and left out.
  */
 async function layout() {
-  const theme = themePreference((await requestSession())?.user);
+  const account = (await requestSession())?.user;
   return (
     <Shell
       locale="fr"
+      account={account}
       preference={undefined}
-      theme={theme}
+      theme={themePreference(account)}
       permissions={undefined}
       remembered={undefined}
+      sidebarOpen
     >
       <main />
     </Shell>
@@ -64,6 +73,26 @@ function darkLogo(): string | null | undefined {
   return picture?.querySelector("source")?.getAttribute("media");
 }
 
+/** Open the menu of the account, then the choice of the mode; its values. */
+async function modes(entry = /^Mode d’affichage/) {
+  await userEvent.click(screen.getByRole("button", { name: /^(Compte de|Account of) Camille/ }));
+  await userEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: entry }));
+  return screen.findAllByRole("menuitemradio");
+}
+
+/** Choose a mode in the menu of the account. */
+async function choose(mode: string) {
+  await modes();
+  await userEvent.click(screen.getByRole("menuitemradio", { name: mode }));
+}
+
+/** The value of the mode the menu has checked. */
+function checked(): string | null | undefined {
+  return screen
+    .getAllByRole("menuitemradio")
+    .find((value) => value.getAttribute("aria-checked") === "true")?.textContent;
+}
+
 beforeEach(() => {
   server.refresh = () => undefined;
 });
@@ -71,12 +100,20 @@ beforeEach(() => {
 describe("the mode selector", () => {
   it("offers the workstation's setting, light and dark, and lets the workstation decide first", async () => {
     await open({ "GET /session": "session" });
-    const select = screen.getByRole("combobox", { name: "Mode d’affichage" });
-    expect(select).toHaveValue("default");
-    const options = screen.getAllByRole("option").map((option) => option.textContent);
-    expect(options).toEqual(["Réglage du poste", "Clair", "Sombre"]);
     expect(darkLogo()).toBe("(prefers-color-scheme: dark)");
     await expectAccessible(document.body);
+    const values = await modes();
+    expect(values.map((value) => value.textContent)).toEqual([
+      "Réglage du poste",
+      "Clair",
+      "Sombre",
+    ]);
+    expect(checked()).toBe("Réglage du poste");
+    // The menu open, the page beside it is hidden from a screen reader and out of reach of
+    // the keyboard: the menus themselves are what is read.
+    for (const menu of screen.getAllByRole("menu")) {
+      await expectAccessible(menu);
+    }
   });
 
   it("records the mode chosen in the account, and renders the page in it", async () => {
@@ -87,17 +124,14 @@ describe("the mode selector", () => {
       [PREFERENCES]: "preferences_dark",
     });
 
-    await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: "Mode d’affichage" }),
-      "dark",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer le mode" }));
+    await choose("Sombre");
 
     await waitFor(() => {
       expect(darkLogo()).toBe("all");
     });
-    expect(screen.getByRole("combobox", { name: "Mode d’affichage" })).toHaveValue("dark");
     expect(sent(client, PREFERENCES)).toEqual([{ theme: "dark" }]);
+    await modes();
+    expect(checked()).toBe("Sombre");
     expect(client.calls.map((call) => call.route)).toEqual([
       "GET /session",
       PREFERENCES,
@@ -105,49 +139,39 @@ describe("the mode selector", () => {
     ]);
   });
 
-  it("shows the light variant of the logo alone in a mode forced light", () => {
+  it("shows the light variant of the logo alone in a mode forced light", async () => {
     render(
       <Shell
         locale="en"
+        account={user}
         preference={undefined}
         theme="light"
         permissions={undefined}
         remembered={undefined}
+        sidebarOpen
       >
         <main />
       </Shell>,
     );
     expect(darkLogo()).toBeUndefined();
-    expect(screen.getByRole("combobox", { name: "Display mode" })).toHaveValue("light");
+    await modes(/^Display mode/);
+    expect(checked()).toBe("Light");
   });
 
-  it("says why the API refused the choice, and keeps it", async () => {
+  it("says why the API refused the choice, and shows the mode the account kept", async () => {
     const malformed = { problem: { code: "MALFORMED_REQUEST", status: 400 } } as const;
     const refresh = vi.fn();
     const client = await open({ "GET /session": "session", [PREFERENCES]: malformed });
     server.refresh = refresh;
 
-    await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: "Mode d’affichage" }),
-      "light",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer le mode" }));
+    await choose("Clair");
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("La requête est mal formée.");
     expect(sent(client, PREFERENCES)).toEqual([{ theme: "light" }]);
     expect(refresh).not.toHaveBeenCalled();
-    expect(screen.getByRole("combobox", { name: "Mode d’affichage" })).toHaveValue("light");
-  });
-
-  it("keeps the last mode chosen when handed a value that is not one", async () => {
-    const client = await open({ "GET /session": "session", [PREFERENCES]: "preferences_dark" });
-    fireEvent.change(screen.getByRole("combobox", { name: "Mode d’affichage" }), {
-      target: { value: "sepia" },
-    });
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer le mode" }));
-    await waitFor(() => {
-      expect(sent(client, PREFERENCES)).toEqual([{ theme: "default" }]);
-    });
+    expect(darkLogo()).toBe("(prefers-color-scheme: dark)");
+    await modes();
+    expect(checked()).toBe("Réglage du poste");
   });
 });

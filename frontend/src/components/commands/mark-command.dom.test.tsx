@@ -1,14 +1,15 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import type { Revision } from "@/components/context/read-only";
-import { LanguageSelector } from "@/components/shell/language-selector";
+import { AccountMenu } from "@/components/shell/account-menu";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -109,7 +110,8 @@ describe("the marking of a revision", () => {
       [TASK]: ["task_running", "task_succeeded"],
       [PREFERENCES]: "preferences",
     });
-    open("revision", <LanguageSelector preference="default" />);
+    const { user } = example("session") as components["schemas"]["Session"];
+    open("revision", <AccountMenu account={user} language="default" theme="default" />);
 
     await mark("V2");
     expect(client.calls.find((call) => call.route === MARK)?.path).toBe(
@@ -132,10 +134,13 @@ describe("the marking of a revision", () => {
     // disabled, and the user goes on — here, choosing the language of the interface and
     // applying it, which the server records while the revision is marked.
     expect(document.querySelector("[aria-modal], [inert], :disabled")).toBeNull();
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Langue" }), "en");
-    const apply = screen.getByRole("button", { name: "Appliquer la langue" });
-    await userEvent.click(apply);
-    expect(apply).toHaveFocus();
+    const account = screen.getByRole("button", { name: "Compte de Camille Martin" });
+    await userEvent.click(account);
+    await userEvent.click(screen.getByRole("menuitem", { name: /^Langue/ }));
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "English" }));
+    await waitFor(() => {
+      expect(account).toHaveFocus();
+    });
     expect(
       client.calls.filter((call) => call.route === PREFERENCES).map((call) => call.body),
     ).toEqual([{ language: "en" }]);

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient } from "@/api/client";
+import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -13,6 +14,7 @@ const server = vi.hoisted(() => ({
   client: undefined as FakeClient | undefined,
   acceptLanguage: "",
   cookie: undefined as string | undefined,
+  sidebar: undefined as string | undefined,
   // What the cache of React holds for the request; a test is one request.
   cached: new Map<unknown, Map<string, unknown>>(),
 }));
@@ -41,10 +43,12 @@ vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": server.acceptLanguage })),
   cookies: () =>
     Promise.resolve({
-      get: (name: string) =>
-        name === LAST_CONTEXT_COOKIE && server.cookie !== undefined
-          ? { name, value: server.cookie }
-          : undefined,
+      get: (name: string) => {
+        const value = { [LAST_CONTEXT_COOKIE]: server.cookie, [SIDEBAR_COOKIE]: server.sidebar }[
+          name
+        ];
+        return value === undefined ? undefined : { name, value };
+      },
     }),
 }));
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
@@ -76,6 +80,7 @@ async function page(): Promise<string> {
 
 beforeEach(() => {
   server.cookie = undefined;
+  server.sidebar = undefined;
   server.cached.clear();
 });
 
@@ -84,8 +89,9 @@ describe("RootLayout", () => {
     request("en-US,en;q=0.9");
     const html = await page();
     expect(html).toMatch(/^<html lang="en" class="font-geist-sans"><head><\/head><body>/);
-    expect(html).toMatch(/<label for="[^"]+">Language<\/label>/);
-    expect(html).toContain('<option value="default" selected="">Browser language</option>');
+    expect(html).toContain('aria-label="Functions"');
+    expect(html).toContain('aria-label="Account of Camille Martin"');
+    expect(html).toContain('placeholder="Search for a function, a project…"');
     expect(html).toContain("<p>page</p>");
   });
 
@@ -93,14 +99,14 @@ describe("RootLayout", () => {
     request("fr-FR,fr;q=0.9");
     const html = await page();
     expect(html).toMatch(/^<html lang="fr"/);
-    expect(html).toMatch(/<label for="[^"]+">Langue<\/label>/);
+    expect(html).toContain('aria-label="Fonctions"');
+    expect(html).toContain('aria-label="Compte de Camille Martin"');
   });
 
   it("lets the workstation decide the mode of an account that follows it", async () => {
     request("fr");
     const html = await page();
     expect(html).not.toContain("data-theme");
-    expect(html).toContain('<option value="default" selected="">Réglage du poste</option>');
     expect(html).toContain(
       '<source srcSet="/waterfall_logo-dark.svg" media="(prefers-color-scheme: dark)"/>',
     );
@@ -110,7 +116,6 @@ describe("RootLayout", () => {
     request("fr", { "GET /session": "session_dark" });
     const html = await page();
     expect(html).toMatch(/^<html lang="fr" data-theme="dark"/);
-    expect(html).toContain('<option value="dark" selected="">Sombre</option>');
     expect(html).toContain('<source srcSet="/waterfall_logo-dark.svg" media="all"/>');
   });
 
@@ -119,9 +124,13 @@ describe("RootLayout", () => {
     server.cookie = `${LAST}?as_of=2026-05-31`;
     const html = await page();
     expect(html).toContain('<nav aria-label="Fonctions"');
-    expect(html).toContain('href="/portfolio/projects"');
-    expect(html).toContain(`href="${LAST}?as_of=2026-05-31"><svg`);
-    expect(html).toContain("Retour au projet</a>");
+    // No page of a block of the FBS is shown: each is closed on its functions.
+    expect(html).toMatch(/<button[^>]*aria-expanded="false"[^>]*>.*?<span>Portefeuille<\/span>/);
+    expect(html).toContain('href="/projects"');
+    expect(html).toMatch(
+      new RegExp(`<a[^>]*href="${LAST}\\?as_of=2026-05-31"[^>]*><svg[^>]*aria-hidden="true"`),
+    );
+    expect(html).toContain("Retour au projet</span></a>");
   });
 
   it("leads nowhere from a cookie that names no project", async () => {
@@ -130,12 +139,20 @@ describe("RootLayout", () => {
     expect(await page()).not.toContain("Retour au projet");
   });
 
-  it("offers neither selectors nor functions without a session: the browser decides", async () => {
+  it("renders the side bar as the user left it: unfolded, unless folded", async () => {
+    request("fr");
+    expect(await page()).toContain('data-state="expanded"');
+    server.sidebar = "false";
+    server.cached.clear();
+    expect(await page()).toContain('data-state="collapsed"');
+  });
+
+  it("offers neither the menu of the account nor functions without a session: the browser decides", async () => {
     request("en", { "GET /session": UNAUTHORIZED });
     const html = await page();
     expect(html).toMatch(/^<html lang="en" class="font-geist-sans">/);
-    expect(html).not.toContain("<select");
-    expect(html).not.toContain("<nav");
+    expect(html).not.toContain("Account of");
+    expect(html).not.toContain('aria-label="Functions"');
     expect(html).toContain('alt="Waterfall"');
     expect(html).toContain("<p>page</p>");
   });
@@ -150,7 +167,7 @@ describe("RootLayout", () => {
     );
     server.acceptLanguage = "fr";
     const html = await page();
-    expect(html).not.toContain("<select");
+    expect(html).not.toContain("Compte de");
     expect(html).toContain('<nav aria-label="Fonctions"');
     expect([...html.matchAll(/<a [^>]*href="([^"]*)"/g)].map((match) => match[1])).toEqual([
       "/",
