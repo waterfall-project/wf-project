@@ -25,6 +25,32 @@ type Readable<P> = P extends `${infer F}.read` ? F : never;
 export type FunctionPermission = Readable<PermissionCode>;
 
 /**
+ * The functions outside any project, by the name of their permissions: those whose commands
+ * follow the permission of modification of the session rather than the `available_commands`
+ * of an object (WF-ADM-0100). `functions.test.ts` checks the list against the table.
+ */
+export const PLATFORM_FUNCTIONS = [
+  "users",
+  "access_roles",
+  "system_status",
+  "backups",
+  "portfolio_projects",
+  "portfolio_workload",
+  "portfolio_performance",
+  "portfolio_cost_structure",
+  "portfolio_risks",
+  "portfolio_cash_out",
+  "portfolio_pilot_health",
+  "cost_settings",
+  "resource_settings",
+  "risk_settings",
+  "indicator_settings",
+] as const satisfies readonly FunctionPermission[];
+
+/** A function outside any project, by the name of its permissions. */
+export type PlatformFunction = (typeof PLATFORM_FUNCTIONS)[number];
+
+/**
  * Where a function lives: outside any project; in a project, for the functions of the
  * project itself — its revisions, its settings, its lifecycle —, which a project without a
  * revision has; in a revision of a project, for the functions that read one.

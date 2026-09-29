@@ -636,7 +636,7 @@ des rôles et les signaux de santé du pilotage l'emploient tous.
 
 ## US-0170 — Refus et commandes indisponibles
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0090-A`
 - **opérations** : `getProject`, `getRevision`, `getCurrentSession`, `listPermissions`
 - **issue** : #81

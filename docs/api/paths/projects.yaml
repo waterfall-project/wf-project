@@ -87,6 +87,7 @@
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
             examples:
               witness: { $ref: ../../../fixtures/api/project.json }
+              pricing: { $ref: ../../../fixtures/api/project_pricing.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:

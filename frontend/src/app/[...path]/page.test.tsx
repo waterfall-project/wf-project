@@ -226,3 +226,84 @@ describe("the banner of the reading context of a screen of a project", () => {
     });
   });
 });
+
+/** The opening tag of the button a page names so, or `undefined` when it has none. */
+function button(markup: string, name: string): string | undefined {
+  return [...markup.matchAll(/(<button[^>]*>)([^<]*)<\/button>/g)].find(
+    (match) => match[2] === name,
+  )?.[1];
+}
+
+/** How a page offers the command it names so. */
+function offered(markup: string, name: string): "absent" | "available" | "unavailable" {
+  const tag = button(markup, name);
+  if (tag === undefined) {
+    return "absent";
+  }
+  return tag.includes('aria-disabled="true"') ? "unavailable" : "available";
+}
+
+describe("the commands a page still to come shows already", () => {
+  const LIFECYCLE = `/projects/${PROJECT}/lifecycle`;
+  const REVISIONS = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
+
+  it("on a project in pricing, presents completion unavailable, naming the condition it lacks [WF-IHM-0090-A]", async () => {
+    // Sur un projet en chiffrage, la commande de terminaison est présentée indisponible en
+    // nommant la condition manquante.
+    server.answers = { ...ANSWERS, "GET /projects/{project_id}": "project_pricing" };
+    const page = html(await ScreenPage(at(LIFECYCLE)));
+    expect(offered(page, "Terminer le projet")).toBe("unavailable");
+    const complete = button(page, "Terminer le projet");
+    const described = /aria-describedby="([^"]+)"/.exec(complete ?? "")?.[1];
+    expect(page).toContain(`id="${described ?? ""}"`);
+    expect(text(page)).toContain("Terminer le projet Condition non remplie : projet en cours.");
+    expect(offered(page, "Déclarer le projet perdu")).toBe("available");
+  });
+
+  it("offers the commands of a draft revision, those of modification among them [WF-IHM-0020-A]", async () => {
+    const page = html(await ScreenPage(at(REVISIONS)));
+    for (const name of ["Modifier le planning", "Modifier le devis", "Marquer la révision"]) {
+      expect(offered(page, name)).toBe("available");
+    }
+  });
+
+  it("offers no command of modification on a marked revision [WF-IHM-0020-A]", async () => {
+    // L'ouverture d'une révision marquée présente cet état et ne propose aucune commande de
+    // modification.
+    server.answers = {
+      ...ANSWERS,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
+    };
+    const page = html(await ScreenPage(at(REVISIONS)));
+    expect(text(page)).toContain("Marquée");
+    expect(text(page)).toContain("Lecture seule");
+    for (const name of [
+      "Modifier le planning",
+      "Modifier le devis",
+      "Réestimer le reste à engager",
+      "Créer une structure",
+      "Fusionner une structure",
+    ]) {
+      expect(offered(page, name)).toBe("unavailable");
+    }
+  });
+
+  it("does not show a command the user may not exercise [WF-IHM-0090-A]", async () => {
+    // Un utilisateur sans la permission de marquer une révision ne voit pas cette commande.
+    server.answers = {
+      ...ANSWERS,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_estimator",
+    };
+    const page = html(await ScreenPage(at(REVISIONS)));
+    expect(offered(page, "Marquer la révision")).toBe("absent");
+    expect(offered(page, "Modifier le devis")).toBe("available");
+  });
+
+  it.each([
+    ["the revisions of a project without a revision", `/projects/${PROJECT}/revisions`],
+    ["another function of a project", `/projects/${PROJECT}/settings`],
+    ["a function of a revision", REMAINING],
+  ])("shows none on %s", async (_, address) => {
+    expect(html(await ScreenPage(at(address)))).not.toContain("<button");
+  });
+});

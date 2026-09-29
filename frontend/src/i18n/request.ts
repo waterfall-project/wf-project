@@ -17,8 +17,9 @@ import { headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 import { cache } from "react";
 
+import { reach } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { type Account, reach, requestSession } from "@/session/request";
+import { type Account, requestSession } from "@/session/request";
 
 import { CATALOGUES, type Catalogue } from "./catalogues";
 import { TIME_ZONE } from "./format";

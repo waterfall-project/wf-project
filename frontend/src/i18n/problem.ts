@@ -8,8 +8,8 @@
  * reader can use adds one, `problemDetails.<param>`, with the value named by the catalogue
  * too — a `missing_permission` by its label, a `missing_condition` by its own. A parameter
  * that names nothing a reader knows — an identifier, a lock version — adds nothing. The
- * decoder of the envelope, which also reacts to 401, 409 and 412, will use this sentence
- * (`src/api/problem.ts`, US-0170).
+ * decoder of the envelope (`src/api/problem.ts`) classes a refusal by its status, and the
+ * notice of its outcome (`OutcomeNotice`) writes it with this sentence.
  */
 import { createTranslator } from "next-intl";
 

@@ -2,22 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The server actions of the display preferences of the account (`updateMyPreferences`):
- * the browser asks the server of Next, which calls the API (§4.3.1).
+ * the browser asks the server of Next, which calls the API (§4.3.1), and gets back the
+ * outcome the one decoder makes of its answer (`src/api/problem.ts`).
  */
 "use server";
 
 import { refresh } from "next/cache";
 
 import type { components } from "@/api/generated/schema";
+import { decode, type Outcome } from "@/api/problem";
 import { serverClient } from "@/api/server";
 
 type DisplayPreferences = components["schemas"]["DisplayPreferences"];
-type Problem = components["schemas"]["Problem"];
-
-/** What an action gives back: the answer of the API, or its refusal, never both. */
-export type Outcome<T> =
-  | { readonly data: T; readonly problem?: never }
-  | { readonly problem: Problem; readonly data?: never };
 
 /**
  * Record a display preference of the account, and render the page again: the next render
@@ -26,12 +22,13 @@ export type Outcome<T> =
  * what is not one of the values of the field.
  */
 async function update(preferences: DisplayPreferences): Promise<Outcome<DisplayPreferences>> {
-  const { data, error } = await serverClient().PATCH("/me/preferences", { body: preferences });
-  if (error !== undefined) {
-    return { problem: error };
+  const outcome = await decode(() =>
+    serverClient().PATCH("/me/preferences", { body: preferences }),
+  );
+  if (outcome.kind === "done") {
+    refresh();
   }
-  refresh();
-  return { data };
+  return outcome;
 }
 
 /** Record the language of the interface: `default`, `fr` or `en` (WF-INTF-0160). */

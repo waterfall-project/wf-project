@@ -12,6 +12,7 @@ import "server-only";
 import { cache } from "react";
 
 import type { components } from "@/api/generated/schema";
+import { isGatewayFailure, reach } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
   type ContextParameter,
@@ -20,7 +21,6 @@ import {
   type SearchParameters,
   UNASSIGNED,
 } from "@/navigation/context";
-import { reach } from "@/session/request";
 
 import { availableEdits, type EditCommand, isReadOnly, type Revision } from "./read-only";
 
@@ -93,9 +93,22 @@ function refuseUnexpected(
   }
 }
 
+/**
+ * Call the API for a read, or `undefined` when it is out of reach: `fetch` rejected, or a
+ * gateway answered that the service behind it is down — the verdict `decode` gives an action.
+ */
+async function readApi<A extends { readonly response: Response; readonly error?: unknown }>(
+  call: () => Promise<A>,
+): Promise<A | undefined> {
+  const answer = await reach(call);
+  return answer === undefined || isGatewayFailure(answer.response, answer.error)
+    ? undefined
+    : answer;
+}
+
 /** Read a project, once per request (`getProject`); `undefined` when the API is out of reach. */
 export const readProject = cache(async (projectId: string) =>
-  reach(() =>
+  readApi(() =>
     serverClient().GET("/projects/{project_id}", {
       params: { path: { project_id: projectId } },
     }),
@@ -104,7 +117,7 @@ export const readProject = cache(async (projectId: string) =>
 
 /** Read a revision of a project, once per request (`getRevision`). */
 export const readRevision = cache(async (projectId: string, revisionId: string) =>
-  reach(() =>
+  readApi(() =>
     serverClient().GET("/projects/{project_id}/revisions/{revision_id}", {
       params: { path: { project_id: projectId, revision_id: revisionId } },
     }),
@@ -113,7 +126,7 @@ export const readRevision = cache(async (projectId: string, revisionId: string) 
 
 /** Read the sub-projects of a project, once per request (`listSubprojects`). */
 const readSubprojects = cache(async (projectId: string) =>
-  reach(() =>
+  readApi(() =>
     serverClient().GET("/projects/{project_id}/subprojects", {
       params: { path: { project_id: projectId } },
     }),
@@ -153,8 +166,8 @@ async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
  * - `"not_found"` when the API finds neither the project nor the revision the address names
  *   — or does not let the user read them, which it answers alike (WF-ADM-0110): the page is
  *   not found;
- * - `undefined` when the API cannot be reached at all: there is nothing to name, so no
- *   banner, and the page goes on to say the API is out of reach (US-0090/L2, #101);
+ * - `undefined` when the API cannot be reached at all — `fetch` rejected, or a gateway said
+ *   the service is down (`isGatewayFailure`): there is nothing to name, so no banner, and the page goes on to say the API is out of reach (US-0090/L2, #101);
  * - the reading itself on success.
  *
  * Any other answer — no session, a failure of the server — throws `UnexpectedAnswer`: a

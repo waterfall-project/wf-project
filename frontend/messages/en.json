@@ -44,6 +44,16 @@
     "notComputable": "Not computable",
     "computedAt": "Computed on <time></time>"
   },
+  "commands": {
+    "label": "Commands",
+    "unmet": "{count, plural, one {Unmet condition} other {Unmet conditions}}: {conditions}."
+  },
+  "outcome": {
+    "unreachable": "The service cannot be reached; try again in a moment.",
+    "conflictingObject": "Conflicting object: {name}.",
+    "reload": "Reload",
+    "signIn": "Sign in"
+  },
   "functionGroups": {
     "administration": "Administration",
     "portfolio": "Portfolio",

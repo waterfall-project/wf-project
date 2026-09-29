@@ -86,6 +86,21 @@ aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une val
 enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
 `CalculationContext` (`indicator.tsx`).
 
+Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
+absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
+celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission
+garde quelle commande —, présente et disponible, ou présente et indisponible, marquée
+`aria-disabled` et décrite par le texte visible des conditions qui lui manquent
+(`enums.CommandCondition.*`). `ProjectCommands` et `RevisionCommands` rendent, dans l'ordre
+du serveur, toutes celles d'un projet et d'une révision, chacune selon son `is_available` et
+ses conditions — une révision marquée les liste indisponibles, faute d'être en cours
+d'élaboration — ; `findOffer` en tire une seule. Hors projet — comptes, rôles, référentiel,
+sauvegarde —, `platformOffer` suit la permission de modification d'une fonction de portée
+`platform` (`PlatformFunction`) dans `Session.permissions`, ou `platform_restore` pour la
+restauration. Griser n'est qu'une
+commodité : une commande disponible lance son action serveur, et le refus du serveur est dit
+par `OutcomeNotice`.
+
 L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
 empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
 
@@ -452,6 +467,27 @@ ses paramètres, jamais une phrase.
   *Contrôles* : `make typecheck-front` échoue sur un code d'`ErrorCode` sans clé dans le
   catalogue français, que `problem.ts` lit par `errors.${code}` ; `make catalogs`, sur un
   code sans clé dans l'un des deux, ou sur une clé `errors.` que le contrat n'a plus.
+- **Réagir à un refus côté front** — une action serveur ne rend jamais la réponse brute de
+  l'API : elle appelle le client par `decode` de `frontend/src/api/problem.ts`, le seul
+  décodeur, et rend son `Outcome` — `done` ; `refused`, un `Problem` à dire tel quel ;
+  `stale` (412) ; `conflict` (409) ; `signed_out` (401) ; `unreachable`, l'API qui n'a pas
+  répondu du tout, distinct de tout `Problem` — le rejet de `fetch` lui-même, que
+  `client.ts` marque `Unreachable` (une autre `TypeError` est un défaut et remonte), ou un
+  502, 503 ou 504 sans enveloppe `Problem`, qu'une passerelle rend quand le service est
+  tombé. Une réponse d'erreur sans enveloppe, ou dont le `code` manque au catalogue — un
+  service plus récent que le front —, vaut `INTERNAL_ERROR`, « erreur inattendue », au
+  statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
+  `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
+  `problemMessage` ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
+  (`params.conflicting_object_id`) nommé quand l'écran le connaît, par `names` ; sur 401, le
+  lien vers la connexion ; l'API injoignable annoncée, jamais un écran blanc. La connexion
+  est `/login?next=<chemin et requête de l'écran visé>` (`loginHref`,
+  `frontend/src/navigation/login.ts`) : la page de connexion (US-0320), la session rouverte,
+  mène à `returnTarget(next)`, qui ne suit qu'un chemin du front — ni `//hôte`, ni une
+  adresse d'un autre site — et ramène sinon à l'accueil.
+
+  *Contrôles* : `make test-front` (`problem.test.ts`, `login.test.ts`) ; qu'une action
+  serveur passe par `decode`, la revue.
 - **Ajouter un code côté service** — *à écrire*, EP-03, qui crée le service.
 
 ## Clés de traduction

@@ -159,6 +159,44 @@ describe("what a screen of a project reads in", () => {
     expect(context && (await readProjectContext(REMAINING, context))).toBeUndefined();
   });
 
+  it.each([502, 503, 504])(
+    "is nothing when a gateway answers %i without the envelope: the API is out of reach",
+    async (status) => {
+      server.cached.clear();
+      server.client = createApiClient({
+        address: "http://gateway.invalid",
+        fetch: () =>
+          Promise.resolve(
+            new Response("<html>Bad gateway</html>", {
+              status,
+              headers: { "content-type": "text/html" },
+            }),
+          ),
+      });
+      const search = new URLSearchParams({ subproject_id: SUBPROJECT });
+      const context = readContext(REMAINING, search);
+      expect(context && (await readProjectContext(REMAINING, context))).toBeUndefined();
+    },
+  );
+
+  it("still refuses a failure of the service the API tells in its envelope", async () => {
+    server.cached.clear();
+    server.client = createApiClient({
+      address: "http://api.invalid",
+      fetch: () =>
+        Promise.resolve(
+          Response.json(
+            { code: "COMPONENT_UNAVAILABLE", status: 503, params: { component: "database" } },
+            { status: 503, headers: { "content-type": "application/problem+json" } },
+          ),
+        ),
+    });
+    const context = readContext(LIFECYCLE, new URLSearchParams());
+    await expect(context && readProjectContext(LIFECYCLE, context)).rejects.toBeInstanceOf(
+      UnexpectedAnswer,
+    );
+  });
+
   it("reads the project once for the request, however many ask", async () => {
     await Promise.all([read(REMAINING), readProject(PROJECT), read(LIFECYCLE)]);
     const projects = fake.calls.filter((call) => call.route === "GET /projects/{project_id}");

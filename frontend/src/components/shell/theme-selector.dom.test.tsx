@@ -122,9 +122,9 @@ describe("the mode selector", () => {
   });
 
   it("says why the API refused the choice, and keeps it", async () => {
-    const expired = { problem: { code: "SESSION_EXPIRED", status: 401 } } as const;
+    const malformed = { problem: { code: "MALFORMED_REQUEST", status: 400 } } as const;
     const refresh = vi.fn();
-    const client = await open({ "GET /session": "session", [PREFERENCES]: expired });
+    const client = await open({ "GET /session": "session", [PREFERENCES]: malformed });
     server.refresh = refresh;
 
     await userEvent.selectOptions(
@@ -134,7 +134,7 @@ describe("the mode selector", () => {
     await userEvent.click(screen.getByRole("button", { name: "Appliquer le mode" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Votre session a expiré ; reconnectez-vous.");
+    expect(alert.textContent).toBe("La requête est mal formée.");
     expect(sent(client, PREFERENCES)).toEqual([{ theme: "light" }]);
     expect(refresh).not.toHaveBeenCalled();
     expect(screen.getByRole("combobox", { name: "Mode d’affichage" })).toHaveValue("light");
