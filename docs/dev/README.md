@@ -144,7 +144,8 @@ grille lit sa propre commande — `edits.has("edit_planning")` pour le planning 
 chiffreur peut saisir le devis sans toucher au planning. `readOnly` — révision marquée, ou
 aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une valeur sous
 enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
-`CalculationContext` (`indicator.tsx`).
+`CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
+(`enums.NotComputableReason.*`, `indicator.tsx`).
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
@@ -154,27 +155,30 @@ pour une colonne étroite, l'icône qui tient lieu d'en-tête et que son libell�
 rend sa cellule en place de la valeur formatée (`render`) — et, s'il y en a un, son arbre
 (niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des fonctions : elle se remet à
 `DenseGrid` dans un composant client propre à l'écran (`estimate-grid.tsx`,
-`planning-grid.tsx`), et la page, serveur, ne lui passe que des données — et de chaque nœud,
-les seuls champs que la grille lit : ceux de toute grille (identité, version, champs calculés,
-numéro, niveau, nature, libellé) et ceux de ses colonnes, que nomme sa configuration
-(`ESTIMATE_FIELDS`, `PLANNING_FIELDS`), projetés par `projectNodes` : les six mille nœuds
-entiers de `listNodes` pèsent quatre mégaoctets dans la page, projetés, environ la moitié
-(#166). Une colonne qui lit
-un champ nouveau l'ajoute à cette liste : le typage de la ligne le demande, et
-`projection.test.tsx` vérifie que la grille lit la même chose de la ligne projetée que du nœud
-entier. Le calculé se lit cellule par cellule (WF-IHM-0030, `computed-nodes.ts`) : un champ
-qu'aucune écriture ne porte — les montants, la marge — l'est dans chaque ligne qui le porte, et
-sa colonne a Σ en en-tête ; un champ saisissable l'est là où le nœud le nomme dans
-`computed_fields`, jamais d'après son mode ni sa nature. Une cellule calculée est grisée, marquée
-Σ et nommée « Calculé » — la marque se lit sans la couleur — ; c'est un bouton qui, cliqué ou
-pressé au clavier, refuse la saisie dans un Popover (`ComputedCell`, `ComputedRefusal`) en disant
-ce dont sa valeur dépend : pourquoi le serveur la calcule, et les lignes dont elle vient —
-nommées par leur numéro, leur nature et leur libellé. Ce dont une valeur dépend, le contrat ne
-le dit pas : le front le lit de ce que porte la ligne — sa nature, son mode, le champ — (#168),
-et dit qu'il ne le sait pas hors des règles que le contrat décrit ; les subordonnées d'une ligne
-se lisent de l'ordre et des niveaux de la réponse, qui est en profondeur d'abord, et, sous une
-recherche ou un filtre (`holdsPart`), le refus dit que des lignes dont la valeur dépend peuvent
-manquer, que la réponse ne porte pas. Le Popover ne se monte
+`planning-grid.tsx`), et la page, serveur, ne lui passe que des données — la structure lue et,
+de chaque nœud, les seuls champs que la grille lit : ceux de toute grille (identité, version,
+champs calculés, numéro, niveau, nature, libellé) et ceux de ses colonnes, que nomme sa
+configuration (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). La page les demande à `listNodes`
+(`fields`, `nodeFieldNames` : un champ d'une facette sous son nom, `task.label`) et les projette
+encore (`projectNodes`) : un serveur peut rendre plus qu'on ne lui demande — le faux back rend
+son exemple entier —, et les six mille nœuds entiers pèsent quatre mégaoctets dans la page,
+projetés, environ la moitié. Une colonne qui lit un champ nouveau l'ajoute à cette liste : le
+typage de la ligne le demande, et `projection.test.tsx` vérifie que la grille lit la même chose
+de la ligne projetée que du nœud entier, et que la page demande ce qu'elle projette. Le calculé
+se lit cellule par cellule (WF-IHM-0030, `computed-nodes.ts`) : un champ qu'aucune écriture ne
+porte — les montants, la marge — l'est dans chaque ligne qui le porte, et sa colonne a Σ en
+en-tête ; un champ saisissable l'est là où le nœud le nomme dans `computed_fields`, jamais
+d'après son mode ni sa nature. Une cellule calculée est grisée, marquée Σ et nommée « Calculé »
+— la marque se lit sans la couleur — ; c'est un bouton qui, cliqué ou pressé au clavier, refuse
+la saisie dans un Popover (`ComputedCell`, `ComputedRefusal`) en disant ce dont sa valeur
+dépend, que le serveur dit : chaque colonne calculée nomme le champ du contrat de chacune de ses
+cellules, et le refus appelle à son premier essai `getComputedValueDependencies` pour le nœud et
+ce champ, par une action serveur (`readComputedDependencies`) que la grille reçoit de son écran
+(`nodeDependencies`). Il dit qu'il la lit (`role="status"`) tant que le serveur n'a pas
+répondu, puis les règles qui la calculent (`enums.ComputedDependency.*`) et les lignes dont elle
+vient, nommées par leur numéro et leur libellé, que la grille les montre ou non ; un refus du
+serveur, ou l'API injoignable, se disent par `OutcomeNotice`. Le front ne lit aucune règle du
+noyau. Le Popover ne se monte
 qu'au premier essai : une racine de Radix par cellule calculée alourdirait l'hydratation du
 premier écran. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
@@ -249,9 +253,13 @@ réponse ne s'applique qu'à la tâche pour laquelle elle a été demandée, jam
 relance a mise à sa place. Les actions serveur de Next partent une à une, dans une seule file :
 suivre k tâches ajoute k actions toutes les deux secondes, dans la file même des écritures de
 l'écran, qu'une relecture lente retarde d'autant. Le stockage de session de l'onglet garde les
-tâches qui courent pour un rechargement complet, sans leur commande : le contrat n'a pas de
-liste des tâches d'un utilisateur (#146). Une tâche retrouvée ainsi ne se relance donc pas du
-suivi : échouée, son entrée dit de la relancer depuis l'écran de son objet. La commande `mark` d'une révision
+tâches qui courent pour un rechargement complet, sans leur commande mais avec le nom que
+l'utilisateur leur a donné ; et, pour une session (`signedIn`), le suivi demande à son montage
+les tâches de son utilisateur qui courent (`listBackgroundTasks`, action `listRunningTasks`),
+lancées d'un autre onglet ou d'un autre poste, et suit celles qu'il ne suivait pas — une liste
+refusée ou injoignable le laisse tel qu'il est. Une tâche retrouvée par le stockage ou par la
+liste ne se relance pas du suivi : échouée, son entrée dit de la relancer depuis l'écran de son
+objet. La commande `mark` d'une révision
 (`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de
 version.
 
@@ -260,7 +268,9 @@ empreinte, et tourne sous un utilisateur non privilégié, désigné par son num
 
 Le client de l'API est engendré du contrat (PBS-1.2, WF-ARC-0060) : `make generate-client`
 écrit ses types dans `frontend/src/api/generated/schema.d.ts`, que personne ne retouche, et
-`frontend/src/api/client.ts` en fait des appels typés par openapi-fetch. Une opération qui
+`frontend/src/api/client.ts` en fait des appels typés par openapi-fetch, une liste de la requête
+écrite en un seul paramètre, ses valeurs séparées par des virgules, comme le contrat les déclare
+toutes (`explode: false`). Une opération qui
 manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
 fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors de
 `frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client
@@ -825,10 +835,10 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   `--signal-<zone>`, dans une seule table typée sur `AlertZone`. **Une zone vient du
   serveur**, qui classe selon les seuils du référentiel : le front n'en déduit jamais une
   d'une valeur (WF-ARC-0020). Une zone nulle ou absente ne rend aucun `Signal` ; la valeur
-  dit qu'elle manque (`ComputedIndicator`) ; jamais `?? "nominal"`. Un signalement que le
-  contrat ne classe pas encore attend sa zone (#139). Les jetons de signalement sont mesurés
-  comme les autres, et de plus en niveaux de gris et vus d'un protanope et d'un deutéranope
-  (`contrast.test.ts`). Hors de `src/components/signal/`, un utilitaire de couleur qui nomme
+  dit qu'elle manque (`ComputedIndicator`) ; jamais `?? "nominal"`. Les jetons de signalement
+  sont mesurés comme les autres, et de plus en niveaux de gris et vus d'un protanope et d'un
+  deutéranope (`contrast.test.ts`) ; l'alerte y ressort le plus de la page dans les deux modes —
+  la plus sombre en clair, la plus lumineuse en sombre —, le nominal le moins. Hors de `src/components/signal/`, un utilitaire de couleur qui nomme
   un jeton de zone (`bg-signal-alert`, `text-signal-watch`) est refusé : `SIGNAL_SYNTAX` de
   `frontend/eslint.config.mjs`, `make lint-front`, éprouvé par `colour-guard.test.ts`.
   Qu'aucun écran ne distingue deux états par la seule couleur — une pastille, une ligne
