@@ -10,18 +10,26 @@ test("opens the list of projects, a project, and reads its planning and its esti
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Modernisation du poste de commande",
   );
-  // A revision opens on its planning, the first function of a revision.
+  // A revision opens on its planning, the first function of a revision. The fake back serves
+  // the structure of the volumes of §4.6.2 (EP-02/L2): its first rows are in view.
   await page.getByRole("link", { name: "Référence" }).click();
   const planning = page.getByRole("grid", { name: "Grille de planning" });
-  await expect(planning.getByRole("gridcell", { name: "Revue de conception" })).toBeVisible();
+  await expect(planning.getByRole("gridcell", { name: /Préparation 1\.1\.1$/ })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification");
 
-  // The estimate, from the sidebar: the header, the four nodes of the structure, the totals.
+  // The estimate, from the sidebar: the header, the six thousand rows of the structure — only
+  // those in view rendered, the row count says them all —, the totals of the answer.
   await page.getByRole("link", { name: "Chiffrage et devis" }).click();
   const estimate = page.getByRole("grid", { name: "Grille de devis" });
-  await expect(estimate.getByRole("row")).toHaveCount(6);
-  await expect(estimate.getByRole("gridcell", { name: "Ingénierie de détail" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Indicateurs du devis" })).toContainText(
-    "100 000,00",
-  );
+  await expect(estimate).toHaveAttribute("aria-rowcount", "6002");
+  await expect(estimate.getByRole("columnheader", { name: "Libellé" })).toBeVisible();
+  await expect(estimate.getByRole("row", { name: /^4 .*Heures d'ingénierie/ })).toBeVisible();
+  await expect(
+    estimate.getByRole("gridcell", { name: /^Total — 1\s000 tâches, 5\s000 lignes$/ }),
+  ).toBeVisible();
+  // The indicators are there, with their figures: their first example is summed from the same
+  // lines as the structure the grid shows (EP-02/L2), and says the same total.
+  const indicators = page.getByRole("region", { name: "Indicateurs du devis" });
+  await expect(indicators.getByRole("term").first()).toHaveText("Total du devis");
+  await expect(indicators).toContainText(/60\s553\s621,36/);
 });

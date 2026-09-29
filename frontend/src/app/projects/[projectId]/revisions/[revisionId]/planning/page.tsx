@@ -62,7 +62,7 @@ export default async function PlanningPage({
   return (
     <>
       <ContextBanner reading={screen.reading} />
-      <Screen density={FUNCTION_DENSITY.planning}>
+      <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} nodes={screen.nodes} />
         <PlanningGrid nodes={screen.nodes} query={screen.query} preferences={screen.preferences} />
       </Screen>

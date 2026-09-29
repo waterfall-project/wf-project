@@ -429,6 +429,7 @@
                   items: { $ref: ../components/schemas/revisions.yaml#/Node }
                 totals: { $ref: ../components/schemas/revisions.yaml#/NodeTotals }
             examples:
+              volume: { $ref: ../../../fixtures/api/volume/nodes_thousand.json }
               witness: { $ref: ../../../fixtures/api/nodes.json }
               milestone: { $ref: ../../../fixtures/api/nodes_milestone.json }
               estimate: { $ref: ../../../fixtures/api/nodes_estimate.json }

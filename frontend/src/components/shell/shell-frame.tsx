@@ -18,6 +18,13 @@ import { TaskPanel } from "@/components/tasks/task-tracker";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { isOutsideShell } from "@/navigation/login";
 
+/**
+ * The page bounded to the height of the window when its screen fills it (`Screen`, `fill`): the
+ * bar, the banner and the screen share that height, and the grid of the screen takes what is
+ * left. Any other page grows with its content, and the document scrolls.
+ */
+const FILLED = "has-[main[data-fill]]:h-svh";
+
 /** The side bar — none without a session —, the bar above the page, and the page. */
 export interface ShellFrameProps {
   readonly navigation: ReactNode;
@@ -31,7 +38,7 @@ export function ShellFrame({ navigation, bar, children }: ShellFrameProps) {
   return (
     <>
       {bare ? null : navigation}
-      <SidebarInset>
+      <SidebarInset className={FILLED}>
         {bare ? null : bar}
         {bare ? null : <TaskPanel />}
         {children}

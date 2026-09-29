@@ -368,9 +368,12 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
         aria-busy={pending}
+        // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
+        // of its rows down to a floor; never taller than the window, so that the rows in view
+        // stay a window's worth whatever holds it.
         container={{
           ref: scroller,
-          className: "w-fit max-w-full max-h-[calc(100svh-15rem)] min-h-40 rounded-md border",
+          className: "w-fit max-w-full max-h-svh min-h-40 rounded-md border",
         }}
         className="table-fixed text-xs tabular-nums"
         style={{ width: table.getTotalSize() }}

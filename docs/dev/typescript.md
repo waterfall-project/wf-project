@@ -169,3 +169,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     par `renderToStaticMarkup` ne franchit pas cette frontière et passe ; seul le parcours de
     bout en bout la voit. Ce qui la franchit est une donnée ou un élément déjà dessiné
     (`commandIcon`), jamais une fonction.
+13. **Visible dans le conteneur, pas dans la fenêtre.** Un parcours affirme l'en-tête ou les
+    totaux d'une grille par `toBeVisible` ou par un cadre maison, qui ne regardent pas la
+    fenêtre : la ligne des totaux est sous le bas de l'écran et le parcours passe. La cause
+    dans le code est une hauteur calculée à la main d'après ce qui précède
+    (`calc(100svh-…)`), que le premier ajout au-dessus de la grille invalide (#163). Une
+    visibilité s'affirme par `toBeInViewport` ou `withinBox` (`e2e/scroll.ts`), et un écran
+    de grille prend `Screen fill`, jamais une hauteur calculée. Aucun outil ne le tient : la
+    revue le cherche.

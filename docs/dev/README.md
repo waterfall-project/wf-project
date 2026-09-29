@@ -171,7 +171,11 @@ quand la fenêtre bouge. Le React Compiler n'est pas activé dans ce front, mais
 React refuse l'adaptateur de TanStack Virtual, dont un rendu compilé figerait les réponses
 (`react-hooks/incompatible-library`). La hauteur d'une ligne suit la taille de la police
 racine (1,75 rem). L'en-tête et les totaux sont collés au haut et au pied de la grille, le
-numéro et le libellé à son début. Colonnes masquées, largeurs et tri sont une préférence
+numéro et le libellé à son début. La grille prend la hauteur que lui laisse son écran : un
+écran de grille est un `Screen` qui remplit la fenêtre (`fill`), la page bornée à sa hauteur
+(`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher —
+aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre trop basse pour ce
+plancher fait défiler la page. Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
 chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une colonne ou une largeur
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
@@ -264,6 +268,26 @@ Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summ
 `value`), et le contrat le cite par `$ref` ; le bundle l'embarque. Ses nombres reprennent
 ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
 
+Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`, la
+structure dans `wftools.mockstructure`) les engendre dans `fixtures/api/volume/`, qu'on ne
+retouche pas — la structure de mille tâches et de cinq mille lignes, premier exemple de
+`listNodes`, et les indicateurs de son devis, premier exemple de `getEstimateIndicators`,
+sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même
+total ; les trois cents projets de `getPortfolioProjects`, les deux cents catégories de
+`listCostCategories` et quinze ans de taux de `listHourlyRates`. Les exemples nommés
+(`witness`…) restent pour les tests de composants. Les indicateurs du projet
+(`getProjectIndicators`) et la ligne du projet témoin dans le portefeuille restent ceux du
+témoin, que l'outil lit dans leurs fixtures : ils ne sont pas tirés du volume. Les volumes
+restent dans l'univers des autres exemples — le projet, sa révision, ses sous-projets, ses
+catégories et ses rôles gardent leurs identifiants, et ce que disent le projet témoin, l'offre
+et les libellés de l'univers se lit dans leurs fixtures, jamais recopié —, et l'engendrement
+ne lit ni l'horloge ni le hasard : chaque valeur tirée vient de l'empreinte d'une graine fixe
+et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets. Un exemple de volume
+s'écrit une ligne par élément, pour qu'un changement se lise dans le diff. Les repères que
+lisent les parcours de bout en bout — numéros de ligne, libellés, totaux — sont fixés par
+`test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`) : un changement du
+générateur qui les déplace échoue là, avant les parcours.
+
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde
 celle dont part la maquette (EP-02). Rien d'autre ne change.
@@ -277,7 +301,9 @@ Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'app
 la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
 front qui ne font que lire, jamais à éprouver une écriture.
 
-*Contrôles* : `make lint-openapi` (exemples conformes aux schémas), `make lint-compose`.
+*Contrôles* : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
+`make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
+famille contract, que `fixtures/api/` réveille comme le contrat), `make lint-compose`.
 
 ## Commandes
 
