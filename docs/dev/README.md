@@ -573,7 +573,8 @@ développement — celui-ci compile une route à sa première demande et rend av
 de React en développement : il dirait la vitesse du poste du développeur. Chaque grille
 s'ouvre une fois sans être mesurée, puis cinq fois par son adresse et cinq fois depuis la
 barre latérale, et chaque ouverture doit tenir la seconde ; la médiane et la pire s'écrivent
-dans le journal du parcours. Son projet Playwright, `production`, dépend du projet `chromium` :
+dans le journal du parcours, et, pour l'ouverture par l'adresse, où va le temps : les
+instants médians où le serveur a fini d'envoyer le document et où le navigateur l'a lu. Son projet Playwright, `production`, dépend du projet `chromium` :
 il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
 d'eux échoue. Elle tourne donc là où tournent les parcours, au palier complet de la chaîne ;
 sur un poste, `make e2e`, ou la mesure seule, contre des serveurs déjà démarrés :

@@ -123,19 +123,37 @@ async function usableAt(page: Page, screen: GridScreen): Promise<number> {
   return (await read()) ?? Number.POSITIVE_INFINITY;
 }
 
-/** Open the screen of a grid by its address; how long it took, in milliseconds. */
-async function openByAddress(page: Page, screen: GridScreen): Promise<number> {
+/** How long an opening took, from its start, in milliseconds. */
+interface Opening {
+  readonly duration: number;
+  /**
+   * For an opening by the address, where the time went: when the server had sent the whole
+   * document, and when the browser had parsed it and run its scripts.
+   */
+  readonly phases?: { readonly served: number; readonly parsed: number };
+}
+
+/** Open the screen of a grid by its address; how long it took, and where the time went. */
+async function openByAddress(page: Page, screen: GridScreen): Promise<Opening> {
   await page.goto(address(screen), { waitUntil: "commit" });
   const usable = await usableAt(page, screen);
-  const started = await page.evaluate(() => performance.timeOrigin);
-  return usable - started;
+  const { started, served, parsed } = await page.evaluate(() => {
+    const [entry] = performance.getEntriesByType("navigation");
+    const timing = entry instanceof PerformanceNavigationTiming ? entry : undefined;
+    return {
+      started: performance.timeOrigin,
+      served: timing?.responseEnd ?? Number.NaN,
+      parsed: timing?.domContentLoadedEventEnd ?? Number.NaN,
+    };
+  });
+  return { duration: usable - started, phases: { served, parsed } };
 }
 
 /**
  * Open the screen of a grid from that of another, by its link in the navigation; how long it
  * took, from the click, in milliseconds.
  */
-async function openByClick(page: Page, from: GridScreen, to: GridScreen): Promise<number> {
+async function openByClick(page: Page, from: GridScreen, to: GridScreen): Promise<Opening> {
   await page.goto(address(from));
   await usableAt(page, from);
   await page
@@ -145,7 +163,7 @@ async function openByClick(page: Page, from: GridScreen, to: GridScreen): Promis
   const usable = await usableAt(page, to);
   const clicked = await page.evaluate((key) => Number(sessionStorage.getItem(key)), CLICKED);
   await expect(page).toHaveURL(address(to));
-  return usable - clicked;
+  return { duration: usable - clicked };
 }
 
 /** The median of some durations. */
@@ -157,15 +175,31 @@ function median(durations: readonly number[]): number {
     : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }
 
-/** Open a grid some times one way, and say how long each took, the median and the worst. */
-async function measure(way: string, open: () => Promise<number>): Promise<readonly number[]> {
+/** The median of some times, rounded to the millisecond, as the log writes it. */
+function inLog(times: readonly number[]): string {
+  return Math.round(median(times)).toString();
+}
+
+/**
+ * Open a grid some times one way, and say how long each took, the median and the worst — and,
+ * by the address, the medians of the phases.
+ */
+async function measure(way: string, open: () => Promise<Opening>): Promise<readonly number[]> {
   await open();
-  const durations: number[] = [];
+  const openings: Opening[] = [];
   for (let opening = 0; opening < OPENINGS; opening += 1) {
-    durations.push(Math.round(await open()));
+    openings.push(await open());
   }
+  const durations = openings.map((opening) => Math.round(opening.duration));
+  const phases = openings.flatMap((opening) =>
+    opening.phases === undefined ? [] : [opening.phases],
+  );
+  const where =
+    phases.length === 0
+      ? ""
+      : `; median document served at ${inLog(phases.map((phase) => phase.served))} ms, parsed at ${inLog(phases.map((phase) => phase.parsed))} ms`;
   console.log(
-    `${way}: ${durations.join(", ")} ms — median ${median(durations).toString()} ms, worst ${Math.max(...durations).toString()} ms`,
+    `${way}: ${durations.join(", ")} ms — median ${inLog(durations)} ms, worst ${Math.max(...durations).toString()} ms${where}`,
   );
   return durations;
 }

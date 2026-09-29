@@ -508,7 +508,7 @@ suis, si elle est marquée, si elle est la référence, et ce qu'un filtre actif
 
 ## US-0110 — Grille dense : lecture, tri, colonnes et préférences
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-IHM-0060-A`, `WF-ADM-0040-A`
 - **opérations** : `listNodes`, `getMe`, `updateMyPreferences`
 - **issue** : #75
