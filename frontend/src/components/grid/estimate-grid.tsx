@@ -34,7 +34,11 @@ export interface EstimateGridProps {
 /** Render the grid of the estimate, its totals counting the tasks and the lines retained. */
 export function EstimateGrid({ nodes, structure, query, preferences }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
-  const dependencies = useMemo(() => nodeDependencies(structure), [structure]);
+  // A reader for each reading: an answer names rows a new reading may have renumbered.
+  const dependencies = useMemo(
+    () => nodeDependencies(structure, nodes.items),
+    [structure, nodes.items],
+  );
   return (
     <DenseGrid
       config={ESTIMATE_GRID}

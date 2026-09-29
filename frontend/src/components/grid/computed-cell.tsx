@@ -14,8 +14,9 @@
  * (US-0120) will open the same refusal from the cell it lands on. Its popover mounts on the first
  * try only: a root of Radix in each computed cell would cost the hydration of the first screen as
  * many contexts, and the second of §4.6.2 counts it. The server is asked while the refusal is
- * open, once for each question — the row, its version, the field —: a page read anew asks
- * nothing of a closed refusal, nor again of a row in the same version. The refusal reads out, in
+ * open only, once for each question — the reading of the page, the row, the field —: a page read
+ * anew asks nothing of a closed refusal, and asks afresh once it opens again, the rows the answer
+ * named may have moved; a failure is asked again at the next opening. The refusal reads out, in
  * one live region, that it is reading, then what the server said.
  */
 "use client";
@@ -51,46 +52,56 @@ const UNREACHABLE: Outcome<ComputedDependencies> = { kind: "unreachable" };
 
 /**
  * Ask the server what the value of a field of a row depends on, while the refusal is open and
- * has no answer to this question — the identity of the row, its version, the field —:
- * `undefined` until it answers. The answer is kept for the question it answers: a row read anew
- * in the same version is not asked again, and one in another version is asked afresh, the answer
- * before never shown for it. An answer that comes once the question has changed, or the cell has
- * gone, is dropped.
+ * has no answer to show: `undefined` until it answers. What the server said is kept for the
+ * question it answers — the reading of the page, the row, the field —, and shown again as the
+ * refusal opens again, a new reading asking afresh, since the rows it names may have moved. A
+ * refusal or the API out of reach is shown for the opening it answered only: the next opening
+ * asks again. An answer that comes once the question has changed, or the cell has gone, is
+ * dropped.
  */
 function useDependencies<Row>(
   dependencies: DependencyReader<Row> | undefined,
   row: Row,
   field: ComputedValueField,
+  opening: number,
   open: boolean,
 ) {
-  const identity = dependencies?.identity(row);
-  const id = identity?.id;
-  const question =
-    identity === undefined ? undefined : `${identity.id}@${String(identity.version)}/${field}`;
+  const reading = dependencies?.reading;
+  const id = dependencies?.id(row);
   const [answer, setAnswer] = useState<{
-    readonly question: string;
+    readonly reading: readonly Row[];
+    readonly id: string;
+    readonly field: ComputedValueField;
+    readonly opening: number;
     readonly outcome: Outcome<ComputedDependencies>;
   }>();
-  const current = answer?.question === question ? answer?.outcome : undefined;
-  const asking = open && current === undefined;
+  const kept =
+    answer !== undefined &&
+    answer.reading === reading &&
+    answer.id === id &&
+    answer.field === field &&
+    (answer.outcome.kind === "done" || answer.opening === opening);
+  const shown = kept ? answer.outcome : undefined;
+  const asking = open && dependencies !== undefined && shown === undefined;
+  const reader = asking ? dependencies : undefined;
   useEffect(() => {
-    if (!asking || dependencies === undefined || id === undefined || question === undefined) {
+    if (reader === undefined || id === undefined) {
       return undefined;
     }
     let live = true;
     const answered = (outcome: Outcome<ComputedDependencies>) => {
       if (live) {
-        setAnswer({ question, outcome });
+        setAnswer({ reading: reader.reading, id, field, opening, outcome });
       }
     };
-    void dependencies.read(id, field).then(answered, () => {
+    void reader.read(id, field).then(answered, () => {
       answered(UNREACHABLE);
     });
     return () => {
       live = false;
     };
-  }, [asking, dependencies, id, field, question]);
-  return { answer: current, reading: asking && question !== undefined };
+  }, [reader, id, field, opening]);
+  return { answer: shown, reading: asking };
 }
 
 /**
@@ -146,6 +157,8 @@ export interface ComputedRefusalProps<Row, Sort extends string, Totals> {
   readonly dependencies: DependencyReader<Row> | undefined;
   /** Whether the refusal shows: the server is asked while it does, and only then. */
   readonly open: boolean;
+  /** How many times the refusal has opened: a failure is shown for its opening alone. */
+  readonly opening: number;
 }
 
 /**
@@ -157,11 +170,13 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
   row,
   dependencies,
   open,
+  opening,
 }: ComputedRefusalProps<Row, Sort, Totals>) {
   const t = useTranslations("computedValue");
   const columns = useTranslations("grid.columns");
   const title = useId();
-  const { answer, reading } = useDependencies(dependencies, row, column.computed.field(row), open);
+  const field = column.computed.field(row);
+  const { answer, reading } = useDependencies(dependencies, row, field, opening, open);
   return (
     <PopoverContent aria-labelledby={title} className="w-80 space-y-1.5 text-xs">
       <p id={title} className="flex items-center gap-1.5 text-sm font-medium">
@@ -202,6 +217,14 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   // element from then on, which the focus comes back to once the popover closes.
   const [engaged, setEngaged] = useState(false);
   const [open, setOpen] = useState(false);
+  // Each opening counted: a failure to say what the value depends on is asked again at the next.
+  const [opening, setOpening] = useState(0);
+  const show = (next: boolean) => {
+    if (next) {
+      setOpening((count) => count + 1);
+    }
+    setOpen(next);
+  };
   const content = (
     <>
       <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
@@ -217,7 +240,7 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
         className={TRIGGER}
         onClick={() => {
           setEngaged(true);
-          setOpen(true);
+          show(true);
         }}
       >
         {content}
@@ -225,9 +248,15 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
     );
   }
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={show}>
       <PopoverTrigger className={TRIGGER}>{content}</PopoverTrigger>
-      <ComputedRefusal column={column} row={row} dependencies={dependencies} open={open} />
+      <ComputedRefusal
+        column={column}
+        row={row}
+        dependencies={dependencies}
+        open={open}
+        opening={opening}
+      />
     </Popover>
   );
 }

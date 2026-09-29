@@ -93,20 +93,18 @@ export type ComputedValueField = components["schemas"]["ComputedValueField"];
  */
 export type ComputedDependencies = components["schemas"]["ComputedValueDependencies"];
 
-/** A row as the server knows it: its identifier, and the version it was read in. */
-export interface RowIdentity {
-  readonly id: string;
-  readonly version: number;
-}
-
 /**
  * How a grid asks the server what the value of a field of a row depends on, once an entry is
- * tried on it: the refusal names it. The question is the row's identity and version and the
- * field — the same question is not asked twice, whatever object a new reading makes of the row —,
- * and a server action answers it, decoded as every other (`Outcome`).
+ * tried on it: the refusal names it. One reader for each reading of the page: what a value depends
+ * on names other rows, whose numbers and labels a new reading may change, so that an answer is
+ * kept for the reader that asked it, never beyond. The question is then the identifier of the
+ * row and the field, and a server action answers it, decoded as every other (`Outcome`).
  */
 export interface DependencyReader<Row> {
-  readonly identity: (row: Row) => RowIdentity;
+  /** The reading of the page this reader asks for — its rows —: an answer is kept for it alone. */
+  readonly reading: readonly Row[];
+  /** The identifier of a row, as the server knows it. */
+  readonly id: (row: Row) => string;
   readonly read: (id: string, field: ComputedValueField) => Promise<Outcome<ComputedDependencies>>;
 }
 

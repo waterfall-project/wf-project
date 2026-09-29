@@ -3,18 +3,25 @@
 /**
  * How a grid of a structure asks what a computed value depends on (WF-IHM-0030): the server
  * action that reads it for a node of the structure, and a field (`getComputedValueDependencies`).
- * The grid names the structure; each computed cell, its node — its identifier and the version it
- * was read in — and its field.
+ * The grid names the structure and makes a reader for each reading of it; each computed cell, its
+ * node and its field.
  */
 import { readComputedDependencies } from "@/api/actions/nodes";
 
 import type { DependencyReader } from "./columns";
 import type { GridNode, StructurePath } from "./nodes";
 
-/** The reader of what a computed value of a node of a structure depends on. */
-export function nodeDependencies(structure: StructurePath): DependencyReader<GridNode> {
+/**
+ * The reader of what a computed value of a node of a structure depends on, for one reading of the
+ * structure: a grid makes one for each answer it shows.
+ */
+export function nodeDependencies<Row extends GridNode>(
+  structure: StructurePath,
+  reading: readonly Row[],
+): DependencyReader<Row> {
   return {
-    identity: (node) => ({ id: node.node_id, version: node.lock_version }),
+    reading,
+    id: (node) => node.node_id,
     read: (id, field) => readComputedDependencies(structure, id, field),
   };
 }

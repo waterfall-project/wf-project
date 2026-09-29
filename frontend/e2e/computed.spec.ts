@@ -58,8 +58,10 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   await expect(refusal(page)).toContainText("Budgété ne se saisit pas");
   const said = refusal(page).getByRole("status");
   await expect(said).toHaveAttribute("aria-busy", "false");
-  await expect(said).not.toBeEmpty();
   await expect(said).not.toContainText("Lecture de ce dont elle dépend");
+  // What the server said, and no refusal of it: a rule in a sentence after « ne se saisit pas ».
+  await expect(said.getByRole("alert")).toHaveCount(0);
+  await expect(said.getByRole("paragraph").first()).not.toBeEmpty();
   await expect(amount.getByRole("textbox")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(refusal(page)).toHaveCount(0);

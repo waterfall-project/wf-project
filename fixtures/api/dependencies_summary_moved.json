@@ -1,0 +1,32 @@
+{
+  "summary": "Ce dont dépend la date de fin de la récapitulative « Études », relue après l'insertion d'une ligne au-dessus de ses subordonnées : les mêmes subordonnées directes, sous leurs nouveaux numéros, la récapitulative elle-même inchangée (WF-IHM-0030, WF-PLA-0040).",
+  "value": {
+    "node_id": "01926f3a-7c00-7000-8000-000000000521",
+    "field": "task.finish_date",
+    "depends_on": [
+      "subordinates"
+    ],
+    "rows": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000522",
+        "row_number": 3,
+        "label": "Études de détail"
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000523",
+        "row_number": 5,
+        "label": "Pupitres opérateurs"
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000524",
+        "row_number": 6,
+        "label": "Revue de conception"
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000525",
+        "row_number": 7,
+        "label": "Réception des études"
+      }
+    ]
+  }
+}

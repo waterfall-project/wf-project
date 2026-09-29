@@ -33,7 +33,11 @@ export interface PlanningGridProps {
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
 export function PlanningGrid({ nodes, structure, query, preferences }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
-  const dependencies = useMemo(() => nodeDependencies(structure), [structure]);
+  // A reader for each reading: an answer names rows a new reading may have renumbered.
+  const dependencies = useMemo(
+    () => nodeDependencies(structure, nodes.items),
+    [structure, nodes.items],
+  );
   return (
     <DenseGrid
       config={PLANNING_GRID}

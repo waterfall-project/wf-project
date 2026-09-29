@@ -62,6 +62,14 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "80,00 de l'heure" in volumes["hourly_rates.json"]["summary"]
 
 
+def test_the_dependencies_written_are_those_of_the_structure_written(
+    volumes: dict[str, Any],
+) -> None:
+    assert volumes["summary_dependencies.json"]["value"] == mockdata.summary_dependencies(
+        volumes["nodes_thousand.json"]["value"]
+    )
+
+
 def test_the_dependencies_of_a_summary_are_its_tasks_not_its_lines() -> None:
     def task(row: int, parent: int | None, label: str, *, summary: bool = False) -> Node:
         return {

@@ -175,9 +175,11 @@ la saisie dans un Popover (`ComputedCell`, `ComputedRefusal`) en disant ce dont 
 dépend, que le serveur dit : chaque colonne calculée nomme le champ du contrat de chacune de ses
 cellules, et le refus appelle `getComputedValueDependencies` pour le nœud et ce champ, par une
 action serveur (`readComputedDependencies`) que la grille reçoit de son écran
-(`nodeDependencies`) — tant qu'il est ouvert seulement, et une fois par question : l'identifiant
-du nœud, sa version (`lock_version`) et le champ ; une page relue n'en redemande rien pour un
-nœud de même version, et un refus fermé ne demande rien. Dans une seule région annoncée
+(`nodeDependencies`, un lecteur par lecture de la page) — tant qu'il est ouvert seulement, et
+une fois par question : la lecture de la page, le nœud et le champ. Un refus fermé ne demande
+rien ; rouvert après une relecture de la page, il redemande, car les lignes qu'il nomme ont pu
+changer de numéro ou de libellé sans que le nœud change de version ; un échec se redemande à
+l'ouverture suivante, seule une réponse est gardée. Dans une seule région annoncée
 (`role="status"`, `aria-live="polite"`), présente dès l'ouverture et `aria-busy` pendant la
 lecture, il dit qu'il la lit, puis les règles qui la calculent (`enums.ComputedDependency.*`) et
 les lignes dont elle vient, nommées par leur numéro et leur libellé, que la grille les montre ou

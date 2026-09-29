@@ -547,6 +547,7 @@
             examples:
               volume: { $ref: ../../../fixtures/api/volume/summary_dependencies.json }
               summary: { $ref: ../../../fixtures/api/dependencies_summary.json }
+              summary_moved: { $ref: ../../../fixtures/api/dependencies_summary_moved.json }
               labour: { $ref: ../../../fixtures/api/dependencies_labour.json }
               task_amount: { $ref: ../../../fixtures/api/dependencies_task_amount.json }
               provision: { $ref: ../../../fixtures/api/dependencies_provision.json }

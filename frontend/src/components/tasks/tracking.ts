@@ -88,6 +88,11 @@ export interface EndLine {
 export interface Tracking {
   readonly tasks: readonly TrackedTask[];
   readonly log: readonly EndLine[];
+  /**
+   * The tasks the user dismissed, by every identifier they went by: the list of the tasks of the
+   * user, read again as the tab shows, does not bring them back.
+   */
+  readonly dismissed: readonly string[];
   /** Whether the tasks the tab followed before a reload are back: none is saved before. */
   readonly restored: boolean;
 }
@@ -110,7 +115,7 @@ export type TrackingEvent =
   | { readonly type: "forget" };
 
 /** Nothing followed yet. */
-export const NOTHING_TRACKED: Tracking = { tasks: [], log: [], restored: false };
+export const NOTHING_TRACKED: Tracking = { tasks: [], log: [], dismissed: [], restored: false };
 
 /** How many ends the log keeps: the last ones, a reader has heard the others. */
 const LOG_LENGTH = 10;
@@ -193,7 +198,10 @@ function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" 
  * one a relaunch put in its place.
  */
 function found(state: Tracking, tasks: readonly BackgroundTask[]): Tracking {
-  const known = new Set(state.tasks.flatMap((tracked) => [tracked.key, tracked.task.task_id]));
+  const known = new Set([
+    ...state.dismissed,
+    ...state.tasks.flatMap((tracked) => [tracked.key, tracked.task.task_id]),
+  ]);
   const added = tasks
     .filter((task) => !known.has(task.task_id))
     .map((task): TrackedTask => ({
@@ -245,8 +253,15 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
           tracked.key === event.key ? { ...tracked, outcome: undefined } : tracked,
         ),
       };
-    case "dismiss":
-      return { ...state, tasks: state.tasks.filter((tracked) => tracked.key !== event.key) };
+    case "dismiss": {
+      const gone = state.tasks.find((tracked) => tracked.key === event.key);
+      return {
+        ...state,
+        tasks: state.tasks.filter((tracked) => tracked !== gone),
+        dismissed:
+          gone === undefined ? state.dismissed : [...state.dismissed, gone.key, gone.task.task_id],
+      };
+    }
     case "forget":
       // Signed out: nothing of the tasks of the session goes to the next user of the tab — an
       // answer still on its way finds no task to apply to.

@@ -686,6 +686,22 @@ describe("the tasks of its user the API lists", () => {
     expect(listed()).toHaveLength(2);
   });
 
+  it("brings back no task the user dismissed, when the tab shows again and the list is read anew", async () => {
+    const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
+    render(shell(<Screen name="Planning" />, true));
+    await within(panel()).findByRole("listitem");
+    await userEvent.click(dismissal("Marquage d’une révision"));
+    expect(within(panel()).queryByRole("list")).toBeNull();
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await vi.waitFor(() => {
+      expect(client.calls.filter((call) => call.route === TASKS)).toHaveLength(2);
+    });
+    await act(() => Promise.resolve());
+    expect(within(panel()).queryByRole("list")).toBeNull();
+  });
+
   it("follows once a task the tab already follows, with what the user named it after", async () => {
     window.sessionStorage.setItem(
       STORAGE_KEY,

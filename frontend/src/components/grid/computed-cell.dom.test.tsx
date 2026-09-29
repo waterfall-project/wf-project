@@ -290,18 +290,48 @@ describe("a value of a grid the server computes", () => {
     expect(within(refusal()).getAllByRole("status")).toEqual([region]);
   });
 
-  it("asks once for a question: closed, a page read anew asks nothing, and reopened, the answer stays", async () => {
-    const client = serve({ [DEPENDENCIES]: "dependencies_summary" });
+  it("asks nothing of a page read anew while closed, and asks afresh once reopened, the rows it names having moved", async () => {
+    const client = serve({
+      [DEPENDENCIES]: ["dependencies_summary", "dependencies_summary_moved"],
+    });
     const { rerender } = renderGrid("planning");
     await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
-    await said();
+    expect((await said()).rows[0]).toBe("2Études de détail");
     await userEvent.keyboard("{Escape}");
-    // The page reads the structure anew: the same rows, in the same versions, anew.
-    rerender(planningOf(structuredClone(planning)));
-    rerender(planningOf(structuredClone(planning)));
+    // A line inserted above the subordinates: they move down a row, the summary unchanged.
+    const read = structuredClone(planning);
+    rerender(
+      planningOf({
+        ...read,
+        items: read.items.map((node) =>
+          node.level === 2 ? { ...node, row_number: node.row_number + 1 } : node,
+        ),
+      }),
+    );
     expect(asked(client)).toHaveLength(1);
     await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect((await said()).rows).toEqual([
+      "3Études de détail",
+      "5Pupitres opérateurs",
+      "6Revue de conception",
+      "7Réception des études",
+    ]);
+    expect(asked(client)).toHaveLength(2);
+  });
+
+  it("asks again, at the next opening, what the API could not say", async () => {
+    const client = serve({ [DEPENDENCIES]: "dependencies_summary" });
+    server.client = unreachable();
+    renderGrid("planning");
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
+      "Le service est injoignable",
+    );
+    await userEvent.keyboard("{Escape}");
+    server.client = client;
+    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
     expect((await said()).rows).toHaveLength(4);
+    expect(within(refusal()).queryByRole("alert")).toBeNull();
     expect(asked(client)).toHaveLength(1);
   });
 
