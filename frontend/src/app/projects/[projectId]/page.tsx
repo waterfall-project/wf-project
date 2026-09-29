@@ -3,7 +3,7 @@
 /**
  * A project, second step of the witness path (US-0080): the banner of its reading context
  * (WF-IHM-0020), its label, and its revisions — or, when it has none yet, that it has none,
- * with the way to the function of its revisions. A project the API does not find is not
+ * with the way to the function of its revisions when the session may read them. A project the API does not find is not
  * found, as at the other screens of a project. Scaffolding: EP-02 replaces it and keeps the
  * path (US-0210).
  */
@@ -18,6 +18,7 @@ import { readProjectContext } from "@/components/context/reading";
 import { NoRevisions } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, readContext } from "@/navigation/context";
 import { functionHref, functionOf } from "@/navigation/functions";
+import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 
@@ -51,14 +52,18 @@ export default async function ProjectPage({
   if (context === undefined) {
     notFound();
   }
-  const [revisions, read] = await Promise.all([
+  const [revisions, read, session] = await Promise.all([
     readOrFail("listRevisions", () =>
       serverClient().GET("/projects/{project_id}/revisions", {
         params: { path: { project_id: projectId } },
       }),
     ),
     readProjectContext(pathname, context),
+    requestSession(),
   ]);
+  // The way to the revisions is offered as the navigation offers them: to a session that
+  // may read them.
+  const mayReadRevisions = session?.permissions.includes("revisions.read") === true;
   if (read === "not_found") {
     notFound();
   }
@@ -68,7 +73,11 @@ export default async function ProjectPage({
       <main>
         <h1>{read.project.label}</h1>
         {revisions.items.length === 0 ? (
-          <NoRevisions revisions={functionHref(functionOf("revisions"), read.context)} />
+          <NoRevisions
+            revisions={
+              mayReadRevisions ? functionHref(functionOf("revisions"), read.context) : undefined
+            }
+          />
         ) : (
           <ul>
             {revisions.items.map((revision) => (

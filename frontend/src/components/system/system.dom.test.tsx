@@ -15,11 +15,23 @@ import { example } from "@/test/fixtures";
 
 import { useBrowserLocale } from "./browser-locale";
 import { NoProjects, NoRevisions, ReferenceIncomplete } from "./empty-states";
-import { type BoundaryError, UNREACHABLE_DIGEST } from "./failure";
+import {
+  type BoundaryError,
+  correlationDigest,
+  SESSION_REQUIRED_DIGEST,
+  UNREACHABLE_DIGEST,
+} from "./failure";
 import { ScreenSkeleton } from "./screen-skeleton";
 import { SystemFailure } from "./system-failure";
 
 type ReferenceReadiness = components["schemas"]["ReferenceReadiness"];
+
+// The address the browser shows, as the router of Next gives it to a client component.
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  usePathname: () => "/projects",
+  useSearchParams: () => new URLSearchParams("is_contributor=true"),
+}));
 
 /** Render in a language, as the shell hands its texts to a screen. */
 function inLanguage(children: ReactNode, locale: Locale = "fr") {
@@ -62,12 +74,30 @@ describe("the screen of failure", () => {
 
   it("tells an unexpected error apart, with the reference that finds it in the logs", async () => {
     const { container } = inLanguage(
-      <SystemFailure error={forwarded("req-7f3a")} retry={vi.fn()} />,
+      <SystemFailure error={forwarded(correlationDigest("req-7f3a"))} retry={vi.fn()} />,
       "en",
     );
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Unexpected error");
     expect(screen.getByRole("alert")).toHaveTextContent("Reference: req-7f3a");
     expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+    await expectAccessible(container);
+  });
+
+  it("shows the digest Next computed as the reference of an error without a correlation identifier", () => {
+    inLanguage(<SystemFailure error={forwarded("2894650101")} retry={vi.fn()} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Référence : 2894650101");
+  });
+
+  it("leads a read refused for want of a session to the sign-in page, which comes back to the screen", async () => {
+    const { container } = inLanguage(
+      <SystemFailure error={forwarded(SESSION_REQUIRED_DIGEST)} retry={vi.fn()} />,
+    );
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Session requise");
+    expect(screen.getByRole("link", { name: "Se connecter" })).toHaveAttribute(
+      "href",
+      `/login?next=${encodeURIComponent("/projects?is_contributor=true")}`,
+    );
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Référence");
     await expectAccessible(container);
   });
 
@@ -105,7 +135,11 @@ describe("the skeleton of a screen that loads", () => {
     const { container } = inLanguage(<ScreenSkeleton />);
     const main = screen.getByRole("main", { name: "Chargement de l’écran" });
     expect(main).toHaveAttribute("aria-busy", "true");
-    expect(main.firstElementChild).toHaveAttribute("aria-hidden", "true");
+    // aria-busy alone says nothing: a status, hidden from the eye, announces the loading.
+    const status = screen.getByRole("status", { name: "Chargement de l’écran" });
+    expect(status).toHaveTextContent("Chargement de l’écran");
+    expect(status).toHaveClass("sr-only");
+    expect(main.lastElementChild).toHaveAttribute("aria-hidden", "true");
     expect(main.querySelectorAll("div > div")).toHaveLength(5);
     await expectAccessible(container);
   });

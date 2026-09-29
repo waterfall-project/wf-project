@@ -64,6 +64,10 @@
       "title": "Service injoignable",
       "explanation": "Le service ne répond pas : l’écran n’a pas pu lire ses données. Réessayez dans un instant."
     },
+    "signedOut": {
+      "title": "Session requise",
+      "explanation": "L’écran demande une session ouverte : connectez-vous, vous y reviendrez ensuite."
+    },
     "unexpected": {
       "title": "Erreur inattendue",
       "explanation": "L’écran n’a pas pu s’afficher. Si l’erreur persiste, transmettez sa référence à l’exploitant."

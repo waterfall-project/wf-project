@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The screen of failure: what a page shows in place of the one it could not render, never a
- * blank screen. The API out of reach is announced as such; any other error as unexpected,
- * with the reference that finds it again in the logs when it carries one. Either way, the
- * user may try again: the page is read anew from the server.
+ * blank screen. The API out of reach is announced as such; a read the API refused for want of
+ * a session leads to the sign-in page, which comes back to the screen (`loginHref`, from the
+ * address the browser shows); any other error is unexpected, with the reference that finds it
+ * again in the logs when it carries one. Either way, the user may try again: the page is read
+ * anew from the server.
  *
  * A client component, as every error boundary of Next is: it receives the error as Next
  * forwards it (`failure.ts`), and the texts of the provider around it.
@@ -13,9 +15,17 @@
 
 import { useTranslations } from "next-intl";
 
+import { SignIn } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 
-import { type BoundaryError, failureOf } from "./failure";
+import { type BoundaryError, type Failure, failureOf } from "./failure";
+
+/** The texts of each failure, in the catalogue. */
+const TEXTS = {
+  unreachable: "unreachable",
+  signed_out: "signedOut",
+  unexpected: "unexpected",
+} as const satisfies Record<Failure["kind"], string>;
 
 /** The error a boundary caught, and how to try the page again. */
 export interface SystemFailureProps {
@@ -31,11 +41,12 @@ export function SystemFailure({ error, retry }: SystemFailureProps) {
   return (
     <main className="space-y-4 p-6">
       <div role="alert" className="space-y-2">
-        <h1 className="text-2xl font-semibold">{t(`${failure.kind}.title`)}</h1>
-        <p>{t(`${failure.kind}.explanation`)}</p>
+        <h1 className="text-2xl font-semibold">{t(`${TEXTS[failure.kind]}.title`)}</h1>
+        <p>{t(`${TEXTS[failure.kind]}.explanation`)}</p>
         {reference === undefined ? null : (
           <p className="text-muted-foreground">{t("reference", { reference })}</p>
         )}
+        {failure.kind === "signed_out" ? <SignIn /> : null}
       </div>
       <Button type="button" onClick={retry}>
         {t("retry")}

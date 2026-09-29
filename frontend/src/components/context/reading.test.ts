@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient, Unreachable } from "@/api/client";
-import { UnexpectedAnswer } from "@/api/problem";
+import { SignedOut, UnexpectedAnswer } from "@/api/problem";
 import { readContext } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -140,7 +140,7 @@ describe("what a screen of a project reads in", () => {
     request({
       "GET /projects/{project_id}": { problem: { code: "SESSION_REQUIRED", status: 401 } },
     });
-    await expect(read(LIFECYCLE)).rejects.toThrow(new UnexpectedAnswer("getProject", 401));
+    await expect(read(LIFECYCLE)).rejects.toBeInstanceOf(SignedOut);
     request({ "GET /projects/{project_id}/subprojects": NOT_FOUND });
     const reading = await read(`${LIFECYCLE}?subproject_id=${SUBPROJECT}`);
     expect(reading).toMatchObject({ filters: [{ name: "subproject_id", subproject: undefined }] });
@@ -204,7 +204,10 @@ describe("what a screen of a project reads in", () => {
     const context = readContext(LIFECYCLE, new URLSearchParams());
     const failure = context && readProjectContext(LIFECYCLE, context);
     await expect(failure).rejects.toBeInstanceOf(UnexpectedAnswer);
-    await expect(failure).rejects.toMatchObject({ status: 503, digest: "req-7f3a" });
+    await expect(failure).rejects.toMatchObject({
+      status: 503,
+      digest: "WATERFALL_CORRELATION;req-7f3a",
+    });
   });
 
   it("reads the project once for the request, however many ask", async () => {

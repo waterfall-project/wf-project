@@ -13,7 +13,7 @@ import { cache } from "react";
 
 import { Unreachable } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { isGatewayFailure, reach, UnexpectedAnswer } from "@/api/problem";
+import { isGatewayFailure, reach, refusalOf } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
   type ContextParameter,
@@ -73,7 +73,7 @@ function refuseUnexpected(
 ): void {
   const status = answer?.response.status;
   if (status !== undefined && status !== 404 && !answer?.response.ok) {
-    throw new UnexpectedAnswer(operation, status, answer?.error);
+    throw refusalOf(operation, status, answer?.error);
   }
 }
 
@@ -154,8 +154,9 @@ async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
  *
  * The API out of reach — `fetch` rejected, or a gateway said the service is down
  * (`isGatewayFailure`) — throws `Unreachable`, which the screen of failure announces as such;
- * any other answer — no session, a failure of the server — throws `UnexpectedAnswer`: a
- * screen of a project left without its banner would hide which revision it reads in.
+ * a 401 throws `SignedOut`, which leads to the sign-in page; any other answer — a failure of
+ * the server — throws `UnexpectedAnswer`: a screen of a project left without its banner would
+ * hide which revision it reads in.
  */
 export async function readProjectContext(
   pathname: string,

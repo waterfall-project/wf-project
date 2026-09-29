@@ -37,3 +37,16 @@ test("the list of projects says nothing of a complete reference, and lists the p
   await expect(page.getByRole("region", { name: "Référentiel incomplet" })).toHaveCount(0);
   await expect(page.getByRole("main", { name: "Chargement de l’écran" })).toHaveCount(0);
 });
+
+test("every address not found answers with the same status, whether it exists or not", async ({
+  page,
+}) => {
+  // A soft 404: the response streams from the skeleton on, its status sent before the page
+  // knows the object is not found (not-found.tsx). What matters is that it is the same.
+  const nowhere = await page.goto("/admin/nobody");
+  await expectNotFound(page);
+  const refused = await page.goto("/projects/a.b");
+  await expectNotFound(page);
+  expect(refused?.status()).toBe(nowhere?.status());
+  await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
+});

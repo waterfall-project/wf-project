@@ -6,19 +6,26 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient, Unreachable } from "@/api/client";
-import { UnexpectedAnswer } from "@/api/problem";
+import { SignedOut, UnexpectedAnswer } from "@/api/problem";
+import { SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
 import RevisionPage from "./[projectId]/revisions/[revisionId]/page";
 import ProjectsPage, { generateMetadata as projectsMetadata } from "./page";
 
 const server = vi.hoisted(
-  (): { answers: FakeAnswers; clients: FakeClient[]; unreachable: boolean } => ({
+  (): {
+    answers: FakeAnswers;
+    clients: FakeClient[];
+    unreachable: boolean;
+    structures: (() => Response) | undefined;
+  } => ({
     answers: {},
     clients: [],
     unreachable: false,
+    structures: undefined,
   }),
 );
 
@@ -28,6 +35,22 @@ vi.mock("@/api/server", () => ({
       return createApiClient({
         address: "http://unreachable.invalid",
         fetch: () => Promise.reject(new TypeError("fetch failed")),
+      });
+    }
+    const structures = server.structures;
+    if (structures !== undefined) {
+      // An answer the contract does not declare for the structures — a failure of the
+      // service, a page of a gateway —; the project and the revision from their examples.
+      return createApiClient({
+        address: "http://api.invalid",
+        fetch: (request) => {
+          const path = new URL(request.url).pathname;
+          if (path.endsWith("/structures")) {
+            return Promise.resolve(structures());
+          }
+          const name = /\/revisions\/[^/]+$/.test(path) ? "revision" : "project";
+          return Promise.resolve(Response.json(example(name)));
+        },
       });
     }
     const client = fakeClient(server.answers);
@@ -68,6 +91,7 @@ function inEnglish(page: ReactNode) {
 beforeEach(() => {
   server.clients = [];
   server.unreachable = false;
+  server.structures = undefined;
   server.answers = {
     "GET /session": "session",
     "GET /projects": "projects",
@@ -109,20 +133,51 @@ describe("the witness path", () => {
     );
   });
 
-  it("shows an empty grid when the structures cannot be read", async () => {
+  it("is not found when the API does not find the structures of the revision", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}/structures": NOT_FOUND,
     };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const html = renderToStaticMarkup(
-      inEnglish(await RevisionPage({ params, searchParams: NO_SEARCH })),
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
+  });
+
+  it("never shows an empty grid on a failure of the service: the screen of failure names it by its correlation identifier", async () => {
+    server.structures = () =>
+      Response.json(
+        { code: "INTERNAL_ERROR", status: 500, correlation_id: "req-7f3a" },
+        { status: 500, headers: { "content-type": "application/problem+json" } },
+      );
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    const page = RevisionPage({ params, searchParams: NO_SEARCH });
+    await expect(page).rejects.toBeInstanceOf(UnexpectedAnswer);
+    await expect(page).rejects.toMatchObject({
+      operation: "listCostStructures",
+      digest: "WATERFALL_CORRELATION;req-7f3a",
+    });
+  });
+
+  it("never shows an empty grid when a gateway says the service is down: the API is out of reach", async () => {
+    server.structures = () => new Response("<html>Bad gateway</html>", { status: 502 });
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
+      Unreachable,
     );
-    expect(html).toContain("<tbody></tbody>");
+  });
+
+  it("is not found at an address that names no revision, before the API is asked", async () => {
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: "a.b" });
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
+    expect(server.clients.flatMap((client) => client.calls)).toEqual([]);
   });
 
   it("is not found for a project the API does not find, as the other screens of a project", async () => {
     server.answers = {
+      "GET /session": "session",
       "GET /projects/{project_id}": NOT_FOUND,
       "GET /projects/{project_id}/revisions": NOT_FOUND,
     };
@@ -182,9 +237,10 @@ describe("the banner of the reading context on the witness path", () => {
   it("does not swallow an answer other than not found, and leaves it to the screen of failure", async () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": UNAUTHORIZED };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toThrow(
-      new UnexpectedAnswer("getProject", 401),
-    );
+    await expect(RevisionPage({ params, searchParams: NO_SEARCH })).rejects.toMatchObject({
+      operation: "getProject",
+      digest: SESSION_REQUIRED_DIGEST,
+    });
   });
 });
 
@@ -271,6 +327,38 @@ describe("the empty states of the shell", () => {
     expect(html).not.toContain("<ul");
   });
 
+  it("does not offer the way to the revisions to a session that may not read them", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /session": UNAUTHORIZED,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_empty",
+    };
+    const page = await ProjectPage({
+      params: Promise.resolve({ projectId: PRICING }),
+      searchParams: NO_SEARCH,
+    });
+    const html = renderToStaticMarkup(inEnglish(page));
+    expect(text(html)).toContain("This project has no revision yet.");
+    expect(text(html)).not.toContain("Go to the revisions of the project");
+    expect(links(html)).not.toContain(`/projects/${PRICING}/revisions`);
+  });
+
+  it("guides a new installation to its reference before saying there is no project", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects": "projects_empty",
+      "GET /reference/readiness": "reference_readiness_incomplete",
+    };
+    const html = await projectsPage();
+    expect(html).toMatch(/^<main><section aria-labelledby="[^"]+"/);
+    expect(text(html)).toBe(
+      "Incomplete reference data No project can be created until the common reference data has: " +
+        "a default calendar with working hours an active cost category No project.",
+    );
+    expect(links(html)).toEqual(["/reference/resources", "/reference/costs"]);
+  });
+
   it("is not found for a revision its address carries that the API does not find", async () => {
     server.answers = {
       ...server.answers,
@@ -292,14 +380,9 @@ describe("the empty states of the shell", () => {
     expect(server.clients.flatMap((client) => client.calls)).toEqual([]);
   });
 
-  it("never says the list is empty when the API refuses it: the screen of failure shows it", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects": { problem: { code: "SESSION_REQUIRED", status: 401 } },
-    };
-    await expect(ProjectsPage({ searchParams: NO_SEARCH })).rejects.toBeInstanceOf(
-      UnexpectedAnswer,
-    );
+  it("never says the list is empty when the API refuses it for want of a session: it leads to the sign-in page", async () => {
+    server.answers = { ...server.answers, "GET /projects": UNAUTHORIZED };
+    await expect(ProjectsPage({ searchParams: NO_SEARCH })).rejects.toBeInstanceOf(SignedOut);
   });
 
   it("never says there is no project or no revision when the API cannot be reached: it is announced", async () => {

@@ -20,13 +20,14 @@
  * the service: the screen never shows the bare key of a text.
  *
  * A read of a server component that its screen cannot do without goes through `readOrFail`
- * instead: what is not its data is thrown — not found, the API out of reach, an unexpected
- * answer —, and the pages of the shell say it (`not-found.tsx`, `error.tsx`).
+ * instead: what is not its data is thrown — not found, the API out of reach, no session, an
+ * unexpected answer —, and the pages of the shell say it (`not-found.tsx`, `error.tsx`).
  *
  * A client component imports only the types of this module; the decoding runs on the server.
  */
 import { notFound, unstable_rethrow } from "next/navigation";
 
+import { correlationDigest, SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
 
@@ -122,10 +123,11 @@ function envelope(body: unknown, status: number): Problem {
 
 /**
  * An answer of the API to a read of a screen that is neither a success, nor "not found", nor
- * the API out of reach: a refusal without a session — a screen means nothing without an
- * account — or a failure of the service. The page does not swallow it: it throws, and the
- * screen of failure shows it, with the correlation identifier of the request when the
- * envelope carries one (WF-OBS-0020) — its digest, the one thing of it Next forwards.
+ * the API out of reach, nor a refusal for want of a session: a failure of the service. The
+ * page does not swallow it: it throws, and the screen of failure shows it, with the
+ * correlation identifier of the request when the envelope carries one (WF-OBS-0020) — in its
+ * digest, the one thing of it Next forwards, behind a prefix that keeps a value of the API
+ * from standing as a digest Next gives a meaning to (`correlationDigest`).
  */
 export class UnexpectedAnswer extends Error {
   readonly digest: string | undefined;
@@ -138,16 +140,40 @@ export class UnexpectedAnswer extends Error {
   ) {
     super(`${operation} answered ${String(status)}`);
     this.name = "UnexpectedAnswer";
-    this.digest = isProblem(body) ? body.correlation_id : undefined;
+    const correlation = isProblem(body) ? body.correlation_id : undefined;
+    this.digest = correlation === undefined ? undefined : correlationDigest(correlation);
   }
+}
+
+/**
+ * The API refused a read of a screen for want of a session (401): the screen of failure
+ * leads to the sign-in page, which comes back to the screen once signed in again — its
+ * digest, the one thing of it Next forwards, says so.
+ */
+export class SignedOut extends Error {
+  readonly digest = SESSION_REQUIRED_DIGEST;
+
+  /** The refusal of an operation, by its `operationId`. */
+  constructor(readonly operation: string) {
+    super(`${operation} answered 401`);
+    this.name = "SignedOut";
+  }
+}
+
+/**
+ * What a read throws on an answer that is neither a success, nor "not found", nor the API
+ * out of reach: `SignedOut` on 401, `UnexpectedAnswer` otherwise.
+ */
+export function refusalOf(operation: string, status: number, body: unknown): Error {
+  return status === 401 ? new SignedOut(operation) : new UnexpectedAnswer(operation, status, body);
 }
 
 /**
  * Call the API for a read a screen cannot do without, and give its data. Anything else
  * throws, for Next to render: a 404 is the object not found — or not readable, which the API
  * answers alike (WF-ADM-0110) — and the page is not found; the API out of reach, `fetch`
- * rejected or a gateway saying the service is down, is `Unreachable`; any other answer,
- * `UnexpectedAnswer`.
+ * rejected or a gateway saying the service is down, is `Unreachable`; a 401, `SignedOut`;
+ * any other answer, `UnexpectedAnswer`.
  */
 export async function readOrFail<T>(operation: string, call: () => Promise<Answer<T>>): Promise<T> {
   const answer = await call();
@@ -161,7 +187,7 @@ export async function readOrFail<T>(operation: string, call: () => Promise<Answe
   if (isGatewayFailure(answer.response, answer.error)) {
     throw new Unreachable();
   }
-  throw new UnexpectedAnswer(operation, status, answer.error);
+  throw refusalOf(operation, status, answer.error);
 }
 
 /** Decode an answer of the API into what the screen is to do with it. */

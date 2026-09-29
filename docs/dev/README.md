@@ -83,12 +83,19 @@ refusée atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Un
 toute autre réponse `UnexpectedAnswer`. L'écran de panne (`error.tsx` dans la coquille,
 `global-error.tsx` quand le layout racine échoue) ne reçoit en production que le `digest` de
 l'erreur levée côté serveur : `Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme
-tel, `UnexpectedAnswer` l'identifiant de corrélation de l'enveloppe, qu'il affiche en
-référence (`failure.ts`). Un écran ne dit jamais « vide » sur une réponse qu'il n'a pas lue.
-Quand la session est illisible, la navigation garde l'écran d'état (WF-ADM-0130). Chaque
-segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton` ; chaque état
-vide — aucun projet, projet sans révision, référentiel incomplet — se montre sur un exemple
-nommé du contrat (`empty`, `incomplete`).
+tel, `SignedOut` (un 401) `SESSION_REQUIRED_DIGEST`, qui mène à la connexion
+(`loginHref`), `UnexpectedAnswer` l'identifiant de corrélation de l'enveloppe, préfixé de
+`WATERFALL_CORRELATION;` pour qu'aucune valeur de l'API ne prenne un sens pour Next
+(`NEXT_REDIRECT;…`), et qu'il affiche en référence sans le préfixe (`failure.ts`). Sans
+enveloppe, ou sans `correlation_id`, la référence affichée est le digest que Next calcule,
+celui de ses propres journaux. Un écran ne dit jamais « vide » sur une réponse qu'il n'a pas
+lue. Quand la session est illisible, la navigation garde l'écran d'état (WF-ADM-0130).
+Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, qui
+s'annonce par un `role="status"` ; la réponse est alors diffusée, et « introuvable » répond
+200 et non 404 — un 404 doux, que Next marque `noindex` : le statut part avec le squelette,
+avant que la page sache l'objet introuvable. Il est le même pour toute adresse introuvable,
+ce qui compte ici. Chaque état vide — aucun projet, projet sans révision, référentiel
+incomplet — se montre sur un exemple nommé du contrat (`empty`, `incomplete`).
 
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une

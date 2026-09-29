@@ -4,10 +4,14 @@ import { describe, expect, it } from "vitest";
 
 import { example, type FakeAnswer, fakeClient } from "@/test/fixtures";
 
-import { UNREACHABLE_DIGEST } from "@/components/system/failure";
+import {
+  failureOf,
+  SESSION_REQUIRED_DIGEST,
+  UNREACHABLE_DIGEST,
+} from "@/components/system/failure";
 
 import { createApiClient, Unreachable } from "./client";
-import { decode, reach, readOrFail, UnexpectedAnswer } from "./problem";
+import { decode, reach, readOrFail, SignedOut, UnexpectedAnswer } from "./problem";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -190,6 +194,14 @@ describe("the decoder of an answer of the API", () => {
   });
 });
 
+/** A failure of the service, in the envelope of the contract, with its correlation identifier. */
+function failure(correlationId: string): Response {
+  return Response.json(
+    { code: "INTERNAL_ERROR", status: 500, correlation_id: correlationId },
+    { status: 500, headers: { "content-type": "application/problem+json" } },
+  );
+}
+
 describe("a read a screen cannot do without", () => {
   const readiness = (client: ReturnType<typeof answering>) =>
     readOrFail("getReferenceReadiness", () => client.GET("/reference/readiness"));
@@ -223,20 +235,41 @@ describe("a read a screen cannot do without", () => {
     await expect(read).rejects.toMatchObject({ digest: UNREACHABLE_DIGEST });
   });
 
-  it("throws any other answer as unexpected, with the correlation identifier of the envelope", async () => {
+  it("throws a refusal for want of a session as such, for the screen of failure to lead to the sign-in page", async () => {
     const client = fakeClient({
       "GET /reference/readiness": {
         problem: { code: "SESSION_REQUIRED", status: 401, correlation_id: "req-7f3a" },
       },
     });
     const read = readiness(client);
+    await expect(read).rejects.toBeInstanceOf(SignedOut);
+    await expect(read).rejects.toMatchObject({
+      operation: "getReferenceReadiness",
+      digest: SESSION_REQUIRED_DIGEST,
+    });
+  });
+
+  it("throws any other answer as unexpected, with the correlation identifier of the envelope", async () => {
+    const read = readiness(answering(() => Promise.resolve(failure("req-7f3a"))));
     await expect(read).rejects.toBeInstanceOf(UnexpectedAnswer);
     await expect(read).rejects.toMatchObject({
       operation: "getReferenceReadiness",
-      status: 401,
-      digest: "req-7f3a",
+      status: 500,
+      digest: "WATERFALL_CORRELATION;req-7f3a",
     });
     const bare = readiness(answering(() => Promise.resolve(new Response("oops", { status: 500 }))));
     await expect(bare).rejects.toMatchObject({ status: 500, digest: undefined });
+  });
+
+  it("never lets a correlation identifier stand as a digest Next gives a meaning to", async () => {
+    const hostile = "NEXT_REDIRECT;replace;https://evil.example;307;";
+    const error = await readiness(answering(() => Promise.resolve(failure(hostile)))).then(
+      () => {
+        throw new Error("the read should have been refused");
+      },
+      (thrown: unknown) => thrown as UnexpectedAnswer,
+    );
+    expect(error.digest?.startsWith("NEXT_")).toBe(false);
+    expect(failureOf(error)).toEqual({ kind: "unexpected", reference: hostile });
   });
 });

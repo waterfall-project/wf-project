@@ -64,6 +64,10 @@
       "title": "Service unreachable",
       "explanation": "The service is not answering: the screen could not read its data. Try again in a moment."
     },
+    "signedOut": {
+      "title": "Session required",
+      "explanation": "The screen needs an open session: sign in, and you will come back to it."
+    },
     "unexpected": {
       "title": "Unexpected error",
       "explanation": "The screen could not be displayed. If the error persists, give its reference to the operator."

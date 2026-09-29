@@ -4,9 +4,9 @@
  * The empty states of the shell: what a screen says when there is nothing to show, and where
  * it leads to fill it — no project, whose filter on the projects the user contributes to is
  * lifted when it is what empties the list; a project without a revision, which leads to its
- * revisions; an installation whose minimum reference data is incomplete, which names each
- * missing prerequisite (`getReferenceReadiness`, WF-CYC-0120) and leads to the function of
- * the reference that provides it, when the session may read it.
+ * revisions when the session may read them; an installation whose minimum reference data is
+ * incomplete, which names each missing prerequisite (`getReferenceReadiness`, WF-CYC-0120)
+ * and leads to the function of the reference that provides it, when the session may read it.
  *
  * Each is shown on an example of the contract named after it (`fixtures/api/`): `empty` for
  * the projects and the revisions, `incomplete` for the reference.
@@ -44,7 +44,10 @@ export function NoProjects({ unfiltered }: NoProjectsProps) {
 
 /** Where a project without a revision leads: the function of its revisions. */
 export interface NoRevisionsProps {
-  /** The address of the function of the revisions of the project, when it has one. */
+  /**
+   * The address of the function of the revisions of the project; none when the session may
+   * not read them.
+   */
   readonly revisions: string | undefined;
 }
 
