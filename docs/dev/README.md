@@ -590,6 +590,11 @@ développement : il dirait la vitesse du poste du développeur. Avant chaque sé
 ouvertures — cinq par l'adresse, cinq depuis la barre latérale, pour chaque grille —, une
 ouverture n'est pas mesurée : le premier chargement des modules du serveur ne compte pas, et
 le cache du navigateur est chaud, comme pour un utilisateur qui a déjà ouvert l'application.
+Chaque ouverture ne commence qu'une fois la précédente entièrement servie, préchargements
+compris — la grille hydratée, ses liens de la barre latérale demandent encore au serveur les
+écrans où ils mènent, et une navigation lancée avant leur réponse les couperait pendant que le
+serveur les rend, dans le temps de l'ouverture suivante — : le parcours attend que la page n'ait
+plus de requête en cours (`networkidle`), hors de la mesure.
 Chaque ouverture doit tenir la seconde, comparée sans arrondi ; le journal du parcours écrit la
 médiane et la pire, utilisable, dessinée et hydratée, et, pour l'ouverture par l'adresse, où va
 le temps : les instants médians où le serveur a fini d'envoyer le document et où le navigateur

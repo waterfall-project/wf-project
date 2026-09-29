@@ -24,7 +24,8 @@ import { expect, type Page, test } from "@playwright/test";
 // The front is built for production, and compiles nothing on demand (`playwright.config.ts`).
 // Before each series of five openings, one opening is not measured: the server's first load of
 // its modules does not count, and the cache of the browser is warm, as for a user who has opened
-// the application. Every opening must hold the second; the log of the run writes the median and
+// the application. Each opening starts once the one before is wholly served, its prefetches
+// included — the page has no request left under way —, which is waited for outside the measure. Every opening must hold the second; the log of the run writes the median and
 // the worst, drawn and hydrated, and where the time went by the address. Once measured, the
 // document is checked for a field of a node the grid does not read: the page hands its grid what
 // it shows alone (`projectNodes`).
@@ -173,6 +174,17 @@ function opening(started: number, { drawn, hydrated }: Usable): Opening {
   };
 }
 
+/**
+ * Wait until the page has no request left under way: once the grid is hydrated, its links in the
+ * navigation still ask the server for the screens they lead to (prefetching), and a navigation
+ * started before they are answered would cut them, while the server still renders them — the
+ * first time, loading the modules of each route —, in the time of the opening it measures. Waited
+ * for between the openings, never within one.
+ */
+async function settle(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle");
+}
+
 /** Open the screen of a grid by its address; how long it took, and where the time went. */
 async function openByAddress(page: Page, screen: GridScreen): Promise<Opening> {
   await page.goto(address(screen), { waitUntil: "commit" });
@@ -186,6 +198,7 @@ async function openByAddress(page: Page, screen: GridScreen): Promise<Opening> {
       parsed: timing?.domContentLoadedEventEnd ?? Number.NaN,
     };
   });
+  await settle(page);
   return { ...opening(started, usable), phases: { served, parsed } };
 }
 
@@ -196,6 +209,7 @@ async function openByAddress(page: Page, screen: GridScreen): Promise<Opening> {
 async function openByClick(page: Page, from: GridScreen, to: GridScreen): Promise<Opening> {
   await page.goto(address(from));
   await usableAt(page, from);
+  await settle(page);
   await page
     .getByRole("navigation", { name: "Fonctions" })
     .getByRole("link", { name: to.link })
@@ -203,6 +217,7 @@ async function openByClick(page: Page, from: GridScreen, to: GridScreen): Promis
   const usable = await usableAt(page, to);
   const clicked = await page.evaluate((key) => Number(sessionStorage.getItem(key)), CLICKED);
   await expect(page).toHaveURL(address(to));
+  await settle(page);
   return opening(clicked, usable);
 }
 
@@ -274,6 +289,7 @@ async function holdsTheSecond(page: Page, screen: GridScreen, from: GridScreen) 
   }
   await page.goto(address(screen));
   expect(await page.content()).not.toContain("lineage_id");
+  await settle(page);
 }
 
 test.describe("the opening of a grid of a thousand tasks", () => {
