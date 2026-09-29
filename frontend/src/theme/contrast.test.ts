@@ -5,11 +5,17 @@
  * for (§3.6): 4.5:1 for a text on its background, 3:1 for what shows a control — the border
  * of a field, the ring of the focus. In both modes, since each token holds a light and a dark
  * value. The screens themselves are checked in a browser by US-0200.
+ *
+ * The tokens of the signals are also seen as a grey copy and as a protanope and a deuteranope
+ * see them (WF-IHM-0070): what tells the zones apart is the shape and the name of `Signal`,
+ * and the colours do not collapse into one either.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+
+import type { components } from "@/api/generated/schema";
 
 const CSS = readFileSync(join(import.meta.dirname, "globals.css"), "utf-8");
 
@@ -39,13 +45,24 @@ function colour(name: string, mode: Mode): string {
   return reference?.[1] === undefined ? chosen.trim() : colour(reference[1], mode);
 }
 
-/** The relative luminance of a colour written `#rrggbb` (WCAG 2.2, § relative luminance). */
-function luminance(hex: string): number {
-  const channels = [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255);
-  const [r = 0, g = 0, b = 0] = channels.map((c) =>
-    c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
-  );
+type Linear = readonly [number, number, number];
+
+/** The linear red, green and blue of a colour written `#rrggbb`, from 0 to 1. */
+function linear(hex: string): Linear {
+  const [r = 0, g = 0, b = 0] = [1, 3, 5]
+    .map((at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255)
+    .map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return [r, g, b];
+}
+
+/** The relative luminance of linear channels (WCAG 2.2, § relative luminance). */
+function luminanceOf([r, g, b]: Linear): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** The relative luminance of a colour written `#rrggbb`. */
+function luminance(hex: string): number {
+  return luminanceOf(linear(hex));
 }
 
 /** The contrast ratio of two colours, from 1 to 21. */
@@ -53,6 +70,15 @@ function contrast(a: string, b: string): number {
   const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
 }
+
+type AlertZone = components["schemas"]["AlertZone"];
+
+// The token of each zone of the contract, which `Signal` names as `text-signal-<zone>`.
+const SIGNALS: Readonly<Record<AlertZone, string>> = {
+  nominal: "signal-nominal",
+  watch: "signal-watch",
+  alert: "signal-alert",
+};
 
 // A text, and the backgrounds it is written on.
 const TEXTS: readonly [string, string][] = [
@@ -72,6 +98,14 @@ const TEXTS: readonly [string, string][] = [
   ["primary", "background"],
   ["destructive", "background"],
   ["destructive", "card"],
+  // The name and the icon of a signal, wherever a screen sets one: a page, a card, a muted
+  // row, a selected row.
+  ...Object.values(SIGNALS).flatMap((signal) =>
+    (["background", "card", "muted", "accent"] as const).map((background): [string, string] => [
+      signal,
+      background,
+    ]),
+  ),
 ];
 
 // What shows a control or its state, and the backgrounds it is drawn on.
@@ -110,6 +144,104 @@ describe("the colour tokens of the charter", () => {
 
     it.each(CONTROLS)("draw %s on %s at 3:1 at least", (control, background) => {
       expect(contrast(colour(control, mode), colour(background, mode))).toBeGreaterThanOrEqual(3);
+    });
+  });
+});
+
+type Lab = readonly [number, number, number];
+
+/** The CIE L*a*b* coordinates of linear channels, under the white of sRGB (D65). */
+function lab(channels: Linear): Lab {
+  const [r, g, b] = channels;
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  const x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+  const y = f(luminanceOf(channels));
+  const z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+
+type Matrix = readonly [Linear, Linear, Linear];
+
+// How a dichromat sees a colour, in linear sRGB: Viénot, Brettel and Mollon (1999), the
+// matrices DaltonLens publishes. A protanope and a deuteranope confuse the red and the green,
+// the case the requirement names.
+const VIEWS: readonly [string, Matrix][] = [
+  [
+    "trichromat",
+    [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1],
+    ],
+  ],
+  [
+    "protanope",
+    [
+      [0.11238, 0.88762, 0],
+      [0.11238, 0.88762, 0],
+      [0.00401, -0.00401, 1],
+    ],
+  ],
+  [
+    "deuteranope",
+    [
+      [0.29275, 0.70725, 0],
+      [0.29275, 0.70725, 0],
+      [-0.02234, 0.02234, 1],
+    ],
+  ],
+];
+
+/** A colour as a view sees it, its channels kept within the gamut. */
+function seen(channels: Linear, view: Matrix): Linear {
+  const [r = 0, g = 0, b = 0] = view.map((row) =>
+    Math.min(1, Math.max(0, row[0] * channels[0] + row[1] * channels[1] + row[2] * channels[2])),
+  );
+  return [r, g, b];
+}
+
+/** Every pair of zones, once. */
+function pairs(): [AlertZone, AlertZone][] {
+  const zones = Object.keys(SIGNALS) as AlertZone[];
+  return zones.flatMap((a, at) => zones.slice(at + 1).map((b): [AlertZone, AlertZone] => [a, b]));
+}
+
+/** The channels of the token of a zone in a mode. */
+function zone(name: AlertZone, mode: Mode): Linear {
+  return linear(colour(SIGNALS[name], mode));
+}
+
+// Two colours a glance tells apart: a CIE76 difference of 20 is several times the smallest
+// one noticed side by side (about 2.3), so that two zones in two rows do not pass for one.
+const DISTINCT = 20;
+// Two greys a glance tells apart: 8 points of lightness, out of the 100 from black to white.
+const GREY_STEP = 8;
+
+describe("the tokens of the signals", () => {
+  it("give each zone of the contract its class for Tailwind", () => {
+    for (const token of Object.values(SIGNALS)) {
+      expect(CSS).toContain(`--color-${token}: var(--${token});`);
+    }
+  });
+
+  describe.each(MODES)("in %s mode", (mode) => {
+    it("leave each signal identifiable in a grey copy: the nominal lightest, the alert darkest [WF-IHM-0070-A]", () => {
+      // Une copie d'écran en niveaux de gris laisse identifier chaque signalement : the shape
+      // and the name tell the zones apart (signal.dom.test.tsx), and their greys too.
+      const grey = (name: AlertZone) => lab(zone(name, mode))[0];
+      expect(grey("nominal")).toBeGreaterThan(grey("watch"));
+      expect(grey("watch")).toBeGreaterThan(grey("alert"));
+      for (const [a, b] of pairs()) {
+        expect(Math.abs(grey(a) - grey(b))).toBeGreaterThanOrEqual(GREY_STEP);
+      }
+    });
+
+    it.each(VIEWS)("keep the zones apart for a %s", (_view, matrix) => {
+      for (const [a, b] of pairs()) {
+        const [la, lb] = [lab(seen(zone(a, mode), matrix)), lab(seen(zone(b, mode), matrix))];
+        const difference = Math.hypot(la[0] - lb[0], la[1] - lb[1], la[2] - lb[2]);
+        expect(difference, `${a} and ${b}`).toBeGreaterThanOrEqual(DISTINCT);
+      }
     });
   });
 });

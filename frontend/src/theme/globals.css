@@ -49,6 +49,13 @@
   --input: light-dark(#8c8c8c, #737373);
   /* The blues of the logos as they are drawn, deep in light mode, bright in dark mode. */
   --ring: light-dark(#027dc6, #1195e1);
+  /* The zones of a signal, one token each, drawn as the text and the icon of `Signal`. The
+     hues stay apart for a protanope and a deuteranope — green-blue, orange, red —, and the
+     lightness orders them in grey, the nominal lightest and the alert darkest in both modes:
+     contrast.test.ts simulates the two views and measures the steps. */
+  --signal-nominal: light-dark(#1f756c, #6ee7a0);
+  --signal-watch: light-dark(#923002, #f59a3c);
+  --signal-alert: light-dark(#6b1d24, #f0705e);
 
   --radius: 0.5rem;
 }
@@ -80,6 +87,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-signal-nominal: var(--signal-nominal);
+  --color-signal-watch: var(--signal-watch);
+  --color-signal-alert: var(--signal-alert);
 
   /* Geist, the typeface of the logo, loaded by the root layout; the system's until then. */
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
