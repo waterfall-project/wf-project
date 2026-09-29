@@ -158,7 +158,7 @@ verrou.
 
 | Chemin | Contenu |
 |---|---|
-| `frontend/src/app/` | les routes, en anglais : `/` (l'accueil), `/login`, `/me`, `/projects/[projectId]/revisions/[revisionId]/<fonction>` (`planning`, `estimate`, `remaining`, `risks`, `actual-costs`, `indicators`…), `/portfolio/…`, `/reference/…`, `/admin/…`, `/system`, et la page « introuvable » |
+| `frontend/src/app/` | les routes, en anglais : `/` (l'accueil), `/login`, `/account/…` (le compte : préférences, mot de passe, avatar), `/projects/[projectId]/<fonction>` pour les fonctions du projet lui-même (`revisions`, `settings`, `lifecycle`), `/projects/[projectId]/revisions/[revisionId]/<fonction>` pour celles d'une révision (`planning`, `estimate`, `remaining`, `risks`, `actual-costs`, `indicators`…), `/portfolio/…`, `/reference/…`, `/admin/…`, `/system`, et la page « introuvable » |
 | `frontend/src/api/` | le client engendré ; `server.ts` ; `actions/`, les actions serveur d'écriture et de suivi, une par famille du contrat ; `problem.ts`, le décodeur de l'enveloppe d'erreur |
 | `frontend/src/components/` | les composants partagés : `grid/`, `signal/`, `context/`, `commands/`, `tasks/`, `charts/`, `gantt/`, `tree/` |
 | `frontend/src/components/ui/` | les composants shadcn/ui copiés — seulement ceux qu'un écran emploie |
