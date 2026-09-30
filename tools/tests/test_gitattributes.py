@@ -12,8 +12,9 @@ import subprocess
 
 from wftools import REPOSITORY, paths
 
-# Besides the generated paths: formatted with LF by Prettier, and read by the generators.
-COMPARED = ("frontend/**", "fixtures/**")
+# Besides the generated paths: formatted with LF by Prettier, and read by the generators; and
+# the originals of the copies the front compares byte for byte (`src/theme/brand.test.ts`).
+COMPARED = ("frontend/**", "fixtures/**", "docs/assets/*.svg")
 
 
 def git(*arguments: str, given: str = "") -> str:
@@ -48,6 +49,7 @@ def test_the_compared_files_include_each_kind_the_checks_compare() -> None:
     assert "frontend/src/api/generated/schema.d.ts" in files
     assert "frontend/messages/fr.json" in files
     assert "docs/spec/waterfall-spec.md" in files
+    assert "docs/assets/waterfall_logo.svg" in files
 
 
 def test_every_compared_file_is_checked_out_with_lf() -> None:
