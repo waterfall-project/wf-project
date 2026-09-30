@@ -129,12 +129,14 @@ export interface ComputedCells<Row> {
 }
 
 /**
- * What a cell takes (WF-IHM-0040): a text as it is typed, or a number in the format of the
- * language, which travels as the exact decimal of the contract — an amount keeps two decimals at
- * most. A cell that may be emptied (`nullable`) writes `null` then.
+ * What a cell takes (WF-IHM-0040): a text, never blank, of `maxLength` characters at most, as the
+ * contract bounds it; or a number in the format of the language, which travels as the exact
+ * decimal of the contract — an amount keeps two decimals at most. A cell that may be emptied
+ * (`nullable`) writes `null` then.
  */
 export type EntryKind =
-  { readonly type: "text" } | { readonly type: "decimal" | "money"; readonly nullable: boolean };
+  | { readonly type: "text"; readonly maxLength: number }
+  | { readonly type: "decimal" | "money"; readonly nullable: boolean };
 
 /**
  * How the cells of a column are entered, row by row: which take an entry, what an entry starts

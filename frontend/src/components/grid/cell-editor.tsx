@@ -41,7 +41,7 @@ export interface CellEditorProps {
   readonly label: string;
   /** The text it starts from. */
   readonly text: string;
-  /** The identifier of what says the text is not a number of the language, when it is not. */
+  /** The identifier of what says why the text was not validated, when it was not. */
   readonly invalid: string | undefined;
   /** Validate the text: whether the entry is done — a number misread keeps it open. */
   readonly onValidate: (text: string, move: EntryMove) => boolean;
@@ -81,9 +81,10 @@ export function CellEditor({ kind, label, text, invalid, onValidate, onAbandon }
     "aria-describedby": invalid,
     defaultValue: text,
     onKeyDown,
-    // Left otherwise, validated where it is — abandoned if it is not a number of the language.
-    onBlur: (event: { readonly currentTarget: { readonly value: string } }) => {
-      if (!done.current) {
+    // Left otherwise, validated where it is — abandoned if it cannot be. The window left, the
+    // field keeps the focus of its document: nothing is left, nothing validated.
+    onBlur: (event: { readonly currentTarget: HTMLInputElement }) => {
+      if (!done.current && document.activeElement !== event.currentTarget) {
         done.current = true;
         if (!onValidate(event.currentTarget.value, "none")) {
           onAbandon(false);
@@ -95,6 +96,7 @@ export function CellEditor({ kind, label, text, invalid, onValidate, onAbandon }
     <Input
       {...common}
       inputMode={kind.type === "text" ? undefined : "decimal"}
+      maxLength={kind.type === "text" ? kind.maxLength : undefined}
       className={
         kind.type === "text"
           ? "h-6 rounded-sm px-1 text-xs"

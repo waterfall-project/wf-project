@@ -11,23 +11,37 @@ import type { Locale } from "@/i18n/locale";
 import type { CellValue, EntryKind } from "./columns";
 
 /**
+ * Why an entry is not validated: a cell that may not be emptied left blank, a text too long, no
+ * number of the language, an amount with more than two decimals.
+ */
+export type EntryProblem = "required" | "tooLong" | "notANumber" | "twoDecimals";
+
+/**
  * The value an entry validates, as the contract writes it — a text as typed, a number as the
- * exact decimal of the contract, `null` for a cell emptied —; `undefined` for what is no number
- * of the language.
+ * exact decimal of the contract, `null` for a cell emptied —, or why it is not.
  */
 export function parsedEntry(
   kind: EntryKind,
   text: string,
   locale: Locale,
-): { readonly value: string | null } | undefined {
+): { readonly value: string | null } | { readonly problem: EntryProblem } {
   if (kind.type === "text") {
-    return { value: text };
+    if (text.trim() === "") {
+      return { problem: "required" };
+    }
+    return text.length > kind.maxLength ? { problem: "tooLong" } : { value: text };
   }
   if (text.trim() === "") {
-    return kind.nullable ? { value: null } : undefined;
+    return kind.nullable ? { value: null } : { problem: "required" };
   }
   const value = parseDecimal(text, locale, kind.type);
-  return value === undefined ? undefined : { value };
+  if (value !== undefined) {
+    return { value };
+  }
+  // A number of the language all the same, but with more decimals than an amount keeps.
+  return parseDecimal(text, locale) === undefined
+    ? { problem: "notANumber" }
+    : { problem: "twoDecimals" };
 }
 
 /** What a cell shows of a value validated, until the server answers. */

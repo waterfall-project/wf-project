@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ApiClient } from "@/api/client";
+import { type ApiClient, createApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
@@ -61,11 +61,17 @@ function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
   return client;
 }
 
-/** The grid of the estimate on an answer, in a language. */
-function grid(locale: Locale = "fr", nodes: NodeList = estimate) {
+/** The grid of the estimate on an answer, in a language, open to entry or not. */
+function grid(locale: Locale = "fr", nodes: NodeList = estimate, editable = true) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <EstimateGrid nodes={nodes} structure={STRUCTURE} query={NO_QUERY} preferences={undefined} />
+      <EstimateGrid
+        nodes={nodes}
+        structure={STRUCTURE}
+        editable={editable}
+        query={NO_QUERY}
+        preferences={undefined}
+      />
     </NextIntlClientProvider>
   );
 }
@@ -331,5 +337,133 @@ describe("a write the server refuses", () => {
     });
     expect(screen.queryByRole("alert")).toBeNull();
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+  });
+});
+
+describe("an entry refused before it leaves", () => {
+  it("says a label may be neither blank nor longer than the contract takes", async () => {
+    const client = serve();
+    render(grid());
+    cell(LABOUR, "label").focus();
+    await userEvent.keyboard("{F2}");
+    const field = screen.getByRole("textbox", { name: "Libellé" });
+    expect(field).toHaveAttribute("maxlength", "300");
+    await userEvent.keyboard("{Control>}a{/Control}{Backspace} {Enter}");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription("Cette cellule ne peut pas rester vide.");
+    expect(written(client)).toEqual([]);
+  });
+
+  it("says a quantity may not be emptied, and an amount keeps two decimals at most", async () => {
+    const client = serve();
+    render(grid());
+    cell(DISBURSEMENT, "quantity").focus();
+    await userEvent.keyboard("{F2}{Control>}a{/Control}{Backspace}{Enter}");
+    expect(screen.getByRole("textbox", { name: "Qté" })).toHaveAccessibleDescription(
+      "Cette cellule ne peut pas rester vide.",
+    );
+    await userEvent.keyboard("{Escape}{ArrowRight}{ArrowRight}");
+    await userEvent.keyboard("3,456{Enter}");
+    expect(screen.getByRole("textbox", { name: "Débours unit." })).toHaveAccessibleDescription(
+      "Un montant a deux décimales au plus : saisissez-le comme 1\u202f234,56.",
+    );
+    expect(written(client)).toEqual([]);
+  });
+
+  it("validates nothing when the window is left, the field keeping the focus of its document", async () => {
+    const client = serve();
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15");
+    const field = screen.getByRole("textbox", { name: "Charge (h)" });
+    expect(field).toHaveFocus();
+    fireEvent.blur(field);
+    expect(screen.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("15");
+    expect(written(client)).toEqual([]);
+  });
+
+  it("follows its row, by its identity, when the page reads the rows anew in another order", async () => {
+    serve();
+    const { rerender } = render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15");
+    // The same rows, read anew and sorted otherwise: the line of labour last.
+    const read = structuredClone(estimate);
+    const labour = read.items.splice(LABOUR, 1);
+    rerender(grid("fr", { ...read, items: [...read.items, ...labour] }));
+    const last = read.items.length;
+    expect(within(cell(last, "hours")).getByRole("textbox", { name: "Charge (h)" })).toHaveValue(
+      "15",
+    );
+  });
+});
+
+describe("a write the server answers otherwise", () => {
+  it("keeps a refusal told when a later write succeeds", async () => {
+    serve({
+      [LINE]: [{ problem: { code: "STALE_LOCK_VERSION", status: 412 } }, "estimate_line_updated"],
+    });
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/modifié cette donnée/);
+    cell(LABOUR, "quantity").focus();
+    await userEvent.keyboard("3{Enter}");
+    await vi.waitFor(() => {
+      expect(cell(LABOUR, "hours")).toHaveTextContent(/^14$/);
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(/modifié cette donnée/);
+  });
+
+  it("tells an answer about another row as a failure of the service, the row left as it was", async () => {
+    // The fake back answers the line of labour, whatever line is written.
+    serve();
+    render(grid());
+    cell(DISBURSEMENT, "quantity").focus();
+    await userEvent.keyboard("3{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/inattendue|erreur/i);
+    expect(cell(DISBURSEMENT, "quantity")).toHaveTextContent(/^1$/);
+    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+  });
+
+  it("leads to the sign-in when the session is lost, the cell left as it was", async () => {
+    serve();
+    // A 401 the contract does not declare on this operation yet (#141): answered by hand.
+    server.client = createApiClient({
+      address: "http://api.invalid",
+      fetch: () =>
+        Promise.resolve(
+          Response.json(
+            { code: "SESSION_REQUIRED", status: 401 },
+            { status: 401, headers: { "content-type": "application/problem+json" } },
+          ),
+        ),
+    });
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/login\?next=/),
+    );
+    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+  });
+});
+
+describe("a grid the revision does not let the caller enter", () => {
+  it("offers no entry: a digit opens no field, every cell read only, nothing written", async () => {
+    const client = serve();
+    render(grid("fr", estimate, false));
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}5{F2}");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(cell(LABOUR, "hours")).toHaveAttribute("aria-readonly", "true");
+    expect(
+      [...screen.getByRole("grid").querySelectorAll("td[data-column]")].every(
+        (element) => element.getAttribute("aria-readonly") === "true",
+      ),
+    ).toBe(true);
+    expect(written(client)).toEqual([]);
   });
 });

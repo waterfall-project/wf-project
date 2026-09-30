@@ -39,7 +39,7 @@ import {
 import type { Locale } from "@/i18n/locale";
 
 import type { EntryMove } from "./cell-editor";
-import { parsedEntry, shownEntry, startingText } from "./cell-values";
+import { type EntryProblem, parsedEntry, shownEntry, startingText } from "./cell-values";
 import type { CellWrites } from "./cell-writes";
 import type { CellEntry, GridConfig } from "./columns";
 import { configColumn } from "./grid-table";
@@ -50,10 +50,15 @@ export interface CellPosition {
   readonly column: string;
 }
 
-/** A cell being entered: the text its entry starts from, and whether it holds no number. */
-export interface CellDraft extends CellPosition {
+/**
+ * A cell being entered: its row, by its identity, and its column; the text its entry starts
+ * from, and why what was validated was not, if it was not.
+ */
+export interface CellDraft {
+  readonly key: string;
+  readonly column: string;
   readonly text: string;
-  readonly invalid: boolean;
+  readonly problem: EntryProblem | undefined;
 }
 
 /** The cell whose refusal shows: its row, by its identity, and its column. */
@@ -328,20 +333,26 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
       return false;
     }
     const { kind, value } = cell.entry;
-    setDraft({ ...at, text: startingText(kind, value(cell.row), typed, locale), invalid: false });
+    const text = startingText(kind, value(cell.row), typed, locale);
+    setDraft({ key: config.rowKey(cell.row), column: at.column, text, problem: undefined });
     return true;
   };
+  /** Where the cell entered is among the rows, found by the identity of its row. */
+  const draftAt = (entered: CellDraft): CellPosition | undefined => {
+    const row = rows.findIndex((each) => config.rowKey(each) === entered.key);
+    return row < 0 ? undefined : { row, column: entered.column };
+  };
   const validate = (text: string, move: EntryMove): boolean => {
-    const at = draft;
+    const at = draft === undefined ? undefined : draftAt(draft);
     const cell = at === undefined ? undefined : cellAt(at);
-    if (at === undefined || cell?.entry === undefined) {
+    if (draft === undefined || at === undefined || cell?.entry === undefined) {
       setDraft(undefined);
       return true;
     }
     const { entry } = cell;
     const parsed = parsedEntry(entry.kind, text, locale);
-    if (parsed === undefined) {
-      setDraft({ ...at, text, invalid: true });
+    if ("problem" in parsed) {
+      setDraft({ ...draft, text, problem: parsed.problem });
       return false;
     }
     setDraft(undefined);
@@ -409,7 +420,7 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     validate,
     /** Abandon the entry: from the keyboard, the focus back on its cell; on a blur, where it went. */
     abandon: (refocus: boolean) => {
-      const at = draft;
+      const at = draft === undefined ? undefined : draftAt(draft);
       setDraft(undefined);
       if (refocus && at !== undefined) {
         focusCell(at);

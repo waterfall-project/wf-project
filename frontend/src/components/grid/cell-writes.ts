@@ -13,7 +13,9 @@
  * typing. What is answered belongs to the reading it was written in: a page read anew — a sort,
  * a search, a reload — shows the rows of its answer, and an answer that arrives after it, a
  * success or a refusal, is dropped (défauts n° 1 et 2 de `typescript.md`): the reading the state
- * belongs to is changed in the render that brings the new rows, before any answer can land.
+ * belongs to is changed in the render that brings the new rows, before any answer can land. An
+ * answer about another row than the one written is a failure of the service. A refusal stays told
+ * until the notice clears it, whatever writes succeed after it.
  */
 "use client";
 
@@ -25,6 +27,16 @@ import type { CellEntry } from "./columns";
 
 /** The API out of reach: the server action itself did not answer — the network is down. */
 const UNREACHABLE: Outcome<never> = { kind: "unreachable" };
+
+/**
+ * The server answered another row than the one written: an unexpected error of the service, told
+ * as such, which nothing takes the place of the row for.
+ */
+const ANOTHER_ROW: Outcome<never> = {
+  kind: "refused",
+  problem: { code: "INTERNAL_ERROR", status: 500 },
+  conflictingObjectId: null,
+};
 
 /** What the cells written change of a reading: the rows answered, the cells pending, the last outcome. */
 interface Written<Row> {
@@ -100,6 +112,9 @@ export function useCellWrites<Row>(
     () => (answered.size === 0 ? reading : reading.map((row) => answered.get(rowKey(row)) ?? row)),
     [reading, answered, rowKey],
   );
+  /** An answer about another row than the one written is a failure of the service. */
+  const answering = (key: string, answer: Outcome<Row>): Outcome<Row> =>
+    answer.kind === "done" && rowKey(answer.data) !== key ? ANOTHER_ROW : answer;
   const write = ({ row, column, entry, value, shown }: CellWrite<Row>) => {
     const key = rowKey(row);
     const cell = cellKey(key, column);
@@ -113,7 +128,7 @@ export function useCellWrites<Row>(
     current((before) => ({ ...before, pending: changed(before.pending, cell, shown) }));
     const queued = (queues.current.get(key) ?? Promise.resolve()).then(async () => {
       const from = memory.answered.get(key) ?? row;
-      const answer = await entry.write(from, value).catch(() => UNREACHABLE);
+      const answer = answering(key, await entry.write(from, value).catch(() => UNREACHABLE));
       const data = answer.kind === "done" ? answer.data : undefined;
       if (data !== undefined) {
         memory.answered.set(key, data);
@@ -122,7 +137,8 @@ export function useCellWrites<Row>(
         ...before,
         answered: data === undefined ? before.answered : changed(before.answered, key, data),
         pending: changed(before.pending, cell, undefined),
-        outcome: answer,
+        // A refusal stays told until the notice clears it: a later write done says nothing of it.
+        outcome: answer.kind === "done" && before.outcome !== undefined ? before.outcome : answer,
       }));
     });
     queues.current.set(key, queued);

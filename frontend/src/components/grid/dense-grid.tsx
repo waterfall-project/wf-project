@@ -52,11 +52,13 @@ import type { Locale } from "@/i18n/locale";
 import {
   alignment,
   type DependencyReader,
+  type EntryKind,
   formatCell,
   type GridColumn,
   type GridConfig,
 } from "./columns";
 import { CellEditor } from "./cell-editor";
+import type { EntryProblem } from "./cell-values";
 import { useCellWrites } from "./cell-writes";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
 import {
@@ -280,7 +282,8 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   const key = config.rowKey(row);
   const state: CellState = {
     active: samePosition(cells.cursor, position),
-    draft: samePosition(cells.draft, position) ? cells.draft : undefined,
+    draft:
+      cells.draft?.key === key && cells.draft.column === position.column ? cells.draft : undefined,
     pending: cells.pending(key, position.column),
     refused: refusedAt(cells.refusal, key, position.column),
   };
@@ -404,6 +407,43 @@ function Spacer({ height, span }: { readonly height: number; readonly span: numb
 /** The width of the columns pinned at the start, which the other columns slide under. */
 function pinnedWidth<Row extends RowData>(table: GridTable<Row>): number {
   return table.getStartVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0);
+}
+
+/**
+ * Why the entry of a cell was not validated, which its field names as its description: a cell
+ * left blank that may not be, a text too long, no number of the language — with an example of
+ * one —, an amount with more than two decimals.
+ */
+function EntryProblemNotice({
+  id,
+  draft,
+  kind,
+}: {
+  readonly id: string;
+  readonly draft: CellDraft | undefined;
+  readonly kind: EntryKind | undefined;
+}) {
+  const t = useTranslations("grid.entry");
+  const locale = useLocale();
+  const problem = draft?.problem;
+  if (problem === undefined || kind === undefined) {
+    return null;
+  }
+  const amount = formatCell("money", "1234.56", locale);
+  const texts: Readonly<Record<EntryProblem, () => string>> = {
+    required: () => t("required"),
+    tooLong: () => t("tooLong", { max: kind.type === "text" ? kind.maxLength : 0 }),
+    notANumber: () =>
+      t("notANumber", {
+        example: kind.type === "money" ? amount : formatCell("decimal", "1234.5", locale),
+      }),
+    twoDecimals: () => t("twoDecimals", { example: amount }),
+  };
+  return (
+    <p id={id} role="alert" className="text-sm text-destructive">
+      {texts[problem]()}
+    </p>
+  );
 }
 
 /** The columns the user may show or hide, for the bar of the grid. */
@@ -561,7 +601,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
           kind={column.entry.kind}
           label={t(`columns.${column.label}`)}
           text={draft.text}
-          invalid={draft.invalid ? invalid : undefined}
+          invalid={draft.problem === undefined ? undefined : invalid}
           onValidate={keyboard.validate}
           onAbandon={keyboard.abandon}
         />
@@ -579,11 +619,11 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       />
       <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} />
       <OutcomeNotice outcome={writes.outcome} onClear={writes.clear} />
-      {keyboard.draft?.invalid === true ? (
-        <p id={invalid} role="alert" className="text-sm text-destructive">
-          {t("entry.notANumber", { example: formatCell("decimal", "1234.5", locale) })}
-        </p>
-      ) : null}
+      <EntryProblemNotice
+        id={invalid}
+        draft={keyboard.draft}
+        kind={configColumn(config, keyboard.draft?.column ?? "")?.entry?.kind}
+      />
       <Table
         role="grid"
         aria-label={t(`names.${config.name}`)}

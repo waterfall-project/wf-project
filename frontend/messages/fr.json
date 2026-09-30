@@ -140,7 +140,10 @@
     },
     "computed": "Calculé",
     "entry": {
-      "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}."
+      "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
+      "required": "Cette cellule ne peut pas rester vide.",
+      "tooLong": "{max} caractères au plus.",
+      "twoDecimals": "Un montant a deux décimales au plus : saisissez-le comme {example}."
     },
     "resize": "Largeur de la colonne {column}",
     "empty": "Aucune ligne ne répond à la demande.",

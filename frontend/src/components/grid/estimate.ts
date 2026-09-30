@@ -138,7 +138,8 @@ const ENTERED: Readonly<
     { readonly kind: EntryKind; readonly change: (value: string | null) => LineChange }
   >
 > = {
-  label: { kind: { type: "text" }, change: (value) => ({ label: value ?? "" }) },
+  // The contract takes a label of 1 to 300 characters.
+  label: { kind: { type: "text", maxLength: 300 }, change: (value) => ({ label: value ?? "" }) },
   quantity: {
     kind: { type: "decimal", nullable: false },
     change: (value) => (value === null ? {} : { quantity: value }),
@@ -158,11 +159,14 @@ function bearsLine(node: EstimateNode): boolean {
 /**
  * The grid of the estimate, entered through `writes`: the label, the quantity, the effort and the
  * unit disbursement of a line, in the rows that bear one and where the server does not compute
- * the field — an entry starts from what the column shows.
+ * the field — an entry starts from what the column shows. Without `writes`, it is read only.
  */
 export function estimateGrid(
-  writes: EstimateWrites,
+  writes?: EstimateWrites,
 ): GridConfig<EstimateNode, NodeSortColumn, NodeTotals> {
+  if (writes === undefined) {
+    return ESTIMATE_GRID;
+  }
   return {
     ...ESTIMATE_GRID,
     columns: ESTIMATE_GRID.columns.map((column) => {

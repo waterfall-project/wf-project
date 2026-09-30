@@ -5,8 +5,8 @@
  * planning renders too —, given its configuration here, on the side of the browser — a
  * configuration reads the rows by functions, which never cross from a server component to a
  * client one. The page hands it data only: the rows of the answer of `listNodes` as the grid
- * reads them (`projectNodes`), the structure they belong to, what the address asked, and the
- * settings the session read. A computed cell asks the server what its value depends on, by the
+ * reads them (`projectNodes`), the structure they belong to, whether the revision may be entered,
+ * what the address asked, and the settings the session read. A computed cell asks the server what its value depends on, by the
  * structure and its node; a cell of a line entered is written by the structure and its node too,
  * the node answered read as the grid reads it.
  */
@@ -37,6 +37,12 @@ export interface EstimateGridProps {
   readonly nodes: NodeRows<EstimateNode>;
   /** The structure the rows belong to. */
   readonly structure: StructurePath;
+  /**
+   * Whether the estimate may be entered: the revision is open and lists `edit_estimate` available
+   * to the caller (`availableEdits`). Otherwise the grid is read only, and offers no entry the
+   * API would refuse.
+   */
+  readonly editable: boolean;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
@@ -69,14 +75,23 @@ function structureWrites(structure: StructurePath): EstimateWrites {
 }
 
 /** Render the grid of the estimate, its totals counting the tasks and the lines retained. */
-export function EstimateGrid({ nodes, structure, query, preferences }: EstimateGridProps) {
+export function EstimateGrid({
+  nodes,
+  structure,
+  editable,
+  query,
+  preferences,
+}: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
-  const config = useMemo(() => estimateGrid(structureWrites(structure)), [structure]);
+  const config = useMemo(
+    () => estimateGrid(editable ? structureWrites(structure) : undefined),
+    [editable, structure],
+  );
   return (
     <DenseGrid
       config={config}

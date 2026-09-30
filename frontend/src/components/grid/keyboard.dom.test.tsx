@@ -58,6 +58,7 @@ function renderGrid() {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
+        editable
         nodes={estimate}
         structure={STRUCTURE}
         query={NO_QUERY}

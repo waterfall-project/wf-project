@@ -113,6 +113,7 @@ describe("the grids of the planning and of the estimate", () => {
           preferences={undefined}
         />
         <EstimateGrid
+          editable
           nodes={estimate}
           structure={STRUCTURE}
           query={NO_QUERY}
