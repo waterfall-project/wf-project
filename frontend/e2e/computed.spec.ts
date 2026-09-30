@@ -44,28 +44,35 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   // The effort is entered: its figure alone. The amount is computed: marked Σ, named so, on
   // another background — the mark reads without the colour.
   await expect(hours).toHaveText(/^\d+$/);
-  await expect(hours.getByRole("button")).toHaveCount(0);
   await expect(hours.getByRole("img")).toHaveCount(0);
-  const computed = amount.getByRole("button", { name: /^Calculé [\d\s]+,\d\d$/ });
-  await expect(computed.getByRole("img", { name: "Calculé" })).toBeVisible();
+  await expect(amount).toHaveAccessibleName(/^Calculé [\d\s]+,\d\d$/);
+  await expect(amount.getByRole("img", { name: "Calculé" })).toBeVisible();
   expect(await background(amount)).not.toBe(await background(hours));
 
-  // A try on the amount is refused beside it, naming what the server says it depends on — the
-  // reading done, at least one rule said, whatever the fake back answers for any value —:
-  // nothing opens to type.
-  await computed.click();
+  // A digit typed on the amount opens no field: the try is refused beside it, naming what the
+  // server says it depends on — the reading done, at least one rule said, whatever the fake back
+  // answers for any value.
+  await hours.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect(amount).toBeFocused();
+  await page.keyboard.press("7");
   await expect(refusal(page)).toBeInViewport();
   await expect(refusal(page)).toContainText("Budgété ne se saisit pas");
+  await expect(page.getByRole("textbox", { name: "Budgété" })).toHaveCount(0);
   const said = refusal(page).getByRole("status");
   await expect(said).toHaveAttribute("aria-busy", "false");
   await expect(said).not.toContainText("Lecture de ce dont elle dépend");
   // What the server said, and no refusal of it: a rule in a sentence after « ne se saisit pas ».
   await expect(said.getByRole("alert")).toHaveCount(0);
   await expect(said.getByRole("paragraph").first()).not.toBeEmpty();
-  await expect(amount.getByRole("textbox")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(refusal(page)).toHaveCount(0);
-  await expect(amount.getByRole("button")).toBeFocused();
+  await expect(amount).toBeFocused();
+  // The pointer tries it as well.
+  await amount.click();
+  await expect(refusal(page)).toContainText("Budgété ne se saisit pas");
+  await expect(amount.getByRole("textbox")).toHaveCount(0);
 });
 
 test("refuses to change the finish date of a summary task, from the keyboard, naming its subordinates [WF-IHM-0030-A]", async ({
@@ -76,7 +83,8 @@ test("refuses to change the finish date of a summary task, from the keyboard, na
   const summary = grid.getByRole("row", { name: /^1 .*Études/ });
   await expect(summary.getByRole("img", { name: "Tâche récapitulative" })).toBeVisible();
   // Number, label, mode, duration, start, finish.
-  const finish = cellOf(summary, 5).getByRole("button", { name: /^Calculé \d\d\/\d\d\/\d{4}$/ });
+  const finish = cellOf(summary, 5);
+  await expect(finish).toHaveAccessibleName(/^Calculé \d\d\/\d\d\/\d{4}$/);
 
   await finish.focus();
   await page.keyboard.press("Enter");
@@ -96,5 +104,5 @@ test("refuses to change the finish date of a summary task, from the keyboard, na
   ]);
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await expect(cellOf(summary, 5).getByRole("button")).toBeFocused();
+  await expect(finish).toBeFocused();
 });

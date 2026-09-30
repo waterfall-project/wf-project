@@ -577,7 +577,7 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 
 ## US-0120 — Grille dense : saisie au clavier seul
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0040-A`
 - **opérations** : `updateEstimateLine`, `updateTaskFacet`, `listCostCategories`,
   `listResourceRoles`

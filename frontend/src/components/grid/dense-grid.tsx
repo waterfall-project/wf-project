@@ -16,13 +16,24 @@
  *
  * The columns shown and their widths are a display preference of the account (WF-ADM-0040):
  * the grid starts from those the session read, and records each change after a pause.
+ *
+ * It is run through from the keyboard alone (WF-IHM-0040, `useGridKeyboard`): one cell is active,
+ * which the arrows move, and a computed cell tried opens its refusal.
  */
 "use client";
 
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import {
+  Fragment,
+  type ReactNode,
+  useEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import {
@@ -44,6 +55,14 @@ import {
   type GridConfig,
 } from "./columns";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
+import {
+  type CellPosition,
+  type CellRefusal,
+  refusedAt,
+  samePosition,
+  useCursor,
+  useGridKeyboard,
+} from "./grid-keyboard";
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
@@ -61,6 +80,12 @@ import {
  * the root font, so that a font the user enlarges does not shift the rows the grid computes.
  */
 export const ROW_REM = 1.75;
+
+/**
+ * The height of the header and of the totals, in `rem` — `h-8` —: the rows brought into view come
+ * out from under them.
+ */
+const EDGE_REM = 2;
 
 /** The rows rendered beyond those in view, at each end. */
 const OVERSCAN = 12;
@@ -180,55 +205,115 @@ function computedIn<Row extends RowData, Sort extends string, Totals>(
   return column?.computed?.in(row) === true;
 }
 
+/** What the cells of the body are doing: the active one, the refusal shown. */
+interface CellStates {
+  readonly cursor: CellPosition;
+  readonly refusal: CellRefusal;
+  /** Close the refusal from the keyboard, the focus back on its cell. */
+  readonly closeRefusal: () => void;
+  /** Close the refusal, the focus gone elsewhere. */
+  readonly dismissRefusal: () => void;
+}
+
+/** The attributes of a cell of the body: its place in the grid, and what it says of itself. */
+function cellAttributes(
+  position: CellPosition,
+  cells: CellStates,
+  computed: boolean,
+  refused: boolean,
+) {
+  return {
+    "data-row": position.row,
+    "data-column": position.column,
+    tabIndex: samePosition(cells.cursor, position) ? 0 : -1,
+    "aria-readonly": computed ? true : undefined,
+    "aria-haspopup": computed ? ("dialog" as const) : undefined,
+    "aria-expanded": computed ? refused : undefined,
+  };
+}
+
 /**
- * A row of the answer, its visible cells, at its index among all the rows of the answer. A cell
- * the server computes in this row is shaded and marked (WF-IHM-0030), and refuses an entry.
+ * A cell of a row: the active one in the order of tabulation, the others reached by the arrows. A
+ * cell the server computes in this row is shaded and marked (WF-IHM-0030), and refuses an entry.
  */
-function BodyRow<Row extends RowData, Sort extends string, Totals>({
+function BodyCell<Row extends RowData, Sort extends string, Totals>({
   table,
   config,
   dependencies,
+  cells,
+  row,
+  position,
+  locale,
+}: {
+  readonly table: GridTable<Row>;
+  readonly config: GridConfig<Row, Sort, Totals>;
+  readonly dependencies: DependencyReader<Row> | undefined;
+  readonly cells: CellStates;
+  readonly row: Row;
+  readonly position: CellPosition;
+  readonly locale: Locale;
+}) {
+  const column = configColumn(config, position.column);
+  const computed = computedIn(column, row);
+  const pinning = pinningOf(table, position.column, "z-10");
+  const content = cellContent(config, column, row, locale);
+  const refused = refusedAt(cells.refusal, config.rowKey(row), position.column);
+  return (
+    <TableCell
+      {...cellAttributes(position, cells, computed, refused)}
+      style={{ left: pinning.left }}
+      className={cn(
+        "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        pinning.className,
+        computed ? "bg-muted" : "bg-background",
+        column === undefined ? "text-muted-foreground" : null,
+        alignClass(column),
+      )}
+    >
+      {computed ? (
+        <ComputedCell
+          column={column}
+          row={row}
+          dependencies={dependencies}
+          open={refused}
+          opening={cells.refusal.opening}
+          onClose={cells.closeRefusal}
+          onDismiss={cells.dismissRefusal}
+        >
+          {content}
+        </ComputedCell>
+      ) : (
+        content
+      )}
+    </TableCell>
+  );
+}
+
+/** A row of the answer, its visible cells, at its index among all the rows of the answer. */
+function BodyRow<Row extends RowData, Sort extends string, Totals>({
   row,
   index,
-  locale,
+  ...shared
 }: {
   readonly table: GridTable<Row>;
   readonly config: GridConfig<Row, Sort, Totals>;
   /** How a computed cell asks the server what its value depends on. */
   readonly dependencies: DependencyReader<Row> | undefined;
+  readonly cells: CellStates;
   readonly row: TableRowModel<GridFeatures, Row>;
   readonly index: number;
   readonly locale: Locale;
 }) {
   return (
     <TableRow aria-rowindex={index + 2} className="h-7">
-      {row.getVisibleCells().map((cell) => {
-        const column = configColumn(config, cell.column.id);
-        const computed = computedIn(column, row.original);
-        const pinning = pinningOf(table, cell.column.id, "z-10");
-        const content = cellContent(config, column, row.original, locale);
-        return (
-          <TableCell
-            key={cell.id}
-            style={{ left: pinning.left }}
-            className={cn(
-              "overflow-hidden text-ellipsis",
-              pinning.className,
-              computed ? "bg-muted" : "bg-background",
-              column === undefined ? "text-muted-foreground" : null,
-              alignClass(column),
-            )}
-          >
-            {computed ? (
-              <ComputedCell column={column} row={row.original} dependencies={dependencies}>
-                {content}
-              </ComputedCell>
-            ) : (
-              content
-            )}
-          </TableCell>
-        );
-      })}
+      {row.getVisibleCells().map((cell) => (
+        <BodyCell
+          key={cell.id}
+          {...shared}
+          row={row.original}
+          position={{ row: index, column: cell.column.id }}
+        />
+      ))}
     </TableRow>
   );
 }
@@ -282,6 +367,11 @@ function Spacer({ height, span }: { readonly height: number; readonly span: numb
       <td colSpan={span} style={{ height }} className="p-0" />
     </tr>
   ) : null;
+}
+
+/** The width of the columns pinned at the start, which the other columns slide under. */
+function pinnedWidth<Row extends RowData>(table: GridTable<Row>): number {
+  return table.getStartVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0);
 }
 
 /** The columns the user may show or hide, for the bar of the grid. */
@@ -392,15 +482,41 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   });
 
   const model = table.getRowModel().rows;
-  const { items, before, after } = useRowWindow({
+  const edge = EDGE_REM * useRootFontSize();
+  const columns = table.getVisibleLeafColumns();
+  const cursor = useCursor(config, model.length, columns);
+  // The row of the active cell stays rendered however far the grid scrolls: it holds the focus.
+  const { items, gaps, after, scrollToIndex } = useRowWindow({
     rows: model,
     scroller,
     rowHeight,
+    edges: { start: edge, end: edge },
     overscan: OVERSCAN,
     initialRect: FIRST_SCREEN,
     keyOf: (index) => model[index]?.id ?? index,
+    kept: model.length === 0 ? undefined : cursor.active.row,
   });
-  const columns = table.getVisibleLeafColumns();
+  const keyboard = useGridKeyboard({
+    config,
+    cursor,
+    rows,
+    columns: columns.map((column) => column.id),
+    scroller,
+    scrollToIndex,
+    page: () =>
+      Math.max(1, Math.floor(((scroller.current?.offsetHeight ?? 0) - 2 * edge) / rowHeight)),
+    inView: (index) => {
+      const element = scroller.current;
+      const top = edge + index * rowHeight - (element?.scrollTop ?? 0);
+      return top + rowHeight > edge && top < (element?.offsetHeight ?? 0) - edge;
+    },
+  });
+  const cells: CellStates = {
+    cursor: cursor.active,
+    refusal: keyboard.refusal,
+    closeRefusal: keyboard.closeRefusal,
+    dismissRefusal: keyboard.dismissRefusal,
+  };
   // An empty answer still has a row, which says so, between the header and the totals.
   const bodyRows = Math.max(model.length, 1);
 
@@ -420,10 +536,14 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         aria-busy={pending}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
-        // stay a window's worth whatever holds it.
+        // stay a window's worth whatever holds it. The header and the totals stick to its edges,
+        // the pinned columns to its start: a cell the focus brings into view comes out from under
+        // them. A refusal whose row scrolls out of view closes.
         container={{
           ref: scroller,
           className: "w-fit max-w-full max-h-svh min-h-40 rounded-md border",
+          style: { scrollPaddingBlock: edge, scrollPaddingInlineStart: pinnedWidth(table) },
+          onScroll: keyboard.followScroll,
         }}
         className="table-fixed text-xs tabular-nums"
         style={{ width: table.getTotalSize() }}
@@ -449,20 +569,22 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
             })}
           </TableRow>
         </TableHeader>
-        <TableBody>
-          <Spacer height={before} span={columns.length} />
-          {items.map((item) => {
+        <TableBody {...keyboard.body}>
+          {items.map((item, position) => {
             const row = model[item.index];
             return row === undefined ? null : (
-              <BodyRow
-                key={row.id}
-                table={table}
-                config={config}
-                dependencies={dependencies}
-                row={row}
-                index={item.index}
-                locale={locale}
-              />
+              <Fragment key={row.id}>
+                <Spacer height={gaps[position] ?? 0} span={columns.length} />
+                <BodyRow
+                  table={table}
+                  config={config}
+                  dependencies={dependencies}
+                  cells={cells}
+                  row={row}
+                  index={item.index}
+                  locale={locale}
+                />
+              </Fragment>
             );
           })}
           <Spacer height={after} span={columns.length} />

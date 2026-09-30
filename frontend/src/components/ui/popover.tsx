@@ -24,6 +24,14 @@ export function PopoverTrigger(props: ComponentProps<typeof PopoverPrimitive.Tri
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />;
 }
 
+/**
+ * What a popover stands beside when no trigger opens it: the cell of a grid whose refusal the
+ * keyboard opens.
+ */
+export function PopoverAnchor(props: ComponentProps<typeof PopoverPrimitive.Anchor>) {
+  return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />;
+}
+
 /** What a popover says, over the page, beside its trigger. */
 export function PopoverContent({
   className,

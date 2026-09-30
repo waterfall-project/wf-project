@@ -59,6 +59,8 @@ const STRUCTURE = {
 };
 // The height of a row at the default size of the root font, and of the element that scrolls,
 // as a browser would lay it out: twenty rows.
+const DEPENDENCIES =
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies";
 const ROW_HEIGHT = ROW_REM * 16;
 const VIEW = 20 * ROW_HEIGHT;
 
@@ -202,7 +204,8 @@ describe("the dense grid, on a thousand rows", () => {
     await waitFor(() => {
       expect(texts(rowAt(1001)).slice(0, 2)).toEqual(["1000", "Ligne 1000"]);
     });
-    expect(rowAt(2)).toBeUndefined();
+    // The first row stays, the row of the active cell (`kept`); those after it are gone.
+    expect(rowAt(3)).toBeUndefined();
     expect(bodyRows().length).toBeLessThan(60);
 
     // The header and the totals are rendered still, stuck to the top and the foot of the
@@ -248,6 +251,54 @@ describe("the dense grid, on a thousand rows", () => {
     expect(within(header ?? grid()).getByRole("columnheader", { name: "Libellé" })).toHaveStyle({
       left: "48px",
     });
+  });
+
+  it("keeps the active cell rendered, and the focus in it, however far the grid scrolls", async () => {
+    renderGrid(thousandRows());
+    const label = () => rowAt(3)?.querySelectorAll("td")[1];
+    act(() => {
+      label()?.focus();
+    });
+    expect(label()).toHaveFocus();
+    scroller().scrollTop = 900 * ROW_HEIGHT;
+    fireEvent.scroll(scroller());
+    await waitFor(() => {
+      expect(texts(rowAt(901)).slice(0, 2)).toEqual(["900", "Ligne 900"]);
+    });
+    // Its row stays, alone before those in view, the space of the others around it.
+    expect(rowAt(4)).toBeUndefined();
+    expect(label()).toHaveFocus();
+    expect(grid()).toContainElement(document.activeElement as HTMLElement);
+    await userEvent.keyboard("{ArrowDown}");
+    fireEvent.scroll(scroller());
+    await waitFor(() => {
+      expect(rowAt(4)?.querySelectorAll("td")[1]).toHaveFocus();
+    });
+  });
+
+  it("closes a refusal whose row is scrolled out of view, and never opens it again by itself", async () => {
+    const client = serve({ [PREFERENCES]: "preferences", [DEPENDENCIES]: "dependencies_labour" });
+    renderGrid(thousandRows());
+    const amount = () => rowAt(3)?.querySelectorAll("td")[5];
+    act(() => {
+      amount()?.focus();
+    });
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByRole("dialog", { name: "Valeur calculée" })).toBeInTheDocument();
+    scroller().scrollTop = 900 * ROW_HEIGHT;
+    fireEvent.scroll(scroller());
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(amount()).toHaveFocus();
+    scroller().scrollTop = 0;
+    fireEvent.scroll(scroller());
+    await waitFor(() => {
+      expect(texts(rowAt(2)).slice(0, 2)).toEqual(["1", "Études"]);
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(amount()).toHaveAttribute("aria-expanded", "false");
+    expect(client.calls.filter((call) => call.route === DEPENDENCIES)).toHaveLength(1);
   });
 });
 
