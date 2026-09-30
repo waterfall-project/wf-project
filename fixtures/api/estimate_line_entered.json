@@ -1,0 +1,33 @@
+{
+  "summary": "La ligne 4 de la structure des volumes, « Heures d'ingénierie », saisie en entier au clavier : libellé « Heures de câblage », catégorie « Mise en service », rôle « Technicien de mise en service », quantité 2, charge 12,5 h ; le montant réestimé recalculé au taux de sa catégorie, 75,00 de l'heure, le budgété inchangé, fixé par la référence (WF-DEV-0020, WF-DEV-0030).",
+  "value": {
+    "node_id": "01926f3a-7c00-7000-8000-000100000004",
+    "lineage_id": "01926f3a-7c00-7000-8000-000200000004",
+    "kind": "estimate_line",
+    "parent_id": "01926f3a-7c00-7000-8000-000100000003",
+    "position": 0,
+    "row_number": 4,
+    "level": 4,
+    "lock_version": 2,
+    "estimate_line": {
+      "label": "Heures de câblage",
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+      "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+      "quantity": "2",
+      "hours": "12.5",
+      "unit_disbursement": null,
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+      "budgeted_amount": "2640.00",
+      "reestimated_amount": "1875.00",
+      "previous_reestimated_amount": null,
+      "is_computed": false,
+      "remaining_entry": {
+        "is_available": false,
+        "missing_conditions": [
+          "task_not_completed"
+        ]
+      }
+    },
+    "computed_fields": []
+  }
+}
