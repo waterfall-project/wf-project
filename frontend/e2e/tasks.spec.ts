@@ -19,7 +19,10 @@ test("marking a revision gives the hand back, shows its progress, and announces 
   // The read of the task comes when the test lets it come — after the change of screen, not
   // before —: the server action that reads it is held until then. The clock of the page is left
   // alone: frozen, it held the new screen too, as its skeleton — React throttles the reveal of a
-  // loaded boundary by a timer, which a frozen clock never lets fire (#165).
+  // loaded boundary by a timer, which a frozen clock never lets fire (#165). The read held must
+  // have left before the click: Next holds a navigation behind the server actions sent after it
+  // (defect 15 of `docs/dev/typescript.md`), and one held until the new screen shows would hold
+  // the screen too.
   let release!: () => void;
   const released = new Promise<void>((resolve) => {
     release = resolve;
@@ -34,6 +37,7 @@ test("marking a revision gives the hand back, shows its progress, and announces 
   await compile(page.request, `/projects/${PROJECT}/lifecycle?revision_id=${REVISION}`);
   await page.goto(`/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
+  const read = page.waitForRequest((request) => request.postData()?.includes(TASK) === true);
   await commands.getByRole("button", { name: "Marquer la révision" }).click();
   await commands.getByRole("textbox", { name: "Nom de version" }).fill("V2");
   await commands.getByRole("button", { name: "Marquer", exact: true }).click();
@@ -51,6 +55,7 @@ test("marking a revision gives the hand back, shows its progress, and announces 
   await page.evaluate(() => {
     document.documentElement.dataset.visited = "revisions";
   });
+  await read;
   await page
     .getByRole("navigation", { name: "Fonctions" })
     .getByRole("link", { name: "Cycle de vie du projet" })

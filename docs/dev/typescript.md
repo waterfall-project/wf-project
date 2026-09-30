@@ -208,8 +208,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     React retient l'écran arrivé derrière un minuteur — le délai de révélation d'une frontière
     `Suspense`, mesuré sur l'horloge de la page —, que l'horloge figée ne laisse jamais partir.
     Le parcours échoue une fois sur trois (#165). Ce qui doit attendre se retient sur le réseau
-    (`page.route`), jamais en figeant l'horloge d'une page qui navigue. Aucun outil ne le
-    tient : la revue le cherche.
+    (`page.route`), jamais en figeant l'horloge d'une page qui navigue — et une action serveur
+    retenue doit être partie avant le clic qui navigue (`page.waitForRequest`, attendue avant
+    le clic) : lancée après, elle retient la navigation elle-même (n° 15), et le parcours
+    attend un écran que sa propre retenue empêche de paraître (`tasks.spec.ts`). Aucun outil ne
+    le tient : la revue le cherche.
 17. **Route atteinte par un clic, compilée pendant l'attente.** `next dev` compile une route à
     sa première visite ; atteinte par un clic, elle est attendue cinq secondes par une
     assertion, que la compilation mange au premier lancement (#142). Un parcours compile
