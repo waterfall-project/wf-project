@@ -259,6 +259,7 @@
     },
     "pages": {
       "label": "Pages de la liste",
+      "beyond": "La page demandée est au-delà de la fin de la liste.",
       "previous": "Projets précédents",
       "next": "Projets suivants"
     }
@@ -290,7 +291,6 @@
   "emptyStates": {
     "noProjects": "Aucun projet.",
     "noContributedProjects": "Vous n’êtes contributeur d’aucun projet.",
-    "allProjects": "Voir tous les projets",
     "noRevisions": "Ce projet n’a encore aucune révision.",
     "revisions": "Aller aux révisions du projet"
   },

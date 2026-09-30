@@ -5,27 +5,21 @@
  * projects the user contributes to, by the filter of the contract (`is_contributor`), which the
  * screen shows and a link lifts — a filter, never a restriction of reading (WF-PRJ-0060). Above
  * the list, in every case, the prerequisites the minimum reference data lacks, which forbid
- * creating a project (WF-CYC-0120); and, when the list is empty, that it is — lifting the filter
- * when it is what empties it. The page after the first is asked by its `offset`, as the contract
- * names it.
+ * creating a project (WF-CYC-0120); and, when the list holds no project, that it is — the
+ * filter shown above it lifts it. The page after the first is asked by its `offset`, as the
+ * contract names it; a page beyond the end of the list leads back into it.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import {
-  ContributorFilter,
-  type ListedProject,
-  ListPages,
-  type ListPage,
-  ProjectTable,
-} from "@/components/projects/project-list";
+import { ContributorFilter, ProjectList } from "@/components/projects/project-list";
 import { GROUP_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { NoProjects, ReferenceIncomplete } from "@/components/system/empty-states";
+import { ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
-import { ALL_PROJECTS, isContributorFiltered } from "@/navigation/home";
+import { isContributorFiltered } from "@/navigation/home";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../title";
@@ -50,26 +44,6 @@ function ProjectsHeader({ filtered }: { readonly filtered: boolean }) {
       icon={GROUP_ICONS["functionGroups.projects"]}
       actions={<ContributorFilter filtered={filtered} />}
     />
-  );
-}
-
-/** The projects of the page, or that there is none. */
-function ProjectList({
-  projects,
-  page,
-  filtered,
-}: {
-  readonly projects: readonly ListedProject[];
-  readonly page: ListPage;
-  readonly filtered: boolean;
-}) {
-  return projects.length === 0 ? (
-    <NoProjects unfiltered={filtered ? ALL_PROJECTS : undefined} />
-  ) : (
-    <>
-      <ProjectTable projects={projects} />
-      <ListPages page={page} shown={projects.length} filtered={filtered} />
-    </>
   );
 }
 

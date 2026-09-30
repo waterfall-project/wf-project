@@ -135,13 +135,13 @@ describe("the home, the list of projects", () => {
 });
 
 describe("the empty states of the home", () => {
-  it("lifts the contributor filter when it is what empties the list", async () => {
+  it("says the user contributes to no project when the filter empties the list, which the filter shown lifts, once", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home();
     expect(text(html)).toBe(
-      "Projects Projects you contribute to Show all projects You contribute to no project. Show all projects",
+      "Projects Projects you contribute to Show all projects You contribute to no project.",
     );
-    expect(links(html)).toEqual(["/?is_contributor=false", "/?is_contributor=false"]);
+    expect(links(html)).toEqual(["/?is_contributor=false"]);
     expect(html).not.toContain("<table");
   });
 

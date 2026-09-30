@@ -31,8 +31,8 @@ type ReferenceReadiness = components["schemas"]["ReferenceReadiness"];
 // The address the browser shows, as the router of Next gives it to a client component.
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
-  usePathname: () => "/projects",
-  useSearchParams: () => new URLSearchParams("is_contributor=true"),
+  usePathname: () => "/portfolio/projects",
+  useSearchParams: () => new URLSearchParams("as_of=2026-05-31"),
 }));
 
 /** Render in a language, as the shell hands its texts to a screen. */
@@ -97,7 +97,7 @@ describe("the screen of failure", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Session requise");
     expect(screen.getByRole("link", { name: "Se connecter" })).toHaveAttribute(
       "href",
-      `/login?next=${encodeURIComponent("/projects?is_contributor=true")}`,
+      `/login?next=${encodeURIComponent("/portfolio/projects?as_of=2026-05-31")}`,
     );
     expect(screen.getByRole("alert")).not.toHaveTextContent("Référence");
     await expectAccessible(container);
@@ -171,20 +171,17 @@ describe("the skeleton of a screen that loads", () => {
 });
 
 describe("the empty states", () => {
-  it("say there is no project, with nothing to lift when the list was not filtered", async () => {
-    const { container } = inLanguage(<NoProjects unfiltered={undefined} />);
+  it("say there is no project when the list was not filtered", async () => {
+    const { container } = inLanguage(<NoProjects filtered={false} />);
     expect(container).toHaveTextContent("Aucun projet.");
     expect(screen.queryByRole("link")).toBeNull();
     await expectAccessible(container);
   });
 
-  it("lift the contributor filter that emptied the list", async () => {
-    const { container } = inLanguage(<NoProjects unfiltered="/?is_contributor=false" />);
+  it("say the user contributes to no project when the filter emptied the list, leaving its lifting to the filter itself", async () => {
+    const { container } = inLanguage(<NoProjects filtered />);
     expect(container).toHaveTextContent("Vous n’êtes contributeur d’aucun projet.");
-    expect(screen.getByRole("link", { name: "Voir tous les projets" })).toHaveAttribute(
-      "href",
-      "/?is_contributor=false",
-    );
+    expect(screen.queryByRole("link")).toBeNull();
     await expectAccessible(container);
   });
 

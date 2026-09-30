@@ -118,7 +118,7 @@ vi.mock("@/components/grid/planning-grid", async (original) => {
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
-  usePathname: () => "/projects",
+  usePathname: () => "/projects/01926f3a-7c00-7000-8000-000000000001",
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next/headers", () => ({

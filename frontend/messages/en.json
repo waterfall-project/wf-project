@@ -259,6 +259,7 @@
     },
     "pages": {
       "label": "Pages of the list",
+      "beyond": "The page asked for lies beyond the end of the list.",
       "previous": "Previous projects",
       "next": "Next projects"
     }
@@ -290,7 +291,6 @@
   "emptyStates": {
     "noProjects": "No project.",
     "noContributedProjects": "You contribute to no project.",
-    "allProjects": "Show all projects",
     "noRevisions": "This project has no revision yet.",
     "revisions": "Go to the revisions of the project"
   },

@@ -11,6 +11,7 @@
  *
  * The sign-in page and the password forgotten are the way in: they stand outside the shell.
  */
+import { HOME } from "./home";
 
 /** The route of the sign-in page. */
 export const LOGIN_ROUTE = "/login";
@@ -35,9 +36,6 @@ const OUTSIDE_SHELL: ReadonlySet<string> = new Set([LOGIN_ROUTE, PASSWORD_RESET_
 export function isOutsideShell(pathname: string): boolean {
   return OUTSIDE_SHELL.has(pathname);
 }
-
-/** Where the sign-in page leads when `next` names no screen of this front: the home page. */
-const HOME = "/";
 
 // An origin nobody serves, to resolve `next` as a browser would: only the path is kept.
 const FRONT = "http://front.invalid";

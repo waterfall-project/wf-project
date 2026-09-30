@@ -139,8 +139,11 @@ qu'il ait son squelette sans en donner un à toutes les pages) : filtrée par d�
 projets dont l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que
 l'écran montre et qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
 (`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture
-(WF-PRJ-0060). Le choix du projet et le fil d'Ariane y mènent ; `/projects`, l'ancienne
-adresse, y renvoie.
+(WF-PRJ-0060). La barre latérale et le fil d'Ariane mènent à la liste filtrée, le choix du
+projet à la liste levée, « Tous les projets » ; `/projects`, l'ancienne adresse, renvoie à
+l'accueil. La liste dit combien de projets elle tient, et mène aux autres pages par la
+pagination de shadcn/ui ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière
+page : seule une liste qui ne tient aucun projet se dit vide.
 
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une

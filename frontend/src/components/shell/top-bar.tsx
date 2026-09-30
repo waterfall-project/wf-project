@@ -18,6 +18,7 @@ import { TasksButton } from "@/components/tasks/task-tracker";
 import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { LanguagePreference } from "@/i18n/locale";
+import { HOME } from "@/navigation/home";
 import type { ThemePreference } from "@/theme/theme";
 
 import { AccountMenu, type MenuAccount } from "./account-menu";
@@ -42,7 +43,7 @@ export function TopBar({ navigable, account, language, theme }: TopBarProps) {
       {navigable ? (
         <SidebarTrigger />
       ) : (
-        <Link href="/" className="rounded-md">
+        <Link href={HOME} className="rounded-md">
           <Logo theme={theme} />
         </Link>
       )}

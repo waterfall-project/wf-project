@@ -4,16 +4,24 @@
  * The pieces of the list of projects, the home (US-0090, US-0210): its filter on the projects
  * the user contributes to, visible and lifted by a link — never a restriction of reading
  * (WF-PRJ-0060) —; the projects themselves, in the order of the server, each a link to its page,
- * with its code and its state in words; and the way through its pages, when the server holds
- * more than one page of them.
+ * with its code and its state in words; the way through its pages, when the server holds more
+ * than one page of them; and, when it holds none, that it is empty.
  */
-import { ChevronLeft, ChevronRight, Folder, ListFilter, X } from "lucide-react";
+import { Folder, ListFilter, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { NoProjects } from "@/components/system/empty-states";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -108,8 +116,20 @@ function pageHref(filtered: boolean, offset: number): string {
 }
 
 /**
+ * The page before the one shown: the one just before it, or the last page of the list when the
+ * address asked for one beyond it.
+ */
+function previousOffset(page: ListPage, beyond: boolean): number {
+  if (beyond) {
+    return Math.floor((page.total - 1) / page.limit) * page.limit;
+  }
+  return Math.max(0, page.offset - page.limit);
+}
+
+/**
  * How many projects the list holds, and the links to the pages before and after this one, when
- * there are: the list never shows a page of it as if it were the whole.
+ * there are: the list never shows a page of it as if it were the whole. A page asked beyond the
+ * end of the list says so, and leads back to its last page.
  */
 export function ListPages({
   page,
@@ -121,27 +141,58 @@ export function ListPages({
   readonly filtered: boolean;
 }) {
   const t = useTranslations("projectList");
+  const beyond = shown === 0 && page.offset >= page.total;
   const before = page.offset > 0;
   const after = page.offset + shown < page.total;
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-sm">
       <p className="text-muted-foreground">{t("count", { count: page.total })}</p>
+      {beyond ? <p>{t("pages.beyond")}</p> : null}
       {before || after ? (
-        <nav aria-label={t("pages.label")} className="flex items-center gap-2">
-          {before ? (
-            <Link href={pageHref(filtered, Math.max(0, page.offset - page.limit))} className={LINK}>
-              <ChevronLeft aria-hidden="true" />
-              {t("pages.previous")}
-            </Link>
-          ) : null}
-          {after ? (
-            <Link href={pageHref(filtered, page.offset + shown)} className={LINK}>
-              {t("pages.next")}
-              <ChevronRight aria-hidden="true" />
-            </Link>
-          ) : null}
-        </nav>
+        <Pagination aria-label={t("pages.label")}>
+          <PaginationContent>
+            {before ? (
+              <PaginationItem>
+                <PaginationPrevious href={pageHref(filtered, previousOffset(page, beyond))}>
+                  {t("pages.previous")}
+                </PaginationPrevious>
+              </PaginationItem>
+            ) : null}
+            {after ? (
+              <PaginationItem>
+                <PaginationNext href={pageHref(filtered, page.offset + shown)}>
+                  {t("pages.next")}
+                </PaginationNext>
+              </PaginationItem>
+            ) : null}
+          </PaginationContent>
+        </Pagination>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The projects of a page of the list, or that there is none: only when the list holds none at
+ * all — a page asked beyond its end is no empty list, and leads back into it. The filter that
+ * would empty it is lifted by the link the header already shows.
+ */
+export function ProjectList({
+  projects,
+  page,
+  filtered,
+}: {
+  readonly projects: readonly ListedProject[];
+  readonly page: ListPage;
+  readonly filtered: boolean;
+}) {
+  if (page.total === 0) {
+    return <NoProjects filtered={filtered} />;
+  }
+  return (
+    <>
+      {projects.length === 0 ? null : <ProjectTable projects={projects} />}
+      <ListPages page={page} shown={projects.length} filtered={filtered} />
+    </>
   );
 }
