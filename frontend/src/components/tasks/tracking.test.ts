@@ -83,6 +83,12 @@ describe("what the tracker follows", () => {
     expect(restored.restored).toBe(true);
   });
 
+  it("keeps the same list when the tab has nothing to restore, or the API nothing new to list", () => {
+    const tracked = following(task("task_running"));
+    expect(tracking(tracked, { type: "restore", tasks: [] }).tasks).toBe(tracked.tasks);
+    expect(tracking(tracked, { type: "found", tasks: [] }).tasks).toBe(tracked.tasks);
+  });
+
   it("asks again after the API out of reach, and not after a refusal", () => {
     const [running] = following(task("task_running")).tasks;
     if (running === undefined) {

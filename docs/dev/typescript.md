@@ -218,3 +218,14 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     assertion, que la compilation mange au premier lancement (#142). Un parcours compile
     d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`). Aucun outil
     ne le tient : la revue le cherche.
+18. **Contexte de la coquille changé pendant qu'une page attend d'être révélée.** La coquille
+    est au-dessus de chaque page, dont `loading.tsx` fait une frontière `Suspense`. Le serveur
+    envoie la page avec le document, mais React en retient la révélation un instant (`<!--$~-->`) ;
+    un fournisseur de la coquille dont la valeur change à ce moment — un effet au montage,
+    comme la reprise des tâches de l'onglet — fait rendre la page à neuf dans le navigateur, à
+    côté de celle du serveur, que le document garde, cachée, jusqu'à la révélation : deux champs
+    de fichier portent un instant le même nom, et un parcours en mode strict échoue : rejoué en
+    boucle, deux champs 9 fois sur 40, puis 0 sur 110 une fois corrigé (#173).
+    Une valeur de contexte au-dessus des pages ne se reconstruit que quand ce qu'elle montre
+    change (`TaskTracker`) ; restes suivis en #180. Un test hydrate une frontière en attente sous
+    le fournisseur (`task-tracker.dom.test.tsx`) ; aucun outil ne le tient : la revue le cherche.

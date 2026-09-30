@@ -632,7 +632,7 @@ entière est rendue par React — le serveur en rend le premier écran, qui peut
 qu'un clic n'y fasse rien —, que le parcours reconnaît aux clés que React pose, en l'hydratant,
 sur le dernier élément de la grille, la dernière cellule de ses totaux (`__reactProps$…`) : un
 détail interne de React, lu par le test seul. Le plus tardif des deux
-instants doit tenir la seconde. Un script remis à chaque document guette chaque image et note
+instants se compare à la seconde. Un script remis à chaque document guette chaque image et note
 les instants sur l'horloge du système (`performance.timeOrigin`), qu'un document remplacé ne
 perd pas : ni les allers-retours de Playwright ni son attente n'y comptent. Elle se joue contre
 le front construit pour la production (`next build`, puis `next start` sur le port 3101), que
@@ -651,15 +651,21 @@ hors de la mesure, qu'aucune ne soit en cours depuis une demi-seconde, en quinze
 plus ; le journal écrit combien étaient en cours au départ de chaque ouverture mesurée, et il
 n'en faut aucune.
 Chaque ouverture se compare à la seconde, sans arrondi ; le journal du parcours, et le résumé
-du travail dans la chaîne, écrivent la médiane et la pire, utilisable, dessinée et hydratée,
-et, pour l'ouverture par l'adresse, où va le temps : les instants médians où le serveur a fini
-d'envoyer le document et où le navigateur l'a lu. **La mesure ne fait rien échouer sur la
+du travail dans la chaîne, sous le titre « The second of §4.6.2 », écrivent la médiane et la
+pire, utilisable, dessinée et hydratée, et, pour l'ouverture par l'adresse, où va le temps :
+les instants médians où le serveur a fini d'envoyer le document et où le navigateur l'a lu. **La mesure ne fait rien échouer sur la
 seconde** : une ouverture qui la dépasse est un avertissement — du test, et de la chaîne —,
 jamais un échec, ni de `make e2e`, ni de la chaîne, ni de la file de fusion. Contre le faux
 back, pour un utilisateur seul, sur une machine partagée de la chaîne, elle ne dit pas ce que
 tiendra le service : ses chiffres variaient d'un run à l'autre du simple au double sur une
 même révision. C'est un écart déclaré d'US-0110 et d'US-0220 ; la seconde se tient, bloquante,
-en EP-13, sur le jeu de référence, avec cinquante utilisateurs, contre le vrai service. Le parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
+en EP-13, sur le jeu de référence, avec cinquante utilisateurs, contre le vrai service. Le
+parcours garde seulement des bornes de fonctionnement, loin de la seconde, qui ne mesurent
+rien : quinze secondes pour qu'une grille devienne utilisable et qu'une page se pose
+(`WORKING`), les cinq secondes de Playwright pour chaque assertion : l'adresse après un clic,
+puis ce que la grille montre ; trois minutes pour chaque test. Passé l'une d'elles, le parcours ne fonctionne plus — une grille jamais
+utilisable, une page qui ne se pose jamais — et il échoue, quelle que soit la seconde. Le
+parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
 ne lit pas (`lineage_id`). Son projet Playwright, `production`, dépend du projet `chromium` :
 il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
 d'eux échoue —, et sans trace. Elle tourne donc là où tournent les parcours, au palier complet

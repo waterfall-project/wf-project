@@ -240,7 +240,9 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
     case "restore": {
       const known = new Set(state.tasks.map((tracked) => tracked.key));
       const back = event.tasks.filter((tracked) => !known.has(tracked.key));
-      return { ...state, tasks: [...back, ...state.tasks], restored: true };
+      // Nothing back, the same list: the shell above the page does not change (#173).
+      const tasks = back.length === 0 ? state.tasks : [...back, ...state.tasks];
+      return { ...state, tasks, restored: true };
     }
     case "found":
       return found(state, event.tasks);

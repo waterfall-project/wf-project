@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 
 import { expect, type Page, type Request, test } from "@playwright/test";
 
@@ -18,7 +18,7 @@ import { expect, type Page, type Request, test } from "@playwright/test";
 // which may show before a click does anything —, which the test tells by the keys React gives the
 // last element of the grid, the last cell of its totals (`__reactProps$…`), as it hydrates it: an
 // internal of React, read here and nowhere in the front.
-// The later of the two must hold the second. A script given to each document watches every frame
+// The later of the two is set against the second. A script given to each document watches every frame
 // for them, and writes the times it finds, as the start, on the clock of the operating system
 // (`performance.timeOrigin`), which survives the document when a click loads another. Nothing of
 // the harness counts: neither Playwright's round trips nor its polling.
@@ -38,6 +38,12 @@ import { expect, type Page, type Request, test } from "@playwright/test";
 // measured, the document is checked for a field of a node the grid does not read: the page hands
 // its grid what it shows alone (`projectNodes`).
 //
+// The path keeps bounds of its working alone, far from the second, which measure nothing: fifteen
+// seconds for a grid to become usable and for a page to settle (`WORKING`); the five seconds of
+// Playwright for each assertion: the address after a click, then what the grid shows; three
+// minutes for each test. Past one, the path no longer works — a grid never usable, a page never
+// settled — and fails, whatever the second.
+//
 // The project runs after all the other paths, alone on the machine: `playwright.config.ts`.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -47,6 +53,12 @@ const OBJECTIVE = 1_000;
 
 /** How many times a grid opens each way, once opened unmeasured. */
 const OPENINGS = 5;
+
+/**
+ * How long the path waits for what it needs to go on — a grid usable, a page settled —, in
+ * milliseconds: a bound of its working, far from the second, which measures nothing.
+ */
+const WORKING = 15_000;
 
 /** Where the start of an opening by a click is kept: it survives a document replaced. */
 const CLICKED = "wf_e2e_clicked";
@@ -156,7 +168,7 @@ async function usableAt(page: Page, screen: GridScreen): Promise<Usable> {
       const hydrated = at("hydrated");
       return drawn === null || hydrated === null ? null : { drawn, hydrated };
     }, screen.grid);
-  await expect.poll(read, { timeout: 15_000 }).not.toBeNull();
+  await expect.poll(read, { timeout: WORKING }).not.toBeNull();
   return (await read()) ?? { drawn: Number.POSITIVE_INFINITY, hydrated: Number.POSITIVE_INFINITY };
 }
 
@@ -164,7 +176,7 @@ async function usableAt(page: Page, screen: GridScreen): Promise<Usable> {
 interface Opening {
   readonly drawn: number;
   readonly hydrated: number;
-  /** The later of the two: what must hold the second. */
+  /** The later of the two: what is set against the second. */
   readonly usable: number;
   /**
    * For an opening by the address, where the time went: when the server had sent the whole
@@ -229,7 +241,7 @@ async function settle(requests: Requests): Promise<void> {
   await expect
     .poll(() => requests.underWay() === 0 && requests.quietFor() >= QUIET, {
       message: `the page settles: no request under way for ${QUIET.toString()} ms`,
-      timeout: 15_000,
+      timeout: WORKING,
     })
     .toBe(true);
 }
@@ -302,6 +314,23 @@ function inLog(times: readonly number[]): string {
   return `median ${rounded(median(times))} ms, worst ${rounded(Math.max(...times))} ms`;
 }
 
+/** The title of what the measure writes in the summary of the job of the chain. */
+const SUMMARY_TITLE = "### The second of §4.6.2";
+
+/**
+ * Write a line in the summary of the job of the chain, when there is one — a variable set but
+ * empty names none —, under its title, written before the first line.
+ */
+function toSummary(line: string): void {
+  const summary = process.env.GITHUB_STEP_SUMMARY;
+  if (!summary) {
+    return;
+  }
+  const written = existsSync(summary) ? readFileSync(summary, "utf8") : "";
+  const title = written.includes(SUMMARY_TITLE) ? "" : `\n${SUMMARY_TITLE}\n\n`;
+  appendFileSync(summary, `${title}${line}\n`);
+}
+
 /**
  * Write what a series of openings measured: in the log, in the summary of the job of the chain
  * when there is one, and, when an opening overran the second, as a warning of the test and of the
@@ -314,10 +343,7 @@ function report(way: string, usable: readonly number[], measured: string): void 
       ? `holds the second of §4.6.2`
       : `over the second of §4.6.2 by ${Math.round(worst - OBJECTIVE).toString()} ms`;
   console.log(`${way}: ${measured}; ${verdict}`);
-  const summary = process.env.GITHUB_STEP_SUMMARY;
-  if (summary !== undefined) {
-    appendFileSync(summary, `- ${way}: ${measured}; **${verdict}**\n`);
-  }
+  toSummary(`- ${way}: ${measured}; **${verdict}**`);
   if (worst > OBJECTIVE) {
     test.info().annotations.push({ type: "warning", description: `${way}: ${verdict}` });
     if (process.env.CI !== undefined) {

@@ -12,6 +12,9 @@
 # - the originals of the copies the front compares byte for byte: the drawings of docs/assets,
 #   whose logos and icon it serves (`src/theme/brand.test.ts`).
 #
+# And the shell scripts, which no check compares but bash reads: checked out in CRLF, a script
+# no longer parses (#175).
+#
 # `text=auto` leaves a binary file alone. tools/tests/test_gitattributes.py holds the list.
 fixtures/** text=auto eol=lf
 frontend/** text=auto eol=lf
@@ -20,3 +23,4 @@ docs/spec/waterfall-spec.md text eol=lf
 docs/api/INVENTORY.md text eol=lf
 LICENSES/** text eol=lf
 **/uv.lock text eol=lf
+*.sh text eol=lf
