@@ -63,8 +63,10 @@ import {
 /** Hand a task over to the tracker, with what started it. */
 export type TrackTask = (task: BackgroundTask, launch?: Launch) => void;
 
+/** What the panel and its button read of the tracker: the tasks followed and the log of their ends. */
 interface TrackerState {
-  readonly state: Tracking;
+  readonly tasks: Tracking["tasks"];
+  readonly log: Tracking["log"];
   readonly dispatch: Dispatch<TrackingEvent>;
   /** Whether the panel shows the tasks followed, and the identifier the button controls. */
   readonly open: boolean;
@@ -200,9 +202,14 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
     }),
     [],
   );
+  // Built anew only when what the panel shows changes: not when the tab has nothing to restore,
+  // nor when the API lists no task it did not follow. The shell sits above every page, and a
+  // context that changes while a page streamed by the server is not revealed yet makes React
+  // render that page anew in the browser, beside the one the server sent (#173).
+  const { tasks, log } = state;
   const value = useMemo(
-    () => ({ state, dispatch, open, setOpen: setShown, panelId }),
-    [state, open, panelId],
+    () => ({ tasks, log, dispatch, open, setOpen: setShown, panelId }),
+    [tasks, log, open, panelId],
   );
   return (
     <TrackContext value={commands}>
@@ -222,8 +229,8 @@ const PANEL = "border-b bg-card px-4 py-2 text-card-foreground";
  */
 export function TasksButton() {
   const t = useTranslations("tasks");
-  const { state, open, setOpen, panelId } = inTracker(useContext(StateContext));
-  const count = state.tasks.length;
+  const { tasks, open, setOpen, panelId } = inTracker(useContext(StateContext));
+  const count = tasks.length;
   return (
     <Button
       type="button"
@@ -264,7 +271,7 @@ function mainContent(): HTMLElement | null {
  */
 export function TaskPanel() {
   const t = useTranslations("tasks");
-  const { state, dispatch, open, panelId } = inTracker(useContext(StateContext));
+  const { tasks, log, dispatch, open, panelId } = inTracker(useContext(StateContext));
   const region = useRef<HTMLElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const dismissRef = useCallback((key: string, button: HTMLButtonElement | null) => {
@@ -278,13 +285,13 @@ export function TaskPanel() {
   // else of the one before, else to the main content of the page — the region, empty then,
   // has no height to show a focus —, never to the document.
   const dismiss = (key: string) => {
-    const index = state.tasks.findIndex((entry) => entry.key === key);
-    const neighbour = state.tasks[index + 1] ?? state.tasks[index - 1];
+    const index = tasks.findIndex((entry) => entry.key === key);
+    const neighbour = tasks[index + 1] ?? tasks[index - 1];
     const target = neighbour === undefined ? undefined : buttons.current.get(neighbour.key);
     (target ?? mainContent() ?? region.current)?.focus();
     dispatch({ type: "dismiss", key });
   };
-  const followed = state.tasks.length > 0;
+  const followed = tasks.length > 0;
   return (
     <section
       ref={region}
@@ -293,11 +300,11 @@ export function TaskPanel() {
       aria-label={t("label")}
       className={open ? PANEL : undefined}
     >
-      <EndLog log={state.log} />
+      <EndLog log={log} />
       {open && !followed ? <p className="text-sm text-muted-foreground">{t("none")}</p> : null}
       {followed ? (
         <ul hidden={!open} className="flex flex-wrap gap-x-8 gap-y-2">
-          {state.tasks.map((entry) => (
+          {tasks.map((entry) => (
             <li key={entry.key} className="min-w-64 flex-1">
               <TaskEntry
                 entry={entry}

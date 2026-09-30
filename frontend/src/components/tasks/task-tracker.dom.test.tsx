@@ -3,7 +3,8 @@
 import { act, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
+import { hydrateRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { markRevision } from "@/api/actions/revisions";
@@ -769,5 +770,44 @@ describe("the tasks of its user the API lists", () => {
     showTab("visible");
     await tick();
     expect(client.calls).toEqual([]);
+  });
+});
+
+/**
+ * Hydrate, inside the tracker, a page the server sent but the browser has not revealed yet: its
+ * boundary queued, the fallback still in place (`<!--$~-->`), as the document of a screen with a
+ * `loading.tsx` stands while React holds back the reveal of what the server streamed — within
+ * an element of the shell, where a change of a context above reaches it.
+ */
+async function hydratePending(running: Promise<readonly BackgroundTask[]>) {
+  const container = document.createElement("div");
+  container.innerHTML =
+    '<div><!--$~--><template id="B:0"></template><p>Chargement</p><!--/$--></div>';
+  document.body.append(container);
+  await act(async () => {
+    hydrateRoot(
+      container,
+      <TaskTracker signedIn running={running}>
+        <div>
+          <Suspense fallback={<p>Chargement</p>}>
+            <Screen name="Avatar" />
+          </Suspense>
+        </div>
+      </TaskTracker>,
+    );
+    await running;
+  });
+  await tick();
+  return container;
+}
+
+describe("the tracker as the page hydrates", () => {
+  // #173: a context above the page that changes while its boundary is pending makes React render
+  // the page anew in the browser, beside the one the server sent, which the browser still holds.
+  it("leaves the page the server sent to hydrate, when it has no task to follow", async () => {
+    serve({});
+    const container = await hydratePending(Promise.resolve([]));
+    expect(within(container).queryByRole("heading", { name: "Avatar" })).toBeNull();
+    expect(container).toHaveTextContent("Chargement");
   });
 });
