@@ -62,6 +62,8 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    * refusal of an entry asks the server about: none, and every cell holds what was entered.
    */
   readonly computed?: ComputedCells<Row>;
+  /** How its cells are entered from the keyboard (WF-IHM-0040); none, and no cell of it is. */
+  readonly entry?: CellEntry<Row> | undefined;
   /**
    * The identifying column: it stays at the start when the grid scrolls sideways, and cannot
    * be hidden. The first of them carries the tree, when the grid has one.
@@ -124,6 +126,32 @@ export interface ComputedCells<Row> {
   readonly in: (row: Row) => boolean;
   /** The field of the contract the cell of a row shows, which the refusal asks the server about. */
   readonly field: (row: Row) => ComputedValueField;
+}
+
+/**
+ * What a cell takes (WF-IHM-0040): a text as it is typed, or a number in the format of the
+ * language, which travels as the exact decimal of the contract — an amount keeps two decimals at
+ * most. A cell that may be emptied (`nullable`) writes `null` then.
+ */
+export type EntryKind =
+  { readonly type: "text" } | { readonly type: "decimal" | "money"; readonly nullable: boolean };
+
+/**
+ * How the cells of a column are entered, row by row: which take an entry, what an entry starts
+ * from, and how a value validated is written — each cell alone, the server answering the row as
+ * it now is, which the grid shows in place of what was typed.
+ */
+export interface CellEntry<Row> {
+  readonly kind: EntryKind;
+  /**
+   * Whether the cell of a row takes an entry: its field is written for this row, and the server
+   * does not compute it here — a computed cell is traversed, and refuses the entry.
+   */
+  readonly in: (row: Row) => boolean;
+  /** The value of the contract an entry starts from. */
+  readonly value: (row: Row) => CellValue;
+  /** Write a value validated, `null` for a cell emptied, and give the row the server answers. */
+  readonly write: (row: Row, value: string | null) => Promise<Outcome<Row>>;
 }
 
 /** The tree of a grid: the depth of a row, the icon of its nature, how its label stands out. */

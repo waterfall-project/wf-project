@@ -17,8 +17,9 @@
  * The columns shown and their widths are a display preference of the account (WF-ADM-0040):
  * the grid starts from those the session read, and records each change after a pause.
  *
- * It is run through from the keyboard alone (WF-IHM-0040, `useGridKeyboard`): one cell is active,
- * which the arrows move, and a computed cell tried opens its refusal.
+ * It is entered from the keyboard alone (WF-IHM-0040, `useGridKeyboard`): one cell is active, which
+ * the arrows move, and a computed cell tried opens its refusal; a cell validated is written alone,
+ * and the row the server answers takes the place of the one read (`useCellWrites`).
  */
 "use client";
 
@@ -29,6 +30,7 @@ import {
   Fragment,
   type ReactNode,
   useEffect,
+  useId,
   useOptimistic,
   useRef,
   useState,
@@ -54,8 +56,11 @@ import {
   type GridColumn,
   type GridConfig,
 } from "./columns";
+import { CellEditor } from "./cell-editor";
+import { useCellWrites } from "./cell-writes";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
 import {
+  type CellDraft,
   type CellPosition,
   type CellRefusal,
   refusedAt,
@@ -205,36 +210,52 @@ function computedIn<Row extends RowData, Sort extends string, Totals>(
   return column?.computed?.in(row) === true;
 }
 
-/** What the cells of the body are doing: the active one, the refusal shown. */
-interface CellStates {
+/** What the cells of the body are doing: the active one, the one entered, the refusal shown. */
+interface CellStates<Row extends RowData, Sort extends string, Totals> {
   readonly cursor: CellPosition;
+  readonly draft: CellDraft | undefined;
   readonly refusal: CellRefusal;
+  /** What a cell under way shows, by the key of its row and its column, if it is. */
+  readonly pending: (row: string, column: string) => string | undefined;
+  /** The entry of the cell entered. */
+  readonly editor: (draft: CellDraft, column: GridColumn<Row, Sort, Totals>) => ReactNode;
   /** Close the refusal from the keyboard, the focus back on its cell. */
   readonly closeRefusal: () => void;
   /** Close the refusal, the focus gone elsewhere. */
   readonly dismissRefusal: () => void;
 }
 
+/** What a cell of the body is doing: active, entered, written, its refusal shown. */
+interface CellState {
+  readonly active: boolean;
+  readonly draft: CellDraft | undefined;
+  /** What it shows while the server has not answered its write. */
+  readonly pending: string | undefined;
+  readonly refused: boolean;
+}
+
 /** The attributes of a cell of the body: its place in the grid, and what it says of itself. */
 function cellAttributes(
   position: CellPosition,
-  cells: CellStates,
+  state: CellState,
+  enterable: boolean,
   computed: boolean,
-  refused: boolean,
 ) {
   return {
     "data-row": position.row,
     "data-column": position.column,
-    tabIndex: samePosition(cells.cursor, position) ? 0 : -1,
-    "aria-readonly": computed ? true : undefined,
+    tabIndex: state.active ? 0 : -1,
+    "aria-readonly": enterable ? undefined : true,
+    "aria-busy": state.pending === undefined ? undefined : true,
     "aria-haspopup": computed ? ("dialog" as const) : undefined,
-    "aria-expanded": computed ? refused : undefined,
+    "aria-expanded": computed ? state.refused : undefined,
   };
 }
 
 /**
- * A cell of a row: the active one in the order of tabulation, the others reached by the arrows. A
- * cell the server computes in this row is shaded and marked (WF-IHM-0030), and refuses an entry.
+ * A cell of a row: the active one in the order of tabulation, the others reached by the arrows;
+ * its entry while entered; what was validated while the server has not answered. A cell the
+ * server computes in this row is shaded and marked (WF-IHM-0030), and refuses an entry.
  */
 function BodyCell<Row extends RowData, Sort extends string, Totals>({
   table,
@@ -248,7 +269,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   readonly table: GridTable<Row>;
   readonly config: GridConfig<Row, Sort, Totals>;
   readonly dependencies: DependencyReader<Row> | undefined;
-  readonly cells: CellStates;
+  readonly cells: CellStates<Row, Sort, Totals>;
   readonly row: Row;
   readonly position: CellPosition;
   readonly locale: Locale;
@@ -256,35 +277,46 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   const column = configColumn(config, position.column);
   const computed = computedIn(column, row);
   const pinning = pinningOf(table, position.column, "z-10");
-  const content = cellContent(config, column, row, locale);
-  const refused = refusedAt(cells.refusal, config.rowKey(row), position.column);
+  const key = config.rowKey(row);
+  const state: CellState = {
+    active: samePosition(cells.cursor, position),
+    draft: samePosition(cells.draft, position) ? cells.draft : undefined,
+    pending: cells.pending(key, position.column),
+    refused: refusedAt(cells.refusal, key, position.column),
+  };
+  const content = state.pending ?? cellContent(config, column, row, locale);
+  let shown = content;
+  if (state.draft !== undefined && column !== undefined) {
+    shown = cells.editor(state.draft, column);
+  } else if (computed) {
+    shown = (
+      <ComputedCell
+        column={column}
+        row={row}
+        dependencies={dependencies}
+        open={state.refused}
+        opening={cells.refusal.opening}
+        onClose={cells.closeRefusal}
+        onDismiss={cells.dismissRefusal}
+      >
+        {content}
+      </ComputedCell>
+    );
+  }
   return (
     <TableCell
-      {...cellAttributes(position, cells, computed, refused)}
+      {...cellAttributes(position, state, column?.entry?.in(row) === true, computed)}
       style={{ left: pinning.left }}
       className={cn(
         "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         pinning.className,
         computed ? "bg-muted" : "bg-background",
-        column === undefined ? "text-muted-foreground" : null,
+        column === undefined || state.pending !== undefined ? "text-muted-foreground" : null,
+        state.draft === undefined ? null : "py-0",
         alignClass(column),
       )}
     >
-      {computed ? (
-        <ComputedCell
-          column={column}
-          row={row}
-          dependencies={dependencies}
-          open={refused}
-          opening={cells.refusal.opening}
-          onClose={cells.closeRefusal}
-          onDismiss={cells.dismissRefusal}
-        >
-          {content}
-        </ComputedCell>
-      ) : (
-        content
-      )}
+      {shown}
     </TableCell>
   );
 }
@@ -299,7 +331,7 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
   readonly config: GridConfig<Row, Sort, Totals>;
   /** How a computed cell asks the server what its value depends on. */
   readonly dependencies: DependencyReader<Row> | undefined;
-  readonly cells: CellStates;
+  readonly cells: CellStates<Row, Sort, Totals>;
   readonly row: TableRowModel<GridFeatures, Row>;
   readonly index: number;
   readonly locale: Locale;
@@ -468,9 +500,11 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       request((query) => searchHref(pathname, query, text));
     });
   };
+  // The rows as the cells written left them: each row the server answered in place of the one read.
+  const writes = useCellWrites(rows, config.rowKey);
   const table = useGridTable({
     config,
-    rows,
+    rows: writes.rows,
     sort,
     onSort: changeSort,
     settings,
@@ -499,7 +533,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const keyboard = useGridKeyboard({
     config,
     cursor,
-    rows,
+    rows: writes.rows,
     columns: columns.map((column) => column.id),
     scroller,
     scrollToIndex,
@@ -510,12 +544,28 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       const top = edge + index * rowHeight - (element?.scrollTop ?? 0);
       return top + rowHeight > edge && top < (element?.offsetHeight ?? 0) - edge;
     },
+    writes,
+    locale,
   });
-  const cells: CellStates = {
+  const invalid = useId();
+  const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
+    draft: keyboard.draft,
     refusal: keyboard.refusal,
+    pending: writes.pending,
     closeRefusal: keyboard.closeRefusal,
     dismissRefusal: keyboard.dismissRefusal,
+    editor: (draft, column) =>
+      column.entry === undefined ? null : (
+        <CellEditor
+          kind={column.entry.kind}
+          label={t(`columns.${column.label}`)}
+          text={draft.text}
+          invalid={draft.invalid ? invalid : undefined}
+          onValidate={keyboard.validate}
+          onAbandon={keyboard.abandon}
+        />
+      ),
   };
   // An empty answer still has a row, which says so, between the header and the totals.
   const bodyRows = Math.max(model.length, 1);
@@ -528,6 +578,12 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         columns={toggledColumns(table, config, (column) => t(`columns.${column.label}`))}
       />
       <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} />
+      <OutcomeNotice outcome={writes.outcome} onClear={writes.clear} />
+      {keyboard.draft?.invalid === true ? (
+        <p id={invalid} role="alert" className="text-sm text-destructive">
+          {t("entry.notANumber", { example: formatCell("decimal", "1234.5", locale) })}
+        </p>
+      ) : null}
       <Table
         role="grid"
         aria-label={t(`names.${config.name}`)}

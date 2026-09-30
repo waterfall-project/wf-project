@@ -205,8 +205,11 @@ export function nodeNumber(node: GridNode): number {
   return node.row_number;
 }
 
-/** The label of a node, pinned at the start: that of the task, or of the line. */
-export const LABEL_COLUMN: GridColumn<GridNode, NodeSortColumn, NodeTotals> = {
+/**
+ * The label of a node, pinned at the start: that of the task, or of the line. Each grid says how
+ * it is entered, if it is: an entry answers the row a grid reads.
+ */
+export const LABEL_COLUMN: Omit<GridColumn<GridNode, NodeSortColumn, NodeTotals>, "entry"> = {
   key: "label",
   label: "label",
   format: "text",

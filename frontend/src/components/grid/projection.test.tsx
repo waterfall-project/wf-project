@@ -9,7 +9,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
 import type { GridConfig } from "./columns";
-import { ESTIMATE_FIELDS, ESTIMATE_GRID } from "./estimate";
+import { ESTIMATE_FIELDS, estimateGrid } from "./estimate";
 import {
   COMMON_FIELDS,
   type NodeField,
@@ -63,8 +63,9 @@ function answer(name: string): NodeList {
 /**
  * Everything a grid reads of its rows, row by row: the key, the number, the level, how the label
  * stands out, the value of each column — that it formats, sorts and totals —, which of its cells
- * the server computes and the field each asks the server about, and the markup of the icon of the
- * nature and of each cell its column renders.
+ * the server computes and the field each asks the server about, which are entered and the value
+ * each entry starts from, and the markup of the icon of the nature and of each cell its column
+ * renders.
  */
 function whatTheGridReads<Row>(
   config: GridConfig<Row, NodeSortColumn, NodeTotals>,
@@ -78,6 +79,9 @@ function whatTheGridReads<Row>(
     ...config.columns.map((column) => column.value(row)),
     ...config.columns.map((column) =>
       column.computed?.in(row) === true ? column.computed.field(row) : null,
+    ),
+    ...config.columns.map((column) =>
+      column.entry?.in(row) === true ? column.entry.value(row) : null,
     ),
   ]);
   const markup = renderToStaticMarkup(
@@ -173,6 +177,15 @@ function holdsWhatTheGridReads<
   });
 }
 
-// The shares the projections weigh on the volume: 0.52 for the estimate, 0.44 for the planning.
-holdsWhatTheGridReads("estimate", ESTIMATE_GRID, ESTIMATE_FIELDS, 0.55);
+// The shares the projections weigh on the volume: 0.59 for the estimate, 0.44 for the planning.
+/** Nothing is written by these tests: what an entry reads is all they look at. */
+function unwritten(): never {
+  throw new Error("nothing is written here");
+}
+
+// The grid of the estimate of a revision open to entry: its cells entered, which read the label
+// and the figures of a line.
+const ENTERED_ESTIMATE = estimateGrid({ line: unwritten });
+
+holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.6);
 holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.47);

@@ -28,9 +28,15 @@ import {
 
 import type { GridConfig } from "./columns";
 import { DenseGrid, ROW_REM } from "./dense-grid";
-import { ESTIMATE_GRID } from "./estimate";
+import { ESTIMATE_GRID, type EstimateNode } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
-import type { Node, NodeList, NodeSortColumn, NodeTotals } from "./nodes";
+import {
+  LABEL_COLUMN,
+  type Node,
+  type NodeList,
+  type NodeSortColumn,
+  type NodeTotals,
+} from "./nodes";
 import type { GridQuery } from "./query";
 import { type GridPreferences, useSettingsWriter, WRITE_DELAY } from "./settings";
 
@@ -839,7 +845,7 @@ describe("the writing of the settings", () => {
 
 describe("a grid configured without its options", () => {
   it("shows neither row numbers nor tree, and pins nothing, when its configuration asks none", () => {
-    const plain: GridConfig<Node, NodeSortColumn, NodeTotals> = {
+    const plain: GridConfig<EstimateNode, NodeSortColumn, NodeTotals> = {
       key: "plain",
       name: "estimate",
       rowKey: (node) => node.node_id,
@@ -935,7 +941,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
       ...ESTIMATE_GRID,
       key: "dated",
       columns: [
-        ...ESTIMATE_GRID.columns.slice(0, 1),
+        LABEL_COLUMN,
         {
           key: "finish_date",
           label: "finishDate",

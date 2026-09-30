@@ -139,6 +139,9 @@
       "predecessors": "Predecessors"
     },
     "computed": "Computed",
+    "entry": {
+      "notANumber": "This is not a number: enter it as {example}."
+    },
     "resize": "Width of the column {column}",
     "empty": "No row matches the request.",
     "search": {

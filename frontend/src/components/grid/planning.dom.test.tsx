@@ -121,8 +121,8 @@ describe("the grids of the planning and of the estimate", () => {
       </NextIntlClientProvider>,
     );
     // Each screen renders the same component, each with its own configuration.
-    const configs = vi.mocked(DenseGrid).mock.calls.map(([props]) => props.config);
-    expect(new Set(configs)).toEqual(new Set([PLANNING_GRID, ESTIMATE_GRID]));
+    const configs = vi.mocked(DenseGrid).mock.calls.map(([props]) => props.config.key);
+    expect(new Set(configs)).toEqual(new Set([PLANNING_GRID.key, ESTIMATE_GRID.key]));
     expect(PLANNING_GRID.key).not.toBe(ESTIMATE_GRID.key);
     // Both are the same grid: numbered, the tree and the label pinned first, the search and
     // the choice of the columns above; they differ by their columns.

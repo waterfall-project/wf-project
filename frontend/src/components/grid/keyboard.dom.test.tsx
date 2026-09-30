@@ -39,6 +39,7 @@ const STRUCTURE = {
 // The rows of the estimate, by their index: the summary, the task « Câblage des armoires », its
 // line of labour, its disbursement, its provision — whose quantity and unit disbursement the
 // server computes —, the milestone.
+const TASK = 1;
 const LABOUR = 2;
 const DISBURSEMENT = 3;
 const PROVISION = 4;
@@ -148,15 +149,18 @@ describe("the keyboard of a grid", () => {
     expect(refusal()).toHaveTextContent(/Budgété ne se saisit pas/);
   });
 
-  it("opens nothing on a cell the server does not compute", async () => {
+  it("opens nothing on a cell that takes no entry, nor computed: the quantity of a task", async () => {
     serve();
     renderGrid();
-    cell(LABOUR, "hours").focus();
+    cell(TASK, "quantity").focus();
     await userEvent.keyboard("{Enter}7{F2}");
     expect(refusal()).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(cell(TASK, "quantity")).toHaveAttribute("aria-readonly", "true");
+    expect(cell(TASK, "quantity")).not.toHaveAttribute("aria-haspopup");
+    expect(cell(TASK, "quantity")).toHaveFocus();
+    // The effort of a line takes one.
     expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-readonly");
-    expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-haspopup");
-    expect(cell(LABOUR, "hours")).toHaveFocus();
   });
 
   it("scrolls nothing on Space, whatever the cell", () => {

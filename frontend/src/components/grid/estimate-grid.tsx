@@ -7,17 +7,27 @@
  * client one. The page hands it data only: the rows of the answer of `listNodes` as the grid
  * reads them (`projectNodes`), the structure they belong to, what the address asked, and the
  * settings the session read. A computed cell asks the server what its value depends on, by the
- * structure and its node.
+ * structure and its node; a cell of a line entered is written by the structure and its node too,
+ * the node answered read as the grid reads it.
  */
 "use client";
 
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
+import { updateEstimateLine } from "@/api/actions/nodes";
+import type { Outcome } from "@/api/problem";
+
 import { DenseGrid } from "./dense-grid";
-import { ESTIMATE_GRID, type EstimateNode } from "./estimate";
+import { ESTIMATE_FIELDS, estimateGrid, type EstimateNode, type EstimateWrites } from "./estimate";
 import { nodeDependencies } from "./node-dependencies";
-import type { NodeRows, NodeSortColumn, StructurePath } from "./nodes";
+import {
+  type Node,
+  type NodeRows,
+  type NodeSortColumn,
+  projectNode,
+  type StructurePath,
+} from "./nodes";
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
 
@@ -31,6 +41,33 @@ export interface EstimateGridProps {
   readonly preferences: GridPreferences | undefined;
 }
 
+/** A node the API answered, as the grid of the estimate reads it. */
+function asRow(outcome: Outcome<Node>): Outcome<EstimateNode> {
+  return outcome.kind === "done"
+    ? { kind: "done", data: projectNode(outcome.data, ESTIMATE_FIELDS) }
+    : outcome;
+}
+
+/**
+ * How the grid writes the cells of a structure: each write carries what the contract requires —
+ * the label, the category and the quantity of a line (#178) — and the version of the node read
+ * (`lock_version`), with the field entered.
+ */
+function structureWrites(structure: StructurePath): EstimateWrites {
+  return {
+    line: async (node, change) => {
+      const line = node.estimate_line;
+      const required = {
+        label: line?.label ?? "",
+        cost_category_id: line?.cost_category_id ?? "",
+        quantity: line?.quantity ?? "",
+      };
+      const body = { ...required, ...change, lock_version: node.lock_version };
+      return asRow(await updateEstimateLine(structure, node.node_id, body));
+    },
+  };
+}
+
 /** Render the grid of the estimate, its totals counting the tasks and the lines retained. */
 export function EstimateGrid({ nodes, structure, query, preferences }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
@@ -39,9 +76,10 @@ export function EstimateGrid({ nodes, structure, query, preferences }: EstimateG
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
+  const config = useMemo(() => estimateGrid(structureWrites(structure)), [structure]);
   return (
     <DenseGrid
-      config={ESTIMATE_GRID}
+      config={config}
       rows={nodes.items}
       totals={nodes.totals}
       totalsCaption={t("totals", {
