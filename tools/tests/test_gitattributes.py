@@ -24,7 +24,7 @@ def git(*arguments: str, given: str = "") -> str:
 
 
 def compared_files() -> list[str]:
-    """The tracked files whose bytes a check compares."""
+    """Return the tracked files whose bytes a check compares."""
     declaration = paths.read()
     patterns = [pattern for entry in declaration.generated for pattern in entry.paths]
     tracked = git("ls-files", "-z").split("\0")
@@ -32,7 +32,7 @@ def compared_files() -> list[str]:
 
 
 def attributes(files: list[str]) -> dict[str, dict[str, str]]:
-    """The ``text`` and ``eol`` attributes git gives each file, by file."""
+    """Return the ``text`` and ``eol`` attributes git gives each file, by file."""
     found: dict[str, dict[str, str]] = {}
     listing = git("check-attr", "-z", "--stdin", "text", "eol", given="\0".join(files))
     fields = listing.split("\0")
