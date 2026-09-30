@@ -15,7 +15,7 @@
  * names are read from.
  */
 import { type GridConfig, sortColumns } from "./columns";
-import { computedAlways, computedWhereNamed } from "./computed-nodes";
+import { computedAmount, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
   LABEL_COLUMN,
@@ -54,7 +54,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "quantity",
       format: "decimal",
       width: 72,
-      computed: computedWhereNamed("estimate_line.quantity", "figure"),
+      computed: computedWhereNamed("estimate_line.quantity"),
       sortBy: "quantity",
       value: (node) => node.estimate_line?.quantity,
     },
@@ -63,7 +63,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "hours",
       format: "decimal",
       width: 96,
-      computed: computedWhereNamed("estimate_line.hours", "figure"),
+      computed: computedWhereNamed("estimate_line.hours"),
       sortBy: "hours",
       value: (node) => node.estimate_line?.hours,
       total: (totals) => totals.hours,
@@ -73,7 +73,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "unitDisbursement",
       format: "money",
       width: 128,
-      computed: computedWhereNamed("estimate_line.unit_disbursement", "figure"),
+      computed: computedWhereNamed("estimate_line.unit_disbursement"),
       sortBy: "unit_disbursement",
       value: (node) => node.estimate_line?.unit_disbursement,
     },
@@ -82,7 +82,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "budgetedAmount",
       format: "money",
       width: 128,
-      computed: computedAlways("budgeted"),
+      computed: computedAmount("budgeted_amount"),
       sortBy: "budgeted_amount",
       value: (node) => node.task?.budgeted_amount ?? node.estimate_line?.budgeted_amount,
       total: (totals) => totals.budgeted_amount,
@@ -92,7 +92,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       label: "reestimatedAmount",
       format: "money",
       width: 128,
-      computed: computedAlways("reestimated"),
+      computed: computedAmount("reestimated_amount"),
       sortBy: "reestimated_amount",
       value: (node) => node.task?.reestimated_amount ?? node.estimate_line?.reestimated_amount,
       total: (totals) => totals.reestimated_amount,

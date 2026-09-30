@@ -20,7 +20,7 @@
 import { Contrast, Zap } from "lucide-react";
 
 import { type GridConfig, sortColumns } from "./columns";
-import { computedAlways, computedWhereNamed } from "./computed-nodes";
+import { COMPUTED_FLOAT, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
   LABEL_COLUMN,
@@ -90,7 +90,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       label: "duration",
       format: "decimal",
       width: 64,
-      computed: computedWhereNamed("task.duration_days", "duration"),
+      computed: computedWhereNamed("task.duration_days"),
       sortBy: "duration_days",
       value: (node) => node.task?.duration_days.toString(),
       render: (node) => <DaysCell days={node.task?.duration_days} />,
@@ -100,7 +100,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       label: "startDate",
       format: "date",
       width: 100,
-      computed: computedWhereNamed("task.start_date", "dates"),
+      computed: computedWhereNamed("task.start_date"),
       sortBy: "start_date",
       value: (node) => node.task?.start_date,
     },
@@ -109,7 +109,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       label: "finishDate",
       format: "date",
       width: 100,
-      computed: computedWhereNamed("task.finish_date", "dates"),
+      computed: computedWhereNamed("task.finish_date"),
       sortBy: "finish_date",
       value: (node) => node.task?.finish_date,
     },
@@ -120,7 +120,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       align: "center",
       width: 44,
       icon: Contrast,
-      computed: computedWhereNamed("task.progress", "progress"),
+      computed: computedWhereNamed("task.progress"),
       sortBy: "progress",
       value: (node) => node.task?.progress,
       render: (node) => <ProgressCell node={node} />,
@@ -130,7 +130,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       label: "totalFloat",
       format: "decimal",
       width: 72,
-      computed: computedAlways("float"),
+      computed: COMPUTED_FLOAT,
       sortBy: "total_float_days",
       value: (node) => node.task?.total_float_days?.toString(),
       render: (node) => <FloatCell node={node} />,

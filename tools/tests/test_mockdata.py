@@ -41,6 +41,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "hourly_rates.json",
         "nodes_thousand.json",
         "portfolio_projects.json",
+        "summary_dependencies.json",
     ]
     for example in volumes.values():
         assert set(example) == {"summary", "description", "value"}
@@ -59,6 +60,48 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
     assert "80,00 de l'heure" in volumes["hourly_rates.json"]["summary"]
+
+
+def test_the_dependencies_written_are_those_of_the_structure_written(
+    volumes: dict[str, Any],
+) -> None:
+    assert volumes["summary_dependencies.json"]["value"] == mockdata.summary_dependencies(
+        volumes["nodes_thousand.json"]["value"]
+    )
+
+
+def test_the_dependencies_of_a_summary_are_its_tasks_not_its_lines() -> None:
+    def task(row: int, parent: int | None, label: str, *, summary: bool = False) -> Node:
+        return {
+            "node_id": f"n{row}",
+            "parent_id": None if parent is None else f"n{parent}",
+            "row_number": row,
+            "kind": "task",
+            "task": {"label": label, "is_summary": summary},
+        }
+
+    line: Node = {
+        "node_id": "n3",
+        "parent_id": "n2",
+        "row_number": 3,
+        "kind": "estimate_line",
+        "estimate_line": {"label": "Ligne propre"},
+    }
+    answer: dict[str, Any] = {
+        "items": [
+            task(1, None, "Tâche seule"),
+            task(2, None, "Phase", summary=True),
+            line,
+            task(4, 2, "Lot A"),
+            task(5, 2, "Lot B"),
+        ]
+    }
+    dependencies = mockdata.summary_dependencies(answer)
+    assert dependencies["node_id"] == "n2"
+    assert dependencies["rows"] == [
+        {"node_id": "n4", "row_number": 4, "label": "Lot A"},
+        {"node_id": "n5", "row_number": 5, "label": "Lot B"},
+    ]
 
 
 def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str, Any]) -> None:
@@ -315,6 +358,9 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
     )
     assert first_example("analysis.yaml", "getEstimateIndicators") == (
         "volume: { $ref: ../../../fixtures/api/volume/estimate_indicators.json }"
+    )
+    assert first_example("revisions.yaml", "getComputedValueDependencies") == (
+        "volume: { $ref: ../../../fixtures/api/volume/summary_dependencies.json }"
     )
 
 

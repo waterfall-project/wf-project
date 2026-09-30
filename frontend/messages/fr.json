@@ -159,28 +159,14 @@
     "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
     "days": "{days, number} j",
     "critical": "Chemin critique",
-    "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag, number} j} lead {{lag, number} j} other {}}",
-    "predecessorSeparator": ";",
-    "unknownRow": "?"
+    "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag, number} {unit, select, weeks {sem} months {m} other {j}}} lead {{lag, number} {unit, select, weeks {sem} months {m} other {j}}} other {}}",
+    "predecessorSeparator": ";"
   },
   "computedValue": {
     "title": "Valeur calculée",
     "refused": "{column} ne se saisit pas : Waterfall calcule cette valeur.",
-    "reasons": {
-      "summary": "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
-      "automatic": "Une tâche en mode automatique tient ses dates de sa durée, de ses liaisons et du calendrier.",
-      "float": "La marge totale d’une tâche est l’écart entre ses dates au plus tôt et au plus tard.",
-      "taskAmount": "Le montant d’une tâche est celui des lignes qu’elle porte et de ses subordonnées.",
-      "labour": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
-      "disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
-      "provision": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
-      "budgeted": "Le montant budgété est celui que la révision de référence a fixé.",
-      "reestimated": "Le montant réestimé suit les revues du reste à engager.",
-      "manualFloat": "Une tâche en mode manuel ne porte pas de marge.",
-      "unknown": "Waterfall ne précise pas ici de quoi elle dépend."
-    },
     "dependsOn": "Elle dépend de :",
-    "partial": "Des lignes dont elle dépend peuvent manquer : la recherche ou les filtres ne les montrent pas."
+    "pending": "Lecture de ce dont elle dépend…"
   },
   "estimateSummary": {
     "title": "Indicateurs du devis",
@@ -530,13 +516,13 @@
         "backup": "Sauvegarde",
         "restore": "Restauration",
         "directory_sync": "Synchronisation de l’annuaire"
-      },
-      "status": {
-        "queued": "En attente",
-        "running": "En cours",
-        "succeeded": "Réussie",
-        "failed": "Échouée"
       }
+    },
+    "BackgroundTaskStatus": {
+      "queued": "En attente",
+      "running": "En cours",
+      "succeeded": "Réussie",
+      "failed": "Échouée"
     },
     "AuthProviderKind": {
       "local": "Compte local",
@@ -644,7 +630,8 @@
       "reference_correctable": "référence encore corrigeable",
       "unmerged_amendment_exists": "un avenant non fusionné",
       "task_not_completed": "tâche non terminée",
-      "hourly_rates_set": "taux horaires renseignés"
+      "hourly_rates_set": "taux horaires renseignés",
+      "no_background_task_running": "aucun traitement de fond en cours sur l’objet"
     },
     "ProjectExit": {
       "to_state": {
@@ -729,6 +716,11 @@
       "finish_to_finish": "Fin à fin (FF)",
       "start_to_finish": "Début à fin (DF)"
     },
+    "LagUnit": {
+      "days": "jours",
+      "weeks": "semaines",
+      "months": "mois"
+    },
     "ComputedField": {
       "task": {
         "duration_days": "Durée (jours)",
@@ -742,6 +734,38 @@
         "unit_disbursement": "Débours unitaire"
       }
     },
+    "ComputedValueField": {
+      "task": {
+        "duration_days": "Durée de la tâche",
+        "start_date": "Début de la tâche",
+        "finish_date": "Fin de la tâche",
+        "progress": "Avancement de la tâche",
+        "physical_progress": "Avancement physique de la tâche",
+        "total_float_days": "Marge totale de la tâche",
+        "budgeted_amount": "Montant budgété de la tâche",
+        "reestimated_amount": "Montant réestimé de la tâche"
+      },
+      "estimate_line": {
+        "quantity": "Quantité de la ligne",
+        "hours": "Charge de la ligne",
+        "unit_disbursement": "Débours unitaire de la ligne",
+        "budgeted_amount": "Montant budgété de la ligne",
+        "reestimated_amount": "Montant réestimé de la ligne",
+        "previous_reestimated_amount": "Montant réestimé précédent de la ligne"
+      }
+    },
+    "ComputedDependency": {
+      "subordinates": "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
+      "lines_and_subordinates": "Le montant d’une tâche est celui des lignes qu’elle porte et de ses subordonnées.",
+      "scheduling": "Une tâche en mode automatique tient ses dates de sa durée, de ses liaisons et du calendrier.",
+      "float_dates": "La marge totale d’une tâche est l’écart entre ses dates au plus tôt et au plus tard.",
+      "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
+      "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
+      "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
+      "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
+      "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
+      "remaining_reviews": "Le montant réestimé suit les revues du reste à engager."
+    },
     "ProgressUpdate": {
       "progress": {
         "started": "Démarrée",
@@ -753,6 +777,16 @@
         "estimate": "Devis",
         "remaining": "Reste à engager"
       }
+    },
+    "NotComputableReason": {
+      "no_actual_cost": "Aucun coût réel à la date de calcul.",
+      "no_earned_value": "Aucune valeur acquise : l’indice de coût est nul.",
+      "no_planned_value": "Aucune valeur planifiée à la date de calcul.",
+      "no_reference_budget": "Aucun budget de référence.",
+      "no_budgeted_amount": "Aucun montant budgété dans le sous-arbre de la tâche.",
+      "no_actual_or_remaining": "Ni coût réel ni reste à engager.",
+      "no_capacity": "Aucune capacité pour ce rôle sur la période.",
+      "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période."
     },
     "CurveSeries": {
       "series": {

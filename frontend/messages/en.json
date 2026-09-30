@@ -159,28 +159,14 @@
     "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
     "days": "{days, number} d",
     "critical": "Critical path",
-    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag, number} d} lead {{lag, number} d} other {}}",
-    "predecessorSeparator": ";",
-    "unknownRow": "?"
+    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag, number} {unit, select, weeks {wk} months {mo} other {d}}} lead {{lag, number} {unit, select, weeks {wk} months {mo} other {d}}} other {}}",
+    "predecessorSeparator": ";"
   },
   "computedValue": {
     "title": "Computed value",
     "refused": "{column} cannot be entered: Waterfall computes this value.",
-    "reasons": {
-      "summary": "A summary task takes its dates, its duration and its progress from its subtasks.",
-      "automatic": "A task in automatic mode takes its dates from its duration, its links and the calendar.",
-      "float": "The total float of a task is the gap between its earliest and latest dates.",
-      "taskAmount": "The amount of a task is that of the lines it bears and of its subtasks.",
-      "labour": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year, projected onto its year of consumption.",
-      "disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement, projected onto its year of consumption.",
-      "provision": "A provision line takes its figures from its risk: its severity weighted by its probability.",
-      "budgeted": "The budgeted amount is the one the reference revision set.",
-      "reestimated": "The re-estimated amount follows the reviews of the estimate to complete.",
-      "manualFloat": "A task in manual mode bears no float.",
-      "unknown": "Waterfall does not say here what it depends on."
-    },
     "dependsOn": "It depends on:",
-    "partial": "Rows it depends on may be missing: the search or the filters do not show them."
+    "pending": "Reading what it depends on…"
   },
   "estimateSummary": {
     "title": "Estimate indicators",
@@ -530,13 +516,13 @@
         "backup": "Backup",
         "restore": "Restore",
         "directory_sync": "Directory synchronisation"
-      },
-      "status": {
-        "queued": "Queued",
-        "running": "Running",
-        "succeeded": "Succeeded",
-        "failed": "Failed"
       }
+    },
+    "BackgroundTaskStatus": {
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed"
     },
     "AuthProviderKind": {
       "local": "Local account",
@@ -644,7 +630,8 @@
       "reference_correctable": "reference still correctable",
       "unmerged_amendment_exists": "an unmerged amendment",
       "task_not_completed": "task not completed",
-      "hourly_rates_set": "hourly rates set"
+      "hourly_rates_set": "hourly rates set",
+      "no_background_task_running": "no background task running on the object"
     },
     "ProjectExit": {
       "to_state": {
@@ -729,6 +716,11 @@
       "finish_to_finish": "Finish-to-finish (FF)",
       "start_to_finish": "Start-to-finish (SF)"
     },
+    "LagUnit": {
+      "days": "days",
+      "weeks": "weeks",
+      "months": "months"
+    },
     "ComputedField": {
       "task": {
         "duration_days": "Duration (days)",
@@ -742,6 +734,38 @@
         "unit_disbursement": "Unit disbursement"
       }
     },
+    "ComputedValueField": {
+      "task": {
+        "duration_days": "Duration of the task",
+        "start_date": "Start of the task",
+        "finish_date": "Finish of the task",
+        "progress": "Progress of the task",
+        "physical_progress": "Physical progress of the task",
+        "total_float_days": "Total float of the task",
+        "budgeted_amount": "Budgeted amount of the task",
+        "reestimated_amount": "Re-estimated amount of the task"
+      },
+      "estimate_line": {
+        "quantity": "Quantity of the line",
+        "hours": "Effort of the line",
+        "unit_disbursement": "Unit disbursement of the line",
+        "budgeted_amount": "Budgeted amount of the line",
+        "reestimated_amount": "Re-estimated amount of the line",
+        "previous_reestimated_amount": "Previous re-estimated amount of the line"
+      }
+    },
+    "ComputedDependency": {
+      "subordinates": "A summary task takes its dates, its duration and its progress from its subtasks.",
+      "lines_and_subordinates": "The amount of a task is that of the lines it bears and of its subtasks.",
+      "scheduling": "A task in automatic mode takes its dates from its duration, its links and the calendar.",
+      "float_dates": "The total float of a task is the gap between its earliest and latest dates.",
+      "manual_mode": "A task in manual mode bears no float.",
+      "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year, projected onto its year of consumption.",
+      "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement, projected onto its year of consumption.",
+      "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
+      "reference_revision": "The budgeted amount is the one the reference revision set.",
+      "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete."
+    },
     "ProgressUpdate": {
       "progress": {
         "started": "Started",
@@ -753,6 +777,16 @@
         "estimate": "Estimate",
         "remaining": "Estimate to complete"
       }
+    },
+    "NotComputableReason": {
+      "no_actual_cost": "No actual cost at the calculation date.",
+      "no_earned_value": "No earned value: the cost index is zero.",
+      "no_planned_value": "No planned value at the calculation date.",
+      "no_reference_budget": "No reference budget.",
+      "no_budgeted_amount": "No budgeted amount in the subtree of the task.",
+      "no_actual_or_remaining": "Neither actual cost nor estimate to complete.",
+      "no_capacity": "No capacity for this role over the period.",
+      "no_offer_out_of_pricing": "No offer left the Pricing state over the period."
     },
     "CurveSeries": {
       "series": {

@@ -7,11 +7,17 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { markRevision } from "@/api/actions/revisions";
-import { type ApiClient, createApiClient } from "@/api/client";
+import type { ApiClient } from "@/api/client";
 import type { BackgroundTask, Outcome } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  unreachable,
+} from "@/test/fixtures";
 
 import { STORAGE_KEY } from "./storage";
 import { POLL_INTERVAL } from "./task-entry";
@@ -39,6 +45,7 @@ const MARKING = "01926f3a-7c00-7000-8000-000000000901";
 const IMPORT = "01926f3a-7c00-7000-8000-000000000902";
 const RELAUNCHED = "01926f3a-7c00-7000-8000-000000000903";
 const TASK = "GET /tasks/{task_id}";
+const TASKS = "GET /tasks";
 const MARK = "POST /projects/{project_id}/revisions/{revision_id}/mark";
 
 /** A task of the contract, by the name of its example. */
@@ -88,12 +95,12 @@ function Starting({
 
 /**
  * The shell, as far as the tracker goes: the texts, the tracker, the button of its panel in the
- * bar, its panel, the page.
+ * bar, its panel, the page — and the tasks of the user the root layout streams, if any.
  */
-function shell(page: ReactNode) {
+function shell(page: ReactNode, signedIn = false, running?: Promise<readonly BackgroundTask[]>) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <TaskTracker>
+      <TaskTracker signedIn={signedIn} running={running}>
         <header>
           <TasksButton />
         </header>
@@ -178,14 +185,6 @@ function progressText(): string | null | undefined {
 /** The paths the tracker asked the API. */
 function reads(client: FakeClient): string[] {
   return client.calls.filter((call) => call.route === TASK).map((call) => call.path);
-}
-
-/** A client of the API whose every call finds the API out of reach. */
-function unreachable(): ApiClient {
-  return createApiClient({
-    address: "http://unreachable.invalid",
-    fetch: () => Promise.reject(new TypeError("fetch failed")),
-  });
 }
 
 beforeEach(() => {
@@ -639,5 +638,136 @@ describe("the follow-up across a full reload of the tab", () => {
     await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
     expect(panelButton()).toHaveAttribute("aria-expanded", "true");
     expect(panelButton()).toHaveAccessibleName("Tâches de fond\u00A0: 2 suivies");
+  });
+});
+
+/** The tasks of the user the root layout streams, by the name of their example. */
+function listed(name: string): Promise<readonly BackgroundTask[]> {
+  return Promise.resolve((example(name) as { readonly items: readonly BackgroundTask[] }).items);
+}
+
+/**
+ * Render the shell with the tasks the layout streams: React retries what waited for them within
+ * an `act` it is given the time of, as the browser would once they come.
+ */
+async function renderStreamed(ui: ReactNode) {
+  await act(async () => {
+    render(ui);
+    await Promise.resolve();
+  });
+}
+
+/** The tab hidden, or shown again, as the browser tells it. */
+function showTab(state: DocumentVisibilityState) {
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(state);
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
+describe("the tasks of its user the API lists", () => {
+  it("follows the tasks of its user the layout streams, started elsewhere, and announces their end, without a server action as it mounts", async () => {
+    const client = serve({ [TASK]: "task_failed" });
+    await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
+
+    // The marking another tab started, streamed by the layout.
+    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision",
+    );
+    expect(client.calls).toEqual([]);
+    await tick();
+    expect(reads(client)).toEqual([`/tasks/${MARKING}`]);
+    expect(ends()[0]?.[0]).toBe("Tâche échouée\u00A0: Marquage d’une révision.");
+    // The list does not say which command started it: it is run again from its screen.
+    expect(within(panel()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(
+      within(entries()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
+    ).toBeVisible();
+  });
+
+  it("reads the list again when the tab shows once more, and follows what another tab started", async () => {
+    const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
+    await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_none")));
+    const asked = () => client.calls.filter((call) => call.route === TASKS);
+    expect(within(panel()).queryByRole("list")).toBeNull();
+    // Hidden, the tab asks nothing; shown again, it asks.
+    showTab("hidden");
+    expect(asked()).toEqual([]);
+    showTab("visible");
+    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision",
+    );
+    expect(asked().map((call) => call.query.get("status"))).toEqual(["queued,running"]);
+  });
+
+  it("brings back no task the user dismissed, when the tab shows again and the list is read anew", async () => {
+    const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
+    await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
+    await within(panel()).findByRole("listitem");
+    await userEvent.click(dismissal("Marquage d’une révision"));
+    expect(within(panel()).queryByRole("list")).toBeNull();
+    showTab("visible");
+    await vi.waitFor(() => {
+      expect(client.calls.filter((call) => call.route === TASKS)).toHaveLength(1);
+    });
+    await act(() => Promise.resolve());
+    expect(within(panel()).queryByRole("list")).toBeNull();
+  });
+
+  it("follows once a task the tab already follows, with what the user named it after", async () => {
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        { key: MARKING, task_id: MARKING, kind: "revision_mark", status: "running", subject: "V2" },
+      ]),
+    );
+    serve({ [TASK]: "task_running" });
+    await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
+    await tick();
+    expect(within(panel()).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(panel()).getByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision « V2 »",
+    );
+  });
+
+  it("does without a list the API refuses, or does not give", async () => {
+    const client = serve({ [TASKS]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
+    render(shell(<Screen name="Planning" />, true));
+    showTab("visible");
+    await vi.waitFor(() => {
+      expect(client.calls.map((call) => call.route)).toEqual([TASKS]);
+    });
+    expect(within(panel()).queryByRole("list")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    server.client = unreachable();
+    showTab("visible");
+    await tick();
+    expect(within(panel()).queryByRole("list")).toBeNull();
+  });
+
+  it("renders the page and its panel while the tasks of the user are on their way", async () => {
+    serve({ [TASK]: "task_running" });
+    let answer: (tasks: readonly BackgroundTask[]) => void = () => undefined;
+    const coming = new Promise<readonly BackgroundTask[]>((resolve) => {
+      answer = resolve;
+    });
+    await renderStreamed(shell(<Screen name="Planning" />, true, coming));
+    expect(screen.getByRole("heading", { name: "Planning" })).toBeVisible();
+    expect(within(panel()).queryByRole("list")).toBeNull();
+    await act(async () => {
+      answer((example("tasks_running") as { readonly items: readonly BackgroundTask[] }).items);
+      await coming;
+    });
+    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision",
+    );
+  });
+
+  it("asks nothing without a session", async () => {
+    const client = serve({});
+    render(shell(<Screen name="Planning" />));
+    showTab("visible");
+    await tick();
+    expect(client.calls).toEqual([]);
   });
 });

@@ -212,3 +212,14 @@ export function fakeClient(answers: FakeAnswers, timing: FakeTiming = {}): FakeC
 
   return Object.assign(client, { calls });
 }
+
+/**
+ * Make a client of the API whose every call finds the API out of reach: `fetch` rejects, as when
+ * the service is down, and the client marks it `Unreachable` — what the decoder says as such.
+ */
+export function unreachable(): ApiClient {
+  return createApiClient({
+    address: ADDRESS,
+    fetch: () => Promise.reject(new TypeError("fetch failed")),
+  });
+}

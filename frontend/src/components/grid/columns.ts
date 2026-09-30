@@ -15,6 +15,8 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import type { components } from "@/api/generated/schema";
+import type { Outcome } from "@/api/problem";
 import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatMoney, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
@@ -56,8 +58,8 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    */
   readonly icon?: LucideIcon;
   /**
-   * Which of its cells the server computes, and what their values depend on: none, and every
-   * cell holds what was entered.
+   * Which of its cells the server computes, and the field of the contract each shows, which the
+   * refusal of an entry asks the server about: none, and every cell holds what was entered.
    */
   readonly computed?: ComputedCells<Row>;
   /**
@@ -82,30 +84,46 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   readonly total?: (totals: Totals) => CellValue;
 }
 
-/** Why the server computes a value: a sentence of the catalogue, under `computedValue.reasons`. */
-export type DependencyReason = keyof Catalogue["computedValue"]["reasons"];
+/** A field whose value the server computes, as the contract names it: `task.finish_date`. */
+export type ComputedValueField = components["schemas"]["ComputedValueField"];
 
 /**
- * What a computed value depends on (WF-IHM-0030): why the server computes it, and the rows it is
- * drawn from — their indices among the rows of the answer —, which the refusal of an entry names;
- * `null` for a value drawn from no row.
+ * What a computed value depends on (WF-IHM-0030), as the server says it: the rules that compute
+ * it, and the rows it is drawn from, named by their number and their label.
  */
-export interface Dependency {
-  readonly reasons: readonly DependencyReason[];
-  readonly rows: readonly number[] | null;
+export type ComputedDependencies = components["schemas"]["ComputedValueDependencies"];
+
+/**
+ * How a grid asks the server what the value of a field of a row depends on, once an entry is
+ * tried on it: the refusal names it. One reader for each reading of the page: what a value depends
+ * on names other rows, whose numbers and labels a new reading may change, so that an answer is
+ * kept for the reader that asked it, never beyond. The question is then the identifier of the
+ * row and the field, and a server action answers it, decoded as every other (`Outcome`).
+ */
+export interface DependencyReader<Row> {
+  /**
+   * The reading of the page this reader asks for — its rows —: an answer is kept for it alone. A
+   * function, never the array: the reader reaches the props of each row and each computed cell,
+   * which the development build of React compares again at each navigation of the grid.
+   */
+  readonly reading: () => readonly Row[];
+  /** The identifier of a row, as the server knows it. */
+  readonly id: (row: Row) => string;
+  readonly read: (id: string, field: ComputedValueField) => Promise<Outcome<ComputedDependencies>>;
 }
 
 /**
  * The cells of a column the server computes (WF-IHM-0030), row by row: a computed cell is shaded
- * and marked Σ, named, never entered, and says what its value depends on when one tries.
+ * and marked Σ, named, never entered, and says what its value depends on when one tries — what
+ * the server answers for its field, never a rule read here.
  */
 export interface ComputedCells<Row> {
   /** Whether the server computes the whole column — a field no entry writes —: Σ in its header. */
   readonly whole: boolean;
   /** Whether the server computes the cell of a row. */
   readonly in: (row: Row) => boolean;
-  /** What the value of the cell of the row at `index` among the rows of the answer depends on. */
-  readonly dependsOn: (rows: readonly Row[], index: number) => Dependency;
+  /** The field of the contract the cell of a row shows, which the refusal asks the server about. */
+  readonly field: (row: Row) => ComputedValueField;
 }
 
 /** The tree of a grid: the depth of a row, the icon of its nature, how its label stands out. */

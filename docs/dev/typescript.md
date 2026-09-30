@@ -187,8 +187,22 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     serveur de développement a pris une demi-seconde de plus, assez pour qu'un parcours de la
     chaîne dépasse son attente (US-0150/L1). La production n'en dit rien. Ce qui descend
     jusqu'aux lignes lit la réponse par une fonction (`answer` de `DenseGrid`), jamais par le
-    tableau. Aucun outil ne le tient : la revue le cherche.
-15. **Horloge de la page figée à travers une navigation.** Un parcours fige l'horloge
+    tableau. Il est revenu dans un objet : le lecteur de ce dont dépend une valeur calculée
+    portait les lignes de sa lecture, et la navigation d'un tri a pris 0,8 s de plus — le
+    parcours du tri a dépassé son attente (EP-02/L4, run 36630647717). Un objet qui descend
+    jusqu'aux lignes lit lui aussi la réponse par une fonction (`reading` de `DependencyReader`).
+    Aucun outil ne le tient : la revue le cherche.
+15. **Action serveur lancée après une navigation.** Next porte chaque action serveur dans l'état
+    de son routeur, dans une seule file : une navigation ne se montre qu'une fois répondues les
+    actions lancées après elle. Une préférence écrite au clic d'en-tête retenait ainsi l'adresse
+    du tri d'un aller-retour, et de tout ce qui attendait devant elle dans la file : sous charge,
+    le parcours du tri dépassait son attente (EP-02/L4, run 36624394005). Ce qu'un geste qui
+    navigue doit écrire part une fois la page montrée (`recordShown` de `useSettingsWriter`), ou
+    avant la navigation : une action lancée avant, au montage d'un écran, ne la retient pas —
+    retenue huit secondes, la lecture des tâches de fond que la coquille lançait alors laissait
+    paraître l'adresse du tri à son heure. Aucun outil ne le tient : la revue le cherche, et une action
+    retenue dans un parcours le prouve (`grid.spec.ts`).
+16. **Horloge de la page figée à travers une navigation.** Un parcours fige l'horloge
     (`page.clock.pauseAt`) pour que la lecture d'une tâche attende, puis clique vers un autre
     écran : quand le serveur tarde, la navigation montre le squelette de `loading.tsx`, et
     React retient l'écran arrivé derrière un minuteur — le délai de révélation d'une frontière
@@ -196,7 +210,7 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     Le parcours échoue une fois sur trois (#165). Ce qui doit attendre se retient sur le réseau
     (`page.route`), jamais en figeant l'horloge d'une page qui navigue. Aucun outil ne le
     tient : la revue le cherche.
-16. **Route atteinte par un clic, compilée pendant l'attente.** `next dev` compile une route à
+17. **Route atteinte par un clic, compilée pendant l'attente.** `next dev` compile une route à
     sa première visite ; atteinte par un clic, elle est attendue cinq secondes par une
     assertion, que la compilation mange au premier lancement (#142). Un parcours compile
     d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`). Aucun outil

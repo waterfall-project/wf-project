@@ -51,6 +51,12 @@ vi.mock("next/navigation", async (original) => ({
 
 const PREFERENCES = "PATCH /me/preferences";
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+// The main structure of the current revision of the witness project, as the examples name it.
+const STRUCTURE = {
+  project_id: "01926f3a-7c00-7000-8000-000000000001",
+  revision_id: "01926f3a-7c00-7000-8000-000000000102",
+  structure_id: "01926f3a-7c00-7000-8000-000000000201",
+};
 // The height of a row at the default size of the root font, and of the element that scrolls,
 // as a browser would lay it out: twenty rows.
 const ROW_HEIGHT = ROW_REM * 16;
@@ -85,7 +91,12 @@ function renderGrid(
   const locale = options.locale ?? "fr";
   const grid = (query: GridQuery<NodeSortColumn>) => (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <EstimateGrid nodes={nodes} query={query} preferences={options.preferences} />
+      <EstimateGrid
+        nodes={nodes}
+        structure={STRUCTURE}
+        query={query}
+        preferences={options.preferences}
+      />
     </NextIntlClientProvider>
   );
   const rendered = render(grid(options.query ?? NO_QUERY));
@@ -279,12 +290,16 @@ describe("the sort, the search and the totals, asked of the server", () => {
     });
   });
 
-  it("records the sort chosen in the preferences of the grid alongside the navigation, and none once lifted", async () => {
+  it("records the sort chosen in the preferences of the grid once the page shows it, and none once lifted", async () => {
     const client = serve();
     const { ask } = renderGrid(witness);
     const heading = () => screen.getByRole("columnheader", { name: /Qté/ });
     await userEvent.click(within(heading()).getByRole("button"));
-    // Recorded at once, without the pause of a width.
+    // Nothing is written while the navigation is under way: an action would hold it back.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(recorded(client)).toEqual([]);
+    // Shown, it is recorded at once, without the pause of a width.
+    ask({ sort: { column: "quantity", order: "asc" }, search: undefined });
     await waitFor(() => {
       expect(recorded(client)).toEqual([
         {
@@ -300,6 +315,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     });
     ask({ sort: { column: "quantity", order: "desc" }, search: undefined });
     await userEvent.click(within(heading()).getByRole("button"));
+    ask({ sort: undefined, search: undefined });
     await waitFor(() => {
       expect(recorded(client).at(-1)).toEqual({
         grids: { estimate: { hidden_columns: [], column_widths: {}, sort: null } },
@@ -313,14 +329,16 @@ describe("the sort, the search and the totals, asked of the server", () => {
       answer = resolve;
     });
     const client = serve({ [PREFERENCES]: "preferences" }, { hold: () => held });
-    const { unmount } = renderGrid(witness);
+    const { unmount, ask } = renderGrid(witness);
     await userEvent.click(
       within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
     );
-    // The preference is still being written: the address has changed already.
+    // The address has changed before anything is written.
     expect(router.push.mock.calls).toEqual([
       ["/projects/p/revisions/r?sort_by=budgeted_amount&sort_order=asc", { scroll: false }],
     ]);
+    expect(recorded(client)).toEqual([]);
+    ask({ sort: { column: "budgeted_amount", order: "asc" }, search: undefined });
     await waitFor(() => {
       expect(recorded(client)).toHaveLength(1);
     });
@@ -330,15 +348,69 @@ describe("the sort, the search and the totals, asked of the server", () => {
     expect(router.push).toHaveBeenCalledTimes(1);
   });
 
+  it("records with the sort shown a width changed while the page was on its way, and nothing before", async () => {
+    const client = serve();
+    const { ask } = renderGrid(witness);
+    await userEvent.click(
+      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+    );
+    const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
+    handle.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    // The pause of a width goes by: the page is not shown yet, and nothing is written.
+    await new Promise((resolve) => setTimeout(resolve, WRITE_DELAY + 100));
+    expect(recorded(client)).toEqual([]);
+    ask({ sort: { column: "budgeted_amount", order: "asc" }, search: undefined });
+    await waitFor(() => {
+      expect(recorded(client)).toEqual([
+        {
+          grids: {
+            estimate: {
+              hidden_columns: [],
+              column_widths: { label: 336 },
+              sort: { column: "budgeted_amount", order: "asc" },
+            },
+          },
+        },
+      ]);
+    });
+  });
+
+  it("records the sort asked when the grid goes before the page shows it", async () => {
+    const client = serve();
+    const { unmount } = renderGrid(witness);
+    await userEvent.click(
+      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+    );
+    expect(recorded(client)).toEqual([]);
+    unmount();
+    await waitFor(() => {
+      expect(recorded(client)).toEqual([
+        {
+          grids: {
+            estimate: {
+              hidden_columns: [],
+              column_widths: {},
+              sort: { column: "budgeted_amount", order: "asc" },
+            },
+          },
+        },
+      ]);
+    });
+  });
+
   it("lifts the sort by the address, whether or not the preference could be written", async () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
-    renderGrid(witness, { query: { sort: { column: "label", order: "desc" }, search: undefined } });
+    const { ask } = renderGrid(witness, {
+      query: { sort: { column: "label", order: "desc" }, search: undefined },
+    });
     await userEvent.click(
       within(screen.getByRole("columnheader", { name: /Libellé/ })).getByRole("button"),
     );
     expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r?sort_by=", {
       scroll: false,
     });
+    ask({ sort: undefined, search: undefined });
     // The refusal is told; the address carries the lifting all the same.
     expect(await screen.findByRole("alert")).toHaveTextContent("Se connecter");
   });
@@ -701,7 +773,8 @@ describe("the writing of the settings", () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
     const { result } = renderHook(() => useSettingsWriter("estimate"));
     act(() => {
-      result.current.recordNow({ hidden_columns: [] });
+      result.current.recordShown(() => ({ hidden_columns: [] }));
+      result.current.shown();
     });
     await waitFor(() => {
       expect(result.current.outcome?.kind).toBe("signed_out");

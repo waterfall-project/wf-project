@@ -34,6 +34,13 @@ describe("createApiClient", () => {
     expect(urls).toEqual([`http://localhost:4010${API_PREFIX}/health`]);
   });
 
+  it("writes a list of the query as one parameter, its values apart by commas, as the contract declares it", async () => {
+    const { send, urls } = recorder();
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    await client.GET("/tasks", { params: { query: { status: ["queued", "running"] } } });
+    expect(new URL(urls[0] ?? "").search).toBe("?status=queued,running");
+  });
+
   it("keeps the prefix when the address ends with a slash", async () => {
     const { send, urls } = recorder();
     const client = createApiClient({ address: "http://api.example/", fetch: send });

@@ -22,7 +22,7 @@
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useOptimistic, useRef, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import {
@@ -36,13 +36,19 @@ import {
 import { cn } from "@/components/ui/utils";
 import type { Locale } from "@/i18n/locale";
 
-import { alignment, formatCell, type GridColumn, type GridConfig } from "./columns";
+import {
+  alignment,
+  type DependencyReader,
+  formatCell,
+  type GridColumn,
+  type GridConfig,
+} from "./columns";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { useRootFontSize, useRowWindow } from "./row-window";
-import { type GridQuery, type GridSort, holdsPart, searchHref, sortHref } from "./query";
+import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
   type GridPreferences,
   initialSettings,
@@ -81,6 +87,11 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly query: GridQuery<Sort>;
   /** The settings of the grid the session read, if any. */
   readonly preferences: GridPreferences | undefined;
+  /**
+   * How to ask the server what the value of a computed cell depends on, once an entry is tried
+   * on it (WF-IHM-0030); none, and the refusal says only that the value is computed.
+   */
+  readonly dependencies?: DependencyReader<Row> | undefined;
 }
 
 /** How a cell of a column is pinned: its classes, and its offset from the start. */
@@ -176,18 +187,15 @@ function computedIn<Row extends RowData, Sort extends string, Totals>(
 function BodyRow<Row extends RowData, Sort extends string, Totals>({
   table,
   config,
-  answer,
-  partial,
+  dependencies,
   row,
   index,
   locale,
 }: {
   readonly table: GridTable<Row>;
   readonly config: GridConfig<Row, Sort, Totals>;
-  /** The rows of the answer, which a computed cell reads to say what its value depends on. */
-  readonly answer: () => readonly Row[];
-  /** Whether the answer holds a part of the rows only: a search, a filter. */
-  readonly partial: boolean;
+  /** How a computed cell asks the server what its value depends on. */
+  readonly dependencies: DependencyReader<Row> | undefined;
   readonly row: TableRowModel<GridFeatures, Row>;
   readonly index: number;
   readonly locale: Locale;
@@ -212,14 +220,7 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
             )}
           >
             {computed ? (
-              <ComputedCell
-                config={config}
-                column={column}
-                answer={answer}
-                // The index among the rows of the answer, not among those rendered.
-                index={row.index}
-                partial={partial}
-              >
+              <ComputedCell column={column} row={row.original} dependencies={dependencies}>
                 {content}
               </ComputedCell>
             ) : (
@@ -314,6 +315,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   totalsCaption,
   query,
   preferences,
+  dependencies,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const locale = useLocale();
@@ -328,6 +330,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   // Only a header writes it; a column shown or widened sends it back as it is.
   const keptSort = useRef(preferences?.sort);
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
+  // The settings as they are now, which a preference written later reads: kept at each change.
+  const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
   const scroller = useRef<HTMLDivElement>(null);
   const rowHeight = ROW_REM * useRootFontSize();
@@ -345,16 +349,28 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     asked.current = { from, query: href.split("?")[1] ?? "" };
     router.push(href, { scroll: false });
   };
+  // The preference of the last sort asked is written once the page shows what the address asked,
+  // with the settings of then — a width changed meanwhile included: Next carries a server action
+  // in the state of its router, so that a navigation is not shown before the actions dispatched
+  // after it have answered — writing the preference at the click would hold the sort back by a
+  // round trip to the API, and by every action queued before it. Left, hidden or gone before,
+  // the page writes it as it writes what waits.
+  const { shown } = writer;
+  useEffect(() => {
+    shown();
+  }, [query, shown]);
   // A sort or a search changes the address only: the server reads it, and answers anew. A sort
-  // navigates at once, and its preference is written alongside: the address carries it — a
-  // sort lifted included —, so the page never waits for the preference, nor reads it for it.
+  // navigates at once, and its preference is written once it is shown: the address carries it —
+  // a sort lifted included —, so the page never waits for the preference, nor reads it for it.
   const changeSort = (next: GridSort<Sort> | undefined) => {
     startTransition(() => {
       showSort(next);
       request((query) => sortHref(pathname, query, next));
     });
     keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
-    writer.recordNow(recordedPreferences(preferences, settings, keptSort.current));
+    writer.recordShown(() =>
+      recordedPreferences(preferences, currentSettings.current, keptSort.current),
+    );
   };
   const search = (text: string) => {
     writer.flush();
@@ -370,16 +386,10 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     settings,
     onSettings: (next) => {
       setSettings(next);
+      currentSettings.current = next;
       writer.record(recordedPreferences(preferences, next, keptSort.current));
     },
   });
-
-  // The rows of the answer reach each row and each computed cell by a function, never as the
-  // array: the development build of React compares again the props of what it renders again, and
-  // six thousand rows in the props of each cell weighed on each navigation of the grid.
-  const answer = useCallback(() => rows, [rows]);
-  // What a search or a filter left out may be among what a computed value depends on.
-  const partial = holdsPart(query, address);
 
   const model = table.getRowModel().rows;
   const { items, before, after } = useRowWindow({
@@ -448,8 +458,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
                 key={row.id}
                 table={table}
                 config={config}
-                answer={answer}
-                partial={partial}
+                dependencies={dependencies}
                 row={row}
                 index={item.index}
                 locale={locale}

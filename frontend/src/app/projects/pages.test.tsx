@@ -11,7 +11,12 @@ import { SCREEN } from "@/components/shell/page-header";
 import { SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
 import { ESTIMATE_FIELDS } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
-import { COMMON_FIELDS, type AnyNodeFields, type NodeList } from "@/components/grid/nodes";
+import {
+  type AnyNodeFields,
+  COMMON_FIELDS,
+  type NodeList,
+  nodeFieldNames,
+} from "@/components/grid/nodes";
 import { PLANNING_FIELDS } from "@/components/grid/planning";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -124,6 +129,12 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 // The project in pricing, without a revision (`project_pricing.json`).
 const PRICING = "01926f3a-7c00-7000-8000-000000000002";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+/** The main structure of the revision, as `listCostStructures` names it. */
+const STRUCTURE = {
+  project_id: PROJECT,
+  revision_id: REVISION,
+  structure_id: "01926f3a-7c00-7000-8000-000000000201",
+};
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const NO_SEARCH = Promise.resolve({});
 const BANNER = '<section aria-label="Reading context"';
@@ -157,6 +168,18 @@ function text(markup: string): string {
 /** The call that read the nodes of the structure. */
 function nodesCall() {
   return callOf("/nodes");
+}
+
+/** What the page asked of the nodes, besides the fields it reads of them. */
+function nodesQuery(): Record<string, string> {
+  const query = new URLSearchParams(nodesCall()?.query);
+  query.delete("fields");
+  return Object.fromEntries(query);
+}
+
+/** The fields of the nodes the page asked for, as `listNodes` names them. */
+function nodesFields(): string[] | undefined {
+  return nodesCall()?.query.get("fields")?.split(",");
 }
 
 /** The call to the API whose route ends as given. */
@@ -259,8 +282,7 @@ describe("the witness path", () => {
     const html = renderToStaticMarkup(
       inEnglish(await EstimatePage({ params, searchParams: search })),
     );
-    const call = nodesCall();
-    expect(Object.fromEntries(call?.query ?? [])).toEqual({
+    expect(nodesQuery()).toEqual({
       sort_by: "budgeted_amount",
       sort_order: "desc",
       search: "revue",
@@ -273,7 +295,7 @@ describe("the witness path", () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const search = Promise.resolve({ sort_by: "start_date", sort_order: "desc", search: "" });
     await EstimatePage({ params, searchParams: search });
-    expect([...(nodesCall()?.query.keys() ?? [])]).toEqual([]);
+    expect(Object.keys(nodesQuery())).toEqual([]);
   });
 
   it("shows the totals the server gave for the request, in the language of the interface", async () => {
@@ -318,7 +340,7 @@ describe("the witness path", () => {
     server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "" }) });
-    expect([...(nodesCall()?.query.keys() ?? [])]).toEqual([]);
+    expect(Object.keys(nodesQuery())).toEqual([]);
   });
 
   it("hands the grid the settings of the account the session read", async () => {
@@ -338,7 +360,7 @@ describe("the witness path", () => {
     const html = renderToStaticMarkup(
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
-    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({
+    expect(nodesQuery()).toEqual({
       sort_by: "budgeted_amount",
       sort_order: "desc",
     });
@@ -346,7 +368,7 @@ describe("the witness path", () => {
 
     server.clients = [];
     await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "label" }) });
-    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({
+    expect(nodesQuery()).toEqual({
       sort_by: "label",
       sort_order: "asc",
     });
@@ -488,7 +510,9 @@ describe("the grid of the planning", () => {
     const html = renderToStaticMarkup(
       inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })),
     );
-    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({ kinds: "task" });
+    expect(nodesQuery()).toEqual({ kinds: "task" });
+    // Of each task, the fields the grid reads alone (#166).
+    expect(nodesFields()).toEqual(nodeFieldNames(PLANNING_FIELDS));
     expect(html.startsWith(BANNER)).toBe(true);
     expect(html).toContain(FILLED_SCREEN);
     expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Planning<\/h1>/);
@@ -512,7 +536,7 @@ describe("the grid of the planning", () => {
     const html = renderToStaticMarkup(
       inEnglish(await PlanningPage({ params, searchParams: search })),
     );
-    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({
+    expect(nodesQuery()).toEqual({
       kinds: "task",
       sort_by: "total_float_days",
       sort_order: "desc",
@@ -524,7 +548,7 @@ describe("the grid of the planning", () => {
 
   it("asks no sort the planning does not offer, such as an amount of the estimate", async () => {
     await PlanningPage({ params, searchParams: Promise.resolve({ sort_by: "budgeted_amount" }) });
-    expect(Object.fromEntries(nodesCall()?.query ?? [])).toEqual({ kinds: "task" });
+    expect(nodesQuery()).toEqual({ kinds: "task" });
   });
 
   it("is not found for a revision the API does not find", async () => {
@@ -900,15 +924,19 @@ describe("the rows a page hands its grid", () => {
     }
   }
 
-  it("the estimate hands its grid the fields it shows of each node, and those alone", async () => {
+  it("the estimate asks for and hands its grid the fields it shows of each node, and those alone", async () => {
     renderToStaticMarkup(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
+    expect(nodesFields()).toEqual(nodeFieldNames(ESTIMATE_FIELDS));
     expect(grids.estimate).toHaveLength(1);
     projected(grids.estimate[0]?.nodes.items ?? [], ESTIMATE_FIELDS);
+    expect(grids.estimate[0]?.structure).toEqual(STRUCTURE);
   });
 
-  it("the planning hands its grid the fields it shows of each node, and those alone", async () => {
+  it("the planning asks for and hands its grid the fields it shows of each node, and those alone", async () => {
     renderToStaticMarkup(inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })));
+    expect(nodesFields()).toEqual(nodeFieldNames(PLANNING_FIELDS));
     expect(grids.planning).toHaveLength(1);
     projected(grids.planning[0]?.nodes.items ?? [], PLANNING_FIELDS);
+    expect(grids.planning[0]?.structure).toEqual(STRUCTURE);
   });
 });

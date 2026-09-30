@@ -100,13 +100,19 @@ describe("what the tracker follows", () => {
     expect(isPolled({ ...running, task: task("task_succeeded") })).toBe(false);
   });
 
-  it("forgets every task and every end once signed out, and drops an answer still on its way", () => {
+  it("forgets every task, every end and every dismissal once signed out, and drops an answer still on its way", () => {
     const followed = tracking(
       tracking(following(task("task_succeeded")), { type: "restore", tasks: [] }),
       { type: "track", task: task("task_running"), launch: {} },
     );
-    const forgotten = tracking(followed, { type: "forget" });
-    expect(forgotten).toEqual({ tasks: [], log: [], restored: true });
+    const dismissed = tracking(followed, { type: "dismiss", key: task("task_running").task_id });
+    expect(dismissed.dismissed).toContain(task("task_running").task_id);
+    // Dismissed, a task the list of the user brings again is not followed again.
+    expect(tracking(dismissed, { type: "found", tasks: [task("task_running")] }).tasks).toEqual(
+      dismissed.tasks,
+    );
+    const forgotten = tracking(dismissed, { type: "forget" });
+    expect(forgotten).toEqual({ tasks: [], log: [], dismissed: [], restored: true });
     const late = tracking(forgotten, {
       type: "answer",
       source: "read",

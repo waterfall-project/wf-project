@@ -239,12 +239,35 @@ export async function decodeTask(
   call: () => Promise<Answer<BackgroundTask>>,
 ): Promise<Outcome<BackgroundTask>> {
   const outcome = await decode(call);
-  if (outcome.kind !== "done" || outcome.data.status !== "failed") {
-    return outcome;
+  return outcome.kind === "done" ? { kind: "done", data: withMotive(outcome.data) } : outcome;
+}
+
+/**
+ * A task as the screen may render it: the motive of a failure held to the rule of the catalogue,
+ * the unexpected error when the API gave none or one the catalogue does not know.
+ */
+function withMotive(task: BackgroundTask): BackgroundTask {
+  if (task.status !== "failed") {
+    return task;
   }
-  const motive = outcome.data.problem ?? undefined;
-  return {
-    kind: "done",
-    data: { ...outcome.data, problem: envelope(motive, motive?.status ?? 500) },
-  };
+  const motive = task.problem ?? undefined;
+  return { ...task, problem: envelope(motive, motive?.status ?? 500) };
+}
+
+/** A page of the background tasks of the caller (`listBackgroundTasks`). */
+export interface BackgroundTaskPage {
+  readonly items: readonly BackgroundTask[];
+}
+
+/**
+ * Call an operation that answers with a list of background tasks and decode its answer, the
+ * motive of each failed task held to the rule of `decodeTask`.
+ */
+export async function decodeTasks(
+  call: () => Promise<Answer<BackgroundTaskPage>>,
+): Promise<Outcome<readonly BackgroundTask[]>> {
+  const outcome = await decode(call);
+  return outcome.kind === "done"
+    ? { kind: "done", data: outcome.data.items.map(withMotive) }
+    : outcome;
 }

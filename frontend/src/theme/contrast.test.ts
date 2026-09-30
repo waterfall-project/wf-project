@@ -234,6 +234,12 @@ function zone(name: AlertZone, mode: Mode): Linear {
 const DISTINCT = 20;
 // Two greys a glance tells apart: 8 points of lightness, out of the 100 from black to white.
 const GREY_STEP = 8;
+// The zones from the lightest grey to the darkest, in each mode: the alert stands out the most
+// from the page, the darkest on the light one and the lightest on the dark one.
+const STANDING_OUT: Readonly<Record<Mode, readonly [AlertZone, AlertZone, AlertZone]>> = {
+  light: ["nominal", "watch", "alert"],
+  dark: ["alert", "watch", "nominal"],
+};
 
 describe("the tokens of the signals", () => {
   it("give each zone of the contract its class for Tailwind", () => {
@@ -243,15 +249,24 @@ describe("the tokens of the signals", () => {
   });
 
   describe.each(MODES)("in %s mode", (mode) => {
-    it("leave each signal identifiable in a grey copy: the nominal lightest, the alert darkest [WF-IHM-0070-A]", () => {
+    it("leave each signal identifiable in a grey copy, the alert standing out the most from the page [WF-IHM-0070-A]", () => {
       // Une copie d'écran en niveaux de gris laisse identifier chaque signalement : the shape
-      // and the name tell the zones apart (signal.dom.test.tsx), and their greys too.
+      // and the name tell the zones apart (signal.dom.test.tsx), and their greys too — the
+      // alert the darkest on the light page, the lightest on the dark one.
       const grey = (name: AlertZone) => lab(zone(name, mode))[0];
-      expect(grey("nominal")).toBeGreaterThan(grey("watch"));
-      expect(grey("watch")).toBeGreaterThan(grey("alert"));
+      const [lightest, middle, darkest] = STANDING_OUT[mode];
+      expect(grey(lightest)).toBeGreaterThan(grey(middle));
+      expect(grey(middle)).toBeGreaterThan(grey(darkest));
       for (const [a, b] of pairs()) {
         expect(Math.abs(grey(a) - grey(b))).toBeGreaterThanOrEqual(GREY_STEP);
       }
+    });
+
+    it("set the alert apart from the page the most, and the nominal the least", () => {
+      const page = colour("background", mode);
+      const standing = (name: AlertZone) => contrast(colour(SIGNALS[name], mode), page);
+      expect(standing("alert")).toBeGreaterThan(standing("watch"));
+      expect(standing("watch")).toBeGreaterThan(standing("nominal"));
     });
 
     it.each(VIEWS)("keep the zones apart for a %s", (_view, matrix) => {

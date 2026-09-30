@@ -11,6 +11,9 @@ export interface Examples {
   "GET /me": {
     200: "me" | "me_directory" | "me_english" | "me_with_avatar" | "me_without_preferences";
   };
+  "GET /portfolio/pilot-health": {
+    200: "pilot_health";
+  };
   "GET /portfolio/projects": {
     200: "volume/portfolio_projects";
   };
@@ -29,17 +32,23 @@ export interface Examples {
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators";
   };
+  "GET /projects/{project_id}/remaining-indicators": {
+    200: "remaining_indicators" | "remaining_indicators_over_budget";
+  };
   "GET /projects/{project_id}/revisions": {
     200: "revisions" | "revisions_empty";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
-    200: "revision" | "revision_estimator" | "revision_marked" | "revision_reader";
+    200: "revision" | "revision_estimator" | "revision_marked" | "revision_marking" | "revision_reader";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures": {
     200: "structures";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
     200: "nodes" | "nodes_estimate" | "nodes_milestone" | "nodes_planning" | "volume/nodes_thousand";
+  };
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
+    200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
   "GET /projects/{project_id}/subprojects": {
     200: "subprojects";
@@ -58,6 +67,9 @@ export interface Examples {
   };
   "GET /session/providers": {
     200: "auth_providers" | "auth_providers_local";
+  };
+  "GET /tasks": {
+    200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
     200: "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_running" | "task_succeeded";

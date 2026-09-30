@@ -38,6 +38,12 @@ vi.mock("./dense-grid", async (original) => {
 });
 
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
+// The main structure of the current revision of the witness project, as the examples name it.
+const STRUCTURE = {
+  project_id: "01926f3a-7c00-7000-8000-000000000001",
+  revision_id: "01926f3a-7c00-7000-8000-000000000102",
+  structure_id: "01926f3a-7c00-7000-8000-000000000201",
+};
 const NBSP = " ";
 const planning = example("nodes_planning") as NodeList;
 
@@ -45,7 +51,7 @@ const planning = example("nodes_planning") as NodeList;
 function renderPlanning(nodes: NodeList = planning, locale: Locale = "fr") {
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <PlanningGrid nodes={nodes} query={NO_QUERY} preferences={undefined} />
+      <PlanningGrid nodes={nodes} structure={STRUCTURE} query={NO_QUERY} preferences={undefined} />
     </NextIntlClientProvider>,
   );
 }
@@ -100,8 +106,18 @@ describe("the grids of the planning and of the estimate", () => {
     const estimate = example("nodes_estimate") as NodeList;
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-        <PlanningGrid nodes={planning} query={NO_QUERY} preferences={undefined} />
-        <EstimateGrid nodes={estimate} query={NO_QUERY} preferences={undefined} />
+        <PlanningGrid
+          nodes={planning}
+          structure={STRUCTURE}
+          query={NO_QUERY}
+          preferences={undefined}
+        />
+        <EstimateGrid
+          nodes={estimate}
+          structure={STRUCTURE}
+          query={NO_QUERY}
+          preferences={undefined}
+        />
       </NextIntlClientProvider>,
     );
     // Each screen renders the same component, each with its own configuration.
@@ -128,13 +144,15 @@ describe("the grid of the planning", () => {
   it("shows each task of the answer, in its order: its number, label, duration, dates, float and predecessors", () => {
     renderPlanning();
     const days = (count: string) => `${count}${NBSP}j`;
+    // The numbers are those of the whole structure: the line of row 3, which the planning does
+    // not render, keeps its own. A lag keeps its unit: a week is not written in days.
     expect(bodyRows().map(texts)).toEqual([
       ["1", "Études", "", days("40"), "02/03/2026", "24/04/2026", "", "", ""],
       ["2", "Études de détail", "", days("30"), "02/03/2026", "10/04/2026", "", days("0"), ""],
-      ["3", "Pupitres opérateurs", "", days("40"), "02/03/2026", "24/04/2026", "", "", ""],
-      ["4", "Revue de conception", "", days("10"), "13/04/2026", "24/04/2026", "", days("0"), "2"],
+      ["4", "Pupitres opérateurs", "", days("40"), "02/03/2026", "24/04/2026", "", "", ""],
+      ["5", "Revue de conception", "", days("10"), "13/04/2026", "24/04/2026", "", days("0"), "2"],
       [
-        "5",
+        "6",
         "Réception des études",
         "",
         days("0"),
@@ -142,10 +160,10 @@ describe("the grid of the planning", () => {
         "24/04/2026",
         "",
         days("0"),
-        `4;3DD+${days("5")}`,
+        `5;4DD+1${NBSP}sem`,
       ],
       [
-        "6",
+        "7",
         "Dossier de conception",
         "",
         days("5"),
@@ -232,19 +250,64 @@ describe("the grid of the planning", () => {
     ]);
   });
 
-  it("says a predecessor the answer does not hold has no number to show", () => {
+  it("names a predecessor the answer does not hold by the number the API gives it", () => {
     // What a search retaining the review but not the studies it follows would answer.
     renderPlanning({
       ...planning,
       items: planning.items.filter((node) => node.task?.label !== "Études de détail"),
     });
-    expect(texts(bodyRows().find((row) => texts(row)[1] === "Revue de conception"))[8]).toBe("?");
+    expect(texts(bodyRows().find((row) => texts(row)[1] === "Revue de conception"))[8]).toBe("2");
+  });
+
+  it("writes each lag in its unit, in months, and a lead in weeks", () => {
+    // What the API would answer of the dossier linked to its two predecessors otherwise.
+    const [studies, review] = [planning.items[1], planning.items[3]];
+    const links = [
+      { node: studies, lag: 2, unit: "months" as const },
+      { node: review, lag: -1, unit: "weeks" as const },
+    ].flatMap(({ node, lag, unit }) =>
+      node === undefined
+        ? []
+        : [
+            {
+              predecessor_node_id: node.node_id,
+              predecessor_row_number: node.row_number,
+              link_type: "start_to_start" as const,
+              lag,
+              lag_unit: unit,
+            },
+          ],
+    );
+    const linked = {
+      ...planning,
+      items: planning.items.map((node) =>
+        node.task?.label === "Dossier de conception" ? { ...node, predecessors: links } : node,
+      ),
+    };
+    const { unmount } = renderPlanning(linked);
+    const dossier = () =>
+      texts(bodyRows().find((row) => texts(row)[1] === "Dossier de conception"));
+    expect(dossier()[8]).toBe(`2DD+2${NBSP}m;5DD-1${NBSP}sem`);
+    unmount();
+    renderPlanning(linked, "en");
+    expect(dossier()[8]).toBe(`2SS+2${NBSP}mo;5SS-1${NBSP}wk`);
   });
 
   it("shows its figures, units and links in English too", () => {
     renderPlanning(planning, "en");
-    expect(texts(bodyRows()[5])).toEqual([
+    expect(texts(bodyRows()[4])).toEqual([
       "6",
+      "Réception des études",
+      "",
+      `0${NBSP}d`,
+      "24/04/2026",
+      "24/04/2026",
+      "",
+      `0${NBSP}d`,
+      `5;4SS+1${NBSP}wk`,
+    ]);
+    expect(texts(bodyRows()[5])).toEqual([
+      "7",
       "Dossier de conception",
       "",
       `5${NBSP}d`,

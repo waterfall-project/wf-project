@@ -357,8 +357,10 @@ class _Emitter:
             node["predecessors"] = [
                 {
                     "predecessor_node_id": identifier(_NODE, before.row),
+                    "predecessor_row_number": before.row,
                     "link_type": "finish_to_start",
-                    "lag_days": 0,
+                    "lag": 0,
+                    "lag_unit": "days",
                 }
                 for before in task.predecessors
             ]

@@ -4,8 +4,8 @@
  * An indicator as the API computes it, with the date it is computed at (WF-IHM-0020): a value
  * under the envelope `Computable` never shows without the date of its `CalculationContext`,
  * in the local time of the workstation. A value that cannot be computed shows as such, with
- * the reason the API gives — never as zero nor as infinity (WF-IND-0010), and never as a
- * value the front would make up.
+ * the reason the API codes, in the sentence of the catalogue — never as zero nor as infinity
+ * (WF-IND-0010), and never as a value the front would make up.
  */
 import { useLocale, useTranslations } from "next-intl";
 
@@ -70,14 +70,18 @@ export function ComputedIndicator({ label, value, context }: ComputedIndicatorPr
   const locale = useLocale();
   // A value the API calls computable yet leaves out is not made up either: it is said missing.
   const computed = value.is_computable ? (value.value ?? null) : null;
-  const reason = computed === null ? (value.reason ?? "") : "";
+  const reason = computed === null ? (value.reason ?? null) : null;
   return (
     <dl className="space-y-0.5">
       <dt className="text-sm text-muted-foreground">{t(label)}</dt>
       <dd className="text-lg font-semibold tabular-nums">
         {computed === null ? t("indicator.notComputable") : FORMATS[label](computed, locale)}
       </dd>
-      {reason === "" ? null : <dd className="text-sm text-muted-foreground">{reason}</dd>}
+      {reason === null ? null : (
+        <dd className="text-sm text-muted-foreground">
+          {t(`enums.NotComputableReason.${reason}`)}
+        </dd>
+      )}
       <dd>
         <CalculationDate context={context} />
       </dd>

@@ -32,7 +32,7 @@
       "value": {
         "is_computable": false,
         "value": null,
-        "reason": "Aucun coût réel à la date de calcul : le dénominateur de l’indice est nul."
+        "reason": "no_actual_cost"
       },
       "zone": null
     },
@@ -52,7 +52,7 @@
       "at_observed_rate": {
         "is_computable": false,
         "value": null,
-        "reason": "Aucun coût réel à la date de calcul : l’indice de coût, dont dépend la projection, n’est pas calculable."
+        "reason": "no_actual_cost"
       },
       "variance_at_budget": "0.00",
       "variance_project_manager": "0.00",
