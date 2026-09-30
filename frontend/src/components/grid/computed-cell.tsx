@@ -10,14 +10,14 @@
  * of the grid retained. Until the server answers, the refusal says it is reading; a refusal of the
  * server, or the API out of reach, it tells as every screen does (`OutcomeNotice`).
  *
- * The cell is a button, which the pointer and the keyboard reach alike; the entry at the keyboard
- * (US-0120) will open the same refusal from the cell it lands on. Its popover mounts on the first
- * try only: a root of Radix in each computed cell would cost the hydration of the first screen as
- * many contexts, and the second of §4.6.2 counts it. The server is asked while the refusal is
- * open only, once for each question — the reading of the page, the row, the field —: a page read
- * anew asks nothing of a closed refusal, and asks afresh once it opens again, the rows the answer
- * named may have moved; a failure is asked again at the next opening. The refusal reads out, in
- * one live region, that it is reading, then what the server said.
+ * The cell is one of the grid, which the keyboard reaches as any other (`useGridEntry`): an entry
+ * tried on it from the keyboard, or a click, opens its refusal, which the grid holds. Its popover
+ * mounts on the first try only: a root of Radix in each computed cell would cost the hydration of
+ * the first screen as many contexts, and the second of §4.6.2 counts it. The server is asked while
+ * the refusal is open only, once for each question — the reading of the page, the row, the
+ * field —: a page read anew asks nothing of a closed refusal, and asks afresh once it opens again,
+ * the rows the answer named may have moved; a failure is asked again at the next opening. The
+ * refusal reads out, in one live region, that it is reading, then what the server said.
  */
 "use client";
 
@@ -28,7 +28,7 @@ import { type ReactNode, useEffect, useId, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
 import type {
   ComputedCells,
@@ -43,9 +43,8 @@ export type ComputedColumn<Row, Sort extends string, Totals> = GridColumn<Row, S
   readonly computed: ComputedCells<Row>;
 };
 
-/** The cell as a button: the whole of it, the mark at its start and the value at its end. */
-const TRIGGER =
-  "flex w-full min-w-0 items-center justify-between gap-0.5 rounded-sm text-inherit outline-none focus-visible:ring-[3px] focus-visible:ring-ring";
+/** The content of the cell: the whole of it, the mark at its start and the value at its end. */
+const MARKED = "flex w-full min-w-0 items-center justify-between gap-0.5";
 
 /** The API out of reach: the server action itself did not answer — the network is down. */
 const UNREACHABLE: Outcome<ComputedDependencies> = { kind: "unreachable" };
@@ -194,13 +193,19 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
   );
 }
 
-/** What a computed cell shows, and how it asks what its value depends on. */
+/** What a computed cell shows, how it asks what its value depends on, and its refusal. */
 export interface ComputedCellProps<Row, Sort extends string, Totals> {
   readonly column: ComputedColumn<Row, Sort, Totals>;
   /** The row of the cell. */
   readonly row: Row;
   /** How to ask the server what the value depends on, once an entry is tried. */
   readonly dependencies: DependencyReader<Row> | undefined;
+  /** Whether its refusal shows: the grid opens it at a try, and closes it. */
+  readonly open: boolean;
+  /** How many times a refusal has opened in the grid: a failure is shown for its opening alone. */
+  readonly opening: number;
+  /** Close the refusal: Escape, or a click outside it. */
+  readonly onClose: () => void;
   /** The value of the cell, formatted or rendered by its column. */
   readonly children: ReactNode;
 }
@@ -210,46 +215,37 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   column,
   row,
   dependencies,
+  open,
+  opening,
+  onClose,
   children,
 }: ComputedCellProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
-  // Engaged at the first try, and for as long as the row is rendered: the trigger stays the same
-  // element from then on, which the focus comes back to once the popover closes.
-  const [engaged, setEngaged] = useState(false);
-  const [open, setOpen] = useState(false);
-  // Each opening counted: a failure to say what the value depends on is asked again at the next.
-  const [opening, setOpening] = useState(0);
-  const show = (next: boolean) => {
-    if (next) {
-      setOpening((count) => count + 1);
-    }
-    setOpen(next);
-  };
+  // Engaged at the first try, and for as long as the row is rendered: what the server said is
+  // kept from one opening to the next.
+  const [engaged, setEngaged] = useState(open);
+  if (open && !engaged) {
+    setEngaged(true);
+  }
   const content = (
-    <>
+    <span className={MARKED}>
       <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
       <span className="min-w-0 truncate">{children}</span>
-    </>
+    </span>
   );
   if (!engaged) {
-    return (
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded="false"
-        className={TRIGGER}
-        onClick={() => {
-          setEngaged(true);
-          show(true);
-        }}
-      >
-        {content}
-      </button>
-    );
+    return content;
   }
   return (
-    <Popover open={open} onOpenChange={show}>
-      <PopoverTrigger className={TRIGGER}>{content}</PopoverTrigger>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
+    >
+      <PopoverAnchor asChild>{content}</PopoverAnchor>
       <ComputedRefusal
         column={column}
         row={row}

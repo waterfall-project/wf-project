@@ -179,20 +179,18 @@ describe("a value of a grid the server computes", () => {
     const amount = cell(labour, BUDGETED);
     // The effort is entered: its value alone, on the background of the page.
     expect(hours).toHaveTextContent(/^12,5$/);
-    expect(within(hours).queryByRole("button")).toBeNull();
+    expect(hours).not.toHaveAttribute("aria-haspopup");
     expect(within(hours).queryByRole("img")).toBeNull();
     expect(hours).toHaveClass("bg-background");
     // The amount is computed: shaded, marked Σ and named so, whatever the colour.
     expect(amount).toHaveClass("bg-muted");
-    const mark = within(amount).getByRole("button", { name: /^Calculé 1\s000,00$/ });
-    expect(within(mark).getByRole("img", { name: "Calculé" })).toBeInTheDocument();
-    expect(within(cell(labour, REESTIMATED)).getByRole("button")).toHaveAccessibleName(
-      /^Calculé 1\s000,00$/,
-    );
+    expect(amount).toHaveAccessibleName(/^Calculé 1\s000,00$/);
+    expect(within(amount).getByRole("img", { name: "Calculé" })).toBeInTheDocument();
+    expect(cell(labour, REESTIMATED)).toHaveAccessibleName(/^Calculé 1\s000,00$/);
 
     // A try to enter it is refused, beside it, naming what the server says it depends on;
     // nothing opens to type.
-    await userEvent.click(mark);
+    await userEvent.click(amount);
     expect(await said()).toEqual({
       paragraphs: [
         "Valeur calculée",
@@ -215,9 +213,8 @@ describe("a value of a grid the server computes", () => {
   it("refuses to change the finish date of a summary task, naming its subordinates [WF-IHM-0030-A]", async () => {
     const client = serve({ [DEPENDENCIES]: "dependencies_summary" });
     renderGrid("planning");
-    const finish = within(cell("Études", FINISH)).getByRole("button", {
-      name: /^Calculé 24\/04\/2026$/,
-    });
+    const finish = cell("Études", FINISH);
+    expect(finish).toHaveAccessibleName(/^Calculé 24\/04\/2026$/);
     expect(finish).toHaveAttribute("aria-haspopup", "dialog");
     expect(finish).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(finish);
@@ -242,10 +239,7 @@ describe("a value of a grid the server computes", () => {
       ],
     ]);
     expect(within(refusal()).getByRole("list", { name: "Elle dépend de :" })).toBeInTheDocument();
-    expect(within(cell("Études", FINISH)).getByRole("button")).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    expect(cell("Études", FINISH)).toHaveAttribute("aria-expanded", "true");
     await expectAccessible(document.body);
   });
 
@@ -257,7 +251,7 @@ describe("a value of a grid the server computes", () => {
       items: planning.items.filter((node) => node.task?.label.startsWith("Études") === true),
     });
     expect(cellsOf("Revue de conception")).toEqual([]);
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect((await said()).rows).toEqual([
       "2Études de détail",
       "4Pupitres opérateurs",
@@ -275,7 +269,7 @@ describe("a value of a grid the server computes", () => {
       }),
     );
     renderGrid("planning");
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     const region = within(refusal()).getByRole("status");
     expect(region).toHaveAttribute("aria-live", "polite");
     expect(region).toHaveAttribute("aria-busy", "true");
@@ -295,7 +289,7 @@ describe("a value of a grid the server computes", () => {
       [DEPENDENCIES]: ["dependencies_summary", "dependencies_summary_moved"],
     });
     const { rerender } = renderGrid("planning");
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect((await said()).rows[0]).toBe("2Études de détail");
     await userEvent.keyboard("{Escape}");
     // A line inserted above the subordinates: they move down a row, the summary unchanged.
@@ -309,7 +303,7 @@ describe("a value of a grid the server computes", () => {
       }),
     );
     expect(asked(client)).toHaveLength(1);
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect((await said()).rows).toEqual([
       "3Études de détail",
       "5Pupitres opérateurs",
@@ -323,13 +317,13 @@ describe("a value of a grid the server computes", () => {
     const client = serve({ [DEPENDENCIES]: "dependencies_summary" });
     server.client = unreachable();
     renderGrid("planning");
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
       "Le service est injoignable",
     );
     await userEvent.keyboard("{Escape}");
     server.client = client;
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect((await said()).rows).toHaveLength(4);
     expect(within(refusal()).queryByRole("alert")).toBeNull();
     expect(asked(client)).toHaveLength(1);
@@ -345,7 +339,7 @@ describe("a value of a grid the server computes", () => {
       1,
     );
     const { rerender } = renderGrid("planning");
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect(await within(refusal()).findByText(/^Le montant budgété/)).toBeInTheDocument();
     rerender(planningOf(withSummaryChanged()));
     expect(within(refusal()).getByRole("status")).toHaveTextContent(PENDING);
@@ -364,7 +358,7 @@ describe("a value of a grid the server computes", () => {
       }),
     );
     const { rerender } = renderGrid("planning");
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     rerender(planningOf(withSummaryChanged()));
     answer();
     const { paragraphs } = await said();
@@ -379,16 +373,15 @@ describe("a value of a grid the server computes", () => {
   it("is refused from the keyboard as from the pointer, and gives the focus back to its cell", async () => {
     const client = serve({ [DEPENDENCIES]: "dependencies_summary" });
     renderGrid("planning");
-    const start = within(cell("Études", START)).getByRole("button");
+    const start = cell("Études", START);
     start.focus();
     await userEvent.keyboard("{Enter}");
     expect(refusal()).toHaveTextContent(/^Valeur calculéeDébut ne se saisit pas/);
     expect(document.activeElement).not.toBe(document.body);
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
-    const trigger = within(cell("Études", START)).getByRole("button");
-    expect(trigger).toHaveFocus();
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(start).toHaveFocus();
+    expect(start).toHaveAttribute("aria-expanded", "false");
     // Pressed again, it opens again: the refusal is the same, and the server is not asked again.
     await userEvent.keyboard(" ");
     expect(refusal()).toHaveTextContent(/Début ne se saisit pas/);
@@ -400,14 +393,14 @@ describe("a value of a grid the server computes", () => {
     serve();
     renderGrid("planning");
     for (const position of [DURATION, START, FINISH, PROGRESS]) {
-      expect(within(cell("Études", position)).queryByRole("button")).not.toBeNull();
-      expect(within(cell("Pupitres opérateurs", position)).queryByRole("button")).toBeNull();
+      expect(cell("Études", position)).toHaveAttribute("aria-haspopup", "dialog");
+      expect(cell("Pupitres opérateurs", position)).not.toHaveAttribute("aria-haspopup");
     }
     // A task in automatic mode computes its dates, and enters its duration and its progress.
-    expect(within(cell("Revue de conception", START)).queryByRole("button")).not.toBeNull();
-    expect(within(cell("Revue de conception", FINISH)).queryByRole("button")).not.toBeNull();
-    expect(within(cell("Revue de conception", DURATION)).queryByRole("button")).toBeNull();
-    expect(within(cell("Revue de conception", PROGRESS)).queryByRole("button")).toBeNull();
+    expect(cell("Revue de conception", START)).toHaveAttribute("aria-haspopup", "dialog");
+    expect(cell("Revue de conception", FINISH)).toHaveAttribute("aria-haspopup", "dialog");
+    expect(cell("Revue de conception", DURATION)).not.toHaveAttribute("aria-haspopup");
+    expect(cell("Revue de conception", PROGRESS)).not.toHaveAttribute("aria-haspopup");
     expect(cell("Revue de conception", DURATION)).toHaveClass("bg-background");
   });
 
@@ -417,10 +410,10 @@ describe("a value of a grid the server computes", () => {
     const provision = "Provision — risque de reprise du câblage";
     for (const position of [QUANTITY, DISBURSEMENT]) {
       expect(cell(provision, position)).toHaveClass("bg-muted");
-      expect(within(cell("Borniers", position)).queryByRole("button")).toBeNull();
+      expect(cell("Borniers", position)).not.toHaveAttribute("aria-haspopup");
     }
-    expect(within(cell(provision, HOURS)).queryByRole("button")).toBeNull();
-    await userEvent.click(within(cell(provision, QUANTITY)).getByRole("button"));
+    expect(cell(provision, HOURS)).not.toHaveAttribute("aria-haspopup");
+    await userEvent.click(cell(provision, QUANTITY));
     expect((await said()).paragraphs.slice(1)).toEqual([
       "Qté ne se saisit pas : Waterfall calcule cette valeur.",
       "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
@@ -431,7 +424,7 @@ describe("a value of a grid the server computes", () => {
   it("names what the amount of a task depends on: the lines it bears", async () => {
     const client = serve({ [DEPENDENCIES]: "dependencies_task_amount" });
     renderGrid("estimate");
-    await userEvent.click(within(cell("Câblage des armoires", REESTIMATED)).getByRole("button"));
+    await userEvent.click(cell("Câblage des armoires", REESTIMATED));
     expect((await said()).rows).toEqual([
       "3Raccordement des borniers",
       "4Borniers",
@@ -443,7 +436,7 @@ describe("a value of a grid the server computes", () => {
   it("says a task in manual mode bears no float", async () => {
     const client = serve({ [DEPENDENCIES]: "dependencies_manual_float" });
     renderGrid("planning");
-    await userEvent.click(within(cell("Pupitres opérateurs", FLOAT)).getByRole("button"));
+    await userEvent.click(cell("Pupitres opérateurs", FLOAT));
     expect((await said()).paragraphs.slice(1)).toEqual([
       "Marge ne se saisit pas : Waterfall calcule cette valeur.",
       "Une tâche en mode manuel ne porte pas de marge.",
@@ -454,7 +447,7 @@ describe("a value of a grid the server computes", () => {
   it("tells a refusal of the server as every screen does", async () => {
     serve({ [DEPENDENCIES]: { problem: { code: "NOT_FOUND", status: 404 } } });
     renderGrid("planning");
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
       /^Introuvable.+cet élément n’existe pas, ou vous n’y avez pas accès\.$/,
     );
@@ -466,7 +459,7 @@ describe("a value of a grid the server computes", () => {
     const problem = example("dependencies_entered") as Problem & { readonly status: 422 };
     serve({ [DEPENDENCIES]: { problem } });
     renderGrid("planning");
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
       /^Les données saisies ne sont pas valides\.$/,
     );
@@ -476,7 +469,7 @@ describe("a value of a grid the server computes", () => {
     serve();
     renderGrid("planning");
     server.client = unreachable();
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
       "Le service est injoignable",
     );
@@ -486,7 +479,7 @@ describe("a value of a grid the server computes", () => {
     serve();
     renderGrid("planning");
     server.client = undefined;
-    await userEvent.click(within(cell("Études", FINISH)).getByRole("button"));
+    await userEvent.click(cell("Études", FINISH));
     expect(await within(refusal()).findByRole("alert")).toHaveTextContent(
       "Le service est injoignable",
     );
@@ -506,7 +499,7 @@ describe("a value of a grid the server computes", () => {
         />
       </NextIntlClientProvider>,
     );
-    await userEvent.click(within(cell("Borniers", BUDGETED)).getByRole("button"));
+    await userEvent.click(cell("Borniers", BUDGETED));
     expect([...refusal().querySelectorAll("p")].map((p) => p.textContent)).toEqual([
       "Valeur calculée",
       "Budgété ne se saisit pas : Waterfall calcule cette valeur.",
@@ -516,9 +509,8 @@ describe("a value of a grid the server computes", () => {
   it("is refused in English too", async () => {
     serve({ [DEPENDENCIES]: "dependencies_summary" });
     renderGrid("planning", "en");
-    await userEvent.click(
-      within(cell("Études", FINISH)).getByRole("button", { name: /^Computed/ }),
-    );
+    expect(cell("Études", FINISH)).toHaveAccessibleName(/^Computed/);
+    await userEvent.click(cell("Études", FINISH));
     expect((await said("Computed value")).paragraphs).toEqual([
       "Computed value",
       "Finish cannot be entered: Waterfall computes this value.",

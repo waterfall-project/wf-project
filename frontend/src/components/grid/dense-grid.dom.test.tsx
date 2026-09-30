@@ -249,6 +249,27 @@ describe("the dense grid, on a thousand rows", () => {
       left: "48px",
     });
   });
+
+  it("takes the focus Tab gives it to its active cell once that row is scrolled away, and brings it back into view", async () => {
+    renderGrid(thousandRows());
+    expect(grid()).not.toHaveAttribute("tabindex");
+    scroller().scrollTop = 900 * ROW_HEIGHT;
+    fireEvent.scroll(scroller());
+    await waitFor(() => {
+      expect(rowAt(2)).toBeUndefined();
+    });
+    // The active row out of those rendered, the grid itself is the stop of the tabulation.
+    expect(grid()).toHaveAttribute("tabindex", "0");
+    act(() => {
+      grid().focus();
+    });
+    fireEvent.scroll(scroller());
+    await waitFor(() => {
+      expect(rowAt(2)?.querySelectorAll("td")[1]).toHaveFocus();
+    });
+    expect(scroller().scrollTop).toBe(0);
+    expect(grid()).not.toHaveAttribute("tabindex");
+  });
 });
 
 describe("the sort, the search and the totals, asked of the server", () => {
