@@ -333,7 +333,7 @@ librement dans le document.
 ## 17. La révision B du document
 
 - **Où** : historique des modifications ; indice de chaque exigence modifiée.
-- **Quoi** : les entrées 5 à 7 et 9 à 14 modifient le corps ou le Vérif d'exigences
+- **Quoi** : les entrées 5 à 7, 9 à 14 et 18 modifient le corps ou le Vérif d'exigences
   existantes. Le §1.3.1 veut que l'indice d'une exigence modifiée change, de A à B. L'outil
   de la roadmap (`make roadmap`) et le rapport de couverture des exigences refusent un
   identifiant dont l'indice est périmé : chaque US et chaque test qui cite une exigence
@@ -344,7 +344,144 @@ librement dans le document.
   document à la révision B — la règle du §1.3.1 telle qu'elle est écrite. Écarté : garder
   l'indice A pour les corrections faites avant le premier code métier ; moins de reprises,
   mais l'indice ne dirait plus qu'une exigence a changé. Les exigences nouvelles
-  (entrées 1, 10 et 15) naissent à l'indice A.
-- **Texte proposé** (historique, nouvelle ligne) : révision « B », objet « Planning calculé
+  (entrées 1, 10, 15 et 19) naissent à l'indice A.
+- **Texte proposé** (historique, nouvelle ligne) : révision « B », objet « Authentification
+  déléguée à un fournisseur d'identité ; fonctionnement sur réseau isolé ; planning calculé
   en heures ; échanges MS Project ramenés à la version 2013 ; corpus de plannings de
   référence ; formats Excel de l'annexe B ; décisions du cadrage d'EP-02 ».
+
+## 18. L'authentification déléguée à un fournisseur d'identité
+
+- **Où** : §3.4.2.1 (WF-ADM-0050, WF-ADM-0060, WF-ADM-0070, WF-ADM-0140, WF-ADM-0180) ;
+  WF-ADM-0120 ; WF-ADM-0150 et WF-ADM-0160 ; §4.2 (troisième décision, PBS-2.5, un
+  composant nouveau) ; WF-ARC-0030 ; WF-ARC-0040 ; WF-ARC-0110 ; WF-SEC-0010 ;
+  WF-SEC-0020 ; WF-EXP-0020 ; WF-EXP-0040 et le tableau des modes dégradés ; WF-EXP-0050 et
+  WF-EXP-0060 ; WF-CMP-0020 ; le tableau des flux techniques (TFX-06 à TFX-08) et la
+  figure 17 ; le glossaire (« Annuaire d'entreprise ») ; l'annexe C.
+- **Quoi** : orientation prise le 2026-09-30, avant le cadrage d'EP-03 qui porte ce
+  domaine. La conception actuelle — une session en base, émise par l'API pour le seul
+  navigateur, et l'authentification écrite dans Waterfall — ne sert pas ce qui viendra après
+  le MVP :
+  - un serveur MCP, que la spécification d'autorisation de MCP veut serveur de ressources
+    OAuth 2.1, validant des jetons émis par un serveur d'autorisation ;
+  - wf-requirement, qui partagera les utilisateurs de Waterfall et une seule connexion ;
+  - des agents qui créent des tâches, donc des comptes de service.
+
+  EP-03 n'étant pas commencé, le changement ne coûte aujourd'hui que la spécification et le
+  contrat ; après EP-03, il coûterait la moitié de son code et la migration des comptes
+  d'installations réelles. L'authentification n'est pas écrite par le projet : un
+  fournisseur existant, livré avec la plateforme, porte les comptes locaux, la politique de
+  mot de passe, le verrouillage, la réinitialisation, la fédération d'un annuaire LDAP ou
+  Active Directory, le relais vers un fournisseur OIDC externe, la rotation des jetons et les
+  comptes de service. Waterfall devient client OIDC (le front) et serveur de ressources
+  (l'API, puis le serveur MCP).
+- **Ce qui ne change pas** : le jeton dit qui est l'appelant, jamais ce qu'il peut faire.
+  Les rôles d'habilitation, le catalogue des permissions, les contributeurs, l'état actif
+  d'un compte, son rattachement, ses préférences et son avatar restent dans Waterfall, lus
+  à chaque requête. C'est ce qui garde leur effet immédiat au retrait d'une permission
+  (WF-ADM-0090), à la désactivation d'un compte (WF-SEC-0020) et à la qualité de
+  contributeur (WF-ADM-0110) — un jeton porteur de rôles les retarderait jusqu'à son
+  expiration.
+- **Conséquences à écrire** :
+  - WF-ADM-0140 devient la configuration livrée du fournisseur : douze caractères au moins,
+    ni l'adresse ni le nom, verrouillage de quinze minutes après dix échecs, lien de
+    réinitialisation d'une heure à usage unique ;
+  - WF-ADM-0180 : les fournisseurs se paramètrent dans la console du fournisseur
+    d'identité, non dans les écrans de Waterfall ; WF-INTF-0030 et FLX-16 le suivent ;
+  - WF-ADM-0070 : l'annuaire est synchronisé par le fournisseur ; Waterfall doit pourtant
+    connaître un compte avant la première connexion de la personne, pour l'inscrire comme
+    contributeur ; la désactivation d'un compte que l'annuaire ne connaît plus, et la garde
+    du dernier administrateur (WF-ADM-0120), se répartissent entre les deux ;
+  - WF-ARC-0040 : PostgreSQL reste la seule source de vérité des données de Waterfall,
+    mais les identifiants vivent dans la base du fournisseur ; les sessions quittent la
+    base de Waterfall ;
+  - WF-ADM-0150, WF-ADM-0160, WF-EXP-0050 et WF-EXP-0060 : une sauvegarde et une
+    restauration couvrent les deux bases, faute de quoi une restauration ne rend pas une
+    plateforme complète ;
+  - WF-EXP-0040 : le fournisseur indisponible, aucune connexion ni aucun renouvellement de
+    jeton n'aboutit, et les connexions en cours tiennent jusqu'à l'expiration de leur jeton
+    d'accès ; les comptes locaux cessent d'être un recours, puisqu'ils vivent eux aussi dans
+    le fournisseur ;
+  - WF-EXP-0020 : l'amorçage crée le premier administrateur dans le fournisseur, et son
+    compte dans Waterfall ;
+  - WF-ARC-0110 : les courriels d'authentification partent du fournisseur, dans la langue
+    du compte ; ses modèles existent en français et en anglais ;
+  - §4.2 : PBS-2.5 devient l'intégration — validation des jetons, correspondance entre
+    l'identité du fournisseur et le compte Waterfall — et le fournisseur prend un code
+    PBS propre ; TFX-06 à TFX-08 et la figure 17 passent par lui.
+- **À trancher en intégrant** :
+  - le fournisseur. Proposé : Keycloak, le seul des trois comparés le 2026-09-30 (Keycloak,
+    Zitadel, Authentik) qui tienne WF-ADM-0140 et WF-ADM-0070 tels quels — verrouillage
+    temporaire, import de l'annuaire avant la première connexion —, et qui serve déjà un
+    serveur MCP (enregistrement dynamique des clients, échange de jetons). Écartés :
+    Zitadel, dont la fédération LDAP ne crée un compte qu'à la connexion et dont le
+    verrouillage attend un administrateur ; Authentik, dont le verrouillage est une
+    réputation et non un compteur, et dont l'enregistrement dynamique des clients est
+    réservé à l'édition payante ;
+  - comment Waterfall connaît les comptes. Proposé : il lit l'API d'administration du
+    fournisseur par un compte de service, à la demande et à intervalle régulier. Écarté pour
+    le MVP : SCIM, dont Keycloak n'offre encore qu'une API entrante, expérimentale ;
+  - les comptes de service des agents, et leur place dans le modèle d'habilitation : ils
+    peuvent attendre l'après-MVP, mais le catalogue des permissions (WF-ADM-0100) ne doit
+    rien supposer d'humain.
+- **Texte proposé** (WF-ARC-0030, corps, motif et Vérif remplacés) :
+  - corps : « L'authentification est déléguée à un fournisseur d'identité OpenID Connect
+    livré avec la plateforme, qui porte les comptes locaux, la fédération d'un annuaire
+    LDAP — dont Active Directory — et, le cas échéant, le relais vers un fournisseur
+    d'identité externe. Le front obtient les jetons par le flux du code d'autorisation,
+    côté serveur, et ne les transmet jamais au navigateur. L'API valide chaque jeton d'accès
+    par les clés publiques du fournisseur et n'en tire que l'identité de l'appelant : l'état
+    de son compte, ses rôles et ses permissions sont lus dans Waterfall à chaque requête.
+    Un jeton d'accès vit au plus cinq minutes ; un jeton de rafraîchissement ne sert qu'une
+    fois, et son emploi en délivre un nouveau. » ;
+  - motif : « Un seul serveur d'autorisation sert le front, le serveur MCP et les
+    applications voisines, et leur donne une seule connexion ; confier les mots de passe,
+    le verrouillage et la fédération à un produit éprouvé retire du code de sécurité au
+    projet. Ne tirer du jeton que l'identité garde aux permissions et à la désactivation
+    leur effet immédiat (WF-ADM-0090, WF-SEC-0020), qu'un jeton porteur de rôles
+    retarderait jusqu'à son expiration. » ;
+  - Vérif : « Un compte local, un compte de l'annuaire et un compte venu d'un fournisseur
+    externe obtiennent chacun un jeton, et agissent selon leurs rôles dans Waterfall. Un
+    jeton d'accès expiré, ou signé par une autre clé, est refusé. Un jeton de
+    rafraîchissement déjà employé est refusé. Le retrait d'un rôle prend effet à la requête
+    suivante, sans attendre l'expiration du jeton. Le navigateur ne détient aucun jeton. »
+- **Suites hors du document** : le contrat — la famille `session` (quinze opérations) est
+  remplacée, `access` reste, `startDirectorySync` et `getLatestDirectorySync` sont à
+  revoir ; le front d'EP-02 — l'écran de connexion, le mot de passe et sa réinitialisation
+  (US-0320) cèdent la place à la redirection vers le fournisseur, et `serverClient()` porte
+  le jeton ; EP-03, à cadrer sur cette base. À intégrer avant le cadrage d'EP-03, donc
+  avant la fin d'EP-02.
+
+## 19. Le fonctionnement sur réseau isolé
+
+- **Où** : §4.6.5, nouvelle exigence WF-CMP-0030 ; WF-CMP-0020 (un serveur de temps, un
+  registre d'images) ; §4.5.1.
+- **Quoi** : décidé le 2026-09-30 — le fonctionnement sur un réseau sans accès à Internet
+  est un cas d'usage du MVP. Rien ne le dit, et l'exigence pèse sur des choix qui paraissent
+  anodins : une police, un script ou une icône chargés depuis un réseau de diffusion à
+  l'exécution, la télémétrie de Next.js, une vérification de mise à jour, un fournisseur
+  d'identité hébergé en ligne. Elle impose aussi à l'installation : les images chargées
+  depuis un registre interne ; les courriels par un serveur de messagerie interne, s'il en
+  existe un ; des certificats émis par une autorité interne, auxquels l'API doit faire
+  confiance pour lire les clés du fournisseur d'identité ; un serveur de temps interne, sans
+  lequel la validation des jetons refuse des jetons valides ; les correctifs importés par le
+  même circuit que les images. Les fournisseurs d'identité externes ne sont pas joignables :
+  restent l'annuaire interne et les comptes locaux.
+- **Texte proposé** (nouvelle exigence, F0, FBS-1, PBS-5.1) :
+  - titre : « Fonctionnement sur réseau isolé » ;
+  - corps : « Waterfall s'installe, fonctionne et se met à jour sur un réseau sans accès à
+    Internet. Aucun de ses composants, fournisseur d'identité compris, n'émet de flux hors
+    du réseau de l'installation : ni police, ni script, ni icône chargés depuis un réseau de
+    diffusion, ni télémétrie, ni vérification de mise à jour. Les images se chargent depuis
+    un registre interne, les courriels partent par un serveur de messagerie interne, les
+    certificats peuvent être émis par une autorité interne, et l'heure vient d'un serveur
+    de temps interne. Sans serveur de messagerie, la réinitialisation d'un mot de passe se
+    fait par un utilisateur habilité. » ;
+  - motif : « Les entreprises visées hébergent souvent leurs outils de pilotage sur des
+    réseaux fermés : ils portent les coûts de toutes leurs affaires. Un seul flux sortant
+    suffit à interdire une installation, et c'est au choix de chaque dépendance qu'il
+    s'introduit : l'écrire est ce qui le fait chercher. » ;
+  - Vérif : « La plateforme s'installe depuis un registre interne et passe les tests de bout
+    en bout sur un réseau dont tout flux sortant est bloqué, sans erreur ni attente. Aucun
+    composant ne tente de connexion hors du réseau de l'installation pendant ces tests. Une
+    plateforme dont les certificats sont émis par une autorité interne fonctionne. »
