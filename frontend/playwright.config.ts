@@ -16,25 +16,58 @@
  * 3000 and 4010 —, and its fake back serves a variant of the contract written where `make dev`
  * does not read it: a path played against servers it did not start would judge another version
  * of the code, or another contract (#150). A port already taken fails the run, saying so. The
- * environment moves the ports, for two checkouts on one workstation.
+ * environment moves the ports, for two checkouts on one workstation. With `WATERFALL_API_ADDRESS`
+ * set, the paths run against the API it names, and no fake back is started.
+ *
+ * The measure never fails the run on the second itself: it writes what it measured, and warns
+ * when an opening overran it (`opening.spec.ts`).
  */
-import { defineConfig, devices } from "@playwright/test";
+import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
 
-/** A port of the harness: the one the environment names, or its own. */
+type WebServer = Extract<
+  NonNullable<PlaywrightTestConfig["webServer"]>,
+  readonly unknown[]
+>[number];
+
+/** A port of the harness: the one the environment names, or its own; anything else refused. */
 function port(variable: string, own: number): number {
-  return Number(process.env[variable] ?? own);
+  const named = process.env[variable];
+  const chosen = named === undefined ? own : Number(named);
+  if (!Number.isInteger(chosen) || chosen < 1 || chosen > 65_535) {
+    throw new Error(`${variable} must be a port, a whole number from 1 to 65535: ${String(named)}`);
+  }
+  return chosen;
 }
 
 const API_PORT = port("E2E_API_PORT", 4110);
 const FRONT_PORT = port("E2E_FRONT_PORT", 3100);
 const PRODUCTION_PORT = port("E2E_PRODUCTION_PORT", 3101);
-const API = process.env.WATERFALL_API_ADDRESS ?? `http://127.0.0.1:${String(API_PORT)}`;
+// An API named by the environment is played against as it is: no fake back is started for it.
+const NAMED_API = process.env.WATERFALL_API_ADDRESS;
+const API = NAMED_API ?? `http://127.0.0.1:${String(API_PORT)}`;
 const FRONT = `http://127.0.0.1:${String(FRONT_PORT)}`;
 const PRODUCTION = `http://127.0.0.1:${String(PRODUCTION_PORT)}`;
 // From the root of the repository, where `make -C ..` runs; ignored by git.
 const MOCK_SPEC = "frontend/.e2e/waterfall.mock.json";
 const MEASURES = /opening\.spec\.ts$/;
 const onWorkstation = process.env.CI === undefined;
+
+/** The fake back, started on the port of the harness — unless the environment names an API. */
+function fakeBack(): WebServer[] {
+  if (NAMED_API !== undefined) {
+    return [];
+  }
+  return [
+    {
+      command: `make -C .. mock MOCK_PORT=${String(API_PORT)} MOCK_SPEC=${MOCK_SPEC}`,
+      url: `http://127.0.0.1:${String(API_PORT)}/api/v1/health`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      // Signal the whole process group: make and pnpm start the servers as children.
+      gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
+    },
+  ];
+}
 
 export default defineConfig({
   testDir: "e2e",
@@ -60,14 +93,7 @@ export default defineConfig({
     },
   ],
   webServer: [
-    {
-      command: `make -C .. mock MOCK_PORT=${String(API_PORT)} MOCK_SPEC=${MOCK_SPEC}`,
-      url: `${API}/api/v1/health`,
-      reuseExistingServer: false,
-      timeout: 120_000,
-      // Signal the whole process group: make and pnpm start the servers as children.
-      gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
-    },
+    ...fakeBack(),
     {
       command: `pnpm dev --hostname 127.0.0.1 --port ${String(FRONT_PORT)}`,
       url: FRONT,

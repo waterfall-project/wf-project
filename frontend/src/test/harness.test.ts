@@ -3,9 +3,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
-
-import config from "../../playwright.config";
+import type { PlaywrightTestConfig } from "@playwright/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The platform of `make dev`, whose servers the end-to-end paths must never play against (#150).
 const COMPOSE = readFileSync(
@@ -19,7 +18,33 @@ const DEVELOPMENT_PORTS = [...COMPOSE.matchAll(/- "(\d+):\d+"/g)].map((match) =>
 /** The file of the contract the fake back of `make dev` serves, from the root of the repository. */
 const DEVELOPMENT_SPEC = /- \.\.\/\.\.\/(\S+):\/contract\//.exec(COMPOSE)?.[1];
 
-const servers = [config.webServer ?? []].flat();
+const VARIABLES = [
+  "WATERFALL_API_ADDRESS",
+  "E2E_API_PORT",
+  "E2E_FRONT_PORT",
+  "E2E_PRODUCTION_PORT",
+];
+
+/** The configuration of the harness, read anew under the environment of the test. */
+async function harness(): Promise<PlaywrightTestConfig> {
+  vi.resetModules();
+  return (await import("../../playwright.config")).default;
+}
+
+/** The servers the harness starts. */
+function serversOf(config: PlaywrightTestConfig) {
+  return [config.webServer ?? []].flat();
+}
+
+beforeEach(() => {
+  for (const variable of VARIABLES) {
+    vi.stubEnv(variable, undefined);
+  }
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("the end-to-end harness", () => {
   it("reads the ports and the contract of make dev", () => {
@@ -27,14 +52,17 @@ describe("the end-to-end harness", () => {
     expect(DEVELOPMENT_SPEC).toBe("docs/api/waterfall.mock.json");
   });
 
-  it("starts every server it plays against, and refuses a port already taken", () => {
+  it("starts every server it plays against, and refuses a port already taken", async () => {
+    const servers = serversOf(await harness());
     expect(servers).toHaveLength(3);
     for (const server of servers) {
       expect(server.reuseExistingServer).toBe(false);
     }
   });
 
-  it("plays on ports of its own, none of make dev's", () => {
+  it("plays on ports of its own, none of make dev's", async () => {
+    const config = await harness();
+    const servers = serversOf(config);
     const addresses = [
       config.use?.baseURL,
       ...(config.projects ?? []).map((project) => project.use?.baseURL),
@@ -42,17 +70,48 @@ describe("the end-to-end harness", () => {
     ].filter((address) => address !== undefined);
     const ports = addresses.map((address) => new URL(address).port);
     // The fake back, the development server and the production server, each on its own port.
-    expect(new Set(ports).size).toBe(3);
-    expect(ports.filter((port) => DEVELOPMENT_PORTS.includes(port))).toEqual([]);
+    expect(new Set(ports)).toEqual(new Set(["4110", "3100", "3101"]));
     for (const server of servers) {
       expect(server.command).toContain(new URL(server.url ?? "").port);
     }
   });
 
-  it("writes the contract its fake back serves where make dev does not read it", () => {
-    const mock = servers.find((server) => server.command.startsWith("make -C .. mock"));
+  it("moves its ports as the environment says", async () => {
+    vi.stubEnv("E2E_API_PORT", "4050");
+    vi.stubEnv("E2E_FRONT_PORT", "3050");
+    vi.stubEnv("E2E_PRODUCTION_PORT", "3051");
+    const servers = serversOf(await harness());
+    expect(servers.map((server) => new URL(server.url ?? "").port)).toEqual([
+      "4050",
+      "3050",
+      "3051",
+    ]);
+    expect(servers[0]?.command).toContain("MOCK_PORT=4050");
+  });
+
+  it.each(["0", "65536", "30.5", "port", ""])("refuses %j as a port", async (named) => {
+    vi.stubEnv("E2E_FRONT_PORT", named);
+    await expect(harness()).rejects.toThrow("E2E_FRONT_PORT must be a port");
+  });
+
+  it("writes the contract its fake back serves where make dev does not read it", async () => {
+    const mock = serversOf(await harness()).find((server) =>
+      server.command.startsWith("make -C .. mock"),
+    );
     const spec = / MOCK_SPEC=(\S+)/.exec(mock?.command ?? "")?.[1];
     expect(spec).toBeDefined();
     expect(spec).not.toBe(DEVELOPMENT_SPEC);
+  });
+
+  it("plays against the API the environment names, and starts no fake back for it", async () => {
+    vi.stubEnv("WATERFALL_API_ADDRESS", "http://api.example:8080");
+    const servers = serversOf(await harness());
+    expect(servers.map((server) => server.command)).not.toContainEqual(
+      expect.stringContaining("mock"),
+    );
+    expect(servers).toHaveLength(2);
+    for (const server of servers) {
+      expect(server.env).toEqual({ WATERFALL_API_ADDRESS: "http://api.example:8080" });
+    }
   });
 });

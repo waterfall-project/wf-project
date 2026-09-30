@@ -614,9 +614,10 @@ serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front de
 3101 pour le front construit —, jamais ceux de `make dev`, et son faux back sert une variante
 du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port déjà pris fait
 échouer le lancement en le disant. `E2E_API_PORT`, `E2E_FRONT_PORT` et
-`E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste. `make e2e-browsers` installe le
+`E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un
+port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. À partir d'EP-03, les mêmes parcours se jouent contre le vrai service en
-changeant `WATERFALL_API_ADDRESS`.
+posant `WATERFALL_API_ADDRESS` : le harnais ne démarre alors aucun faux back.
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
@@ -634,7 +635,7 @@ détail interne de React, lu par le test seul. Le plus tardif des deux
 instants doit tenir la seconde. Un script remis à chaque document guette chaque image et note
 les instants sur l'horloge du système (`performance.timeOrigin`), qu'un document remplacé ne
 perd pas : ni les allers-retours de Playwright ni son attente n'y comptent. Elle se joue contre
-le front construit pour la production (`next build`, puis `next start` sur le port 3001), que
+le front construit pour la production (`next build`, puis `next start` sur le port 3101), que
 `playwright.config.ts` démarre après le faux back, à côté du serveur de développement —
 celui-ci compile une route à sa première demande et rend avec les contrôles de React en
 développement : il dirait la vitesse du poste du développeur. Avant chaque série de cinq
@@ -649,25 +650,30 @@ page, qu'elles partent d'un document nouveau ou d'une navigation dans la même p
 hors de la mesure, qu'aucune ne soit en cours depuis une demi-seconde, en quinze secondes au
 plus ; le journal écrit combien étaient en cours au départ de chaque ouverture mesurée, et il
 n'en faut aucune.
-Chaque ouverture doit tenir la seconde, comparée sans arrondi ; le journal du parcours écrit la
-médiane et la pire, utilisable, dessinée et hydratée, et, pour l'ouverture par l'adresse, où va
-le temps : les instants médians où le serveur a fini d'envoyer le document et où le navigateur
-l'a lu. Le parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
+Chaque ouverture se compare à la seconde, sans arrondi ; le journal du parcours, et le résumé
+du travail dans la chaîne, écrivent la médiane et la pire, utilisable, dessinée et hydratée,
+et, pour l'ouverture par l'adresse, où va le temps : les instants médians où le serveur a fini
+d'envoyer le document et où le navigateur l'a lu. **La mesure ne fait rien échouer sur la
+seconde** : une ouverture qui la dépasse est un avertissement — du test, et de la chaîne —,
+jamais un échec, ni de `make e2e`, ni de la chaîne, ni de la file de fusion. Contre le faux
+back, pour un utilisateur seul, sur une machine partagée de la chaîne, elle ne dit pas ce que
+tiendra le service : ses chiffres variaient d'un run à l'autre du simple au double sur une
+même révision. C'est un écart déclaré d'US-0110 et d'US-0220 ; la seconde se tient, bloquante,
+en EP-13, sur le jeu de référence, avec cinquante utilisateurs, contre le vrai service. Le parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
 ne lit pas (`lineage_id`). Son projet Playwright, `production`, dépend du projet `chromium` :
 il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
 d'eux échoue —, et sans trace. Elle tourne donc là où tournent les parcours, au palier complet
-de la chaîne ; sur un poste, `make e2e`, ou la mesure seule, contre des serveurs déjà
-démarrés : `pnpm exec playwright test --project production --no-deps` dans `frontend/`. La
-mesure est faite pour un utilisateur seul et contre le faux back : le jeu de référence et les
-cinquante utilisateurs simultanés du §4.6.2 restent à mesurer contre le vrai service.
+de la chaîne ; sur un poste, `make e2e`, ou la mesure seule,
+`pnpm exec playwright test --project production --no-deps` dans `frontend/`, qui démarre
+ses serveurs comme `make e2e` — le harnais n'en réutilise aucun.
 
 Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
 sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté
 serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
 contrat par `frontend/src/test/fixtures.ts`, les mêmes données que sert le faux back.
 
-*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours, ou une
-ouverture de grille qui dépasse la seconde, la fait échouer.
+*Contrôle* : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
+échouer, une ouverture de grille qui dépasse la seconde n'y est qu'un avertissement.
 
 ### Couverture du code
 
