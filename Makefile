@@ -10,9 +10,10 @@
 SPEC    := docs/spec
 API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
-# Where the variant the fake back serves is written, and the port it is served on. The
+# Where the variant the fake back serves is written, and the port `make mock` serves it on. The
 # end-to-end paths give both their own (`frontend/playwright.config.ts`): rewriting the file
-# that `make dev` mounts would bring its fake back down.
+# that `make dev` mounts would bring its fake back down. `make dev` heeds neither: Compose mounts
+# docs/api/waterfall.mock.json and publishes 4010 (deploy/compose/compose.dev.yaml).
 MOCK_SPEC := $(API)/waterfall.mock.json
 MOCK_PORT := 4010
 # The same bundle in JSON, which the repository tools read without a YAML parser.
@@ -89,7 +90,7 @@ mock-data: ## Regenerate the volumes of §4.6.2 the fake back serves, in fixture
 mock-data-up-to-date: ## The versioned volumes are the ones the generator writes
 	@$(WFTOOLS).mockdata --check
 
-mock: mock-spec ## Serve the fake back on http://localhost:4010, from the contract's examples
+mock: mock-spec ## Serve the fake back on http://localhost:4010 (MOCK_PORT), from the contract's examples
 	@$(PRISM) mock $(MOCK_SPEC) --host 0.0.0.0 --port $(MOCK_PORT)
 
 dev: mock-spec ## Start the front against the fake back (http://localhost:3000)
@@ -241,5 +242,5 @@ check-tools: ## Report which prerequisites are missing
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
 clean: ## Remove everything the commands generate
-	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(JSON_BUNDLE) $(MOCK_SPEC)
+	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(JSON_BUNDLE) $(MOCK_SPEC) $(FRONT)/.e2e
 	@echo "  cleaned"

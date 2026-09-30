@@ -9,10 +9,13 @@
  */
 import { type APIRequestContext, expect } from "@playwright/test";
 
-/** Have the development server compile routes, each answered as a page is: redirects followed. */
+/**
+ * Have the development server compile routes, all at once, each answered as a page is: redirects
+ * followed.
+ */
 export async function compile(request: APIRequestContext, ...routes: string[]): Promise<void> {
-  for (const route of routes) {
-    const response = await request.get(route);
-    expect(response.ok(), route).toBe(true);
-  }
+  const responses = await Promise.all(routes.map((route) => request.get(route)));
+  responses.forEach((response, index) => {
+    expect(response.ok(), routes[index]).toBe(true);
+  });
 }

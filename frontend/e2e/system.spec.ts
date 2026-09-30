@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, test } from "@playwright/test";
 
+import { compile } from "./compile";
+
 /** Check the page shows the one screen not found, inside the shell, and its way back. */
 async function expectNotFound(page: Page) {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Introuvable");
@@ -14,6 +16,8 @@ async function expectNotFound(page: Page) {
 test("an address that leads nowhere shows the screen not found, inside the shell, with its way home", async ({
   page,
 }) => {
+  // The home, reached by a click, and the list it leads to, compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/");
   await page.goto("/admin/nobody");
   await expectNotFound(page);
   await page.getByRole("link", { name: "Retour à l’accueil" }).click();

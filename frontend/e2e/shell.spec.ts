@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { compile } from "./compile";
+
 // The session of the fake back is Camille Martin's, whose role grants the whole catalogue of
 // permissions: every function is offered, and the menu of the account.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -74,6 +76,8 @@ test("the bar shows where the page sits, and the side bar names the project its 
 });
 
 test("the menu of the account leads to the pages of the account", async ({ page }) => {
+  // The page reached from the menu, compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/account/password");
   await page.goto("/");
   await page.getByRole("button", { name: "Compte de Camille Martin" }).click();
   await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
