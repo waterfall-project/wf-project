@@ -34,7 +34,6 @@
   },
   "breadcrumbs": {
     "label": "Breadcrumb",
-    "home": "Home",
     "revision": "Revision"
   },
   "search": {
@@ -250,6 +249,27 @@
     "submit": "Mark",
     "cancel": "Cancel"
   },
+  "projectList": {
+    "label": "List of projects",
+    "count": "{count, plural, one {# project} other {# projects}}",
+    "columns": {
+      "label": "Project",
+      "code": "Code",
+      "state": "State"
+    },
+    "filter": {
+      "label": "Filter of the list",
+      "mine": "Projects you contribute to",
+      "lift": "Show all projects",
+      "apply": "Show only my projects"
+    },
+    "pages": {
+      "label": "Pages of the list",
+      "beyond": "The page asked for lies beyond the end of the list.",
+      "previous": "Previous projects",
+      "next": "Next projects"
+    }
+  },
   "notFound": {
     "title": "Not found",
     "explanation": "This address leads to nothing you can consult.",
@@ -277,7 +297,6 @@
   "emptyStates": {
     "noProjects": "No project.",
     "noContributedProjects": "You contribute to no project.",
-    "allProjects": "Show all projects",
     "noRevisions": "This project has no revision yet.",
     "revisions": "Go to the revisions of the project"
   },

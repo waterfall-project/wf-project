@@ -34,7 +34,6 @@
   },
   "breadcrumbs": {
     "label": "Fil d’Ariane",
-    "home": "Accueil",
     "revision": "Révision"
   },
   "search": {
@@ -250,6 +249,27 @@
     "submit": "Marquer",
     "cancel": "Annuler"
   },
+  "projectList": {
+    "label": "Liste des projets",
+    "count": "{count, plural, one {# projet} other {# projets}}",
+    "columns": {
+      "label": "Projet",
+      "code": "Code",
+      "state": "État"
+    },
+    "filter": {
+      "label": "Filtre de la liste",
+      "mine": "Projets dont vous êtes contributeur",
+      "lift": "Voir tous les projets",
+      "apply": "N’afficher que mes projets"
+    },
+    "pages": {
+      "label": "Pages de la liste",
+      "beyond": "La page demandée est au-delà de la fin de la liste.",
+      "previous": "Projets précédents",
+      "next": "Projets suivants"
+    }
+  },
   "notFound": {
     "title": "Introuvable",
     "explanation": "Cette adresse ne mène à rien que vous puissiez consulter.",
@@ -277,7 +297,6 @@
   "emptyStates": {
     "noProjects": "Aucun projet.",
     "noContributedProjects": "Vous n’êtes contributeur d’aucun projet.",
-    "allProjects": "Voir tous les projets",
     "noRevisions": "Ce projet n’a encore aucune révision.",
     "revisions": "Aller aux révisions du projet"
   },

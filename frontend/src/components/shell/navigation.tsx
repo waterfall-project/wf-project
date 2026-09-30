@@ -57,6 +57,7 @@ import {
   readableGroups,
   type Scope,
 } from "@/navigation/functions";
+import { HOME } from "@/navigation/home";
 import type { ThemePreference } from "@/theme/theme";
 
 import { FUNCTION_ICONS, GROUP_ICONS } from "./function-display";
@@ -353,7 +354,7 @@ export function Navigation({ permissions, remembered, theme }: NavigationProps) 
     <Sidebar>
       <SidebarHeader>
         <Link
-          href="/"
+          href={HOME}
           data-rail-hidden=""
           className="rounded-md px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:hidden"
         >

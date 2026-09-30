@@ -16,13 +16,13 @@ import {
   type FunctionGroup,
   type NavigationFunction,
 } from "./functions";
+import { HOME } from "./home";
 
 /** The key of the label of a step in the catalogues. */
 export type CrumbLabel =
   | NavigationFunction["label"]
   | FunctionGroup["label"]
   | `accountMenu.${"account" | "password" | "avatar"}`
-  | "breadcrumbs.home"
   | "breadcrumbs.revision";
 
 /** A step of the breadcrumb: a label of the catalogue, or a project; a link when it has one. */
@@ -33,7 +33,8 @@ export type Crumb =
 const PROJECTS = "/projects";
 const ACCOUNT = "/account";
 
-const PROJECTS_STEP: Crumb = { kind: "label", label: "functionGroups.projects", href: PROJECTS };
+// The list of projects is the home.
+const PROJECTS_STEP: Crumb = { kind: "label", label: "functionGroups.projects", href: HOME };
 
 /** A step named by the catalogue, a link when it has an address. */
 function label(key: CrumbLabel, href?: string): Crumb {
@@ -73,10 +74,7 @@ function projectSteps(context: ProjectContext): Crumb[] {
 
 /** The steps of the breadcrumb of an address; none for an address that leads nowhere. */
 export function crumbsOf(pathname: string, context: ProjectContext | undefined): Crumb[] {
-  if (pathname === "/") {
-    return [label("breadcrumbs.home")];
-  }
-  if (pathname === PROJECTS) {
+  if (pathname === HOME) {
     return [label("functionGroups.projects")];
   }
   const account = findAccountPage(pathname);

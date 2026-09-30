@@ -90,7 +90,9 @@ afterEach(() => {
 describe("the form of the sign-in page", () => {
   it("opens the session with what was typed, and loads the screen the user was headed for", async () => {
     const client = serve({ "POST /session": OPENED });
-    const { container } = render(inFrench(<SignInForm target="/projects" />));
+    const { container } = render(
+      inFrench(<SignInForm target="/portfolio/projects?as_of=2026-05-31" />),
+    );
     await expectAccessible(container);
 
     await signInWith("camille.martin@example.com", "court");
@@ -99,7 +101,7 @@ describe("the form of the sign-in page", () => {
     expect(client.calls.map(({ route, body }) => [route, body])).toEqual([
       ["POST /session", { email: "camille.martin@example.com", password: "court" }],
     ]);
-    expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/projects");
+    expect(loadDocument).toHaveBeenCalledExactlyOnceWith("/portfolio/projects?as_of=2026-05-31");
   });
 
   it("tells credentials the API refuses by the code of the catalogue, and stays", async () => {

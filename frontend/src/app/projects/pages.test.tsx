@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient, Unreachable } from "@/api/client";
 import type { Examples } from "@/api/generated/examples";
-import { SignedOut, UnexpectedAnswer } from "@/api/problem";
+import { UnexpectedAnswer } from "@/api/problem";
 import { SCREEN } from "@/components/shell/page-header";
 import { SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
 import { ESTIMATE_FIELDS } from "@/components/grid/estimate";
@@ -37,7 +37,6 @@ import RevisionPage from "./[projectId]/revisions/[revisionId]/page";
 import PlanningPage, {
   generateMetadata as planningMetadata,
 } from "./[projectId]/revisions/[revisionId]/planning/page";
-import ProjectsPage, { generateMetadata as projectsMetadata } from "./page";
 
 const server = vi.hoisted(
   (): {
@@ -119,7 +118,7 @@ vi.mock("@/components/grid/planning-grid", async (original) => {
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
-  usePathname: () => "/projects",
+  usePathname: () => "/projects/01926f3a-7c00-7000-8000-000000000001",
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next/headers", () => ({
@@ -241,14 +240,6 @@ beforeEach(() => {
 const FILLED_SCREEN = `<main data-fill="" class="${SCREEN.dense} min-h-0">`;
 
 describe("the witness path", () => {
-  it("lists the projects, each a link to its page", async () => {
-    const html = renderToStaticMarkup(inEnglish(await ProjectsPage({ searchParams: NO_SEARCH })));
-    expect(html.startsWith(`<main class="${SCREEN.dense}">`)).toBe(true);
-    expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Projects<\/h1>/);
-    expect(html).toContain(`<a href="/projects/${PROJECT}">Modernisation du poste de commande</a>`);
-    expect(html).toContain("Extension de la ligne d&#x27;essais");
-  });
-
   it("shows a project and links to its revisions", async () => {
     const page = await ProjectPage({
       params: Promise.resolve({ projectId: PROJECT }),
@@ -519,7 +510,6 @@ describe("the witness path", () => {
   });
 
   it("titles the tab with the screen, and with the project read", async () => {
-    expect((await projectsMetadata()).title).toBe("Projects — Waterfall");
     const params = Promise.resolve({ projectId: PROJECT });
     expect((await projectMetadata({ params })).title).toBe(
       "Projects · Modernisation du poste de commande — Waterfall",
@@ -763,71 +753,12 @@ describe("the banner of the reading context on the witness path", () => {
   });
 });
 
-/** The list of projects in English, at an address whose query is given. */
-async function projectsPage(search: Record<string, string> = {}): Promise<string> {
-  const page = await ProjectsPage({ searchParams: Promise.resolve(search) });
-  return renderToStaticMarkup(inEnglish(page));
-}
-
 /** The addresses the links of a page lead to. */
 function links(markup: string): string[] {
   return [...markup.matchAll(/href="([^"]*)"/g)].map((match) => match[1] ?? "");
 }
 
 describe("the empty states of the shell", () => {
-  it("says there is no project, on the example of an empty list", async () => {
-    server.answers = { ...server.answers, "GET /projects": "projects_empty" };
-    const html = await projectsPage();
-    expect(text(html)).toBe("Projects No project.");
-    expect(html).not.toContain("<ul");
-  });
-
-  it("lifts the contributor filter when it is what empties the list", async () => {
-    server.answers = { ...server.answers, "GET /projects": "projects_empty" };
-    const html = await projectsPage({ is_contributor: "true" });
-    expect(text(html)).toBe("Projects You contribute to no project. Show all projects");
-    expect(links(html)).toEqual(["/projects"]);
-    const list = server.clients
-      .flatMap((client) => client.calls)
-      .find((call) => call.route === "GET /projects");
-    expect(list?.query.get("is_contributor")).toBe("true");
-  });
-
-  it("asks the whole list when the address holds no filter", async () => {
-    await projectsPage();
-    const list = server.clients
-      .flatMap((client) => client.calls)
-      .find((call) => call.route === "GET /projects");
-    expect(list?.query.has("is_contributor")).toBe(false);
-  });
-
-  it("names each prerequisite an incomplete reference lacks, and leads to where it is provided", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /reference/readiness": "reference_readiness_incomplete",
-    };
-    const html = await projectsPage();
-    expect(text(html)).toMatch(
-      /^Projects Incomplete reference data No project can be created until the common reference data has: a default calendar with working hours an active cost category Modernisation/,
-    );
-    expect(links(html).slice(0, 2)).toEqual(["/reference/resources", "/reference/costs"]);
-  });
-
-  it("names the prerequisites without a link to a function the session may not read", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /session": UNAUTHORIZED,
-      "GET /reference/readiness": "reference_readiness_incomplete",
-    };
-    const html = await projectsPage();
-    expect(text(html)).toContain("a default calendar with working hours an active cost category");
-    expect(links(html)).not.toContain("/reference/costs");
-  });
-
-  it("says nothing of a complete reference", async () => {
-    expect(text(await projectsPage())).not.toContain("reference data");
-  });
-
   it("says a project has no revision yet, on the example of an empty history, and leads to its revisions", async () => {
     server.answers = {
       ...server.answers,
@@ -863,23 +794,6 @@ describe("the empty states of the shell", () => {
     expect(links(html)).not.toContain(`/projects/${PRICING}/revisions`);
   });
 
-  it("guides a new installation to its reference before saying there is no project", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects": "projects_empty",
-      "GET /reference/readiness": "reference_readiness_incomplete",
-    };
-    const html = await projectsPage();
-    expect(html).toMatch(
-      new RegExp(`^<main class="${SCREEN.dense}">.*?</h1>.*?<section aria-labelledby="[^"]+"`),
-    );
-    expect(text(html)).toBe(
-      "Projects Incomplete reference data No project can be created until the common reference data has: " +
-        "a default calendar with working hours an active cost category No project.",
-    );
-    expect(links(html)).toEqual(["/reference/resources", "/reference/costs"]);
-  });
-
   it("is not found for a revision its address carries that the API does not find", async () => {
     server.answers = {
       ...server.answers,
@@ -901,14 +815,8 @@ describe("the empty states of the shell", () => {
     expect(server.clients.flatMap((client) => client.calls)).toEqual([]);
   });
 
-  it("never says the list is empty when the API refuses it for want of a session: it leads to the sign-in page", async () => {
-    server.answers = { ...server.answers, "GET /projects": UNAUTHORIZED };
-    await expect(ProjectsPage({ searchParams: NO_SEARCH })).rejects.toBeInstanceOf(SignedOut);
-  });
-
-  it("never says there is no project or no revision when the API cannot be reached: it is announced", async () => {
+  it("never says there is no revision when the API cannot be reached: it is announced", async () => {
     server.unreachable = true;
-    await expect(ProjectsPage({ searchParams: NO_SEARCH })).rejects.toBeInstanceOf(Unreachable);
     const page = ProjectPage({
       params: Promise.resolve({ projectId: PROJECT }),
       searchParams: NO_SEARCH,

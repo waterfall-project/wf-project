@@ -16,13 +16,14 @@ async function expectNotFound(page: Page) {
 test("an address that leads nowhere shows the screen not found, inside the shell, with its way home", async ({
   page,
 }) => {
-  // The home, reached by a click, and the list it leads to, compiled first (`e2e/compile.ts`).
+  // The home, reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, "/");
   await page.goto("/admin/nobody");
   await expectNotFound(page);
   await page.getByRole("link", { name: "Retour à l’accueil" }).click();
-  // The home leads to the list of projects, until it is that list itself (#112).
-  await expect(page).toHaveURL("/projects");
+  // The home is the list of projects.
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
 });
 
 test("an address that names no project shows the same screen not found", async ({ page }) => {
@@ -35,7 +36,7 @@ test("an address that names no project shows the same screen not found", async (
 test("the list of projects says nothing of a complete reference, and lists the projects", async ({
   page,
 }) => {
-  await page.goto("/projects");
+  await page.goto("/");
   await expect(
     page.getByRole("link", { name: "Modernisation du poste de commande" }),
   ).toBeVisible();

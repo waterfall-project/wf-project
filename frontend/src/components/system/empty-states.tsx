@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The empty states of the shell: what a screen says when there is nothing to show, and where
- * it leads to fill it — no project, whose filter on the projects the user contributes to is
- * lifted when it is what empties the list; a project without a revision, which leads to its
- * revisions when the session may read them; an installation whose minimum reference data is
+ * it leads to fill it — no project, or none the user contributes to when the filter of the list
+ * is what empties it, which the filter shown above the list lifts; a project without a
+ * revision, which leads to its revisions when the session may read them; an installation whose
+ * minimum reference data is
  * incomplete, which names each missing prerequisite (`getReferenceReadiness`, WF-CYC-0120)
  * and leads to the function of the reference that provides it, when the session may read it.
  *
  * Each is shown on an example of the contract named after it (`fixtures/api/`): `empty` for
  * the projects and the revisions, `incomplete` for the reference.
  */
-import { FolderSearch, GitBranch, Inbox, ListFilter, TriangleAlert } from "lucide-react";
+import { FolderSearch, GitBranch, Inbox, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
@@ -26,27 +27,23 @@ const ICON = "size-4 shrink-0";
 const ACTION = buttonVariants({ variant: "outline", size: "sm", className: "text-foreground" });
 const LINK = "font-medium text-foreground underline";
 
-/** Where the list of projects leads when it is empty: the list unfiltered, if it was filtered. */
+/** Whether the empty list of projects was filtered on those the user contributes to. */
 export interface NoProjectsProps {
-  /** The address of the list without its contributor filter; none when it had none. */
-  readonly unfiltered: string | undefined;
+  readonly filtered: boolean;
 }
 
-/** Say there is no project, and lift the filter that emptied the list, if one did. */
-export function NoProjects({ unfiltered }: NoProjectsProps) {
+/**
+ * Say there is no project — none the user contributes to, when the filter is what empties the
+ * list: the filter shown above the list lifts it, with its own link.
+ */
+export function NoProjects({ filtered }: NoProjectsProps) {
   const t = useTranslations("emptyStates");
   return (
     <div className={EMPTY}>
       <p className={SENTENCE}>
         <FolderSearch aria-hidden="true" className={ICON} />
-        {t(unfiltered === undefined ? "noProjects" : "noContributedProjects")}
+        {t(filtered ? "noContributedProjects" : "noProjects")}
       </p>
-      {unfiltered === undefined ? null : (
-        <Link href={unfiltered} className={ACTION}>
-          <ListFilter aria-hidden="true" />
-          {t("allProjects")}
-        </Link>
-      )}
     </div>
   );
 }

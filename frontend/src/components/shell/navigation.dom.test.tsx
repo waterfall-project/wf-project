@@ -90,7 +90,7 @@ describe("the navigation", () => {
     // No project is open: its functions wait for one, and there is none to go back to.
     expect(within(nav).queryByRole("link", { name: "Planification" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Retour au projet" })).toBeNull();
-    expect(href("Projets")).toBe("/projects");
+    expect(href("Projets")).toBe("/");
     await expectAccessible(container);
   });
 
@@ -255,8 +255,8 @@ describe("the navigation", () => {
     );
   });
 
-  it("marks the list of projects as the page shown", () => {
-    visit("/projects");
+  it("marks the list of projects, the home, as the page shown", () => {
+    visit("/");
     render(navigation());
     expect(screen.getByRole("link", { name: "Projets" })).toHaveAttribute("aria-current", "page");
   });

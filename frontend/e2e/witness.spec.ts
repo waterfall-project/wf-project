@@ -13,7 +13,7 @@ test("opens the list of projects, a project, and reads its planning and its esti
   // Every screen after the first is reached by a click, and awaited five seconds: compiled
   // first. The revision itself is a route of its own, which sends on to its planning.
   await compile(page.request, PROJECT, REFERENCE, `${REFERENCE}/estimate`);
-  await page.goto("/projects");
+  await page.goto("/");
   await page.getByRole("link", { name: "Modernisation du poste de commande" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Modernisation du poste de commande",

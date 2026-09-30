@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { HOME } from "@/navigation/home";
 
 /** Render the screen "not found". */
 export default function NotFound() {
@@ -28,7 +29,7 @@ export default function NotFound() {
     <Screen>
       <PageHeader title={t("title")} icon={SearchX} subtitle={t("explanation")} />
       <Link
-        href="/"
+        href={HOME}
         className={buttonVariants({ variant: "outline", size: "sm", className: "w-fit" })}
       >
         <House aria-hidden="true" />

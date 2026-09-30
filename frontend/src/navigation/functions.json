@@ -126,7 +126,7 @@
     {
       "code": "FBS-4",
       "label": "functionGroups.projects",
-      "route": "/projects",
+      "route": "/",
       "functions": [
         {
           "code": "FBS-4.1",

@@ -3,7 +3,8 @@
 /**
  * The choice of a project, at the top of the side bar: the project the address reads in — its
  * label, its code and its state, as its screen handed them on —, else that no project is open.
- * It opens on the list of all projects and, in a project, on its page, which keeps the context
+ * It opens on the list of all projects — the home, its contributor filter lifted — and, in a
+ * project, on its page, which keeps the context
  * of the address. Choosing among the projects themselves waits for a read the shell does not
  * make: the list is a screen of its own.
  */
@@ -27,6 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { contextQuery, readContext } from "@/navigation/context";
+import { ALL_PROJECTS } from "@/navigation/home";
 
 import { type ShownProject, useShownProject } from "./shown-project";
 
@@ -86,7 +88,7 @@ export function ProjectSwitcher() {
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
           >
             <DropdownMenuItem asChild>
-              <Link href="/projects">
+              <Link href={ALL_PROJECTS}>
                 <FolderKanban aria-hidden="true" />
                 {t("allProjects")}
               </Link>
