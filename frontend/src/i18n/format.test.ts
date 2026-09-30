@@ -6,12 +6,14 @@ import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
 
 import {
+  editableDecimal,
   formatDecimal,
   formatLocale,
   formatMoney,
   formatPercent,
   formatPlanningDate,
   formatTimestamp,
+  parseDecimal,
 } from "./format";
 
 // French separates thousands with a narrow no-break space; the Vérif writes a plain space,
@@ -93,6 +95,45 @@ describe("a decimal", () => {
     expect(() => formatDecimal("NaN", "fr")).toThrow(RangeError);
     expect(() => formatDecimal(" 1", "fr")).toThrow(RangeError);
     expect(() => formatDecimal("", "fr")).toThrow(RangeError);
+  });
+});
+
+describe("a number entered", () => {
+  it("is written with a comma in French and a point in English, and travels as the exact decimal of the contract", () => {
+    expect(parseDecimal("12,5", "fr")).toBe("12.5");
+    expect(parseDecimal("12.5", "en")).toBe("12.5");
+    // Thousands apart: a space the keyboard types, or the narrow one French writes; commas.
+    expect(parseDecimal("1 234,5", "fr")).toBe("1234.5");
+    expect(parseDecimal(`1${NARROW}234,5`, "fr")).toBe("1234.5");
+    expect(parseDecimal(`1${NO_BREAK}234${NO_BREAK}567`, "fr")).toBe("1234567");
+    expect(parseDecimal("1,234.5", "en")).toBe("1234.5");
+    expect(parseDecimal(" -7 ", "en")).toBe("-7");
+    // Every digit typed, where a float would lose some.
+    expect(parseDecimal("0,1000000000000000055511151231257827", "fr")).toBe(
+      "0.1000000000000000055511151231257827",
+    );
+  });
+
+  it("is refused in any other form: the separator of the other language, thousands misplaced, a letter", () => {
+    expect(parseDecimal("12.5", "fr")).toBeUndefined();
+    expect(parseDecimal("12,5", "en")).toBeUndefined();
+    expect(parseDecimal("1 23,5", "fr")).toBeUndefined();
+    expect(parseDecimal("1,2,3", "en")).toBeUndefined();
+    expect(parseDecimal("12a", "fr")).toBeUndefined();
+    expect(parseDecimal("", "en")).toBeUndefined();
+  });
+
+  it("keeps two decimals at most for an amount", () => {
+    expect(parseDecimal("1 234,56", "fr", "money")).toBe("1234.56");
+    expect(parseDecimal("1,234.567", "en", "money")).toBeUndefined();
+    expect(parseDecimal("1,234.567", "en")).toBe("1234.567");
+  });
+
+  it("starts from the value of the contract, with the decimal separator of the language and no thousands", () => {
+    expect(editableDecimal("1234.5", "fr")).toBe("1234,5");
+    expect(editableDecimal("1234.5", "en")).toBe("1234.5");
+    expect(editableDecimal("7", "fr")).toBe("7");
+    expect(() => editableDecimal("1,5", "fr")).toThrow(RangeError);
   });
 });
 
