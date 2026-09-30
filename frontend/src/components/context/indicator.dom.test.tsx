@@ -71,11 +71,22 @@ describe("an indicator", () => {
     expect(screen.getByRole("term")).toHaveTextContent("Cost index");
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
       "Not computable",
-      "Aucun coût réel à la date de calcul : le dénominateur de l’indice est nul.",
+      "No actual cost at the calculation date.",
       "Computed on 16 Mar 2026, 07:05",
     ]);
     expect(container).not.toHaveTextContent(/\b0\b|∞|Infinity|NaN/);
     await expectAccessible(container);
+  });
+
+  it("says why a value cannot be computed in the language of the interface, from the code the API gives", () => {
+    const projection = INDICATORS.projections.at_observed_rate;
+    expect(projection.reason).toBe("no_actual_cost");
+    render(page("indicator.names.projectionAtObservedRate", projection));
+    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
+      "Non calculable",
+      "Aucun coût réel à la date de calcul.",
+      "Calculé le 16 mars 2026, 07:05",
+    ]);
   });
 
   it("says a value is missing rather than make one up, when the API leaves it out", () => {

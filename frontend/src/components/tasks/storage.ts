@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What the tab keeps of the tasks it follows across a full reload: the contract has no list
- * of a user's background tasks, so the reference of each task that still runs is kept in the
- * storage of the session of the tab (`sessionStorage`), and read back when the shell mounts.
+ * What the tab keeps of the tasks it follows across a full reload: the reference of each task
+ * that still runs, with what the user named it after — which the list of the tasks of a user
+ * (`listBackgroundTasks`) does not say —, kept in the storage of the session of the tab
+ * (`sessionStorage`), and read back when the shell mounts.
  *
  * Kept with care: only what names a running task still followed — its identifier, its kind, its status and
  * the subject the user typed —, read back only when it has that shape, and nothing is lost

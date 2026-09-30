@@ -219,6 +219,19 @@ describe("a command of a revision", () => {
       );
     }
   });
+
+  it("presents a second marking unavailable while the first runs, naming the treatment under way", () => {
+    french(revisionCommands("revision_marking"));
+    const mark = screen.getByRole("button", { name: "Marquer la révision" });
+    expect(mark).toHaveAttribute("aria-disabled", "true");
+    expect(mark).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: aucun traitement de fond en cours sur l’objet.",
+    );
+    expect(screen.getByRole("button", { name: "Modifier le planning" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
 });
 
 describe("the outcome of a command", () => {

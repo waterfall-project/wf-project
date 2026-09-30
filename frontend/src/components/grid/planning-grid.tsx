@@ -4,9 +4,9 @@
  * The grid of the planning in the page: the dense grid — the one component the grid of the
  * estimate renders too —, given its configuration here, on the side of the browser, where the
  * functions of a configuration live. The page hands it data only: the rows of the answer of
- * `listNodes` as the grid reads them (`projectNodes`), what the address asked, and the settings
- * the session read. It also lends the cells the row numbers of the answer, by which a
- * predecessor is named.
+ * `listNodes` as the grid reads them (`projectNodes`), the structure they belong to, what the
+ * address asked, and the settings the session read. A computed cell asks the server what its
+ * value depends on, by the structure and its node.
  */
 "use client";
 
@@ -14,9 +14,9 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { DenseGrid } from "./dense-grid";
-import type { NodeRows, NodeSortColumn } from "./nodes";
+import { nodeDependencies } from "./node-dependencies";
+import type { NodeRows, NodeSortColumn, StructurePath } from "./nodes";
 import { PLANNING_GRID, type PlanningNode } from "./planning";
-import { RowNumbers } from "./planning-cells";
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
 
@@ -24,27 +24,29 @@ import type { GridPreferences } from "./settings";
 export interface PlanningGridProps {
   /** The rows of the answer of `listNodes`, as the grid reads them, and its totals. */
   readonly nodes: NodeRows<PlanningNode>;
+  /** The structure the rows belong to. */
+  readonly structure: StructurePath;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
 
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
-export function PlanningGrid({ nodes, query, preferences }: PlanningGridProps) {
+export function PlanningGrid({ nodes, structure, query, preferences }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
-  const rows = useMemo(
-    () => new Map(nodes.items.map((node) => [node.node_id, node.row_number])),
-    [nodes.items],
+  // A reader for each reading: an answer names rows a new reading may have renumbered.
+  const dependencies = useMemo(
+    () => nodeDependencies(structure, nodes.items),
+    [structure, nodes.items],
   );
   return (
-    <RowNumbers value={rows}>
-      <DenseGrid
-        config={PLANNING_GRID}
-        rows={nodes.items}
-        totals={nodes.totals}
-        totalsCaption={t("totals", { tasks: nodes.totals.task_count })}
-        query={query}
-        preferences={preferences}
-      />
-    </RowNumbers>
+    <DenseGrid
+      config={PLANNING_GRID}
+      rows={nodes.items}
+      totals={nodes.totals}
+      totalsCaption={t("totals", { tasks: nodes.totals.task_count })}
+      query={query}
+      preferences={preferences}
+      dependencies={dependencies}
+    />
   );
 }

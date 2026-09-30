@@ -62,10 +62,16 @@ function marking(send: (request: Request) => Promise<Response>) {
   };
 }
 
+/**
+ * How a query is written: every list the contract takes in a query is one parameter, its values
+ * apart by commas (`explode: false`) — `kinds=task,estimate_line`, never the parameter repeated.
+ */
+const QUERY = { array: { style: "form", explode: false } } as const;
+
 /** Make a client of the API served at an address. */
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const baseUrl = new URL(API_PREFIX, options.address).toString();
   // The platform's fetch is looked up at each call: Next may have replaced it in the meantime.
   const send = options.fetch ?? ((request: Request) => fetch(request));
-  return createClient<paths>({ baseUrl, fetch: marking(send) });
+  return createClient<paths>({ baseUrl, fetch: marking(send), querySerializer: QUERY });
 }

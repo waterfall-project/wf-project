@@ -40,6 +40,7 @@ Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
 | 404 lorsque la permission de consultation manque, 403 lorsque c'est l'écriture ou la qualité de contributeur | WF-ADM-0110 |
 | `lock_version` sur les écritures concurrentes, refus par 412 | WF-IHM-0110 |
 | Un seul préfixe de version, `/api/v1` | — |
+| Une liste de la requête en un seul paramètre, ses valeurs séparées par des virgules (`explode: false`) : `kinds=task,estimate_line` ; `make lint-openapi` le vérifie (`rule/array-parameter-*` de `redocly.yaml`) | — |
 | Une opération longue renvoie une tâche de fond, jamais un résultat | WF-ARC-0090 |
 | L'API ne localise rien ; seuls les documents qu'elle engendre suivent la langue du destinataire | WF-ARC-0110, WF-INTF-0180 |
 

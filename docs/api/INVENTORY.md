@@ -6,12 +6,12 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**151 opérations sur 117 chemins, dans 12 familles.**
+**153 opérations sur 119 chemins, dans 12 familles.**
 Le contrat cite **178 des 203 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
-`paths/system.yaml` — 7 opérations
+`paths/system.yaml` — 8 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -20,6 +20,7 @@ Le contrat cite **178 des 203 exigences** de la spécification.
 | GET | `/health/ready` | Sonde de préparation | WF-EXP-0040 |
 | GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010 |
 | GET | `/system/status` | Écran d'état du système | WF-ADM-0130 |
+| GET | `/tasks` | Tâches de fond de l'appelant | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}` | Avancement d'une tâche de fond | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}/result` | Résultat d'une tâche de fond | WF-DAT-0120 |
 
@@ -141,7 +142,7 @@ Le contrat cite **178 des 203 exigences** de la spécification.
 
 ## Révisions, structures et arbre commun
 
-`paths/revisions.yaml` — 27 opérations
+`paths/revisions.yaml` — 28 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -160,6 +161,7 @@ Le contrat cite **178 des 203 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-RAE-0050 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-PLA-0070 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies` | Ce dont dépend une valeur calculée | WF-IHM-0030, WF-PLA-0040 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-RIS-0010 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors` | Remplacer les prédécesseurs d'une tâche | WF-PLA-0030, WF-PLA-0040 |

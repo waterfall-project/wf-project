@@ -18,10 +18,10 @@ import {
   type NodeRow,
   type NodeSortColumn,
   type NodeTotals,
+  nodeFieldNames,
   projectNodes,
 } from "./nodes";
 import { PLANNING_FIELDS, PLANNING_GRID } from "./planning";
-import { RowNumbers } from "./planning-cells";
 
 /** The facet of a node that is a task. */
 type TaskFacet = components["schemas"]["TaskFacet"];
@@ -63,36 +63,33 @@ function answer(name: string): NodeList {
 /**
  * Everything a grid reads of its rows, row by row: the key, the number, the level, how the label
  * stands out, the value of each column — that it formats, sorts and totals —, which of its cells
- * the server computes and what their values depend on, and the markup of the icon of the nature
- * and of each cell its column renders, the predecessors named by the row numbers of the answer.
+ * the server computes and the field each asks the server about, and the markup of the icon of the
+ * nature and of each cell its column renders.
  */
 function whatTheGridReads<Row>(
   config: GridConfig<Row, NodeSortColumn, NodeTotals>,
   rows: readonly Row[],
-  numbers: ReadonlyMap<string, number>,
 ) {
-  const values = rows.map((row, index) => [
+  const values = rows.map((row) => [
     config.rowKey(row),
     config.rowNumber?.(row),
     config.tree?.level(row),
     config.tree?.emphasis?.(row),
     ...config.columns.map((column) => column.value(row)),
     ...config.columns.map((column) =>
-      column.computed?.in(row) === true ? column.computed.dependsOn(rows, index) : null,
+      column.computed?.in(row) === true ? column.computed.field(row) : null,
     ),
   ]);
   const markup = renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
-      <RowNumbers value={numbers}>
-        {rows.map((row) => (
-          <p key={config.rowKey(row)}>
-            {config.tree?.nature(row)}
-            {config.columns.map((column) => (
-              <span key={column.key}>{column.render?.(row)}</span>
-            ))}
-          </p>
-        ))}
-      </RowNumbers>
+      {rows.map((row) => (
+        <p key={config.rowKey(row)}>
+          {config.tree?.nature(row)}
+          {config.columns.map((column) => (
+            <span key={column.key}>{column.render?.(row)}</span>
+          ))}
+        </p>
+      ))}
     </NextIntlClientProvider>,
   );
   return { values, markup };
@@ -122,11 +119,10 @@ function holdsWhatTheGridReads<
       (name) => {
         const list = answer(name);
         const projected = projectNodes(list, fields);
-        const numbers = new Map(list.items.map((item) => [item.node_id, item.row_number]));
         expect(projected.totals).toBe(list.totals);
         expect(projected.items).toHaveLength(list.items.length);
-        const read = whatTheGridReads(config, projected.items, numbers);
-        expect(read).toEqual(whatTheGridReads(config, list.items, numbers));
+        const read = whatTheGridReads(config, projected.items);
+        expect(read).toEqual(whatTheGridReads(config, list.items));
         expect(read.markup).toContain('role="img"');
       },
       VOLUME_TIMEOUT,
@@ -154,6 +150,20 @@ function holdsWhatTheGridReads<
         }
       },
     );
+
+    it("are those the page asks listNodes for, each field of a facet named by its facet", () => {
+      const names = nodeFieldNames(fields);
+      expect(new Set(names).size).toBe(names.length);
+      // As the contract writes a name: a field of the node, or of a facet after its name.
+      expect(names.filter((name) => !/^((task|estimate_line)\.)?[a-z_]+$/.test(name))).toEqual([]);
+      expect([...names].sort()).toEqual(
+        [
+          ...node.filter((key) => key !== "task" && key !== "estimate_line"),
+          ...task.map((key) => `task.${key}`),
+          ...line.map((key) => `estimate_line.${key}`),
+        ].sort(),
+      );
+    });
 
     it(`weigh less than ${share.toString()} of the answer on the volume`, () => {
       const list = answer("volume/nodes_thousand");

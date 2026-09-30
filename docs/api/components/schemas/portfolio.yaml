@@ -189,17 +189,19 @@ PilotHealth:
   required: [scope, signals]
   description: >-
     Quatre signaux qui se constatent sans jugement, et dont l'absence rend les
-    autres vues trompeuses (WF-PTF-0110).
+    autres vues trompeuses (WF-PTF-0110). Chacun porte sa zone dans l'échelle commune
+    des signalements, que le serveur classe et dont le front ne déduit rien (WF-IHM-0070).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     signals:
       type: array
       items:
         type: object
-        required: [project_id, project_label, code]
+        required: [project_id, project_label, code, zone]
         properties:
           project_id: { $ref: ../common.yaml#/Uuid }
           project_label: { type: string }
+          zone: { $ref: reference.yaml#/AlertZone }
           code:
             type: string
             enum:

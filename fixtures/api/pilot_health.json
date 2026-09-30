@@ -1,0 +1,36 @@
+{
+  "summary": "La santé du pilotage au 1er juin 2026, sur les projets en cours : le projet témoin n'a pas été revu dans le délai du référentiel, en vigilance, et son jalon contractuel de réception est dépassé sans être terminé, en alerte (WF-PTF-0110, WF-IHM-0070).",
+  "value": {
+    "scope": {
+      "states": [
+        "in_progress"
+      ],
+      "as_of": "2026-06-01",
+      "from": null,
+      "to": null,
+      "org_node_id": null,
+      "project_count": 1
+    },
+    "signals": [
+      {
+        "project_id": "01926f3a-7c00-7000-8000-000000000001",
+        "project_label": "Modernisation du poste de commande",
+        "zone": "watch",
+        "code": "review_overdue",
+        "params": {
+          "weeks_since_last_mark": 11
+        }
+      },
+      {
+        "project_id": "01926f3a-7c00-7000-8000-000000000001",
+        "project_label": "Modernisation du poste de commande",
+        "zone": "alert",
+        "code": "contractual_milestone_overdue",
+        "params": {
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000625",
+          "reference_date": "2026-04-24"
+        }
+      }
+    ]
+  }
+}

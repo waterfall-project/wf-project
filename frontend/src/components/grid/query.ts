@@ -11,7 +11,7 @@
  * Pure, and neither server nor client: the page reads, the grid writes.
  */
 import type { components } from "@/api/generated/schema";
-import type { ContextParameter, SearchParameters } from "@/navigation/context";
+import type { SearchParameters } from "@/navigation/context";
 
 /** The direction of a sort, as the contract names it. */
 export type SortOrder = components["schemas"]["SortOrder"];
@@ -97,21 +97,6 @@ export function sortHref<Sort extends string>(
     next.set(SORT_ORDER, sort.order);
   }
   return address(pathname, next);
-}
-
-/**
- * The filters of the reading context that restrict the rows of a structure the server renders —
- * the sub-project, which the screens of a structure hand `listNodes` —; the date of a calculation
- * restricts none.
- */
-const ROW_FILTERS: readonly ContextParameter[] = ["subproject_id"];
-
-/**
- * Whether the answer to what an address asks holds a part of the rows only — a search, or a
- * filter of the context —: the rows it leaves out are not in it, and a grid cannot name them.
- */
-export function holdsPart(query: GridQuery<string>, address: SearchParameters): boolean {
-  return query.search !== undefined || ROW_FILTERS.some((name) => address.get(name) !== null);
 }
 
 /** The address of the same screen with the search changed — or lifted when empty —, the rest kept. */

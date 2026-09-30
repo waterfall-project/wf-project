@@ -5,17 +5,17 @@
  * scheduling mode and the progress of a task, each an icon named for its value; its duration
  * and its total float in days; the critical path marked on the float by an icon and bold type,
  * never by a colour alone (WF-PLA-0100); and its predecessors, named by their row numbers with
- * the type of each link and its lag, as Microsoft Project writes them.
+ * the type of each link and its lag in its unit, as Microsoft Project writes them (WF-PLA-0030).
  *
  * Everything shown is what the API gives: the mode, the progress, the float and the critical
  * path are read from the task, never deduced from its dates. A predecessor is named by the row
- * number the API gave its node in the same answer.
+ * number the API gives it in the numbering of the whole structure, whether or not the answer
+ * holds it.
  */
 "use client";
 
 import { Circle, CircleCheck, Contrast, Flame, type LucideIcon, PenLine, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { createContext, useContext } from "react";
 
 import type { components } from "@/api/generated/schema";
 
@@ -48,12 +48,6 @@ export const PROGRESS_ICONS = {
  * to whoever does not read the icon.
  */
 const CELL_ICON = "inline size-3.5 text-muted-foreground";
-
-/**
- * The row numbers of the answer the grid shows, by node: how a predecessor is named. The grid
- * of the planning provides them; none, and no predecessor is found.
- */
-export const RowNumbers = createContext<ReadonlyMap<string, number>>(new Map());
 
 /** Render the scheduling mode of a task, an icon named for it; nothing for a line. */
 export function SchedulingModeCell({ node }: { readonly node: PlanningNode }) {
@@ -124,25 +118,25 @@ function direction(lag: number): "lag" | "lead" | "none" {
  * The type of a link as its name shows it: none for the plain link, finish to start without a
  * lag, which the row number alone says.
  */
-function shownLink({ link_type, lag_days }: Predecessor): string {
-  return link_type === "finish_to_start" && lag_days === 0 ? "none" : link_type;
+function shownLink({ link_type, lag }: Predecessor): string {
+  return link_type === "finish_to_start" && lag === 0 ? "none" : link_type;
 }
 
 /**
  * Render the predecessors of a task as Microsoft Project writes them, each named by its row
- * number, then by the type of its link and its lag unless it is plain: `4;3DD+5 j`, `2FD-2 j`.
- * A predecessor the answer does not hold — outside what a search retained — has no number to
- * show, and says so.
+ * number, then by the type of its link and its lag in its unit unless it is plain: `5;4DD+1 sem`,
+ * `2FD-2 j`. A predecessor outside what a search retained is named all the same: its number is
+ * the one the API gives it.
  */
 export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations("planningGrid");
-  const rows = useContext(RowNumbers);
   const name = (predecessor: Predecessor) =>
     t("predecessor", {
-      row: rows.get(predecessor.predecessor_node_id)?.toString() ?? t("unknownRow"),
+      row: predecessor.predecessor_row_number.toString(),
       link: shownLink(predecessor),
-      direction: direction(predecessor.lag_days),
-      lag: predecessor.lag_days,
+      direction: direction(predecessor.lag),
+      lag: predecessor.lag,
+      unit: predecessor.lag_unit,
     });
   return (node.predecessors ?? []).map(name).join(t("predecessorSeparator"));
 }

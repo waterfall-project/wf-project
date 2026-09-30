@@ -51,11 +51,12 @@
   --ring: light-dark(#027dc6, #1195e1);
   /* The zones of a signal, one token each, drawn as the text and the icon of `Signal`. The
      hues stay apart for a protanope and a deuteranope — green-blue, orange, red —, and the
-     lightness orders them in grey, the nominal lightest and the alert darkest in both modes:
+     lightness orders them in grey so that the alert stands out the most from the page in both
+     modes: the darkest in light mode, the lightest in dark mode, the nominal the least.
      contrast.test.ts simulates the two views and measures the steps. */
-  --signal-nominal: light-dark(#1f756c, #6ee7a0);
-  --signal-watch: light-dark(#923002, #f59a3c);
-  --signal-alert: light-dark(#6b1d24, #f0705e);
+  --signal-nominal: light-dark(#1f756c, #07a1a3);
+  --signal-watch: light-dark(#923002, #f89228);
+  --signal-alert: light-dark(#6b1d24, #fdb299);
   /* What floats over the page — a menu, the panel of a sub-menu —: the surface of a card. */
   --popover: var(--card);
   --popover-foreground: var(--card-foreground);

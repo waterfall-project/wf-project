@@ -236,7 +236,13 @@ Node:
     parent_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     position: { type: integer, minimum: 0 }
-    row_number: { type: integer, minimum: 1 }
+    row_number:
+      type: integer
+      minimum: 1
+      description: >-
+        Numéro de ligne, calculé à la lecture dans la numérotation de toute la structure
+        — ses tâches et ses lignes, dans l'ordre du plan —, quels que soient ce que la
+        lecture rend, ses filtres, sa recherche et son tri.
     level: { type: integer, minimum: 1 }
     task:
       anyOf: [{ $ref: '#/TaskFacet' }, { type: 'null' }]
@@ -267,6 +273,92 @@ ComputedField:
     - estimate_line.quantity
     - estimate_line.hours
     - estimate_line.unit_disbursement
+
+ComputedValueField:
+  type: string
+  description: >-
+    Champ d'un nœud dont le serveur calcule la valeur, pour ce nœud-ci ou pour tous : ceux
+    que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants,
+    la marge, l'avancement physique (WF-IHM-0030).
+  enum:
+    - task.duration_days
+    - task.start_date
+    - task.finish_date
+    - task.progress
+    - task.physical_progress
+    - task.total_float_days
+    - task.budgeted_amount
+    - task.reestimated_amount
+    - estimate_line.quantity
+    - estimate_line.hours
+    - estimate_line.unit_disbursement
+    - estimate_line.budgeted_amount
+    - estimate_line.reestimated_amount
+    - estimate_line.previous_reestimated_amount
+
+ComputedDependency:
+  type: string
+  description: >-
+    Ce dont dépend une valeur calculée, que le refus d'une saisie nomme (WF-IHM-0030) :
+    `subordinates`, les dates, la durée et l'avancement d'une récapitulative, tirés de ses
+    subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de
+    ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche
+    en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier
+    (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard
+    (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas
+    (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de
+    sa charge et du taux horaire de sa catégorie ; `unit_disbursement`, celui d'une ligne
+    hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les
+    grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ;
+    `reference_revision`, le montant budgété, fixé par la révision de référence
+    (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du
+    reste à engager (WF-RAE-0040).
+  enum:
+    - subordinates
+    - lines_and_subordinates
+    - scheduling
+    - float_dates
+    - manual_mode
+    - hourly_rate
+    - unit_disbursement
+    - risk
+    - reference_revision
+    - remaining_reviews
+
+DependencyRow:
+  type: object
+  required: [node_id, row_number, label]
+  description: >-
+    Une ligne dont dépend une valeur calculée, nommée comme la grille la nomme : son numéro
+    dans la numérotation de toute la structure, et son libellé.
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    row_number: { type: integer, minimum: 1 }
+    label: { type: string }
+
+ComputedValueDependencies:
+  type: object
+  required: [node_id, field, depends_on, rows]
+  description: >-
+    Ce dont dépend la valeur calculée d'un champ d'un nœud (WF-IHM-0030) : les règles qui la
+    calculent, dans l'ordre où les dire, et les lignes dont elle est tirée — les
+    subordonnées directes d'une récapitulative, les lignes et les subordonnées directes
+    d'une tâche —, toutes, que la recherche ou les filtres d'une lecture les retiennent ou
+    non. Aucune ligne pour une valeur qui n'est tirée d'aucune.
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    field: { $ref: '#/ComputedValueField' }
+    depends_on:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      description: Chaque règle une fois, dans l'ordre où la dire.
+      items: { $ref: '#/ComputedDependency' }
+    rows:
+      type: array
+      uniqueItems: true
+      description: Chaque ligne une fois, dans l'ordre du plan.
+      items: { $ref: '#/DependencyRow' }
 
 EntryAvailability:
   type: object
@@ -355,8 +447,12 @@ TaskFacet:
       type: boolean
       description: Appartenance au chemin critique, calculée (WF-PLA-0100).
     physical_progress:
-      anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
-      description: Avancement physique d'une récapitulative, calculé (WF-IND-0060).
+      anyOf: [{ $ref: indicators.yaml#/Computable }, { type: 'null' }]
+      description: >-
+        Avancement physique d'une récapitulative, calculé : le rapport des montants
+        budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce
+        sous-arbre (WF-IND-0060), non calculable quand ce total est nul
+        (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative.
     budgeted_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
@@ -435,13 +531,37 @@ LinkType:
   enum: [finish_to_start, start_to_start, finish_to_finish, start_to_finish]
   description: Les quatre types de liaison (WF-PLA-0030).
 
-Predecessor:
+LagUnit:
+  type: string
+  enum: [days, weeks, months]
+  description: Unité d'un décalage de liaison, conservée telle qu'elle a été saisie ou importée (WF-PLA-0030).
+
+PredecessorWrite:
   type: object
-  required: [predecessor_node_id, link_type, lag_days]
+  required: [predecessor_node_id, link_type, lag, lag_unit]
+  description: >-
+    Liaison d'une tâche à l'un de ses prédécesseurs, avec son décalage dans son unité :
+    négatif, c'est une avance (WF-PLA-0030).
   properties:
     predecessor_node_id: { $ref: ../common.yaml#/Uuid }
     link_type: { $ref: '#/LinkType' }
-    lag_days: { type: integer }
+    lag: { type: integer }
+    lag_unit: { $ref: '#/LagUnit' }
+
+Predecessor:
+  description: >-
+    Liaison telle que la lecture la rend : le numéro de ligne du prédécesseur, calculé
+    comme `row_number` dans la numérotation de toute la structure, qu'il soit ou non
+    retenu par la recherche et les filtres (WF-PLA-0080).
+  allOf:
+    - $ref: '#/PredecessorWrite'
+    - type: object
+      required: [predecessor_row_number]
+      properties:
+        predecessor_row_number:
+          type: integer
+          minimum: 1
+          readOnly: true
 
 PredecessorsReplace:
   type: object
@@ -449,7 +569,7 @@ PredecessorsReplace:
   properties:
     predecessors:
       type: array
-      items: { $ref: '#/Predecessor' }
+      items: { $ref: '#/PredecessorWrite' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 TrackingEntry:

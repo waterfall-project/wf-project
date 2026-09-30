@@ -196,4 +196,6 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PilotHealth }
+            examples:
+              witness: { $ref: ../../../fixtures/api/pilot_health.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }

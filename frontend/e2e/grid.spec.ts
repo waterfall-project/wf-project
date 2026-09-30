@@ -188,6 +188,29 @@ test("asks the server for the sort of a column clicked, both ways, by the parame
   await expect(grid(page).getByRole("row").nth(1)).toHaveAccessibleName(/^1 .*Études/);
 });
 
+test("shows the sort asked without waiting for the server actions of the page, its preference among them", async ({
+  page,
+}) => {
+  // Every server action of the page held longer than the wait of an address — the preference of
+  // the sort among them. Next shows a navigation only once the server actions dispatched after it
+  // have answered: the preference is written once the sort is shown, and the page opens without
+  // any — an action goes to the address the page shows as it is dispatched.
+  const dispatched: string[] = [];
+  await page.route(`**${GRID}*`, async (route) => {
+    if (route.request().headers()["next-action"] !== undefined) {
+      dispatched.push(route.request().url());
+      await new Promise((resolve) => setTimeout(resolve, 8_000));
+    }
+    await route.continue().catch(() => undefined);
+  });
+  await page.goto(GRID);
+  const header = grid(page).getByRole("columnheader", { name: "Calculé Budgété" });
+  await header.getByRole("button").click();
+  await expect(page).toHaveURL(`${GRID}?sort_by=budgeted_amount&sort_order=asc`);
+  await expect(header).toHaveAttribute("aria-sort", "ascending");
+  expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
+});
+
 test("hides a column chosen in the menu of the columns, and searches the labels on the server", async ({
   page,
 }) => {

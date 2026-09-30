@@ -10,6 +10,9 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   (``wftools.mockstructure``);
 - ``estimate_indicators.json``, ``getEstimateIndicators``: the indicators of that estimate,
   summed from the same lines, so that the fake back tells the same story on both;
+- ``summary_dependencies.json``, ``getComputedValueDependencies``: what the finish date of its
+  first summary depends on, its direct subordinates named from the same structure — the
+  refusal the journeys try on it;
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first;
 - ``cost_categories.json``, ``listCostCategories``: the categories of §4.6.2, most of them
@@ -357,6 +360,12 @@ def volumes() -> dict[str, JsonObject]:
     )
     return {
         "nodes_thousand.json": _example(_structure_summary(built.nodes), built.nodes),
+        "summary_dependencies.json": _example(
+            "Ce dont dépend la date de fin de la première récapitulative de la structure aux "
+            "volumes du §4.6.2 : ses subordonnées directes, nommées par leur numéro et leur "
+            "libellé (WF-IHM-0030, WF-PLA-0040).",
+            summary_dependencies(built.nodes),
+        ),
         "estimate_indicators.json": _example(
             f"Les indicateurs du devis de la structure aux volumes du §4.6.2, sommés sur les "
             f"mêmes lignes que la grille : {_amount(built.totals.amount)} au total, dont "
@@ -382,6 +391,30 @@ def volumes() -> dict[str, JsonObject]:
             f"{_amount(ELECTRICAL_RATE)} de l'heure.",
             hourly_rates(),
         ),
+    }
+
+
+def summary_dependencies(answer: JsonObject) -> JsonObject:
+    """Return what the finish date of the first summary depends on: its direct subordinates.
+
+    The subordinates of a summary are its tasks: a line it bears is not one of them.
+    """
+    items = cast("list[dict[str, Any]]", answer["items"])
+    summary = next(node for node in items if node["kind"] == "task" and node["task"]["is_summary"])
+    rows: list[JsonValue] = [
+        {
+            "node_id": node["node_id"],
+            "row_number": node["row_number"],
+            "label": node["task"]["label"],
+        }
+        for node in items
+        if node["parent_id"] == summary["node_id"] and node["kind"] == "task"
+    ]
+    return {
+        "node_id": summary["node_id"],
+        "field": "task.finish_date",
+        "depends_on": ["subordinates"],
+        "rows": rows,
     }
 
 

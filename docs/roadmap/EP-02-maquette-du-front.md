@@ -302,7 +302,11 @@ verrou.
 - **Suivi des tâches de fond** : un fournisseur de la coquille garde chaque référence avec
   la commande qui l'a lancée, interroge `getBackgroundTask` par une action serveur tant que
   la tâche court, annonce l'aboutissement ou l'échec (`aria-live`) quel que soit l'écran,
-  et offre de relancer. Écarté : un suivi par écran.
+  et offre de relancer. Il suit les tâches de l'utilisateur qui courent, que le layout racine
+  demande pour une session ouverte et lui transmet sans que le document les attende, et les
+  relit quand l'onglet redevient visible (`listBackgroundTasks`, EP-02/L4) ; une tâche trouvée
+  ainsi se relance depuis son écran.
+  Écarté : un suivi par écran.
 - **Courbes** : ECharts importé à la carte, rendu SVG, option `aria` activée, une enveloppe
   maison de quelques lignes. Écarté : echarts-for-react, une dépendance pour trente lignes.
 - **Gantt** : un SVG propre, aligné sur les lignes virtualisées de la grille, en lecture
@@ -383,31 +387,48 @@ fond d'un utilisateur, la révision ouverte par défaut.
 
 ### Constats sur le contrat
 
-- `Computable.reason` est une phrase libre, que le front ne peut pas traduire, quand le
+- `Computable.reason` était une phrase libre, que le front ne pouvait pas traduire, quand le
   contrat a partout ailleurs remplacé la phrase par un code (`ErrorCode`,
-  `CommandCondition`) — US-0100/L1, ouvert en #137. D'ici là, le front affiche le motif tel
-  que l'API le donne.
-- Le contrat n'a pas de liste des tâches de fond d'un utilisateur : une tâche ne se relit que
-  par son `task_id`, que seul l'onglet qui l'a lancée connaît — US-0180/L1, ouvert en #146.
-  D'ici là, le suivi garde les références des tâches qui courent dans le stockage de session
-  de l'onglet (`sessionStorage`) : un rechargement complet les suit encore, sans la commande
-  qui les a lancées — une tâche suivie après un rechargement ne se relance que de son écran —,
-  mais un autre onglet ou un autre poste n'en sait rien.
-- Deux signalements n'ont pas de zone au contrat — le dépassement du budget d'un sous-projet
-  (`SubprojectBalance.is_over_budget`) et les signaux de santé du pilotage
-  (`PilotHealth.signals`) — US-0160/L1, ouvert en #139, à faire avant #115 et #120. D'ici
-  là, aucun écran ne les montre par `Signal` : le front n'invente pas de zone.
+  `CommandCondition`) — US-0100/L1, ouvert en #137. Corrigé par EP-02/L4 : `reason` est un
+  code (`NotComputableReason`), un par grandeur nulle au dénominateur des indicateurs du
+  §3.4.5.8 et des autres `Computable` du contrat, que `ComputedIndicator` rend par le
+  catalogue ; les exemples ne portent plus de phrase. L'avancement physique d'une
+  récapitulative (`TaskFacet.physical_progress`) devient un `Computable`, qui peut dire qu'il
+  n'est pas calculable faute de montant budgété dans son sous-arbre (`no_budgeted_amount`,
+  WF-IND-0060) ; la grille de planning le lira avec le Gantt (#114).
+- Le contrat n'avait pas de liste des tâches de fond d'un utilisateur : une tâche ne se
+  relisait que par son `task_id`, que seul l'onglet qui l'a lancée connaît — US-0180/L1,
+  ouvert en #146. Corrigé par EP-02/L4 : `listBackgroundTasks` (`GET /tasks`) rend les tâches
+  de l'appelant, celles qui courent et celles finies depuis une date, et `BackgroundTaskStatus`
+  est nommé. Le suivi de la coquille suit, pour une session ouverte, celles qui courent — le
+  layout racine les demande côté serveur et les lui transmet sans que le document les attende —
+  et celles qu'il relit chaque fois que l'onglet redevient visible, en plus des références que
+  garde le stockage de session de l'onglet (`sessionStorage`), qui porte aussi le nom que
+  l'utilisateur leur a donné : un autre onglet, un autre poste les retrouvent. Une tâche trouvée
+  par la liste ou le stockage vient sans la commande qui l'a lancée, et se relance depuis
+  l'écran de son objet. Reste hors de portée l'annonce d'une tâche lancée ailleurs et finie
+  entre deux lectures : elle ne court plus, la liste ne la rend pas. `finished_since` ne le règle pas simplement — sa date est celle du
+  serveur, que l'horloge du poste ne vaut pas, et l'onglet qui l'a lancée l'a déjà annoncée —,
+  ce qui demanderait un curseur rendu par la liste elle-même.
+- Deux signalements n'avaient pas de zone au contrat — le dépassement du budget d'un
+  sous-projet (`SubprojectBalance.is_over_budget`) et les signaux de santé du pilotage
+  (`PilotHealth.signals`) — US-0160/L1, ouvert en #139. Corrigé par EP-02/L4 : chacun porte sa
+  `zone` (`AlertZone`), que le serveur classe, avec leurs exemples (`remaining_indicators`,
+  `remaining_indicators_over_budget`, `pilot_health`) ; les écrans qui les montrent (#115,
+  #120) les rendront par `Signal`.
 - Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
   US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
   tests ne peuvent pas le simuler sur ces opérations.
 - `correlation_id` n'a pas de motif, ni de longueur minimale — US-0090/L2, ouvert en #144.
   D'ici là, le front le préfixe dans le digest de Next et traite une valeur vide comme
   absente.
-- `CommandCondition` n'a pas de condition « traitement en cours » : pendant un marquage, une
-  révision relue liste toujours `mark` disponible — US-0180/L1, ouvert en #147 (décision de
-  l'utilisateur), à faire avant #113. D'ici là, le suivi offre « Recharger l'écran » à
-  l'aboutissement d'une tâche ; le 409 de `markRevision` ne vaut qu'une fois la révision
-  marquée, et pendant le marquage rien au contrat n'empêche un second envoi.
+- `CommandCondition` n'avait pas de condition « traitement en cours » : pendant un marquage,
+  une révision relue listait toujours `mark` disponible — US-0180/L1, ouvert en #147
+  (décision de l'utilisateur). Corrigé par EP-02/L4 : le serveur nomme
+  `no_background_task_running` dans `missing_conditions` des commandes qu'un traitement de fond
+  en cours rendrait caduques, quel que soit l'utilisateur qui l'a lancé (exemple `marking` de
+  `getRevision`) ; `Command` la dit comme toute condition. Le suivi offre toujours « Recharger
+  l'écran » à l'aboutissement d'une tâche, qui relit la révision.
 - `AuthProvider.start_url` ne dit pas ce qu'il désigne — l'adresse de `startOidcSession` vue du
   navigateur, ou celle du fournisseur —, et le 303 de `startOidcSession` ne déclare pas son
   `Location` — US-0320/L1, ouvert en #152. D'ici là, la page de connexion offre le fournisseur
@@ -418,11 +439,11 @@ fond d'un utilisateur, la révision ouverte par défaut.
 - L'adresse du front que vise le lien de réinitialisation du mot de passe, écrit par l'API dans le courriel, n'est pas au contrat — US-0320/L1, ouvert en #154. D'ici là, le front attend `/login/reset?token=…`.
 - Aucun code d'erreur ne nomme une règle du mot de passe, et le front ne rend pas encore `Problem.fields` — US-0320/L1, ouvert en #155. D'ici là, un mot de passe refusé l'est par « Les données saisies ne sont pas valides. ».
 - La connexion par le fournisseur d'identité ne peut pas ramener à l'écran visé : `start_url` ne transmet pas `next`, et `completeOidcSession` répond 303 « vers l'application » — US-0320/L1, #152. D'ici là, elle mène à l'accueil.
-- `Predecessor` ne nomme sa tâche que par `predecessor_node_id` : la grille de planning tire le numéro de ligne d'un prédécesseur de la même réponse de `listNodes`, et ne peut plus le nommer quand une recherche retient une tâche sans lui — US-0220/L1, ouvert en #158 ; le décalage n'a pas d'unité (`lag_days`), alors que WF-PLA-0030 le garde en jours, semaines ou mois. D'ici là, un prédécesseur absent de la réponse se dit `?`.
+- `Predecessor` ne nommait sa tâche que par `predecessor_node_id` : la grille de planning tirait le numéro de ligne d'un prédécesseur de la même réponse de `listNodes`, et ne pouvait plus le nommer quand une recherche retenait une tâche sans lui — US-0220/L1, ouvert en #158 ; le décalage n'avait pas d'unité (`lag_days`), alors que WF-PLA-0030 le garde en jours, semaines ou mois. Corrigé par EP-02/L4 : `row_number` numérote toute la structure, tâches et lignes, quels que soient ce que la lecture rend, ses filtres, sa recherche et son tri ; chaque liaison porte le numéro de son prédécesseur (`predecessor_row_number`) et son décalage dans son unité (`lag`, `lag_unit`). La grille l'écrit tel quel, suffixe de Microsoft Project compris (`5;4DD+1 sem`).
 - Le contrat ne dit pas ce que rend `getEstimateIndicators` quand des taux horaires manquent (WF-DEV-0010) — US-0220/L1, ouvert en #159. D'ici là, l'écran du devis montre l'avis des taux manquants et ce que les indicateurs rendent ; quand l'API ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`), l'écran reste debout et les dit indisponibles ; toute autre réponse suit la règle des lectures.
 - `EstimateIndicators` ne porte que l'écart à la révision précédente et aucun total par poste, là où WF-DEV-0060 demande l'écart à la référence et les totaux par poste — US-0220/L1, ouvert en #160. D'ici là, l'écran affiche l'écart que le contrat rend, sous son nom exact.
-- `listNodes` rend chaque nœud entier — identifiants de lignée, de parent, de catégorie, de rôle et de sous-projet, disponibilité de la saisie du reste, noms de clés répétés sur six mille nœuds — : quatre mégaoctets pour mille tâches et leurs lignes, que le serveur de Next lit puis écrivait entiers dans la page, et l'ouverture d'une grille ne tenait la seconde du §4.6.2 qu'à la marge — US-0110/L2, ouvert en #166. D'ici là, la page ne passe à la grille que les champs qu'elle affiche.
-- Le contrat ne dit pas ce dont dépend une valeur calculée, que WF-IHM-0030 demande de nommer au refus d'une saisie : `computed_fields` dit quels champs d'un nœud sont calculés, pas d'où ils viennent ; `COMPUTED_VALUE` ne porte aucun paramètre, et `SUMMARY_TASK_DERIVED` ne nomme les subordonnées que par `subordinate_node_ids` — directes ou toutes, le contrat ne le dit pas —, que le front ne peut nommer que si la même réponse de `listNodes` les porte — US-0150/L1, ouvert en #168. D'ici là, la grille lit ce dont une valeur dépend de ce que porte la ligne — sa nature, son mode, le champ —, règles du noyau recopiées, et les subordonnées directes d'une ligne de l'ordre et des niveaux de la réponse. Hors de ces règles, le refus dit « Waterfall ne précise pas ici de quoi elle dépend. » : une durée ou un avancement calculés hors d'une récapitulative, les dates calculées d'une tâche qui n'est pas en mode automatique, une grandeur calculée hors d'une provision, une marge sur une grille qui ne lit pas le mode. Sous une recherche ou un filtre — le sous-projet aujourd'hui, les filtres de tâches et de lignes à venir —, les subordonnées que la réponse ne retient pas restent sans nom, et le refus dit « Des lignes dont elle dépend peuvent manquer : la recherche ou les filtres ne les montrent pas. »
+- `listNodes` rendait chaque nœud entier — identifiants de lignée, de parent, de catégorie, de rôle et de sous-projet, disponibilité de la saisie du reste, noms de clés répétés sur six mille nœuds — : quatre mégaoctets pour mille tâches et leurs lignes, que le serveur de Next lit puis écrivait entiers dans la page, et l'ouverture d'une grille ne tenait la seconde du §4.6.2 qu'à la marge — US-0110/L2, ouvert en #166. Corrigé par EP-02/L4 : `fields` choisit les propriétés d'un nœud et de ses facettes que la lecture rend ; les pages du devis et du planning le passent, tiré des listes de leurs grilles (`nodeFieldNames`). La projection de la page (`projectNodes`) reste en garde, tirée des mêmes listes : le faux back ignore `fields` et rend son exemple entier, et ce qui passe au navigateur ne dépend pas de ce que la réponse a porté en trop.
+- Le contrat ne disait pas ce dont dépend une valeur calculée, que WF-IHM-0030 demande de nommer au refus d'une saisie : `computed_fields` dit quels champs d'un nœud sont calculés, pas d'où ils viennent ; `COMPUTED_VALUE` ne porte aucun paramètre, et `SUMMARY_TASK_DERIVED` ne nommait les subordonnées que par `subordinate_node_ids` — directes ou toutes, le contrat ne le disait pas — US-0150/L1, ouvert en #168. Corrigé par EP-02/L4 (décision de l'utilisateur) : une opération de lecture à la demande, `getComputedValueDependencies`, prend le nœud et le champ tenté, et rend les règles qui calculent la valeur (`ComputedDependency`) et les lignes dont elle est tirée, nommées par leur numéro et leur libellé, que la recherche ou les filtres les retiennent ou non ; `subordinate_node_ids` désigne les subordonnées directes. Le refus d'une saisie l'appelle à son ouverture et dit ce qu'elle rend : la table des règles du noyau que le front recopiait, ses replis et la phrase d'une réponse partielle ont disparu.
 
 ### Ordre de construction
 
@@ -634,7 +655,7 @@ WF-ARC-0070 impose. EP-06 branchera ces commandes ; les poser au bon endroit dè
 
 - **statut** : en cours
 - **exigences** : `WF-IHM-0030-A`
-- **opérations** : aucune en propre
+- **opérations** : `getComputedValueDependencies` (EP-02/L4)
 - **issue** : #79
 
 **En tant que** chef de projet, **je veux** distinguer d'un coup d'œil ce que Waterfall
@@ -654,7 +675,10 @@ interdire l'envoi d'une valeur calculée, et porte une enveloppe `Computable`
 (`docs/api/DECISIONS.md`). Mais le schéma ne suffit pas à la ligne : une date de tâche est
 saisie en mode manuel et calculée en mode automatique, et seul le serveur le sait. Chaque
 nœud porte donc la liste de ses champs calculés (`computed_fields`, modification du
-cadrage) : le front la lit, ligne par ligne, au lieu de recopier une règle.
+cadrage) : le front la lit, ligne par ligne, au lieu de recopier une règle. Ce dont une valeur
+dépend, le refus le demande au serveur à son ouverture (`getComputedValueDependencies`,
+EP-02/L4), qui nomme les subordonnées d'une récapitulative même quand la recherche ou les
+filtres de la grille ne les montrent pas.
 
 ## US-0160 — Échelle de signalement commune, lisible sans couleur
 
@@ -711,7 +735,7 @@ pas une protection.
 
 - **statut** : fini
 - **exigences** : `WF-IHM-0080-A`
-- **opérations** : `getBackgroundTask`, `markRevision` — `getBackgroundTaskResult` passe à l'US-0260, qui décide du téléchargement d'un résultat (décision de l'utilisateur, 2026-09-29)
+- **opérations** : `getBackgroundTask`, `markRevision`, `listBackgroundTasks` (EP-02/L4) — `getBackgroundTaskResult` passe à l'US-0260, qui décide du téléchargement d'un résultat (décision de l'utilisateur, 2026-09-29)
 - **issue** : #82
 
 **En tant que** chef de projet, **je veux** qu'une action longue me rende la main et me
@@ -733,7 +757,8 @@ pendant qu'un marquage ou un import se fait.
 (WF-ARC-0090), qui porte désormais les neuf genres d'opérations longues, fusion d'une
 structure et survenance d'un risque comprises (modification du cadrage) : le suivi est un
 composant de la coquille, commun à toutes les tâches, et non un morceau d'écran par action
-longue.
+longue. Le suivi retrouve en outre, pour une session, les tâches de son utilisateur qui
+courent (`listBackgroundTasks`, EP-02/L4), lancées d'un autre onglet ou d'un autre poste.
 
 ## US-0190 — Langue de l'interface, catalogues et formats d'affichage
 

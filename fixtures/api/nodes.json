@@ -112,8 +112,10 @@
         "predecessors": [
           {
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000502",
+            "predecessor_row_number": 2,
             "link_type": "finish_to_start",
-            "lag_days": 0
+            "lag": 0,
+            "lag_unit": "days"
           }
         ]
       }

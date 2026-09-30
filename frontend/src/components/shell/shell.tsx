@@ -12,8 +12,9 @@
  * workstation decide the language and the mode. When the session cannot be read at all — the
  * API out of reach —, the navigation still offers the status screen (WF-ADM-0130).
  *
- * The shell follows the background tasks the screens start, in a panel under its bar, whatever
- * screen the user goes to meanwhile (WF-IHM-0080).
+ * The shell follows the background tasks the screens start, and, for an account, those of its user
+ * the API says still run, in a panel under its bar, whatever screen the user goes to meanwhile
+ * (WF-IHM-0080).
  *
  * The way in — the sign-in page, the password forgotten — stands outside it: the texts and the
  * mode still, but neither side bar, nor bar, nor tasks (`ShellFrame`).
@@ -21,6 +22,7 @@
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 
+import type { BackgroundTask } from "@/api/problem";
 import { TaskTracker } from "@/components/tasks/task-tracker";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -48,6 +50,11 @@ export interface ShellProps {
   readonly permissions: NavigationProps["permissions"] | undefined;
   readonly remembered: string | undefined;
   readonly sidebarOpen: boolean;
+  /**
+   * The tasks of the user that still run, as the server of Next reads them apart from the
+   * document; none without an account.
+   */
+  readonly running?: Promise<readonly BackgroundTask[]> | undefined;
   readonly children: ReactNode;
 }
 
@@ -60,11 +67,12 @@ export function Shell({
   permissions,
   remembered,
   sidebarOpen,
+  running,
   children,
 }: ShellProps) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone={TIME_ZONE}>
-      <TaskTracker>
+      <TaskTracker signedIn={account !== undefined} running={running}>
         <ShownProjectProvider>
           <SidebarProvider defaultOpen={sidebarOpen}>
             <ShellFrame

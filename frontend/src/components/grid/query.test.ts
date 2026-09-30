@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ESTIMATE_SORT_COLUMNS } from "./estimate";
-import { holdsPart, readGridQuery, SEARCH_LENGTH, searchHref, sortHref } from "./query";
+import { readGridQuery, SEARCH_LENGTH, searchHref, sortHref } from "./query";
 
 describe("what the address asks of a grid", () => {
   it("reads the sort by a column the grid sorts, ascending unless the address says descending", () => {
@@ -76,18 +76,5 @@ describe("the address a grid leads to", () => {
       "/p?subproject_id=unassigned&search=c%C3%A2blage",
     );
     expect(searchHref("/p", current, "   ")).toBe("/p?subproject_id=unassigned");
-  });
-});
-
-describe("the part of the rows an answer holds", () => {
-  it("is the whole unless a search or a filter of the sub-project restricts it", () => {
-    const holds = (query: string) => {
-      const address = new URLSearchParams(query);
-      return holdsPart(readGridQuery(address, ESTIMATE_SORT_COLUMNS), address);
-    };
-    expect(holds("")).toBe(false);
-    expect(holds("sort_by=label&as_of=2026-03-16")).toBe(false);
-    expect(holds("search=c%C3%A2blage")).toBe(true);
-    expect(holds("subproject_id=unassigned")).toBe(true);
   });
 });
