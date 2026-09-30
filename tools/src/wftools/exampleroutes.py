@@ -12,14 +12,21 @@ example the contract gives that operation, for that status (#133): a list of pro
 receive a project alone, which the service will never send.
 
 The bundle names each example it takes from a file after the file, and suffixes a name taken
-twice: an example is told to be a fixture by its value, the ``value`` of the file, and among
-fixtures of the same value — two empty lists — by the name the bundle gave it.
+twice (``estimate_indicators-2``): an example is the fixture whose name it bears, suffix
+removed, and whose ``value`` it has — two fixtures may have the same value, two empty lists.
+An example named after a fixture without its value is a defect of the tool, or of the bundle:
+the tool fails on it rather than let a fixture answer what it does not say. A number is read
+alike on both sides: the bundle writes ``1`` where a fixture says ``1.0``. An inline example is
+no fixture, and a status that is not a number — ``default``, ``4XX`` — is one the fake client
+cannot answer: both are left out.
 """
 
 import argparse
 import json
+import re
 import sys
 from collections.abc import Iterator
+from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
@@ -42,14 +49,21 @@ HEADER = """\
 export interface Examples {
 """
 
+SUFFIX = re.compile(r"-\d+$")
+"""What the bundle adds to the name of an example taken twice."""
+
 type Json = dict[str, object]
+
+
+class ExampleError(ValueError):
+    """An example of the contract is named after a fixture whose value it does not have."""
 
 
 def fixtures(directory: Path = FIXTURES) -> dict[str, list[str]]:
     """Return the names of the fixtures, by their value written as canonical JSON."""
     names: dict[str, list[str]] = {}
     for path in sorted(directory.rglob("*.json")):
-        example = cast("object", json.loads(path.read_text(encoding="utf-8")))
+        example = _load(path.read_text(encoding="utf-8"))
         if isinstance(example, dict) and "value" in example:
             name = path.relative_to(directory).with_suffix("").as_posix()
             names.setdefault(_canonical(cast("Json", example)["value"]), []).append(name)
@@ -59,9 +73,10 @@ def fixtures(directory: Path = FIXTURES) -> dict[str, list[str]]:
 def routes(contract: Json, known: dict[str, list[str]]) -> dict[str, dict[int, list[str]]]:
     """Return the fixtures each operation answers, by status, as the contract cites them."""
     table: dict[str, dict[int, list[str]]] = {}
+    names = {name.rsplit("/", 1)[-1] for listed in known.values() for name in listed}
     for route, status, example in _examples(contract):
         value = _canonical(_resolve(contract, example).get("value"))
-        for name in _named(example, known.get(value, [])):
+        for name in _named(example, known.get(value, []), names):
             cited = table.setdefault(route, {}).setdefault(status, [])
             if name not in cited:
                 cited.append(name)
@@ -90,18 +105,25 @@ def _examples(contract: Json) -> Iterator[tuple[str, int, Json]]:
                 continue
             responses = cast("dict[str, Json]", operation.get("responses", {}))
             for status, response in responses.items():
+                if not status.isdigit():
+                    continue
                 content = cast("dict[str, Json]", _resolve(contract, response).get("content", {}))
                 examples = cast("dict[str, Json]", content.get(JSON, {}).get("examples", {}))
                 for example in examples.values():
                     yield f"{method.upper()} {path}", int(status), example
 
 
-def _named(example: Json, candidates: list[str]) -> list[str]:
-    """Return the fixtures an example is: of its value, and of its name when one bears it."""
+def _named(example: Json, candidates: list[str], names: set[str]) -> list[str]:
+    """Return the fixtures an example is: of its value, and bearing its name, suffix removed."""
     reference = example.get("$ref")
-    component = reference.rsplit("/", 1)[-1] if isinstance(reference, str) else None
+    if not isinstance(reference, str):
+        return []
+    component = SUFFIX.sub("", reference.rsplit("/", 1)[-1])
     named = [name for name in candidates if name.rsplit("/", 1)[-1] == component]
-    return named or candidates
+    if not named and component in names:
+        message = f"{reference} is named after the fixture {component}, without its value"
+        raise ExampleError(message)
+    return named
 
 
 def _resolve(contract: Json, node: Json) -> Json:
@@ -112,6 +134,17 @@ def _resolve(contract: Json, node: Json) -> Json:
             target = cast("Json", target[key])
         node = target
     return node
+
+
+def _load(text: str) -> object:
+    """Read JSON, a number with a fraction of nothing — ``1.0`` — as the whole number it is."""
+    return cast("object", json.loads(text, parse_float=_number))
+
+
+def _number(text: str) -> int | float:
+    """Read a number written with a fraction or an exponent: whole, as an integer."""
+    exact = Decimal(text)
+    return int(exact) if exact == exact.to_integral_value() else float(text)
 
 
 def _canonical(value: object) -> str:
@@ -130,8 +163,13 @@ def main(arguments: list[str], directory: Path = FIXTURES) -> int:
     options = parser.parse_args(arguments)
     bundle = cast("Path", options.bundle)
     output = cast("Path", options.output)
-    contract = cast("Json", json.loads(bundle.read_text(encoding="utf-8")))
-    output.write_text(render(routes(contract, fixtures(directory))), encoding="utf-8", newline="\n")
+    contract = cast("Json", _load(bundle.read_text(encoding="utf-8")))
+    try:
+        table = routes(contract, fixtures(directory))
+    except ExampleError as error:
+        print(f"  {error}", file=sys.stderr)
+        return 1
+    output.write_text(render(table), encoding="utf-8", newline="\n")
     print(f"  -> {output}")
     return 0
 
