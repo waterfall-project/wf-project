@@ -270,6 +270,53 @@
       "next": "Projets suivants"
     }
   },
+  "projectFacts": {
+    "label": "Le projet",
+    "settings": "Paramètres du projet",
+    "code": "Code",
+    "state": "État",
+    "orderReceivedOn": "Commande reçue le",
+    "description": "Description",
+    "missing": "Non renseigné",
+    "inflationRate": "Taux d’inflation annuel",
+    "winProbability": "Probabilité de gain",
+    "revisions": "Révisions"
+  },
+  "projectLists": {
+    "subprojects": {
+      "title": "Sous-projets",
+      "none": "Ce projet n’a aucun sous-projet.",
+      "code": "Code ERP",
+      "label": "Libellé",
+      "actualCosts": "Coûts réels",
+      "charged": "Imputés",
+      "notCharged": "Aucun"
+    },
+    "contributors": {
+      "title": "Contributeurs",
+      "none": "Ce projet n’a aucun contributeur.",
+      "name": "Nom",
+      "account": "Compte",
+      "active": "Actif",
+      "inactive": "Désactivé"
+    },
+    "transitions": {
+      "title": "Historique des états",
+      "none": "Aucune transition n’est inscrite.",
+      "occurredAt": "Date",
+      "change": "Transition",
+      "actor": "Par",
+      "creation": "Création",
+      "to": "vers"
+    }
+  },
+  "exitProject": {
+    "statement": "Cette sortie est définitive : le projet passera à l’état « {state} », et lui comme toutes ses données — plannings, devis, restes à engager, coûts réels — passeront en lecture seule. Aucune transition ne part d’un état terminal.",
+    "reason": "Motif (facultatif)",
+    "submit": "Confirmer la sortie",
+    "cancel": "Annuler",
+    "done": "Le projet est passé à l’état « {state} »."
+  },
   "notFound": {
     "title": "Introuvable",
     "explanation": "Cette adresse ne mène à rien que vous puissiez consulter.",

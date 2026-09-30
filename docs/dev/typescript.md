@@ -172,7 +172,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     au serveur échoue, et l'écran de panne s'affiche. Un test unitaire qui rend l'arbre entier
     par `renderToStaticMarkup` ne franchit pas cette frontière et passe ; seul le parcours de
     bout en bout la voit. Ce qui la franchit est une donnée ou un élément déjà dessiné
-    (`commandIcon`), jamais une fonction.
+    (`commandIcon`), jamais une fonction. L'inverse échoue de même : une fonction exportée d'un
+    module `"use client"` et appelée par un composant serveur — le filtre des sorties du cycle
+    de vie (US-0210/L1). Ce que les deux côtés lisent vit dans un module sans directive
+    (`exits.ts`).
 13. **Visible dans le conteneur, pas dans la fenêtre.** Un parcours affirme l'en-tête ou les
     totaux d'une grille par `toBeVisible` ou par un cadre maison, qui ne regardent pas la
     fenêtre : la ligne des totaux est sous le bas de l'écran et le parcours passe. La cause

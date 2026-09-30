@@ -270,6 +270,53 @@
       "next": "Next projects"
     }
   },
+  "projectFacts": {
+    "label": "The project",
+    "settings": "Project settings",
+    "code": "Code",
+    "state": "State",
+    "orderReceivedOn": "Order received on",
+    "description": "Description",
+    "missing": "Not set",
+    "inflationRate": "Annual inflation rate",
+    "winProbability": "Probability of winning",
+    "revisions": "Revisions"
+  },
+  "projectLists": {
+    "subprojects": {
+      "title": "Subprojects",
+      "none": "This project has no subproject.",
+      "code": "ERP code",
+      "label": "Label",
+      "actualCosts": "Actual costs",
+      "charged": "Charged",
+      "notCharged": "None"
+    },
+    "contributors": {
+      "title": "Contributors",
+      "none": "This project has no contributor.",
+      "name": "Name",
+      "account": "Account",
+      "active": "Active",
+      "inactive": "Deactivated"
+    },
+    "transitions": {
+      "title": "History of states",
+      "none": "No transition is recorded.",
+      "occurredAt": "Date",
+      "change": "Transition",
+      "actor": "By",
+      "creation": "Creation",
+      "to": "to"
+    }
+  },
+  "exitProject": {
+    "statement": "This exit is final: the project will go to the state “{state}”, and it and all its data — plannings, estimates, remaining commitments, actual costs — will become read only. No transition leaves a terminal state.",
+    "reason": "Motive (optional)",
+    "submit": "Confirm the exit",
+    "cancel": "Cancel",
+    "done": "The project has gone to the state “{state}”."
+  },
   "notFound": {
     "title": "Not found",
     "explanation": "This address leads to nothing you can consult.",

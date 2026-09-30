@@ -119,15 +119,15 @@ describe("the page of a function still to come", () => {
   });
 
   it("exists for a function of the project itself, without a revision", async () => {
-    const address = `/projects/${PROJECT}/lifecycle`;
-    expect(heading(html(await ScreenPage(at(address))))).toBe("Cycle de vie du projet");
+    const address = `/projects/${PROJECT}/revisions`;
+    expect(heading(html(await ScreenPage(at(address))))).toBe("Gestion des révisions");
     expect((await generateMetadata(at(address))).title).toBe(
-      "Cycle de vie du projet · Modernisation du poste de commande — Waterfall",
+      "Gestion des révisions · Modernisation du poste de commande — Waterfall",
     );
   });
 
   it.each([
-    ["project", "GET /projects/{project_id}", `/projects/${PROJECT}/lifecycle`],
+    ["project", "GET /projects/{project_id}", `/projects/${PROJECT}/revisions`],
     ["project", "GET /projects/{project_id}", `/projects/${PROJECT}/revisions/${REVISION}/risks`],
     [
       "revision",
@@ -147,7 +147,7 @@ describe("the page of a function still to come", () => {
     // the one screen not found — telling them apart would reveal the project exists.
     server.answers = { ...ANSWERS, "GET /projects/{project_id}": NOT_FOUND };
     const nowhere = await ScreenPage(at("/admin/nobody")).catch((error: unknown) => error);
-    const refused = await ScreenPage(at(`/projects/${PROJECT}/lifecycle`)).catch(
+    const refused = await ScreenPage(at(`/projects/${PROJECT}/revisions`)).catch(
       (error: unknown) => error,
     );
     expect(nowhere).toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
@@ -175,11 +175,11 @@ describe("the banner of the reading context of a screen of a project", () => {
   });
 
   it("names the project, and the revision a screen of the project carries [WF-IHM-0020-A]", async () => {
-    const lifecycle = `/projects/${PROJECT}/lifecycle`;
-    expect(text(html(await ScreenPage(at(lifecycle))))).toContain(
-      "Projet Modernisation du poste de commande Cycle de vie du projet",
+    const revisions = `/projects/${PROJECT}/revisions`;
+    expect(text(html(await ScreenPage(at(revisions))))).toContain(
+      "Projet Modernisation du poste de commande Gestion des révisions",
     );
-    const page = html(await ScreenPage(at(`${lifecycle}?revision_id=${REVISION}`)));
+    const page = html(await ScreenPage(at(`${revisions}?revision_id=${REVISION}`)));
     expect(text(page)).toContain(
       "Projet Modernisation du poste de commande Révision Révision en cours",
     );
@@ -229,8 +229,8 @@ describe("the banner of the reading context of a screen of a project", () => {
   });
 
   it.each([
-    [`/projects/a.b/lifecycle`],
-    [`/projects/${PROJECT}/lifecycle?revision_id=${REVISION}`],
+    [`/projects/a.b/revisions`],
+    [`/projects/${PROJECT}/revisions?revision_id=${REVISION}`],
   ])("is not found at %s when it names no project or revision the API finds", async (address) => {
     server.answers = {
       ...ANSWERS,
@@ -259,21 +259,7 @@ function offered(markup: string, name: string): "absent" | "available" | "unavai
 }
 
 describe("the commands a page still to come shows already", () => {
-  const LIFECYCLE = `/projects/${PROJECT}/lifecycle`;
   const REVISIONS = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
-
-  it("on a project in pricing, presents completion unavailable, naming the condition it lacks [WF-IHM-0090-A]", async () => {
-    // Sur un projet en chiffrage, la commande de terminaison est présentée indisponible en
-    // nommant la condition manquante.
-    server.answers = { ...ANSWERS, "GET /projects/{project_id}": "project_pricing" };
-    const page = html(await ScreenPage(at(LIFECYCLE)));
-    expect(offered(page, "Terminer le projet")).toBe("unavailable");
-    const complete = button(page, "Terminer le projet");
-    const described = /aria-describedby="([^"]+)"/.exec(complete ?? "")?.[1];
-    expect(page).toContain(`id="${described ?? ""}"`);
-    expect(text(page)).toContain("Terminer le projet Condition non remplie : projet en cours.");
-    expect(offered(page, "Déclarer le projet perdu")).toBe("available");
-  });
 
   it("offers the commands of a draft revision, those of modification among them [WF-IHM-0020-A]", async () => {
     const page = html(await ScreenPage(at(REVISIONS)));
@@ -316,7 +302,6 @@ describe("the commands a page still to come shows already", () => {
 
   it.each([
     ["the revisions of a project without a revision", `/projects/${PROJECT}/revisions`],
-    ["another function of a project", `/projects/${PROJECT}/settings`],
     ["a function of a revision", REMAINING],
   ])("shows none on %s", async (_, address) => {
     expect(html(await ScreenPage(at(address)))).not.toContain("<button");

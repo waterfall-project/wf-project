@@ -715,7 +715,7 @@ describe("the banner of the reading context on the witness path", () => {
     const html = renderToStaticMarkup(inEnglish(page));
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Modernisation du poste de commande Référence/,
+      /^Project Modernisation du poste de commande Modernisation du poste de commande Code PRJ-001/,
     );
   });
 
@@ -771,7 +771,7 @@ describe("the empty states of the shell", () => {
     });
     const html = renderToStaticMarkup(inEnglish(page));
     expect(text(html)).toContain(
-      "Extension de la ligne d&#x27;essais This project has no revision yet. Go to the revisions of the project",
+      "Revisions This project has no revision yet. Go to the revisions of the project",
     );
     expect(links(html)).toContain(`/projects/${PRICING}/revisions`);
     expect(html).not.toContain("<ul");

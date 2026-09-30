@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, test } from "@playwright/test";
 
+import { compile } from "./compile";
+
 // The session of the fake back grants the whole catalogue of permissions: every function
 // of the navigation is offered.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -66,6 +68,8 @@ test("the way back to the previous project from a function outside any project f
 test("a project opened without a revision to read in offers the functions of the project itself", async ({
   page,
 }) => {
+  // The lifecycle, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
+  await compile(page.request, `/projects/${PROJECT}/lifecycle`);
   await page.goto(`/projects/${PROJECT}`);
   await open(page, "Cycle de vie du projet");
   await expect(page).toHaveURL(`/projects/${PROJECT}/lifecycle`);
