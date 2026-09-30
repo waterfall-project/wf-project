@@ -138,6 +138,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/projects.yaml#/StateTransition }
+            examples:
+              witness: { $ref: ../../../fixtures/api/state_transitions.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/next-state:
@@ -182,6 +184,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+            examples:
+              completed: { $ref: ../../../fixtures/api/project_completed.json }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -339,6 +343,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/projects.yaml#/Contributor }
+            examples:
+              witness: { $ref: ../../../fixtures/api/contributors.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:
     operationId: setContributors

@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { AVATAR_ACCEPT, isAvatarType } from "./avatar-types";
-import { DoneNotice } from "./done-notice";
+import { DoneNotice } from "@/components/notices/done-notice";
 import { WAITING } from "./form";
 
 /** Whether the account has an avatar to withdraw. */

@@ -23,6 +23,9 @@ export interface Examples {
   "GET /projects/{project_id}": {
     200: "project" | "project_pricing";
   };
+  "GET /projects/{project_id}/contributors": {
+    200: "contributors";
+  };
   "GET /projects/{project_id}/estimate-indicators": {
     200: "estimate_indicators" | "estimate_indicators_breakdown" | "volume/estimate_indicators";
   };
@@ -49,6 +52,9 @@ export interface Examples {
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
+  };
+  "GET /projects/{project_id}/state-transitions": {
+    200: "state_transitions";
   };
   "GET /projects/{project_id}/subprojects": {
     200: "subprojects";
@@ -79,6 +85,9 @@ export interface Examples {
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
     200: "estimate_line_entered" | "estimate_line_updated";
+  };
+  "POST /projects/{project_id}/exit": {
+    200: "project_completed";
   };
   "POST /projects/{project_id}/imports/{import_id}/apply": {
     202: "task_import_queued";

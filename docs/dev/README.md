@@ -143,7 +143,10 @@ l'écran montre et qu'un lien lève — `?is_contributor=false`, sous le nom du 
 projet à la liste levée, « Tous les projets » ; `/projects`, l'ancienne adresse, renvoie à
 l'accueil. La liste dit combien de projets elle tient, et mène aux autres pages par la
 pagination de shadcn/ui ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière
-page : seule une liste qui ne tient aucun projet se dit vide.
+page : seule une liste qui ne tient aucun projet se dit vide. Les écrans du projet lui-même — le
+projet, ses paramètres avec ses sous-projets et ses contributeurs, son cycle de vie — sont en
+lecture ; la sortie du cycle de vie est la seule commande qu'ils exercent (`ExitCommand`),
+confirmée dans la page avant que son action serveur ne la demande.
 
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
@@ -245,10 +248,11 @@ absente quand l'objet ne la liste pas dans `available_commands` — le serveur n
 celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission
 garde quelle commande —, présente et disponible, ou présente et indisponible, marquée
 `aria-disabled` et décrite par le texte visible des conditions qui lui manquent
-(`enums.CommandCondition.*`). `ProjectCommands` et `RevisionCommands` rendent, dans l'ordre
-du serveur, toutes celles d'un projet et d'une révision, chacune selon son `is_available` et
-ses conditions — une révision marquée les liste indisponibles, faute d'être en cours
-d'élaboration — ; `findOffer` en tire une seule. Hors projet — comptes, rôles, référentiel,
+(`enums.CommandCondition.*`). `LifecycleCommands` rend, dans l'ordre du serveur, les sorties
+du cycle de vie d'un projet — les autres commandes du projet appartiennent aux formulaires de
+leur domaine —, et `RevisionCommands` toutes celles d'une révision, chacune selon son
+`is_available` et ses conditions — une révision marquée les liste indisponibles, faute d'être
+en cours d'élaboration — ; `findOffer` en tire une seule. Hors projet — comptes, rôles, référentiel,
 sauvegarde —, `platformOffer` suit la permission de modification d'une fonction de portée
 `platform` (`PlatformFunction`) dans `Session.permissions`, ou `platform_restore` pour la
 restauration. Griser n'est qu'une

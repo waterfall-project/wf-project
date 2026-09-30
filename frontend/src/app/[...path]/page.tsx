@@ -10,14 +10,13 @@
  * (`error.tsx`).
  *
  * A function of a project shows the banner of its reading context above it (WF-IHM-0020).
- * Until their screens come (US-0210), the lifecycle of a project shows the commands of the
- * project, and its revisions those of the revision the address names (WF-IHM-0090): not wired
- * to their operations yet, they show what the server offers and what each lacks.
+ * Until their screen comes (US-0210/L2), the revisions of a project show the commands of the
+ * revision the address names (WF-IHM-0090): what the server offers, and what each lacks.
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { ProjectCommands, RevisionCommands } from "@/components/commands/object-commands";
+import { RevisionCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readAddress } from "@/components/context/reading";
 import { ComingSoon } from "@/components/shell/coming-soon";
@@ -50,16 +49,9 @@ function PlacedCommands({
   readonly fn: NavigationFunction;
   readonly reading: ProjectReading | undefined;
 }) {
-  if (reading === undefined) {
-    return null;
-  }
-  if (fn.permission === "lifecycle") {
-    return <ProjectCommands project={reading.project} />;
-  }
-  if (fn.permission === "revisions" && reading.revision !== undefined) {
-    return <RevisionCommands revision={reading.revision} />;
-  }
-  return null;
+  return fn.permission === "revisions" && reading?.revision !== undefined ? (
+    <RevisionCommands revision={reading.revision} />
+  ) : null;
 }
 
 /** Render the function the address leads to, whose screen is to come. */

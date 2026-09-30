@@ -1,0 +1,15 @@
+{
+  "summary": "Les contributeurs du projet : Camille Martin, cheffe de projet, et Alix Moreau, dont le compte a été désactivé depuis son inscription.",
+  "value": [
+    {
+      "user_id": "01926f3a-7c00-7000-8000-000000000301",
+      "display_name": "Camille Martin",
+      "is_active": true
+    },
+    {
+      "user_id": "01926f3a-7c00-7000-8000-000000000303",
+      "display_name": "Alix Moreau",
+      "is_active": false
+    }
+  ]
+}

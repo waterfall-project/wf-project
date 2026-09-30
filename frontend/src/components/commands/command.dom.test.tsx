@@ -15,7 +15,7 @@ import { example, fakeClient, type Problem } from "@/test/fixtures";
 
 import { Command } from "./command";
 import { commandIcon, PROJECT_COMMAND_ICONS, REVISION_COMMAND_ICONS } from "./icons";
-import { ProjectCommands, RevisionCommands } from "./object-commands";
+import { LifecycleCommands, RevisionCommands } from "./object-commands";
 import { findOffer } from "./offer";
 
 // The router of Next, as far as a command needs it: the address it shows, and the refresh
@@ -69,10 +69,10 @@ beforeEach(() => {
   router.refresh.mockClear();
 });
 
-describe("a command of a project", () => {
+describe("a command of a screen", () => {
   it("on a project in pricing, presents completion unavailable, naming the condition it lacks [WF-IHM-0090-A]", async () => {
     const { container } = french(
-      <ProjectCommands project={example("project_pricing") as Project} />,
+      <LifecycleCommands project={example("project_pricing") as Project} />,
     );
 
     const complete = screen.getByRole("button", { name: "Terminer le projet" });
@@ -89,30 +89,28 @@ describe("a command of a project", () => {
   });
 
   it("lists the commands in the order of the server, within a region named for them", () => {
-    french(<ProjectCommands project={example("project") as Project} />);
+    french(revisionCommands("revision"));
     const region = screen.getByRole("region", { name: "Commandes" });
     expect(
       within(region)
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual([
-      "Modifier le projet",
-      "Gérer les contributeurs",
-      "Créer une révision",
-      "Terminer le projet",
-      "Déclarer le projet perdu",
-      "Abandonner le projet",
-      "Modifier les risques",
-      "Déclarer la survenance d’un risque",
-      "Importer les coûts réels",
-      "Exclure des lignes de coût",
+      "Modifier le planning",
+      "Modifier le devis",
+      "Réestimer le reste à engager",
+      "Créer une structure",
+      "Fusionner une structure",
+      "Marquer la révision",
+      "Désigner comme référence",
+      "Abandonner la révision",
     ]);
   });
 
   it("gives each command the icon of its kind, hidden from a screen reader beside its name", () => {
     french(
       <>
-        <ProjectCommands project={example("project") as Project} />
+        <LifecycleCommands project={example("project") as Project} />
         {revisionCommands("revision")}
       </>,
     );
@@ -122,7 +120,8 @@ describe("a command of a project", () => {
       expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     }
     const icons = buttons.map((button) => button.querySelector("svg")?.getAttribute("class"));
-    expect(new Set(icons).size).toBeGreaterThan(10);
+    // One icon a kind: abandoning a project and abandoning a revision share theirs.
+    expect(new Set(icons).size).toBe(buttons.length - 1);
   });
 
   it("names every condition a command lacks", () => {
@@ -162,9 +161,10 @@ describe("a command of a project", () => {
   });
 
   it("does nothing when pressed before its operation is wired", async () => {
-    french(<ProjectCommands project={example("project") as Project} />);
-    await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
+    french(revisionCommands("revision"));
+    await userEvent.click(screen.getByRole("button", { name: "Créer une structure" }));
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("form")).toBeNull();
   });
 });
 
