@@ -9,9 +9,9 @@ import { rowAt } from "./scroll";
 // (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py): row 4, a line of
 // labour, « Heures d'ingénierie », 33 hours; row 21, a provision, whose quantity and unit
 // disbursement the server computes. A cell validated is written by `updateEstimateLine`, whose
-// first example the fake back serves whatever was written: the line of row 4 entered whole —
-// « Heures de câblage », « Mise en service », « Technicien de mise en service », 2, 12,5 hours —,
-// its re-estimated amount recalculated, 1 875,00. What the
+// first example the fake back serves whatever was written: the line of row 4, its label entered
+// « Heures de câblage », nothing else changed — the fake back keeps nothing of what it is sent,
+// so that each cell entered after it differs from the row answered, and is written. What the
 // grid does with another answer is proven on its own examples by the tests of the grid
 // (`entry.dom.test.tsx`).
 //
@@ -67,6 +67,13 @@ test("enters a whole line of the estimate without the mouse — label, category,
   page,
 }) => {
   const grid = await tabIntoGrid(page);
+  // Each cell validated leaves by a server action of its own.
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+      writes.push(request.url());
+    }
+  });
   await press(page, "ArrowDown", "ArrowDown", "ArrowDown");
   await expect(cellAt(grid, 4, LABEL)).toBeFocused();
 
@@ -74,14 +81,19 @@ test("enters a whole line of the estimate without the mouse — label, category,
   await page.keyboard.type("Heures de câblage");
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, 4, CATEGORY)).toBeFocused();
-  // The category and the role are chosen in their lists, by the first letters of their names.
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("combobox", { name: "Catégorie" })).toBeFocused();
+  // The category is chosen by the first letters of its name, typed on the cell: its list opens.
   await page.keyboard.type("Mise en service");
+  const categories = page.getByRole("combobox", { name: "Catégorie" });
+  await expect(categories).toBeFocused();
+  await expect(categories).toHaveValue("01926f3a-7c00-7000-8000-000000000405");
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, 4, ROLE)).toBeFocused();
+  // The role, from its list opened by Enter.
   await page.keyboard.press("Enter");
   await page.keyboard.type("Technicien");
+  await expect(page.getByRole("combobox", { name: "Rôle" })).toHaveValue(
+    "01926f3a-7c00-7000-8000-000000000452",
+  );
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, 4, QUANTITY)).toBeFocused();
   await page.keyboard.type("2");
@@ -93,19 +105,22 @@ test("enters a whole line of the estimate without the mouse — label, category,
   const next = cellAt(grid, 5, LABEL);
   await expect(next).toBeFocused();
   await expect(next).toBeInViewport();
-  // The line as the server answered it: what was entered, and its amount recalculated.
+  // The five cells written, one after the other.
+  await expect.poll(() => writes.length).toBe(5);
+  // The line as the server last answered it — the fake back keeps nothing of what it is sent —,
+  // in place of what was typed.
   await expect(rowAt(grid, 4).getByRole("gridcell")).toHaveText([
     "4",
     "Heures de câblage",
-    "Mise en service",
-    "Technicien de mise en service",
-    "2",
-    "12,5",
+    "Ingénierie électrique",
+    "Ingénieur électricien",
+    "1",
+    "33",
     "",
     /2\s640,00$/,
-    /1\s875,00$/,
+    /2\s640,00$/,
   ]);
-  // No refusal told: every cell was written.
+  // No refusal told.
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 

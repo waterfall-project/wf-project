@@ -601,6 +601,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
           kind={column.entry.kind}
           label={t(`columns.${column.label}`)}
           text={draft.text}
+          typed={draft.typed}
           invalid={draft.problem === undefined ? undefined : invalid}
           onValidate={keyboard.validate}
           onAbandon={keyboard.abandon}

@@ -154,17 +154,22 @@ export type LineChange = Partial<
 
 /**
  * How the grid of the estimate writes a cell: a field of a line, the label of a task — the row
- * answered as the grid reads it.
+ * answered as the grid reads it. The label of a task is the planning's (`updateTaskFacet`): none,
+ * and a task's label is not entered here.
  */
 export interface EstimateWrites {
   readonly line: (node: EstimateNode, change: LineChange) => Promise<Outcome<EstimateNode>>;
-  readonly task: (node: EstimateNode, label: string) => Promise<Outcome<EstimateNode>>;
+  readonly task?:
+    ((node: EstimateNode, label: string) => Promise<Outcome<EstimateNode>>) | undefined;
 }
 
-/** The reference data the grid names the categories and the roles of the lines by. */
+/**
+ * The reference data the grid names the categories and the roles of the lines by, and offers to
+ * choose from; a list the API refused is none — its column is neither named nor entered.
+ */
 export interface EstimateReference {
-  readonly categories: readonly Choice[];
-  readonly roles: readonly Choice[];
+  readonly categories: readonly Choice[] | undefined;
+  readonly roles: readonly Choice[] | undefined;
 }
 
 /** How a column of a line is entered: what it takes, the field it writes, what it starts from. */
@@ -175,21 +180,57 @@ interface Entered {
   readonly read?: (node: EstimateNode) => CellValue;
 }
 
+/**
+ * How a list of the reference data is entered: its choices, the field it writes, the value it
+ * starts from — a cell whose identifier the list does not know is not entered, so that no first
+ * choice is written for it unseen.
+ */
+function listEntered(
+  choices: readonly Choice[],
+  nullable: boolean,
+  read: (node: EstimateNode) => CellValue,
+  change: (value: string | null) => LineChange,
+): Entered & { readonly known: (node: EstimateNode) => boolean } {
+  const ids = new Set(choices.map((choice) => choice.id));
+  return {
+    kind: { type: "choice", choices: () => choices, nullable },
+    change,
+    read,
+    known: (node) => {
+      const id = read(node);
+      return id === null || id === undefined || ids.has(id);
+    },
+  };
+}
+
 /** The columns of a line that take an entry, the lists of a category and a role among them. */
-function enteredColumns(reference: EstimateReference): Readonly<Record<string, Entered>> {
+function enteredColumns(
+  reference: EstimateReference,
+): Readonly<Record<string, Entered & { readonly known?: (node: EstimateNode) => boolean }>> {
+  const { categories, roles } = reference;
   return {
     // The contract takes a label of 1 to 300 characters.
     label: { kind: { type: "text", maxLength: 300 }, change: (value) => ({ label: value ?? "" }) },
-    cost_category: {
-      kind: { type: "choice", choices: reference.categories, nullable: false },
-      change: (value) => (value === null ? {} : { cost_category_id: value }),
-      read: (node) => node.estimate_line?.cost_category_id,
-    },
-    resource_role: {
-      kind: { type: "choice", choices: reference.roles, nullable: true },
-      change: (value) => ({ resource_role_id: value }),
-      read: (node) => node.estimate_line?.resource_role_id,
-    },
+    ...(categories === undefined
+      ? {}
+      : {
+          cost_category: listEntered(
+            categories,
+            false,
+            (node) => node.estimate_line?.cost_category_id,
+            (value) => (value === null ? {} : { cost_category_id: value }),
+          ),
+        }),
+    ...(roles === undefined
+      ? {}
+      : {
+          resource_role: listEntered(
+            roles,
+            true,
+            (node) => node.estimate_line?.resource_role_id,
+            (value) => ({ resource_role_id: value }),
+          ),
+        }),
     quantity: {
       kind: { type: "decimal", nullable: false },
       change: (value) => (value === null ? {} : { quantity: value }),
@@ -207,16 +248,32 @@ function bearsLine(node: EstimateNode): boolean {
   return node.estimate_line !== undefined && node.estimate_line !== null;
 }
 
-/** The name of a choice, by its identifier, from the reference data. */
-function namer(choices: readonly Choice[]): (id: CellValue) => CellValue {
-  const names = new Map(choices.map((choice) => [choice.id, choice.label]));
-  return (id) => (id === null || id === undefined ? id : names.get(id));
+/**
+ * The name of a choice, by its identifier: `unknown` for one the list does not know; nothing for
+ * a list the API refused.
+ */
+function namer(
+  choices: readonly Choice[] | undefined,
+  unknown: string,
+): (id: CellValue) => CellValue {
+  const names = new Map(choices?.map((choice) => [choice.id, choice.label]));
+  return (id) => {
+    if (choices === undefined || id === null || id === undefined) {
+      return choices === undefined ? undefined : id;
+    }
+    return names.get(id) ?? unknown;
+  };
+}
+
+/** Whether the cell of a column takes an entry in a row: the row bears what it writes. */
+function takes(label: boolean, writes: EstimateWrites, node: EstimateNode): boolean {
+  return label && !bearsLine(node) ? writes.task !== undefined : bearsLine(node);
 }
 
 /** A column of the estimate, entered through `writes`: the fields of a line, and a task's label. */
 function entered(
   column: GridColumn<EstimateNode, NodeSortColumn, NodeTotals>,
-  spec: Entered | undefined,
+  spec: (Entered & { readonly known?: (node: EstimateNode) => boolean }) | undefined,
   writes: EstimateWrites | undefined,
 ): GridColumn<EstimateNode, NodeSortColumn, NodeTotals> {
   if (spec === undefined || writes === undefined) {
@@ -227,30 +284,34 @@ function entered(
     ...column,
     entry: {
       kind: spec.kind,
-      in: (node) => (label || bearsLine(node)) && column.computed?.in(node) !== true,
+      in: (node) =>
+        takes(label, writes, node) &&
+        column.computed?.in(node) !== true &&
+        spec.known?.(node) !== false,
       value: spec.read ?? column.value,
-      write: (node, value) =>
-        label && !bearsLine(node)
-          ? writes.task(node, value ?? "")
-          : writes.line(node, spec.change(value)),
+      write: (node, value) => {
+        const task = label && !bearsLine(node) ? writes.task : undefined;
+        return task === undefined ? writes.line(node, spec.change(value)) : task(node, value ?? "");
+      },
     },
   };
 }
 
 /**
- * The grid of the estimate: its categories and roles named by the reference data, its cells
- * entered through `writes` — none, and the grid is read only. A line takes its label, category,
- * role, quantity, effort and unit disbursement, where the server does not compute the field; a
- * task, its label.
+ * The grid of the estimate: its categories and roles named by the reference data — `unknown` for
+ * an identifier the list does not know —, its cells entered through `writes`; none, and the grid
+ * is read only. A line takes its label, category, role, quantity, effort and unit disbursement,
+ * where the server does not compute the field; a task, its label, where the planning is entered.
  */
 export function estimateGrid(
   reference: EstimateReference,
+  unknown: string,
   writes?: EstimateWrites,
 ): GridConfig<EstimateNode, NodeSortColumn, NodeTotals> {
   const specs = enteredColumns(reference);
   const names: Readonly<Record<string, (id: CellValue) => CellValue>> = {
-    cost_category: namer(reference.categories),
-    resource_role: namer(reference.roles),
+    cost_category: namer(reference.categories, unknown),
+    resource_role: namer(reference.roles, unknown),
   };
   return {
     ...ESTIMATE_GRID,

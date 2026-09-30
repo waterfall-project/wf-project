@@ -22,7 +22,12 @@ export function estimateReference(): EstimateReference {
     categories: categories.map((category) => ({
       id: category.cost_category_id,
       label: category.label,
+      active: category.is_active,
     })),
-    roles: roles.map((role) => ({ id: role.resource_role_id, label: role.label })),
+    roles: roles.map((role) => ({
+      id: role.resource_role_id,
+      label: role.label,
+      active: role.is_active,
+    })),
   };
 }

@@ -101,6 +101,7 @@ function renderGrid(
       <EstimateGrid
         reference={estimateReference()}
         editable
+        tasksEditable
         nodes={nodes}
         structure={STRUCTURE}
         query={query}

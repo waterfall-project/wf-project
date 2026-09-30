@@ -11,13 +11,17 @@
  */
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { type KeyboardEvent, useLayoutEffect, useRef } from "react";
 
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
-import type { EntryKind } from "./columns";
+import { firstChoice } from "./cell-values";
+import type { Choice, EntryKind } from "./columns";
+
+/** How long a pause forgets what was typed in a list, in milliseconds. */
+const SEARCH_PAUSE = 1_000;
 
 /** Where the cursor goes once an entry is validated: below, along the row, or nowhere. */
 export type EntryMove = "down" | "next" | "previous" | "none";
@@ -43,6 +47,8 @@ export interface CellEditorProps {
   readonly label: string;
   /** The text it starts from — the identifier of the choice made, for a list. */
   readonly text: string;
+  /** The character typed that opened it, if one did: a list goes on searching from it. */
+  readonly typed: string | undefined;
   /** The identifier of what says why the text was not validated, when it was not. */
   readonly invalid: string | undefined;
   /** Validate the text: whether the entry is done — a number misread keeps it open. */
@@ -52,9 +58,22 @@ export interface CellEditorProps {
 }
 
 /** Render the entry of a cell. */
-export function CellEditor({ kind, label, text, invalid, onValidate, onAbandon }: CellEditorProps) {
+export function CellEditor({
+  kind,
+  label,
+  text,
+  typed,
+  invalid,
+  onValidate,
+  onAbandon,
+}: CellEditorProps) {
   const t = useTranslations("grid.entry");
-  const field = useRef<HTMLInputElement & HTMLSelectElement>(null);
+  const locale = useLocale();
+  const field = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  // What was typed in a list, which picks the first choice whose name starts with it; forgotten
+  // after a pause, as a list of the browser forgets it.
+  // The character that opened the list is searched on from, whatever the pause after it.
+  const search = useRef({ typed: typed ?? "", at: Number.POSITIVE_INFINITY });
   // Done once validated or abandoned: the blur that follows as it goes validates nothing more.
   const done = useRef(false);
   useLayoutEffect(() => {
@@ -68,6 +87,13 @@ export function CellEditor({ kind, label, text, invalid, onValidate, onAbandon }
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
     const move = keyMove(event);
     if (move === undefined) {
+      if (kind.type === "choice" && event.currentTarget instanceof HTMLSelectElement) {
+        const none = { id: "", label: t("none"), active: true };
+        searchList(event, event.currentTarget, [
+          ...(kind.nullable ? [none] : []),
+          ...kind.choices(),
+        ]);
+      }
       return;
     }
     event.preventDefault();
@@ -79,8 +105,29 @@ export function CellEditor({ kind, label, text, invalid, onValidate, onAbandon }
       done.current = onValidate(event.currentTarget.value, move);
     }
   };
+  /** Pick, from a character typed in a list, the first choice whose name starts with the search. */
+  const searchList = (
+    event: KeyboardEvent,
+    list: HTMLSelectElement,
+    choices: readonly Choice[],
+  ) => {
+    if (!/^.$/u.test(event.key) || event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+    const now = Date.now();
+    const kept = now - search.current.at < SEARCH_PAUSE ? search.current.typed : "";
+    search.current = { typed: kept + event.key, at: now };
+    const found = firstChoice(choices, search.current.typed, locale);
+    if (found !== undefined) {
+      list.value = found.id;
+    }
+  };
   const common = {
-    ref: field,
+    // A list or a field: the one reference takes either.
+    ref: (element: HTMLInputElement | HTMLSelectElement | null) => {
+      field.current = element;
+    },
     "aria-label": label,
     "aria-invalid": invalid === undefined ? undefined : true,
     "aria-describedby": invalid,
@@ -101,11 +148,15 @@ export function CellEditor({ kind, label, text, invalid, onValidate, onAbandon }
     return (
       <NativeSelect {...common} className="h-6 rounded-sm text-xs">
         {kind.nullable || text === "" ? <option value="">{t("none")}</option> : null}
-        {kind.choices.map((choice) => (
-          <option key={choice.id} value={choice.id}>
-            {choice.label}
-          </option>
-        ))}
+        {/* The choices that may be chosen, and the one made if it was deactivated since. */}
+        {kind
+          .choices()
+          .filter((choice) => choice.active || choice.id === text)
+          .map((choice) => (
+            <option key={choice.id} value={choice.id}>
+              {choice.label}
+            </option>
+          ))}
       </NativeSelect>
     );
   }

@@ -1,5 +1,5 @@
 {
-  "summary": "La ligne 4 de la structure des volumes, « Heures d'ingénierie », saisie en entier au clavier : libellé « Heures de câblage », catégorie « Mise en service », rôle « Technicien de mise en service », quantité 2, charge 12,5 h ; le montant réestimé recalculé au taux de sa catégorie, 75,00 de l'heure, le budgété inchangé, fixé par la référence (WF-DEV-0020, WF-DEV-0030).",
+  "summary": "La ligne 4 de la structure des volumes, « Heures d'ingénierie », dont le libellé est saisi « Heures de câblage » : rien d'autre ne change, pas même ses montants ; une version de plus. Le faux back la rend à toute écriture d'une ligne, qui ne garde rien de ce qu'on lui envoie (WF-DEV-0020).",
   "value": {
     "node_id": "01926f3a-7c00-7000-8000-000100000004",
     "lineage_id": "01926f3a-7c00-7000-8000-000200000004",
@@ -11,14 +11,14 @@
     "lock_version": 2,
     "estimate_line": {
       "label": "Heures de câblage",
-      "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-      "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
-      "quantity": "2",
-      "hours": "12.5",
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+      "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+      "quantity": "1",
+      "hours": "33",
       "unit_disbursement": null,
       "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
       "budgeted_amount": "2640.00",
-      "reestimated_amount": "1875.00",
+      "reestimated_amount": "2640.00",
       "previous_reestimated_amount": null,
       "is_computed": false,
       "remaining_entry": {

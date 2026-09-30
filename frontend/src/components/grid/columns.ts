@@ -128,10 +128,14 @@ export interface ComputedCells<Row> {
   readonly field: (row: Row) => ComputedValueField;
 }
 
-/** A choice a cell offers: the identifier the contract writes, and the name the grid shows. */
+/**
+ * A choice of the reference data: the identifier the contract writes, the name the grid shows,
+ * and whether it may still be chosen — a deactivated one stays readable (WF-REF-0150).
+ */
 export interface Choice {
   readonly id: string;
   readonly label: string;
+  readonly active: boolean;
 }
 
 /**
@@ -143,7 +147,12 @@ export interface Choice {
 export type EntryKind =
   | { readonly type: "text"; readonly maxLength: number }
   | { readonly type: "decimal" | "money"; readonly nullable: boolean }
-  | { readonly type: "choice"; readonly choices: readonly Choice[]; readonly nullable: boolean };
+  | {
+      readonly type: "choice";
+      /** The choices, read by the entry alone: a function, never the list (défaut n° 14). */
+      readonly choices: () => readonly Choice[];
+      readonly nullable: boolean;
+    };
 
 /**
  * How the cells of a column are entered, row by row: which take an entry, what an entry starts

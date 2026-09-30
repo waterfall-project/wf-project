@@ -121,27 +121,58 @@ async function readEstimateFigures(at: GridAddress) {
 }
 
 /**
- * The categories and the roles the lines of the estimate are named by, deactivated ones included —
- * a line keeps the category it was given (WF-REF-0150) —, as the grid reads them: an identifier
- * and a name, nothing more crossing to the browser.
+ * A list of the reference data the screen can do without: `undefined` when the API does not find
+ * it or refuses it — the roles are the reference's (`resource_settings`), which an estimator may
+ * not read —, the rest of the screen shown. Any other answer follows the rule of the reads: the
+ * API out of reach, a failure of the service, a lost session are thrown for the shell to say.
+ */
+async function readOptional<T>(
+  operation: string,
+  call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<T | undefined> {
+  const answer = await call();
+  const { ok, status } = answer.response;
+  if (ok) {
+    return answer.data;
+  }
+  if (status === 404 || status === 403) {
+    return undefined;
+  }
+  if (isGatewayFailure(answer.response, answer.error)) {
+    throw new Unreachable();
+  }
+  throw refusalOf(operation, status, answer.error);
+}
+
+/**
+ * The categories and the roles the lines of the estimate are named by, as the grid reads them —
+ * an identifier, a name, whether it may still be chosen, nothing more crossing to the browser.
+ * The deactivated ones are read too: a line may bear one, which it shows; the list of a cell
+ * offers the active ones alone (WF-REF-0150). A list the API refuses is none: its column is
+ * neither named nor entered, and the screen stays.
  */
 async function readReference(): Promise<EstimateReference> {
   const client = serverClient();
   const query = { include_inactive: true };
   const [categories, roles] = await Promise.all([
-    readOrFail("listCostCategories", () =>
+    readOptional("listCostCategories", () =>
       client.GET("/reference/cost-categories", { params: { query } }),
     ),
-    readOrFail("listResourceRoles", () =>
+    readOptional("listResourceRoles", () =>
       client.GET("/reference/resource-roles", { params: { query } }),
     ),
   ]);
   return {
-    categories: categories.map((category) => ({
+    categories: categories?.map((category) => ({
       id: category.cost_category_id,
       label: category.label,
+      active: category.is_active,
     })),
-    roles: roles.map((role) => ({ id: role.resource_role_id, label: role.label })),
+    roles: roles?.map((role) => ({
+      id: role.resource_role_id,
+      label: role.label,
+      active: role.is_active,
+    })),
   };
 }
 
@@ -203,6 +234,7 @@ export default async function EstimatePage({
           structure={screen.structure}
           reference={reference}
           editable={screen.reading.edits.has("edit_estimate")}
+          tasksEditable={screen.reading.edits.has("edit_planning")}
           query={screen.query}
           preferences={screen.preferences}
         />

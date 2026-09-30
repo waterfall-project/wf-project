@@ -186,7 +186,10 @@ function unwritten(): never {
 
 // The grid of the estimate of a revision open to entry: its categories and roles named, its cells
 // entered, which read the label, the category, the role and the figures of a line.
-const ENTERED_ESTIMATE = estimateGrid(estimateReference(), { line: unwritten, task: unwritten });
+const ENTERED_ESTIMATE = estimateGrid(estimateReference(), "?", {
+  line: unwritten,
+  task: unwritten,
+});
 
 holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.6);
 holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.47);

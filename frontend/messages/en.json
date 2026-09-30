@@ -140,6 +140,7 @@
       "predecessors": "Predecessors"
     },
     "computed": "Computed",
+    "unknown": "Unknown reference",
     "entry": {
       "none": "None",
       "notANumber": "This is not a number: enter it as {example}.",

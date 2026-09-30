@@ -52,6 +52,11 @@ export interface EstimateGridProps {
    * API would refuse.
    */
   readonly editable: boolean;
+  /**
+   * Whether the label of a task may be entered too: it is the planning's (`updateTaskFacet`), which
+   * the revision lists as `edit_planning`.
+   */
+  readonly tasksEditable: boolean;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
@@ -65,10 +70,11 @@ function asRow(outcome: Outcome<Node>): Outcome<EstimateNode> {
 
 /**
  * How the grid writes the cells of a structure: each write carries what the contract requires —
- * the label, the category and the quantity of a line, the label of a task — and the version of
- * the node read (`lock_version`), with the field entered.
+ * the label, the category and the quantity of a line, the label of a task (#178) — and the version
+ * of the node read (`lock_version`), with the field entered. The label of a task is written only
+ * where the planning may be entered.
  */
-function structureWrites(structure: StructurePath): EstimateWrites {
+function structureWrites(structure: StructurePath, tasks: boolean): EstimateWrites {
   return {
     line: async (node, change) => {
       const line = node.estimate_line;
@@ -80,10 +86,15 @@ function structureWrites(structure: StructurePath): EstimateWrites {
       const body = { ...required, ...change, lock_version: node.lock_version };
       return asRow(await updateEstimateLine(structure, node.node_id, body));
     },
-    task: async (node, label) =>
-      asRow(
-        await updateTaskFacet(structure, node.node_id, { label, lock_version: node.lock_version }),
-      ),
+    task: tasks
+      ? async (node, label) =>
+          asRow(
+            await updateTaskFacet(structure, node.node_id, {
+              label,
+              lock_version: node.lock_version,
+            }),
+          )
+      : undefined,
   };
 }
 
@@ -93,18 +104,25 @@ export function EstimateGrid({
   structure,
   reference,
   editable,
+  tasksEditable,
   query,
   preferences,
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
+  const unknown = useTranslations("grid")("unknown");
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
     [structure, nodes.items],
   );
   const config = useMemo(
-    () => estimateGrid(reference, editable ? structureWrites(structure) : undefined),
-    [reference, editable, structure],
+    () =>
+      estimateGrid(
+        reference,
+        unknown,
+        editable ? structureWrites(structure, tasksEditable) : undefined,
+      ),
+    [reference, unknown, editable, tasksEditable, structure],
   );
   return (
     <DenseGrid

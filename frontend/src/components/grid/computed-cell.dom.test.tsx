@@ -91,6 +91,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
         <EstimateGrid
           reference={estimateReference()}
           editable
+          tasksEditable
           nodes={nodes ?? estimate}
           structure={STRUCTURE}
           query={NO_QUERY}

@@ -116,6 +116,7 @@ describe("the grids of the planning and of the estimate", () => {
         <EstimateGrid
           reference={estimateReference()}
           editable
+          tasksEditable
           nodes={estimate}
           structure={STRUCTURE}
           query={NO_QUERY}
