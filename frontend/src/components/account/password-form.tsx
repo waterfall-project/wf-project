@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { DoneNotice } from "./done-notice";
+import { DoneNotice } from "@/components/notices/done-notice";
 import { textOf, WAITING } from "./form";
 
 /** Render the form of the change of password, emptied once the API has changed it. */

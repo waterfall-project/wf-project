@@ -19,7 +19,7 @@ import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
 
 import { Command } from "./command";
-import { ExitCommand } from "./exit-command";
+import { ExitCommands } from "./exit-command";
 import { isExit } from "./exits";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import { MarkCommand } from "./mark-command";
@@ -40,24 +40,22 @@ function CommandList({ children }: { readonly children: readonly ReactNode[] }) 
  * contributors, a revision to create — belong to the forms of their domain (US-0210).
  */
 export function LifecycleCommands({ project }: { readonly project: Project }) {
-  const names = { [project.project_id]: project.label };
+  const exits = project.available_commands.flatMap(({ command, ...offer }) =>
+    isExit(command) ? [{ command, offer }] : [],
+  );
   return (
     <CommandList>
-      {project.available_commands.flatMap(({ command, ...offer }) =>
-        isExit(command)
-          ? [
-              // Keyed by the project too: the outcome of a command never outlives its project.
-              <li key={`${project.project_id}:${command}`}>
-                <ExitCommand
-                  command={command}
-                  offer={offer}
-                  projectId={project.project_id}
-                  names={names}
-                />
-              </li>,
-            ]
-          : [],
-      )}
+      {exits.length === 0
+        ? []
+        : [
+            // Keyed by the project: the outcome of a command never outlives its project.
+            <ExitCommands
+              key={project.project_id}
+              exits={exits}
+              projectId={project.project_id}
+              names={{ [project.project_id]: project.label }}
+            />,
+          ]}
     </CommandList>
   );
 }

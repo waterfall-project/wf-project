@@ -30,6 +30,7 @@
         "command": "create_revision",
         "is_available": false,
         "missing_conditions": [
+          "no_current_revision",
           "project_not_terminal"
         ]
       },
@@ -37,14 +38,14 @@
         "command": "complete",
         "is_available": false,
         "missing_conditions": [
-          "project_not_terminal"
+          "project_in_progress"
         ]
       },
       {
         "command": "lose",
         "is_available": false,
         "missing_conditions": [
-          "project_not_terminal"
+          "project_in_pricing"
         ]
       },
       {

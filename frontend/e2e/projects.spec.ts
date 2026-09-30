@@ -52,9 +52,7 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
   const subprojects = main.getByRole("table", { name: "Sous-projets" });
   await expect(subprojects.getByRole("row", { name: /^SP-CMD Poste de commande/ })).toBeVisible();
   const contributors = main.getByRole("table", { name: "Contributeurs" });
-  await expect(
-    contributors.getByRole("row", { name: /Dominique Bernard\s+Désactivé/ }),
-  ).toBeVisible();
+  await expect(contributors.getByRole("row", { name: /Alix Moreau\s+Désactivé/ })).toBeVisible();
   await expect(main.getByRole("button")).toHaveCount(0);
 
   await nav.getByRole("link", { name: "Cycle de vie du projet" }).click();

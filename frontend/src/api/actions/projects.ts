@@ -22,7 +22,8 @@ type ProjectState = components["schemas"]["ProjectState"];
 /**
  * Take a project out of its lifecycle, once the user has confirmed it (WF-CYC-0060, WF-CYC-0090):
  * the state the API answers it is in, and the page rendered again, which reads the project anew,
- * read only. An exit the state of the project forbids is a refusal of the API, told as such.
+ * read only. An exit the state of the project forbids is a refusal of the API, told as such —
+ * and the page rendered again too, so that it no longer offers what the server refused.
  */
 export async function exitProject(
   projectId: string,
@@ -34,9 +35,10 @@ export async function exitProject(
       body: exit,
     }),
   );
-  if (outcome.kind !== "done") {
-    return outcome;
+  // Applied, or refused for the state of the project (409): the page reads the project anew,
+  // and offers what the server offers now.
+  if (outcome.kind === "done" || outcome.kind === "conflict") {
+    refresh();
   }
-  refresh();
-  return { kind: "done", data: outcome.data.state };
+  return outcome.kind === "done" ? { kind: "done", data: outcome.data.state } : outcome;
 }

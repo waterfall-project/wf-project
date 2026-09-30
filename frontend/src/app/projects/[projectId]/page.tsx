@@ -32,7 +32,10 @@ import {
   readProjectScreen,
 } from "./screen";
 
-type RevisionSummary = Pick<components["schemas"]["Revision"], "revision_id" | "version_name">;
+type RevisionSummary = Pick<
+  components["schemas"]["Revision"],
+  "revision_id" | "version_name" | "status"
+>;
 
 /** Title the tab with the project. */
 export async function generateMetadata({
@@ -73,7 +76,10 @@ function Revisions({
                 href={`/projects/${projectId}/revisions/${revision.revision_id}`}
                 className="underline-offset-4 hover:underline"
               >
-                {revision.version_name ?? t("contextBanner.currentRevision")}
+                {revision.version_name ??
+                  (revision.status === "draft"
+                    ? t("contextBanner.currentRevision")
+                    : t(`enums.RevisionStatus.${revision.status}`))}
               </Link>
             </li>
           ))}

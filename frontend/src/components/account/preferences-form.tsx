@@ -26,7 +26,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { type LanguagePreference, PREFERENCES } from "@/i18n/locale";
 import { THEME_PREFERENCES, type ThemePreference } from "@/theme/theme";
 
-import { DoneNotice } from "./done-notice";
+import { DoneNotice } from "@/components/notices/done-notice";
 import { WAITING } from "./form";
 
 /** The preferences the account holds: `default` when it never chose. */

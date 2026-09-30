@@ -90,13 +90,17 @@ beforeEach(() => {
 });
 
 describe("the screen of a project", () => {
-  it("shows what the project is as the API reads it, a value it lacks said missing, never invented [WF-ARC-0020-A]", async () => {
-    // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
+  it("shows what the project is as the API reads it, a value it lacks said missing, never invented", async () => {
     const page = html(await ProjectPage(at()));
     expect(text(page)).toContain(
       "Code PRJ-001 State In progress Order received on 15 Jan 2026 Description Not set",
     );
     expect(page).toContain('<dl aria-label="The project"');
+  });
+
+  it("names each revision by its version name, and the draft without one the current revision, from its status", async () => {
+    const page = html(await ProjectPage(at()));
+    expect(text(page)).toContain("Revisions Référence Current revision");
   });
 
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
@@ -107,8 +111,7 @@ describe("the screen of a project", () => {
 });
 
 describe("the settings of a project", () => {
-  it("shows the inflation rate and the probability of winning as the API gives them [WF-ARC-0020-A]", async () => {
-    // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
+  it("shows the inflation rate and the probability of winning as the API gives them", async () => {
     const page = html(await SettingsPage(at()));
     expect(page.startsWith(BANNER)).toBe(true);
     expect(page).toMatch(
@@ -134,7 +137,7 @@ describe("the settings of a project", () => {
       `/projects/${PROJECT}/contributors`,
     );
     expect(text(page)).toContain(
-      "Contributors Name Account Camille Martin Active Dominique Bernard Deactivated",
+      "Contributors Name Account Camille Martin Active Alix Moreau Deactivated",
     );
   });
 
@@ -214,6 +217,28 @@ describe("the lifecycle of a project", () => {
       "2026-03-02T08:45:00Z",
       "2026-03-16T14:05:00Z",
     ]);
+  });
+
+  it.each([
+    ["the history of its states", "GET /projects/{project_id}/state-transitions"],
+    ["the project", "GET /projects/{project_id}"],
+  ] as const)(
+    "is not found when the API does not find %s, as the other screens of a project",
+    async (_, route) => {
+      server.answers = { ...server.answers, [route]: NOT_FOUND };
+      await expect(LifecyclePage(at())).rejects.toMatchObject({
+        digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+      });
+    },
+  );
+
+  it("is not found at an address that names no project, before the API is asked", async () => {
+    const page = LifecyclePage({
+      params: Promise.resolve({ projectId: "a.b" }),
+      searchParams: Promise.resolve({}),
+    });
+    await expect(page).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    expect(server.clients.flatMap((client) => client.calls)).toEqual([]);
   });
 
   it("titles the tab with the lifecycle and the project", async () => {

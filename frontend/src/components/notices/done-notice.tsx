@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a form of the way in or of the account — or the confirmation of an exit of the lifecycle
- * of a project — says once the API has done what it asked: a status, announced without taking
- * the focus — the refusals, the other outcomes, are `OutcomeNotice`'s. The live region is in place, empty, before it speaks: a region that comes
- * with its text is not always read out.
+ * What a form says once the API has done what it asked — a form of the way in or of the
+ * account, the confirmation of an exit of the lifecycle of a project: a status, announced
+ * without taking the focus — the refusals, the other outcomes, are `OutcomeNotice`'s. The live
+ * region is in place, empty, before it speaks: a region that comes with its text is not always
+ * read out.
  */
 import { CircleCheck } from "lucide-react";
 import type { ReactNode } from "react";

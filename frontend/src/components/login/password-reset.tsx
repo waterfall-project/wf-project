@@ -16,7 +16,7 @@ import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } f
 
 import { askPasswordReset, resetPassword } from "@/api/actions/session";
 import type { Outcome } from "@/api/problem";
-import { DoneNotice } from "@/components/account/done-notice";
+import { DoneNotice } from "@/components/notices/done-notice";
 import { textOf, WAITING } from "@/components/account/form";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";

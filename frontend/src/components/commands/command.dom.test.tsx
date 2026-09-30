@@ -69,7 +69,7 @@ beforeEach(() => {
   router.refresh.mockClear();
 });
 
-describe("a command of a project", () => {
+describe("a command of a screen", () => {
   it("on a project in pricing, presents completion unavailable, naming the condition it lacks [WF-IHM-0090-A]", async () => {
     const { container } = french(
       <LifecycleCommands project={example("project_pricing") as Project} />,
