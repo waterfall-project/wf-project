@@ -5,7 +5,8 @@
 A tool writes its files with LF, and its check compares them with what it would write; Prettier
 checks the front with LF. Checked out in CRLF, as ``core.autocrlf`` does on Windows, they would
 look outdated while nothing changed: ``.gitattributes`` fixes their line endings, and this test
-holds it to every generated path the declaration lists, to the front and to the examples.
+holds it to every generated path the declaration lists, to the front and to the examples — and
+to the shell scripts, which bash no longer parses in CRLF (#175).
 """
 
 import subprocess
@@ -13,8 +14,9 @@ import subprocess
 from wftools import REPOSITORY, paths
 
 # Besides the generated paths: formatted with LF by Prettier, and read by the generators; and
-# the originals of the copies the front compares byte for byte (`src/theme/brand.test.ts`).
-COMPARED = ("frontend/**", "fixtures/**", "docs/assets/*.svg")
+# the originals of the copies the front compares byte for byte (`src/theme/brand.test.ts`); and
+# the shell scripts, compared by nothing but read by bash, which fails on a CRLF (#175).
+COMPARED = ("frontend/**", "fixtures/**", "docs/assets/*.svg", "**/*.sh")
 
 
 def git(*arguments: str, given: str = "") -> str:
@@ -50,6 +52,7 @@ def test_the_compared_files_include_each_kind_the_checks_compare() -> None:
     assert "frontend/messages/fr.json" in files
     assert "docs/spec/waterfall-spec.md" in files
     assert "docs/assets/waterfall_logo.svg" in files
+    assert "docs/spec/build.sh" in files
 
 
 def test_every_compared_file_is_checked_out_with_lf() -> None:
