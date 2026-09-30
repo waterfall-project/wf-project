@@ -185,3 +185,16 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     chaîne dépasse son attente (US-0150/L1). La production n'en dit rien. Ce qui descend
     jusqu'aux lignes lit la réponse par une fonction (`answer` de `DenseGrid`), jamais par le
     tableau. Aucun outil ne le tient : la revue le cherche.
+15. **Horloge de la page figée à travers une navigation.** Un parcours fige l'horloge
+    (`page.clock.pauseAt`) pour que la lecture d'une tâche attende, puis clique vers un autre
+    écran : quand le serveur tarde, la navigation montre le squelette de `loading.tsx`, et
+    React retient l'écran arrivé derrière un minuteur — le délai de révélation d'une frontière
+    `Suspense`, mesuré sur l'horloge de la page —, que l'horloge figée ne laisse jamais partir.
+    Le parcours échoue une fois sur trois (#165). Ce qui doit attendre se retient sur le réseau
+    (`page.route`), jamais en figeant l'horloge d'une page qui navigue. Aucun outil ne le
+    tient : la revue le cherche.
+16. **Route atteinte par un clic, compilée pendant l'attente.** `next dev` compile une route à
+    sa première visite ; atteinte par un clic, elle est attendue cinq secondes par une
+    assertion, que la compilation mange au premier lancement (#142). Un parcours compile
+    d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`). Aucun outil
+    ne le tient : la revue le cherche.

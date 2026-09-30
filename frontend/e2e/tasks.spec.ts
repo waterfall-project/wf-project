@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect, type Route, test } from "@playwright/test";
+
+import { compile } from "./compile";
 
 // The fake back serves the first example of each operation: the current revision, a draft
 // whose marking is available; the marking queued; and, read two seconds later, the marking
@@ -8,22 +10,30 @@ import { expect, test } from "@playwright/test";
 // tests of the tracker show them (`task-tracker.dom.test.tsx`, `mark-command.dom.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+// The task of the marking queued (`task_mark_queued`), which the tracker reads by its id.
+const TASK = "01926f3a-7c00-7000-8000-000000000901";
 
 test("marking a revision gives the hand back, shows its progress, and announces on another screen its end, which comes after the change [WF-IHM-0080-A]", async ({
   page,
 }) => {
-  // The time of the page is the test's: installed, then paused once the page is loaded, so
-  // that the read of the task comes when the test lets it come — after the change of screen,
-  // not before. A client navigation does not end while the clock is paused and its route is
-  // still to compile (`next dev` compiles a route at its first visit): the screen reached is
-  // compiled first, clock running.
-  await page.request.get(`/projects/${PROJECT}/lifecycle?revision_id=${REVISION}`);
-  await page.clock.install();
+  // The read of the task comes when the test lets it come — after the change of screen, not
+  // before —: the server action that reads it is held until then. The clock of the page is left
+  // alone: frozen, it held the new screen too, as its skeleton — React throttles the reveal of a
+  // loaded boundary by a timer, which a frozen clock never lets fire (#165).
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/projects/**", async (route: Route) => {
+    if (route.request().postData()?.includes(TASK) === true) {
+      await released;
+    }
+    await route.fallback();
+  });
+  // The screen reached by a click, compiled first.
+  await compile(page.request, `/projects/${PROJECT}/lifecycle?revision_id=${REVISION}`);
   await page.goto(`/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
-  await expect(commands.getByRole("button", { name: "Marquer la révision" })).toBeVisible();
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
-  const paused = await page.evaluate(() => Date.now());
   await commands.getByRole("button", { name: "Marquer la révision" }).click();
   await commands.getByRole("textbox", { name: "Nom de version" }).fill("V2");
   await commands.getByRole("button", { name: "Marquer", exact: true }).click();
@@ -46,13 +56,11 @@ test("marking a revision gives the hand back, shows its progress, and announces 
     .getByRole("link", { name: "Cycle de vie du projet" })
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cycle de vie du projet");
-  // On the new screen, reached with the clock still paused, the marking still runs: nothing
-  // has been read out yet.
-  expect(await page.evaluate(() => Date.now())).toBe(paused);
+  // On the new screen, its read still held, the marking still runs: nothing has been read out.
   await expect(tasks.getByRole("log")).toBeEmpty();
   await expect(tasks.getByRole("progressbar")).toBeVisible();
 
-  await page.clock.runFor(2000);
+  release();
   await expect(tasks.getByRole("log")).toHaveText(
     /^Tâche terminée\s: Marquage d’une révision «\sV2\s»\.$/,
   );
