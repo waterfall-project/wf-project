@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The files the checks compare byte for byte are checked out with LF line endings (#171).
+"""The files whose line endings matter are checked out with LF (#171, #175).
 
 A tool writes its files with LF, and its check compares them with what it would write; Prettier
 checks the front with LF. Checked out in CRLF, as ``core.autocrlf`` does on Windows, they would
@@ -13,10 +13,10 @@ import subprocess
 
 from wftools import REPOSITORY, paths
 
-# Besides the generated paths: formatted with LF by Prettier, and read by the generators; and
-# the originals of the copies the front compares byte for byte (`src/theme/brand.test.ts`); and
-# the shell scripts, compared by nothing but read by bash, which fails on a CRLF (#175).
-COMPARED = ("frontend/**", "fixtures/**", "docs/assets/*.svg", "**/*.sh")
+# Besides the generated paths: formatted with LF by Prettier, and read by the generators; the
+# originals of the copies the front compares byte for byte (`src/theme/brand.test.ts`); and the
+# shell scripts, which bash fails to parse in CRLF (#175).
+LF_ONLY = ("frontend/**", "fixtures/**", "docs/assets/*.svg", "**/*.sh")
 
 
 def git(*arguments: str, given: str = "") -> str:
@@ -26,12 +26,12 @@ def git(*arguments: str, given: str = "") -> str:
     ).stdout
 
 
-def compared_files() -> list[str]:
-    """Return the tracked files whose bytes a check compares."""
+def lf_files() -> list[str]:
+    """Return the tracked files that must be checked out with LF."""
     declaration = paths.read()
     patterns = [pattern for entry in declaration.generated for pattern in entry.paths]
     tracked = git("ls-files", "-z").split("\0")
-    return [path for path in tracked if path and paths.matches(path, (*patterns, *COMPARED))]
+    return [path for path in tracked if path and paths.matches(path, (*patterns, *LF_ONLY))]
 
 
 def attributes(files: list[str]) -> dict[str, dict[str, str]]:
@@ -44,8 +44,8 @@ def attributes(files: list[str]) -> dict[str, dict[str, str]]:
     return found
 
 
-def test_the_compared_files_include_each_kind_the_checks_compare() -> None:
-    files = compared_files()
+def test_the_lf_files_include_each_kind_whose_line_endings_matter() -> None:
+    files = lf_files()
     assert "fixtures/api/volume/nodes_thousand.json" in files
     assert "fixtures/examples.json" in files
     assert "frontend/src/api/generated/schema.d.ts" in files
@@ -55,8 +55,8 @@ def test_the_compared_files_include_each_kind_the_checks_compare() -> None:
     assert "docs/spec/build.sh" in files
 
 
-def test_every_compared_file_is_checked_out_with_lf() -> None:
-    files = compared_files()
+def test_every_lf_file_is_checked_out_with_lf() -> None:
+    files = lf_files()
     found = attributes(files)
     wrong = {
         path: found.get(path, {})

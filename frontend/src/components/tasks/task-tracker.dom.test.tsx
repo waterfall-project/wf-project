@@ -4,7 +4,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { type ReactNode, Suspense } from "react";
-import { hydrateRoot } from "react-dom/client";
+import { hydrateRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { markRevision } from "@/api/actions/revisions";
@@ -784,8 +784,9 @@ async function hydratePending(running: Promise<readonly BackgroundTask[]>) {
   container.innerHTML =
     '<div><!--$~--><template id="B:0"></template><p>Chargement</p><!--/$--></div>';
   document.body.append(container);
+  let root: Root | undefined;
   await act(async () => {
-    hydrateRoot(
+    root = hydrateRoot(
       container,
       <TaskTracker signedIn running={running}>
         <div>
@@ -798,7 +799,7 @@ async function hydratePending(running: Promise<readonly BackgroundTask[]>) {
     await running;
   });
   await tick();
-  return container;
+  return { container, root };
 }
 
 describe("the tracker as the page hydrates", () => {
@@ -806,8 +807,15 @@ describe("the tracker as the page hydrates", () => {
   // the page anew in the browser, beside the one the server sent, which the browser still holds.
   it("leaves the page the server sent to hydrate, when it has no task to follow", async () => {
     serve({});
-    const container = await hydratePending(Promise.resolve([]));
-    expect(within(container).queryByRole("heading", { name: "Avatar" })).toBeNull();
-    expect(container).toHaveTextContent("Chargement");
+    const { container, root } = await hydratePending(Promise.resolve([]));
+    try {
+      expect(within(container).queryByRole("heading", { name: "Avatar" })).toBeNull();
+      expect(container).toHaveTextContent("Chargement");
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+      container.remove();
+    }
   });
 });

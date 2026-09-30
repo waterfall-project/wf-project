@@ -662,8 +662,8 @@ même révision. C'est un écart déclaré d'US-0110 et d'US-0220 ; la seconde s
 en EP-13, sur le jeu de référence, avec cinquante utilisateurs, contre le vrai service. Le
 parcours garde seulement des bornes de fonctionnement, loin de la seconde, qui ne mesurent
 rien : quinze secondes pour qu'une grille devienne utilisable et qu'une page se pose
-(`WORKING`), les cinq secondes de Playwright pour l'adresse après un clic, trois minutes pour
-chaque test. Passé l'une d'elles, le parcours ne fonctionne plus — une grille jamais
+(`WORKING`), les cinq secondes de Playwright pour chaque assertion : l'adresse après un clic,
+puis ce que la grille montre ; trois minutes pour chaque test. Passé l'une d'elles, le parcours ne fonctionne plus — une grille jamais
 utilisable, une page qui ne se pose jamais — et il échoue, quelle que soit la seconde. Le
 parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
 ne lit pas (`lineage_id`). Son projet Playwright, `production`, dépend du projet `chromium` :

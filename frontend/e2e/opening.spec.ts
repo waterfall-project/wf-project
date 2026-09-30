@@ -39,9 +39,10 @@ import { expect, type Page, type Request, test } from "@playwright/test";
 // its grid what it shows alone (`projectNodes`).
 //
 // The path keeps bounds of its working alone, far from the second, which measure nothing: fifteen
-// seconds for a grid to become usable and for a page to settle (`WORKING`), the five seconds of
-// Playwright for the address after a click, three minutes for each test. Past one, the path no
-// longer works — a grid never usable, a page never settled — and fails, whatever the second.
+// seconds for a grid to become usable and for a page to settle (`WORKING`); the five seconds of
+// Playwright for each assertion: the address after a click, then what the grid shows; three
+// minutes for each test. Past one, the path no longer works — a grid never usable, a page never
+// settled — and fails, whatever the second.
 //
 // The project runs after all the other paths, alone on the machine: `playwright.config.ts`.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
