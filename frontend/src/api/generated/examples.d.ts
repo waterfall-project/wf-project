@@ -68,6 +68,9 @@ export interface Examples {
   "GET /reference/readiness": {
     200: "reference_readiness" | "reference_readiness_incomplete";
   };
+  "GET /reference/resource-roles": {
+    200: "resource_roles";
+  };
   "GET /session": {
     200: "session" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_without_administration" | "session_without_preferences";
   };
@@ -85,6 +88,9 @@ export interface Examples {
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
     200: "estimate_line_entered" | "estimate_line_updated";
+  };
+  "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
+    200: "task_renamed";
   };
   "POST /projects/{project_id}/exit": {
     200: "project_completed";

@@ -589,6 +589,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            examples:
+              renamed: { $ref: ../../../fixtures/api/task_renamed.json }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }

@@ -1,0 +1,86 @@
+{
+  "summary": "Les rôles de ressources du projet témoin : l'ingénieur électricien et le technicien de mise en service, que portent les lignes de main-d'œuvre des exemples, et l'automaticien, désactivé (WF-REF-0090, WF-REF-0100, WF-REF-0150).",
+  "value": [
+    {
+      "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+      "label": "Ingénieur électricien",
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+      "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+      "capacity": {
+        "monthly_hours": "151.67",
+        "headcount": "6"
+      },
+      "is_active": true,
+      "audit": {
+        "created_at": "2026-01-05T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+      "label": "Technicien de mise en service",
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+      "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+      "capacity": {
+        "monthly_hours": "151.67",
+        "headcount": "4"
+      },
+      "is_active": true,
+      "audit": {
+        "created_at": "2026-01-05T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "resource_role_id": "01926f3a-7c00-7000-8000-000000000453",
+      "label": "Automaticien",
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+      "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+      "capacity": {
+        "monthly_hours": "151.67",
+        "headcount": "2"
+      },
+      "is_active": false,
+      "audit": {
+        "created_at": "2026-01-05T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    }
+  ]
+}
