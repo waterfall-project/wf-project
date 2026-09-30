@@ -263,11 +263,14 @@ relance a mise à sa place. Les actions serveur de Next partent une à une, dans
 suivre k tâches ajoute k actions toutes les deux secondes, dans la file même des écritures de
 l'écran, qu'une relecture lente retarde d'autant. Le stockage de session de l'onglet garde les
 tâches qui courent pour un rechargement complet, sans leur commande mais avec le nom que
-l'utilisateur leur a donné ; et, pour une session (`signedIn`), le suivi demande à son montage
-les tâches de son utilisateur qui courent (`listBackgroundTasks`, action `listRunningTasks`),
-lancées d'un autre onglet ou d'un autre poste, et les redemande chaque fois que l'onglet redevient
-visible (`visibilitychange`) ; il suit celles qu'il ne suivait pas — une liste refusée ou
-injoignable le laisse tel qu'il est. Une tâche retrouvée par le stockage ou par la
+l'utilisateur leur a donné ; et, pour une session, le suivi reçoit du layout racine les tâches
+de son utilisateur qui couraient à la lecture du document (`listBackgroundTasks`, `running`),
+lancées d'un autre onglet ou d'un autre poste — lues côté serveur, en parallèle de la session,
+plutôt que par une action serveur au montage de la coquille, que `StrictMode` lançait deux fois
+en développement —, et les redemande par une action (`listRunningTasks`) chaque fois que
+l'onglet redevient visible (`visibilitychange`, `signedIn`) ; il suit celles qu'il ne suivait
+pas — une liste refusée ou injoignable le laisse tel qu'il est, et le layout ne tombe jamais
+pour elle. Une tâche retrouvée par le stockage ou par la
 liste ne se relance pas du suivi : échouée, son entrée dit de la relancer depuis l'écran de son
 objet. La commande `mark` d'une révision
 (`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de

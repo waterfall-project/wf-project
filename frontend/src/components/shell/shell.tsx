@@ -22,6 +22,7 @@
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 
+import type { BackgroundTask } from "@/api/problem";
 import { TaskTracker } from "@/components/tasks/task-tracker";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -49,6 +50,8 @@ export interface ShellProps {
   readonly permissions: NavigationProps["permissions"] | undefined;
   readonly remembered: string | undefined;
   readonly sidebarOpen: boolean;
+  /** The tasks of the user that ran as the document was read; none without an account. */
+  readonly running?: readonly BackgroundTask[];
   readonly children: ReactNode;
 }
 
@@ -61,11 +64,12 @@ export function Shell({
   permissions,
   remembered,
   sidebarOpen,
+  running,
   children,
 }: ShellProps) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone={TIME_ZONE}>
-      <TaskTracker signedIn={account !== undefined}>
+      <TaskTracker signedIn={account !== undefined} running={running}>
         <ShownProjectProvider>
           <SidebarProvider defaultOpen={sidebarOpen}>
             <ShellFrame

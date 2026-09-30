@@ -10,10 +10,11 @@
  * One tracker for every kind of task, in the root layout: a navigation within the application
  * keeps it, and nothing of it blocks the screen — no dialog, no control disabled. A full
  * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`),
- * with what the user named them after; and, for a session, the tracker asks the API as it mounts,
- * and each time the tab shows again, which tasks of its user still run (`listBackgroundTasks`),
- * and follows those it did not — started from another tab, another workstation —, without their
- * command: failed, such a task is run again from the screen of its object. A list the API does
+ * with what the user named them after; and, for a session, the tracker follows the tasks of its
+ * user that still ran as the document was read (`listBackgroundTasks`, read by the root layout),
+ * and those the API lists each time the tab shows again, which it did not follow — started from
+ * another tab, another workstation —, without their command: failed, such a task is run again
+ * from the screen of its object. A list the API does
  * not give leaves the tracker as it is. A task started elsewhere that ended between two readings
  * is not found, nor announced.
  *
@@ -103,13 +104,22 @@ export function useForgetTasks(): () => void {
 
 /** What the tracker follows the tasks of, and within what. */
 export interface TaskTrackerProps {
-  /** Whether a session is open: its user's tasks that still run are then listed as it mounts. */
+  /** Whether a session is open: its user's tasks that still run are read again as the tab shows. */
   readonly signedIn?: boolean;
+  /**
+   * The tasks of the user that ran as the document was read, which the server of Next read
+   * alongside the session (`listBackgroundTasks`): the shell dispatches no server action as it
+   * mounts.
+   */
+  readonly running?: readonly BackgroundTask[] | undefined;
   readonly children: ReactNode;
 }
 
+/** No task read with the document. */
+const NO_TASK: readonly BackgroundTask[] = [];
+
 /** Follow the background tasks the screens within it start, and those of its user that run. */
-export function TaskTracker({ signedIn = false, children }: TaskTrackerProps) {
+export function TaskTracker({ signedIn = false, running = NO_TASK, children }: TaskTrackerProps) {
   const [state, dispatch] = useReducer(tracking, NOTHING_TRACKED);
   // Whether the user showed or hid the panel; `undefined` while it follows the tasks.
   const [shown, setShown] = useState<boolean>();
@@ -120,15 +130,23 @@ export function TaskTracker({ signedIn = false, children }: TaskTrackerProps) {
   useEffect(() => {
     dispatch({ type: "restore", tasks: restoreTasks() });
   }, []);
-  // The tasks of the user that still run, read after those the tab kept, and again each time
-  // the tab shows once more — the user may have started one from another tab meanwhile: what
-  // the API does not give, refused or out of reach, the tracker does without.
+  // The tasks of the user that still ran as the document was read, followed after those the tab
+  // kept — a data of the page, read on the server, rather than a server action as the shell
+  // mounts —; and again, read by a server action, each time the tab shows once more — the user
+  // may have started one from another tab meanwhile: what the API does not give, refused or out
+  // of reach, the tracker does without.
+  useEffect(() => {
+    dispatch({ type: "found", tasks: running });
+  }, [running]);
   useEffect(() => {
     if (!signedIn) {
       return undefined;
     }
     let live = true;
-    const list = () => {
+    const shown = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
       void listRunningTasks().then(
         (outcome) => {
           if (live && outcome.kind === "done") {
@@ -138,12 +156,6 @@ export function TaskTracker({ signedIn = false, children }: TaskTrackerProps) {
         () => undefined,
       );
     };
-    const shown = () => {
-      if (document.visibilityState === "visible") {
-        list();
-      }
-    };
-    list();
     document.addEventListener("visibilitychange", shown);
     return () => {
       live = false;

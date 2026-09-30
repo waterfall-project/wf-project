@@ -101,8 +101,12 @@ export type ComputedDependencies = components["schemas"]["ComputedValueDependenc
  * row and the field, and a server action answers it, decoded as every other (`Outcome`).
  */
 export interface DependencyReader<Row> {
-  /** The reading of the page this reader asks for — its rows —: an answer is kept for it alone. */
-  readonly reading: readonly Row[];
+  /**
+   * The reading of the page this reader asks for — its rows —: an answer is kept for it alone. A
+   * function, never the array: the reader reaches the props of each row and each computed cell,
+   * which the development build of React compares again at each navigation of the grid.
+   */
+  readonly reading: () => readonly Row[];
   /** The identifier of a row, as the server knows it. */
   readonly id: (row: Row) => string;
   readonly read: (id: string, field: ComputedValueField) => Promise<Outcome<ComputedDependencies>>;

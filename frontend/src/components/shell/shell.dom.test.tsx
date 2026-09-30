@@ -383,15 +383,30 @@ describe("the shell", () => {
     expect(within(group).getByRole("menuitem", { name: /^Mode d’affichage/ })).toBeInTheDocument();
   });
 
-  it("asks, for an account, which tasks of its user still run, and nothing without one", async () => {
+  it("follows the tasks of the user read with the document, and reads them again, for an account, as the tab shows", async () => {
     const signedIn = serve();
-    const view = shell();
+    const { items } = example("tasks_running") as {
+      items: components["schemas"]["BackgroundTaskRef"][];
+    };
+    const view = shell({ running: items });
+    expect(screen.getByRole("region", { name: "Tâches de fond" })).toHaveTextContent(
+      "Marquage d’une révision",
+    );
+    // Nothing is asked as the shell mounts: the tasks came with the document.
+    expect(signedIn.calls).toEqual([]);
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
     await waitFor(() => {
       expect(signedIn.calls.map((call) => call.route)).toEqual(["GET /tasks"]);
     });
     view.unmount();
     const signedOut = serve();
     shell({ account: undefined, permissions: undefined });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
     await act(() => Promise.resolve());
     expect(signedOut.calls).toEqual([]);
   });

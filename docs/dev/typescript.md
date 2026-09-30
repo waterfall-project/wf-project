@@ -184,12 +184,18 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     serveur de développement a pris une demi-seconde de plus, assez pour qu'un parcours de la
     chaîne dépasse son attente (US-0150/L1). La production n'en dit rien. Ce qui descend
     jusqu'aux lignes lit la réponse par une fonction (`answer` de `DenseGrid`), jamais par le
-    tableau. Aucun outil ne le tient : la revue le cherche.
-15. **Action serveur lancée pendant une navigation.** Next porte chaque action serveur dans l'état
+    tableau. Il est revenu dans un objet : le lecteur de ce dont dépend une valeur calculée
+    portait les lignes de sa lecture, et la navigation d'un tri a pris 0,8 s de plus — le
+    parcours du tri a dépassé son attente (EP-02/L4, run 36630647717). Un objet qui descend
+    jusqu'aux lignes lit lui aussi la réponse par une fonction (`reading` de `DependencyReader`).
+    Aucun outil ne le tient : la revue le cherche.
+15. **Action serveur lancée après une navigation.** Next porte chaque action serveur dans l'état
     de son routeur, dans une seule file : une navigation ne se montre qu'une fois répondues les
-    actions lancées après elle, et celles-ci attendent derrière celles déjà en file. Une
-    préférence écrite au clic d'en-tête retenait ainsi l'adresse du tri d'un aller-retour, et de
-    la lecture des tâches de fond que la coquille lance à son montage : sous charge, le parcours
-    du tri dépassait son attente (EP-02/L4). Ce qu'un geste qui navigue doit écrire part une fois
-    la page montrée (`sortToRecord` de `DenseGrid`), ou avant la navigation. Aucun outil ne le
-    tient : la revue le cherche, et une retenue de l'action dans un parcours le prouve.
+    actions lancées après elle. Une préférence écrite au clic d'en-tête retenait ainsi l'adresse
+    du tri d'un aller-retour, et de tout ce qui attendait devant elle dans la file : sous charge,
+    le parcours du tri dépassait son attente (EP-02/L4, run 36624394005). Ce qu'un geste qui
+    navigue doit écrire part une fois la page montrée (`sortToRecord` de `DenseGrid`), ou avant
+    la navigation : une action lancée avant, au montage d'un écran, ne la retient pas — retenue
+    huit secondes, la lecture des tâches de fond que la coquille lançait alors laissait paraître
+    l'adresse du tri à son heure. Aucun outil ne le tient : la revue le cherche, et une action
+    retenue dans un parcours le prouve (`grid.spec.ts`).

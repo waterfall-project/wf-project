@@ -69,7 +69,7 @@ function useDependencies<Row>(
   const reading = dependencies?.reading;
   const id = dependencies?.id(row);
   const [answer, setAnswer] = useState<{
-    readonly reading: readonly Row[];
+    readonly reading: () => readonly Row[];
     readonly id: string;
     readonly field: ComputedValueField;
     readonly opening: number;

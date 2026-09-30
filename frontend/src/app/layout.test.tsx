@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient } from "@/api/client";
+import type { BackgroundTask } from "@/api/problem";
+import type { ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -17,6 +19,8 @@ const server = vi.hoisted(() => ({
   sidebar: undefined as string | undefined,
   // What the cache of React holds for the request; a test is one request.
   cached: new Map<unknown, Map<string, unknown>>(),
+  // The tasks of the user the layout handed the shell, for its tracker to follow.
+  running: undefined as readonly BackgroundTask[] | undefined,
 }));
 
 // The cache of React, as a server component sees it: a function it wraps runs once per
@@ -39,6 +43,18 @@ vi.mock("react", async (original) => {
 });
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// The shell itself, which keeps what the layout hands its tracker: the tracker follows it once
+// mounted, which a document rendered on the server does not show.
+vi.mock("@/components/shell/shell", async (original) => {
+  const shell = await original<typeof import("@/components/shell/shell")>();
+  return {
+    ...shell,
+    Shell: (props: ShellProps) => {
+      server.running = props.running;
+      return <shell.Shell {...props} />;
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": server.acceptLanguage })),
   cookies: () =>
@@ -68,6 +84,7 @@ function request(acceptLanguage: string, answers: FakeAnswers = {}) {
   server.client = fakeClient({
     "GET /session": "session",
     "GET /installation": "installation",
+    "GET /tasks": "tasks_none",
     ...answers,
   });
   server.acceptLanguage = acceptLanguage;
@@ -79,6 +96,7 @@ async function page(): Promise<string> {
 }
 
 beforeEach(() => {
+  server.running = undefined;
   server.cookie = undefined;
   server.sidebar = undefined;
   server.cached.clear();
@@ -174,14 +192,40 @@ describe("RootLayout", () => {
       "/system",
     ]);
     expect(html).toContain("<p>page</p>");
+    // The tasks of the user out of reach as well: the tracker follows none.
+    expect(server.running).toEqual([]);
   });
 
   it("reads the session once, and the account through it alone", async () => {
     request("de-DE");
     await page();
     const routes = server.client?.calls.map((call) => call.route);
-    // The browser asks for no language offered: the installation decides.
-    expect(routes).toEqual(["GET /session", "GET /installation"]);
+    // The browser asks for no language offered: the installation decides. The tasks of the
+    // user that still run are read alongside, for the tracker of the shell.
+    expect(routes).toEqual(["GET /session", "GET /tasks", "GET /installation"]);
+    const tasks = server.client?.calls.find((call) => call.route === "GET /tasks");
+    expect(tasks?.query.get("status")).toBe("queued,running");
+  });
+
+  it("hands the tracker of the shell the tasks of the user that still run, read with the document", async () => {
+    request("fr", { "GET /tasks": "tasks_running" });
+    const html = await page();
+    expect(html).toContain("<p>page</p>");
+    expect(server.running?.map((task) => [task.task_id, task.status])).toEqual([
+      ["01926f3a-7c00-7000-8000-000000000901", "running"],
+    ]);
+  });
+
+  it("hands the tracker no task without a session, nor when the API refuses the list, and still opens the page", async () => {
+    request("fr", { "GET /session": UNAUTHORIZED, "GET /tasks": "tasks_running" });
+    expect(await page()).toContain("<p>page</p>");
+    expect(server.running).toEqual([]);
+    server.cached.clear();
+    request("fr", { "GET /tasks": UNAUTHORIZED });
+    const html = await page();
+    expect(html).toContain('aria-label="Compte de Camille Martin"');
+    expect(html).toContain("<p>page</p>");
+    expect(server.running).toEqual([]);
   });
 
   it("asks the installation once for a request whose browser leaves it the language", async () => {
@@ -189,7 +233,7 @@ describe("RootLayout", () => {
     await page();
     await generateMetadata();
     const routes = server.client?.calls.map((call) => call.route);
-    expect(routes).toEqual(["GET /session", "GET /installation"]);
+    expect(routes).toEqual(["GET /session", "GET /tasks", "GET /installation"]);
   });
 
   it("titles the document with the product, from the catalogue", async () => {

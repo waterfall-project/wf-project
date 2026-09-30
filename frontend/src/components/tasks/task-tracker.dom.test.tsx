@@ -97,10 +97,10 @@ function Starting({
  * The shell, as far as the tracker goes: the texts, the tracker, the button of its panel in the
  * bar, its panel, the page.
  */
-function shell(page: ReactNode, signedIn = false) {
+function shell(page: ReactNode, signedIn = false, running?: readonly BackgroundTask[]) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <TaskTracker signedIn={signedIn}>
+      <TaskTracker signedIn={signedIn} running={running}>
         <header>
           <TasksButton />
         </header>
@@ -641,17 +641,27 @@ describe("the follow-up across a full reload of the tab", () => {
   });
 });
 
-describe("the tasks of its user the API lists", () => {
-  it("follows, for a session, the tasks of its user that still run, started elsewhere, and announces their end", async () => {
-    const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_failed" });
-    render(shell(<Screen name="Planning" />, true));
+/** The tasks of the user the root layout read with the document, by the name of their example. */
+function listed(name: string): readonly BackgroundTask[] {
+  return (example(name) as { readonly items: readonly BackgroundTask[] }).items;
+}
 
-    // The marking another tab started, found once the list is read.
-    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
-      "Marquage d’une révision",
-    );
-    const listed = client.calls.filter((call) => call.route === TASKS);
-    expect(listed.map((call) => call.query.get("status"))).toEqual(["queued,running"]);
+/** The tab hidden, or shown again, as the browser tells it. */
+function showTab(state: DocumentVisibilityState) {
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(state);
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
+describe("the tasks of its user the API lists", () => {
+  it("follows the tasks of its user that ran as the document was read, started elsewhere, and announces their end, without a server action as it mounts", async () => {
+    const client = serve({ [TASK]: "task_failed" });
+    render(shell(<Screen name="Planning" />, true, listed("tasks_running")));
+
+    // The marking another tab started, read with the document.
+    expect(within(panel()).getByRole("listitem")).toHaveTextContent("Marquage d’une révision");
+    expect(client.calls).toEqual([]);
     await tick();
     expect(reads(client)).toEqual([`/tasks/${MARKING}`]);
     expect(ends()[0]?.[0]).toBe("Tâche échouée\u00A0: Marquage d’une révision.");
@@ -663,40 +673,28 @@ describe("the tasks of its user the API lists", () => {
   });
 
   it("reads the list again when the tab shows once more, and follows what another tab started", async () => {
-    const client = serve({ [TASKS]: ["tasks_none", "tasks_running"], [TASK]: "task_running" });
-    render(shell(<Screen name="Planning" />, true));
-    const listed = () => client.calls.filter((call) => call.route === TASKS);
-    await vi.waitFor(() => {
-      expect(listed()).toHaveLength(1);
-    });
+    const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
+    render(shell(<Screen name="Planning" />, true, listed("tasks_none")));
+    const asked = () => client.calls.filter((call) => call.route === TASKS);
     expect(within(panel()).queryByRole("list")).toBeNull();
     // Hidden, the tab asks nothing; shown again, it asks.
-    const state = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
-    act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-    expect(listed()).toHaveLength(1);
-    state.mockReturnValue("visible");
-    act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
+    showTab("hidden");
+    expect(asked()).toEqual([]);
+    showTab("visible");
     expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
       "Marquage d’une révision",
     );
-    expect(listed()).toHaveLength(2);
+    expect(asked().map((call) => call.query.get("status"))).toEqual(["queued,running"]);
   });
 
   it("brings back no task the user dismissed, when the tab shows again and the list is read anew", async () => {
     const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
-    render(shell(<Screen name="Planning" />, true));
-    await within(panel()).findByRole("listitem");
+    render(shell(<Screen name="Planning" />, true, listed("tasks_running")));
     await userEvent.click(dismissal("Marquage d’une révision"));
     expect(within(panel()).queryByRole("list")).toBeNull();
-    act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
+    showTab("visible");
     await vi.waitFor(() => {
-      expect(client.calls.filter((call) => call.route === TASKS)).toHaveLength(2);
+      expect(client.calls.filter((call) => call.route === TASKS)).toHaveLength(1);
     });
     await act(() => Promise.resolve());
     expect(within(panel()).queryByRole("list")).toBeNull();
@@ -709,11 +707,8 @@ describe("the tasks of its user the API lists", () => {
         { key: MARKING, task_id: MARKING, kind: "revision_mark", status: "running", subject: "V2" },
       ]),
     );
-    const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
-    render(shell(<Screen name="Planning" />, true));
-    await vi.waitFor(() => {
-      expect(client.calls.map((call) => call.route)).toContain(TASKS);
-    });
+    serve({ [TASK]: "task_running" });
+    render(shell(<Screen name="Planning" />, true, listed("tasks_running")));
     await tick();
     expect(within(panel()).getAllByRole("listitem")).toHaveLength(1);
     expect(within(panel()).getByRole("listitem")).toHaveTextContent(
@@ -723,15 +718,15 @@ describe("the tasks of its user the API lists", () => {
 
   it("does without a list the API refuses, or does not give", async () => {
     const client = serve({ [TASKS]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
-    const view = render(shell(<Screen name="Planning" />, true));
+    render(shell(<Screen name="Planning" />, true));
+    showTab("visible");
     await vi.waitFor(() => {
       expect(client.calls.map((call) => call.route)).toEqual([TASKS]);
     });
     expect(within(panel()).queryByRole("list")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
-    view.unmount();
     server.client = unreachable();
-    render(shell(<Screen name="Planning" />, true));
+    showTab("visible");
     await tick();
     expect(within(panel()).queryByRole("list")).toBeNull();
   });
@@ -739,6 +734,7 @@ describe("the tasks of its user the API lists", () => {
   it("asks nothing without a session", async () => {
     const client = serve({});
     render(shell(<Screen name="Planning" />));
+    showTab("visible");
     await tick();
     expect(client.calls).toEqual([]);
   });

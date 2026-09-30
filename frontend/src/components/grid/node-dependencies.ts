@@ -20,7 +20,7 @@ export function nodeDependencies<Row extends GridNode>(
   reading: readonly Row[],
 ): DependencyReader<Row> {
   return {
-    reading,
+    reading: () => reading,
     id: (node) => node.node_id,
     read: (id, field) => readComputedDependencies(structure, id, field),
   };
