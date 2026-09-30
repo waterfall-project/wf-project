@@ -11,12 +11,28 @@
  * open, on a port of its own: the development server compiles each route the first time it is
  * asked for, and renders with the checks of React's development build — a measure there would
  * say how fast the developer's front is.
+ *
+ * The harness always starts its own servers, on ports of its own — never those of `make dev`,
+ * 3000 and 4010 —, and its fake back serves a variant of the contract written where `make dev`
+ * does not read it: a path played against servers it did not start would judge another version
+ * of the code, or another contract (#150). A port already taken fails the run, saying so. The
+ * environment moves the ports, for two checkouts on one workstation.
  */
 import { defineConfig, devices } from "@playwright/test";
 
-const API = process.env.WATERFALL_API_ADDRESS ?? "http://127.0.0.1:4010";
-const FRONT = "http://127.0.0.1:3000";
-const PRODUCTION = "http://127.0.0.1:3001";
+/** A port of the harness: the one the environment names, or its own. */
+function port(variable: string, own: number): number {
+  return Number(process.env[variable] ?? own);
+}
+
+const API_PORT = port("E2E_API_PORT", 4110);
+const FRONT_PORT = port("E2E_FRONT_PORT", 3100);
+const PRODUCTION_PORT = port("E2E_PRODUCTION_PORT", 3101);
+const API = process.env.WATERFALL_API_ADDRESS ?? `http://127.0.0.1:${String(API_PORT)}`;
+const FRONT = `http://127.0.0.1:${String(FRONT_PORT)}`;
+const PRODUCTION = `http://127.0.0.1:${String(PRODUCTION_PORT)}`;
+// From the root of the repository, where `make -C ..` runs; ignored by git.
+const MOCK_SPEC = "frontend/.e2e/waterfall.mock.json";
 const MEASURES = /opening\.spec\.ts$/;
 const onWorkstation = process.env.CI === undefined;
 
@@ -45,18 +61,18 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "make -C .. mock",
+      command: `make -C .. mock MOCK_PORT=${String(API_PORT)} MOCK_SPEC=${MOCK_SPEC}`,
       url: `${API}/api/v1/health`,
-      reuseExistingServer: onWorkstation,
+      reuseExistingServer: false,
       timeout: 120_000,
       // Signal the whole process group: make and pnpm start the servers as children.
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     },
     {
-      command: "pnpm dev --hostname 127.0.0.1 --port 3000",
+      command: `pnpm dev --hostname 127.0.0.1 --port ${String(FRONT_PORT)}`,
       url: FRONT,
       env: { WATERFALL_API_ADDRESS: API },
-      reuseExistingServer: onWorkstation,
+      reuseExistingServer: false,
       timeout: 120_000,
       // Signal the whole process group: make and pnpm start the servers as children.
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
@@ -65,10 +81,10 @@ export default defineConfig({
       // Built after the fake back is up — the servers start one after the other —, which the
       // build may need (#131). The build writes `.next`, the development server `.next/dev`:
       // the two live side by side.
-      command: "pnpm build && pnpm start --hostname 127.0.0.1 --port 3001",
+      command: `pnpm build && pnpm start --hostname 127.0.0.1 --port ${String(PRODUCTION_PORT)}`,
       url: PRODUCTION,
       env: { WATERFALL_API_ADDRESS: API },
-      reuseExistingServer: onWorkstation,
+      reuseExistingServer: false,
       timeout: 300_000,
       // Signal the whole process group: make and pnpm start the servers as children.
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },

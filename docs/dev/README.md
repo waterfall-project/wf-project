@@ -577,7 +577,12 @@ nom accessible (`getByRole`), comme un utilisateur les voit, jamais par une clas
 
 `make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
 dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
-les serveurs que `make` et `pnpm` lancent survivraient. `make e2e-browsers` installe le
+les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
+serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front de développement,
+3101 pour le front construit —, jamais ceux de `make dev`, et son faux back sert une variante
+du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port déjà pris fait
+échouer le lancement en le disant. `E2E_API_PORT`, `E2E_FRONT_PORT` et
+`E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste. `make e2e-browsers` installe le
 navigateur. À partir d'EP-03, les mêmes parcours se jouent contre le vrai service en
 changeant `WATERFALL_API_ADDRESS`.
 

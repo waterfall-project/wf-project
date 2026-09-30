@@ -10,7 +10,11 @@
 SPEC    := docs/spec
 API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
+# Where the variant the fake back serves is written, and the port it is served on. The
+# end-to-end paths give both their own (`frontend/playwright.config.ts`): rewriting the file
+# that `make dev` mounts would bring its fake back down.
 MOCK_SPEC := $(API)/waterfall.mock.json
+MOCK_PORT := 4010
 # The same bundle in JSON, which the repository tools read without a YAML parser.
 JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
@@ -75,7 +79,8 @@ allocate-pbs: ## Write the PBS field of every requirement into the Word document
 	@python3 $(SPEC)/tools/allocate_pbs.py
 
 mock-spec: lint-openapi ## Derive from the contract the variant the fake back serves
-	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(MOCK_SPEC)) >/dev/null
+	@mkdir -p $(dir $(MOCK_SPEC))
+	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(abspath $(MOCK_SPEC)) >/dev/null
 	@$(WFTOOLS).mock $(MOCK_SPEC)
 
 mock-data: ## Regenerate the volumes of §4.6.2 the fake back serves, in fixtures/api/volume
@@ -85,7 +90,7 @@ mock-data-up-to-date: ## The versioned volumes are the ones the generator writes
 	@$(WFTOOLS).mockdata --check
 
 mock: mock-spec ## Serve the fake back on http://localhost:4010, from the contract's examples
-	@$(PRISM) mock $(MOCK_SPEC) --host 0.0.0.0 --port 4010
+	@$(PRISM) mock $(MOCK_SPEC) --host 0.0.0.0 --port $(MOCK_PORT)
 
 dev: mock-spec ## Start the front against the fake back (http://localhost:3000)
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) up --build
