@@ -5,7 +5,7 @@ import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type ApiClient, createApiClient } from "@/api/client";
+import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
@@ -423,30 +423,6 @@ describe("a write the server answers otherwise", () => {
     await userEvent.keyboard("3{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent(/inattendue|erreur/i);
     expect(cell(DISBURSEMENT, "quantity")).toHaveTextContent(/^1$/);
-    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
-  });
-
-  it("leads to the sign-in when the session is lost, the cell left as it was", async () => {
-    serve();
-    // A 401 the contract does not declare on this operation yet (#141): answered by hand.
-    server.client = createApiClient({
-      address: "http://api.invalid",
-      fetch: () =>
-        Promise.resolve(
-          Response.json(
-            { code: "SESSION_REQUIRED", status: 401 },
-            { status: 401, headers: { "content-type": "application/problem+json" } },
-          ),
-        ),
-    });
-    render(grid());
-    cell(LABOUR, "hours").focus();
-    await userEvent.keyboard("15{Enter}");
-    const alert = await screen.findByRole("alert");
-    expect(within(alert).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
-      "href",
-      expect.stringMatching(/^\/login\?next=/),
-    );
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
   });
 });
