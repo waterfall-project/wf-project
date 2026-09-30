@@ -2,16 +2,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { UNREACHABLE_DIGEST } from "@/components/system/failure";
+
 import { API_PREFIX, createApiClient, Unreachable } from "./client";
 
 /** A fetch that records the requests it receives, and answers an empty object. */
-function recorder(): { send: (request: Request) => Promise<Response>; urls: string[] } {
+function recorder(): {
+  send: (request: Request) => Promise<Response>;
+  urls: string[];
+  requests: Request[];
+} {
+  const requests: Request[] = [];
   const urls: string[] = [];
   const record = (request: Request): Promise<Response> => {
+    requests.push(request);
     urls.push(request.url);
     return Promise.resolve(Response.json({}));
   };
-  return { send: record, urls };
+  return { send: record, urls, requests };
 }
 
 describe("createApiClient", () => {
@@ -40,15 +48,35 @@ describe("createApiClient", () => {
     expect(urls).toEqual([`http://api.example${API_PREFIX}/health`]);
   });
 
+  it("sends each method through the transport it is given, with its body and its answer", async () => {
+    const { send, urls, requests } = recorder();
+    const client = createApiClient({ address: "http://localhost:4010", fetch: send });
+    const { data, response } = await client.POST("/projects", { body: { label: "Poste" } });
+    await client.DELETE("/session");
+
+    expect(requests.map((request) => request.method)).toEqual(["POST", "DELETE"]);
+    expect(urls).toEqual([
+      `http://localhost:4010${API_PREFIX}/projects`,
+      `http://localhost:4010${API_PREFIX}/session`,
+    ]);
+    expect(requests[0]?.headers.get("content-type")).toBe("application/json");
+    expect(await requests[0]?.json()).toEqual({ label: "Poste" });
+    // What the transport answered is what the caller reads.
+    expect(response.status).toBe(200);
+    expect(data).toEqual({});
+  });
+
   it("marks the rejection of fetch as the API out of reach, and nothing else", async () => {
     const failure = new TypeError("fetch failed");
     const down = createApiClient({
       address: "http://api.invalid",
       fetch: () => Promise.reject(failure),
     });
+    // Its digest is what the screen of failure receives of it in production.
     await expect(down.GET("/health")).rejects.toMatchObject({
       name: "Unreachable",
       cause: failure,
+      digest: UNREACHABLE_DIGEST,
     });
     await expect(down.GET("/health")).rejects.toBeInstanceOf(Unreachable);
 

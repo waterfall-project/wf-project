@@ -8,12 +8,15 @@
  * from those examples before it reaches the network: the paths, parameters and bodies a
  * page sends go through openapi-fetch as they would in production, and the test reads them
  * back from `calls`. An answer is typed by the operation it answers: only a status the
- * contract declares for it, with a body only when that status has one, and of its kind.
+ * contract declares for it, with a body only when that status has one, and of its kind — a
+ * fixture only among the examples the contract gives that status of that operation
+ * (`generated/examples.d.ts`, which `make generate-client` writes).
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { API_PREFIX, type ApiClient, createApiClient } from "@/api/client";
+import type { Examples } from "@/api/generated/examples";
 import type { components, paths } from "@/api/generated/schema";
 
 // From the directory of this file: under a document, `import.meta.url` is not a file URL.
@@ -49,16 +52,24 @@ type Responses<R extends Route> =
       : never
     : never;
 
+/** The fixtures the contract cites as examples of one status of an operation; none, never. */
+type Cited<R extends Route, S> = R extends keyof Examples
+  ? S extends keyof Examples[R]
+    ? Examples[R][S]
+    : never
+  : never;
+
 /**
  * The answers to one declared status, by what its body is. A JSON body answers the name of a
- * fixture of `fixtures/api/` — alone for 200; a Problem body, a `Problem` carrying that
- * status; any other body — an image, an archive, text — a `Blob` or a string, served with one
- * of the media types the status declares; a status without a body answers the status alone.
+ * fixture of `fixtures/api/` the contract cites for it (`E`) — alone for 200; a Problem body, a
+ * `Problem` carrying that status; any other body — an image, an archive, text — a `Blob` or a
+ * string, served with one of the media types the status declares; a status without a body
+ * answers the status alone.
  */
-type StatusAnswer<X, S extends keyof X & number> = X[S] extends { content: infer C }
+type StatusAnswer<X, S extends keyof X & number, E> = X[S] extends { content: infer C }
   ? "application/json" extends keyof C
-    ? | (S extends 200 ? string : never)
-      | (Keys<"example" | "status"> & { readonly example: string; readonly status: S })
+    ? | (S extends 200 ? E : never)
+      | (Keys<"example" | "status"> & { readonly example: E; readonly status: S })
     : "application/problem+json" extends keyof C
       ? Keys<"problem"> & { readonly problem: Problem & { readonly status: S } }
       : Keys<"body" | "type" | "status"> & {
@@ -74,7 +85,7 @@ type AnswerKey = "example" | "problem" | "body" | "type" | "status";
 
 /** What the fake client may answer to one call of an operation. */
 export type FakeAnswer<R extends Route> = {
-  [S in keyof Responses<R> & number]: StatusAnswer<Responses<R>, S>;
+  [S in keyof Responses<R> & number]: StatusAnswer<Responses<R>, S, Cited<R, S>>;
 }[keyof Responses<R> & number];
 
 /**
@@ -164,9 +175,14 @@ export interface FakeTiming {
 
 /**
  * Make a client that answers each route from the examples of the contract. A call to a route
- * it has no answer for fails the test: an unexpected call is a defect, not an empty page.
+ * it has no answer for fails the test: an unexpected call is a defect, not an empty page. A
+ * table keyed by any string — a `Record<string, string>` — is refused: it would name no
+ * operation, and its examples would escape the typing of each.
  */
-export function fakeClient(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
+export function fakeClient<const A extends FakeAnswers>(
+  answers: string extends keyof A ? never : A,
+  timing: FakeTiming = {},
+): FakeClient {
   const table: Readonly<Record<string, AnyAnswer | readonly AnyAnswer[] | undefined>> = answers;
   const served = new Map<string, number>();
   const calls: { -readonly [K in keyof FakeCall]: FakeCall[K] }[] = [];

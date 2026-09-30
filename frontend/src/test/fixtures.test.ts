@@ -9,6 +9,8 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const USER = "01926f3a-7c00-7000-8000-000000000301";
 const ROLE = "01926f3a-7c00-7000-8000-000000000401";
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
+const MARK = "POST /projects/{project_id}/revisions/{revision_id}/mark";
+const MARKING = { version_name: "V2", lock_version: 4 };
 
 describe("example", () => {
   it("reads the value of a fixture of the contract", () => {
@@ -19,13 +21,39 @@ describe("example", () => {
 describe("the answers of fakeClient", () => {
   it("are those the contract declares for the operation", () => {
     expectTypeOf<{ "GET /projects": "projects" }>().toExtend<FakeAnswers>();
+    expectTypeOf<{ "GET /projects": "projects_empty" }>().toExtend<FakeAnswers>();
     expectTypeOf<{
-      "POST /projects": { example: "project"; status: 201 };
+      [MARK]: { example: "task_mark_queued"; status: 202 };
     }>().toExtend<FakeAnswers>();
     expectTypeOf<{ "GET /projects": typeof NOT_FOUND }>().toExtend<FakeAnswers>();
     expectTypeOf<{
       "DELETE /access-roles/{access_role_id}": { status: 204 };
     }>().toExtend<FakeAnswers>();
+  });
+
+  it("refuse an example the contract does not give the operation, or that status of it", () => {
+    // A list of projects never receives a project alone, nor the list of another operation.
+    expectTypeOf<{ "GET /projects": "project" }>().not.toExtend<FakeAnswers>();
+    expectTypeOf<{ "GET /projects": "revisions" }>().not.toExtend<FakeAnswers>();
+    expectTypeOf<{
+      "GET /projects": { example: "project"; status: 200 };
+    }>().not.toExtend<FakeAnswers>();
+    // An operation the contract gives no fixture answers none: its creation, for one.
+    expectTypeOf<{
+      "POST /projects": { example: "project"; status: 201 };
+    }>().not.toExtend<FakeAnswers>();
+  });
+
+  it("refuse a table keyed by any string, which names no operation", () => {
+    // A `Record<string, string>` extends the answers — every key it has is optional there —,
+    // and would serve any fixture to any operation: fakeClient takes none.
+    expectTypeOf<Record<string, string>>().toExtend<FakeAnswers>();
+    expectTypeOf<Parameters<typeof fakeClient<Record<string, string>>>[0]>().toBeNever();
+    expectTypeOf<
+      Parameters<typeof fakeClient<{ "GET /projects": "projects" }>>[0]
+    >().toEqualTypeOf<{
+      "GET /projects": "projects";
+    }>();
   });
 
   it("refuse a status the operation does not declare", () => {
@@ -100,21 +128,24 @@ describe("fakeClient", () => {
     expect(client.calls[0]?.query.get("limit")).toBe("20");
   });
 
-  it("answers a creation with its status and records its body", async () => {
-    const client = fakeClient({ "POST /projects": { example: "project", status: 201 } });
-    const body = { label: "Modernisation du poste de commande" };
-    const { data, response } = await client.POST("/projects", { body });
-    expect(response.status).toBe(201);
-    expect(data).toEqual(example("project"));
-    expect(client.calls[0]).toMatchObject({ route: "POST /projects", body });
+  it("answers a command with its status and records its body", async () => {
+    const client = fakeClient({ [MARK]: { example: "task_mark_queued", status: 202 } });
+    const params = { path: { project_id: PROJECT, revision_id: REVISION } };
+    const { data, response } = await client.POST(
+      "/projects/{project_id}/revisions/{revision_id}/mark",
+      { params, body: MARKING },
+    );
+    expect(response.status).toBe(202);
+    expect(data).toEqual(example("task_mark_queued"));
+    expect(client.calls[0]).toMatchObject({ route: MARK, body: MARKING });
   });
 
   it("records the body of a partial update", async () => {
-    const client = fakeClient({ "PATCH /projects/{project_id}": "project" });
-    const body = { label: "Poste de commande", lock_version: 3 };
-    const params = { path: { project_id: PROJECT } };
-    await client.PATCH("/projects/{project_id}", { params, body });
-    expect(client.calls[0]).toMatchObject({ path: `/projects/${PROJECT}`, body });
+    const client = fakeClient({ "PATCH /me/preferences": "preferences_dark" });
+    const body = { theme: "dark" } as const;
+    const { data } = await client.PATCH("/me/preferences", { body });
+    expect(data).toEqual(example("preferences_dark"));
+    expect(client.calls[0]).toMatchObject({ path: "/me/preferences", body });
   });
 
   it("answers a refusal with the Problem as error, not data", async () => {
@@ -198,15 +229,19 @@ describe("fakeClient", () => {
 
   it("records calls made together in the order they were made", async () => {
     const client = fakeClient({
-      "POST /projects": { example: "project", status: 201 },
+      [MARK]: { example: "task_mark_queued", status: 202 },
       "GET /projects": "projects",
     });
+    const params = { path: { project_id: PROJECT, revision_id: REVISION } };
     await Promise.all([
-      client.POST("/projects", { body: { label: "Poste de commande" } }),
+      client.POST("/projects/{project_id}/revisions/{revision_id}/mark", {
+        params,
+        body: MARKING,
+      }),
       client.GET("/projects"),
     ]);
-    expect(client.calls.map((call) => call.route)).toEqual(["POST /projects", "GET /projects"]);
-    expect(client.calls[0]?.body).toEqual({ label: "Poste de commande" });
+    expect(client.calls.map((call) => call.route)).toEqual([MARK, "GET /projects"]);
+    expect(client.calls[0]?.body).toEqual(MARKING);
   });
 
   it("answers a literal route by its own answer, never by one with a parameter", async () => {

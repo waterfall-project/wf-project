@@ -367,8 +367,10 @@ verrou.
   WebKit pour Safari — pour les parcours de WF-CMP-0010, grilles, Gantt et courbes à 1366
   points, vues d'indicateurs à 360. `make e2e-browsers` les installe tous.
 - **Performance** : au palier complet, sur chromium, l'ouverture de la grille de devis de
-  mille tâches — du clic à la grille utilisable, dessinée et hydratée — tient en une
-  seconde ; la mesure s'écrit au relevé de livraison. Le plafond n'est pas acquis : une
+  mille tâches — du clic à la grille utilisable, dessinée et hydratée — se mesure contre
+  l'objectif d'une seconde ; la mesure s'écrit au journal, au résumé de la chaîne et au relevé
+  de livraison, sans bloquer : contre le faux back, sur une machine partagée de la chaîne, elle
+  ne dit pas ce que tiendra le service, et la seconde bloquante revient à EP-13. Le plafond n'est pas acquis : une
   réponse `listNodes` de plusieurs mégaoctets rendue côté serveur peut le crever, et ce serait
   alors un constat sur le contrat (représentation d'un nœud trop lourde).
 - **Complétude des écrans** : `make screens` (`wftools.screens`) confronte
@@ -548,8 +550,10 @@ défile, **afin de** travailler sur mille tâches sans perdre le fil de ce que j
   paramètre du contrat, et la grille rend les lignes dans l'ordre reçu ; les filtres font de
   même, et la ligne de totaux affiche ceux que le serveur rend pour la requête courante —
   rien n'est ordonné ni sommé dans le front ;
-- propre à l'US : l'ouverture d'une grille de mille tâches tient l'objectif d'une seconde du
-  §4.6.2, mesuré contre le faux back.
+- écart : l'ouverture d'une grille de mille tâches tient l'objectif d'une seconde du §4.6.2 —
+  mesurée contre le faux back, pour un utilisateur seul, sur les machines de la chaîne, elle
+  écrit ses chiffres sans bloquer ni `make e2e` ni la chaîne ; la seconde se tient en EP-13,
+  bloquante, sur le jeu de référence, avec cinquante utilisateurs, contre le vrai service.
 
 **Notes de réalisation.** Composant propre fondé sur TanStack Table (annexe C). C'est le
 composant le plus réutilisé de l'application — planning, devis, reste à engager, risques,
@@ -904,8 +908,10 @@ les objectifs de temps de réponse.
 - propre à l'US : la grille de planning et celle de devis sont deux configurations du même
   composant, non deux composants ;
 - propre à l'US : le Gantt et l'arborescence se lisent et ne proposent aucune modification ;
-- propre à l'US : sur mille tâches servies par le faux back, l'ouverture d'une grille tient
-  l'objectif d'une seconde du §4.6.2.
+- écart : sur mille tâches servies par le faux back, l'ouverture d'une grille tient
+  l'objectif d'une seconde du §4.6.2 — mesurée contre le faux back, elle écrit ses chiffres
+  sans bloquer ; la seconde se tient en EP-13, bloquante, sur le jeu de référence, avec
+  cinquante utilisateurs, contre le vrai service.
 
 ## US-0230 — Écrans des risques, du reste à engager et des coûts réels
 

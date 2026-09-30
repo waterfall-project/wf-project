@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiClient, Unreachable } from "@/api/client";
+import type { Examples } from "@/api/generated/examples";
 import { SignedOut, UnexpectedAnswer } from "@/api/problem";
 import { SCREEN } from "@/components/shell/page-header";
 import { SESSION_REQUIRED_DIGEST } from "@/components/system/failure";
@@ -73,9 +74,9 @@ vi.mock("@/api/server", () => ({
           if (path.endsWith(undeclared.route)) {
             return Promise.resolve(undeclared.answer());
           }
-          const name =
+          const [, name] =
             Object.entries(EXAMPLE_BY_END).find(([end]) => path.endsWith(end))?.[1] ??
-            (/\/revisions\/[^/]+$/.test(path) ? "revision" : "project");
+            (/\/revisions\/[^/]+$/.test(path) ? READ_REVISION : READ_PROJECT);
           return Promise.resolve(Response.json(example(name)));
         },
       });
@@ -140,14 +141,30 @@ const NO_SEARCH = Promise.resolve({});
 const BANNER = '<section aria-label="Reading context"';
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
 
+/** A read of the contract, with an example the contract cites for its answer. */
+type CitedRead = {
+  [R in keyof Examples]: readonly [R, Examples[R][keyof Examples[R]]];
+}[keyof Examples];
+
 /** The examples the reads of a revision answer, by the end of their path, the others aside. */
-const EXAMPLE_BY_END: Readonly<Record<string, string>> = {
-  "/session": "session",
-  "/structures": "structures",
-  "/nodes": "nodes",
-  "/estimate-indicators": "estimate_indicators",
-  "/missing-rates": "missing_rates_none",
-};
+const EXAMPLE_BY_END = {
+  "/session": ["GET /session", "session"],
+  "/structures": ["GET /projects/{project_id}/revisions/{revision_id}/structures", "structures"],
+  "/nodes": [
+    "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes",
+    "nodes",
+  ],
+  "/estimate-indicators": ["GET /projects/{project_id}/estimate-indicators", "estimate_indicators"],
+  "/missing-rates": [
+    "GET /projects/{project_id}/estimate-indicators/missing-rates",
+    "missing_rates_none",
+  ],
+} as const satisfies Readonly<Record<string, CitedRead>>;
+const READ_REVISION = [
+  "GET /projects/{project_id}/revisions/{revision_id}",
+  "revision",
+] as const satisfies CitedRead;
+const READ_PROJECT = ["GET /projects/{project_id}", "project"] as const satisfies CitedRead;
 
 /** A failure of the service, in its envelope, with the correlation identifier of the request. */
 function failure(correlation: string): Response {

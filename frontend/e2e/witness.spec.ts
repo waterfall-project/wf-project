@@ -2,9 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { compile } from "./compile";
+
+const PROJECT = "/projects/01926f3a-7c00-7000-8000-000000000001";
+const REFERENCE = `${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000101`;
+
 test("opens the list of projects, a project, and reads its planning and its estimate [WF-QUA-0050-A]", async ({
   page,
 }) => {
+  // Every screen after the first is reached by a click, and awaited five seconds: compiled
+  // first. The revision itself is a route of its own, which sends on to its planning.
+  await compile(page.request, PROJECT, REFERENCE, `${REFERENCE}/estimate`);
   await page.goto("/projects");
   await page.getByRole("link", { name: "Modernisation du poste de commande" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(

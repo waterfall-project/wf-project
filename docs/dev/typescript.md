@@ -114,7 +114,10 @@ reste, la revue.
   appels, corps compris, dans `calls` ; une réponse ne prend qu'un statut que le contrat
   déclare pour l'opération, avec un corps seulement si ce statut en a un, et de sa sorte —
   un exemple nommé pour du JSON, un `Blob` ou un texte avec son type de média pour le reste
-  (avatar, sauvegarde, métriques) : le typage le refuse sinon.
+  (avatar, sauvegarde, métriques) : le typage le refuse sinon. L'exemple nommé est l'un de
+  ceux que le contrat cite pour ce statut de cette opération (`src/api/generated/examples.d.ts`,
+  que `make generate-client` écrit) : `{"GET /projects": "project"}` ne se compile pas. Une
+  réponse qui manque est un exemple que le contrat cite pour l'opération.
 - Un composant serveur de `src/app/` se teste dans le projet `node` (`*.test.tsx`), sans
   document, comme il s'exécute ; un composant client, dans le projet `dom`
   (`*.dom.test.tsx`), par Testing Library.
@@ -199,3 +202,19 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     retenue huit secondes, la lecture des tâches de fond que la coquille lançait alors laissait
     paraître l'adresse du tri à son heure. Aucun outil ne le tient : la revue le cherche, et une action
     retenue dans un parcours le prouve (`grid.spec.ts`).
+16. **Horloge de la page figée à travers une navigation.** Un parcours fige l'horloge
+    (`page.clock.pauseAt`) pour que la lecture d'une tâche attende, puis clique vers un autre
+    écran : quand le serveur tarde, la navigation montre le squelette de `loading.tsx`, et
+    React retient l'écran arrivé derrière un minuteur — le délai de révélation d'une frontière
+    `Suspense`, mesuré sur l'horloge de la page —, que l'horloge figée ne laisse jamais partir.
+    Le parcours échoue une fois sur trois (#165). Ce qui doit attendre se retient sur le réseau
+    (`page.route`), jamais en figeant l'horloge d'une page qui navigue — et une action serveur
+    retenue doit être partie avant le clic qui navigue (`page.waitForRequest`, attendue avant
+    le clic) : lancée après, elle retient la navigation elle-même (n° 15), et le parcours
+    attend un écran que sa propre retenue empêche de paraître (`tasks.spec.ts`). Aucun outil ne
+    le tient : la revue le cherche.
+17. **Route atteinte par un clic, compilée pendant l'attente.** `next dev` compile une route à
+    sa première visite ; atteinte par un clic, elle est attendue cinq secondes par une
+    assertion, que la compilation mange au premier lancement (#142). Un parcours compile
+    d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`). Aucun outil
+    ne le tient : la revue le cherche.

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { compile } from "./compile";
+
 // The fake back opens the session of Camille Martin, whose role grants the whole catalogue of
 // permissions, and lists the three providers of its first example: the local accounts, the
 // directory and the identity provider.
@@ -64,6 +66,8 @@ test("signs in, comes to the screen aimed at, then signs out to the sign-in page
 });
 
 test("signs in without a screen aimed at, and comes to the list of projects", async ({ page }) => {
+  // The list of projects, reached by the sign-in, compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/projects");
   await page.goto("/login");
   await page.getByLabel("Adresse électronique").fill("camille.martin@example.com");
   await page.getByLabel("Mot de passe", { exact: true }).fill("le mot de passe de Camille");
@@ -74,6 +78,7 @@ test("signs in without a screen aimed at, and comes to the list of projects", as
 });
 
 test("asks for the link of a forgotten password, outside the shell", async ({ page }) => {
+  await compile(page.request, "/login/reset");
   await page.goto("/login");
   await page.getByRole("link", { name: "Mot de passe oublié ?" }).click();
 
@@ -93,6 +98,7 @@ test("asks for the link of a forgotten password, outside the shell", async ({ pa
 test("the screens of the account show it, and offer its password and its avatar", async ({
   page,
 }) => {
+  await compile(page.request, "/account/password");
   await page.goto("/account");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mon compte");
   await expect(page.getByRole("main")).toContainText("camille.martin@example.com");

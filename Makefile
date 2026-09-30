@@ -10,7 +10,12 @@
 SPEC    := docs/spec
 API     := docs/api
 BUNDLE  := $(API)/waterfall.bundle.yaml
+# Where the variant the fake back serves is written, and the port `make mock` serves it on. The
+# end-to-end paths give both their own (`frontend/playwright.config.ts`): rewriting the file
+# that `make dev` mounts would bring its fake back down. `make dev` heeds neither: Compose mounts
+# docs/api/waterfall.mock.json and publishes 4010 (deploy/compose/compose.dev.yaml).
 MOCK_SPEC := $(API)/waterfall.mock.json
+MOCK_PORT := 4010
 # The same bundle in JSON, which the repository tools read without a YAML parser.
 JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
@@ -75,7 +80,8 @@ allocate-pbs: ## Write the PBS field of every requirement into the Word document
 	@python3 $(SPEC)/tools/allocate_pbs.py
 
 mock-spec: lint-openapi ## Derive from the contract the variant the fake back serves
-	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(MOCK_SPEC)) >/dev/null
+	@mkdir -p $(dir $(MOCK_SPEC))
+	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(abspath $(MOCK_SPEC)) >/dev/null
 	@$(WFTOOLS).mock $(MOCK_SPEC)
 
 mock-data: ## Regenerate the volumes of §4.6.2 the fake back serves, in fixtures/api/volume
@@ -84,8 +90,8 @@ mock-data: ## Regenerate the volumes of §4.6.2 the fake back serves, in fixture
 mock-data-up-to-date: ## The versioned volumes are the ones the generator writes
 	@$(WFTOOLS).mockdata --check
 
-mock: mock-spec ## Serve the fake back on http://localhost:4010, from the contract's examples
-	@$(PRISM) mock $(MOCK_SPEC) --host 0.0.0.0 --port 4010
+mock: mock-spec ## Serve the fake back on http://localhost:4010 (MOCK_PORT), from the contract's examples
+	@$(PRISM) mock $(MOCK_SPEC) --host 0.0.0.0 --port $(MOCK_PORT)
 
 dev: mock-spec ## Start the front against the fake back (http://localhost:3000)
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) up --build
@@ -181,6 +187,8 @@ install-front: ## Install the dependencies of the front, as the lock file says
 generate-client: build-openapi install-front ## Regenerate the API client of the front from the contract
 	@$(PNPM) exec openapi-typescript ../$(BUNDLE) -o src/api/generated/schema.d.ts --silent
 	@echo "  -> $(FRONT)/src/api/generated/schema.d.ts"
+	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(JSON_BUNDLE)) >/dev/null
+	@$(WFTOOLS).exampleroutes $(JSON_BUNDLE) $(FRONT)/src/api/generated/examples.d.ts
 
 client-up-to-date: generate-client ## The versioned client is the one the contract produces
 	@git diff --exit-code --stat -- $(FRONT)/src/api/generated \
@@ -234,5 +242,5 @@ check-tools: ## Report which prerequisites are missing
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
 clean: ## Remove everything the commands generate
-	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(JSON_BUNDLE) $(MOCK_SPEC)
+	@rm -rf $(SPEC)/.build $(SPEC)/images $(BUNDLE) $(JSON_BUNDLE) $(MOCK_SPEC) $(FRONT)/.e2e
 	@echo "  cleaned"
