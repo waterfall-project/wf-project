@@ -120,6 +120,7 @@
               running: { $ref: ../../../fixtures/api/task_running.json }
               failed: { $ref: ../../../fixtures/api/task_failed.json }
               import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }
+              relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

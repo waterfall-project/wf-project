@@ -260,7 +260,9 @@ empreinte, et tourne sous un utilisateur non privilégié, désigné par son num
 
 Le client de l'API est engendré du contrat (PBS-1.2, WF-ARC-0060) : `make generate-client`
 écrit ses types dans `frontend/src/api/generated/schema.d.ts`, que personne ne retouche, et
-`frontend/src/api/client.ts` en fait des appels typés par openapi-fetch. Une opération qui
+`frontend/src/api/client.ts` en fait des appels typés par openapi-fetch. Il écrit à côté
+`examples.d.ts`, les exemples de `fixtures/api/` que le contrat cite par opération et par
+statut (`wftools.exampleroutes`), qui type les réponses du faux client des tests. Une opération qui
 manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
 fichier engendré se versionne avec elle. Aucun appel réseau ne s'écrit hors de
 `frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client

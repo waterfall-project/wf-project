@@ -186,6 +186,8 @@ install-front: ## Install the dependencies of the front, as the lock file says
 generate-client: build-openapi install-front ## Regenerate the API client of the front from the contract
 	@$(PNPM) exec openapi-typescript ../$(BUNDLE) -o src/api/generated/schema.d.ts --silent
 	@echo "  -> $(FRONT)/src/api/generated/schema.d.ts"
+	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(notdir $(JSON_BUNDLE)) >/dev/null
+	@$(WFTOOLS).exampleroutes $(JSON_BUNDLE) $(FRONT)/src/api/generated/examples.d.ts
 
 client-up-to-date: generate-client ## The versioned client is the one the contract produces
 	@git diff --exit-code --stat -- $(FRONT)/src/api/generated \

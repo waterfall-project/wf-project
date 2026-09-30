@@ -114,7 +114,10 @@ reste, la revue.
   appels, corps compris, dans `calls` ; une réponse ne prend qu'un statut que le contrat
   déclare pour l'opération, avec un corps seulement si ce statut en a un, et de sa sorte —
   un exemple nommé pour du JSON, un `Blob` ou un texte avec son type de média pour le reste
-  (avatar, sauvegarde, métriques) : le typage le refuse sinon.
+  (avatar, sauvegarde, métriques) : le typage le refuse sinon. L'exemple nommé est l'un de
+  ceux que le contrat cite pour ce statut de cette opération (`src/api/generated/examples.d.ts`,
+  que `make generate-client` écrit) : `{"GET /projects": "project"}` ne se compile pas. Une
+  réponse qui manque est un exemple que le contrat cite pour l'opération.
 - Un composant serveur de `src/app/` se teste dans le projet `node` (`*.test.tsx`), sans
   document, comme il s'exécute ; un composant client, dans le projet `dom`
   (`*.dom.test.tsx`), par Testing Library.
