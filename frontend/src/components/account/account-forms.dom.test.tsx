@@ -6,10 +6,10 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type ApiClient, createApiClient } from "@/api/client";
+import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
@@ -51,17 +51,17 @@ function inFrench(page: ReactNode) {
 }
 
 /**
- * Serve an API that holds its answer until the test gives it: what the screen shows while a
- * request is under way.
+ * Serve the fake back, its answers held until the test lets them go: what the screen shows while
+ * a request is under way.
  */
-function holding(): (response: Response) => void {
-  let give: (response: Response) => void = () => undefined;
-  const answer = new Promise<Response>((resolve) => {
+function holding(answers: FakeAnswers): () => void {
+  let give: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => {
     give = resolve;
   });
-  server.client = createApiClient({ address: "http://api.invalid", fetch: () => answer });
-  return (response) => {
-    give(response);
+  server.client = fakeClient(answers, { hold: () => released });
+  return () => {
+    give();
   };
 }
 
@@ -107,7 +107,7 @@ describe("the preferences on the screen of the account", () => {
   });
 
   it("holds the values while the choice is recorded, so that none chosen meanwhile is lost", async () => {
-    const answer = holding();
+    const answer = holding({ [PREFERENCES]: "preferences" });
     render(inFrench(<PreferencesForm language="default" theme="default" />));
     await userEvent.click(screen.getByRole("radio", { name: "English" }));
     const save = screen.getByRole("button", { name: "Enregistrer" });
@@ -119,7 +119,7 @@ describe("the preferences on the screen of the account", () => {
     expect(save).toHaveFocus();
     expect(save).toHaveAttribute("aria-disabled", "true");
 
-    answer(Response.json(example("preferences")));
+    answer();
     await waitFor(() => {
       expect(screen.getByRole("radio", { name: "Français" })).toBeEnabled();
     });
@@ -223,14 +223,14 @@ describe("the avatar of the account", () => {
   });
 
   it("holds the choice of an image while one is sent", async () => {
-    const answer = holding();
+    const answer = holding({ "PUT /me/avatar": { status: 204 } });
     render(inFrench(<AvatarForm hasAvatar={false} />));
     const field = screen.getByLabelText("Image PNG ou JPEG");
     await userEvent.upload(field, new File([PNG], "camille.png", { type: "image/png" }));
     await userEvent.click(screen.getByRole("button", { name: "Déposer l’image" }));
     expect(field).toBeDisabled();
 
-    answer(new Response(null, { status: 204 }));
+    answer();
     await waitFor(() => {
       expect(field).toBeEnabled();
     });

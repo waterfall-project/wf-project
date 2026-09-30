@@ -175,9 +175,14 @@ export interface FakeTiming {
 
 /**
  * Make a client that answers each route from the examples of the contract. A call to a route
- * it has no answer for fails the test: an unexpected call is a defect, not an empty page.
+ * it has no answer for fails the test: an unexpected call is a defect, not an empty page. A
+ * table keyed by any string — a `Record<string, string>` — is refused: it would name no
+ * operation, and its examples would escape the typing of each.
  */
-export function fakeClient(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
+export function fakeClient<const A extends FakeAnswers>(
+  answers: string extends keyof A ? never : A,
+  timing: FakeTiming = {},
+): FakeClient {
   const table: Readonly<Record<string, AnyAnswer | readonly AnyAnswer[] | undefined>> = answers;
   const served = new Map<string, number>();
   const calls: { -readonly [K in keyof FakeCall]: FakeCall[K] }[] = [];

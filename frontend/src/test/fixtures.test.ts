@@ -44,6 +44,18 @@ describe("the answers of fakeClient", () => {
     }>().not.toExtend<FakeAnswers>();
   });
 
+  it("refuse a table keyed by any string, which names no operation", () => {
+    // A `Record<string, string>` extends the answers — every key it has is optional there —,
+    // and would serve any fixture to any operation: fakeClient takes none.
+    expectTypeOf<Record<string, string>>().toExtend<FakeAnswers>();
+    expectTypeOf<Parameters<typeof fakeClient<Record<string, string>>>[0]>().toBeNever();
+    expectTypeOf<
+      Parameters<typeof fakeClient<{ "GET /projects": "projects" }>>[0]
+    >().toEqualTypeOf<{
+      "GET /projects": "projects";
+    }>();
+  });
+
   it("refuse a status the operation does not declare", () => {
     expectTypeOf<{ "POST /file-uploads": { status: 204 } }>().not.toExtend<FakeAnswers>();
     expectTypeOf<{
