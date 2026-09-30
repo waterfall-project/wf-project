@@ -127,6 +127,55 @@ export function formatMoney(value: Money, locale: Locale, currency?: string): st
   );
 }
 
+/** How a number is written in a language: its decimal separator, and that of its thousands. */
+function separators(locale: Locale): { readonly point: string; readonly group: string } {
+  const parts = new Intl.NumberFormat(formatLocale(locale)).formatToParts("1234.5");
+  const part = (type: Intl.NumberFormatPartTypes) =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  return { point: part("decimal"), group: part("group") };
+}
+
+/**
+ * A `Decimal` of the contract as one enters it in a language: its digits as the API gave them,
+ * the decimal separator of the language, no separator of thousands — `1234.5` is « 1234,5 » in
+ * French, `1234.5` in English.
+ */
+export function editableDecimal(value: Decimal, locale: Locale): string {
+  return decimal(value).replace(".", separators(locale).point);
+}
+
+/** A text of a pattern, as a regular expression matches it literally. */
+function literal(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * A number entered in a language, as the exact decimal of the contract, never through a float
+ * (WF-DAT-0100, WF-INTF-0180): in French, the comma before the decimals and spaces between the
+ * thousands — « 1 234,5 » —; in English, the point and commas — `1,234.5` —; both give
+ * `1234.5`. An amount keeps two decimals at most (`money`). Anything else — a point in French,
+ * a comma that parts no thousands in English, a letter — is not a number of the language:
+ * `undefined`.
+ */
+export function parseDecimal(
+  text: string,
+  locale: Locale,
+  kind: "decimal" | "money" = "decimal",
+): Decimal | undefined {
+  const { point, group } = separators(locale);
+  // A space the keyboard types stands for the narrow one French writes between thousands.
+  const typed = /\s/.test(group) ? text.trim().replace(/\s/g, group) : text.trim();
+  const written = new RegExp(
+    `^-?(\\d+|\\d{1,3}(${literal(group)}\\d{3})+)(${literal(point)}\\d+)?$`,
+    "u",
+  );
+  if (!written.test(typed)) {
+    return undefined;
+  }
+  const exact = typed.replaceAll(group, "").replace(point, ".");
+  return kind === "money" && !MONEY.test(exact) ? undefined : exact;
+}
+
 /**
  * Format a `PlanningDate` as it is: the date of the API, whatever the time zone of the
  * workstation. It is read and written at midnight in UTC, so no zone ever moves it a day.

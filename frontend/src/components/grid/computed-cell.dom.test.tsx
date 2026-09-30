@@ -88,6 +88,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       {grid === "estimate" ? (
         <EstimateGrid
+          editable
           nodes={nodes ?? estimate}
           structure={STRUCTURE}
           query={NO_QUERY}

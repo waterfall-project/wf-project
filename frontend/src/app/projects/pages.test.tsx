@@ -371,6 +371,21 @@ describe("the witness path", () => {
     expect(html).toContain('<col style="width:400px"/>');
   });
 
+  it("opens the grid of an open revision to entry, and keeps that of a marked one read only", async () => {
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    renderToStaticMarkup(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
+    expect(grids.estimate.at(-1)?.editable).toBe(true);
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
+    };
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    expect(grids.estimate.at(-1)?.editable).toBe(false);
+    expect(html).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
+  });
+
   it("sorts by the sort the account keeps for the grid when the address asks none, and by the address otherwise", async () => {
     server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });

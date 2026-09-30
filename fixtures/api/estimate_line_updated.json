@@ -1,0 +1,30 @@
+{
+  "summary": "La ligne de main-d'œuvre du devis, « Raccordement des borniers », dont la charge passe de 12,5 à 14 h : le montant réestimé recalculé, 1 120,00, le budgété inchangé, fixé par la référence ; une version de plus (WF-DEV-0020, WF-DEV-0030).",
+  "value": {
+    "node_id": "01926f3a-7c00-7000-8000-000000000523",
+    "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+    "kind": "estimate_line",
+    "parent_id": "01926f3a-7c00-7000-8000-000000000522",
+    "position": 0,
+    "row_number": 3,
+    "level": 3,
+    "lock_version": 2,
+    "estimate_line": {
+      "label": "Raccordement des borniers",
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+      "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+      "quantity": "1",
+      "hours": "14",
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+      "budgeted_amount": "1000.00",
+      "reestimated_amount": "1120.00",
+      "previous_reestimated_amount": null,
+      "is_computed": false,
+      "remaining_entry": {
+        "is_available": true,
+        "missing_conditions": []
+      }
+    },
+    "computed_fields": []
+  }
+}

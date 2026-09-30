@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The server actions of the nodes of a structure (`getComputedValueDependencies`): the grid asks
- * the server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder
- * makes of its answer (`src/api/problem.ts`).
+ * The server actions of the nodes of a structure — what a computed value depends on
+ * (`getComputedValueDependencies`), a cell of a line entered in a grid (`updateEstimateLine`) —:
+ * the grid asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the
+ * one decoder makes of its answer (`src/api/problem.ts`).
  */
 "use server";
 
@@ -23,6 +24,14 @@ type ComputedValueField = components["schemas"]["ComputedValueField"];
 /** What a computed value depends on, as the server says it. */
 type ComputedValueDependencies = components["schemas"]["ComputedValueDependencies"];
 
+/** A node of a structure, as the API answers a write. */
+type Node = components["schemas"]["Node"];
+
+/** The path of a node: its structure, and the node itself. */
+function nodePath(structure: StructurePath, nodeId: string) {
+  return { params: { path: { ...structure, node_id: nodeId } } };
+}
+
 /**
  * Read what the value of a field of a node depends on, once the user tried to enter it
  * (WF-IHM-0030): the rules the server computes it by, and the rows it is drawn from, all named
@@ -36,7 +45,25 @@ export async function readComputedDependencies(
   return decode(() =>
     serverClient().GET(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies",
-      { params: { path: { ...structure, node_id: nodeId }, query: { field } } },
+      { params: { ...nodePath(structure, nodeId).params, query: { field } } },
+    ),
+  );
+}
+
+/**
+ * Write the fields of the line of the estimate of a node a cell of a grid entered, with the
+ * version of the node read (WF-IHM-0040): the API answers the node as it now is, its amounts
+ * recalculated — or refuses it.
+ */
+export async function updateEstimateLine(
+  structure: StructurePath,
+  nodeId: string,
+  line: components["schemas"]["EstimateLineWrite"],
+): Promise<Outcome<Node>> {
+  return decode(() =>
+    serverClient().PATCH(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line",
+      { ...nodePath(structure, nodeId), body: line },
     ),
   );
 }

@@ -13,8 +13,15 @@
  * Each column sorts by the column of the contract of the same name. The categories, roles and
  * sub-projects, which the answer names by identifier only, come with the reference data their
  * names are read from.
+ *
+ * A line is entered from the keyboard (WF-IHM-0040): its label, its quantity, its effort and its
+ * unit disbursement, each written alone by `updateEstimateLine`, where the node does not name the
+ * field among its computed fields (`estimateGrid`).
  */
-import { type GridConfig, sortColumns } from "./columns";
+import type { components } from "@/api/generated/schema";
+import type { Outcome } from "@/api/problem";
+
+import { type EntryKind, type GridConfig, sortColumns } from "./columns";
 import { computedAmount, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
@@ -29,12 +36,20 @@ import {
 
 /**
  * What the columns of the estimate read of a node, beyond what every grid reads: the amounts of
- * a task, the figures of a line. The page hands the grid these alone (`projectNodes`).
+ * a task, the figures of a line — and its category, which each write of a line carries, the
+ * contract requiring it (#178). The page hands the grid these alone (`projectNodes`).
  */
 export const ESTIMATE_FIELDS = {
   node: [],
   task: ["budgeted_amount", "reestimated_amount"],
-  line: ["quantity", "hours", "unit_disbursement", "budgeted_amount", "reestimated_amount"],
+  line: [
+    "cost_category_id",
+    "quantity",
+    "hours",
+    "unit_disbursement",
+    "budgeted_amount",
+    "reestimated_amount",
+  ],
 } as const satisfies AnyNodeFields;
 
 /** A node as the grid of the estimate reads it. */
@@ -102,3 +117,71 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
 
 /** The columns of the contract the grid of the estimate sorts by. */
 export const ESTIMATE_SORT_COLUMNS = sortColumns(ESTIMATE_GRID);
+
+/** The fields of a line of the estimate an entry writes, beyond those every write carries. */
+export type LineChange = Partial<
+  Pick<
+    components["schemas"]["EstimateLineWrite"],
+    "label" | "quantity" | "hours" | "unit_disbursement"
+  >
+>;
+
+/** How the grid of the estimate writes a field of a line: the row answered as the grid reads it. */
+export interface EstimateWrites {
+  readonly line: (node: EstimateNode, change: LineChange) => Promise<Outcome<EstimateNode>>;
+}
+
+/** The columns of a line that take an entry: what they take, and the field they write. */
+const ENTERED: Readonly<
+  Record<
+    string,
+    { readonly kind: EntryKind; readonly change: (value: string | null) => LineChange }
+  >
+> = {
+  // The contract takes a label of 1 to 300 characters.
+  label: { kind: { type: "text", maxLength: 300 }, change: (value) => ({ label: value ?? "" }) },
+  quantity: {
+    kind: { type: "decimal", nullable: false },
+    change: (value) => (value === null ? {} : { quantity: value }),
+  },
+  hours: { kind: { type: "decimal", nullable: true }, change: (value) => ({ hours: value }) },
+  unit_disbursement: {
+    kind: { type: "money", nullable: true },
+    change: (value) => ({ unit_disbursement: value }),
+  },
+};
+
+/** Whether a node bears a line of the estimate. */
+function bearsLine(node: EstimateNode): boolean {
+  return node.estimate_line !== undefined && node.estimate_line !== null;
+}
+
+/**
+ * The grid of the estimate, entered through `writes`: the label, the quantity, the effort and the
+ * unit disbursement of a line, in the rows that bear one and where the server does not compute
+ * the field — an entry starts from what the column shows. Without `writes`, it is read only.
+ */
+export function estimateGrid(
+  writes?: EstimateWrites,
+): GridConfig<EstimateNode, NodeSortColumn, NodeTotals> {
+  if (writes === undefined) {
+    return ESTIMATE_GRID;
+  }
+  return {
+    ...ESTIMATE_GRID,
+    columns: ESTIMATE_GRID.columns.map((column) => {
+      const entered = ENTERED[column.key];
+      return entered === undefined
+        ? column
+        : {
+            ...column,
+            entry: {
+              kind: entered.kind,
+              in: (node) => bearsLine(node) && column.computed?.in(node) !== true,
+              value: column.value,
+              write: (node, value) => writes.line(node, entered.change(value)),
+            },
+          };
+    }),
+  };
+}

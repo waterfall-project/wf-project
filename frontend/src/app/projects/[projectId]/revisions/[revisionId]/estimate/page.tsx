@@ -8,7 +8,9 @@
  * and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer, with the
  * totals of the answer: a header clicked or a search entered changes the address, and this page
  * reads anew (`grid-screen.ts`). The
- * indicators and the rates are read alongside the grid. A refused read of the rates is thrown
+ * indicators and the rates are read alongside the grid. The grid is entered from the keyboard
+ * when the revision is open and lists `edit_estimate` available to the caller (WF-IHM-0040). A
+ * refused read of the rates is thrown
  * for the pages of the shell to say, as the grid's; indicators refused as expected are said
  * unavailable, the rest of the screen shown: the screen never shows a figure it did not read.
  */
@@ -167,6 +169,7 @@ export default async function EstimatePage({
         <EstimateGrid
           nodes={screen.nodes}
           structure={screen.structure}
+          editable={screen.reading.edits.has("edit_estimate")}
           query={screen.query}
           preferences={screen.preferences}
         />

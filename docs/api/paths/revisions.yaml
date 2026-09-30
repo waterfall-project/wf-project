@@ -620,6 +620,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            examples:
+              entered: { $ref: ../../../fixtures/api/estimate_line_entered.json }
+              updated: { $ref: ../../../fixtures/api/estimate_line_updated.json }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }

@@ -9,6 +9,12 @@
  * however far the grid scrolls (`kept`, `useRowWindow`), so that the focus never falls to the
  * page. The cell focused, by the keyboard or the pointer, is the active one; Space scrolls nothing.
  *
+ * Enter or F2 enters a cell that takes an entry, a character typed starts its entry with it, and
+ * a double click enters it. Once validated, the cursor goes on (`CellEditor`): Tab along the row,
+ * Enter to the row below, at the cell the row was started from. A value validated is read
+ * (`cell-values.ts`) and leaves alone, by the action of its column (`useCellWrites`); a value
+ * unchanged writes nothing.
+ *
  * A computed cell is traversed, never entered: Enter, F2 or a character typed on it — or a click —
  * opens its refusal, which names what its value depends on (WF-IHM-0030). The grid holds it, by the
  * identity of its row: Escape closes it and gives the focus back to the cell; a click elsewhere
@@ -30,13 +36,29 @@ import {
   useState,
 } from "react";
 
-import type { GridConfig } from "./columns";
+import type { Locale } from "@/i18n/locale";
+
+import type { EntryMove } from "./cell-editor";
+import { type EntryProblem, parsedEntry, shownEntry, startingText } from "./cell-values";
+import type { CellWrites } from "./cell-writes";
+import type { CellEntry, GridConfig } from "./columns";
 import { configColumn } from "./grid-table";
 
 /** A cell of the body: its row, by its index among the rows of the answer, and its column. */
 export interface CellPosition {
   readonly row: number;
   readonly column: string;
+}
+
+/**
+ * A cell being entered: its row, by its identity, and its column; the text its entry starts
+ * from, and why what was validated was not, if it was not.
+ */
+export interface CellDraft {
+  readonly key: string;
+  readonly column: string;
+  readonly text: string;
+  readonly problem: EntryProblem | undefined;
 }
 
 /** The cell whose refusal shows: its row, by its identity, and its column. */
@@ -190,9 +212,18 @@ export interface GridKeyboardOptions<Row extends RowData, Sort extends string, T
   readonly page: () => number;
   /** Whether the row at an index is in view, clear of the header and the totals. */
   readonly inView: (index: number) => boolean;
+  readonly writes: CellWrites<Row>;
+  readonly locale: Locale;
 }
 
-/** Move the active cell of a grid, and open the refusal of a computed cell tried. */
+/** What a cell of the body is: its row, whether the server computes it, how it is entered. */
+interface CellNature<Row> {
+  readonly row: Row;
+  readonly computed: boolean;
+  readonly entry: CellEntry<Row> | undefined;
+}
+
+/** Move the active cell of a grid, enter and validate cells, and refuse a computed cell tried. */
 export function useGridKeyboard<Row extends RowData, Sort extends string, Totals>({
   config,
   cursor,
@@ -202,10 +233,15 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
   scrollToIndex,
   page,
   inView,
+  writes,
+  locale,
 }: GridKeyboardOptions<Row, Sort, Totals>) {
+  const [draft, setDraft] = useState<CellDraft>();
   const [refusal, setRefusal] = useState<CellRefusal>({ at: undefined, opening: 0 });
-  // The cell to focus once it is rendered.
+  // The cell to focus once rendered; and the cell a row was started from, which Tab went along
+  // and Enter comes back to, on the row below.
   const follow = useRef<CellPosition>(undefined);
+  const origin = useRef<CellPosition>(undefined);
   const { active } = cursor;
 
   useLayoutEffect(() => {
@@ -247,6 +283,86 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     }
     return cell !== undefined;
   };
+  const cellAt = (at: CellPosition): CellNature<Row> | undefined => {
+    const row = rows[at.row];
+    const column = configColumn(config, at.column);
+    if (row === undefined || column === undefined) {
+      return undefined;
+    }
+    const entry = column.entry?.in(row) === true ? column.entry : undefined;
+    return { row, computed: column.computed?.in(row) === true, entry };
+  };
+  /** The next cell along the row, forth or back, that takes an entry. */
+  const along = (at: CellPosition, step: 1 | -1): CellPosition | undefined => {
+    for (let index = columns.indexOf(at.column) + step; index >= 0; index += step) {
+      const column = columns[index];
+      if (column === undefined) {
+        return undefined;
+      }
+      if (cellAt({ row: at.row, column })?.entry !== undefined) {
+        return { row: at.row, column };
+      }
+    }
+    return undefined;
+  };
+  const moveAfter = (at: CellPosition, move: EntryMove) => {
+    if (move === "none") {
+      return;
+    }
+    const next = move === "down" ? undefined : along(at, move === "next" ? 1 : -1);
+    if (next !== undefined) {
+      if (origin.current?.row !== at.row) {
+        origin.current = at;
+      }
+      moveTo(next);
+    } else if (move === "previous") {
+      focusCell(at);
+    } else {
+      const from = origin.current?.row === at.row ? origin.current.column : at.column;
+      origin.current = undefined;
+      moveTo({ row: Math.min(at.row + 1, rows.length - 1), column: from });
+    }
+  };
+  /** Enter a cell, or open its refusal if the server computes it: whether anything opened. */
+  const start = (at: CellPosition, typed: string | undefined): boolean => {
+    if (refuse(at)) {
+      return true;
+    }
+    const cell = cellAt(at);
+    if (cell?.entry === undefined) {
+      return false;
+    }
+    const { kind, value } = cell.entry;
+    const text = startingText(kind, value(cell.row), typed, locale);
+    setDraft({ key: config.rowKey(cell.row), column: at.column, text, problem: undefined });
+    return true;
+  };
+  /** Where the cell entered is among the rows, found by the identity of its row. */
+  const draftAt = (entered: CellDraft): CellPosition | undefined => {
+    const row = rows.findIndex((each) => config.rowKey(each) === entered.key);
+    return row < 0 ? undefined : { row, column: entered.column };
+  };
+  const validate = (text: string, move: EntryMove): boolean => {
+    const at = draft === undefined ? undefined : draftAt(draft);
+    const cell = at === undefined ? undefined : cellAt(at);
+    if (draft === undefined || at === undefined || cell?.entry === undefined) {
+      setDraft(undefined);
+      return true;
+    }
+    const { entry } = cell;
+    const parsed = parsedEntry(entry.kind, text, locale);
+    if ("problem" in parsed) {
+      setDraft({ ...draft, text, problem: parsed.problem });
+      return false;
+    }
+    setDraft(undefined);
+    if (parsed.value !== (entry.value(cell.row) ?? null)) {
+      const shown = shownEntry(entry.kind, parsed.value, locale);
+      writes.write({ row: cell.row, column: at.column, entry, value: parsed.value, shown });
+    }
+    moveAfter(at, move);
+    return true;
+  };
   /** Close the refusal, the focus left where it is. */
   const dismiss = () => {
     setRefusal((before) => ({ ...before, at: undefined }));
@@ -259,9 +375,11 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
       }
       const bounds = { rows: rows.length, columns, page: page() };
       const target = moved(event.key, event.ctrlKey || event.metaKey, at, bounds);
+      const typed = /^(Enter|F2)$/.test(event.key) ? undefined : event.key;
       if (target !== undefined) {
+        origin.current = undefined;
         moveTo(target);
-      } else if (!(triesEntry(event) && refuse(at)) && event.key !== " ") {
+      } else if (!(triesEntry(event) && start(at, typed)) && event.key !== " ") {
         return;
       }
       // A key the grid took: its default — the page scrolled by Space — is not done.
@@ -273,10 +391,12 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
         cursor.set(at);
       }
     },
-    // A click tries a computed cell, or closes the refusal it has open.
+    // A click starts a row afresh, and tries a computed cell or closes the refusal it has open;
+    // a double click enters a cell.
     onClick: (event: MouseEvent<HTMLElement>) => {
       const at = clickedCell(event);
       const cell = at === undefined ? undefined : computedAt(at);
+      origin.current = undefined;
       if (at === undefined || cell === undefined) {
         return;
       }
@@ -286,10 +406,26 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
         refuse(at);
       }
     },
+    onDoubleClick: (event: MouseEvent<HTMLElement>) => {
+      const at = clickedCell(event);
+      if (at !== undefined) {
+        start(at, undefined);
+      }
+    },
   };
   return {
+    draft,
     refusal,
     body,
+    validate,
+    /** Abandon the entry: from the keyboard, the focus back on its cell; on a blur, where it went. */
+    abandon: (refocus: boolean) => {
+      const at = draft === undefined ? undefined : draftAt(draft);
+      setDraft(undefined);
+      if (refocus && at !== undefined) {
+        focusCell(at);
+      }
+    },
     /** Close the refusal from the keyboard, the focus back on its cell. */
     closeRefusal: () => {
       const { at } = refusal;

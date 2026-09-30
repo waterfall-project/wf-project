@@ -77,6 +77,9 @@ export interface Examples {
   "PATCH /me/preferences": {
     200: "preferences" | "preferences_dark";
   };
+  "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
+    200: "estimate_line_entered" | "estimate_line_updated";
+  };
   "POST /projects/{project_id}/imports/{import_id}/apply": {
     202: "task_import_queued";
   };

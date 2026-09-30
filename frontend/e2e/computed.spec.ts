@@ -49,10 +49,16 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   await expect(amount.getByRole("img", { name: "Calculé" })).toBeVisible();
   expect(await background(amount)).not.toBe(await background(hours));
 
-  // A digit typed on the amount opens no field: the try is refused beside it, naming what the
+  // A digit typed on the effort opens its entry, with it; abandoned, the effort is as it was.
+  await hours.focus();
+  await page.keyboard.press("7");
+  await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("7");
+  await page.keyboard.press("Escape");
+  await expect(hours.getByRole("textbox")).toHaveCount(0);
+
+  // The same digit on the amount opens no field: the try is refused beside it, naming what the
   // server says it depends on — the reading done, at least one rule said, whatever the fake back
   // answers for any value.
-  await hours.focus();
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   await expect(amount).toBeFocused();
