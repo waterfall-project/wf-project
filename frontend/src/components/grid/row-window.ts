@@ -18,6 +18,11 @@
  * What sticks to the edges of the element that scrolls — the header above the rows, the totals
  * below — is given too: the rows start below the header, and a row brought into view
  * (`scrollToIndex`, the active cell of the keyboard) comes out from under both.
+ *
+ * One row may be kept rendered wherever the window is (`kept`): the row of the active cell, which
+ * holds the focus, and would drop it to the page if it were taken out as the grid scrolls. The
+ * rows rendered are then not all next to one another: each comes with the height of the rows not
+ * rendered just before it (`gaps`).
  */
 "use client";
 
@@ -25,18 +30,25 @@
 // by `_didMount` and `_willUpdate`, which it leaves to the adapters of the frameworks and does
 // not promise from one version to the next.
 import {
+  defaultRangeExtractor,
   elementScroll,
   observeElementOffset,
   observeElementRect,
+  type Range,
   type VirtualItem,
   Virtualizer,
   type VirtualizerOptions,
 } from "@tanstack/virtual-core";
 import { type RefObject, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 
-/** The rows in view, and the heights of the rows out of view before and after them. */
+/**
+ * The rows rendered — those in view, and the row kept —, the height of the rows not rendered just
+ * before each (`gaps`, in the order of `items`), and the heights before the first and after the
+ * last.
+ */
 export interface RowWindow {
   readonly items: readonly VirtualItem[];
+  readonly gaps: readonly number[];
   readonly before: number;
   readonly after: number;
 }
@@ -65,6 +77,8 @@ export interface RowWindowOptions {
   readonly initialRect: { readonly width: number; readonly height: number };
   /** The identity of the row at an index, stable from one answer to the next. */
   readonly keyOf: (index: number) => RowKey;
+  /** The index of a row rendered wherever the window is — the row of the active cell —, if any. */
+  readonly kept?: number | undefined;
 }
 
 type RowVirtualizer = Virtualizer<HTMLElement, HTMLElement>;
@@ -78,6 +92,7 @@ function windowOf(virtualizer: RowVirtualizer): RowWindow {
   const margin = virtualizer.options.scrollMargin;
   return {
     items,
+    gaps: items.map((item, index) => item.start - (items[index - 1]?.end ?? margin)),
     before: (items[0]?.start ?? margin) - margin,
     after: virtualizer.getTotalSize() - ((items.at(-1)?.end ?? margin) - margin),
   };
@@ -93,10 +108,14 @@ class RowWindowStore {
   // changes: it is made again when the rows or their height change, and only then — a new
   // `keyOf` at every render would make it measure everything at every render.
   private itemKey: (index: number) => RowKey;
+  // Made again when the row kept changes, and only then: the virtualizer computes the rows it
+  // renders anew when its extractor changes.
+  private extractor: (range: Range) => number[];
 
   constructor(options: RowWindowOptions) {
     this.options = options;
     this.itemKey = this.keyer();
+    this.extractor = this.keeper();
     this.virtualizer = new Virtualizer(this.resolve());
     this.snapshot = windowOf(this.virtualizer);
   }
@@ -107,6 +126,9 @@ class RowWindowStore {
     this.options = options;
     if (options.rows !== before.rows || options.rowHeight !== before.rowHeight) {
       this.itemKey = this.keyer();
+    }
+    if (options.kept !== before.kept) {
+      this.extractor = this.keeper();
     }
     this.virtualizer.setOptions(this.resolve());
     this.refresh();
@@ -137,6 +159,18 @@ class RowWindowStore {
   readonly scrollToIndex = (index: number): void => {
     this.virtualizer.scrollToIndex(index, { align: "auto" });
   };
+
+  /** The rows to render: those of the range, and the row kept among them, in their order. */
+  private keeper(): (range: Range) => number[] {
+    const kept = this.options.kept;
+    return (range) => {
+      const indexes = defaultRangeExtractor(range);
+      if (kept === undefined || kept >= range.count || indexes.includes(kept)) {
+        return indexes;
+      }
+      return [...indexes, kept].sort((a, b) => a - b);
+    };
+  }
 
   /** A function that keys the rows by the `keyOf` of the last render. */
   private keyer(): (index: number) => RowKey {
@@ -184,6 +218,7 @@ class RowWindowStore {
       scrollPaddingStart: this.options.edges.start,
       scrollPaddingEnd: this.options.edges.end,
       getItemKey: this.itemKey,
+      rangeExtractor: this.extractor,
       observeElementRect,
       observeElementOffset,
       scrollToFn: elementScroll,

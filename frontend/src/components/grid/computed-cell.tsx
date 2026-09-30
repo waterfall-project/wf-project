@@ -10,7 +10,7 @@
  * of the grid retained. Until the server answers, the refusal says it is reading; a refusal of the
  * server, or the API out of reach, it tells as every screen does (`OutcomeNotice`).
  *
- * The cell is one of the grid, which the keyboard reaches as any other (`useGridEntry`): an entry
+ * The cell is one of the grid, which the keyboard reaches as any other (`useGridKeyboard`): an entry
  * tried on it from the keyboard, or a click, opens its refusal, which the grid holds. Its popover
  * mounts on the first try only: a root of Radix in each computed cell would cost the hydration of
  * the first screen as many contexts, and the second of §4.6.2 counts it. The server is asked while
@@ -24,7 +24,7 @@
 import type { RowData } from "@tanstack/react-table";
 import { Sigma } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type ComponentProps, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
@@ -158,6 +158,11 @@ export interface ComputedRefusalProps<Row, Sort extends string, Totals> {
   readonly open: boolean;
   /** How many times the refusal has opened: a failure is shown for its opening alone. */
   readonly opening: number;
+  /** What the popover does as it is closed — by Escape, by an interaction outside it. */
+  readonly closing?: Pick<
+    ComponentProps<typeof PopoverContent>,
+    "onEscapeKeyDown" | "onInteractOutside" | "onCloseAutoFocus"
+  >;
 }
 
 /**
@@ -170,6 +175,7 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
   dependencies,
   open,
   opening,
+  closing,
 }: ComputedRefusalProps<Row, Sort, Totals>) {
   const t = useTranslations("computedValue");
   const columns = useTranslations("grid.columns");
@@ -177,7 +183,7 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
   const field = column.computed.field(row);
   const { answer, reading } = useDependencies(dependencies, row, field, opening, open);
   return (
-    <PopoverContent aria-labelledby={title} className="w-80 space-y-1.5 text-xs">
+    <PopoverContent aria-labelledby={title} className="w-80 space-y-1.5 text-xs" {...closing}>
       <p id={title} className="flex items-center gap-1.5 text-sm font-medium">
         <Sigma aria-hidden="true" className="size-3.5 shrink-0" />
         {t("title")}
@@ -204,13 +210,19 @@ export interface ComputedCellProps<Row, Sort extends string, Totals> {
   readonly open: boolean;
   /** How many times a refusal has opened in the grid: a failure is shown for its opening alone. */
   readonly opening: number;
-  /** Close the refusal: Escape, or a click outside it. */
+  /** Close the refusal by Escape: the focus goes back to the cell. */
   readonly onClose: () => void;
+  /** Close the refusal by an interaction outside it: the focus stays where it went. */
+  readonly onDismiss: () => void;
   /** The value of the cell, formatted or rendered by its column. */
   readonly children: ReactNode;
 }
 
-/** Render a computed cell: its mark and its value, and the refusal of an entry once tried. */
+/**
+ * Render a computed cell: its mark and its value, and the refusal of an entry once tried. A click
+ * on the cell itself, its refusal open, is the grid's to take — it closes the refusal —, not an
+ * interaction outside the popover, which would close it only for the click to open it again.
+ */
 export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   column,
   row,
@@ -218,6 +230,7 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   open,
   opening,
   onClose,
+  onDismiss,
   children,
 }: ComputedCellProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
@@ -227,8 +240,11 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   if (open && !engaged) {
     setEngaged(true);
   }
+  // Whether the popover closes on Escape, which gives the focus back to the cell.
+  const escaped = useRef(false);
+  const anchor = useRef<HTMLSpanElement>(null);
   const content = (
-    <span className={MARKED}>
+    <span ref={anchor} className={MARKED}>
       <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
       <span className="min-w-0 truncate">{children}</span>
     </span>
@@ -236,12 +252,29 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
   if (!engaged) {
     return content;
   }
+  const closing: ComputedRefusalProps<Row, Sort, Totals>["closing"] = {
+    onEscapeKeyDown: () => {
+      escaped.current = true;
+    },
+    onInteractOutside: (event) => {
+      const cell = anchor.current?.closest("td");
+      if (event.target instanceof Node && cell?.contains(event.target) === true) {
+        event.preventDefault();
+      }
+    },
+    // No trigger to give the focus back to: the grid gives it, on Escape only.
+    onCloseAutoFocus: (event) => {
+      event.preventDefault();
+    },
+  };
   return (
     <Popover
       open={open}
       onOpenChange={(next) => {
         if (!next) {
-          onClose();
+          const close = escaped.current ? onClose : onDismiss;
+          escaped.current = false;
+          close();
         }
       }}
     >
@@ -252,6 +285,7 @@ export function ComputedCell<Row extends RowData, Sort extends string, Totals>({
         dependencies={dependencies}
         open={open}
         opening={opening}
+        closing={closing}
       />
     </Popover>
   );

@@ -4,7 +4,7 @@ import { act, fireEvent, render, renderHook, waitFor } from "@testing-library/re
 import { useRef } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   type RowWindow,
@@ -28,6 +28,22 @@ function options(rows: readonly string[]): RowWindowOptions {
 
 describe("the window of the rows in view", () => {
   const rows = Array.from({ length: 100 }, (_, index) => `row-${String(index)}`);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("keeps a row rendered away from the window, with the space of the rows between", () => {
+    const { result } = renderHook((given: RowWindowOptions) => useRowWindow(given), {
+      initialProps: { ...options(rows), kept: 90 },
+    });
+    const { items, gaps, after } = result.current;
+    const indexes = items.map((item) => item.index);
+    expect(indexes).toEqual([...Array.from({ length: 12 }, (_, index) => index), 90]);
+    // Nothing before the first row; the rows from 12 to 89 before the row kept; ten after it.
+    expect(gaps).toEqual([...Array.from({ length: 12 }, () => 0), 78 * 28]);
+    expect(after).toBe(9 * 28);
+  });
 
   it("stays the same object from one render to the next when nothing scrolled, a new `keyOf` or not", () => {
     const { result, rerender } = renderHook((given: RowWindowOptions) => useRowWindow(given), {
@@ -106,6 +122,5 @@ describe("the window of the rows in view", () => {
     // Above the window: its top just below the header.
     scrollTo(10);
     expect(element.scrollTop).toBe(10 * 28);
-    vi.restoreAllMocks();
   });
 });

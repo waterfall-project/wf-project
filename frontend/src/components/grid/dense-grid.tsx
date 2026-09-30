@@ -25,7 +25,15 @@
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import {
+  Fragment,
+  type ReactNode,
+  useEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import {
@@ -50,7 +58,9 @@ import { ComputedCell, type ComputedColumn } from "./computed-cell";
 import {
   type CellPosition,
   type CellRefusal,
+  refusedAt,
   samePosition,
+  useCursor,
   useGridKeyboard,
 } from "./grid-keyboard";
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
@@ -199,18 +209,26 @@ function computedIn<Row extends RowData, Sort extends string, Totals>(
 interface CellStates {
   readonly cursor: CellPosition;
   readonly refusal: CellRefusal;
+  /** Close the refusal from the keyboard, the focus back on its cell. */
   readonly closeRefusal: () => void;
+  /** Close the refusal, the focus gone elsewhere. */
+  readonly dismissRefusal: () => void;
 }
 
 /** The attributes of a cell of the body: its place in the grid, and what it says of itself. */
-function cellAttributes(position: CellPosition, cells: CellStates, computed: boolean) {
+function cellAttributes(
+  position: CellPosition,
+  cells: CellStates,
+  computed: boolean,
+  refused: boolean,
+) {
   return {
     "data-row": position.row,
     "data-column": position.column,
     tabIndex: samePosition(cells.cursor, position) ? 0 : -1,
     "aria-readonly": computed ? true : undefined,
     "aria-haspopup": computed ? ("dialog" as const) : undefined,
-    "aria-expanded": computed ? samePosition(cells.refusal.at, position) : undefined,
+    "aria-expanded": computed ? refused : undefined,
   };
 }
 
@@ -239,9 +257,10 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   const computed = computedIn(column, row);
   const pinning = pinningOf(table, position.column, "z-10");
   const content = cellContent(config, column, row, locale);
+  const refused = refusedAt(cells.refusal, config.rowKey(row), position.column);
   return (
     <TableCell
-      {...cellAttributes(position, cells, computed)}
+      {...cellAttributes(position, cells, computed, refused)}
       style={{ left: pinning.left }}
       className={cn(
         "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
@@ -256,9 +275,10 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
           column={column}
           row={row}
           dependencies={dependencies}
-          open={samePosition(cells.refusal.at, position)}
+          open={refused}
           opening={cells.refusal.opening}
           onClose={cells.closeRefusal}
+          onDismiss={cells.dismissRefusal}
         >
           {content}
         </ComputedCell>
@@ -347,6 +367,11 @@ function Spacer({ height, span }: { readonly height: number; readonly span: numb
       <td colSpan={span} style={{ height }} className="p-0" />
     </tr>
   ) : null;
+}
+
+/** The width of the columns pinned at the start, which the other columns slide under. */
+function pinnedWidth<Row extends RowData>(table: GridTable<Row>): number {
+  return table.getStartVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0);
 }
 
 /** The columns the user may show or hide, for the bar of the grid. */
@@ -458,7 +483,10 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
 
   const model = table.getRowModel().rows;
   const edge = EDGE_REM * useRootFontSize();
-  const { items, before, after, scrollToIndex } = useRowWindow({
+  const columns = table.getVisibleLeafColumns();
+  const cursor = useCursor(config, model.length, columns);
+  // The row of the active cell stays rendered however far the grid scrolls: it holds the focus.
+  const { items, gaps, after, scrollToIndex } = useRowWindow({
     rows: model,
     scroller,
     rowHeight,
@@ -466,24 +494,29 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     overscan: OVERSCAN,
     initialRect: FIRST_SCREEN,
     keyOf: (index) => model[index]?.id ?? index,
+    kept: model.length === 0 ? undefined : cursor.active.row,
   });
-  const columns = table.getVisibleLeafColumns();
   const keyboard = useGridKeyboard({
     config,
+    cursor,
     rows,
     columns: columns.map((column) => column.id),
     scroller,
     scrollToIndex,
     page: () =>
       Math.max(1, Math.floor(((scroller.current?.offsetHeight ?? 0) - 2 * edge) / rowHeight)),
+    inView: (index) => {
+      const element = scroller.current;
+      const top = edge + index * rowHeight - (element?.scrollTop ?? 0);
+      return top + rowHeight > edge && top < (element?.offsetHeight ?? 0) - edge;
+    },
   });
   const cells: CellStates = {
-    cursor: keyboard.cursor,
+    cursor: cursor.active,
     refusal: keyboard.refusal,
     closeRefusal: keyboard.closeRefusal,
+    dismissRefusal: keyboard.dismissRefusal,
   };
-  // The active row out of the rows rendered, the grid itself takes the focus Tab gives it.
-  const activeShown = items.some((item) => item.index === keyboard.cursor.row);
   // An empty answer still has a row, which says so, between the header and the totals.
   const bodyRows = Math.max(model.length, 1);
 
@@ -501,22 +534,18 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
         aria-busy={pending}
-        tabIndex={activeShown || model.length === 0 ? undefined : 0}
-        onFocus={(event) => {
-          if (event.target === event.currentTarget) {
-            keyboard.focusActive();
-          }
-        }}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
-        // stay a window's worth whatever holds it. The header and the totals stick to its edges:
-        // a cell the focus brings into view comes out from under them.
+        // stay a window's worth whatever holds it. The header and the totals stick to its edges,
+        // the pinned columns to its start: a cell the focus brings into view comes out from under
+        // them. A refusal whose row scrolls out of view closes.
         container={{
           ref: scroller,
           className: "w-fit max-w-full max-h-svh min-h-40 rounded-md border",
-          style: { scrollPaddingBlock: edge },
+          style: { scrollPaddingBlock: edge, scrollPaddingInlineStart: pinnedWidth(table) },
+          onScroll: keyboard.followScroll,
         }}
-        className="table-fixed text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="table-fixed text-xs tabular-nums"
         style={{ width: table.getTotalSize() }}
       >
         <colgroup>
@@ -541,20 +570,21 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
           </TableRow>
         </TableHeader>
         <TableBody {...keyboard.body}>
-          <Spacer height={before} span={columns.length} />
-          {items.map((item) => {
+          {items.map((item, position) => {
             const row = model[item.index];
             return row === undefined ? null : (
-              <BodyRow
-                key={row.id}
-                table={table}
-                config={config}
-                dependencies={dependencies}
-                cells={cells}
-                row={row}
-                index={item.index}
-                locale={locale}
-              />
+              <Fragment key={row.id}>
+                <Spacer height={gaps[position] ?? 0} span={columns.length} />
+                <BodyRow
+                  table={table}
+                  config={config}
+                  dependencies={dependencies}
+                  cells={cells}
+                  row={row}
+                  index={item.index}
+                  locale={locale}
+                />
+              </Fragment>
             );
           })}
           <Spacer height={after} span={columns.length} />

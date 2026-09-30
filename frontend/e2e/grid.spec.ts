@@ -59,7 +59,9 @@ test("opens the estimate of a thousand tasks and five thousand lines, and scroll
   await scrollToFoot(grid(page));
   await expect(last).toBeVisible();
   await expect(last).toHaveAttribute("aria-rowindex", "6001");
-  await expect(first).toHaveCount(0);
+  // The rows of the top are gone, but the first, the row of the active cell, kept rendered.
+  await expect(grid(page).getByRole("row", { name: /^2 .*Poste de commande/ })).toHaveCount(0);
+  await expect(first).not.toBeInViewport();
   expect(await withinBox(grid(page), header)).toBe(true);
   expect(await withinBox(grid(page), totals)).toBe(true);
 });

@@ -59,7 +59,7 @@ async function press(page: Page, ...keys: readonly string[]): Promise<void> {
   }
 }
 
-test("traverses the computed cells without entering them [WF-IHM-0040-A]", async ({ page }) => {
+test("stops on the computed cells without entering them, and refuses a try", async ({ page }) => {
   const grid = await tabIntoGrid(page);
   for (let row = 1; row < 21; row += 1) {
     await page.keyboard.press("ArrowDown");
@@ -90,7 +90,7 @@ test("traverses the computed cells without entering them [WF-IHM-0040-A]", async
   await expect(cellAt(grid, 21, HOURS)).not.toHaveAttribute("aria-readonly");
 });
 
-test("keeps the active cell in the window, clear of the header and the totals, from the first row to the six thousandth [WF-IHM-0040-A]", async ({
+test("keeps the active cell in the window, clear of the header and the totals, from the first row to the six thousandth", async ({
   page,
 }) => {
   const grid = await tabIntoGrid(page);
@@ -112,8 +112,31 @@ test("keeps the active cell in the window, clear of the header and the totals, f
       totals.boundingBox(),
     ]);
     expect(cell?.y ?? 0).toBeGreaterThanOrEqual((top?.y ?? 0) + (top?.height ?? 0) - 1);
-    expect((cell?.y ?? 0) + (cell?.height ?? 0)).toBeLessThanOrEqual((foot?.y ?? 0) + 1);
+    // The border the last row and the totals share aside.
+    expect((cell?.y ?? 0) + (cell?.height ?? 0)).toBeLessThanOrEqual((foot?.y ?? 0) + 2);
   }
   await press(page, "Control+End");
   await expect(cellAt(grid, 6000, REESTIMATED)).toBeFocused();
+});
+
+test.describe("on a narrow window", () => {
+  test.use({ viewport: { width: 700, height: 500 } });
+
+  test("keeps the active cell clear of the pinned columns as it goes back along the row", async ({
+    page,
+  }) => {
+    const grid = await tabIntoGrid(page);
+    const label = grid.getByRole("columnheader", { name: "Libellé" });
+    await page.keyboard.press("End");
+    await expect(cellAt(grid, 1, REESTIMATED)).toBeFocused();
+    for (const column of [BUDGETED, DISBURSEMENT, HOURS, QUANTITY]) {
+      await page.keyboard.press("ArrowLeft");
+      const active = cellAt(grid, 1, column);
+      await expect(active).toBeFocused();
+      const [cell, pinned] = await Promise.all([active.boundingBox(), label.boundingBox()]);
+      expect(cell?.x ?? 0, `column ${column.toString()}`).toBeGreaterThanOrEqual(
+        (pinned?.x ?? 0) + (pinned?.width ?? 0) - 1,
+      );
+    }
+  });
 });

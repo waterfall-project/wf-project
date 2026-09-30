@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { EstimateGrid } from "./estimate-grid";
+import { triesEntry } from "./grid-keyboard";
 import type { NodeList, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
 
@@ -120,7 +121,7 @@ describe("the keyboard of a grid", () => {
     expect(screen.getByRole("grid")).not.toContainElement(document.activeElement as HTMLElement);
   });
 
-  it("traverses the computed cells without entering them [WF-IHM-0040-A]", async () => {
+  it("stops on the computed cells without entering them, and refuses a try", async () => {
     serve();
     renderGrid();
     cell(PROVISION, "label").focus();
@@ -156,5 +157,72 @@ describe("the keyboard of a grid", () => {
     expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-readonly");
     expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-haspopup");
     expect(cell(LABOUR, "hours")).toHaveFocus();
+  });
+
+  it("scrolls nothing on Space, whatever the cell", () => {
+    serve();
+    renderGrid();
+    for (const target of [cell(LABOUR, "hours"), cell(LABOUR, "budgeted_amount")]) {
+      const space = createEvent.keyDown(target, { key: " " });
+      fireEvent(target, space);
+      expect(space.defaultPrevented).toBe(true);
+    }
+  });
+
+  it("closes a refusal on a click elsewhere, without scrolling back to its cell, the cell clicked active", async () => {
+    serve();
+    renderGrid();
+    cell(PROVISION, "budgeted_amount").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(refusal()).not.toBeNull();
+    const scroller = screen.getByRole("grid").parentElement;
+    const scrolled = scroller?.scrollTop;
+    await userEvent.click(cell(LABOUR, "label"));
+    expect(refusal()).toBeNull();
+    expect(scroller?.scrollTop).toBe(scrolled);
+    expect(cell(LABOUR, "label")).toHaveFocus();
+    expect(cell(LABOUR, "label")).toHaveAttribute("tabindex", "0");
+    expect(cell(PROVISION, "budgeted_amount")).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes a refusal on a click on its own cell, rather than opening it again", async () => {
+    serve();
+    renderGrid();
+    await userEvent.click(cell(PROVISION, "budgeted_amount"));
+    expect(refusal()).not.toBeNull();
+    await userEvent.click(cell(PROVISION, "budgeted_amount"));
+    expect(refusal()).toBeNull();
+    expect(cell(PROVISION, "budgeted_amount")).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(cell(PROVISION, "budgeted_amount"));
+    expect(refusal()).not.toBeNull();
+  });
+});
+
+describe("a key that tries an entry", () => {
+  /** A key pressed, with its modifiers. */
+  function key(name: string, { ctrl = false, alt = false, meta = false, altGraph = false } = {}) {
+    return {
+      key: name,
+      ctrlKey: ctrl,
+      altKey: alt,
+      metaKey: meta,
+      getModifierState: () => altGraph,
+    };
+  }
+
+  it("is Enter, F2, or a character typed, a shortcut aside", () => {
+    expect(triesEntry(key("Enter"))).toBe(true);
+    expect(triesEntry(key("F2"))).toBe(true);
+    expect(triesEntry(key("7"))).toBe(true);
+    expect(triesEntry(key("é"))).toBe(true);
+    expect(triesEntry(key("Tab"))).toBe(false);
+    expect(triesEntry(key("c", { ctrl: true }))).toBe(false);
+    expect(triesEntry(key("c", { meta: true }))).toBe(false);
+    expect(triesEntry(key("c", { alt: true }))).toBe(false);
+  });
+
+  it("is a character typed by AltGr, which Windows reports as Ctrl and Alt together", () => {
+    expect(triesEntry(key("€", { ctrl: true, alt: true, altGraph: true }))).toBe(true);
+    expect(triesEntry(key("@", { ctrl: true, alt: true, altGraph: true }))).toBe(true);
   });
 });
