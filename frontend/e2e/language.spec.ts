@@ -42,7 +42,7 @@ test.describe("a browser asking for a language not offered", () => {
   test.use({ locale: "de-DE" });
 
   test("gets the default language of the installation [WF-INTF-0160-A]", async ({ page }) => {
-    await page.goto("/projects");
+    await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
     await page.getByRole("button", { name: "Compte de Camille Martin" }).click();
     await expect(page.getByRole("menuitem", { name: /^Langue/ })).toBeVisible();

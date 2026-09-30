@@ -107,7 +107,9 @@ describe("the shell", () => {
     async (locale, fold, search, account) => {
       const { container } = shell({ locale });
       expect(bar().getByRole("button", { name: fold })).toHaveAttribute("aria-expanded", "true");
-      expect(bar().getByRole("navigation")).toHaveTextContent(locale === "fr" ? "Accueil" : "Home");
+      expect(bar().getByRole("navigation")).toHaveTextContent(
+        locale === "fr" ? "Projets" : "Projects",
+      );
       expect(bar().getByRole("searchbox", { name: search })).toBeInTheDocument();
       expect(
         bar().getByRole("button", { name: /^(Tâches de fond|Background tasks)$/ }),
@@ -253,7 +255,7 @@ describe("the shell", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.getAttribute("href")),
-    ).toEqual(["/projects"]);
+    ).toEqual(["/?is_contributor=false"]);
   });
 
   it("names the project its screen hands on, in the side bar and in the breadcrumb", async () => {
@@ -268,10 +270,7 @@ describe("the shell", () => {
       name: "Modernisation du poste de commande PRJ-001 · En cours",
     });
     const crumbs = bar().getByRole("navigation", { name: "Fil d’Ariane" });
-    expect(within(crumbs).getByRole("link", { name: "Projets" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
+    expect(within(crumbs).getByRole("link", { name: "Projets" })).toHaveAttribute("href", "/");
     expect(
       within(crumbs).getByRole("link", { name: "Modernisation du poste de commande" }),
     ).toHaveAttribute("href", `/projects/${PROJECT}?revision_id=${REVISION}&as_of=2026-05-31`);
@@ -282,7 +281,10 @@ describe("the shell", () => {
       within(screen.getByRole("menu"))
         .getAllByRole("menuitem")
         .map((item) => item.getAttribute("href")),
-    ).toEqual(["/projects", `/projects/${PROJECT}?revision_id=${REVISION}&as_of=2026-05-31`]);
+    ).toEqual([
+      "/?is_contributor=false",
+      `/projects/${PROJECT}?revision_id=${REVISION}&as_of=2026-05-31`,
+    ]);
   });
 
   it("says a project is open without naming it while its screen has not handed it on", () => {
@@ -301,7 +303,7 @@ describe("the shell", () => {
     await userEvent.click(bar().getByRole("button", { name: "Déplier la barre latérale" }));
     await screen.findByRole("dialog", { name: "Barre latérale" });
 
-    visit("/projects");
+    visit("/system");
     view.rerender(inShell());
 
     await waitFor(() => {
@@ -359,7 +361,7 @@ describe("the shell", () => {
 
   it("closes the sheet of the side bar on a link followed to the page shown, whose address does not change", async () => {
     narrow();
-    visit("/projects");
+    visit("/");
     shell();
     await userEvent.click(bar().getByRole("button", { name: "Déplier la barre latérale" }));
     const sheet = await screen.findByRole("dialog", { name: "Barre latérale" });

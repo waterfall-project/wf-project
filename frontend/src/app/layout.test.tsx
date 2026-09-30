@@ -147,7 +147,7 @@ describe("RootLayout", () => {
     expect(html).toContain('<nav aria-label="Fonctions"');
     // No page of a block of the FBS is shown: each is closed on its functions.
     expect(html).toMatch(/<button[^>]*aria-expanded="false"[^>]*>.*?<span>Portefeuille<\/span>/);
-    expect(html).toContain('href="/projects"');
+    expect(html).toMatch(/<a[^>]*href="\/"[^>]*><svg[^>]*>.*?<\/svg><span>Projets<\/span>/);
     expect(html).toMatch(
       new RegExp(`<a[^>]*href="${LAST}\\?as_of=2026-05-31"[^>]*><svg[^>]*aria-hidden="true"`),
     );

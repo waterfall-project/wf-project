@@ -66,14 +66,14 @@ test("signs in, comes to the screen aimed at, then signs out to the sign-in page
 });
 
 test("signs in without a screen aimed at, and comes to the list of projects", async ({ page }) => {
-  // The list of projects, reached by the sign-in, compiled first (`e2e/compile.ts`).
-  await compile(page.request, "/projects");
+  // The home, the list of projects, reached by the sign-in, compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/");
   await page.goto("/login");
   await page.getByLabel("Adresse électronique").fill("camille.martin@example.com");
   await page.getByLabel("Mot de passe", { exact: true }).fill("le mot de passe de Camille");
   await page.getByRole("button", { name: "Se connecter" }).click();
 
-  await expect(page).toHaveURL("/projects");
+  await expect(page).toHaveURL("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
 });
 

@@ -16,9 +16,11 @@ function steps(address: string) {
 }
 
 describe("the breadcrumb", () => {
-  it("sits the home page and the list of projects at the root", () => {
-    expect(steps("/")).toEqual([{ kind: "label", label: "breadcrumbs.home" }]);
-    expect(steps("/projects")).toEqual([{ kind: "label", label: "functionGroups.projects" }]);
+  it("sits the home, which is the list of projects, at the root", () => {
+    expect(steps("/")).toEqual([{ kind: "label", label: "functionGroups.projects" }]);
+    expect(steps("/?is_contributor=false")).toEqual([
+      { kind: "label", label: "functionGroups.projects" },
+    ]);
   });
 
   it("sits a function outside any project in its block of the FBS, which has no page", () => {
@@ -29,7 +31,7 @@ describe("the breadcrumb", () => {
   });
 
   it("sits a function of a project in the list of projects and in the project, whose page keeps the context", () => {
-    const projects = { kind: "label", label: "functionGroups.projects", href: "/projects" };
+    const projects = { kind: "label", label: "functionGroups.projects", href: "/" };
     expect(steps(`/projects/${PROJECT}/revisions/${REVISION}/risks?as_of=2026-05-31`)).toEqual([
       projects,
       {
@@ -47,7 +49,7 @@ describe("the breadcrumb", () => {
   });
 
   it("sits the page of a project and of a revision, which are no function, in the list of projects", () => {
-    const projects = { kind: "label", label: "functionGroups.projects", href: "/projects" };
+    const projects = { kind: "label", label: "functionGroups.projects", href: "/" };
     expect(steps(`/projects/${PROJECT}`)).toEqual([
       projects,
       { kind: "project", projectId: PROJECT },

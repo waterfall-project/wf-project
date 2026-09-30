@@ -104,8 +104,7 @@ ni tâches (`shell-frame.tsx`, `isOutsideShell`), le logo au-dessus d'une carte.
 connexion présente les fournisseurs de `listAuthProviders` : le compte local toujours, que
 l'annuaire partage quand il est activé, et le fournisseur d'identité activé par un lien vers
 son `start_url`. La session ouverte, le navigateur charge en document entier l'écran visé
-(`returnTarget(next)`, `frontend/src/navigation/document.ts`) — sans lui, l'accueil, qui mène
-à la liste des projets jusqu'à ce qu'elle soit l'accueil même (#112) — : le layout relit la session, et
+(`returnTarget(next)`, `frontend/src/navigation/document.ts`) — sans lui, l'accueil — : le layout relit la session, et
 le suivi reprend les tâches qu'une session perdue avait interrompues.
 Sans compte (401), il n'y a ni menu du compte ni barre latérale ; quand la session est
 illisible, la barre latérale est rendue avec l'écran d'état seul, son bloc ouvert, et sans
@@ -134,6 +133,14 @@ porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujour
 avant que la page sache l'objet introuvable. Il est le même pour toute adresse introuvable,
 ce qui compte ici. Chaque état vide — aucun projet, projet sans révision, référentiel
 incomplet — se montre sur un exemple nommé du contrat (`empty`, `incomplete`).
+
+L'accueil, `/`, est la liste des projets (`frontend/src/app/(home)/`, un groupe de routes pour
+qu'il ait son squelette sans en donner un à toutes les pages) : filtrée par défaut sur les
+projets dont l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que
+l'écran montre et qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
+(`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture
+(WF-PRJ-0060). Le choix du projet et le fil d'Ariane y mènent ; `/projects`, l'ancienne
+adresse, y renvoie.
 
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une

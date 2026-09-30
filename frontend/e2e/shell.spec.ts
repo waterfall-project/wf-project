@@ -65,7 +65,7 @@ test("the bar shows where the page sits, and the side bar names the project its 
 }) => {
   await page.goto(`/projects/${PROJECT}/revisions/${REVISION}/risks`);
   const crumbs = page.getByRole("banner").getByRole("navigation", { name: "Fil d’Ariane" });
-  await expect(crumbs.getByRole("link", { name: "Projets" })).toHaveAttribute("href", "/projects");
+  await expect(crumbs.getByRole("link", { name: "Projets" })).toHaveAttribute("href", "/");
   await expect(
     crumbs.getByRole("link", { name: "Modernisation du poste de commande" }),
   ).toHaveAttribute("href", `/projects/${PROJECT}?revision_id=${REVISION}`);

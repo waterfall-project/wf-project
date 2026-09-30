@@ -19,7 +19,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 const ROOT = join(import.meta.dirname, "../..");
 
 // A server component and a client component of the project, both in TSX.
-const PAGE = "src/app/page.tsx";
+const PAGE = "src/app/(home)/page.tsx";
 const COMPONENT = "src/components/shell/account-menu.tsx";
 
 const TEXT = "Write the text in the catalogues of messages/, and read it with next-intl.";

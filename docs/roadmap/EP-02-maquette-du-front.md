@@ -865,7 +865,7 @@ fait qu'une fois. Aucune conformité complète à un référentiel n'est visée 
 
 ## US-0210 — Écrans du projet, des révisions et des contributeurs
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — les exigences de ces fonctions sont réalisées en EP-04
 - **opérations** : `listProjects`, `getProject`, `listProjectStateTransitions`,
   `exitProject`, `listSubprojects`, `listContributors`, `listRevisions`, `getRevision`,

@@ -77,7 +77,7 @@ test("a project opened without a revision to read in offers the functions of the
 });
 
 test("the tab bears the icon of the product", async ({ page }) => {
-  await page.goto("/projects");
+  await page.goto("/");
   await expect(page).toHaveTitle("Projets — Waterfall");
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", /^\/icon\.svg/);
 });

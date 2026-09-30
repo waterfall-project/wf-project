@@ -1,0 +1,107 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The home, which is the list of projects (US-0090, US-0210): filtered by default on the
+ * projects the user contributes to, by the filter of the contract (`is_contributor`), which the
+ * screen shows and a link lifts — a filter, never a restriction of reading (WF-PRJ-0060). Above
+ * the list, in every case, the prerequisites the minimum reference data lacks, which forbid
+ * creating a project (WF-CYC-0120); and, when the list is empty, that it is — lifting the filter
+ * when it is what empties it. The page after the first is asked by its `offset`, as the contract
+ * names it.
+ */
+import type { Metadata } from "next";
+import { useTranslations } from "next-intl";
+
+import { readOrFail } from "@/api/problem";
+import { serverClient } from "@/api/server";
+import {
+  ContributorFilter,
+  type ListedProject,
+  ListPages,
+  type ListPage,
+  ProjectTable,
+} from "@/components/projects/project-list";
+import { GROUP_ICONS } from "@/components/shell/function-display";
+import { PageHeader, Screen } from "@/components/shell/page-header";
+import { NoProjects, ReferenceIncomplete } from "@/components/system/empty-states";
+import { type PageSearchParams, pageSearch } from "@/navigation/context";
+import { ALL_PROJECTS, isContributorFiltered } from "@/navigation/home";
+import { requestSession } from "@/session/request";
+
+import { screenMetadata } from "../title";
+
+/** Title the tab with the list of projects. */
+export async function generateMetadata(): Promise<Metadata> {
+  return screenMetadata("functionGroups.projects");
+}
+
+/** The offset the address asks for, or none when it asks for none a server could take. */
+function offsetOf(value: string | null): number | undefined {
+  const offset = Number(value);
+  return value !== null && Number.isSafeInteger(offset) && offset > 0 ? offset : undefined;
+}
+
+/** The title of the list, with the icon of its block, and its filter at the right. */
+function ProjectsHeader({ filtered }: { readonly filtered: boolean }) {
+  const t = useTranslations();
+  return (
+    <PageHeader
+      title={t("functionGroups.projects")}
+      icon={GROUP_ICONS["functionGroups.projects"]}
+      actions={<ContributorFilter filtered={filtered} />}
+    />
+  );
+}
+
+/** The projects of the page, or that there is none. */
+function ProjectList({
+  projects,
+  page,
+  filtered,
+}: {
+  readonly projects: readonly ListedProject[];
+  readonly page: ListPage;
+  readonly filtered: boolean;
+}) {
+  return projects.length === 0 ? (
+    <NoProjects unfiltered={filtered ? ALL_PROJECTS : undefined} />
+  ) : (
+    <>
+      <ProjectTable projects={projects} />
+      <ListPages page={page} shown={projects.length} filtered={filtered} />
+    </>
+  );
+}
+
+/** Render the projects the API lists, and what the reference data lacks, if anything. */
+export default async function HomePage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<PageSearchParams>;
+}) {
+  const search = pageSearch(await searchParams);
+  const filtered = isContributorFiltered(search);
+  const offset = offsetOf(search.get("offset"));
+  const client = serverClient();
+  const [projects, readiness, session] = await Promise.all([
+    readOrFail("listProjects", () =>
+      client.GET("/projects", {
+        params: {
+          query: {
+            ...(filtered ? { is_contributor: true } : {}),
+            ...(offset === undefined ? {} : { offset }),
+          },
+        },
+      }),
+    ),
+    readOrFail("getReferenceReadiness", () => client.GET("/reference/readiness")),
+    requestSession(),
+  ]);
+  return (
+    <Screen>
+      <ProjectsHeader filtered={filtered} />
+      <ReferenceIncomplete readiness={readiness} permissions={session?.permissions ?? []} />
+      <ProjectList projects={projects.items} page={projects.meta} filtered={filtered} />
+    </Screen>
+  );
+}

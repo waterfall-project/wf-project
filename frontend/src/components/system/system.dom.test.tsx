@@ -159,7 +159,7 @@ describe("the skeleton of a screen that loads", () => {
 
   it.each([
     ["the functions still to come", () => import("@/app/[...path]/loading")],
-    ["the list of projects", () => import("@/app/projects/loading")],
+    ["the home, the list of projects", () => import("@/app/(home)/loading")],
     ["a project", () => import("@/app/projects/[projectId]/loading")],
     ["a revision", () => import("@/app/projects/[projectId]/revisions/[revisionId]/loading")],
   ])("is what %s show while they load", async (_, page) => {
@@ -179,11 +179,11 @@ describe("the empty states", () => {
   });
 
   it("lift the contributor filter that emptied the list", async () => {
-    const { container } = inLanguage(<NoProjects unfiltered="/projects" />);
+    const { container } = inLanguage(<NoProjects unfiltered="/?is_contributor=false" />);
     expect(container).toHaveTextContent("Vous n’êtes contributeur d’aucun projet.");
     expect(screen.getByRole("link", { name: "Voir tous les projets" })).toHaveAttribute(
       "href",
-      "/projects",
+      "/?is_contributor=false",
     );
     await expectAccessible(container);
   });

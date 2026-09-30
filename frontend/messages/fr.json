@@ -34,7 +34,6 @@
   },
   "breadcrumbs": {
     "label": "Fil d’Ariane",
-    "home": "Accueil",
     "revision": "Révision"
   },
   "search": {
@@ -243,6 +242,26 @@
     "description": "Description (facultative)",
     "submit": "Marquer",
     "cancel": "Annuler"
+  },
+  "projectList": {
+    "label": "Liste des projets",
+    "count": "{count, plural, one {# projet} other {# projets}}",
+    "columns": {
+      "label": "Projet",
+      "code": "Code",
+      "state": "État"
+    },
+    "filter": {
+      "label": "Filtre de la liste",
+      "mine": "Projets dont vous êtes contributeur",
+      "lift": "Voir tous les projets",
+      "apply": "N’afficher que mes projets"
+    },
+    "pages": {
+      "label": "Pages de la liste",
+      "previous": "Projets précédents",
+      "next": "Projets suivants"
+    }
   },
   "notFound": {
     "title": "Introuvable",
