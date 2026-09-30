@@ -348,6 +348,57 @@ describe("the sort, the search and the totals, asked of the server", () => {
     expect(router.push).toHaveBeenCalledTimes(1);
   });
 
+  it("records with the sort shown a width changed while the page was on its way, and nothing before", async () => {
+    const client = serve();
+    const { ask } = renderGrid(witness);
+    await userEvent.click(
+      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+    );
+    const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
+    handle.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    // The pause of a width goes by: the page is not shown yet, and nothing is written.
+    await new Promise((resolve) => setTimeout(resolve, WRITE_DELAY + 100));
+    expect(recorded(client)).toEqual([]);
+    ask({ sort: { column: "budgeted_amount", order: "asc" }, search: undefined });
+    await waitFor(() => {
+      expect(recorded(client)).toEqual([
+        {
+          grids: {
+            estimate: {
+              hidden_columns: [],
+              column_widths: { label: 336 },
+              sort: { column: "budgeted_amount", order: "asc" },
+            },
+          },
+        },
+      ]);
+    });
+  });
+
+  it("records the sort asked when the grid goes before the page shows it", async () => {
+    const client = serve();
+    const { unmount } = renderGrid(witness);
+    await userEvent.click(
+      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+    );
+    expect(recorded(client)).toEqual([]);
+    unmount();
+    await waitFor(() => {
+      expect(recorded(client)).toEqual([
+        {
+          grids: {
+            estimate: {
+              hidden_columns: [],
+              column_widths: {},
+              sort: { column: "budgeted_amount", order: "asc" },
+            },
+          },
+        },
+      ]);
+    });
+  });
+
   it("lifts the sort by the address, whether or not the preference could be written", async () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
     const { ask } = renderGrid(witness, {
@@ -722,7 +773,8 @@ describe("the writing of the settings", () => {
     serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
     const { result } = renderHook(() => useSettingsWriter("estimate"));
     act(() => {
-      result.current.recordNow({ hidden_columns: [] });
+      result.current.recordShown(() => ({ hidden_columns: [] }));
+      result.current.shown();
     });
     await waitFor(() => {
       expect(result.current.outcome?.kind).toBe("signed_out");

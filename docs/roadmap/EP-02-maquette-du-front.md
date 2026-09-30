@@ -302,10 +302,10 @@ verrou.
 - **Suivi des tâches de fond** : un fournisseur de la coquille garde chaque référence avec
   la commande qui l'a lancée, interroge `getBackgroundTask` par une action serveur tant que
   la tâche court, annonce l'aboutissement ou l'échec (`aria-live`) quel que soit l'écran,
-  et offre de relancer. Il suit les tâches de l'utilisateur qui couraient à la lecture du
-  document, que le layout racine lit avec la session, et les relit quand l'onglet redevient
-  visible (`listBackgroundTasks`, EP-02/L4) ; une tâche trouvée ainsi se relance depuis son
-  écran.
+  et offre de relancer. Il suit les tâches de l'utilisateur qui courent, que le layout racine
+  demande pour une session ouverte et lui transmet sans que le document les attende, et les
+  relit quand l'onglet redevient visible (`listBackgroundTasks`, EP-02/L4) ; une tâche trouvée
+  ainsi se relance depuis son écran.
   Écarté : un suivi par écran.
 - **Courbes** : ECharts importé à la carte, rendu SVG, option `aria` activée, une enveloppe
   maison de quelques lignes. Écarté : echarts-for-react, une dépendance pour trente lignes.
@@ -400,14 +400,14 @@ fond d'un utilisateur, la révision ouverte par défaut.
   relisait que par son `task_id`, que seul l'onglet qui l'a lancée connaît — US-0180/L1,
   ouvert en #146. Corrigé par EP-02/L4 : `listBackgroundTasks` (`GET /tasks`) rend les tâches
   de l'appelant, celles qui courent et celles finies depuis une date, et `BackgroundTaskStatus`
-  est nommé. Le suivi de la coquille suit, pour une session, celles qui couraient à la lecture
-  du document — le layout racine les lit côté serveur, en parallèle de la session — et celles
-  qu'il relit chaque fois que l'onglet redevient visible, en plus des références que garde le
-  stockage de session de l'onglet (`sessionStorage`), qui porte aussi le nom que l'utilisateur
-  leur a donné : un autre onglet, un autre poste les retrouvent. Une tâche trouvée par la liste
-  ou le stockage vient sans la commande qui l'a lancée, et se relance depuis l'écran de son
-  objet. Reste hors de portée l'annonce d'une tâche lancée ailleurs et finie entre deux lectures : elle ne court plus,
-  la liste ne la rend pas. `finished_since` ne le règle pas simplement — sa date est celle du
+  est nommé. Le suivi de la coquille suit, pour une session ouverte, celles qui courent — le
+  layout racine les demande côté serveur et les lui transmet sans que le document les attende —
+  et celles qu'il relit chaque fois que l'onglet redevient visible, en plus des références que
+  garde le stockage de session de l'onglet (`sessionStorage`), qui porte aussi le nom que
+  l'utilisateur leur a donné : un autre onglet, un autre poste les retrouvent. Une tâche trouvée
+  par la liste ou le stockage vient sans la commande qui l'a lancée, et se relance depuis
+  l'écran de son objet. Reste hors de portée l'annonce d'une tâche lancée ailleurs et finie
+  entre deux lectures : elle ne court plus, la liste ne la rend pas. `finished_since` ne le règle pas simplement — sa date est celle du
   serveur, que l'horloge du poste ne vaut pas, et l'onglet qui l'a lancée l'a déjà annoncée —,
   ce qui demanderait un curseur rendu par la liste elle-même.
 - Deux signalements n'avaient pas de zone au contrat — le dépassement du budget d'un

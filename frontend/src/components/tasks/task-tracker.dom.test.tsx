@@ -95,9 +95,9 @@ function Starting({
 
 /**
  * The shell, as far as the tracker goes: the texts, the tracker, the button of its panel in the
- * bar, its panel, the page.
+ * bar, its panel, the page — and the tasks of the user the root layout streams, if any.
  */
-function shell(page: ReactNode, signedIn = false, running?: readonly BackgroundTask[]) {
+function shell(page: ReactNode, signedIn = false, running?: Promise<readonly BackgroundTask[]>) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <TaskTracker signedIn={signedIn} running={running}>
@@ -641,9 +641,20 @@ describe("the follow-up across a full reload of the tab", () => {
   });
 });
 
-/** The tasks of the user the root layout read with the document, by the name of their example. */
-function listed(name: string): readonly BackgroundTask[] {
-  return (example(name) as { readonly items: readonly BackgroundTask[] }).items;
+/** The tasks of the user the root layout streams, by the name of their example. */
+function listed(name: string): Promise<readonly BackgroundTask[]> {
+  return Promise.resolve((example(name) as { readonly items: readonly BackgroundTask[] }).items);
+}
+
+/**
+ * Render the shell with the tasks the layout streams: React retries what waited for them within
+ * an `act` it is given the time of, as the browser would once they come.
+ */
+async function renderStreamed(ui: ReactNode) {
+  await act(async () => {
+    render(ui);
+    await Promise.resolve();
+  });
 }
 
 /** The tab hidden, or shown again, as the browser tells it. */
@@ -655,12 +666,14 @@ function showTab(state: DocumentVisibilityState) {
 }
 
 describe("the tasks of its user the API lists", () => {
-  it("follows the tasks of its user that ran as the document was read, started elsewhere, and announces their end, without a server action as it mounts", async () => {
+  it("follows the tasks of its user the layout streams, started elsewhere, and announces their end, without a server action as it mounts", async () => {
     const client = serve({ [TASK]: "task_failed" });
-    render(shell(<Screen name="Planning" />, true, listed("tasks_running")));
+    await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
 
-    // The marking another tab started, read with the document.
-    expect(within(panel()).getByRole("listitem")).toHaveTextContent("Marquage d’une révision");
+    // The marking another tab started, streamed by the layout.
+    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision",
+    );
     expect(client.calls).toEqual([]);
     await tick();
     expect(reads(client)).toEqual([`/tasks/${MARKING}`]);
@@ -674,7 +687,7 @@ describe("the tasks of its user the API lists", () => {
 
   it("reads the list again when the tab shows once more, and follows what another tab started", async () => {
     const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
-    render(shell(<Screen name="Planning" />, true, listed("tasks_none")));
+    await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_none")));
     const asked = () => client.calls.filter((call) => call.route === TASKS);
     expect(within(panel()).queryByRole("list")).toBeNull();
     // Hidden, the tab asks nothing; shown again, it asks.
@@ -689,7 +702,8 @@ describe("the tasks of its user the API lists", () => {
 
   it("brings back no task the user dismissed, when the tab shows again and the list is read anew", async () => {
     const client = serve({ [TASKS]: "tasks_running", [TASK]: "task_running" });
-    render(shell(<Screen name="Planning" />, true, listed("tasks_running")));
+    await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
+    await within(panel()).findByRole("listitem");
     await userEvent.click(dismissal("Marquage d’une révision"));
     expect(within(panel()).queryByRole("list")).toBeNull();
     showTab("visible");
@@ -708,7 +722,7 @@ describe("the tasks of its user the API lists", () => {
       ]),
     );
     serve({ [TASK]: "task_running" });
-    render(shell(<Screen name="Planning" />, true, listed("tasks_running")));
+    await renderStreamed(shell(<Screen name="Planning" />, true, listed("tasks_running")));
     await tick();
     expect(within(panel()).getAllByRole("listitem")).toHaveLength(1);
     expect(within(panel()).getByRole("listitem")).toHaveTextContent(
@@ -729,6 +743,24 @@ describe("the tasks of its user the API lists", () => {
     showTab("visible");
     await tick();
     expect(within(panel()).queryByRole("list")).toBeNull();
+  });
+
+  it("renders the page and its panel while the tasks of the user are on their way", async () => {
+    serve({ [TASK]: "task_running" });
+    let answer: (tasks: readonly BackgroundTask[]) => void = () => undefined;
+    const coming = new Promise<readonly BackgroundTask[]>((resolve) => {
+      answer = resolve;
+    });
+    await renderStreamed(shell(<Screen name="Planning" />, true, coming));
+    expect(screen.getByRole("heading", { name: "Planning" })).toBeVisible();
+    expect(within(panel()).queryByRole("list")).toBeNull();
+    await act(async () => {
+      answer((example("tasks_running") as { readonly items: readonly BackgroundTask[] }).items);
+      await coming;
+    });
+    expect(await within(panel()).findByRole("listitem")).toHaveTextContent(
+      "Marquage d’une révision",
+    );
   });
 
   it("asks nothing without a session", async () => {

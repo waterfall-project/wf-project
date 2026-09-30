@@ -50,8 +50,11 @@ export interface ShellProps {
   readonly permissions: NavigationProps["permissions"] | undefined;
   readonly remembered: string | undefined;
   readonly sidebarOpen: boolean;
-  /** The tasks of the user that ran as the document was read; none without an account. */
-  readonly running?: readonly BackgroundTask[];
+  /**
+   * The tasks of the user that still run, as the server of Next reads them apart from the
+   * document; none without an account.
+   */
+  readonly running?: Promise<readonly BackgroundTask[]> | undefined;
   readonly children: ReactNode;
 }
 

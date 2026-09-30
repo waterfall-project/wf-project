@@ -10,8 +10,8 @@
  *
  * A column shown or widened is recorded once the user pauses: a column dragged wider changes
  * its width at every move, and only the last one is written; it sends back the sort as the
- * account keeps it. A sort is recorded at once, alongside the navigation that shows it — only a
- * header writes the sort. What still waits is written when the page is left or hidden, before a
+ * account keeps it. A sort is recorded once the page shows it, with the settings of then — only
+ * a header writes the sort. What still waits is written when the page is left or hidden, before a
  * search, and when the grid goes: at best, for a server action carries no `keepalive`, and a
  * browser closing a tab may cut it short. Only the outcome of the last write is told: an
  * earlier one answering late says nothing of what the grid now shows.
@@ -97,10 +97,16 @@ export function recordedPreferences(
 
 /** What the writer of the settings gives the grid. */
 export interface SettingsWriter {
-  /** Record preferences once the user pauses. */
+  /** Record preferences once the user pauses — or once the page is shown, if it is awaited. */
   readonly record: (preferences: GridPreferences) => void;
-  /** Record preferences at once, whatever waited dropped: they replace it. */
-  readonly recordNow: (preferences: GridPreferences) => void;
+  /**
+   * Record preferences once the page shows what they go with (`shown`), built then — from the
+   * settings of that moment —, whatever waited dropped: they replace it. Left, hidden or gone
+   * before, the page writes them as it writes what waits.
+   */
+  readonly recordShown: (build: () => GridPreferences) => void;
+  /** The page shows what it was asked: record at once what awaited it, if anything. */
+  readonly shown: () => void;
   /** Record at once what waits, if anything. */
   readonly flush: () => void;
   /** The outcome of the last write that failed; nothing once it succeeded. */
@@ -109,11 +115,13 @@ export interface SettingsWriter {
   readonly clear: () => void;
 }
 
-/** Record the settings of a grid under its key: after a pause, or at once. */
+/** Record the settings of a grid under its key: after a pause, or once the page is shown. */
 export function useSettingsWriter(grid: string): SettingsWriter {
   const [outcome, setOutcome] = useState<Settled>();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const waiting = useRef<GridPreferences>(undefined);
+  // What waits, built as it is written; and whether it awaits the page shown rather than a pause.
+  const waiting = useRef<() => GridPreferences>(undefined);
+  const awaitsPage = useRef(false);
   const latest = useRef(0);
 
   const send = useCallback(
@@ -130,9 +138,11 @@ export function useSettingsWriter(grid: string): SettingsWriter {
 
   const flush = useCallback(() => {
     clearTimeout(timer.current);
-    const sent = waiting.current;
+    const build = waiting.current;
     waiting.current = undefined;
-    if (sent !== undefined) {
+    awaitsPage.current = false;
+    if (build !== undefined) {
+      const sent = build();
       startTransition(() => send(sent));
     }
   }, [send]);
@@ -156,22 +166,29 @@ export function useSettingsWriter(grid: string): SettingsWriter {
 
   const record = useCallback(
     (preferences: GridPreferences) => {
-      waiting.current = preferences;
+      // Awaiting the page, what waits is built once it is shown, from the settings of then: this
+      // change among them.
+      if (awaitsPage.current) {
+        return;
+      }
+      waiting.current = () => preferences;
       clearTimeout(timer.current);
       timer.current = setTimeout(flush, WRITE_DELAY);
     },
     [flush],
   );
-  const recordNow = useCallback(
-    (preferences: GridPreferences) => {
-      clearTimeout(timer.current);
-      waiting.current = undefined;
-      startTransition(() => send(preferences));
-    },
-    [send],
-  );
+  const recordShown = useCallback((build: () => GridPreferences) => {
+    clearTimeout(timer.current);
+    waiting.current = build;
+    awaitsPage.current = true;
+  }, []);
+  const shown = useCallback(() => {
+    if (awaitsPage.current) {
+      flush();
+    }
+  }, [flush]);
   const clear = useCallback(() => {
     setOutcome(undefined);
   }, []);
-  return { record, recordNow, flush, outcome, clear };
+  return { record, recordShown, shown, flush, outcome, clear };
 }

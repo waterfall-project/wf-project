@@ -42,31 +42,29 @@ function offered(state: SessionState): ShellProps["permissions"] {
 }
 
 /**
- * The tasks of the user that still run, read with the document for the tracker of the shell to
- * follow — a data of the page, read on the server, rather than a server action as the shell
- * mounts: none without a session, nor when the API does not give them. Asked alongside the
- * session, which it does not wait for: the page opens no later for it.
+ * The tasks of the user of a session open that still run, for the tracker of the shell to follow
+ * — a data of the page, read on the server, rather than a server action as the shell mounts. The
+ * document does not wait for them: the promise goes down to the tracker, which reads it apart
+ * from the page (`Suspense`) once the server of Next has streamed its answer. It never fails: a
+ * list the API does not give, refused or out of reach, is none.
  */
-async function running(state: Promise<SessionState>): Promise<readonly BackgroundTask[]> {
-  // What the tracker may do without never takes a page down: a read that fails is none.
-  const [read, outcome] = await Promise.all([
-    state,
-    listRunningTasks().catch(() => ({ kind: "unreachable" }) as const),
-  ]);
-  return read.kind === "open" && outcome.kind === "done" ? outcome.data : [];
+function running(): Promise<readonly BackgroundTask[]> {
+  return listRunningTasks().then(
+    (outcome) => (outcome.kind === "done" ? outcome.data : []),
+    () => [],
+  );
 }
 
 /** Render the document around a page. */
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   // One read of the session for the request, whose account decides the language and the
   // mode, and whose permissions the navigation offers; the language is the request's, read
-  // once, whatever else asks for it.
-  const session = requestSessionState();
-  const [state, { locale, preference }, jar, tasks] = await Promise.all([
-    session,
+  // once, whatever else asks for it. The tasks of the user are asked once the session is known
+  // to be open: none for a request without one, and the document goes without waiting for them.
+  const [state, { locale, preference }, jar] = await Promise.all([
+    requestSessionState(),
     requestLanguage(),
     cookies(),
-    running(session),
   ]);
   const account = state.kind === "open" ? state.session.user : undefined;
   const theme = themePreference(account);
@@ -81,7 +79,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           permissions={offered(state)}
           remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
           sidebarOpen={sidebarOpen(jar.get(SIDEBAR_COOKIE)?.value)}
-          running={tasks}
+          running={account === undefined ? undefined : running()}
         >
           {children}
         </Shell>

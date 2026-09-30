@@ -383,16 +383,21 @@ describe("the shell", () => {
     expect(within(group).getByRole("menuitem", { name: /^Mode d’affichage/ })).toBeInTheDocument();
   });
 
-  it("follows the tasks of the user read with the document, and reads them again, for an account, as the tab shows", async () => {
+  it("follows the tasks of the user the layout streams, and reads them again, for an account, as the tab shows", async () => {
     const signedIn = serve();
     const { items } = example("tasks_running") as {
       items: components["schemas"]["BackgroundTaskRef"][];
     };
-    const view = shell({ running: items });
+    // React retries what waited for the tasks within an `act` given the time of it.
+    const view = await act(async () => {
+      const rendered = shell({ running: Promise.resolve(items) });
+      await Promise.resolve();
+      return rendered;
+    });
     expect(screen.getByRole("region", { name: "Tâches de fond" })).toHaveTextContent(
       "Marquage d’une révision",
     );
-    // Nothing is asked as the shell mounts: the tasks came with the document.
+    // Nothing is asked as the shell mounts: the layout streamed the tasks.
     expect(signedIn.calls).toEqual([]);
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
     act(() => {

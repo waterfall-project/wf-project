@@ -194,8 +194,8 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     actions lancées après elle. Une préférence écrite au clic d'en-tête retenait ainsi l'adresse
     du tri d'un aller-retour, et de tout ce qui attendait devant elle dans la file : sous charge,
     le parcours du tri dépassait son attente (EP-02/L4, run 36624394005). Ce qu'un geste qui
-    navigue doit écrire part une fois la page montrée (`sortToRecord` de `DenseGrid`), ou avant
-    la navigation : une action lancée avant, au montage d'un écran, ne la retient pas — retenue
-    huit secondes, la lecture des tâches de fond que la coquille lançait alors laissait paraître
-    l'adresse du tri à son heure. Aucun outil ne le tient : la revue le cherche, et une action
+    navigue doit écrire part une fois la page montrée (`recordShown` de `useSettingsWriter`), ou
+    avant la navigation : une action lancée avant, au montage d'un écran, ne la retient pas —
+    retenue huit secondes, la lecture des tâches de fond que la coquille lançait alors laissait
+    paraître l'adresse du tri à son heure. Aucun outil ne le tient : la revue le cherche, et une action
     retenue dans un parcours le prouve (`grid.spec.ts`).

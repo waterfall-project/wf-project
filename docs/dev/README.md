@@ -213,10 +213,12 @@ chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une colonne ou u
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
 quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
 porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
-d'en-tête écrit le tri, une fois que la page le montre : Next porte une action serveur dans
-l'état de son routeur, et une navigation ne se montre pas avant que les actions lancées après
-elle aient répondu — écrite au clic, la préférence retenait le tri d'un aller-retour, et de
-chaque action en file avant elle. L'adresse fait foi :
+d'en-tête écrit le tri, une fois que la page le montre (`recordShown`), avec les réglages de
+ce moment — une largeur changée pendant la navigation comprise : Next porte une action
+serveur dans l'état de son routeur, et une navigation ne se montre pas avant que les actions
+lancées après elle aient répondu — écrite au clic, la préférence retenait le tri d'un
+aller-retour, et de chaque action en file avant elle. Jusque-là, elle attend comme le reste,
+et part avec lui si la page est quittée, cachée ou démontée, ou avant une recherche. L'adresse fait foi :
 un tri levé y reste, `sort_by` vide, et le tri gardé ne sert que quand elle ne dit rien du
 tri. Chaque grille est à la route de sa fonction, `…/revisions/[r]/planning` et
 `…/revisions/[r]/estimate` ; la révision elle-même mène à la première fonction d'une révision
@@ -263,14 +265,15 @@ relance a mise à sa place. Les actions serveur de Next partent une à une, dans
 suivre k tâches ajoute k actions toutes les deux secondes, dans la file même des écritures de
 l'écran, qu'une relecture lente retarde d'autant. Le stockage de session de l'onglet garde les
 tâches qui courent pour un rechargement complet, sans leur commande mais avec le nom que
-l'utilisateur leur a donné ; et, pour une session, le suivi reçoit du layout racine les tâches
-de son utilisateur qui couraient à la lecture du document (`listBackgroundTasks`, `running`),
-lancées d'un autre onglet ou d'un autre poste — lues côté serveur, en parallèle de la session,
-plutôt que par une action serveur au montage de la coquille, que `StrictMode` lançait deux fois
-en développement —, et les redemande par une action (`listRunningTasks`) chaque fois que
-l'onglet redevient visible (`visibilitychange`, `signedIn`) ; il suit celles qu'il ne suivait
-pas — une liste refusée ou injoignable le laisse tel qu'il est, et le layout ne tombe jamais
-pour elle. Une tâche retrouvée par le stockage ou par la
+l'utilisateur leur a donné ; et, pour une session ouverte, le layout racine demande côté
+serveur les tâches de son utilisateur qui courent (`listBackgroundTasks`), lancées d'un autre
+onglet ou d'un autre poste — plutôt que par une action serveur au montage de la coquille, que
+`StrictMode` lançait deux fois en développement. Il ne les attend pas : il passe leur promesse
+au suivi (`running`), qui la lit par `use()` sous un `Suspense` qui ne rend rien, et le
+document part sans elles ; sans session, rien n'est demandé. Le suivi les redemande par une
+action (`listRunningTasks`) chaque fois que l'onglet redevient visible (`visibilitychange`,
+`signedIn`) ; il suit celles qu'il ne suivait pas — une liste refusée ou injoignable le laisse
+tel qu'il est, et la promesse ne rejette jamais. Une tâche retrouvée par le stockage ou par la
 liste ne se relance pas du suivi : échouée, son entrée dit de la relancer depuis l'écran de son
 objet. La commande `mark` d'une révision
 (`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de

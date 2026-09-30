@@ -8,7 +8,7 @@ import type { BackgroundTask } from "@/api/problem";
 import type { ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, type FakeClient, type FakeTiming, fakeClient } from "@/test/fixtures";
 
 import RootLayout, { generateMetadata } from "./layout";
 
@@ -20,7 +20,7 @@ const server = vi.hoisted(() => ({
   // What the cache of React holds for the request; a test is one request.
   cached: new Map<unknown, Map<string, unknown>>(),
   // The tasks of the user the layout handed the shell, for its tracker to follow.
-  running: undefined as readonly BackgroundTask[] | undefined,
+  running: undefined as Promise<readonly BackgroundTask[]> | undefined,
 }));
 
 // The cache of React, as a server component sees it: a function it wraps runs once per
@@ -80,13 +80,16 @@ const LAST =
   "/projects/01926f3a-7c00-7000-8000-000000000001/revisions/01926f3a-7c00-7000-8000-000000000102/risks";
 
 /** A request from a browser asking for a language, by an account and its session. */
-function request(acceptLanguage: string, answers: FakeAnswers = {}) {
-  server.client = fakeClient({
-    "GET /session": "session",
-    "GET /installation": "installation",
-    "GET /tasks": "tasks_none",
-    ...answers,
-  });
+function request(acceptLanguage: string, answers: FakeAnswers = {}, timing: FakeTiming = {}) {
+  server.client = fakeClient(
+    {
+      "GET /session": "session",
+      "GET /installation": "installation",
+      "GET /tasks": "tasks_none",
+      ...answers,
+    },
+    timing,
+  );
   server.acceptLanguage = acceptLanguage;
 }
 
@@ -192,40 +195,59 @@ describe("RootLayout", () => {
       "/system",
     ]);
     expect(html).toContain("<p>page</p>");
-    // The tasks of the user out of reach as well: the tracker follows none.
-    expect(server.running).toEqual([]);
+    // No session to ask the tasks of: none is asked.
+    expect(server.running).toBeUndefined();
   });
 
   it("reads the session once, and the account through it alone", async () => {
     request("de-DE");
     await page();
+    await server.running;
     const routes = server.client?.calls.map((call) => call.route);
     // The browser asks for no language offered: the installation decides. The tasks of the
-    // user that still run are read alongside, for the tracker of the shell.
-    expect(routes).toEqual(["GET /session", "GET /tasks", "GET /installation"]);
+    // user that still run are asked once the session is known to be open, for the tracker.
+    expect(routes).toEqual(["GET /session", "GET /installation", "GET /tasks"]);
     const tasks = server.client?.calls.find((call) => call.route === "GET /tasks");
     expect(tasks?.query.get("status")).toBe("queued,running");
   });
 
-  it("hands the tracker of the shell the tasks of the user that still run, read with the document", async () => {
+  it("hands the tracker of the shell the tasks of the user that still run", async () => {
     request("fr", { "GET /tasks": "tasks_running" });
-    const html = await page();
-    expect(html).toContain("<p>page</p>");
-    expect(server.running?.map((task) => [task.task_id, task.status])).toEqual([
+    expect(await page()).toContain("<p>page</p>");
+    const tasks = await server.running;
+    expect(tasks?.map((task) => [task.task_id, task.status])).toEqual([
       ["01926f3a-7c00-7000-8000-000000000901", "running"],
     ]);
   });
 
-  it("hands the tracker no task without a session, nor when the API refuses the list, and still opens the page", async () => {
+  it("renders the document without waiting for the tasks of the user", async () => {
+    // The list never answers: the document is rendered all the same, the promise still pending.
+    request(
+      "fr",
+      {},
+      { hold: (route) => (route === "GET /tasks" ? new Promise(() => undefined) : undefined) },
+    );
+    const html = await page();
+    expect(html).toContain('aria-label="Compte de Camille Martin"');
+    expect(html).toContain("<p>page</p>");
+    expect(server.client?.calls.map((call) => call.route)).toContain("GET /tasks");
+    const settled = await Promise.race([
+      server.running?.then(() => "answered"),
+      new Promise((resolve) => setTimeout(resolve, 50, "pending")),
+    ]);
+    expect(settled).toBe("pending");
+  });
+
+  it("asks no task without a session, and hands the tracker none when the API refuses the list", async () => {
     request("fr", { "GET /session": UNAUTHORIZED, "GET /tasks": "tasks_running" });
     expect(await page()).toContain("<p>page</p>");
-    expect(server.running).toEqual([]);
+    expect(server.running).toBeUndefined();
+    expect(server.client?.calls.map((call) => call.route)).not.toContain("GET /tasks");
     server.cached.clear();
     request("fr", { "GET /tasks": UNAUTHORIZED });
     const html = await page();
     expect(html).toContain('aria-label="Compte de Camille Martin"');
-    expect(html).toContain("<p>page</p>");
-    expect(server.running).toEqual([]);
+    expect(await server.running).toEqual([]);
   });
 
   it("asks the installation once for a request whose browser leaves it the language", async () => {
@@ -233,7 +255,7 @@ describe("RootLayout", () => {
     await page();
     await generateMetadata();
     const routes = server.client?.calls.map((call) => call.route);
-    expect(routes).toEqual(["GET /session", "GET /tasks", "GET /installation"]);
+    expect(routes).toEqual(["GET /session", "GET /installation", "GET /tasks"]);
   });
 
   it("titles the document with the product, from the catalogue", async () => {

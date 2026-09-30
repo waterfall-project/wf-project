@@ -11,12 +11,12 @@
  * keeps it, and nothing of it blocks the screen — no dialog, no control disabled. A full
  * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`),
  * with what the user named them after; and, for a session, the tracker follows the tasks of its
- * user that still ran as the document was read (`listBackgroundTasks`, read by the root layout),
- * and those the API lists each time the tab shows again, which it did not follow — started from
- * another tab, another workstation —, without their command: failed, such a task is run again
- * from the screen of its object. A list the API does
- * not give leaves the tracker as it is. A task started elsewhere that ended between two readings
- * is not found, nor announced.
+ * user that still run, which the root layout reads and streams apart from the document
+ * (`listBackgroundTasks`), and those the API lists each time the tab shows again, which it did
+ * not follow — started from another tab, another workstation —, without their command: failed,
+ * such a task is run again from the screen of its object. A list the API does not give leaves
+ * the tracker as it is. A task started elsewhere that ended between two readings is not found,
+ * nor announced.
  *
  * Its panel lies under the bar of the shell, in the flow of the page, and a button of the bar
  * shows or hides it, with the number of the tasks followed. Until the user decides, it shows
@@ -32,6 +32,8 @@ import {
   createContext,
   type Dispatch,
   type ReactNode,
+  Suspense,
+  use,
   useCallback,
   useContext,
   useEffect,
@@ -107,19 +109,34 @@ export interface TaskTrackerProps {
   /** Whether a session is open: its user's tasks that still run are read again as the tab shows. */
   readonly signedIn?: boolean;
   /**
-   * The tasks of the user that ran as the document was read, which the server of Next read
-   * alongside the session (`listBackgroundTasks`): the shell dispatches no server action as it
-   * mounts.
+   * The tasks of the user that still run, which the server of Next reads apart from the document
+   * (`listBackgroundTasks`), and streams: the shell dispatches no server action as it mounts, and
+   * nothing of the page waits for them. None without a session.
    */
-  readonly running?: readonly BackgroundTask[] | undefined;
+  readonly running?: Promise<readonly BackgroundTask[]> | undefined;
   readonly children: ReactNode;
 }
 
-/** No task read with the document. */
-const NO_TASK: readonly BackgroundTask[] = [];
+/**
+ * Follow the tasks of the user the server streams, once they come: nothing is rendered, and
+ * nothing waits for them but this (`Suspense`).
+ */
+function StreamedTasks({
+  running,
+  dispatch,
+}: {
+  readonly running: Promise<readonly BackgroundTask[]>;
+  readonly dispatch: Dispatch<TrackingEvent>;
+}) {
+  const tasks = use(running);
+  useEffect(() => {
+    dispatch({ type: "found", tasks });
+  }, [tasks, dispatch]);
+  return null;
+}
 
 /** Follow the background tasks the screens within it start, and those of its user that run. */
-export function TaskTracker({ signedIn = false, running = NO_TASK, children }: TaskTrackerProps) {
+export function TaskTracker({ signedIn = false, running, children }: TaskTrackerProps) {
   const [state, dispatch] = useReducer(tracking, NOTHING_TRACKED);
   // Whether the user showed or hid the panel; `undefined` while it follows the tasks.
   const [shown, setShown] = useState<boolean>();
@@ -130,14 +147,17 @@ export function TaskTracker({ signedIn = false, running = NO_TASK, children }: T
   useEffect(() => {
     dispatch({ type: "restore", tasks: restoreTasks() });
   }, []);
-  // The tasks of the user that still ran as the document was read, followed after those the tab
-  // kept — a data of the page, read on the server, rather than a server action as the shell
-  // mounts —; and again, read by a server action, each time the tab shows once more — the user
-  // may have started one from another tab meanwhile: what the API does not give, refused or out
-  // of reach, the tracker does without.
-  useEffect(() => {
-    dispatch({ type: "found", tasks: running });
-  }, [running]);
+  // The tasks of the user that still run, followed once those the tab kept are back, as the
+  // server streams them (`StreamedTasks`) — a data of the page, read on the server, rather than a
+  // server action as the shell mounts —; and again, read by a server action, each time the tab
+  // shows once more — the user may have started one from another tab meanwhile: what the API
+  // does not give, refused or out of reach, the tracker does without.
+  const streamed =
+    state.restored && running !== undefined ? (
+      <Suspense fallback={null}>
+        <StreamedTasks running={running} dispatch={dispatch} />
+      </Suspense>
+    ) : null;
   useEffect(() => {
     if (!signedIn) {
       return undefined;
@@ -186,7 +206,10 @@ export function TaskTracker({ signedIn = false, running = NO_TASK, children }: T
   );
   return (
     <TrackContext value={commands}>
-      <StateContext value={value}>{children}</StateContext>
+      <StateContext value={value}>
+        {children}
+        {streamed}
+      </StateContext>
     </TrackContext>
   );
 }

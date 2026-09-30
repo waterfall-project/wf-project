@@ -330,6 +330,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   // Only a header writes it; a column shown or widened sends it back as it is.
   const keptSort = useRef(preferences?.sort);
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
+  // The settings as they are now, which a preference written later reads: kept at each change.
+  const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
   const scroller = useRef<HTMLDivElement>(null);
   const rowHeight = ROW_REM * useRootFontSize();
@@ -347,19 +349,16 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     asked.current = { from, query: href.split("?")[1] ?? "" };
     router.push(href, { scroll: false });
   };
-  // The preference of the last sort asked, written once the page shows what the address asked:
-  // Next carries a server action in the state of its router, so that a navigation is not shown
-  // before the actions dispatched after it have answered — writing the preference at the click
-  // would hold the sort back by a round trip to the API, and by every action queued before it.
-  const sortToRecord = useRef<GridPreferences>(undefined);
-  const { recordNow } = writer;
+  // The preference of the last sort asked is written once the page shows what the address asked,
+  // with the settings of then — a width changed meanwhile included: Next carries a server action
+  // in the state of its router, so that a navigation is not shown before the actions dispatched
+  // after it have answered — writing the preference at the click would hold the sort back by a
+  // round trip to the API, and by every action queued before it. Left, hidden or gone before,
+  // the page writes it as it writes what waits.
+  const { shown } = writer;
   useEffect(() => {
-    const recorded = sortToRecord.current;
-    if (recorded !== undefined) {
-      sortToRecord.current = undefined;
-      recordNow(recorded);
-    }
-  }, [query, recordNow]);
+    shown();
+  }, [query, shown]);
   // A sort or a search changes the address only: the server reads it, and answers anew. A sort
   // navigates at once, and its preference is written once it is shown: the address carries it —
   // a sort lifted included —, so the page never waits for the preference, nor reads it for it.
@@ -369,7 +368,9 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       request((query) => sortHref(pathname, query, next));
     });
     keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
-    sortToRecord.current = recordedPreferences(preferences, settings, keptSort.current);
+    writer.recordShown(() =>
+      recordedPreferences(preferences, currentSettings.current, keptSort.current),
+    );
   };
   const search = (text: string) => {
     writer.flush();
@@ -385,6 +386,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     settings,
     onSettings: (next) => {
       setSettings(next);
+      currentSettings.current = next;
       writer.record(recordedPreferences(preferences, next, keptSort.current));
     },
   });
