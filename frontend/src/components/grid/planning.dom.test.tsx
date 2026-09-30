@@ -10,6 +10,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
+import { estimateReference } from "@/test/reference";
 
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID } from "./estimate";
@@ -113,6 +114,7 @@ describe("the grids of the planning and of the estimate", () => {
           preferences={undefined}
         />
         <EstimateGrid
+          reference={estimateReference()}
           editable
           nodes={estimate}
           structure={STRUCTURE}

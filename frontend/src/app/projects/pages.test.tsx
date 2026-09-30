@@ -158,6 +158,8 @@ const EXAMPLE_BY_END = {
     "GET /projects/{project_id}/estimate-indicators/missing-rates",
     "missing_rates_none",
   ],
+  "/cost-categories": ["GET /reference/cost-categories", "volume/cost_categories"],
+  "/resource-roles": ["GET /reference/resource-roles", "resource_roles"],
 } as const satisfies Readonly<Record<string, CitedRead>>;
 const READ_REVISION = [
   "GET /projects/{project_id}/revisions/{revision_id}",
@@ -230,6 +232,8 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": "nodes",
     "GET /projects/{project_id}/estimate-indicators": "estimate_indicators",
     "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates_none",
+    "GET /reference/cost-categories": "volume/cost_categories",
+    "GET /reference/resource-roles": "resource_roles",
   };
 });
 
@@ -362,18 +366,36 @@ describe("the witness path", () => {
     expect(html).toContain('<col style="width:400px"/>');
   });
 
-  it("opens the grid of an open revision to entry, and keeps that of a marked one read only", async () => {
+  it("names the category and the role of each line by the reference data, and opens the grid to entry when the revision allows it", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    renderToStaticMarkup(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
-    expect(grids.estimate.at(-1)?.editable).toBe(true);
+    const html = renderToStaticMarkup(
+      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+    );
+    // Deactivated ones included: a line keeps the category it was given.
+    expect(callOf("/cost-categories")?.query.get("include_inactive")).toBe("true");
+    expect(callOf("/resource-roles")?.query.get("include_inactive")).toBe("true");
+    const [props] = grids.estimate;
+    expect(props?.editable).toBe(true);
+    expect(props?.reference.roles).toEqual([
+      { id: "01926f3a-7c00-7000-8000-000000000451", label: "Ingénieur électricien" },
+      { id: "01926f3a-7c00-7000-8000-000000000452", label: "Technicien de mise en service" },
+      { id: "01926f3a-7c00-7000-8000-000000000453", label: "Automaticien" },
+    ]);
+    expect(props?.reference.categories).toHaveLength(200);
+    // The line of the witness structure: subcontracting, and no role.
+    expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
+  });
+
+  it("keeps the grid of a marked revision read only", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
     };
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const html = renderToStaticMarkup(
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
-    expect(grids.estimate.at(-1)?.editable).toBe(false);
+    expect(grids.estimate[0]?.editable).toBe(false);
     expect(html).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
   });
 

@@ -15,13 +15,13 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 
-// Number, label, quantity, hours, unit disbursement, budgeted, re-estimated.
+// Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
 const LABEL = 1;
-const QUANTITY = 2;
-const HOURS = 3;
-const DISBURSEMENT = 4;
-const BUDGETED = 5;
-const REESTIMATED = 6;
+const QUANTITY = 4;
+const HOURS = 5;
+const DISBURSEMENT = 6;
+const BUDGETED = 7;
+const REESTIMATED = 8;
 
 /** A cell of the row at a position among the rows of the answer, by the position of its column. */
 function cellAt(grid: Locator, row: number, column: number): Locator {
@@ -69,7 +69,7 @@ test("stops on the computed cells without entering them, and refuses a try", asy
   await expect(cellAt(grid, 21, LABEL)).toBeInViewport();
 
   // The arrows stop on the quantity the server computes, which opens no entry, and go past it.
-  await page.keyboard.press("ArrowRight");
+  await press(page, "ArrowRight", "ArrowRight", "ArrowRight");
   const quantity = cellAt(grid, 21, QUANTITY);
   await expect(quantity).toBeFocused();
   await expect(quantity).toHaveAttribute("aria-readonly", "true");

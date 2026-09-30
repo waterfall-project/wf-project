@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { components } from "@/api/generated/schema";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
+import { estimateReference } from "@/test/reference";
 
 import type { GridConfig } from "./columns";
 import { ESTIMATE_FIELDS, estimateGrid } from "./estimate";
@@ -183,9 +184,9 @@ function unwritten(): never {
   throw new Error("nothing is written here");
 }
 
-// The grid of the estimate of a revision open to entry: its cells entered, which read the label
-// and the figures of a line.
-const ENTERED_ESTIMATE = estimateGrid({ line: unwritten });
+// The grid of the estimate of a revision open to entry: its categories and roles named, its cells
+// entered, which read the label, the category, the role and the figures of a line.
+const ENTERED_ESTIMATE = estimateGrid(estimateReference(), { line: unwritten, task: unwritten });
 
 holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.6);
 holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.47);

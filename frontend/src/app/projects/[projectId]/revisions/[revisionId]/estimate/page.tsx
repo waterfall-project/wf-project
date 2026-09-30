@@ -8,11 +8,12 @@
  * and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer, with the
  * totals of the answer: a header clicked or a search entered changes the address, and this page
  * reads anew (`grid-screen.ts`). The
- * indicators and the rates are read alongside the grid. The grid is entered from the keyboard
- * when the revision is open and lists `edit_estimate` available to the caller (WF-IHM-0040). A
- * refused read of the rates is thrown
- * for the pages of the shell to say, as the grid's; indicators refused as expected are said
- * unavailable, the rest of the screen shown: the screen never shows a figure it did not read.
+ * indicators and the rates are read alongside the grid, and so are the categories and the roles
+ * the lines are named by and chosen from (US-0120). The grid is entered from the keyboard when the
+ * revision lists `edit_estimate` available to the caller (WF-IHM-0040). A refused read of the rates
+ * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
+ * refused as expected are said unavailable, the rest of the screen shown: the screen never shows
+ * a figure it did not read.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -22,7 +23,12 @@ import { isGatewayFailure, readOrFail, refusalOf } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
-import { ESTIMATE_FIELDS, ESTIMATE_GRID, ESTIMATE_SORT_COLUMNS } from "@/components/grid/estimate";
+import {
+  ESTIMATE_FIELDS,
+  ESTIMATE_GRID,
+  ESTIMATE_SORT_COLUMNS,
+  type EstimateReference,
+} from "@/components/grid/estimate";
 import { EstimateGrid } from "@/components/grid/estimate-grid";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -114,6 +120,31 @@ async function readEstimateFigures(at: GridAddress) {
   ]);
 }
 
+/**
+ * The categories and the roles the lines of the estimate are named by, deactivated ones included —
+ * a line keeps the category it was given (WF-REF-0150) —, as the grid reads them: an identifier
+ * and a name, nothing more crossing to the browser.
+ */
+async function readReference(): Promise<EstimateReference> {
+  const client = serverClient();
+  const query = { include_inactive: true };
+  const [categories, roles] = await Promise.all([
+    readOrFail("listCostCategories", () =>
+      client.GET("/reference/cost-categories", { params: { query } }),
+    ),
+    readOrFail("listResourceRoles", () =>
+      client.GET("/reference/resource-roles", { params: { query } }),
+    ),
+  ]);
+  return {
+    categories: categories.map((category) => ({
+      id: category.cost_category_id,
+      label: category.label,
+    })),
+    roles: roles.map((role) => ({ id: role.resource_role_id, label: role.label })),
+  };
+}
+
 /** The title of the grid, and what it holds: the structure, its tasks and lines retained. */
 function EstimateHeader({
   label,
@@ -147,13 +178,14 @@ export default async function EstimatePage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "estimate");
-  const [screen, [indicators, missingRates], session] = await Promise.all([
+  const [screen, [indicators, missingRates], reference, session] = await Promise.all([
     readGridScreen(at, {
       key: ESTIMATE_GRID.key,
       sortable: ESTIMATE_SORT_COLUMNS,
       fields: ESTIMATE_FIELDS,
     }),
     readEstimateFigures(at),
+    readReference(),
     requestSession(),
   ]);
   return (
@@ -169,6 +201,7 @@ export default async function EstimatePage({
         <EstimateGrid
           nodes={screen.nodes}
           structure={screen.structure}
+          reference={reference}
           editable={screen.reading.edits.has("edit_estimate")}
           query={screen.query}
           preferences={screen.preferences}

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What an entry of a cell reads and shows (WF-IHM-0040): the text it starts from, the value it
- * validates — a number in the format of the language, as the exact decimal of the contract —,
+ * validates — a number in the format of the language, as the exact decimal of the contract, the
+ * identifier of a choice —,
  * and what the cell shows of it until the server answers. Never through a float (WF-DAT-0100).
  */
 import { editableDecimal, formatDecimal, formatMoney, parseDecimal } from "@/i18n/format";
@@ -18,7 +19,8 @@ export type EntryProblem = "required" | "tooLong" | "notANumber" | "twoDecimals"
 
 /**
  * The value an entry validates, as the contract writes it — a text as typed, a number as the
- * exact decimal of the contract, `null` for a cell emptied —, or why it is not.
+ * exact decimal of the contract, the identifier chosen, `null` for a cell emptied —, or why it is
+ * not.
  */
 export function parsedEntry(
   kind: EntryKind,
@@ -30,6 +32,12 @@ export function parsedEntry(
       return { problem: "required" };
     }
     return text.length > kind.maxLength ? { problem: "tooLong" } : { value: text };
+  }
+  if (kind.type === "choice") {
+    if (text === "") {
+      return kind.nullable ? { value: null } : { problem: "required" };
+    }
+    return { value: text };
   }
   if (text.trim() === "") {
     return kind.nullable ? { value: null } : { problem: "required" };
@@ -54,6 +62,8 @@ export function shownEntry(kind: EntryKind, value: string | null, locale: Locale
       return formatDecimal(value, locale);
     case "money":
       return formatMoney(value, locale);
+    case "choice":
+      return kind.choices.find((choice) => choice.id === value)?.label ?? "";
     case "text":
       return value;
   }
@@ -61,7 +71,7 @@ export function shownEntry(kind: EntryKind, value: string | null, locale: Locale
 
 /**
  * The text an entry starts from: the character typed, or the value of the cell as one types it —
- * a number with the decimal separator of the language.
+ * a number with the decimal separator of the language. A list starts from the choice made.
  */
 export function startingText(
   kind: EntryKind,
@@ -69,11 +79,11 @@ export function startingText(
   typed: string | undefined,
   locale: Locale,
 ): string {
-  if (typed !== undefined) {
+  if (typed !== undefined && kind.type !== "choice") {
     return typed;
   }
   if (value === null || value === undefined) {
     return "";
   }
-  return kind.type === "text" ? value : editableDecimal(value, locale);
+  return kind.type === "decimal" || kind.type === "money" ? editableDecimal(value, locale) : value;
 }

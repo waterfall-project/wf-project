@@ -403,7 +403,12 @@ async function measuresTheSecond(page: Page, screen: GridScreen, from: GridScree
   for (const shown of [
     grid.getByRole("columnheader", { name: "Libellé" }),
     grid.getByRole("gridcell", { name: screen.totals }),
-    grid.getByRole("row", { name: /^1 .*Études/ }),
+    // The label of the first row: the row itself, with the category and the role (US-0120), is
+    // wider than the grid at this width, which clips it sideways.
+    grid
+      .getByRole("row", { name: /^1 .*Études/ })
+      .getByRole("gridcell")
+      .nth(1),
   ]) {
     await expect(shown).toBeInViewport({ ratio: 1 });
   }

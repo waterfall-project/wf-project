@@ -37,9 +37,9 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   const grid = page.getByRole("grid", { name: "Grille de devis" });
   const labour = grid.getByRole("row", { name: /^4 .*Heures d'ingénierie/ });
   await expect(labour.getByRole("img", { name: "Ligne de main-d’œuvre" })).toBeVisible();
-  // Number, label, quantity, hours, unit disbursement, budgeted, re-estimated.
-  const hours = cellOf(labour, 3);
-  const amount = cellOf(labour, 5);
+  // Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+  const hours = cellOf(labour, 5);
+  const amount = cellOf(labour, 7);
 
   // The effort is entered: its figure alone. The amount is computed: marked Σ, named so, on
   // another background — the mark reads without the colour.
