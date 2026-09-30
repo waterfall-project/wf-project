@@ -14,6 +14,10 @@
  *
  * The height of a row is given in pixels by the grid, from the size of the root font: the rows
  * are sized in `rem`, so a font enlarged by the user enlarges them, and the window with them.
+ *
+ * What sticks to the edges of the element that scrolls — the header above the rows, the totals
+ * below — is given too: the rows start below the header, and a row brought into view
+ * (`scrollToIndex`, the active cell of the keyboard) comes out from under both.
  */
 "use client";
 
@@ -28,13 +32,18 @@ import {
   Virtualizer,
   type VirtualizerOptions,
 } from "@tanstack/virtual-core";
-import { type RefObject, useLayoutEffect, useState, useSyncExternalStore } from "react";
+import { type RefObject, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 /** The rows in view, and the heights of the rows out of view before and after them. */
 export interface RowWindow {
   readonly items: readonly VirtualItem[];
   readonly before: number;
   readonly after: number;
+}
+
+/** The rows in view, and how to bring a row into view, out from under the header and totals. */
+export interface RowWindowControl extends RowWindow {
+  readonly scrollToIndex: (index: number) => void;
 }
 
 /** The identity of a row. */
@@ -48,6 +57,8 @@ export interface RowWindowOptions {
   readonly scroller: RefObject<HTMLElement | null>;
   /** The height of a row, in pixels, the same for every one. */
   readonly rowHeight: number;
+  /** The heights, in pixels, of what sticks above the rows and below them: header, totals. */
+  readonly edges: { readonly start: number; readonly end: number };
   /** The rows rendered beyond those in view, at each end. */
   readonly overscan: number;
   /** The size assumed before the element is measured — on the server, among others. */
@@ -58,13 +69,17 @@ export interface RowWindowOptions {
 
 type RowVirtualizer = Virtualizer<HTMLElement, HTMLElement>;
 
-/** The window of a virtualizer. */
+/**
+ * The window of a virtualizer, whose rows start below the header (`scrollMargin`): the heights
+ * before and after the rows in view are counted from the first row.
+ */
 function windowOf(virtualizer: RowVirtualizer): RowWindow {
   const items = virtualizer.getVirtualItems();
+  const margin = virtualizer.options.scrollMargin;
   return {
     items,
-    before: items[0]?.start ?? 0,
-    after: virtualizer.getTotalSize() - (items.at(-1)?.end ?? 0),
+    before: (items[0]?.start ?? margin) - margin,
+    after: virtualizer.getTotalSize() - ((items.at(-1)?.end ?? margin) - margin),
   };
 }
 
@@ -118,6 +133,11 @@ class RowWindowStore {
 
   readonly getSnapshot = (): RowWindow => this.snapshot;
 
+  /** Bring a row into view, as little as it takes, clear of what sticks at the edges. */
+  readonly scrollToIndex = (index: number): void => {
+    this.virtualizer.scrollToIndex(index, { align: "auto" });
+  };
+
   /** A function that keys the rows by the `keyOf` of the last render. */
   private keyer(): (index: number) => RowKey {
     return (index) => this.options.keyOf(index);
@@ -160,6 +180,9 @@ class RowWindowStore {
       overscan: this.options.overscan,
       initialRect: this.options.initialRect,
       initialOffset: this.initialOffset,
+      scrollMargin: this.options.edges.start,
+      scrollPaddingStart: this.options.edges.start,
+      scrollPaddingEnd: this.options.edges.end,
       getItemKey: this.itemKey,
       observeElementRect,
       observeElementOffset,
@@ -169,15 +192,19 @@ class RowWindowStore {
   }
 }
 
-/** The rows of a grid in view, as it scrolls and as it is resized. */
-export function useRowWindow(options: RowWindowOptions): RowWindow {
+/**
+ * The rows of a grid in view, as it scrolls and as it is resized, and how to bring one into view:
+ * as little as it takes, clear of the header and of the totals.
+ */
+export function useRowWindow(options: RowWindowOptions): RowWindowControl {
   const [store] = useState(() => new RowWindowStore(options));
   store.update(options);
   useLayoutEffect(() => store.virtualizer._didMount(), [store]);
   useLayoutEffect(() => {
     store.attach();
   });
-  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const shown = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  return useMemo(() => ({ ...shown, scrollToIndex: store.scrollToIndex }), [shown, store]);
 }
 
 /** The size of the root font before the browser tells it: the default of the browsers. */
