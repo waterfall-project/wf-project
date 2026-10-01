@@ -9,7 +9,9 @@ import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
+import { estimateReference } from "@/test/reference";
 
+import { ROW_REM } from "./dense-grid";
 import { EstimateGrid } from "./estimate-grid";
 import { triesEntry } from "./grid-keyboard";
 import type { NodeList, NodeSortColumn } from "./nodes";
@@ -45,6 +47,8 @@ const DISBURSEMENT = 3;
 const PROVISION = 4;
 const MILESTONE = 5;
 const estimate = example("nodes_estimate") as NodeList;
+// The height of a row at the default size of the root font.
+const ROW_HEIGHT = ROW_REM * 16;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(): FakeClient {
@@ -53,13 +57,41 @@ function serve(): FakeClient {
   return client;
 }
 
+/**
+ * A thousand rows: those of the estimate, then its line of labour again and again — the grid
+ * renders a screenful and a margin of them.
+ */
+function thousandRows(): NodeList {
+  const labour = estimate.items[LABOUR];
+  if (labour === undefined) {
+    throw new Error("the example nodes_estimate has changed");
+  }
+  const copies = Array.from({ length: 1000 - estimate.items.length }, (_, index) => ({
+    ...labour,
+    node_id: `01926f3a-7c00-7000-8000-${String(900000 + index).padStart(12, "0")}`,
+    row_number: estimate.items.length + index + 1,
+  }));
+  return { ...estimate, items: [...estimate.items, ...copies] };
+}
+
+/** Scroll the grid to a row, as the wheel does. */
+function scrollTo(row: number): void {
+  const scroller = screen.getByRole("grid").parentElement;
+  if (scroller !== null) {
+    scroller.scrollTop = row * ROW_HEIGHT;
+    fireEvent.scroll(scroller);
+  }
+}
+
 /** Render the grid of the estimate, in French. */
-function renderGrid() {
+function renderGrid(nodes: NodeList = estimate) {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
+        reference={estimateReference()}
         editable
-        nodes={estimate}
+        tasksEditable
+        nodes={nodes}
         structure={STRUCTURE}
         query={NO_QUERY}
         preferences={undefined}
@@ -68,11 +100,16 @@ function renderGrid() {
   );
 }
 
-/** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
-function cell(row: number, column: string): HTMLElement {
-  const found = screen
+/** The cell of a row, by its index among the rows of the answer, and of a column, if rendered. */
+function queryCell(row: number, column: string): HTMLElement | null {
+  return screen
     .getByRole("grid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
+}
+
+/** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
+function cell(row: number, column: string): HTMLElement {
+  const found = queryCell(row, column);
   if (found === null) {
     throw new Error(`no cell ${column} in the row ${row.toString()}`);
   }
@@ -100,7 +137,7 @@ describe("the keyboard of a grid", () => {
     const stops = screen.getByRole("grid").querySelectorAll('td[tabindex="0"]');
     expect([...stops]).toEqual([cell(0, "label")]);
     cell(0, "label").focus();
-    await userEvent.keyboard("{ArrowDown}{ArrowRight}{ArrowRight}");
+    await userEvent.keyboard("{ArrowDown}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}");
     expect(cell(1, "hours")).toHaveFocus();
     expect(cell(1, "hours")).toHaveAttribute("tabindex", "0");
     expect(cell(0, "label")).toHaveAttribute("tabindex", "-1");
@@ -126,7 +163,7 @@ describe("the keyboard of a grid", () => {
   it("stops on the computed cells without entering them, and refuses a try", async () => {
     serve();
     renderGrid();
-    cell(PROVISION, "label").focus();
+    cell(PROVISION, "resource_role").focus();
     // The arrows stop on the quantity of the provision, which the server computes: read only,
     // it opens nothing to type, and the arrows go on past it.
     await userEvent.keyboard("{ArrowRight}");
@@ -200,6 +237,46 @@ describe("the keyboard of a grid", () => {
     expect(cell(PROVISION, "budgeted_amount")).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(cell(PROVISION, "budgeted_amount"));
     expect(refusal()).not.toBeNull();
+  });
+});
+
+describe("the keyboard of a grid of a thousand rows", () => {
+  it("keeps the active cell rendered, and the focus in it, however far the grid scrolls", async () => {
+    serve();
+    renderGrid(thousandRows());
+    cell(LABOUR, "label").focus();
+    scrollTo(900);
+    await vi.waitFor(() => {
+      expect(queryCell(900, "label")).not.toBeNull();
+    });
+    // Its row stays, alone before those in view, the space of the others around it.
+    expect(queryCell(DISBURSEMENT, "label")).toBeNull();
+    expect(cell(LABOUR, "label")).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    scrollTo(0);
+    await vi.waitFor(() => {
+      expect(queryCell(DISBURSEMENT, "label")).toHaveFocus();
+    });
+  });
+
+  it("closes a refusal whose row is scrolled out of view, and never opens it again by itself", async () => {
+    const client = serve();
+    renderGrid(thousandRows());
+    cell(LABOUR, "budgeted_amount").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByRole("dialog", { name: "Valeur calculée" })).toBeInTheDocument();
+    scrollTo(900);
+    await vi.waitFor(() => {
+      expect(refusal()).toBeNull();
+    });
+    expect(cell(LABOUR, "budgeted_amount")).toHaveFocus();
+    scrollTo(0);
+    await vi.waitFor(() => {
+      expect(queryCell(DISBURSEMENT, "label")).not.toBeNull();
+    });
+    expect(refusal()).toBeNull();
+    expect(cell(LABOUR, "budgeted_amount")).toHaveAttribute("aria-expanded", "false");
+    expect(client.calls.filter((call) => call.route === DEPENDENCIES)).toHaveLength(1);
   });
 });
 

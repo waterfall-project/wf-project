@@ -1,0 +1,29 @@
+{
+  "summary": "La tâche « Câblage des armoires » renommée « Câblage et repérage des armoires » ; une version de plus (WF-PLA-0130).",
+  "value": {
+    "node_id": "01926f3a-7c00-7000-8000-000000000522",
+    "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
+    "kind": "task",
+    "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+    "position": 0,
+    "row_number": 2,
+    "level": 2,
+    "lock_version": 2,
+    "task": {
+      "label": "Câblage et repérage des armoires",
+      "scheduling_mode": "automatic",
+      "duration_days": 42,
+      "start_date": "2026-05-04",
+      "finish_date": "2026-06-30",
+      "progress": "not_started",
+      "is_summary": false,
+      "is_milestone": false,
+      "budgeted_amount": "2734.56",
+      "reestimated_amount": "2734.56"
+    },
+    "computed_fields": [
+      "task.start_date",
+      "task.finish_date"
+    ]
+  }
+}

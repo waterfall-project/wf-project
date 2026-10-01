@@ -17,6 +17,7 @@ import {
   type Problem,
   unreachable,
 } from "@/test/fixtures";
+import { estimateReference } from "@/test/reference";
 
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID } from "./estimate";
@@ -88,7 +89,9 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       {grid === "estimate" ? (
         <EstimateGrid
+          reference={estimateReference()}
           editable
+          tasksEditable
           nodes={nodes ?? estimate}
           structure={STRUCTURE}
           query={NO_QUERY}
@@ -158,12 +161,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Number, label, quantity, hours, unit disbursement, budgeted, re-estimated.
-const QUANTITY = 2;
-const HOURS = 3;
-const DISBURSEMENT = 4;
-const BUDGETED = 5;
-const REESTIMATED = 6;
+// Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+const QUANTITY = 4;
+const HOURS = 5;
+const DISBURSEMENT = 6;
+const BUDGETED = 7;
+const REESTIMATED = 8;
 // Number, label, mode, duration, start, finish, progress, float, predecessors.
 const DURATION = 3;
 const START = 4;

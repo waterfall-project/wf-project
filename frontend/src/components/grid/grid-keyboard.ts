@@ -58,6 +58,8 @@ export interface CellDraft {
   readonly key: string;
   readonly column: string;
   readonly text: string;
+  /** The character typed that opened the entry, if one did: a list goes on searching from it. */
+  readonly typed: string | undefined;
   readonly problem: EntryProblem | undefined;
 }
 
@@ -334,7 +336,8 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     }
     const { kind, value } = cell.entry;
     const text = startingText(kind, value(cell.row), typed, locale);
-    setDraft({ key: config.rowKey(cell.row), column: at.column, text, problem: undefined });
+    const key = config.rowKey(cell.row);
+    setDraft({ key, column: at.column, text, typed, problem: undefined });
     return true;
   };
   /** Where the cell entered is among the rows, found by the identity of its row. */

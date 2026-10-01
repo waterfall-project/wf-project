@@ -158,12 +158,27 @@ const EXAMPLE_BY_END = {
     "GET /projects/{project_id}/estimate-indicators/missing-rates",
     "missing_rates_none",
   ],
+  "/cost-categories": ["GET /reference/cost-categories", "volume/cost_categories"],
+  "/resource-roles": ["GET /reference/resource-roles", "resource_roles"],
 } as const satisfies Readonly<Record<string, CitedRead>>;
 const READ_REVISION = [
   "GET /projects/{project_id}/revisions/{revision_id}",
   "revision",
 ] as const satisfies CitedRead;
 const READ_PROJECT = ["GET /projects/{project_id}", "project"] as const satisfies CitedRead;
+
+/** The read of a revision, whose example a test may change. */
+const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
+
+/** The estimate of the witness revision, some answers changed, and what its grid was handed. */
+async function estimateWith(answers: FakeAnswers = {}) {
+  server.answers = { ...server.answers, ...answers };
+  const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+  const html = renderToStaticMarkup(
+    inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
+  );
+  return { html, grid: grids.estimate[0] };
+}
 
 /** A failure of the service, in its envelope, with the correlation identifier of the request. */
 function failure(correlation: string): Response {
@@ -230,6 +245,8 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": "nodes",
     "GET /projects/{project_id}/estimate-indicators": "estimate_indicators",
     "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates_none",
+    "GET /reference/cost-categories": "volume/cost_categories",
+    "GET /reference/resource-roles": "resource_roles",
   };
 });
 
@@ -253,10 +270,7 @@ describe("the witness path", () => {
   });
 
   it("shows the grid of the estimate on the main structure, a row for each node, in the order of the answer", async () => {
-    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
+    const { html } = await estimateWith();
     expect(html).toContain(FILLED_SCREEN);
     expect(html).toMatch(
       /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Costing and estimate<\/h1>/,
@@ -307,15 +321,10 @@ describe("the witness path", () => {
   });
 
   it("shows the totals the server gave for the request, in the language of the interface", async () => {
-    server.answers = {
-      ...server.answers,
+    const { html } = await estimateWith({
       "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes":
         "nodes_estimate",
-    };
-    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
+    });
     expect(text(html)).toContain("Total — 3 tasks, 3 lines 12.5 2,734.56 2,734.56");
   });
 
@@ -352,37 +361,53 @@ describe("the witness path", () => {
   });
 
   it("hands the grid the settings of the account the session read", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
-    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
+    const { html } = await estimateWith({ "GET /session": "session_grid_settings" });
     // The quantity hidden, the label widened.
     expect(html).not.toContain(">Qty<");
     expect(html).toContain('<col style="width:400px"/>');
   });
 
-  it("opens the grid of an open revision to entry, and keeps that of a marked one read only", async () => {
-    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    renderToStaticMarkup(inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })));
-    expect(grids.estimate.at(-1)?.editable).toBe(true);
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
-    };
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
-    expect(grids.estimate.at(-1)?.editable).toBe(false);
+  it("names the category and the role of each line by the reference data, and opens the grid to entry when the revision allows it", async () => {
+    const { html, grid } = await estimateWith();
+    // Deactivated ones included, to name a line that bears one; the lists offer them no more.
+    expect(callOf("/cost-categories")?.query.get("include_inactive")).toBe("true");
+    expect(callOf("/resource-roles")?.query.get("include_inactive")).toBe("true");
+    expect(
+      grid?.reference.roles?.map(({ label, active }) => `${label}: ${String(active)}`),
+    ).toEqual([
+      "Ingénieur électricien: true",
+      "Technicien de mise en service: true",
+      "Automaticien: false",
+    ]);
+    expect(grid?.reference.categories).toHaveLength(200);
+    // The revision lists the planning too: the label of a task is entered as well.
+    expect([grid?.editable, grid?.tasksEditable]).toEqual([true, true]);
+    // The line of the witness structure: subcontracting, and no role.
+    expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
+  });
+
+  it("lets an estimator enter the lines, and not the label of a task, which is the planning's", async () => {
+    const { grid } = await estimateWith({ [REVISION_READ]: "revision_estimator" });
+    expect([grid?.editable, grid?.tasksEditable]).toEqual([true, false]);
+  });
+
+  it("shows the grid without naming the roles when the API does not let the caller read them", async () => {
+    const { html, grid } = await estimateWith({
+      "GET /reference/resource-roles": { problem: { code: "NOT_FOUND", status: 404 } },
+    });
+    expect(grid?.reference.roles).toBeUndefined();
+    expect(grid?.reference.categories).toHaveLength(200);
+    expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
+  });
+
+  it("keeps the grid of a marked revision read only", async () => {
+    const { html, grid } = await estimateWith({ [REVISION_READ]: "revision_marked" });
+    expect(grid?.editable).toBe(false);
     expect(html).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
   });
 
   it("sorts by the sort the account keeps for the grid when the address asks none, and by the address otherwise", async () => {
-    server.answers = { ...server.answers, "GET /session": "session_grid_settings" };
-    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const html = renderToStaticMarkup(
-      inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
-    );
+    const { html } = await estimateWith({ "GET /session": "session_grid_settings" });
     expect(nodesQuery()).toEqual({
       sort_by: "budgeted_amount",
       sort_order: "desc",
@@ -390,6 +415,7 @@ describe("the witness path", () => {
     expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Budgeted/);
 
     server.clients = [];
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     await EstimatePage({ params, searchParams: Promise.resolve({ sort_by: "label" }) });
     expect(nodesQuery()).toEqual({
       sort_by: "label",

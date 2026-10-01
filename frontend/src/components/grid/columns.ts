@@ -129,14 +129,30 @@ export interface ComputedCells<Row> {
 }
 
 /**
+ * A choice of the reference data: the identifier the contract writes, the name the grid shows,
+ * and whether it may still be chosen — a deactivated one stays readable (WF-REF-0150).
+ */
+export interface Choice {
+  readonly id: string;
+  readonly label: string;
+  readonly active: boolean;
+}
+
+/**
  * What a cell takes (WF-IHM-0040): a text, never blank, of `maxLength` characters at most, as the
- * contract bounds it; or a number in the format of the language, which travels as the exact
- * decimal of the contract — an amount keeps two decimals at most. A cell that may be emptied
- * (`nullable`) writes `null` then.
+ * contract bounds it; a number in the format of the language, which travels as the exact decimal
+ * of the contract — an amount keeps two decimals at most —; one of the choices of a list. A cell
+ * that may be emptied (`nullable`) writes `null` then.
  */
 export type EntryKind =
   | { readonly type: "text"; readonly maxLength: number }
-  | { readonly type: "decimal" | "money"; readonly nullable: boolean };
+  | { readonly type: "decimal" | "money"; readonly nullable: boolean }
+  | {
+      readonly type: "choice";
+      /** The choices, read by the entry alone: a function, never the list (défaut n° 14). */
+      readonly choices: () => readonly Choice[];
+      readonly nullable: boolean;
+    };
 
 /**
  * How the cells of a column are entered, row by row: which take an entry, what an entry starts
@@ -150,7 +166,7 @@ export interface CellEntry<Row> {
    * does not compute it here — a computed cell is traversed, and refuses the entry.
    */
   readonly in: (row: Row) => boolean;
-  /** The value of the contract an entry starts from. */
+  /** The value of the contract an entry starts from: the text, the decimal, the identifier. */
   readonly value: (row: Row) => CellValue;
   /** Write a value validated, `null` for a cell emptied, and give the row the server answers. */
   readonly write: (row: Row, value: string | null) => Promise<Outcome<Row>>;

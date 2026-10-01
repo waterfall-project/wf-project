@@ -124,6 +124,8 @@
     "columns": {
       "rowNumber": "N°",
       "label": "Libellé",
+      "category": "Catégorie",
+      "role": "Rôle",
       "quantity": "Qté",
       "hours": "Charge (h)",
       "unitDisbursement": "Débours unit.",
@@ -138,7 +140,9 @@
       "predecessors": "Prédécesseurs"
     },
     "computed": "Calculé",
+    "unknown": "Référence inconnue",
     "entry": {
+      "none": "Aucun",
       "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
       "required": "Cette cellule ne peut pas rester vide.",
       "tooLong": "{max} caractères au plus.",

@@ -8,11 +8,12 @@
  * and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer, with the
  * totals of the answer: a header clicked or a search entered changes the address, and this page
  * reads anew (`grid-screen.ts`). The
- * indicators and the rates are read alongside the grid. The grid is entered from the keyboard
- * when the revision is open and lists `edit_estimate` available to the caller (WF-IHM-0040). A
- * refused read of the rates is thrown
- * for the pages of the shell to say, as the grid's; indicators refused as expected are said
- * unavailable, the rest of the screen shown: the screen never shows a figure it did not read.
+ * indicators and the rates are read alongside the grid, and so are the categories and the roles
+ * the lines are named by and chosen from (US-0120). The grid is entered from the keyboard when the
+ * revision lists `edit_estimate` available to the caller (WF-IHM-0040). A refused read of the rates
+ * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
+ * refused as expected are said unavailable, the rest of the screen shown: the screen never shows
+ * a figure it did not read.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -22,7 +23,12 @@ import { isGatewayFailure, readOrFail, refusalOf } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
-import { ESTIMATE_FIELDS, ESTIMATE_GRID, ESTIMATE_SORT_COLUMNS } from "@/components/grid/estimate";
+import {
+  ESTIMATE_FIELDS,
+  ESTIMATE_GRID,
+  ESTIMATE_SORT_COLUMNS,
+  type EstimateReference,
+} from "@/components/grid/estimate";
 import { EstimateGrid } from "@/components/grid/estimate-grid";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
@@ -114,6 +120,62 @@ async function readEstimateFigures(at: GridAddress) {
   ]);
 }
 
+/**
+ * A list of the reference data the screen can do without: `undefined` when the API does not find
+ * it or refuses it — the roles are the reference's (`resource_settings`), which an estimator may
+ * not read —, the rest of the screen shown. Any other answer follows the rule of the reads: the
+ * API out of reach, a failure of the service, a lost session are thrown for the shell to say.
+ */
+async function readOptional<T>(
+  operation: string,
+  call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<T | undefined> {
+  const answer = await call();
+  const { ok, status } = answer.response;
+  if (ok) {
+    return answer.data;
+  }
+  if (status === 404 || status === 403) {
+    return undefined;
+  }
+  if (isGatewayFailure(answer.response, answer.error)) {
+    throw new Unreachable();
+  }
+  throw refusalOf(operation, status, answer.error);
+}
+
+/**
+ * The categories and the roles the lines of the estimate are named by, as the grid reads them —
+ * an identifier, a name, whether it may still be chosen, nothing more crossing to the browser.
+ * The deactivated ones are read too: a line may bear one, which it shows; the list of a cell
+ * offers the active ones alone (WF-REF-0150). A list the API refuses is none: its column is
+ * neither named nor entered, and the screen stays.
+ */
+async function readReference(): Promise<EstimateReference> {
+  const client = serverClient();
+  const query = { include_inactive: true };
+  const [categories, roles] = await Promise.all([
+    readOptional("listCostCategories", () =>
+      client.GET("/reference/cost-categories", { params: { query } }),
+    ),
+    readOptional("listResourceRoles", () =>
+      client.GET("/reference/resource-roles", { params: { query } }),
+    ),
+  ]);
+  return {
+    categories: categories?.map((category) => ({
+      id: category.cost_category_id,
+      label: category.label,
+      active: category.is_active,
+    })),
+    roles: roles?.map((role) => ({
+      id: role.resource_role_id,
+      label: role.label,
+      active: role.is_active,
+    })),
+  };
+}
+
 /** The title of the grid, and what it holds: the structure, its tasks and lines retained. */
 function EstimateHeader({
   label,
@@ -147,13 +209,14 @@ export default async function EstimatePage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "estimate");
-  const [screen, [indicators, missingRates], session] = await Promise.all([
+  const [screen, [indicators, missingRates], reference, session] = await Promise.all([
     readGridScreen(at, {
       key: ESTIMATE_GRID.key,
       sortable: ESTIMATE_SORT_COLUMNS,
       fields: ESTIMATE_FIELDS,
     }),
     readEstimateFigures(at),
+    readReference(),
     requestSession(),
   ]);
   return (
@@ -169,7 +232,9 @@ export default async function EstimatePage({
         <EstimateGrid
           nodes={screen.nodes}
           structure={screen.structure}
+          reference={reference}
           editable={screen.reading.edits.has("edit_estimate")}
+          tasksEditable={screen.reading.edits.has("edit_planning")}
           query={screen.query}
           preferences={screen.preferences}
         />

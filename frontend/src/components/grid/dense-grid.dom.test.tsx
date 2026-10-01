@@ -25,6 +25,7 @@ import {
   fakeClient,
   type FakeTiming,
 } from "@/test/fixtures";
+import { estimateReference } from "@/test/reference";
 
 import type { GridConfig } from "./columns";
 import { DenseGrid, ROW_REM } from "./dense-grid";
@@ -65,8 +66,6 @@ const STRUCTURE = {
 };
 // The height of a row at the default size of the root font, and of the element that scrolls,
 // as a browser would lay it out: twenty rows.
-const DEPENDENCIES =
-  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies";
 const ROW_HEIGHT = ROW_REM * 16;
 const VIEW = 20 * ROW_HEIGHT;
 
@@ -100,7 +99,9 @@ function renderGrid(
   const grid = (query: GridQuery<NodeSortColumn>) => (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <EstimateGrid
+        reference={estimateReference()}
         editable
+        tasksEditable
         nodes={nodes}
         structure={STRUCTURE}
         query={query}
@@ -222,6 +223,8 @@ describe("the dense grid, on a thousand rows", () => {
     expect(texts(header)).toEqual([
       "N°",
       "Libellé",
+      "Catégorie",
+      "Rôle",
       "Qté",
       "Charge (h)",
       "Débours unit.",
@@ -237,6 +240,8 @@ describe("the dense grid, on a thousand rows", () => {
     expect(texts(totals)).toEqual([
       "",
       "Total — 1 tâche, 999 lignes",
+      "",
+      "",
       "",
       "0",
       "",
@@ -258,54 +263,6 @@ describe("the dense grid, on a thousand rows", () => {
     expect(within(header ?? grid()).getByRole("columnheader", { name: "Libellé" })).toHaveStyle({
       left: "48px",
     });
-  });
-
-  it("keeps the active cell rendered, and the focus in it, however far the grid scrolls", async () => {
-    renderGrid(thousandRows());
-    const label = () => rowAt(3)?.querySelectorAll("td")[1];
-    act(() => {
-      label()?.focus();
-    });
-    expect(label()).toHaveFocus();
-    scroller().scrollTop = 900 * ROW_HEIGHT;
-    fireEvent.scroll(scroller());
-    await waitFor(() => {
-      expect(texts(rowAt(901)).slice(0, 2)).toEqual(["900", "Ligne 900"]);
-    });
-    // Its row stays, alone before those in view, the space of the others around it.
-    expect(rowAt(4)).toBeUndefined();
-    expect(label()).toHaveFocus();
-    expect(grid()).toContainElement(document.activeElement as HTMLElement);
-    await userEvent.keyboard("{ArrowDown}");
-    fireEvent.scroll(scroller());
-    await waitFor(() => {
-      expect(rowAt(4)?.querySelectorAll("td")[1]).toHaveFocus();
-    });
-  });
-
-  it("closes a refusal whose row is scrolled out of view, and never opens it again by itself", async () => {
-    const client = serve({ [PREFERENCES]: "preferences", [DEPENDENCIES]: "dependencies_labour" });
-    renderGrid(thousandRows());
-    const amount = () => rowAt(3)?.querySelectorAll("td")[5];
-    act(() => {
-      amount()?.focus();
-    });
-    await userEvent.keyboard("{Enter}");
-    expect(await screen.findByRole("dialog", { name: "Valeur calculée" })).toBeInTheDocument();
-    scroller().scrollTop = 900 * ROW_HEIGHT;
-    fireEvent.scroll(scroller());
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).toBeNull();
-    });
-    expect(amount()).toHaveFocus();
-    scroller().scrollTop = 0;
-    fireEvent.scroll(scroller());
-    await waitFor(() => {
-      expect(texts(rowAt(2)).slice(0, 2)).toEqual(["1", "Études"]);
-    });
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(amount()).toHaveAttribute("aria-expanded", "false");
-    expect(client.calls.filter((call) => call.route === DEPENDENCIES)).toHaveLength(1);
   });
 });
 
@@ -685,7 +642,7 @@ describe("the columns and their widths, a display preference of the account", ()
     handle.focus();
     await userEvent.keyboard("{ArrowRight}{ArrowRight}{ArrowLeft}{Home}");
     expect(handle).toHaveAttribute("aria-valuenow", "144");
-    expect(container.querySelectorAll("col")[5]).toHaveStyle({ width: "144px" });
+    expect(container.querySelectorAll("col")[7]).toHaveStyle({ width: "144px" });
     await waitFor(() => {
       expect(recorded(client)).toEqual([
         {
@@ -873,7 +830,7 @@ describe("a grid configured without its options", () => {
     // Without row numbers, the label is the first column: the caption of the totals is its.
     expect(texts(rowAt(6))[0]).toBe("—");
     // Every column may then be hidden.
-    expect(screen.getAllByRole("separator")).toHaveLength(6);
+    expect(screen.getAllByRole("separator")).toHaveLength(8);
   });
 
   it("sizes its rows by the root font, so that an enlarged font shifts no row", () => {
@@ -905,9 +862,29 @@ describe("the figures and the dates of a grid, in the language of the interface"
   it("shows the same amount « 1 234,56 » in French and « 1,234.56 » in English, and the same total of the project [WF-INTF-0180-A]", () => {
     const french = figures("fr", "Borniers");
     const english = figures("en", "Borniers");
-    // Number, label, quantity, hours, unit disbursement, budgeted, re-estimated.
-    expect(french.row).toEqual(["4", "Borniers", "1", "", "1 234,56", "1 234,56", "1 234,56"]);
-    expect(english.row).toEqual(["4", "Borniers", "1", "", "1,234.56", "1,234.56", "1,234.56"]);
+    // Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+    expect(french.row).toEqual([
+      "4",
+      "Borniers",
+      "Matériel électrique",
+      "",
+      "1",
+      "",
+      "1 234,56",
+      "1 234,56",
+      "1 234,56",
+    ]);
+    expect(english.row).toEqual([
+      "4",
+      "Borniers",
+      "Matériel électrique",
+      "",
+      "1",
+      "",
+      "1,234.56",
+      "1,234.56",
+      "1,234.56",
+    ]);
     // The total of the project is the one the server gave, 2734.56, in either language.
     expect(french.totals.slice(-2)).toEqual(["2 734,56", "2 734,56"]);
     expect(english.totals.slice(-2)).toEqual(["2,734.56", "2,734.56"]);

@@ -124,6 +124,8 @@
     "columns": {
       "rowNumber": "No.",
       "label": "Label",
+      "category": "Category",
+      "role": "Role",
       "quantity": "Qty",
       "hours": "Effort (h)",
       "unitDisbursement": "Unit disbursement",
@@ -138,7 +140,9 @@
       "predecessors": "Predecessors"
     },
     "computed": "Computed",
+    "unknown": "Unknown reference",
     "entry": {
+      "none": "None",
       "notANumber": "This is not a number: enter it as {example}.",
       "required": "This cell cannot be left empty.",
       "tooLong": "{max} characters at most.",

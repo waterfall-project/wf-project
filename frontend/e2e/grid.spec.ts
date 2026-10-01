@@ -85,7 +85,9 @@ test("scrolls through the thousand tasks and their lines, its header and its tot
     expect(await withinBox(grid(page), header), `header at ${position.toString()}`).toBe(true);
     expect(await withinBox(grid(page), totals), `totals at ${position.toString()}`).toBe(true);
   }
-  await expect(last).toBeInViewport({ ratio: 1 });
+  // Its label, pinned at the start: the row itself, with the category and the role (US-0120), is
+  // wider than the grid at this width, which clips it sideways.
+  await expect(last.getByRole("gridcell").nth(1)).toBeInViewport({ ratio: 1 });
   await expect(header).toBeInViewport({ ratio: 1 });
   await expect(totals).toBeInViewport({ ratio: 1 });
 });

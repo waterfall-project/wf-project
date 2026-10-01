@@ -180,6 +180,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+            examples:
+              witness: { $ref: ../../../fixtures/api/resource_roles.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:

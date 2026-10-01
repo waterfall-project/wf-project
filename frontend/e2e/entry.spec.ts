@@ -9,8 +9,9 @@ import { rowAt } from "./scroll";
 // (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py): row 4, a line of
 // labour, « Heures d'ingénierie », 33 hours; row 21, a provision, whose quantity and unit
 // disbursement the server computes. A cell validated is written by `updateEstimateLine`, whose
-// first example the fake back serves whatever was written: the line of row 4 entered —
-// « Heures de câblage », 2, 12,5 hours —, its re-estimated amount recalculated, 1 875,00. What the
+// first example the fake back serves whatever was written: the line of row 4, its label entered
+// « Heures de câblage », nothing else changed — the fake back keeps nothing of what it is sent,
+// so that each cell entered after it differs from the row answered, and is written. What the
 // grid does with another answer is proven on its own examples by the tests of the grid
 // (`entry.dom.test.tsx`).
 //
@@ -19,11 +20,13 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 
-// Number, label, quantity, hours, unit disbursement, budgeted, re-estimated.
+// Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
 const LABEL = 1;
-const QUANTITY = 2;
-const HOURS = 3;
-const BUDGETED = 5;
+const CATEGORY = 2;
+const ROLE = 3;
+const QUANTITY = 4;
+const HOURS = 5;
+const BUDGETED = 7;
 
 /** A cell of the row at a position among the rows of the answer, by the position of its column. */
 function cellAt(grid: Locator, row: number, column: number): Locator {
@@ -60,14 +63,37 @@ async function press(page: Page, ...keys: readonly string[]): Promise<void> {
   }
 }
 
-test("enters the label, the quantity and the effort of a line without the mouse, the last cell validated placing the cursor on the next row", async ({
+test("enters a whole line of the estimate without the mouse — label, category, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]", async ({
   page,
 }) => {
   const grid = await tabIntoGrid(page);
+  // Each cell validated leaves by a server action of its own.
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+      writes.push(request.url());
+    }
+  });
   await press(page, "ArrowDown", "ArrowDown", "ArrowDown");
   await expect(cellAt(grid, 4, LABEL)).toBeFocused();
+
   // Typed, the label replaces the one read; Tab validates it and goes along the row.
   await page.keyboard.type("Heures de câblage");
+  await page.keyboard.press("Tab");
+  await expect(cellAt(grid, 4, CATEGORY)).toBeFocused();
+  // The category is chosen by the first letters of its name, typed on the cell: its list opens.
+  await page.keyboard.type("Mise en service");
+  const categories = page.getByRole("combobox", { name: "Catégorie" });
+  await expect(categories).toBeFocused();
+  await expect(categories).toHaveValue("01926f3a-7c00-7000-8000-000000000405");
+  await page.keyboard.press("Tab");
+  await expect(cellAt(grid, 4, ROLE)).toBeFocused();
+  // The role, from its list opened by Enter.
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Technicien");
+  await expect(page.getByRole("combobox", { name: "Rôle" })).toHaveValue(
+    "01926f3a-7c00-7000-8000-000000000452",
+  );
   await page.keyboard.press("Tab");
   await expect(cellAt(grid, 4, QUANTITY)).toBeFocused();
   await page.keyboard.type("2");
@@ -79,17 +105,22 @@ test("enters the label, the quantity and the effort of a line without the mouse,
   const next = cellAt(grid, 5, LABEL);
   await expect(next).toBeFocused();
   await expect(next).toBeInViewport();
-  // The line as the server answered it: what was entered, and its amount recalculated.
+  // The five cells written, one after the other.
+  await expect.poll(() => writes.length).toBe(5);
+  // The line as the server last answered it — the fake back keeps nothing of what it is sent —,
+  // in place of what was typed.
   await expect(rowAt(grid, 4).getByRole("gridcell")).toHaveText([
     "4",
     "Heures de câblage",
-    "2",
-    "12,5",
+    "Ingénierie électrique",
+    "Ingénieur électricien",
+    "1",
+    "33",
     "",
     /2\s640,00$/,
-    /1\s875,00$/,
+    /2\s640,00$/,
   ]);
-  // No refusal told: every cell was written.
+  // No refusal told.
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
@@ -98,6 +129,7 @@ test("leaves a cell at its value before when its entry under way is abandoned [W
 }) => {
   const grid = await tabIntoGrid(page);
   await press(page, "ArrowDown", "ArrowDown", "ArrowDown", "ArrowRight", "ArrowRight");
+  await press(page, "ArrowRight", "ArrowRight");
   const hours = cellAt(grid, 4, HOURS);
   await expect(hours).toBeFocused();
   await page.keyboard.type("99");
@@ -117,8 +149,12 @@ test("traverses the computed cells of a line entered along its row, without ente
   }
   await expect(rowAt(grid, 21)).toContainText("Provision");
   await expect(cellAt(grid, 21, LABEL)).toBeFocused();
-  // From its label, Tab goes past its quantity, which the server computes, to its effort; then
-  // past its unit disbursement and its amounts, to the next row.
+  // From its label, Tab goes to its category and its role, past its quantity, which the server
+  // computes, to its effort; then past its unit disbursement and its amounts, to the next row.
+  await press(page, "Enter", "Tab");
+  await expect(cellAt(grid, 21, CATEGORY)).toBeFocused();
+  await press(page, "Enter", "Tab");
+  await expect(cellAt(grid, 21, ROLE)).toBeFocused();
   await press(page, "Enter", "Tab");
   await expect(cellAt(grid, 21, HOURS)).toBeFocused();
   await press(page, "Enter", "Tab");
@@ -131,6 +167,7 @@ test("opens the entry of the effort on a digit typed, and the refusal of the amo
 }) => {
   const grid = await tabIntoGrid(page);
   await press(page, "ArrowDown", "ArrowDown", "ArrowDown", "ArrowRight", "ArrowRight");
+  await press(page, "ArrowRight", "ArrowRight");
   const hours = cellAt(grid, 4, HOURS);
   await expect(hours).toBeFocused();
   // The effort of a line of labour is entered: a digit opens its entry, with it.
