@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { readBlock } from "./paste";
+import { readBlock, widest } from "./paste";
 
 describe("the block a spreadsheet copies", () => {
   it("is read as rows of cells, separated by tabs and line ends, the last one closing it", () => {
@@ -37,5 +37,13 @@ describe("the block a spreadsheet copies", () => {
 
   it("reads a single cell copied alone", () => {
     expect(readBlock("Heures de câblage")).toEqual([["Heures de câblage"]]);
+  });
+
+  it("measures the width of a very tall block, which a spread would blow the stack on", () => {
+    const tall = Array.from({ length: 200_000 }, (_, index) =>
+      index === 137 ? ["a", "b"] : ["a"],
+    );
+    expect(widest(tall)).toBe(2);
+    expect(widest([])).toBe(0);
   });
 });

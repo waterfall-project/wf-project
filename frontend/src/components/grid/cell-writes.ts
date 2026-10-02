@@ -16,7 +16,9 @@
  * belongs to is changed in the render that brings the new rows, before any answer can land. An
  * answer about another row than the one written is a failure of the service. A refusal stays told
  * until the notice clears it, whatever writes succeed after it. Rows a paste wrote together take
- * the place of those read the same way, the cells of each row written after them starting from them.
+ * the place of those read the same way, the cells of each row written after them starting from
+ * them; a cell write launched before the paste and answered after it is dropped whole — its row
+ * and its outcome —, never put in place of a row the paste wrote (WF-IHM-0050).
  */
 "use client";
 
@@ -113,6 +115,8 @@ export function useCellWrites<Row>(
   // write of each row under way, which the next waits for.
   const last = useRef({ reading, answered: new Map<string, Row>() });
   const queues = useRef(new Map<string, Promise<void>>());
+  // Moved on by each paste applied: a write born under an older generation answers too late.
+  const generation = useRef(0);
   const { answered, pending, outcome } = written;
   const rows = useMemo(
     () => (answered.size === 0 ? reading : reading.map((row) => answered.get(rowKey(row)) ?? row)),
@@ -124,6 +128,7 @@ export function useCellWrites<Row>(
   const write = ({ row, column, entry, value, shown }: CellWrite<Row>) => {
     const key = rowKey(row);
     const cell = cellKey(key, column);
+    const born = generation.current;
     if (last.current.reading !== reading) {
       last.current = { reading, answered: new Map() };
     }
@@ -135,7 +140,8 @@ export function useCellWrites<Row>(
     const queued = (queues.current.get(key) ?? Promise.resolve()).then(async () => {
       const from = memory.answered.get(key) ?? row;
       const answer = answering(key, await entry.write(from, value).catch(() => UNREACHABLE));
-      const data = answer.kind === "done" ? answer.data : undefined;
+      const stale = born !== generation.current;
+      const data = answer.kind === "done" && !stale ? answer.data : undefined;
       if (data !== undefined) {
         memory.answered.set(key, data);
       }
@@ -143,13 +149,18 @@ export function useCellWrites<Row>(
         ...before,
         answered: data === undefined ? before.answered : changed(before.answered, key, data),
         pending: changed(before.pending, cell, undefined),
-        // A refusal stays told until the notice clears it: a later write done says nothing of it.
-        outcome: answer.kind === "done" && before.outcome !== undefined ? before.outcome : answer,
+        // A refusal stays told until the notice clears it: a later write done says nothing of
+        // it. A stale answer says nothing at all: it belongs to the rows before the paste.
+        outcome:
+          stale || (answer.kind === "done" && before.outcome !== undefined)
+            ? before.outcome
+            : answer,
       }));
     });
     queues.current.set(key, queued);
   };
   const applied = (written: readonly Row[]) => {
+    generation.current += 1;
     if (last.current.reading !== reading) {
       last.current = { reading, answered: new Map() };
     }

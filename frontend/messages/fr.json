@@ -163,12 +163,14 @@
       "block": "Bloc de {rows, plural, one {# ligne} other {# lignes}} sur {columns, plural, one {# colonne} other {# colonnes}}, à partir de la ligne {row}, colonne « {column} » : rien n’est écrit avant votre confirmation.",
       "reading": "Lecture du compte rendu…",
       "accepted": "{count, plural, =0 {Aucune ligne ne sera écrite.} one {# ligne sera écrite.} other {# lignes seront écrites.}}",
+      "validRows": "{count, plural, =0 {Aucune ligne n’est valide} one {# ligne est valide} other {# lignes sont valides}} ; rien ne sera écrit tant qu’une ligne est refusée.",
       "noneRejected": "Aucune ligne n’est refusée.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
       "rejectedRow": "Ligne {row} du bloc — {reason}",
       "blocked": "Un collage dont une ligne est refusée ne s’applique pas : la grille reste inchangée. Corrigez le bloc dans le tableur, puis collez-le à nouveau.",
       "apply": "Appliquer le collage",
-      "abandon": "Abandonner"
+      "abandon": "Abandonner",
+      "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit."
     }
   },
   "estimateGrid": {

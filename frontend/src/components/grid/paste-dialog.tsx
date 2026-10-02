@@ -4,8 +4,9 @@
  * The report of a paste, before anything is written (WF-IHM-0050): a modal dialog named for what
  * it does, which says what was pasted and from where, then what the server would write and what
  * it refuses — each row refused named by its place in the block, with its cells as copied and the
- * reason the catalogue gives its code. A plan that refuses no row is applied on confirmation; one
- * that refuses a row is not, and says so: abandoning it is all it offers. Escape abandons, as the
+ * reason the catalogue gives its code — in one announced region, which holds the waiting first,
+ * then the report. A plan that refuses no row is applied on confirmation; one that refuses a row
+ * is not, and says so: abandoning it is all it offers. Escape abandons, as the
  * button does, and the focus goes back to the active cell; while the plan is applied, nothing
  * closes the dialog.
  */
@@ -39,8 +40,12 @@ function Refusals({ plan, block }: { readonly plan: PastePlan; readonly block: P
         {t("rejected", { count: plan.rejected.length })}
       </p>
       <ul className="space-y-1">
-        {plan.rejected.map((rejection) => (
-          <li key={rejection.row} className="space-y-0.5 rounded-md border p-2">
+        {plan.rejected.map((rejection, index) => (
+          // A row may be refused twice, same place and same code: the key takes its rank too.
+          <li
+            key={`${rejection.row.toString()}:${rejection.code}:${index.toString()}`}
+            className="space-y-0.5 rounded-md border p-2"
+          >
             <p className="flex items-start gap-1.5">
               <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
               {t("rejectedRow", {
@@ -61,18 +66,19 @@ function Refusals({ plan, block }: { readonly plan: PastePlan; readonly block: P
   );
 }
 
-/** What the server would write and refuse of the block. */
+/**
+ * What the server would write and refuse of the block: rows to be written when the plan can be
+ * applied; rows merely valid when a refused one blocks it, for the report never promises a write
+ * the confirmation cannot do.
+ */
 function Report({ plan, block }: { readonly plan: PastePlan; readonly block: PastedBlock }) {
   const t = useTranslations("grid.paste");
+  const blocked = plan.rejected.length > 0;
   return (
-    <div className="space-y-2 text-sm">
-      <p>{t("accepted", { count: plan.accepted })}</p>
-      {plan.rejected.length === 0 ? (
-        <p>{t("noneRejected")}</p>
-      ) : (
-        <Refusals plan={plan} block={block} />
-      )}
-    </div>
+    <>
+      <p>{t(blocked ? "validRows" : "accepted", { count: plan.accepted })}</p>
+      {blocked ? <Refusals plan={plan} block={block} /> : <p>{t("noneRejected")}</p>}
+    </>
   );
 }
 
@@ -117,13 +123,9 @@ export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDial
             })}
           </DialogDescription>
         </DialogHeader>
-        {plan === undefined ? (
-          <p role="status" className="text-sm">
-            {t("paste.reading")}
-          </p>
-        ) : (
-          <Report plan={plan} block={block} />
-        )}
+        <div role="status" className="space-y-2 text-sm">
+          {plan === undefined ? t("paste.reading") : <Report plan={plan} block={block} />}
+        </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={applying} onClick={onAbandon}>
             <X aria-hidden="true" />

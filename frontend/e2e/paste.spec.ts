@@ -30,7 +30,7 @@ const READ = ["Heures d'ingénierie", "Heures de mise en service", "Matériel"];
 // A block of three rows and four columns — label, category, role, quantity —, as a spreadsheet
 // copies it.
 const BLOCK = [
-  ["Heures de câblage", "Ingénierie électrique", "Ingénieur électricien", "1"],
+  ["Heures de câblage et repérage", "Ingénierie électrique", "Ingénieur électricien", "1"],
   ["Heures d'essais", "Mise en service", "Technicien de mise en service", "1"],
   ["Matériel de câblage", "Matériel électrique", "", "24"],
 ];
@@ -134,9 +134,9 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
     lock_version: 1,
   });
   // The three rows the server wrote, in place of those read; the focus back on the cell.
-  await expect(cellAt(grid, 4, LABEL)).toHaveText("Heures de câblage");
+  await expect(cellAt(grid, 4, LABEL)).toHaveText("Heures de câblage et repérage");
   expect(await labels(page)).toEqual([
-    "Heures de câblage",
+    "Heures de câblage et repérage",
     "Heures d'essais",
     "Matériel de câblage",
   ]);

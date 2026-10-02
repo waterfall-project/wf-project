@@ -592,7 +592,13 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     writes,
     locale,
   });
-  const paste = useGridPaste({ config, rows: writes.rows, columns: shownColumns, writes });
+  const paste = useGridPaste({
+    config,
+    rows: writes.rows,
+    columns: shownColumns,
+    writes,
+    scroller,
+  });
   const invalid = useId();
   const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
@@ -627,6 +633,11 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} />
       <OutcomeNotice outcome={writes.outcome} onClear={writes.clear} />
       <OutcomeNotice outcome={paste.outcome} onClear={paste.clear} />
+      {paste.hidden === undefined ? null : (
+        <p role="alert" className="text-sm text-destructive">
+          {t("paste.hiddenColumn", { column: t(`columns.${paste.hidden}`) })}
+        </p>
+      )}
       {paste.pasting === undefined ? null : (
         <PasteDialog
           pasting={paste.pasting}
@@ -681,7 +692,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
             })}
           </TableRow>
         </TableHeader>
-        <TableBody {...keyboard.body} onPaste={paste.onPaste}>
+        <TableBody {...keyboard.body}>
           {items.map((item, position) => {
             const row = model[item.index];
             return row === undefined ? null : (

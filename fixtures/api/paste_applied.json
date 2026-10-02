@@ -1,5 +1,5 @@
 {
-  "summary": "Le bloc de trois lignes et quatre colonnes appliqué sur les lignes 4 à 6 de la structure des volumes : leurs libellés « Heures de câblage », « Heures d'essais » et « Matériel de câblage », la quantité de la troisième portée à 24 et son montant réestimé recalculé, 25 985,28 — 24 × 1 082,72 —, le budgété inchangé, fixé par la référence ; une version de plus chacune. Le faux back les rend à tout collage confirmé, qui ne garde rien de ce qu'on lui envoie (WF-IHM-0050, WF-DEV-0020).",
+  "summary": "Le bloc de trois lignes et quatre colonnes appliqué sur les lignes 4 à 6 de la structure des volumes : leurs libellés « Heures de câblage et repérage », « Heures d'essais » et « Matériel de câblage », la quantité de la troisième portée à 24 et son montant réestimé recalculé, 25 985,28 — 24 × 1 082,72 —, le budgété inchangé, fixé par la référence ; une version de plus chacune. Le faux back les rend à tout collage confirmé, qui ne garde rien de ce qu'on lui envoie (WF-IHM-0050, WF-DEV-0020).",
   "value": [
     {
       "node_id": "01926f3a-7c00-7000-8000-000100000004",
@@ -11,7 +11,7 @@
       "level": 4,
       "lock_version": 2,
       "estimate_line": {
-        "label": "Heures de câblage",
+        "label": "Heures de câblage et repérage",
         "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
         "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
         "quantity": "1",

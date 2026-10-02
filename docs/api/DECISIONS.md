@@ -235,7 +235,10 @@ forme.
 **Un bloc plus large que la grille est refusé à l'aperçu**, par un 422 `PASTE_TOO_WIDE` dont
 `params.max_columns` dit combien de colonnes la grille offre à partir de la colonne visée
 (EP-02, US-0130). Le code et son paramètre existaient sans qu'aucune réponse de `previewPaste`
-ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit.
+ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit. Tant que
+l'aperçu ne transmet pas les colonnes que remplit le bloc (#200), le serveur ne connaît ni les
+colonnes affichées ni leur ordre : `max_columns` ne peut valoir que pour les colonnes du contrat
+à partir de la colonne visée, et le front garde une garde locale sur ce qu'il montre.
 
 **L'annulation est une opération de la révision**, `POST .../undo` et `POST .../redo`, pas
 un état du client. C'est ce qui rend vraie la phrase de WF-IHM-0110 : une annulation est
