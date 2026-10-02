@@ -318,6 +318,7 @@
     "history": {
       "title": "Revision history",
       "none": "This project has no revision.",
+      "truncated": "Only the {shown} most recent revisions are shown, of {total}.",
       "version": "Version",
       "status": "Status",
       "markedAt": "Marked on",

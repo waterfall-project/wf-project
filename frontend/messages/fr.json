@@ -318,6 +318,7 @@
     "history": {
       "title": "Historique des révisions",
       "none": "Ce projet n’a aucune révision.",
+      "truncated": "Seules les {shown} révisions les plus récentes sont affichées, sur {total}.",
       "version": "Version",
       "status": "État",
       "markedAt": "Marquée le",

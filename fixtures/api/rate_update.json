@@ -1,13 +1,13 @@
 {
-  "summary": "La mise à jour des taux proposée pour 2026, catégorie par catégorie : l'ingénierie de détail au taux du référentiel ; la mise en service, sans taux pour 2026, à son taux précédent de 80,00 corrigé de l'inflation du projet, 3 %, soit 82,40 (WF-REV-0060).",
+  "summary": "La mise à jour des taux proposée pour 2026, catégorie par catégorie, sur les deux catégories de main-d'œuvre sans taux pour 2026 : l'ingénierie électrique à son taux précédent de 78,50 corrigé de l'inflation du projet, 3 %, soit 80,86, et la mise en service à 80,00, soit 82,40 (WF-REV-0060).",
   "value": {
     "target_year": 2026,
     "categories": [
       {
-        "cost_category_id": "01926f3a-7c00-7000-8000-000000000401",
-        "previous_amount": "92.00",
-        "proposed_amount": "95.00",
-        "source": "reference_rate"
+        "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+        "previous_amount": "78.50",
+        "proposed_amount": "80.86",
+        "source": "inflated_previous"
       },
       {
         "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",

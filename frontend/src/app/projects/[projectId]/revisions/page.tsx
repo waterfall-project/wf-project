@@ -108,7 +108,11 @@ export default async function RevisionsPage(props: ProjectPageProps) {
       <ContextBanner reading={read} />
       <Screen density={FUNCTION_DENSITY.revisions}>
         <RevisionsHeader revision={read.revision} />
-        <RevisionHistory revisions={revisions.items} context={read.context} />
+        <RevisionHistory
+          revisions={revisions.items}
+          total={revisions.meta.total}
+          context={read.context}
+        />
         <RevisionComparisonSection
           revisions={revisions.items}
           action={address.pathname}

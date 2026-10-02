@@ -893,7 +893,10 @@ qu'ils ont à montrer.
   renvoie, sans rapprochement calculé dans le front ;
 - propre à l'US : aucun de ces écrans ne propose de créer ni de modifier — projet,
   révision, contributeurs : ces formulaires appartiennent à l'EPIC de leur domaine (décision
-  du cadrage) ; seule la sortie du cycle de vie, commande du §3.6, s'y exerce ;
+  du cadrage) ; seule la sortie du cycle de vie, commande du §3.6, s'y exerce — écart : le
+  marquage, commande du §3.6 lui aussi, s'exerce en outre depuis l'écran des révisions, qui
+  porte les commandes de la révision lue : c'est le premier emploi de `MarkCommand`, décidé
+  avec le suivi des traitements longs (US-0180, conception « Commande ») ;
 - propre à l'US : tout manque du contrat constaté ici est écrit dans cet EPIC, puis corrigé
   dans `docs/api` ou ouvert en issue.
 

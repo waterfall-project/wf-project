@@ -1521,7 +1521,7 @@ export interface paths {
         };
         /**
          * Comparer deux révisions marquées
-         * @description Tâches ajoutées, retirées et modifiées, et écarts de montants par nature et par sous-projet, rapprochés par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030).
+         * @description Tâches ajoutées, retirées et modifiées, et écarts de montants par nature et par sous-projet, rapprochés par l'identifiant de lignée (WF-REV-0080, WF-DAT-0030). Une paire identique — la même révision deux fois — rend une comparaison vide, jamais un refus.
          */
         get: operations["compareRevisions"];
         put?: never;

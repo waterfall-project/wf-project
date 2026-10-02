@@ -5,8 +5,15 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { type HistoryRevision, RevisionHistory } from "@/components/revisions/revision-history";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeCall, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeCall,
+  type FakeClient,
+  fakeClient,
+} from "@/test/fixtures";
 
 import RevisionsPage, { generateMetadata } from "./page";
 
@@ -164,6 +171,25 @@ describe("the screen of the revisions of a project", () => {
     expect(page).toContain('aria-label="Ouvrir la révision «\u00a0Offre v1.0\u00a0»"');
   });
 
+  it("says how many revisions the server counts when more than shown — never truncated in silence", () => {
+    const { items } = example("revisions") as { items: HistoryRevision[] };
+    const context = {
+      projectId: PROJECT,
+      revisionId: undefined,
+      revisionInPath: false,
+      parameters: new URLSearchParams(),
+    };
+    const page = html(<RevisionHistory revisions={items} total={12} context={context} />);
+    expect(text(page)).toContain(
+      "Seules les 3 révisions les plus récentes sont affichées, sur 12.",
+    );
+    // The whole history shown says nothing of a truncation.
+    const whole = html(
+      <RevisionHistory revisions={items} total={items.length} context={context} />,
+    );
+    expect(text(whole)).not.toContain("Seules les");
+  });
+
   it("says a project has no revision, and offers no comparison", async () => {
     server.answers = {
       ...server.answers,
@@ -236,13 +262,15 @@ describe("the comparison of two revisions", () => {
     expect(selected).toEqual([OFFER, REFERENCE]);
   });
 
-  it("says each part empty when the two revisions do not differ", async () => {
+  it("says each part empty for an identical pair — the same revision twice, compared, not refused", async () => {
+    // Le contrat le dit : une paire identique rend une comparaison vide, jamais un refus.
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/comparison": "comparison_identical",
     };
-    const page = html(
-      await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
+    const page = html(await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: OFFER })));
+    expect(callTo("GET /projects/{project_id}/revisions/comparison")?.query.toString()).toBe(
+      `from_revision_id=${OFFER}&to_revision_id=${OFFER}`,
     );
     expect(text(page)).toContain(
       "Ajouts Rien n’a été ajouté. Retraits Rien n’a été retiré. " +
@@ -301,7 +329,7 @@ describe("the parts of the revision the screen reads in", () => {
     );
     expect(table(page, "Mise à jour des taux proposée")).toBe(
       "Catégorie Taux précédent Taux proposé Origine " +
-        "Catégorie sans nom 92,00 95,00 Taux du référentiel " +
+        "Catégorie sans nom 78,50 80,86 Taux précédent, projeté par l’inflation " +
         "Catégorie sans nom 80,00 82,40 Taux précédent, projeté par l’inflation",
     );
   });
