@@ -83,6 +83,7 @@ function grid(
       <EstimateGrid
         nodes={nodes}
         structure={STRUCTURE}
+        structureVersion={1}
         reference={estimateReference()}
         editable={editable}
         tasksEditable={tasksEditable}

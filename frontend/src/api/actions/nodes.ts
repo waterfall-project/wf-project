@@ -3,7 +3,7 @@
 /**
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
- * `updateEstimateLine`) —:
+ * `updateEstimateLine`), a block pasted from a spreadsheet (`previewPaste`, `applyPaste`) —:
  * the grid asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the
  * one decoder makes of its answer (`src/api/problem.ts`).
  */
@@ -83,6 +83,44 @@ export async function updateEstimateLine(
     serverClient().PATCH(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line",
       { ...nodePath(structure, nodeId), body: line },
+    ),
+  );
+}
+
+/** The path of the nodes of a structure, where a block is pasted. */
+function nodesPath(structure: StructurePath) {
+  return { params: { path: structure } };
+}
+
+/**
+ * Ask what a block pasted from a spreadsheet would write and refuse, from a cell of a grid
+ * (WF-IHM-0050): the API answers its plan — the rows accepted, those refused with their reason —
+ * and writes nothing; a block wider than the grid is refused (`PASTE_TOO_WIDE`).
+ */
+export async function previewPaste(
+  structure: StructurePath,
+  block: components["schemas"]["PastePreview"],
+): Promise<Outcome<components["schemas"]["PastePlan"]>> {
+  return decode(() =>
+    serverClient().POST(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview",
+      { ...nodesPath(structure), body: block },
+    ),
+  );
+}
+
+/**
+ * Apply a paste once confirmed, in one operation (WF-IHM-0050): the API answers the nodes it
+ * wrote, as they now are — or refuses the whole of it.
+ */
+export async function applyPaste(
+  structure: StructurePath,
+  confirmation: components["schemas"]["PasteApply"],
+): Promise<Outcome<Node[]>> {
+  return decode(() =>
+    serverClient().POST(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste",
+      { ...nodesPath(structure), body: confirmation },
     ),
   );
 }

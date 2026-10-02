@@ -189,6 +189,7 @@ function unwritten(): never {
 const ENTERED_ESTIMATE = estimateGrid(estimateReference(), "?", {
   line: unwritten,
   task: unwritten,
+  paste: { preview: unwritten, apply: unwritten },
 });
 
 holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.6);

@@ -94,6 +94,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
           tasksEditable
           nodes={nodes ?? estimate}
           structure={STRUCTURE}
+          structureVersion={1}
           query={NO_QUERY}
           preferences={undefined}
         />

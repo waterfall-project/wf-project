@@ -7304,6 +7304,15 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["PayloadTooLarge"];
+            /** @description Bloc plus large que la grille à partir de la colonne visée : `params.max_columns` dit combien de colonnes elle y offre ; rien n'est écrit (WF-IHM-0050). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     applyPaste: {

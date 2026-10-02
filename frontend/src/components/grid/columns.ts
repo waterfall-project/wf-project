@@ -172,6 +172,24 @@ export interface CellEntry<Row> {
   readonly write: (row: Row, value: string | null) => Promise<Outcome<Row>>;
 }
 
+/** A block of cells pasted from a spreadsheet: its rows, each the texts of its cells, as copied. */
+export type PastedBlock = readonly (readonly string[])[];
+
+/** What the server would write and refuse of a block pasted (WF-IHM-0050). */
+export type PastePlan = components["schemas"]["PastePlan"];
+
+/**
+ * How a block pasted from a spreadsheet is written in a grid, in two steps (WF-IHM-0050): the
+ * server says what it would write and refuse — nothing is written yet —, then applies the plan
+ * once the user confirmed it, in one operation. The grid judges nothing of what is pasted.
+ */
+export interface GridPaste<Row> {
+  /** Ask the plan of a block pasted from the cell of a row, in a column, by its key. */
+  readonly preview: (row: Row, column: string, block: PastedBlock) => Promise<Outcome<PastePlan>>;
+  /** Apply a plan confirmed: the rows the server wrote, as the grid reads them. */
+  readonly apply: (plan: PastePlan) => Promise<Outcome<readonly Row[]>>;
+}
+
 /** The tree of a grid: the depth of a row, the icon of its nature, how its label stands out. */
 export interface GridTree<Row> {
   /** The depth of a row, `1` at the root, as the API computes it. */
@@ -193,6 +211,8 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   readonly rowNumber?: (row: Row) => number;
   readonly tree?: GridTree<Row>;
   readonly columns: readonly GridColumn<Row, Sort, Totals>[];
+  /** How a block pasted from a spreadsheet is written; none, and the grid takes no paste. */
+  readonly paste?: GridPaste<Row> | undefined;
 }
 
 /** The key of the column of row numbers, which no configuration may take. */

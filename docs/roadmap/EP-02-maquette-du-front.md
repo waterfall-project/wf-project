@@ -452,6 +452,9 @@ fond d'un utilisateur, la révision ouverte par défaut.
 - `setContributors` exige un `lock_version` sans dire de quel objet, et `listContributors` rend un tableau nu, sans compteur : le formulaire d'EP-04 n'aurait rien à renvoyer ; `Contributor.is_active` est facultatif, et son absence ne dit rien — US-0210/L1, ouvert en #186. D'ici là, l'écran des paramètres montre la liste en lecture, et ne dit un compte désactivé que quand l'API le dit.
 - Le nœud ne dit pas quels champs de sa facette il accepte en écriture — le rôle et la charge d'une ligne de main-d'œuvre, le débours unitaire d'une autre (WF-DEV-0020) —, seulement ceux qu'il calcule — US-0120/L1, ouvert en #194. D'ici là, la grille du devis offre ces cellules sur toute ligne qui ne les déclare pas calculées, sans rien déduire de la nature de sa catégorie, et le serveur refuse ce qu'elle n'accepte pas.
 - Les rôles de ressources relèvent de `resource_settings`, qu'un chiffreur peut ne pas avoir, alors que la grille du devis les nomme et les offre au choix — US-0120/L1, ouvert en #195. D'ici là, l'écran du devis se dégrade : sans la liste des rôles ou des catégories, sa colonne n'est ni nommée ni saisie, et le reste de l'écran s'affiche.
+- `previewPaste` ne déclarait aucune réponse pour un bloc plus large que la grille, alors que le catalogue porte `PASTE_TOO_WIDE` et son paramètre `max_columns` ; ni l'un ni l'autre n'avait d'exemple — US-0130/L1. Corrigé par ce lot : un 422 `PASTE_TOO_WIDE` (`paste_too_wide.json`), et les exemples des deux temps, `paste_plan.json` (trois lignes acceptées), `paste_plan_unknown_category.json` (une ligne refusée, `UNKNOWN_COST_CATEGORY`) et `paste_applied.json` (les lignes 4 à 6 de la structure des volumes, écrites).
+- `PastePreview` ne nomme la colonne visée que par une chaîne libre (`target_column`), sans dire quels champs remplissent les colonnes suivantes : le serveur ne sait ni lesquelles la grille affiche, ni dans quel ordre — une colonne masquée (WF-IHM-0060) décalerait ainsi le bloc sans que rien ne le dise — ; et un refus ne nomme pas sa cellule — US-0130/L1, ouvert en #200. D'ici là, la grille refuse aussitôt un bloc plus large que les colonnes de sa configuration à partir de la cellule active, et un bloc dont la portée, de la colonne visée à la dernière colonne remplie dans cet ordre, enjambe une colonne masquée ; elle envoie la colonne sous son nom de `sort_by`, et signale une ligne refusée par sa place dans le bloc.
+- `PasteApply.lock_version` ne dit pas de quel objet il est, `applyPaste` ne déclare pas de 412, et sa réponse ne rend pas la version suivante — US-0130/L1, ouvert en #201. D'ici là, la confirmation porte la version de la structure principale lue avec la page ; un refus se dit par `OutcomeNotice`.
 
 ### Ordre de construction
 
@@ -607,7 +610,7 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 
 ## US-0130 — Grille dense : collage depuis un tableur
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0050-A`
 - **opérations** : `previewPaste`, `applyPaste`
 - **issue** : #77
@@ -627,7 +630,12 @@ reprendre un chiffrage préparé ailleurs sans le ressaisir et sans risquer d'ab
 
 **Notes de réalisation.** Le contrat sépare déjà les deux temps, `previewPaste` puis
 `applyPaste` : le front ne juge rien du contenu collé, il présente le compte rendu que le
-serveur produit. C'est la même forme que l'import en deux temps de WF-ARC-0100.
+serveur produit. C'est la même forme que l'import en deux temps de WF-ARC-0100. En attendant
+#200, le front refuse localement ce que le serveur ne peut pas juger faute de connaître les
+colonnes montrées : un bloc plus large que les colonnes de la configuration à partir de la
+cellule active, et un bloc dont la portée, dans cet ordre, enjambe une colonne masquée
+(décision de la revue L1, en délégation de l'utilisateur) ; cette garde locale disparaît
+avec #200.
 
 ## US-0140 — Annulation et rétablissement des saisies
 

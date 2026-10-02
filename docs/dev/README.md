@@ -243,6 +243,29 @@ ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #1
 deux cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures
 (`EstimateSummary`).
 
+Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
+`paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
+vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une
+saisie en cours garde le collage pour son champ —, jamais par `navigator.clipboard`, qui demande
+une permission ; en valeurs séparées par des tabulations, une cellule entre guillemets gardant
+ses tabulations et ses fins de ligne (`readBlock`). Le serveur range le bloc dans l'ordre de ses
+colonnes à lui, sans connaître celles que la grille montre (#200) : le front refuse donc
+aussitôt, sans rien demander, un bloc plus large que les colonnes de la configuration à partir
+de la cellule — comme le serveur le refuserait (`PASTE_TOO_WIDE`) — et un bloc dont la portée,
+de la colonne visée à la dernière colonne remplie dans cet ordre, enjambe une colonne masquée,
+qu'il nomme ; cette garde locale disparaît avec #200. Sinon `previewPaste` rend le plan, que
+montre une boîte de dialogue de shadcn (`PasteDialog`, `ui/dialog.tsx`), dans une seule région
+annoncée — ce qui sera écrit, chaque ligne refusée par sa place dans le bloc, ses cellules
+telles que copiées et son motif ; un plan qui refuse une ligne n'annonce que des lignes valides,
+rien ne sera écrit —, et `applyPaste` l'applique sur confirmation, en une seule opération ; les
+nœuds rendus prennent la place des lignes lues (`CellWrites.applied`), et une écriture de
+cellule partie avant le collage et répondue après est ignorée tout entière. Un plan qui refuse
+une ligne ne s'applique pas : la boîte n'offre que l'abandon. Échap abandonne, une réponse
+arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien du
+contenu : la colonne visée part sous son nom de `sort_by`, et la confirmation porte la version
+de la structure lue (`structureVersion`) — deux points que le contrat ne dit pas encore (#200,
+#201). Une grille sans `paste` dans sa configuration, en lecture seule, ne prend aucun collage.
+
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
 celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission

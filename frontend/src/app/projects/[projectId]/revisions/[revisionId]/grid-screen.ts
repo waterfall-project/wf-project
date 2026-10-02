@@ -93,6 +93,8 @@ export interface GridScreen<Row> {
   readonly label: string;
   /** The main structure, which a computed cell names to ask what its value depends on. */
   readonly structure: StructurePath;
+  /** The version of the main structure read, which a paste applied carries (#201). */
+  readonly structureVersion: number;
   readonly nodes: NodeRows<Row>;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
@@ -142,7 +144,12 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
       },
     }),
   );
-  return { label: main.label, structure, nodes: projectNodes(answer, fields) };
+  return {
+    label: main.label,
+    structure,
+    structureVersion: main.lock_version,
+    nodes: projectNodes(answer, fields),
+  };
 }
 
 /**

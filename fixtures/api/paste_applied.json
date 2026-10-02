@@ -1,0 +1,95 @@
+{
+  "summary": "Le bloc de trois lignes et quatre colonnes appliqué sur les lignes 4 à 6 de la structure des volumes : leurs libellés « Heures de câblage et repérage », « Heures d'essais » et « Matériel de câblage », la quantité de la troisième portée à 24 et son montant réestimé recalculé, 25 985,28 — 24 × 1 082,72 —, le budgété inchangé, fixé par la référence ; une version de plus chacune. Le faux back les rend à tout collage confirmé, qui ne garde rien de ce qu'on lui envoie (WF-IHM-0050, WF-DEV-0020).",
+  "value": [
+    {
+      "node_id": "01926f3a-7c00-7000-8000-000100000004",
+      "lineage_id": "01926f3a-7c00-7000-8000-000200000004",
+      "kind": "estimate_line",
+      "parent_id": "01926f3a-7c00-7000-8000-000100000003",
+      "position": 0,
+      "row_number": 4,
+      "level": 4,
+      "lock_version": 2,
+      "estimate_line": {
+        "label": "Heures de câblage et repérage",
+        "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+        "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+        "quantity": "1",
+        "hours": "33",
+        "unit_disbursement": null,
+        "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+        "budgeted_amount": "2640.00",
+        "reestimated_amount": "2640.00",
+        "previous_reestimated_amount": null,
+        "is_computed": false,
+        "remaining_entry": {
+          "is_available": false,
+          "missing_conditions": [
+            "task_not_completed"
+          ]
+        }
+      },
+      "computed_fields": []
+    },
+    {
+      "node_id": "01926f3a-7c00-7000-8000-000100000005",
+      "lineage_id": "01926f3a-7c00-7000-8000-000200000005",
+      "kind": "estimate_line",
+      "parent_id": "01926f3a-7c00-7000-8000-000100000003",
+      "position": 1,
+      "row_number": 5,
+      "level": 4,
+      "lock_version": 2,
+      "estimate_line": {
+        "label": "Heures d'essais",
+        "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+        "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+        "quantity": "1",
+        "hours": "74.5",
+        "unit_disbursement": null,
+        "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+        "budgeted_amount": "5587.50",
+        "reestimated_amount": "5587.50",
+        "previous_reestimated_amount": null,
+        "is_computed": false,
+        "remaining_entry": {
+          "is_available": false,
+          "missing_conditions": [
+            "task_not_completed"
+          ]
+        }
+      },
+      "computed_fields": []
+    },
+    {
+      "node_id": "01926f3a-7c00-7000-8000-000100000006",
+      "lineage_id": "01926f3a-7c00-7000-8000-000200000006",
+      "kind": "estimate_line",
+      "parent_id": "01926f3a-7c00-7000-8000-000100000003",
+      "position": 2,
+      "row_number": 6,
+      "level": 4,
+      "lock_version": 2,
+      "estimate_line": {
+        "label": "Matériel de câblage",
+        "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+        "resource_role_id": null,
+        "quantity": "24",
+        "hours": null,
+        "unit_disbursement": "1082.72",
+        "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+        "budgeted_amount": "17323.52",
+        "reestimated_amount": "25985.28",
+        "previous_reestimated_amount": null,
+        "is_computed": false,
+        "remaining_entry": {
+          "is_available": false,
+          "missing_conditions": [
+            "task_not_completed"
+          ]
+        }
+      },
+      "computed_fields": []
+    }
+  ]
+}
