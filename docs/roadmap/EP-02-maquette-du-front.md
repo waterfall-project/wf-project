@@ -452,6 +452,9 @@ fond d'un utilisateur, la révision ouverte par défaut.
 - `setContributors` exige un `lock_version` sans dire de quel objet, et `listContributors` rend un tableau nu, sans compteur : le formulaire d'EP-04 n'aurait rien à renvoyer ; `Contributor.is_active` est facultatif, et son absence ne dit rien — US-0210/L1, ouvert en #186. D'ici là, l'écran des paramètres montre la liste en lecture, et ne dit un compte désactivé que quand l'API le dit.
 - Le nœud ne dit pas quels champs de sa facette il accepte en écriture — le rôle et la charge d'une ligne de main-d'œuvre, le débours unitaire d'une autre (WF-DEV-0020) —, seulement ceux qu'il calcule — US-0120/L1, ouvert en #194. D'ici là, la grille du devis offre ces cellules sur toute ligne qui ne les déclare pas calculées, sans rien déduire de la nature de sa catégorie, et le serveur refuse ce qu'elle n'accepte pas.
 - Les rôles de ressources relèvent de `resource_settings`, qu'un chiffreur peut ne pas avoir, alors que la grille du devis les nomme et les offre au choix — US-0120/L1, ouvert en #195. D'ici là, l'écran du devis se dégrade : sans la liste des rôles ou des catégories, sa colonne n'est ni nommée ni saisie, et le reste de l'écran s'affiche.
+- `previewPaste` ne déclarait aucune réponse pour un bloc plus large que la grille, alors que le catalogue porte `PASTE_TOO_WIDE` et son paramètre `max_columns` ; ni l'un ni l'autre n'avait d'exemple — US-0130/L1. Corrigé par ce lot : un 422 `PASTE_TOO_WIDE` (`paste_too_wide.json`), et les exemples des deux temps, `paste_plan.json` (trois lignes acceptées), `paste_plan_unknown_category.json` (une ligne refusée, `UNKNOWN_COST_CATEGORY`) et `paste_applied.json` (les lignes 4 à 6 de la structure des volumes, écrites).
+- `PastePreview` ne nomme la colonne visée que par une chaîne libre (`target_column`), sans dire quels champs remplissent les colonnes suivantes : le serveur ne sait ni lesquelles la grille affiche, ni dans quel ordre ; et un refus ne nomme pas sa cellule — US-0130/L1, ouvert en #200. D'ici là, la grille envoie la colonne sous son nom de `sort_by`, refuse aussitôt un bloc plus large que les colonnes qu'elle affiche à partir de la cellule active, et signale une ligne refusée par sa place dans le bloc.
+- `PasteApply.lock_version` ne dit pas de quel objet il est, `applyPaste` ne déclare pas de 412, et sa réponse ne rend pas la version suivante — US-0130/L1, ouvert en #201. D'ici là, la confirmation porte la version de la structure principale lue avec la page ; un refus se dit par `OutcomeNotice`.
 
 ### Ordre de construction
 
@@ -607,7 +610,7 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 
 ## US-0130 — Grille dense : collage depuis un tableur
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0050-A`
 - **opérations** : `previewPaste`, `applyPaste`
 - **issue** : #77
