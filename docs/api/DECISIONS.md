@@ -232,6 +232,11 @@ rend un plan avec les lignes acceptées et rejetées, `paste` l'applique sur con
 WF-IHM-0050 demande le même contrôle avant écriture que WF-INTF-0080 ; autant la même
 forme.
 
+**Un bloc plus large que la grille est refusé à l'aperçu**, par un 422 `PASTE_TOO_WIDE` dont
+`params.max_columns` dit combien de colonnes la grille offre à partir de la colonne visée
+(EP-02, US-0130). Le code et son paramètre existaient sans qu'aucune réponse de `previewPaste`
+ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit.
+
 **L'annulation est une opération de la révision**, `POST .../undo` et `POST .../redo`, pas
 un état du client. C'est ce qui rend vraie la phrase de WF-IHM-0110 : une annulation est
 une modification comme une autre, qui passe par l'API et s'inscrit dans l'audit.

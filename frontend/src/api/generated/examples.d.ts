@@ -101,6 +101,12 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/mark": {
     202: "task_mark_queued" | "task_mark_relaunched";
   };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste": {
+    200: "paste_applied";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
+    200: "paste_plan" | "paste_plan_unknown_category";
+  };
   "POST /session": {
     201: "session";
   };

@@ -818,9 +818,21 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/PastePlan }
+            examples:
+              planned: { $ref: ../../../fixtures/api/paste_plan.json }
+              unknown_category: { $ref: ../../../fixtures/api/paste_plan_unknown_category.json }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '422':
+        description: >-
+          Bloc plus large que la grille à partir de la colonne visée : `params.max_columns`
+          dit combien de colonnes elle y offre ; rien n'est écrit (WF-IHM-0050).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              too_wide: { $ref: ../../../fixtures/api/paste_too_wide.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste:
   post:
@@ -845,6 +857,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/revisions.yaml#/Node }
+            examples:
+              applied: { $ref: ../../../fixtures/api/paste_applied.json }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
