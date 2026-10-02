@@ -104,6 +104,7 @@ function renderGrid(
         tasksEditable
         nodes={nodes}
         structure={STRUCTURE}
+        structureVersion={1}
         query={query}
         preferences={options.preferences}
       />
@@ -917,6 +918,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
     // grid of the planning configures it (`PLANNING_GRID`).
     const dated: GridConfig<Node, NodeSortColumn, NodeTotals> = {
       ...ESTIMATE_GRID,
+      paste: undefined,
       key: "dated",
       columns: [
         LABEL_COLUMN,

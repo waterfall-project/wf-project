@@ -15,7 +15,8 @@
  * success or a refusal, is dropped (défauts n° 1 et 2 de `typescript.md`): the reading the state
  * belongs to is changed in the render that brings the new rows, before any answer can land. An
  * answer about another row than the one written is a failure of the service. A refusal stays told
- * until the notice clears it, whatever writes succeed after it.
+ * until the notice clears it, whatever writes succeed after it. Rows a paste wrote together take
+ * the place of those read the same way, the cells of each row written after them starting from them.
  */
 "use client";
 
@@ -89,6 +90,11 @@ export interface CellWrites<Row> {
   /** Forget the outcome told. */
   readonly clear: () => void;
   readonly write: (write: CellWrite<Row>) => void;
+  /**
+   * Take rows the server wrote together — a paste applied — in place of those read, in the reading
+   * they were written in; a row the reading does not show is left out.
+   */
+  readonly applied: (rows: readonly Row[]) => void;
 }
 
 /** Write the cells of a grid, on the rows of a reading, keyed by `rowKey`. */
@@ -143,6 +149,26 @@ export function useCellWrites<Row>(
     });
     queues.current.set(key, queued);
   };
+  const applied = (written: readonly Row[]) => {
+    if (last.current.reading !== reading) {
+      last.current = { reading, answered: new Map() };
+    }
+    const memory = last.current.answered;
+    for (const row of written) {
+      memory.set(rowKey(row), row);
+    }
+    setState((before) =>
+      before.reading === reading
+        ? {
+            ...before,
+            answered: new Map([
+              ...before.answered,
+              ...written.map((row) => [rowKey(row), row] as const),
+            ]),
+          }
+        : before,
+    );
+  };
   return {
     rows,
     pending: (row, column) => pending.get(cellKey(row, column)),
@@ -151,5 +177,6 @@ export function useCellWrites<Row>(
       setState((before) => ({ ...before, outcome: undefined }));
     },
     write,
+    applied,
   };
 }

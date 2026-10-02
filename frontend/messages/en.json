@@ -157,6 +157,18 @@
     "columnsMenu": {
       "open": "Columns",
       "title": "Columns shown"
+    },
+    "paste": {
+      "title": "Paste from a spreadsheet",
+      "block": "Block of {rows, plural, one {# row} other {# rows}} by {columns, plural, one {# column} other {# columns}}, from row {row}, column “{column}”: nothing is written before you confirm.",
+      "reading": "Reading the report…",
+      "accepted": "{count, plural, =0 {No row will be written.} one {# row will be written.} other {# rows will be written.}}",
+      "noneRejected": "No row is refused.",
+      "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
+      "rejectedRow": "Row {row} of the block — {reason}",
+      "blocked": "A paste with a refused row is not applied: the grid stays unchanged. Correct the block in the spreadsheet, then paste it again.",
+      "apply": "Apply the paste",
+      "abandon": "Abandon"
     }
   },
   "estimateGrid": {

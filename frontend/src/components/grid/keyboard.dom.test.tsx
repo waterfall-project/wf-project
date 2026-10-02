@@ -93,6 +93,7 @@ function renderGrid(nodes: NodeList = estimate) {
         tasksEditable
         nodes={nodes}
         structure={STRUCTURE}
+        structureVersion={1}
         query={NO_QUERY}
         preferences={undefined}
       />

@@ -28,6 +28,7 @@ import {
   type EntryKind,
   type GridColumn,
   type GridConfig,
+  type GridPaste,
   sortColumns,
 } from "./columns";
 import { computedAmount, computedWhereNamed } from "./computed-nodes";
@@ -155,12 +156,14 @@ export type LineChange = Partial<
 /**
  * How the grid of the estimate writes a cell: a field of a line, the label of a task — the row
  * answered as the grid reads it. The label of a task is the planning's (`updateTaskFacet`): none,
- * and a task's label is not entered here.
+ * and a task's label is not entered here. A block pasted from a spreadsheet is written in two
+ * steps, by the structure (`previewPaste`, `applyPaste`, WF-IHM-0050).
  */
 export interface EstimateWrites {
   readonly line: (node: EstimateNode, change: LineChange) => Promise<Outcome<EstimateNode>>;
   readonly task?:
     ((node: EstimateNode, label: string) => Promise<Outcome<EstimateNode>>) | undefined;
+  readonly paste: GridPaste<EstimateNode>;
 }
 
 /**
@@ -299,8 +302,8 @@ function entered(
 
 /**
  * The grid of the estimate: its categories and roles named by the reference data — `unknown` for
- * an identifier the list does not know —, its cells entered through `writes`; none, and the grid
- * is read only. A line takes its label, category, role, quantity, effort and unit disbursement,
+ * an identifier the list does not know —, its cells entered and a block pasted through `writes`;
+ * none, and the grid is read only, taking neither entry nor paste. A line takes its label, category, role, quantity, effort and unit disbursement,
  * where the server does not compute the field; a task, its label, where the planning is entered.
  */
 export function estimateGrid(
@@ -315,6 +318,7 @@ export function estimateGrid(
   };
   return {
     ...ESTIMATE_GRID,
+    paste: writes?.paste,
     columns: ESTIMATE_GRID.columns.map((column) => {
       const name = names[column.key];
       const named =

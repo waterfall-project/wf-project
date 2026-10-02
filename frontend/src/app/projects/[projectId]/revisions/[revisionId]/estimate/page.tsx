@@ -9,8 +9,9 @@
  * totals of the answer: a header clicked or a search entered changes the address, and this page
  * reads anew (`grid-screen.ts`). The
  * indicators and the rates are read alongside the grid, and so are the categories and the roles
- * the lines are named by and chosen from (US-0120). The grid is entered from the keyboard when the
- * revision lists `edit_estimate` available to the caller (WF-IHM-0040). A refused read of the rates
+ * the lines are named by and chosen from (US-0120). The grid is entered from the keyboard, and takes
+ * a block pasted from a spreadsheet, when the revision lists `edit_estimate` available to the caller
+ * (WF-IHM-0040, WF-IHM-0050). A refused read of the rates
  * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
  * refused as expected are said unavailable, the rest of the screen shown: the screen never shows
  * a figure it did not read.
@@ -232,6 +233,7 @@ export default async function EstimatePage({
         <EstimateGrid
           nodes={screen.nodes}
           structure={screen.structure}
+          structureVersion={screen.structureVersion}
           reference={reference}
           editable={screen.reading.edits.has("edit_estimate")}
           tasksEditable={screen.reading.edits.has("edit_planning")}

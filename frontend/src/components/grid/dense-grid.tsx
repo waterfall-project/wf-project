@@ -19,7 +19,9 @@
  *
  * It is entered from the keyboard alone (WF-IHM-0040, `useGridKeyboard`): one cell is active, which
  * the arrows move, and a computed cell tried opens its refusal; a cell validated is written alone,
- * and the row the server answers takes the place of the one read (`useCellWrites`).
+ * and the row the server answers takes the place of the one read (`useCellWrites`). A block pasted
+ * from a spreadsheet on the active cell is shown as the server would write and refuse it, and
+ * written once confirmed, in one operation (WF-IHM-0050, `useGridPaste`).
  */
 "use client";
 
@@ -73,6 +75,8 @@ import {
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
+import { useGridPaste } from "./paste";
+import { PasteDialog } from "./paste-dialog";
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
@@ -570,11 +574,12 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     keyOf: (index) => model[index]?.id ?? index,
     kept: model.length === 0 ? undefined : cursor.active.row,
   });
+  const shownColumns = columns.map((column) => column.id);
   const keyboard = useGridKeyboard({
     config,
     cursor,
     rows: writes.rows,
-    columns: columns.map((column) => column.id),
+    columns: shownColumns,
     scroller,
     scrollToIndex,
     page: () =>
@@ -587,6 +592,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     writes,
     locale,
   });
+  const paste = useGridPaste({ config, rows: writes.rows, columns: shownColumns, writes });
   const invalid = useId();
   const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
@@ -620,6 +626,15 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       />
       <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} />
       <OutcomeNotice outcome={writes.outcome} onClear={writes.clear} />
+      <OutcomeNotice outcome={paste.outcome} onClear={paste.clear} />
+      {paste.pasting === undefined ? null : (
+        <PasteDialog
+          pasting={paste.pasting}
+          onApply={paste.apply}
+          onAbandon={paste.abandon}
+          onClosed={paste.refocus}
+        />
+      )}
       <EntryProblemNotice
         id={invalid}
         draft={keyboard.draft}
@@ -666,7 +681,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
             })}
           </TableRow>
         </TableHeader>
-        <TableBody {...keyboard.body}>
+        <TableBody {...keyboard.body} onPaste={paste.onPaste}>
           {items.map((item, position) => {
             const row = model[item.index];
             return row === undefined ? null : (

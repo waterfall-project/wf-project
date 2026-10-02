@@ -119,6 +119,7 @@ describe("the grids of the planning and of the estimate", () => {
           tasksEditable
           nodes={estimate}
           structure={STRUCTURE}
+          structureVersion={1}
           query={NO_QUERY}
           preferences={undefined}
         />
