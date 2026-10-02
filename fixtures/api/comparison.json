@@ -1,0 +1,67 @@
+{
+  "summary": "De l'offre v1.0 à la révision de référence, obtenue par la fusion de l'avenant 1 : une tâche et une ligne de provision ajoutées, une tâche retirée, une tâche et une ligne modifiées ; 1 350,00 d'écart, par nature de coût comme par sous-projet.",
+  "value": {
+    "from_revision_id": "01926f3a-7c00-7000-8000-000000000100",
+    "to_revision_id": "01926f3a-7c00-7000-8000-000000000101",
+    "added": [
+      {
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000626",
+        "label": "Réception usine",
+        "kind": "task"
+      },
+      {
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000625",
+        "label": "Provision — risque de reprise du câblage",
+        "kind": "estimate_line"
+      }
+    ],
+    "removed": [
+      {
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000631",
+        "label": "Essais préliminaires sur site",
+        "kind": "task"
+      }
+    ],
+    "changed": [
+      {
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
+        "label": "Câblage des armoires",
+        "kind": "task",
+        "changes": ["dates", "duration"]
+      },
+      {
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+        "label": "Raccordement des borniers",
+        "kind": "estimate_line",
+        "changes": ["budgeted_amount", "reestimated_amount"]
+      }
+    ],
+    "amount_deltas": [
+      {
+        "dimension": "cost_type",
+        "key": "01926f3a-7c00-7000-8000-000000000461",
+        "delta": "1200.00"
+      },
+      {
+        "dimension": "cost_type",
+        "key": "01926f3a-7c00-7000-8000-000000000462",
+        "delta": "-350.00"
+      },
+      {
+        "dimension": "cost_type",
+        "key": "01926f3a-7c00-7000-8000-000000000463",
+        "delta": "500.00"
+      },
+      {
+        "dimension": "subproject",
+        "key": "01926f3a-7c00-7000-8000-000000000801",
+        "delta": "850.00"
+      },
+      {
+        "dimension": "subproject",
+        "key": "unassigned",
+        "delta": "500.00"
+      }
+    ]
+  }
+}

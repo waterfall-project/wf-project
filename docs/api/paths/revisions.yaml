@@ -186,6 +186,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/RateUpdateProposal }
+            examples:
+              witness: { $ref: ../../../fixtures/api/rate_update.json }
+              none: { $ref: ../../../fixtures/api/rate_update_none.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: applyRateUpdate
@@ -242,6 +245,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/RevisionComparison }
+            examples:
+              witness: { $ref: ../../../fixtures/api/comparison.json }
+              identical: { $ref: ../../../fixtures/api/comparison_identical.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/revisions/{revision_id}/structures:
@@ -265,6 +271,7 @@
               items: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
             examples:
               witness: { $ref: ../../../fixtures/api/structures.json }
+              amendments: { $ref: ../../../fixtures/api/structures_amendments.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createCostStructure
