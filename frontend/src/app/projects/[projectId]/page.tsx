@@ -16,9 +16,9 @@ import { useId } from "react";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import type { components } from "@/api/generated/schema";
 import { ContextBanner } from "@/components/context/context-banner";
 import { ProjectFacts } from "@/components/projects/project-facts";
+import { type NamedRevision, useRevisionName } from "@/components/revisions/revision-history";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { NoRevisions } from "@/components/system/empty-states";
 import { functionHref, functionOf } from "@/navigation/functions";
@@ -31,11 +31,6 @@ import {
   projectAddress,
   readProjectScreen,
 } from "./screen";
-
-type RevisionSummary = Pick<
-  components["schemas"]["Revision"],
-  "revision_id" | "version_name" | "status"
->;
 
 /** Title the tab with the project. */
 export async function generateMetadata({
@@ -54,11 +49,12 @@ function Revisions({
   way,
 }: {
   readonly projectId: string;
-  readonly revisions: readonly RevisionSummary[];
+  readonly revisions: readonly NamedRevision[];
   /** The way to the function of the revisions, when the session may read them. */
   readonly way: string | undefined;
 }) {
   const t = useTranslations();
+  const revisionName = useRevisionName();
   const title = useId();
   return (
     <section aria-labelledby={title} className="space-y-2">
@@ -76,10 +72,7 @@ function Revisions({
                 href={`/projects/${projectId}/revisions/${revision.revision_id}`}
                 className="underline-offset-4 hover:underline"
               >
-                {revision.version_name ??
-                  (revision.status === "draft"
-                    ? t("contextBanner.currentRevision")
-                    : t(`enums.RevisionStatus.${revision.status}`))}
+                {revisionName(revision)}
               </Link>
             </li>
           ))}

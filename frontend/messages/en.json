@@ -314,6 +314,62 @@
       "to": "to"
     }
   },
+  "revisionScreen": {
+    "history": {
+      "title": "Revision history",
+      "none": "This project has no revision.",
+      "version": "Version",
+      "status": "Status",
+      "markedAt": "Marked on",
+      "description": "Description",
+      "consult": "Consultation",
+      "reference": "Reference",
+      "notMarked": "Not marked",
+      "open": "Open",
+      "openRevision": "Open the revision “{name}”"
+    },
+    "comparison": {
+      "title": "Comparison of two revisions",
+      "needsTwo": "A comparison takes two marked revisions.",
+      "from": "From the revision",
+      "to": "To the revision",
+      "compare": "Compare",
+      "added": "Added",
+      "removed": "Removed",
+      "changed": "Changed",
+      "noneAdded": "Nothing was added.",
+      "noneRemoved": "Nothing was removed.",
+      "noneChanged": "Nothing was changed.",
+      "label": "Label",
+      "kind": "Kind",
+      "changes": "What changes",
+      "deltas": "Amount deviations",
+      "noDeltas": "No amount deviation.",
+      "dimension": "Axis",
+      "key": "Item",
+      "delta": "Deviation",
+      "unnamed": "Unnamed"
+    },
+    "structures": {
+      "title": "Cost structures",
+      "none": "This revision has no cost structure.",
+      "kind": "Kind",
+      "label": "Label",
+      "state": "Status",
+      "merged": "Merged"
+    },
+    "rateUpdate": {
+      "title": "Proposed rate update",
+      "year": "Rates of {year}",
+      "notImposed": "A proposal, never imposed: the rates of the revision do not change until it is applied.",
+      "none": "The reference data has not changed: no rate update is proposed.",
+      "category": "Category",
+      "previous": "Previous rate",
+      "proposed": "Proposed rate",
+      "source": "Source",
+      "unnamed": "Unnamed category"
+    }
+  },
   "exitProject": {
     "statement": "This exit is final: the project will go to the state “{state}”, and it and all its data — plannings, estimates, remaining commitments, actual costs — will become read only. No transition leaves a terminal state.",
     "reason": "Motive (optional)",

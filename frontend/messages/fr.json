@@ -314,6 +314,62 @@
       "to": "vers"
     }
   },
+  "revisionScreen": {
+    "history": {
+      "title": "Historique des révisions",
+      "none": "Ce projet n’a aucune révision.",
+      "version": "Version",
+      "status": "État",
+      "markedAt": "Marquée le",
+      "description": "Description",
+      "consult": "Consultation",
+      "reference": "Référence",
+      "notMarked": "Non marquée",
+      "open": "Ouvrir",
+      "openRevision": "Ouvrir la révision « {name} »"
+    },
+    "comparison": {
+      "title": "Comparaison de deux révisions",
+      "needsTwo": "La comparaison demande deux révisions marquées.",
+      "from": "De la révision",
+      "to": "À la révision",
+      "compare": "Comparer",
+      "added": "Ajouts",
+      "removed": "Retraits",
+      "changed": "Modifications",
+      "noneAdded": "Rien n’a été ajouté.",
+      "noneRemoved": "Rien n’a été retiré.",
+      "noneChanged": "Rien n’a été modifié.",
+      "label": "Libellé",
+      "kind": "Nature",
+      "changes": "Ce qui change",
+      "deltas": "Écarts de montants",
+      "noDeltas": "Aucun écart de montant.",
+      "dimension": "Axe",
+      "key": "Poste",
+      "delta": "Écart",
+      "unnamed": "Sans nom"
+    },
+    "structures": {
+      "title": "Structures de coûts",
+      "none": "Cette révision n’a aucune structure de coûts.",
+      "kind": "Nature",
+      "label": "Libellé",
+      "state": "État",
+      "merged": "Fusionnée"
+    },
+    "rateUpdate": {
+      "title": "Mise à jour des taux proposée",
+      "year": "Taux de l’année {year}",
+      "notImposed": "Une proposition, jamais imposée : les taux de la révision ne changent pas tant qu’elle n’est pas appliquée.",
+      "none": "Le référentiel n’a pas changé : aucune mise à jour des taux n’est proposée.",
+      "category": "Catégorie",
+      "previous": "Taux précédent",
+      "proposed": "Taux proposé",
+      "source": "Origine",
+      "unnamed": "Catégorie sans nom"
+    }
+  },
   "exitProject": {
     "statement": "Cette sortie est définitive : le projet passera à l’état « {state} », et lui comme toutes ses données — plannings, devis, restes à engager, coûts réels — passeront en lecture seule. Aucune transition ne part d’un état terminal.",
     "reason": "Motif (facultatif)",
