@@ -41,11 +41,17 @@ export interface Examples {
   "GET /projects/{project_id}/revisions": {
     200: "revisions" | "revisions_empty";
   };
+  "GET /projects/{project_id}/revisions/comparison": {
+    200: "comparison" | "comparison_identical";
+  };
   "GET /projects/{project_id}/revisions/{revision_id}": {
     200: "revision" | "revision_estimator" | "revision_marked" | "revision_marking" | "revision_reader";
   };
+  "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
+    200: "rate_update" | "rate_update_none";
+  };
   "GET /projects/{project_id}/revisions/{revision_id}/structures": {
-    200: "structures";
+    200: "structures" | "structures_amendments";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
     200: "nodes" | "nodes_estimate" | "nodes_milestone" | "nodes_planning" | "volume/nodes_thousand";

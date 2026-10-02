@@ -1,0 +1,38 @@
+{
+  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre du risque de reprise du câblage (WF-REV-0100).",
+  "value": [
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000211",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+      "kind": "main",
+      "label": "Structure principale",
+      "is_merged": false,
+      "lock_version": 3
+    },
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000212",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+      "kind": "amendment",
+      "label": "Avenant 1 — extension du poste",
+      "is_merged": true,
+      "lock_version": 2
+    },
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000213",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+      "kind": "amendment",
+      "label": "Avenant 2 — reprise des essais",
+      "is_merged": false,
+      "lock_version": 1
+    },
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000214",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+      "kind": "risk",
+      "label": "Risque de reprise du câblage",
+      "risk_id": "01926f3a-7c00-7000-8000-000000000751",
+      "is_merged": false,
+      "lock_version": 1
+    }
+  ]
+}

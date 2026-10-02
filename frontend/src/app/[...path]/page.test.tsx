@@ -118,16 +118,7 @@ describe("the page of a function still to come", () => {
     expect((await generateMetadata(at(address))).title).toBe("Gestion des risques — Waterfall");
   });
 
-  it("exists for a function of the project itself, without a revision", async () => {
-    const address = `/projects/${PROJECT}/revisions`;
-    expect(heading(html(await ScreenPage(at(address))))).toBe("Gestion des révisions");
-    expect((await generateMetadata(at(address))).title).toBe(
-      "Gestion des révisions · Modernisation du poste de commande — Waterfall",
-    );
-  });
-
   it.each([
-    ["project", "GET /projects/{project_id}", `/projects/${PROJECT}/revisions`],
     ["project", "GET /projects/{project_id}", `/projects/${PROJECT}/revisions/${REVISION}/risks`],
     [
       "revision",
@@ -147,9 +138,7 @@ describe("the page of a function still to come", () => {
     // the one screen not found — telling them apart would reveal the project exists.
     server.answers = { ...ANSWERS, "GET /projects/{project_id}": NOT_FOUND };
     const nowhere = await ScreenPage(at("/admin/nobody")).catch((error: unknown) => error);
-    const refused = await ScreenPage(at(`/projects/${PROJECT}/revisions`)).catch(
-      (error: unknown) => error,
-    );
+    const refused = await ScreenPage(at(REMAINING)).catch((error: unknown) => error);
     expect(nowhere).toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
     expect(refused).toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
     expect(String(refused)).toBe(String(nowhere));
@@ -172,17 +161,6 @@ describe("the banner of the reading context of a screen of a project", () => {
       "Projet Modernisation du poste de commande Révision Révision en cours En cours d’élaboration",
     );
     expect(text(page)).not.toContain("Lecture seule");
-  });
-
-  it("names the project, and the revision a screen of the project carries [WF-IHM-0020-A]", async () => {
-    const revisions = `/projects/${PROJECT}/revisions`;
-    expect(text(html(await ScreenPage(at(revisions))))).toContain(
-      "Projet Modernisation du poste de commande Gestion des révisions",
-    );
-    const page = html(await ScreenPage(at(`${revisions}?revision_id=${REVISION}`)));
-    expect(text(page)).toContain(
-      "Projet Modernisation du poste de commande Révision Révision en cours",
-    );
   });
 
   it("presents a marked revision as such, and that it is read only [WF-IHM-0020-A]", async () => {
@@ -228,82 +206,16 @@ describe("the banner of the reading context of a screen of a project", () => {
     });
   });
 
-  it.each([
-    [`/projects/a.b/revisions`],
-    [`/projects/${PROJECT}/revisions?revision_id=${REVISION}`],
-  ])("is not found at %s when it names no project or revision the API finds", async (address) => {
-    server.answers = {
-      ...ANSWERS,
-      "GET /projects/{project_id}/revisions/{revision_id}": NOT_FOUND,
-    };
-    await expect(ScreenPage(at(address))).rejects.toMatchObject({
-      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
-    });
-  });
-});
-
-/** The opening tag of the button a page names so, or `undefined` when it has none. */
-function button(markup: string, name: string): string | undefined {
-  return [...markup.matchAll(/(<button[^>]*>)(.*?)<\/button>/g)].find(
-    (match) => text(match[2] ?? "") === name,
-  )?.[1];
-}
-
-/** How a page offers the command it names so. */
-function offered(markup: string, name: string): "absent" | "available" | "unavailable" {
-  const tag = button(markup, name);
-  if (tag === undefined) {
-    return "absent";
-  }
-  return tag.includes('aria-disabled="true"') ? "unavailable" : "available";
-}
-
-describe("the commands a page still to come shows already", () => {
-  const REVISIONS = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
-
-  it("offers the commands of a draft revision, those of modification among them [WF-IHM-0020-A]", async () => {
-    const page = html(await ScreenPage(at(REVISIONS)));
-    for (const name of ["Modifier le planning", "Modifier le devis", "Marquer la révision"]) {
-      expect(offered(page, name)).toBe("available");
-    }
-  });
-
-  it("offers no command of modification on a marked revision [WF-IHM-0020-A]", async () => {
-    // L'ouverture d'une révision marquée présente cet état et ne propose aucune commande de
-    // modification.
-    server.answers = {
-      ...ANSWERS,
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
-    };
-    const page = html(await ScreenPage(at(REVISIONS)));
-    expect(text(page)).toContain("Marquée");
-    expect(text(page)).toContain("Lecture seule");
-    for (const name of [
-      "Modifier le planning",
-      "Modifier le devis",
-      "Réestimer le reste à engager",
-      "Créer une structure",
-      "Fusionner une structure",
-    ]) {
-      expect(offered(page, name)).toBe("unavailable");
-    }
-  });
-
-  it("does not show a command the user may not exercise [WF-IHM-0090-A]", async () => {
-    // Un utilisateur sans la permission de marquer une révision ne voit pas cette commande.
-    server.answers = {
-      ...ANSWERS,
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision_estimator",
-    };
-    const page = html(await ScreenPage(at(REVISIONS)));
-    expect(offered(page, "Marquer la révision")).toBe("absent");
-    expect(offered(page, "Modifier le devis")).toBe("available");
-  });
-
-  it.each([
-    ["the revisions of a project without a revision", `/projects/${PROJECT}/revisions`],
-    ["a function of a revision", REMAINING],
-  ])("shows none on %s", async (_, address) => {
-    expect(html(await ScreenPage(at(address)))).not.toContain("<button");
-  });
+  it.each([[`/projects/a.b/revisions/${REVISION}/risks`], [REMAINING]])(
+    "is not found at %s when it names no project or revision the API finds",
+    async (address) => {
+      server.answers = {
+        ...ANSWERS,
+        "GET /projects/{project_id}/revisions/{revision_id}": NOT_FOUND,
+      };
+      await expect(ScreenPage(at(address))).rejects.toMatchObject({
+        digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+      });
+    },
+  );
 });

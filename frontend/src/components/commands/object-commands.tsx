@@ -9,8 +9,9 @@
  * The marking of a revision is wired: it opens the entry of its version name, and hands the
  * background task it starts to the tracker of the shell (`MarkCommand`); so are the exits of the
  * lifecycle of a project, which open their confirmation (`ExitCommand`). The other commands of
- * a revision come with the lots of their screens — the structures —, which hand each command
- * its server action; until then a command is shown, and pressing it does nothing.
+ * a revision — a structure to create or merge, a reference to designate, the revision to
+ * abandon — come with the forms of their domain, which hand each command its server action;
+ * until then a command is shown, and pressing it does nothing.
  */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";

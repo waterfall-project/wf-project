@@ -10,19 +10,16 @@
  * (`error.tsx`).
  *
  * A function of a project shows the banner of its reading context above it (WF-IHM-0020).
- * Until their screen comes (US-0210/L2), the revisions of a project show the commands of the
- * revision the address names (WF-IHM-0090): what the server offers, and what each lacks.
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { RevisionCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
-import { type ProjectReading, readAddress } from "@/components/context/reading";
+import { readAddress } from "@/components/context/reading";
 import { ComingSoon } from "@/components/shell/coming-soon";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
-import { findScreen, type NavigationFunction } from "@/navigation/functions";
+import { findScreen } from "@/navigation/functions";
 
 import { screenMetadata } from "../title";
 
@@ -39,19 +36,6 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const screen = findScreen((await params).path);
   return screen === undefined ? {} : screenMetadata(screen.fn.label, screen.projectId);
-}
-
-/** The commands a function still to come shows already, from the reading of its screen. */
-function PlacedCommands({
-  fn,
-  reading,
-}: {
-  readonly fn: NavigationFunction;
-  readonly reading: ProjectReading | undefined;
-}) {
-  return fn.permission === "revisions" && reading?.revision !== undefined ? (
-    <RevisionCommands revision={reading.revision} />
-  ) : null;
 }
 
 /** Render the function the address leads to, whose screen is to come. */
@@ -81,9 +65,7 @@ export default async function ScreenPage({
         label={screen.fn.label}
         icon={FUNCTION_ICONS[screen.fn.permission]}
         density={FUNCTION_DENSITY[screen.fn.permission]}
-      >
-        <PlacedCommands fn={screen.fn} reading={read} />
-      </ComingSoon>
+      />
     </>
   );
 }

@@ -37,11 +37,13 @@ type Subproject = components["schemas"]["Subproject"];
 type Contributor = components["schemas"]["Contributor"];
 type StateTransition = components["schemas"]["StateTransition"];
 
-const CELL = "py-1.5";
-const ICON = "size-4 shrink-0 text-muted-foreground";
+/** The padding of a cell of a dense list. */
+export const CELL = "py-1.5";
+/** An icon before a text of a list, hidden from a screen reader by whoever draws it. */
+export const ICON = "size-4 shrink-0 text-muted-foreground";
 
 /** A list of a project under its title, with its icon; the sentence that says it is empty. */
-function ListSection({
+export function ListSection({
   title,
   icon: Icon,
   empty,
@@ -66,7 +68,7 @@ function ListSection({
 }
 
 /** A table of a list, named by its title, with its column headers. */
-function ListTable({
+export function ListTable({
   label,
   columns,
   children,
