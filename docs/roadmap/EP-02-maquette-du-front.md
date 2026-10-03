@@ -698,6 +698,9 @@ que mes collègues.
   client, quel que soit son fuseau. » — les dates de planning s'affichent telles quelles,
   sans conversion ; les horodatages, eux — date de calcul d'un indicateur, colonnes
   d'audit —, s'affichent en heure locale du poste (décision du cadrage).
+- écart : `WF-DAT-0100-A` — « Deux tâches de quatre heures liées fin à début, sur un
+  calendrier de huit heures, commencent et finissent le même jour. » — attend le moteur de
+  dates en heures d'EP-06 ; l'exigence est close en EP-07.
 - `WF-QUA-0070-A` — « L'ajout d'une clé dans un seul catalogue fait échouer la chaîne. »
 - `WF-QUA-0070-A` — « Un texte destiné à l'utilisateur écrit en dur dans le code fait échouer
   la chaîne. »

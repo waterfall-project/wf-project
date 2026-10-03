@@ -10,15 +10,15 @@ components on its function's row, only those it actually engages.
 BASELINE: list[str] = ["PBS-1.1", "PBS-2.1", "PBS-2.3", "PBS-3.1"]
 
 EXTRA: dict[str, list[str]] = {
-    # FBS-1.1 User management (row: PBS-2.5, PBS-2.2, PBS-5.3)
+    # FBS-1.1 User management (row: PBS-2.5, PBS-5.4, PBS-2.2, PBS-5.3)
     "WF-ADM-0030": [],
     "WF-ADM-0040": [],
     "WF-ADM-0050": [],
     "WF-ADM-0080": [],
-    "WF-ADM-0060": ["PBS-2.5"],
-    "WF-ADM-0140": ["PBS-2.5"],
-    "WF-ADM-0180": ["PBS-2.5"],
-    "WF-ADM-0070": ["PBS-2.2", "PBS-2.5", "PBS-5.3"],
+    "WF-ADM-0060": ["PBS-2.5", "PBS-5.4"],
+    "WF-ADM-0140": ["PBS-2.5", "PBS-5.4"],
+    "WF-ADM-0180": ["PBS-2.5", "PBS-5.4"],
+    "WF-ADM-0070": ["PBS-2.2", "PBS-2.5", "PBS-5.3", "PBS-5.4"],
     # FBS-1.2 Access role management (row: PBS-2.5, PBS-3.2)
     "WF-ADM-0010": [],
     "WF-ADM-0020": [],
@@ -85,6 +85,8 @@ EXTRA: dict[str, list[str]] = {
     "WF-IHM-0100": ["PBS-1.3"],
     "WF-IHM-0080": ["PBS-2.2"],
     "WF-IHM-0110": ["PBS-1.3"],
+    "WF-IHM-0120": [],
+    "WF-IHM-0130": ["PBS-1.3"],
     # Grids, charts and task trees (PBS-1.3)
     "WF-PLA-0060": ["PBS-1.3"],
     "WF-PLA-0080": ["PBS-1.3"],
@@ -93,6 +95,8 @@ EXTRA: dict[str, list[str]] = {
     "WF-PLA-0110": ["PBS-1.3"],
     "WF-PLA-0120": ["PBS-1.3"],
     "WF-PLA-0140": ["PBS-1.3"],
+    # Duration units: the export carries the constants, so the worker is engaged.
+    "WF-PLA-0160": ["PBS-2.2"],
     "WF-DEV-0050": ["PBS-1.3"],
     "WF-DEV-0070": ["PBS-1.3"],
     "WF-RAE-0030": ["PBS-1.3"],
@@ -110,7 +114,7 @@ EXTRA: dict[str, list[str]] = {
     "WF-IND-0090": ["PBS-1.3", "PBS-3.2"],
     "WF-IND-0100": ["PBS-1.3", "PBS-3.2"],
     "WF-IND-0110": ["PBS-1.3", "PBS-3.2"],
-    "WF-IND-0120": ["PBS-1.3", "PBS-3.2"],
+    "WF-IND-0130": ["PBS-1.3", "PBS-3.2"],
 }
 
 

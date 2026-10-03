@@ -2,7 +2,7 @@
 genere_par: tools/build.py
 source_texte: stb-waterfall.docx
 source_diagrammes: waterfall.visuels.drawio
-nombre_exigences: 203
+nombre_exigences: 208
 ---
 
 <!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER.
@@ -370,9 +370,9 @@ titre: "Usages du manager"
 flexibilite: "F0"
 fbs: "FBS-1.2"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Waterfall doit permettre à un utilisateur habilité de paramétrer l’organisation de l’entreprise, les rôles de ressources, les calendriers et les taux horaires, et de consulter les indicateurs agrégeant les données de plusieurs projets. Le rôle prédéfini « manager » accorde ces permissions."
+corps: "Waterfall doit permettre à un utilisateur habilité de paramétrer l’organisation de l’entreprise, les rôles de ressources, les calendriers et les taux horaires, et de consulter les indicateurs agrégeant les données de plusieurs projets. Il peut consulter tout projet sans en être contributeur (WF-PRJ-0060). Le rôle prédéfini « manager » accorde ces permissions."
 motif: "Ces paramètres sont communs à tous les projets : les regrouper sous un acteur qui raisonne au niveau de l’entreprise désigne du même coup le destinataire naturel des indicateurs consolidés."
-verification: "Un utilisateur porteur du rôle prédéfini « manager » mène à leur terme le paramétrage des nœuds d’organisation, des rôles de ressources, des calendriers et des taux horaires (FBS-3), et ouvre les vues du portefeuille (FBS-2), lesquelles portent sur l’ensemble des projets"
+verification: "Un utilisateur porteur du rôle prédéfini « manager » mène à leur terme le paramétrage des nœuds d’organisation, des rôles de ressources, des calendriers et des taux horaires (FBS-3), et ouvre les vues du portefeuille (FBS-2), lesquelles portent sur l’ensemble des projets, et ouvre un projet dont il n’est pas contributeur."
 ```
 
 ```yaml exigence
@@ -400,9 +400,9 @@ titre: "Imports MS Project"
 flexibilite: "F0"
 fbs: "FBS-4.3.4"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1, PBS-3.3"
-corps: "Le logiciel doit être capable d’importer des fichier XML de MS Project dans les version de 2007 à 2024. Seules les taches et les dépendances (prédécesseurs) sont importés. Les ressources et les calendriers ne sont jamais importés. Ils sont gérés exclusivement par Waterfall. L’import d’un fichier dont les dates ou les durées diffèrent de celles recalculées par Waterfall présente l’écart et demande confirmation. L’abandon à cette étape laisse le planning inchangé."
+corps: "Le logiciel doit être capable d’importer des fichiers au format d’échange XML de MS Project des versions 2010 et suivantes. Seules les taches et les dépendances (prédécesseurs) sont importés. Les ressources et les calendriers ne sont jamais importés. Ils sont gérés exclusivement par Waterfall. L’import d’un fichier dont les dates ou les durées diffèrent de celles recalculées par Waterfall présente l’écart et demande confirmation. L’abandon à cette étape laisse le planning inchangé."
 motif: "Les imports / exports MS Project sont présent pour faciliter l’adoption de Waterfall. Les cibles privilégiées de Waterfall sont les entreprises qui travaillent avec un ERP, MS Project et Excel."
-verification: "Un fichier XML produit par chacune des versions 2007, 2010, 2013, 2016, 2019, 2021 et 2024 de MS Project est importé sans erreur. Après import, les tâches et leurs liaisons de prédécesseur — type FD, DD, FF ou DF, et décalage — sont identiques à celles du fichier source ; aucune ressource et aucun calendrier présents dans le fichier n’a été créé dans Waterfall, et l’utilisateur est informé que ces éléments ont été ignorés."
+verification: "Un fichier XML produit par MS Project 2013 est importé sans erreur. Après import, les tâches et leurs liaisons de prédécesseur — type FD, DD, FF ou DF, et décalage — sont identiques à celles du fichier source ; aucune ressource et aucun calendrier présents dans le fichier n’a été créé dans Waterfall, et l’utilisateur est informé que ces éléments ont été ignorés."
 ```
 
 ```yaml exigence
@@ -412,7 +412,7 @@ titre: "Exports MS Project"
 flexibilite: "F0"
 fbs: "FBS-4.3.4"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1"
-corps: "Les plannings Waterfall doivent pouvoir être exportés au format XML MS Project. Les calendriers Waterfall doivent être exportés dans ce fichier."
+corps: "Les plannings Waterfall doivent pouvoir être exportés au format XML MS Project. Chaque tâche y porte son calendrier applicable (WF-PLA-0010) comme calendrier de tâche ; aucune ressource n’étant exportée, aucun calendrier de ressource n’intervient dans le calcul de MS Project."
 motif: "MS Project calcule les durées et les dates des taches en mode automatique. Il est nécessaire que MS Project et Waterfall partagent le même calendrier."
 verification: "Un planning Waterfall exporté au format XML s’ouvre sans erreur dans les versions de MS Project visées par WF-INTF-0040. Les calendriers Waterfall y figurent et sont affectés aux tâches. En mode automatique, MS Project recalcule pour chaque tâche des dates de début et de fin identiques à celles affichées par Waterfall."
 ```
@@ -496,7 +496,7 @@ titre: "Import du reste à engager (FLX-05)"
 flexibilite: "F0"
 fbs: "FBS-4.5"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1, PBS-3.3"
-corps: "Un utilisateur habilité peut importer le reste à engager d’un projet depuis un fichier Excel au format « Reste à engager » de ANNEXE B: Formats d’échanges Excel. Chaque ligne du fichier devient une ligne de reste à engager de la révision en cours, portée par la tâche qu’il désigne et, pour une ligne de main-d’œuvre, affectée au rôle de ressource indiqué. Le sous-projet est repris s’il est renseigné. L’import remplace les lignes de reste à engager existantes de la révision en cours."
+corps: "Un utilisateur habilité peut importer le reste à engager d’un projet depuis un fichier Excel au format « Reste à engager » de ANNEXE B: Formats d’échanges Excel. Chaque ligne du fichier devient une ligne de reste à engager de la révision en cours, portée par la tâche qu’il désigne et, pour une ligne de main-d’œuvre, affectée au rôle de ressource indiqué. Le sous-projet d’une ligne est celui de l’onglet qui la porte, le format plaçant chaque sous-projet dans un onglet. L’import remplace les lignes de reste à engager existantes de la révision en cours."
 motif: "Le reste à engager est réestimé à chaque revue périodique, souvent à partir d’estimations recueillies dans Excel auprès des responsables de lots. Comme l’import remplace les lignes, il peut être rejoué."
 verification: "Même critère que WF-INTF-0100, appliqué aux lignes de reste à engager."
 ```
@@ -562,7 +562,7 @@ titre: "Formats indépendants de la langue"
 flexibilite: "F0"
 fbs: "FBS-1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1"
-corps: "Les formats d'échange ne dépendent pas de la langue de l'interface : les en-têtes de colonnes des formats Excel de l’ANNEXE B: Formats d’échanges Excel, les noms de champs des fichiers MS Project, et les dates et nombres du contrat d'API sont fixes. L'affichage, lui, suit la langue de l'utilisateur : format de date, séparateur décimal, séparateur de milliers, position du symbole monétaire et ordre alphabétique des listes. Le changement de langue ne modifie aucune donnée ni aucun montant, seulement leur présentation."
+corps: "Les formats d'échange ne dépendent pas de la langue de l'interface : les en-têtes de colonnes des formats Excel de l’ANNEXE B: Formats d’échanges Excel, les noms de champs des fichiers MS Project, et les dates et nombres du contrat d'API sont fixes. La saisie d'un nombre suit le format de la langue de l'interface — virgule décimale en français, point en anglais. L'affichage, lui, suit la langue de l'utilisateur : format de date, séparateur décimal, séparateur de milliers, position du symbole monétaire et ordre alphabétique des listes. Le changement de langue ne modifie aucune donnée ni aucun montant, seulement leur présentation."
 motif: "Un devis exporté par un utilisateur français doit pouvoir être réimporté par un utilisateur anglais, faute de quoi la réversibilité de WF-INTF-0060 ne vaut que pour une langue et les équipes ne peuvent plus échanger de fichiers. Fixer les en-têtes une fois pour toutes est la seule façon de le garantir. À l'inverse, afficher une date au format d'une autre langue est le moyen le plus sûr de confondre le 3 décembre et le 12 mars."
 verification: "Un devis exporté par un utilisateur en français et réimporté par un utilisateur en anglais donne un devis identique, sans avertissement de format. Le même montant s'affiche « 1 234,56 » en français et « 1,234.56 » en anglais, et le total du projet est le même. Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui l'exporte."
 ```
@@ -680,13 +680,13 @@ classDiagram
 
 **Deux découpages sans lien entre eux.**
 
-Le **lotissement** reflète le bon de commande : il découpe l’affaire en postes, qui contiennent des lots, qui contiennent des livrables. Il est facultatif, et sa seule valeur est pratique : il permet d’engendrer un squelette de planning, et de filtrer le planning comme le devis par poste ou par lot, à travers la tâche récapitulative qui les porte. En l’absence de saisie, il se réduit à un poste comprenant un lot sans livrable.
+Le **lotissement** reflète le bon de commande : il découpe l’affaire en postes, qui contiennent des lots, qui contiennent des livrables. Il est facultatif. Il permet d’engendrer un squelette de planning, de filtrer le planning comme le devis par poste ou par lot, à travers la tâche récapitulative qui les porte, et il structure le fichier de devis de l’annexe B, un onglet par lot. En l’absence de saisie, il se réduit à un poste comprenant un lot sans livrable.
 
 Les **sous-projets**, eux, portent les codes définis dans l’ERP à la saisie de la commande. Ils regroupent des lignes de devis, et c’est à cette maille que les coûts réels sont rapprochés du budget : les dépenses se font sur un code de sous-projet, jamais sur une tâche. Les entreprises les découpent selon leurs habitudes, par phase, par métier ou selon le lotissement. Waterfall n’impose rien et n’établit aucun lien entre les deux découpages.
 
 **Le code projet vient de l’ERP.** Il n’est donc pas connu pendant le chiffrage, et n’est exigé qu’au passage du projet à l’état En cours. Il en va de même des codes de sous-projets, ce qui n’est pas gênant : avant la commande, il n’y a aucun coût réel à rapprocher. Le rattachement des lignes à un sous-projet devient nécessaire au moment précis où il devient possible.
 
-**Les contributeurs.** Un projet porte la liste des utilisateurs qui y contribuent : le chef de projet qui le structure, et les managers des métiers qui en chiffrent la charge. Waterfall propose d’y ajouter les utilisateurs des services dont un rôle est employé par les lignes de devis ; le chef de projet confirme. Cette liste est une donnée du projet, comme son lotissement, et non une portée d’habilitation : elle dit qui participe à cette affaire, là où les rôles d’habilitation disent ce qu’un utilisateur a le droit de faire. Une affaire multi-métiers ne relève d’aucun service en particulier, et sa liste de contributeurs change à chaque projet, contrairement à l’organigramme.
+**Les contributeurs.** Un projet porte la liste des utilisateurs qui y contribuent : le chef de projet qui le structure, et les managers des métiers qui en chiffrent la charge. Waterfall propose d’y ajouter les utilisateurs des services dont un rôle est employé par les lignes de devis ; le chef de projet confirme. Cette liste est une donnée du projet, comme son lotissement, et c’est elle qui dit qui participe à cette affaire et peut l’ouvrir, là où les rôles d’habilitation disent ce qu’un utilisateur a le droit de faire ; chacun y est inscrit comme chef de projet ou comme contributeur, et seuls les premiers décident de ce qui engage l’affaire. Une affaire multi-métiers ne relève d’aucun service en particulier, et sa liste de contributeurs change à chaque projet, contrairement à l’organigramme.
 
 <!-- source : figures/revisions-structure-couts.mmd — régénéré par tools/build.py -->
 
@@ -799,7 +799,7 @@ classDiagram
 
 **La ligne de devis.** Toute ligne relève d’une catégorie de coût, et par elle d’une nature. Le chemin pour l’atteindre diffère selon la nature. Pour la main-d’œuvre, l’utilisateur traverse l’organigramme et choisit un rôle de ressource, qui détermine la catégorie ; la ligne porte alors une charge en heures, et le taux horaire de la catégorie la convertit en montant. Sinon, l’utilisateur choisit directement la catégorie, et la ligne porte une quantité et un débours. Une ligne porte en outre un délai de paiement, nul pour la main-d’œuvre, qui sert aux projections de décaissement.
 
-**Montants d’une ligne. **Le montant budgété est celui que la référence a fixé : il ne change que lorsqu’une nouvelle révision de référence est produite, par un avenant ou par un risque survenu. Le montant réestimé est celui que les revues périodiques mettent à jour. Le budget de référence est la somme des montants budgétés ; le reste à engager se calcule sur les montants réestimés. Une ligne ajoutée après la référence — tâche non anticipée, ligne issue d’un risque survenu — porte un montant budgété nul : elle pèse sur le reste à engager, jamais sur le budget.
+**Montants d’une ligne. **Le montant budgété est celui que la référence a fixé : il ne change que lorsqu’une nouvelle révision de référence est produite, par un avenant ou par un risque survenu. Le montant réestimé est celui que les revues périodiques mettent à jour. Le budget de référence est la somme des montants budgétés ; le reste à engager se calcule sur les montants réestimés. Une ligne ajoutée après la référence — tâche non anticipée — porte un montant budgété nul : elle pèse sur le reste à engager, jamais sur le budget. Les lignes issues d’un risque survenu portent, elles, la provision du risque, répartie entre elles (WF-RIS-0060).
 
 **Reste à engager. **Il ne constitue pas un objet distinct : ce sont les mêmes lignes, dans la structure principale de la révision courante, lues par leur montant réestimé. Le reste à engager n’expose à la réestimation que les lignes des tâches démarrées : une tâche non démarrée garde son montant budgété, corrigé de l’inflation si elle a glissé dans le temps, et une tâche dont le reste à engager est nul est terminée.
 
@@ -865,7 +865,7 @@ fbs: "FBS-3, FBS-4.9"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
 corps: "La création d’un projet est refusée tant que le référentiel commun est incomplet, c’est-à-dire tant qu’il manque l’un des éléments suivants : un calendrier par défaut actif dont au moins un jour de la semaine compte des heures travaillées ; au moins une catégorie de coût active ; au moins un rôle de ressource actif."
 motif: "Si aucun jour ne compte d’heures travaillées, toute durée calculée vaut zéro. Sans catégorie de coût ni rôle, aucune ligne de devis ne peut être chiffrée. Laisser créer le projet ne ferait que déplacer l’échec vers un écran où sa cause n’est plus visible. Les taux horaires ne font pas partie de ces prérequis : ils ne sont exigés que pour les catégories de coût qu’un devis emploie réellement, et pour son année de référence (WF-DEV-0010)."
-verification: "Sur une plateforme dont le référentiel est incomplet, la création d’un projet est refusée, et le refus nomme chaque prérequis manquant. La création aboutit dès que tous les prérequis sont satisfaits."
+verification: "Sur une plateforme dont le référentiel est incomplet, la création d’un projet est refusée, et le refus nomme chaque prérequis manquant. La création aboutit dès que tous les prérequis sont satisfaits. Sur une installation dont le référentiel est incomplet, l’accueil énonce les prérequis manquants et mène au référentiel."
 ```
 
 ### 3.3.2. Cycle de vie d’un projet
@@ -1139,7 +1139,7 @@ Le système de droits repose sur deux mécanismes qui ne se substituent pas l’
 
 #### 3.4.2.1. FBS-1.1 : Gestion des utilisateurs
 
-Un compte est ce par quoi une personne existe dans Waterfall : une identité, un état, des rôles, et quelques réglages qui lui sont propres. Les comptes viennent le plus souvent de l’annuaire de l’entreprise, qui reste la source de leur identité ; Waterfall n’y ajoute que ce que l’annuaire ignore — les rôles, le rattachement à l’organisation, les préférences.
+Un compte est ce par quoi une personne existe dans Waterfall : une identité, un état, des rôles, et quelques réglages qui lui sont propres. Les comptes viennent le plus souvent de l’annuaire de l’entreprise, qui reste la source de leur identité ; Waterfall n’y ajoute que ce que l’annuaire ignore — les rôles, le rattachement à l’organisation, les préférences. Le fournisseur d’identité livré avec la plateforme les authentifie (WF-ARC-0030).
 
 Un compte ne se supprime pas plus qu’un objet du référentiel : il se désactive. Une personne partie a marqué des révisions, exclu des lignes de coût, déclaré des risques survenus, et ces actes doivent rester attribuables.
 
@@ -1150,9 +1150,9 @@ titre: "Attributs d’un compte utilisateur"
 flexibilite: "F0"
 fbs: "FBS-1.1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Un compte utilisateur porte un nom, un prénom, une adresse électronique unique dans l’installation, un état — actif ou désactivé —, un ou plusieurs rôles d’habilitation, un rattachement facultatif à un nœud d'organisation (WF-ADM-0030), une langue d'interface (WF-INTF-0160) et un avatar facultatif. Il porte en outre son origine : créé dans Waterfall, ou venu d’un fournisseur externe — importé de l’annuaire d’entreprise, ou créé à sa première connexion par le fournisseur d’identité (WF-ADM-0180)."
-motif: "L’adresse électronique est ce qui identifie une personne d’un système à l’autre : c’est par elle que l’annuaire et Waterfall reconnaissent le même compte. L’origine dit qui fait foi pour l’identité — l’annuaire pour un compte importé, Waterfall pour un compte local — et donc ce qui est modifiable où."
-verification: "La création d’un compte sans nom, sans prénom ou sans adresse est refusée, de même que celle d’un compte dont l’adresse est déjà portée par un autre. Le nom, le prénom et l’adresse d’un compte venu d’un fournisseur externe ne sont pas modifiables dans Waterfall."
+corps: "Un compte utilisateur porte un nom, un prénom, une adresse électronique unique dans l’installation, un état — actif ou désactivé —, un ou plusieurs rôles d’habilitation, un rattachement facultatif à un nœud d'organisation (WF-ADM-0030), une langue d'interface (WF-INTF-0160) et un avatar facultatif. Il porte en outre son origine : compte local, compte de l’annuaire d’entreprise, ou compte venu d’un fournisseur d’identité externe (WF-ADM-0180)."
+motif: "L’adresse électronique est ce qui identifie une personne d’un système à l’autre : c’est par elle que l’annuaire et Waterfall reconnaissent le même compte. L’origine dit qui fait foi pour l’identité — l’annuaire ou le fournisseur externe pour un compte fédéré, Waterfall pour un compte local — et donc ce qui est modifiable où."
+verification: "La création d’un compte sans nom, sans prénom ou sans adresse est refusée, de même que celle d’un compte dont l’adresse est déjà portée par un autre. Le nom, le prénom et l’adresse d’un compte de l’annuaire ou d’un fournisseur externe ne sont pas modifiables dans Waterfall."
 ```
 
 ```yaml exigence
@@ -1161,7 +1161,7 @@ id: "WF-ADM-0060-A"
 titre: "Cycle de vie d’un compte"
 flexibilite: "F0"
 fbs: "FBS-1.1"
-pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-2.5, PBS-3.1"
+pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-2.5, PBS-5.4, PBS-3.1"
 corps: "Un compte se crée, se modifie et se désactive ; il ne se supprime pas. Un compte désactivé ne peut plus se connecter, n’est plus proposé comme contributeur, et reste affiché partout où il a agi. Il peut être réactivé."
 motif: "Un compte a marqué des révisions, exclu des lignes de coût, déclaré des risques survenus : ces actes doivent rester attribuables après le départ de la personne. C’est la même règle que pour le référentiel, et pour la même raison."
 verification: "Aucun écran ne propose de supprimer un compte. La connexion d’un compte désactivé est refusée. Une révision marquée par un compte depuis désactivé affiche toujours son auteur. Un compte réactivé se connecte de nouveau avec ses rôles d’avant."
@@ -1170,13 +1170,13 @@ verification: "Aucun écran ne propose de supprimer un compte. La connexion d’
 ```yaml exigence
 section: "3.4.2.1"
 id: "WF-ADM-0070-A"
-titre: "Import des comptes depuis l’annuaire d’entreprise"
+titre: "Lecture des comptes du fournisseur d’identité"
 flexibilite: "F0"
 fbs: "FBS-1.1"
-pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-2.5, PBS-3.1, PBS-5.3"
-corps: "Les comptes peuvent être importés depuis l’annuaire d’entreprise, et resynchronisés à la demande. L’import crée les comptes absents avec leur nom, leur prénom et leur adresse électronique, met à jour ces trois attributs sur les comptes importés existants, et désactive les comptes importés que l’annuaire ne connaît plus. Les comptes créés dans Waterfall ne sont pas concernés. Un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé dans le compte rendu de la synchronisation. L’import n’attribue aucun rôle d’habilitation : un compte importé n’a aucun droit tant qu’un rôle ne lui a pas été donné dans Waterfall."
-motif: "L’annuaire est la source de vérité de l’identité, et personne ne doit ressaisir des noms qu’il connaît déjà. Mais il ne sait rien des rôles de Waterfall, et un import qui en attribuerait donnerait des droits que personne n’a décidés. Désactiver plutôt que supprimer les comptes disparus conserve leurs actes."
-verification: "Après import, chaque personne de l’annuaire retenue a un compte actif, sans rôle si elle n’en avait pas. Une personne retirée de l’annuaire voit son compte désactivé à la resynchronisation suivante, et ses actes restent consultables. Un compte créé dans Waterfall reste actif après resynchronisation. Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. Le protocole d’accès à l’annuaire relève de l’architecture technique."
+pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-2.5, PBS-5.4, PBS-3.1, PBS-5.3"
+corps: "Les comptes de l’annuaire d’entreprise sont connus de Waterfall avant la première connexion de leur porteur : Waterfall lit les comptes du fournisseur d’identité, qui fédère l’annuaire, par son API d’administration, à la demande et à intervalle régulier. La lecture crée les comptes absents avec leur nom, leur prénom et leur adresse électronique, met à jour ces trois attributs sur les comptes existants, et désactive les comptes que le fournisseur ne connaît plus. Un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé dans le compte rendu de la synchronisation. La lecture n’attribue aucun rôle d’habilitation : un compte ainsi créé n’a aucun droit tant qu’un rôle ne lui a pas été donné dans Waterfall. Un compte local se crée depuis Waterfall, qui le crée dans le fournisseur par la même API."
+motif: "L’annuaire est la source de vérité de l’identité, et personne ne doit ressaisir des noms qu’il connaît déjà. Waterfall doit pourtant connaître un compte avant sa première connexion, pour l’inscrire comme contributeur. L’annuaire ne sait rien des rôles de Waterfall, et une lecture qui en attribuerait donnerait des droits que personne n’a décidés. Désactiver plutôt que supprimer les comptes disparus conserve leurs actes."
+verification: "Après synchronisation, chaque personne de l’annuaire retenue a un compte actif dans Waterfall, sans rôle si elle n’en avait pas, avant toute connexion. Une personne retirée de l’annuaire voit son compte désactivé à la synchronisation suivante, et ses actes restent consultables. Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. Un compte local créé depuis Waterfall existe dans le fournisseur d’identité."
 ```
 
 ```yaml exigence
@@ -1185,10 +1185,10 @@ id: "WF-ADM-0140-A"
 titre: "Authentification et mot de passe"
 flexibilite: "F0"
 fbs: "FBS-1.1"
-pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-2.5, PBS-3.1"
-corps: "Un compte importé de l’annuaire s’authentifie auprès de l’annuaire, et ne porte aucun mot de passe dans Waterfall. Un compte local porte un mot de passe d’au moins douze caractères, qui ne peut être ni son adresse électronique ni son nom. Un compte local nouvellement créé n'a pas de mot de passe : son porteur en fixe un par le même lien que la réinitialisation, envoyé à son adresse à la création du compte. Un compte sans mot de passe ne peut pas se connecter, et le lien peut être renvoyé par un utilisateur habilité. Après dix échecs consécutifs, le compte est verrouillé pendant quinze minutes. Un utilisateur réinitialise son mot de passe par un lien envoyé à son adresse électronique, valable une heure et à usage unique. Aucune expiration périodique n’est imposée."
-motif: "Déléguer l’authentification des comptes importés à l’annuaire évite deux mots de passe pour une même personne, et laisse à l’entreprise la politique qu’elle applique déjà. Pour les comptes locaux, la longueur protège mieux que la complexité imposée, et l’expiration périodique pousse aux mots de passe faibles et notés : les recommandations actuelles y ont renoncé. Le verrouillage temporaire arrête la force brute sans permettre de bloquer un compte à volonté."
-verification: "Un compte importé n’a pas d’écran de mot de passe et se connecte avec ses identifiants d’annuaire. Un mot de passe de onze caractères est refusé, de même que l’adresse du compte. Dix échecs verrouillent le compte, qui se déverrouille après quinze minutes. Un lien de réinitialisation utilisé une fois, ou après une heure, est refusé. Un compte créé par un administrateur ne peut pas se connecter avant que son porteur n'ait fixé son mot de passe par le lien reçu. Aucun écran ne permet à un administrateur de saisir le mot de passe d'un autre."
+pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-2.5, PBS-5.4, PBS-3.1"
+corps: "L’authentification est assurée par le fournisseur d’identité livré avec la plateforme (WF-ARC-0030) : un compte de l’annuaire s’authentifie auprès de l’annuaire, un compte local auprès du fournisseur, et Waterfall ne conserve aucun mot de passe. La configuration livrée du fournisseur impose aux comptes locaux un mot de passe d’au moins douze caractères, qui ne peut être ni l’adresse électronique ni le nom ; verrouille le compte quinze minutes après dix échecs consécutifs ; fixe et réinitialise le mot de passe par un lien envoyé à l’adresse du compte, valable une heure et à usage unique ; et n’impose aucune expiration périodique. Un compte local nouvellement créé n’a pas de mot de passe et ne peut pas se connecter avant que son porteur n’en ait fixé un par ce lien, qu’un utilisateur habilité peut renvoyer."
+motif: "Déléguer l’authentification à un fournisseur éprouvé retire du code de sécurité au projet, et fédérer l’annuaire évite deux mots de passe pour une même personne en laissant à l’entreprise la politique qu’elle applique déjà. Pour les comptes locaux, la longueur protège mieux que la complexité imposée, et l’expiration périodique pousse aux mots de passe faibles et notés : les recommandations actuelles y ont renoncé. Le verrouillage temporaire arrête la force brute sans permettre de bloquer un compte à volonté."
+verification: "Un compte importé n’a pas d’écran de mot de passe et se connecte avec ses identifiants d’annuaire. Un mot de passe de onze caractères est refusé, de même que l’adresse du compte. Dix échecs verrouillent le compte, qui se déverrouille après quinze minutes. Un lien de réinitialisation utilisé une fois, ou après une heure, est refusé. Un compte créé par un administrateur ne peut pas se connecter avant que son porteur n'ait fixé son mot de passe par le lien reçu. Aucun écran de Waterfall ne demande, n’affiche ni ne permet de saisir un mot de passe."
 ```
 
 ```yaml exigence
@@ -1197,10 +1197,10 @@ id: "WF-ADM-0180-A"
 titre: "Fournisseurs d’authentification"
 flexibilite: "F0"
 fbs: "FBS-1.1"
-pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-2.5, PBS-3.1"
-corps: "L’authentification par compte local (WF-ADM-0140) est toujours disponible. Un utilisateur habilité peut en outre activer, dans les paramètres d’administration, un annuaire d’entreprise ou un fournisseur d’identité externe, avec les paramètres de connexion qu’il exige. L’import des comptes (WF-ADM-0070) n’existe qu’avec l’annuaire ; avec un fournisseur d’identité, un compte est créé à la première connexion de la personne, avec le nom, le prénom et l’adresse que le fournisseur transmet, et sans aucun rôle d’habilitation. Un compte venu d’un fournisseur externe s’authentifie auprès de lui, un compte local auprès de Waterfall. La désactivation d’un fournisseur externe ne supprime ni ne désactive les comptes qui en viennent."
-motif: "Toutes les entreprises n’ont pas de fournisseur d’identité, et celles qui en ont n’ont pas le même : le compte local est le socle qui fonctionne partout, l’annuaire ou le fournisseur externe s’y ajoute. Choisir le fournisseur dans l’administration, et non à l’installation, permet de raccorder l’annuaire après coup sans réinstaller."
-verification: "Sur une installation sans fournisseur externe, un compte local se connecte. Après activation d’un annuaire, un compte importé se connecte avec ses identifiants d’annuaire et un compte local avec son mot de passe. Avec un fournisseur d’identité, la première connexion d’une personne inconnue crée son compte, sans rôle, et elle n’a aucun droit tant qu’un rôle ne lui est pas donné. Après désactivation de l’annuaire, les comptes importés existent toujours et ne peuvent plus se connecter tant qu’aucun fournisseur ne les reconnaît."
+pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-2.5, PBS-5.4, PBS-3.1"
+corps: "Le fournisseur d’identité livré avec la plateforme porte toujours les comptes locaux. Il peut en outre fédérer un annuaire d’entreprise — LDAP, dont Active Directory — et relayer vers un fournisseur d’identité externe, avec les paramètres de connexion qu’ils exigent ; ces raccordements se paramètrent dans la console du fournisseur, non dans les écrans de Waterfall. Avec un fournisseur externe, un compte est créé dans Waterfall à la première connexion de la personne, avec le nom, le prénom et l’adresse transmis, et sans aucun rôle d’habilitation. La désactivation d’un raccordement ne supprime ni ne désactive les comptes qui en viennent."
+motif: "Toutes les entreprises n’ont pas d’annuaire ni de fournisseur d’identité, et celles qui en ont n’ont pas le même : le compte local est le socle qui fonctionne partout, l’annuaire ou le fournisseur externe s’y ajoute. Les raccorder dans la console du fournisseur, après coup, évite de réinstaller et d’écrire dans Waterfall des écrans qui existent déjà."
+verification: "Sur une installation sans annuaire ni fournisseur externe, un compte local se connecte. Après fédération d’un annuaire, un compte de l’annuaire se connecte avec ses identifiants d’annuaire et un compte local avec son mot de passe. Avec un fournisseur externe, la première connexion d’une personne inconnue crée son compte, sans rôle, et elle n’a aucun droit tant qu’un rôle ne lui est pas donné. Après retrait de l’annuaire, les comptes qui en venaient existent toujours et ne peuvent plus se connecter tant qu’aucun fournisseur ne les reconnaît. Aucun écran de Waterfall ne paramètre un annuaire."
 ```
 
 ```yaml exigence
@@ -1243,7 +1243,7 @@ verification: "Un utilisateur ajoute, remplace et retire son avatar sans interve
 
 Waterfall applique un contrôle d’accès par rôles. Une **permission** est le droit d’accomplir une action ; un **rôle** est un ensemble de permissions ; un utilisateur porte un ou plusieurs rôles et dispose de l’union de leurs permissions. Trois rôles sont livrés avec la plateforme (WF-ADM-0010), et une entreprise peut en composer d’autres : aucune action n’est réservée à un acteur (WF-ADM-0020).
 
-Les permissions ne portent que sur ce qu’on peut faire, jamais sur quel projet : c’est la liste des contributeurs qui restreint la saisie à ceux qui participent à l’affaire. Un manager habilité à consulter les indicateurs les consulte sur tous les projets ; il ne saisit que sur ceux où il est inscrit.
+Les permissions ne portent que sur ce qu’on peut faire, jamais sur quel projet : c’est la liste des contributeurs qui restreint la consultation et la saisie à ceux qui participent à l’affaire, et la qualité de chef de projet qui y réserve les décisions structurantes. Une seule permission échappe à la liste, « consulter tous les projets » : un manager qui la porte lit tous les projets, et ne saisit que sur ceux où il est inscrit.
 
 ```yaml exigence
 section: "3.4.2.2"
@@ -1288,7 +1288,7 @@ titre: "Catalogue des permissions"
 flexibilite: "F0"
 fbs: "FBS-1.2"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Les permissions sont définies par fonction de second niveau de l’arborescence fonctionnelle (FBS-x.y), à deux niveaux — consulter, modifier —, la permission d’une fonction couvrant ses sous-fonctions. Pour les fonctions d’administration et de référentiel (FBS-1 et FBS-3), la permission de modifier tient lieu de permission de gérer. S’y ajoutent des permissions distinctes pour les actions irréversibles ou structurantes : marquer une révision, désigner la révision de référence, déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût du périmètre suivi, restaurer la plateforme. Le catalogue est livré avec la plateforme et n’est pas modifiable."
+corps: "Les permissions sont définies par fonction de second niveau de l’arborescence fonctionnelle (FBS-x.y), à deux niveaux — consulter, modifier —, la permission d’une fonction couvrant ses sous-fonctions. Pour les fonctions d’administration et de référentiel (FBS-1 et FBS-3), la permission de modifier tient lieu de permission de gérer. S’y ajoutent des permissions distinctes pour les actions irréversibles ou structurantes : marquer une révision, désigner la révision de référence, déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût du périmètre suivi, restaurer la plateforme, et la permission de consulter tous les projets (WF-PRJ-0060). Le catalogue est livré avec la plateforme et n’est pas modifiable."
 motif: "Deux niveaux par fonction suffisent au quotidien et gardent le catalogue lisible. Les actions irréversibles méritent une permission propre parce qu’on veut pouvoir les confier à moins de monde que la saisie : un chiffreur modifie le devis sans pour autant marquer la révision. Un catalogue fixe est ce qui garantit qu’une permission a le même sens sur toutes les installations."
 verification: "Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions. Un rôle disposant de la modification du chiffrage mais non du marquage permet de modifier un devis et refuse de marquer la révision. Aucun écran ne permet de créer une permission."
 ```
@@ -1300,9 +1300,9 @@ titre: "Évaluation d’une action"
 flexibilite: "F0"
 fbs: "FBS-1.2"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1, PBS-3.2"
-corps: "Une action est autorisée si l’utilisateur dispose de la permission correspondante et, lorsqu’elle modifie les données d’un projet, s’il est contributeur de ce projet (WF-PRJ-0060). La consultation d’un projet ne dépend que de la permission. Une action refusée l’est quel que soit le point d’entrée — écran, import ou traitement automatique — et le refus nomme la condition manquante. Les permissions effectives d'un utilisateur lui sont connues, de sorte que l'interface puisse ne pas présenter ce qu'il n'a pas le droit de faire (WF-IHM-0090). Les connaître ne dispense d'aucune évaluation : chaque action est évaluée au moment où elle est demandée."
-motif: "Les deux conditions répondent à deux questions distinctes : la permission dit ce que l’utilisateur sait faire, la liste des contributeurs dit sur quelle affaire. Les combiner à l’évaluation de chaque action, et non seulement à l’affichage des écrans, est ce qui rend la règle valable pour les imports et les traitements de fond."
-verification: "Un utilisateur habilité à modifier le planning mais non contributeur d’un projet voit ce planning et ne peut pas le modifier, ni par la grille ni par import. Inscrit comme contributeur, il le modifie. Un utilisateur sans la permission de consultation ne voit pas le projet, même contributeur. Un utilisateur connaît la liste de ses permissions effectives, et elle change immédiatement lorsqu'un de ses rôles est modifié."
+corps: "Une action est autorisée si l’utilisateur dispose de la permission correspondante et, lorsqu’elle modifie les données d’un projet, s’il est contributeur de ce projet et, pour une action structurante ou le paramétrage du projet, s’il y est chef de projet (WF-PRJ-0060). La consultation d’un projet exige la permission de consulter et la qualité de contributeur, ou la permission « consulter tous les projets ». Une action refusée l’est quel que soit le point d’entrée — écran, import ou traitement automatique — et le refus nomme la condition manquante. Les permissions effectives d'un utilisateur lui sont connues, de sorte que l'interface puisse ne pas présenter ce qu'il n'a pas le droit de faire (WF-IHM-0090). Les connaître ne dispense d'aucune évaluation : chaque action est évaluée au moment où elle est demandée. L’interface présente le même écran pour un objet inexistant et pour un objet dont la consultation n’est pas permise."
+motif: "Les deux conditions répondent à deux questions distinctes : la permission dit ce que l’utilisateur sait faire, la liste des contributeurs dit sur quelle affaire, et sa qualité de chef de projet ou de contributeur ce qu’il peut y décider. Les combiner à l’évaluation de chaque action, et non seulement à l’affichage des écrans, est ce qui rend la règle valable pour les imports et les traitements de fond."
+verification: "Un utilisateur habilité à modifier le planning et porteur de « consulter tous les projets », mais non contributeur d’un projet, voit ce planning et ne peut pas le modifier, ni par la grille ni par import. Inscrit comme contributeur, il le modifie. Un utilisateur sans la permission de consultation ne voit pas le projet, même contributeur ; un contributeur sans « consulter tous les projets » ne voit que ses projets. Une adresse d’objet inexistant et une adresse d’objet non consultable mènent au même écran. Un utilisateur connaît la liste de ses permissions effectives, et elle change immédiatement lorsqu'un de ses rôles est modifié."
 ```
 
 ```yaml exigence
@@ -1328,9 +1328,9 @@ titre: "Écran d’état du système"
 flexibilite: "F0"
 fbs: "FBS-1.3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1, PBS-4.1, PBS-4.3"
-corps: "Un écran d’état présente, pour chaque composant de la plateforme : sa disponibilité et la date de la dernière vérification ; l’espace de stockage utilisé et disponible ; la version installée de Waterfall ; la date et le résultat de la dernière synchronisation avec l’annuaire ; la date et le résultat de la dernière sauvegarde ; la date et le résultat du dernier test de restauration ; les alertes en cours. Il est accessible sans qu’aucun projet ne soit ouvert."
+corps: "Un écran d’état présente, pour chaque composant de la plateforme : sa disponibilité et la date de la dernière vérification ; l’espace de stockage utilisé et disponible ; la version installée de Waterfall ; la date et le résultat de la dernière lecture des comptes du fournisseur d’identité ; la date et le résultat de la dernière sauvegarde ; la date et le résultat du dernier test de restauration ; les alertes en cours. Il est accessible sans qu’aucun projet ne soit ouvert."
 motif: "Un exploitant a besoin de savoir en quelques secondes si un composant est tombé, si le disque se remplit, et si l’annuaire répond encore. Rendre l’écran indépendant des projets permet de le consulter quand plus rien d’autre ne s’affiche."
-verification: "L’arrêt d’un composant apparaît sur l’écran d’état à la vérification suivante. L’écran indique la version installée et la date de la dernière synchronisation de l’annuaire. Il s’affiche pour un utilisateur habilité qui n’est contributeur d’aucun projet. L'écran indique la date du dernier test de restauration."
+verification: "L’arrêt d’un composant apparaît sur l’écran d’état à la vérification suivante. L’écran indique la version installée et la date de la dernière lecture des comptes du fournisseur d’identité. Il s’affiche pour un utilisateur habilité qui n’est contributeur d’aucun projet. L'écran indique la date du dernier test de restauration."
 ```
 
 #### 3.4.2.4. FBS-1.4 : Sauvegarde et restauration
@@ -1344,7 +1344,7 @@ titre: "Sauvegarde"
 flexibilite: "F0"
 fbs: "FBS-1.4"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1, PBS-3.3"
-corps: "Un utilisateur habilité peut déclencher une sauvegarde complète de la plateforme, qui couvre l’intégralité de la base de données dans un état cohérent. Chaque sauvegarde est datée, vérifiée après sa production, et présentée dans une liste avec sa date, sa taille et le résultat de sa vérification. Une sauvegarde peut être copiée hors de la plateforme."
+corps: "Un utilisateur habilité peut déclencher une sauvegarde complète de la plateforme, qui couvre l’intégralité de la base de données de Waterfall et celle du fournisseur d’identité, chacune dans un état cohérent. Chaque sauvegarde est datée, vérifiée après sa production, et présentée dans une liste avec sa date, sa taille et le résultat de sa vérification. Une sauvegarde peut être copiée hors de la plateforme."
 motif: "La vérification est ce qui distingue une sauvegarde d’un fichier qu’on espère restaurable. La copie hors plateforme est ce qui protège d’une perte de la plateforme elle-même."
 verification: "Une sauvegarde déclenchée apparaît dans la liste avec sa date, sa taille et une vérification réussie. Elle peut être téléchargée ou copiée vers un emplacement externe."
 ```
@@ -1356,7 +1356,7 @@ titre: "Restauration"
 flexibilite: "F0"
 fbs: "FBS-1.4"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1, PBS-3.3"
-corps: "Un utilisateur habilité peut restaurer la plateforme depuis une sauvegarde de la liste, ou depuis une sauvegarde copiée hors de la plateforme. La restauration remplace l’intégralité de la base par son contenu sauvegardé, déconnecte les utilisateurs pendant sa durée, et n’est appliquée qu’après une confirmation qui énonce la date de la sauvegarde et le caractère irréversible de l’opération. Elle ne porte pas sur un projet isolé."
+corps: "Un utilisateur habilité peut restaurer la plateforme depuis une sauvegarde de la liste, ou depuis une sauvegarde copiée hors de la plateforme. La restauration remplace l’intégralité des deux bases — Waterfall et fournisseur d’identité — par leur contenu sauvegardé, déconnecte les utilisateurs pendant sa durée, et n’est appliquée qu’après une confirmation qui énonce la date de la sauvegarde et le caractère irréversible de l’opération. Elle ne porte pas sur un projet isolé."
 motif: "Une restauration est l’acte le plus destructeur de la plateforme : tout ce qui a été saisi après la sauvegarde disparaît. La confirmation doit dire ce qu’on perd. Restaurer un seul projet supposerait de réconcilier son référentiel avec celui du reste de la plateforme, ce qui n’est pas un acte d’exploitation mais une reprise de données."
 verification: "Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur. La confirmation nomme la date de la sauvegarde. Aucune restauration partielle n’est proposée."
 ```
@@ -1428,9 +1428,9 @@ titre: "Liste des projets"
 flexibilite: "F0"
 fbs: "FBS-2.1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La liste des projets présente, pour chaque projet du périmètre, son libellé, son code, son état, son budget de référence ou, en chiffrage, son devis courant et sa probabilité de gain, sa projection à terminaison du chef de projet, ses indices de coût et de délai avec leur zone, et la date de sa dernière révision marquée. Elle se filtre par état, par période et par recherche sur le libellé, se trie sur chaque colonne, et ouvre chaque projet."
+corps: "La liste des projets présente, pour chaque projet du périmètre, son libellé, son code, son état, son budget de référence ou, en chiffrage, son devis courant et sa probabilité de gain, sa projection à terminaison du chef de projet, ses indices de coût et de délai avec leur zone, et la date de sa dernière révision marquée. Elle se filtre par état, par période et par recherche sur le libellé, se trie sur chaque colonne, et ouvre chaque projet. Pour un projet en cours, la liste présente en outre la projection du chef de projet (WF-IND-0050) et son écart au budget de référence."
 motif: "Un portefeuille se lit d’abord comme une liste triée : les projets en alerte en tête, les revues en retard, les gros devis en attente. Les colonnes retenues sont celles qui permettent ce tri sans ouvrir un projet."
-verification: "Chacune des colonnes citées est présente. Le tri par indice de coût place les projets en alerte en tête. Un projet en chiffrage affiche son devis et sa probabilité là où un projet en cours affiche son budget de référence."
+verification: "Chacune des colonnes citées est présente. Le tri par indice de coût place les projets en alerte en tête. Un projet en chiffrage affiche son devis et sa probabilité là où un projet en cours affiche son budget de référence. Un projet en cours de budget 1 000, de coût réel 500 et de reste à engager 550 affiche une projection de 1 050 et un écart de 50."
 ```
 
 ```yaml exigence
@@ -1558,9 +1558,9 @@ titre: "Désactivation des objets du référentiel"
 flexibilite: "F0"
 fbs: "FBS-3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Les nœuds d’organisation, rôles de ressources, natures de coût, catégories de coût et calendriers ne se suppriment pas : ils se désactivent, et peuvent être réactivés. Un objet désactivé n’est plus proposé à la saisie, et reste lisible partout où il est employé."
+corps: "Les nœuds d’organisation, rôles de ressources, natures de coût, catégories de coût et calendriers ne se suppriment pas : ils se désactivent, et peuvent être réactivés. Une ligne de devis ou de reste à engager qui emploie un objet désactivé le signale visuellement. Un objet désactivé n’est plus proposé à la saisie, et reste lisible partout où il est employé."
 motif: "Le référentiel doit pouvoir être nettoyé sans toucher aux projets qui l’emploient. Supprimer un objet laisserait des lignes sans rôle, sans catégorie ou sans calendrier."
-verification: "Aucun écran ne propose de supprimer un objet du référentiel. Un objet désactivé n’apparaît plus dans les listes de choix, mais reste affiché sur les éléments qui l’emploient. Une fois réactivé, il est de nouveau proposé."
+verification: "Aucun écran ne propose de supprimer un objet du référentiel. Un objet désactivé n’apparaît plus dans les listes de choix, mais reste affiché sur les éléments qui l’emploient. Une fois réactivé, il est de nouveau proposé. Après désactivation d’un rôle de ressource, les lignes qui le portent sont signalées dans la grille de devis et dans celle du reste à engager, et restent lisibles."
 ```
 
 ```yaml exigence
@@ -1649,7 +1649,7 @@ verification: "La création d’une catégorie sans nature est refusée. La cré
 
 Les taux se présentent comme une grille : une ligne par catégorie de main-d’œuvre, une colonne par année (WF-REF-0050). Ils sont exprimés dans la devise de l’installation (WF-REF-0140).
 
-Un taux est une valeur constatée, jamais projetée : le chiffrage n’emploie que celui de l’année de référence, et le taux d’inflation du projet se charge des années suivantes. Au changement d’année, une colonne vide apparaît, que les utilisateurs habilités renseignent (WF-REF-0060). Un taux déjà saisi reste corrigible, sans qu’aucune révision marquée n’en soit affectée (WF-REF-0130).
+Un taux est une valeur constatée, jamais projetée : le chiffrage n’emploie que celui de l’année de référence, et le taux d’inflation du projet se charge des années suivantes. Un utilisateur habilité ajoute la colonne de la nouvelle année et la renseigne (WF-REF-0060) ; aucune colonne n’apparaît d’elle-même. Un taux déjà saisi reste corrigible, sans qu’aucune révision marquée n’en soit affectée (WF-REF-0130).
 
 ```yaml exigence
 section: "3.4.4.1.2"
@@ -1882,7 +1882,7 @@ fbs: "FBS-4.1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1, PBS-3.2"
 corps: "La contractualisation d’un avenant, comme la survenance d’un risque, fusionne le différentiel dans la structure principale : les tâches et les lignes ajoutées y sont créées, les tâches modifiées prennent leurs nouvelles valeurs, les tâches devenues inutiles en sont retirées. La fusion ne modifie que les montants budgétés des lignes que le différentiel désigne ; les montants réestimés de toutes les lignes sont conservés. Une tâche déjà démarrée n’est jamais retirée : son reste à engager est porté à zéro, ce qui la termine et fige la valeur acquise sur ce qui a été fait. La fusion s'applique à la révision en cours et la marque dans la même opération ; elle exige à ce titre un nom de version, comme tout marquage (WF-REV-0020). Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable. La révision marquée qui en résulte devient la référence."
 motif: "Un avenant se négocie sur un écart, pas sur un planning complet. Fusionner l’écart plutôt que remplacer la structure conserve l’identité des tâches, donc l’historique de chacune et la comparaison entre révisions. Retirer une tâche commencée ferait disparaître de la valeur déjà acquise et des coûts réels déjà imputés. Un avenant qui annule un travail engagé ne le supprime pas : il ramène son budget à ce qui a été fait."
-verification: "Après fusion, la structure principale comporte les tâches ajoutées, les valeurs modifiées et plus aucune des tâches retirées. Les tâches inchangées conservent leur identité et leur état d’avancement. Une tâche démarrée désignée comme retirée par un différentiel est conservée, son reste à engager est nul, et sa valeur acquise est inchangée après la fusion. Une ligne réestimée à 140 pour un montant budgété de 100, non désignée par le différentiel, porte toujours 100 et 140 après la fusion. Une ligne ajoutée en revue périodique, non désignée par le différentiel, garde un montant budgété nul. La fusion demande un nom de version, et la révision produite le porte. Après fusion, le projet ne comporte plus de révision en cours."
+verification: "Après fusion, la structure principale comporte les tâches ajoutées, les valeurs modifiées et plus aucune des tâches retirées. Les tâches inchangées conservent leur identité et leur état. Une tâche démarrée désignée comme retirée par un différentiel est conservée, son reste à engager est nul, et sa valeur acquise est inchangée après la fusion. Une ligne réestimée à 140 pour un montant budgété de 100, non désignée par le différentiel, porte toujours 100 et 140 après la fusion. Une ligne ajoutée en revue périodique, non désignée par le différentiel, garde un montant budgété nul. La fusion demande un nom de version, et la révision produite le porte. Après fusion, le projet ne comporte plus de révision en cours."
 ```
 
 ```yaml exigence
@@ -1916,7 +1916,7 @@ titre: "Comparaison de deux révisions"
 flexibilite: "F1"
 fbs: "FBS-4.1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Deux révisions marquées d’un même projet peuvent être comparées. La comparaison présente les tâches ajoutées, retirées et modifiées — dates, durée, état d’avancement — ainsi que les écarts de montants par nature de coût et par sous-projet."
+corps: "Deux révisions marquées d’un même projet peuvent être comparées. La comparaison présente les tâches ajoutées, retirées et modifiées — dates, durée, état — ainsi que les écarts de montants par nature de coût et par sous-projet."
 motif: "Deux usages le demandent : instruire un avenant, en montrant ce qu’il change par rapport à la référence, et justifier auprès du client l’écart entre deux offres successives. Sans elle, l’écart se reconstitue à la main, en ouvrant deux révisions côte à côte."
 verification: "La comparaison de deux révisions dont l’une a été obtenue par fusion d’un différentiel restitue exactement les tâches et les montants de ce différentiel."
 ```
@@ -2002,7 +2002,7 @@ verification: "La création d’un projet sans libellé est refusée. La date de
 
 ##### 3.4.5.2.1. FBS-4.2.1 : Lotissement du projet
 
-Le lotissement reproduit le découpage du bon de commande en postes, lots et livrables (WF-PRJ-0020). Il ne conditionne rien : un projet se chiffre et se pilote sans lui.
+Le lotissement reproduit le découpage du bon de commande en postes, lots et livrables (WF-PRJ-0020). Il ne conditionne ni le chiffrage ni le pilotage, qui se font sans lui ; il structure en revanche le fichier de devis de l’annexe B, qui présente une synthèse puis un onglet par lot.
 
 Il rend deux services. Il permet d’engendrer un squelette de planning, qui évite de ressaisir la structure de l’affaire (WF-PRJ-0030). Et comme ce squelette crée une tâche récapitulative par poste et par lot, filtrer le planning ou le devis sur l’un d’eux revient à filtrer le sous-arbre correspondant : le lotissement sert alors de grille de lecture, sans qu’aucune tâche ni aucune ligne ne lui soit formellement rattachée.
 
@@ -2077,9 +2077,9 @@ titre: "Liste des contributeurs"
 flexibilite: "F0"
 fbs: "FBS-4.2.4"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Un projet porte la liste des utilisateurs qui y contribuent, dont son créateur. Toute saisie sur un projet est réservée à ses contributeurs ; la consultation, elle, ne dépend que des habilitations."
+corps: "Un projet porte la liste des utilisateurs qui y contribuent, dont son créateur, chacun avec sa qualité : chef de projet ou contributeur. La consultation et la saisie sur un projet sont réservées à ses contributeurs, chacune sous sa permission ; la permission « consulter tous les projets » ouvre à la consultation les projets dont l’utilisateur n’est pas contributeur. Les actions structurantes du catalogue (WF-ADM-0100) et le paramétrage du projet (FBS-4.2) sont réservés à ses chefs de projet. Les vues du portefeuille agrègent tous les projets du périmètre, qu’ils soient ou non ouvrables par l’utilisateur."
 motif: "Dans une organisation matricielle, un projet réunit des contributeurs de plusieurs services, et cette composition change à chaque affaire. La porter par le projet évite de la déduire de l’organigramme, qui décrit l’entreprise et non les affaires. Réserver la seule saisie préserve les vues multi-projets des managers, qui doivent consulter des projets auxquels ils ne contribuent pas."
-verification: "La liste d’un projet nouvellement créé comporte son créateur, qui peut y inscrire d’autres utilisateurs. Un utilisateur habilité à saisir un devis, mais non inscrit comme contributeur, ne peut modifier aucune donnée du projet, alors qu’il peut le consulter si ses habilitations le permettent. Inscrit, il peut saisir."
+verification: "La liste d’un projet nouvellement créé comporte son créateur, chef de projet, qui peut y inscrire d’autres utilisateurs. Un utilisateur habilité à consulter les projets, non contributeur d’un projet et sans la permission « consulter tous les projets », ne l’ouvre pas et ne le trouve pas par son adresse ; le carnet du portefeuille le compte pourtant. Inscrit comme contributeur, il l’ouvre et saisit le devis, mais ne marque pas de révision même s’il en porte la permission ; inscrit comme chef de projet, il la marque."
 ```
 
 ```yaml exigence
@@ -2150,9 +2150,9 @@ titre: "Calendrier applicable à une tâche"
 flexibilite: "F0"
 fbs: "FBS-4.3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Les jours travaillés d’une tâche sont ceux qui le sont dans tous les calendriers des rôles de ses lignes de main-d’œuvre. Une tâche qui ne porte aucune ligne de main-d’œuvre relève du calendrier par défaut. Les heures des calendriers n’interviennent pas dans le calcul des dates : elles servent à répartir la charge de chaque ligne dans le temps, chacune selon le calendrier de son propre rôle."
-motif: "Une tâche peut porter plusieurs rôles aux calendriers différents, et ses dates doivent rester calculables sans arbitrage. Retenir l’intersection des jours travaillés revient à ne planifier que les jours où tous travaillent : c’est la règle la plus contraignante, donc la plus sûre. Les écarts induits par cette simplification, qui ignore les jours fériés et les temps partiels, sont assumés et considérés comme non significatifs."
-verification: "Une tâche dont deux rôles ont des calendriers aux jours travaillés différents n’est planifiée que sur les jours communs aux deux. Une tâche sans ligne de main-d’œuvre est planifiée sur les jours du calendrier par défaut. La répartition mensuelle de la charge d’une ligne suit les heures du calendrier de son rôle."
+corps: "Le calendrier applicable à une tâche donne, pour chaque jour de la semaine, le plus petit des nombres d’heures travaillées que les calendriers des rôles de ses lignes de main-d’œuvre accordent ce jour-là. Une tâche qui ne porte aucune ligne de main-d’œuvre relève du calendrier par défaut. Les dates d’une tâche en mode automatique se calculent en heures de travail sur son calendrier applicable : sa durée et les décalages de ses liaisons, convertis en heures (WF-PLA-0160), s’y placent heure après heure. La charge de chaque ligne se répartit dans le temps selon le calendrier de son propre rôle."
+motif: "MS Project place les durées en heures sur le calendrier de la tâche : un calcul en jours donnerait d’autres dates dès qu’un calendrier compte moins de huit heures un jour, et l’aller-retour de WF-INTF-0060 ne serait plus neutre. Retenir le plus petit nombre d’heures revient à ne planifier que les heures où tous les rôles travaillent : c’est la règle la plus contraignante, donc la plus sûre. Les écarts dus aux jours fériés et aux temps partiels, que le calendrier ignore, restent assumés."
+verification: "Une tâche de seize heures en mode automatique, commencée un lundi matin sur un calendrier de huit heures du lundi au vendredi, finit le mardi ; sur un calendrier de quatre heures, elle finit le jeudi. Une tâche dont les deux rôles travaillent huit et six heures le lundi est planifiée sur six heures ce jour-là. Une tâche sans ligne de main-d’œuvre est planifiée sur le calendrier par défaut. La répartition mensuelle de la charge d’une ligne suit les heures du calendrier de son rôle."
 ```
 
 ```yaml exigence
@@ -2174,9 +2174,21 @@ titre: "Liaisons entre tâches"
 flexibilite: "F0"
 fbs: "FBS-4.3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Une liaison relie une tâche prédécesseur à une tâche successeur. Elle porte l’un des quatre types — fin à début, début à début, fin à fin, début à fin — et un décalage, positif ou négatif, exprimé en jours, en semaines ou en mois. L’unité est indiquée par un suffixe selon la convention de Microsoft Project : j, sem ou m. Deux tâches peuvent être reliées par plusieurs liaisons. Une liaison qui créerait un cycle est refusée, de même qu’une liaison entre une tâche récapitulative et l’une de ses subordonnées."
+corps: "Une liaison relie une tâche prédécesseur à une tâche successeur. Elle porte l’un des quatre types — fin à début, début à début, fin à fin, début à fin — et un décalage, positif ou négatif, exprimé en temps de travail ou en temps écoulé, dans l’une des unités de WF-PLA-0160, ou en pourcentage de la durée du prédécesseur. L’unité est indiquée par un suffixe selon la convention de Microsoft Project. Deux tâches peuvent être reliées par plusieurs liaisons. Une liaison qui créerait un cycle est refusée, de même qu’une liaison entre une tâche récapitulative et l’une de ses subordonnées."
 motif: "Les quatre types et le décalage sont ceux de Microsoft Project, avec lequel les plannings s’échangent : les restreindre rendrait l’import infidèle. Le refus des cycles garantit que le calcul des dates aboutit. Une liaison à l’intérieur de sa propre hiérarchie n’aurait aucun sens, puisqu’une récapitulative tire déjà ses dates de ses subordonnées."
-verification: "Les quatre types et un décalage négatif sont importés, saisis et exportés sans perte. La création d’une liaison fermant un cycle, ou reliant une récapitulative à l’une de ses subordonnées, est refusée, et la raison en est nommée à l’utilisateur. Un décalage saisi en semaines ou en mois est conservé dans son unité, importé et exporté sans conversion."
+verification: "Les quatre types et un décalage négatif sont importés, saisis et exportés sans perte. La création d’une liaison fermant un cycle, ou reliant une récapitulative à l’une de ses subordonnées, est refusée, et la raison en est nommée à l’utilisateur. Un décalage saisi en semaines ou en mois est conservé dans son unité, importé et exporté sans conversion. Un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours de travail."
+```
+
+```yaml exigence
+section: "3.4.5.3"
+id: "WF-PLA-0160-A"
+titre: "Unités de durée"
+flexibilite: "F0"
+fbs: "FBS-4.3"
+pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1"
+corps: "Une durée ou un décalage se saisit en minutes, heures, jours, semaines ou mois de travail, et se conserve en temps de travail avec l’unité de sa saisie. Les jours, les semaines et les mois se convertissent en heures par trois constantes de l’installation — heures par jour, heures par semaine, jours par mois —, qui valent par défaut 8, 40 et 20, et que l’export MS Project transporte. Une durée ou un décalage se saisit aussi en temps écoulé — minutes, heures, jours, semaines ou mois civils, suffixes emin, eh, ej, esem et em —, qui se convertit sans calendrier : un jour écoulé vaut vingt-quatre heures, une semaine sept jours, un mois trente jours."
+motif: "Ce sont les conventions de MS Project, avec ses valeurs par défaut : une unité qui ne vaudrait pas la même chose dans les deux outils changerait la durée d’une tâche à chaque aller-retour. Porter les constantes par l’installation plutôt que par le projet garde à une unité le même sens sur tous les projets, comme la devise le garde à un montant. Accepter le temps écoulé est ce qui permet d’importer un planning réel sans le convertir."
+verification: "Avec les valeurs par défaut, une durée saisie « 2 j » vaut seize heures, « 1 sem » quarante heures et « 1 m » cent soixante heures. Un décalage saisi « 1 sem » est exporté puis réimporté sans changer d’unité. Un décalage de 2 ej placé un vendredi soir fait commencer le successeur le dimanche soir. Un fichier MS Project dont les constantes diffèrent de celles de l’installation est importé avec les mêmes durées en heures, et le compte rendu signale la différence."
 ```
 
 ```yaml exigence
@@ -2186,7 +2198,7 @@ titre: "Hiérarchie des tâches"
 flexibilite: "F0"
 fbs: "FBS-4.3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Une tâche récapitulative tire de ses subordonnées ses dates, sa durée et son état d’avancement : elle est démarrée dès que l’une d’elles l’est, terminée quand toutes le sont, et son état n’est pas saisissable. Ses lignes propres sont exposées à la réestimation dès qu’elle est démarrée, et leur valeur s’acquiert quand elle est terminée. Déplacer une tâche dans l’arbre emporte ses subordonnées, ainsi que les lignes de devis que toutes portent."
+corps: "Une tâche récapitulative tire de ses subordonnées ses dates, sa durée et son état : elle est démarrée dès que l’une d’elles l’est, terminée quand toutes le sont, et son état n’est pas saisissable. Ses lignes propres sont exposées à la réestimation dès qu’elle est démarrée, et leur valeur s’acquiert quand elle est terminée. Déplacer une tâche dans l’arbre emporte ses subordonnées, ainsi que les lignes de devis que toutes portent."
 motif: "C’est l’unicité de l’arbre qui garantit la cohérence entre le planning et le devis : réorganiser un planning ne doit jamais demander de retoucher un chiffrage. L’état d’une récapitulative ne peut être qu’une conséquence de celui de ses subordonnées, sans quoi une phase pourrait être déclarée terminée avec des tâches ouvertes. Ses lignes propres — provisions, licences, frais — suivent le même sort que la phase qu’elles couvrent."
 verification: "Après déplacement d’une récapitulative portant deux niveaux de subordonnées, les tâches et les lignes déplacées sont inchangées, et le devis totalise le même montant. Les dates et l’état d’une récapitulative ne sont pas saisissables. Une récapitulative dont une subordonnée est démarrée est démarrée ; elle n’est terminée qu’après la dernière."
 ```
@@ -2222,7 +2234,7 @@ titre: "Attributs d’une tâche"
 flexibilite: "F0"
 fbs: "FBS-4.3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Une tâche porte : un libellé, une description facultative, une durée, une date de début, une date de fin, un mode de planification et un état d’avancement. Elle porte en outre la date à laquelle elle a été démarrée et celle à laquelle elle a été terminée, renseignées lors du changement d’état, avec la date du jour par défaut. La durée d’un jalon est nulle ; celles d’une tâche récapitulative, comme ses dates et son état, sont calculées à partir de ses subordonnées. Elle porte en outre trois valeurs calculées, qui ne sont pas saisissables : sa marge totale, son appartenance au chemin critique (WF-PLA-0100), pour une récapitulative, son avancement physique (WF-IND-0060). La description est transportée par les imports et les exports MS Project."
+corps: "Une tâche porte : un libellé, une description facultative, une durée, une date de début, une date de fin, un mode de planification et un état — non démarrée, démarrée, terminée. Elle porte en outre la date à laquelle elle a été démarrée et celle à laquelle elle a été terminée, renseignées lors du changement d’état, avec la date du jour par défaut. La durée d’un jalon est nulle ; celles d’une tâche récapitulative, comme ses dates et son état, sont calculées à partir de ses subordonnées. Elle porte en outre trois valeurs calculées, qui ne sont pas saisissables : sa marge totale, son appartenance au chemin critique (WF-PLA-0100), pour une récapitulative, son avancement physique (WF-IND-0060). La description est transportée par les imports et les exports MS Project."
 motif: "Ce sont les attributs que toutes les vues affichent et que les échanges MS Project transportent. Les dates de démarrage et de terminaison sont ce qui situe la valeur acquise dans le temps : sans elles, elle ne serait connue qu’aux dates de revue, et l’indice de délai serait faux de la durée d’une revue."
 verification: "Chacun de ces attributs est affiché dans la grille de planning, et ceux que MS Project connaît sont transportés par l’export. Le passage à l’état démarré ou terminé demande une date, proposée au jour courant et modifiable. La durée d’un jalon est nulle et n’est pas modifiable ; les dates d’une récapitulative ne sont pas saisissables. La marge totale, la criticité et l'avancement physique s'affichent et ne sont pas saisissables."
 ```
@@ -2278,9 +2290,9 @@ titre: "Grille de planning"
 flexibilite: "F0"
 fbs: "FBS-4.3.2"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La grille de planning présente les tâches sous forme d’arbre pliable et dépliable, avec pour chacune : son libellé, sa description, sa durée, ses dates, son mode de planification, son état d’avancement, son avancement physique, sa marge totale, ses prédécesseurs. Elle permet de créer, modifier, déplacer et supprimer des tâches, d’indenter et de désindenter une tâche ou un groupe de tâches, de filtrer sur le sous-arbre d’une récapitulative, et de rechercher sur les libellés. Les jalons, les tâches feuilles et les tâches récapitulatives y sont visuellement distincts."
+corps: "La grille de planning présente les tâches sous forme d’arbre pliable et dépliable, avec pour chacune : son libellé, sa description, sa durée, ses dates, son mode de planification, son état, signalé par une marque visuelle et non par une colonne, pour une récapitulative, son avancement physique, sa marge totale, ses prédécesseurs. Elle permet de créer, modifier, déplacer et supprimer des tâches, d’indenter et de désindenter une tâche ou un groupe de tâches, de filtrer sur le sous-arbre d’une récapitulative ou sur les tâches démarrées, et de rechercher sur les libellés. Les jalons, les tâches feuilles et les tâches récapitulatives y sont visuellement distincts."
 motif: "La grille est l’outil de saisie du planning, et ses utilisateurs viennent de Microsoft Project : retrouver l’arbre pliable, l’indentation et la recherche leur évite de réapprendre un geste par fonction. La distinction visuelle des trois sortes de tâches est ce qui rend un planning de plusieurs centaines de lignes lisible d’un coup d’œil."
-verification: "Chacune des colonnes citées est présente. L’indentation d’un groupe de tâches déplace le groupe entier sous la tâche précédente. La recherche sur un libellé ne laisse voir que les tâches correspondantes et leurs parents. Les trois sortes de tâches se distinguent sans lire leur durée."
+verification: "Chacune des colonnes citées est présente. L’indentation d’un groupe de tâches déplace le groupe entier sous la tâche précédente. La recherche sur un libellé ne laisse voir que les tâches correspondantes et leurs parents. Les trois sortes de tâches se distinguent sans lire leur durée. Une tâche terminée se distingue d’une tâche démarrée sans lire de colonne ; une feuille ne porte pas d’avancement physique."
 ```
 
 ##### 3.4.5.3.3. FBS-4.3.3 : Diagramme de GANTT
@@ -2294,9 +2306,9 @@ titre: "Diagramme de Gantt"
 flexibilite: "F0"
 fbs: "FBS-4.3.3"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Le diagramme de Gantt présente les tâches sur un axe temporel, avec leur hiérarchie et leurs liaisons. Il est en lecture seule : aucune tâche n’y est modifiable, et toute saisie passe par la grille de planning."
+corps: "Le diagramme de Gantt présente les tâches sur un axe temporel, avec leur hiérarchie et leurs liaisons. Il est en lecture seule : aucune tâche n’y est modifiable, et toute saisie passe par la grille de planning. Le diagramme et la grille de planning présentent le même arbre, plié de la même façon : plier ou déplier une récapitulative dans l’un le fait dans l’autre."
 motif: "Le Gantt sert à comprendre les enchaînements, ce qu’une grille ne montre pas. En faire une vue de consultation concentre la saisie en un seul endroit : le déplacement direct d’une barre, dans Microsoft Project, produit des effets que l’utilisateur ne prévoit pas toujours."
-verification: "Les liaisons et la hiérarchie sont visibles, ainsi que le chemin critique. Aucune action de la souris ou du clavier ne modifie une tâche depuis le Gantt."
+verification: "Les liaisons et la hiérarchie sont visibles, ainsi que le chemin critique. Aucune action de la souris ou du clavier ne modifie une tâche depuis le Gantt. Une récapitulative pliée dans la grille l’est dans le Gantt, et réciproquement."
 ```
 
 ```yaml exigence
@@ -2425,9 +2437,9 @@ titre: "Grille de devis"
 flexibilite: "F0"
 fbs: "FBS-4.4.2"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La grille de devis présente les lignes sous l’arbre des tâches qui les portent, dans une présentation proche de celle de la grille de planning, avec pour chaque ligne son libellé, sa catégorie de coût, son rôle de ressource, sa quantité, sa charge ou son débours, son sous-projet, son délai de paiement et son montant. Elle permet de créer, modifier, déplacer et supprimer des lignes, de créer et de déplacer des tâches récapitulatives, et de filtrer sur une nature de coût, un sous-projet ou le sous-arbre d’une récapitulative. Le montant d’une tâche récapitulative n’est pas saisissable : il est la somme des montants qu’elle porte et de ceux de ses subordonnées."
+corps: "La grille de devis présente les lignes sous l’arbre des tâches qui les portent, dans une présentation proche de celle de la grille de planning, avec pour chaque ligne son libellé, sa catégorie de coût, son rôle de ressource, sa quantité, sa charge ou son débours, son sous-projet, son délai de paiement, son montant à l’année de référence et son montant corrigé de l’inflation (WF-DEV-0040). Elle permet de créer, modifier, déplacer et supprimer des lignes, de créer et de déplacer des tâches récapitulatives, et de filtrer sur une nature de coût, un sous-projet ou le sous-arbre d’une récapitulative. Le montant d’une tâche récapitulative n’est pas saisissable : il est la somme des montants qu’elle porte et de ceux de ses subordonnées."
 motif: "La grille de devis et celle du planning agissent sur le même arbre : structurer depuis l’une ou depuis l’autre doit produire le même résultat, et un chiffreur qui regroupe des lignes crée en réalité une tâche récapitulative. Une présentation proche évite d’apprendre deux outils pour un seul arbre. Seules les récapitulatives peuvent être créées depuis cette grille : elles n’ont ni durée propre ni prédécesseur, et leur création n’appelle donc aucune saisie de planification. Créer une tâche feuille ou un jalon depuis le devis laisserait au contraire une tâche sans durée ni liaison, donc des lignes que ni l’inflation, ni le plan de charge, ni la valeur planifiée ne sauraient situer dans le temps."
-verification: "La création d’une tâche récapitulative depuis la grille de devis la fait apparaître dans la grille de planning, et le déplacement d’un sous-arbre depuis l’une se répercute dans l’autre. Le montant d’une récapitulative suit celui de ses subordonnées et n’est pas modifiable."
+verification: "La création d’une tâche récapitulative depuis la grille de devis la fait apparaître dans la grille de planning, et le déplacement d’un sous-arbre depuis l’une se répercute dans l’autre. Le montant d’une récapitulative suit celui de ses subordonnées et n’est pas modifiable. La grille de devis ne présente ni montant budgété ni montant réestimé ; une ligne dont la tâche se place deux ans après l’année de référence, avec une inflation de 2 %, affiche un montant corrigé supérieur de 4,04 % à son montant."
 ```
 
 ##### 3.4.5.4.3. FBS-4.4.3 : Gestion des coûts
@@ -2453,9 +2465,9 @@ titre: "Année de consommation d’une ligne"
 flexibilite: "F0"
 fbs: "FBS-4.4.3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "L’année de consommation d’une ligne est celle de la tâche qui la porte. Lorsque la tâche s’étend sur plusieurs années, le montant de la ligne est réparti entre ces années par interpolation linéaire sur la durée de la tâche, et chaque part est projetée sur son année."
+corps: "L’année de consommation d’une ligne est celle de la tâche qui la porte. Lorsque la tâche s’étend sur plusieurs années, le montant de la ligne est réparti entre ces années au prorata des heures travaillées de la tâche dans chaque année, sur son calendrier applicable (WF-PLA-0010), et chaque part est projetée sur son année."
 motif: "Une tâche de dix-huit mois consomme sa charge de part et d’autre d’un changement d’année, et l’inflation ne s’applique pas de la même façon aux deux parts. La répartition est linéaire sur la durée de la tâche : elle suppose une consommation régulière, ce qui est rarement exact, mais l’écart qui en résulte est sans conséquence sur les décisions qu’une projection sert à prendre."
-verification: "Une ligne portée par une tâche à cheval sur deux années est chiffrée en deux parts, dont le rapport est celui des durées de la tâche dans chacune. La somme des parts égale le montant total de la ligne avant inflation."
+verification: "Une ligne portée par une tâche à cheval sur deux années est chiffrée en deux parts, dont le rapport est celui des heures travaillées de la tâche dans chacune. La somme des parts égale le montant total de la ligne avant inflation."
 ```
 
 ```yaml exigence
@@ -2465,9 +2477,9 @@ titre: "Valeur planifiée"
 flexibilite: "F0"
 fbs: "FBS-4.4.3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La valeur planifiée à une date est la part du budget de référence qui aurait dû être acquise à cette date. Elle se calcule sur les lignes comptées au budget de référence — hors provisions des risques identifiés et hors lignes fusionnées d’un risque survenu —, à leur montant budgété, étalé linéairement sur la durée de leur tâche telle que la révision de référence la date ; une ligne portée par un jalon est comptée entière à la date du jalon. La valeur planifiée se calcule toujours sur la révision de référence en vigueur : lorsqu’un avenant ou un risque survenu en produit une nouvelle, la courbe est recalculée intégralement sur celle-ci."
+corps: "La valeur planifiée à une date est la part du budget de référence qui aurait dû être acquise à cette date. Elle se calcule sur les lignes comptées au budget de référence — hors provisions des risques identifiés —, à leur montant budgété, étalé sur la durée de leur tâche au prorata des heures travaillées — sur le calendrier de son rôle pour une ligne de main-d’œuvre, sur le calendrier applicable de la tâche sinon — telle que la révision de référence la date ; une ligne portée par un jalon est comptée entière à la date du jalon. La valeur planifiée se calcule toujours sur la révision de référence en vigueur : lorsqu’un avenant ou un risque survenu en produit une nouvelle, la courbe est recalculée intégralement sur celle-ci."
 motif: "La valeur planifiée est le repère de l’indice de délai : elle doit totaliser exactement le budget de référence en fin de projet, sans quoi l’indice ne vaut jamais 1 quand tout est fait. Elle se lit sur les dates de la référence et non sur celles de la révision courante, sinon un retard la déplacerait avec lui et l’indice ne mesurerait plus rien. Le recalcul à chaque nouvelle référence est cohérent avec le déplacement du budget qu’elle opère ; les valeurs mesurées aux revues précédentes restent lisibles dans les révisions marquées."
-verification: "Sur un projet dont le budget de référence est de 1 000, la valeur planifiée vaut 1 000 à la date de fin de la dernière tâche de la référence, et 0 avant le début de la première. Une ligne portée par une tâche de deux mois contribue pour moitié à la fin du premier mois. Retarder une tâche dans la révision courante ne change pas la valeur planifiée. Après contractualisation d’un avenant, la valeur planifiée totalise le nouveau budget de référence."
+verification: "Sur un projet dont le budget de référence est de 1 000, la valeur planifiée vaut 1 000 à la date de fin de la dernière tâche de la référence, et 0 avant le début de la première. Une ligne portée par une tâche de deux mois comptant autant d’heures travaillées contribue pour moitié à la fin du premier mois. Retarder une tâche dans la révision courante ne change pas la valeur planifiée. Après contractualisation d’un avenant, la valeur planifiée totalise le nouveau budget de référence."
 ```
 
 ##### 3.4.5.4.4. FBS-4.4.4 : Plan de charge du projet
@@ -2481,9 +2493,9 @@ titre: "Plan de charge du projet"
 flexibilite: "F0"
 fbs: "FBS-4.4.4"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Le plan de charge du projet présente, par rôle de ressource et par mois, la charge des lignes de main-d’œuvre, calculée soit sur le devis d’une révision, soit sur le reste à engager courant. La charge d’une ligne est répartie sur la durée de la tâche qui la porte par interpolation linéaire. La capacité de chaque rôle y est présentée en regard de sa charge. Le plan de charge peut être filtré par nœud d’organisation."
+corps: "Le plan de charge du projet présente, par rôle de ressource et par mois, la charge des lignes de main-d’œuvre, calculée, au choix, sur les montants budgétés de la révision de référence, sur les montants réestimés d’une révision marquée, ou sur ceux de la révision en cours. La charge d’une ligne est répartie sur la durée de la tâche qui la porte au prorata des heures travaillées du calendrier de son rôle. La capacité de chaque rôle y est présentée en regard de sa charge. Le plan de charge peut être filtré par nœud d’organisation."
 motif: "Le plan de charge sert à anticiper les besoins en ressources : embauche, sous-traitance, arbitrage entre projets. La capacité affichée en regard est ce qui rend la lecture immédiate, et le filtre par nœud permet à un service de ne voir que ce qui le concerne. Pendant l’exécution, c’est la charge restante qui intéresse, d’où le calcul sur le reste à engager ; les plans de charge agrégés du portefeuille s’appuient sur cette même base."
-verification: "La charge d’une ligne portée par une tâche de deux mois apparaît sur ces deux mois, au prorata de la durée de la tâche dans chacun. La capacité de chaque rôle est affichée. Le filtre par nœud d’organisation ne laisse voir que les rôles qui en relèvent. Le plan de charge calculé sur le reste à engager ignore les lignes des tâches terminées."
+verification: "La charge d’une ligne portée par une tâche de deux mois apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun. La capacité de chaque rôle est affichée. Le filtre par nœud d’organisation ne laisse voir que les rôles qui en relèvent. Le plan de charge calculé sur le reste à engager ignore les lignes des tâches terminées. Les trois bases sont proposées ; sur un projet sans révision de référence, seule la révision en cours l’est."
 ```
 
 #### 3.4.5.5. FBS-4.5 : Estimation du reste à engager
@@ -2552,9 +2564,9 @@ titre: "Démarrage d’une tâche"
 flexibilite: "F0"
 fbs: "FBS-4.5.3"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Une vue Kanban présente les tâches de la structure principale de la révision courante réparties selon leur état — non démarrée, démarrée, terminée — et permet de faire passer une tâche à l’état démarré, y compris une tâche terminée que l’on rouvre. Seules les lignes des tâches démarrées sont exposées à la réestimation du reste à engager. Aucun geste ne ramène une tâche à l'état non démarré : une tâche démarrée par erreur se corrige en annulant la saisie (WF-IHM-0110), et passé ce délai elle reste démarrée."
+corps: "Une vue Kanban présente les tâches de la structure principale de la révision courante réparties selon leur état — non démarrée, démarrée, terminée — et permet de faire passer une tâche à l’état démarré, y compris une tâche terminée que l’on rouvre. Les lignes des tâches démarrées sont exposées par défaut à la réestimation du reste à engager ; celles des tâches non démarrées le sont à la demande (WF-RAE-0040). Aucun geste ne ramène une tâche à l'état non démarré : une tâche démarrée par erreur se corrige en annulant la saisie (WF-IHM-0110), et passé ce délai elle reste démarrée."
 motif: "Waterfall ne suit pas l’exécution du travail au jour le jour, ce que le périmètre exclu écarte. Il a besoin d’une seule information : la tâche a-t-elle commencé ? C’est elle qui décide de ce que la revue périodique demande de réestimer. Rouvrir une tâche terminée libère la valeur qu’elle avait acquise : ce doit être un acte explicite, et non la conséquence d’une saisie."
-verification: "Une tâche passée à l’état démarré voit ses lignes apparaître dans la grille de reste à engager. Une tâche non démarrée n’y est pas modifiable. Le passage direct de non démarrée à terminée n’est possible que pour un jalon. Aucune commande ne fait passer une tâche démarrée à l'état non démarré."
+verification: "Une tâche passée à l’état démarré voit ses lignes apparaître dans la grille de reste à engager. Une tâche non démarrée n’y apparaît qu’à la demande. Le passage direct de non démarrée à terminée n’est possible que pour un jalon. Aucune commande ne fait passer une tâche démarrée à l'état non démarré."
 ```
 
 ##### 3.4.5.5.3. FBS-4.5.2 : Grille de reste à engager
@@ -2570,9 +2582,9 @@ titre: "Grille de reste à engager"
 flexibilite: "F0"
 fbs: "FBS-4.5.2"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La grille de reste à engager présente les lignes sous l’arbre des tâches, avec pour chacune : son montant budgété, son montant réestimé au reste à engager précédent, et son montant réestimé courant. Elle expose par défaut les seules lignes des tâches démarrées ; l’utilisateur peut y faire apparaître les tâches non démarrées pour les réestimer. Les lignes des tâches terminées ne sont pas modifiables. La saisie d’un reste à engager nul pour toutes les lignes d’une tâche la fait passer à l’état terminé ; la rouvrir ensuite passe par le Kanban (WF-RAE-0030). Une préférence d’affichage permet de distinguer visuellement les lignes dont le montant budgété est nul (WF-ADM-0040)."
+corps: "La grille de reste à engager présente les lignes sous l’arbre des tâches, avec pour chacune : son montant budgété, son montant réestimé au reste à engager précédent, et son montant réestimé courant. Elle expose par défaut les seules lignes des tâches démarrées ; l’utilisateur peut y faire apparaître les tâches non démarrées pour les réestimer. Les lignes des tâches terminées ne sont pas modifiables. La saisie d’un reste à engager nul pour toutes les lignes d’une tâche la fait passer à l’état terminé ; la rouvrir ensuite passe par le Kanban (WF-RAE-0030). Une préférence d’affichage permet de distinguer visuellement les lignes dont le montant budgété est nul (WF-ADM-0040). La grille présente la date de fin de chaque tâche, sans la rendre saisissable, et signale les tâches démarrées dont la fin est antérieure à la date de calcul."
 motif: "Réestimer suppose de voir ce à quoi l’on se compare. N’exposer par défaut que les tâches démarrées évite de noyer le chef de projet sous des lignes inchangées quand le projet se déroule bien ; pouvoir ouvrir les autres est nécessaire dès que ce n’est plus le cas, car une tâche non commencée peut déjà se savoir sous-estimée."
-verification: "Les trois montants sont présents pour chaque ligne. Les tâches non démarrées n’apparaissent qu’à la demande, et sont alors modifiables. La modification d’une ligne portée par une tâche terminée est refusée."
+verification: "Les trois montants sont présents pour chaque ligne. Les tâches non démarrées n’apparaissent qu’à la demande, et sont alors modifiables. La modification d’une ligne portée par une tâche terminée est refusée. Une tâche démarrée dont la fin est dépassée est signalée ; sa date n’est pas modifiable depuis cette grille."
 ```
 
 ```yaml exigence
@@ -2679,7 +2691,7 @@ titre: "Provisions et budget de référence"
 flexibilite: "F0"
 fbs: "FBS-4.6.2"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La provision d’un risque identifié ne fait pas partie du budget de référence. Celle d’un risque survenu y entre, à la valeur qu’elle avait dans la révision de référence, tandis que les lignes issues de son devis propre y entrent avec un montant budgété nul. Lorsque plus aucun risque du projet n’est à l’état identifié, les provisions des risques écartés entrent à leur tour dans le budget de référence."
+corps: "La provision d’un risque identifié ne fait pas partie du budget de référence. Celle d’un risque survenu y entre, à la valeur qu’elle avait dans la révision de référence, portée par les lignes issues de son devis propre (WF-RIS-0060). Lorsque plus aucun risque du projet n’est à l’état identifié, les provisions des risques écartés entrent à leur tour dans le budget de référence."
 motif: "Une provision couvre un risque qui ne s’est pas produit : l’inclure au budget reviendrait à se donner un budget pour un travail qu’on espère ne pas faire. À la survenance, le budget n’augmente que de la provision, jamais du coût réel du risque : l’écart entre les deux apparaît ainsi comme une dérive, ce qu’il est. Tant que d’autres risques restent identifiés, les provisions des risques écartés doivent rester disponibles pour les couvrir — c’est le principe même d’une couverture dimensionnée sur le plus gros risque, et non sur leur somme. Quand plus aucun risque ne reste à couvrir, elles n’ont plus de raison d’être retenues. La provision retenue est celle de la révision de référence, et non celle du jour de la survenance : c’est ce qui rend l’écart mesurable, puisque la réévaluation du risque ne peut plus déplacer le budget auquel on la compare."
 verification: "Sur un projet chiffré à 1 000 portant un risque de gravité 200 à 30 %, le devis totalise 1 060 et le budget de référence 1 000. Après survenance du risque, réévalué à 250 par le reste à engager, le budget de référence vaut 1 060 et l’écart de 190 apparaît comme une dérive. Si un second risque de provision 40 est ensuite écarté alors qu’aucun autre risque n’est identifié, le budget de référence passe à 1 100."
 ```
@@ -2691,9 +2703,9 @@ titre: "Survenance d’un risque"
 flexibilite: "F0"
 fbs: "FBS-4.6.2"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La déclaration de survenance d’un risque fusionne les tâches et les lignes de son devis propre dans la structure principale, selon WF-REV-0050. Les lignes fusionnées portent un montant budgété nul et, pour montant réestimé, celui du devis propre. La révision marquée qui en résulte devient la révision de référence. La valeur de la provision est acquise lorsque toutes les tâches issues du devis propre sont terminées."
+corps: "La déclaration de survenance d’un risque fusionne les tâches et les lignes de son devis propre dans la structure principale, selon WF-REV-0050. Chaque ligne fusionnée porte, pour montant budgété, son montant dans le devis propre multiplié par la probabilité du risque dans la révision de référence, arrondi au centime, la dernière ligne portant le reste de sorte que leur somme soit la provision ; et, pour montant réestimé, son montant dans le devis propre. La ligne de provision du risque est retirée de la structure principale. La révision marquée qui en résulte devient la révision de référence."
 motif: "Les tâches d’un risque survenu deviennent du travail comme un autre : elles se planifient, se réestiment et se terminent. Mais comme elles ne comptent pas dans le budget de référence, elles n’acquièrent pas de valeur : c’est la provision qui la porte, et elle ne peut être acquise qu’une fois le travail du risque achevé."
-verification: "Après déclaration de survenance, les tâches du devis propre figurent dans la structure principale et la révision produite est la référence. La valeur acquise du projet n’augmente d’aucun montant tant que l’une de ces tâches n’est pas terminée, puis augmente du montant de la provision lorsque la dernière l’est."
+verification: "Après déclaration de survenance d’un risque de gravité 200 à 30 %, dont le devis propre porte deux lignes de 120 et 80, les tâches du devis propre figurent dans la structure principale, la révision produite est la référence, les lignes fusionnées portent des montants budgétés de 36 et 24 et des montants réestimés de 120 et 80, et la ligne de provision a disparu. La valeur acquise augmente de 36 à la terminaison de la première tâche."
 ```
 
 #### 3.4.5.7. FBS-4.7 : Coûts réels
@@ -2794,7 +2806,6 @@ flowchart LR
     FBS_4_8_6_Diagramme_temps_temps["FBS-4.8.6<br>Diagramme temps/temps"]
     FBS_4_8_7_Couts_cumules_courbe_en_S["FBS-4.8.7<br>Coûts cumulés (courbe en S)"]
     FBS_4_8_8_Courbes_valeur_acquise["FBS-4.8.8<br>Courbes valeur acquise"]
-    FBS_4_8_9_Projections_cash_out["FBS-4.8.9<br>Projections cash-out"]
     FBS_4_8_1_Avancement_financier["FBS-4.8.1<br>Avancement financier"]
 
     FBS_4_8_Indicateurs_projets --> FBS_4_8_1_Avancement_financier
@@ -2805,12 +2816,11 @@ flowchart LR
     FBS_4_8_Indicateurs_projets --> FBS_4_8_6_Diagramme_temps_temps
     FBS_4_8_Indicateurs_projets --> FBS_4_8_7_Couts_cumules_courbe_en_S
     FBS_4_8_Indicateurs_projets --> FBS_4_8_8_Courbes_valeur_acquise
-    FBS_4_8_Indicateurs_projets --> FBS_4_8_9_Projections_cash_out
 
     classDef c1 fill:#1ba1e2,stroke:#006EAF
     class FBS_4_8_Indicateurs_projets c1
     classDef c2 fill:#dae8fc,stroke:#6c8ebf
-    class FBS_4_8_1_Avancement_financier,FBS_4_8_2_Projection_a_terminaison,FBS_4_8_3_Avancement_physique,FBS_4_8_4_Indicateur_de_couts_CPI,FBS_4_8_5_Indicateur_de_delais_SPI,FBS_4_8_6_Diagramme_temps_temps,FBS_4_8_7_Couts_cumules_courbe_en_S,FBS_4_8_8_Courbes_valeur_acquise,FBS_4_8_9_Projections_cash_out c2
+    class FBS_4_8_1_Avancement_financier,FBS_4_8_2_Projection_a_terminaison,FBS_4_8_3_Avancement_physique,FBS_4_8_4_Indicateur_de_couts_CPI,FBS_4_8_5_Indicateur_de_delais_SPI,FBS_4_8_6_Diagramme_temps_temps,FBS_4_8_7_Couts_cumules_courbe_en_S,FBS_4_8_8_Courbes_valeur_acquise c2
 ```
 
 *Figure 15 — Arborescence fonctionnelle des indicateurs projets*
@@ -2834,7 +2844,7 @@ titre: "Granularité des indicateurs"
 flexibilite: "F0"
 fbs: "FBS-4.8"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La valeur planifiée, la valeur acquise, le coût réel, le reste à engager et les indicateurs qui en dérivent se calculent pour le projet et pour chacun de ses sous-projets, l’ensemble « hors sous-projet » compris. Le diagramme temps/temps et les projections de décaissement se calculent pour le seul projet."
+corps: "La valeur planifiée, la valeur acquise, le coût réel, le reste à engager et les indicateurs qui en dérivent se calculent pour le projet et pour chacun de ses sous-projets, l’ensemble « hors sous-projet » compris. Le diagramme temps/temps se calcule pour le seul projet : il suit des jalons, qu’un sous-projet n’a pas."
 motif: "Le sous-projet est la maille où le budget et la dépense se rejoignent : c’est là qu’un dépassement se voit avant de remonter au total. Les jalons et les décaissements, eux, n’ont pas de sous-projet."
 verification: "La somme des valeurs acquises des sous-projets, ensemble « hors sous-projet » compris, égale celle du projet, de même pour le coût réel, la valeur planifiée et le reste à engager."
 ```
@@ -2846,7 +2856,7 @@ titre: "Valeur acquise"
 flexibilite: "F0"
 fbs: "FBS-4.8"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La valeur acquise à une date est la somme des montants budgétés des lignes portées par les tâches terminées à cette date, la date de terminaison de la tâche faisant foi. Les lignes issues d’un risque survenu, de montant budgété nul, n’y contribuent pas ; la provision du risque s’acquiert selon WF-RIS-0060. Les lignes propres d’une tâche récapitulative s’acquièrent quand elle est terminée."
+corps: "La valeur acquise à une date est la somme des montants budgétés des lignes portées par les tâches terminées à cette date, la date de terminaison de la tâche faisant foi. Les lignes propres d’une tâche récapitulative s’acquièrent quand elle est terminée."
 motif: "La valeur acquise mesure le travail fait au prix où il avait été promis, jamais au prix qu’il a coûté : c’est ce qui rend l’écart avec le coût réel lisible. L’acquisition tâche par tâche, à la terminaison, est le choix fait au §3.2.5 ; la date de terminaison la situe dans le temps, ce qui permet les courbes et l’indice de délai entre deux revues."
 verification: "Une tâche terminée le 12 du mois contribue à la valeur acquise dès cette date, non à la revue suivante. Une tâche dont le coût réel dépasse le montant budgété contribue pour le montant budgété. La valeur acquise d’un projet dont toutes les tâches sont terminées et tous les risques écartés égale son budget de référence."
 ```
@@ -2885,7 +2895,7 @@ verification: "Sur un projet de budget 1 000, de valeur acquise 400, de coût r�
 
 ##### 3.4.5.8.3. FBS-4.8.3 : Avancement physique
 
-L’avancement physique dit quelle part du travail promis est faite, indépendamment de ce qu’elle a coûté. Il s’acquiert tâche par tâche, à la terminaison, et se lit donc par paliers : sa finesse est celle du découpage du planning, et un projet découpé en dix tâches aura un avancement grossier. C’est une conséquence assumée du modèle, non un défaut de calcul.
+L’avancement physique dit quelle part du travail promis est faite, indépendamment de ce qu’elle a coûté. Il s’acquiert tâche par tâche, à la terminaison, et se lit donc par paliers : sa finesse est celle du découpage du planning. C’est une conséquence assumée du modèle, non un défaut de calcul.
 
 ```yaml exigence
 section: "3.4.5.8.3"
@@ -2927,6 +2937,18 @@ motif: "Un indice inférieur à 1 dit que moins de travail a été fait que la r
 verification: "Une valeur acquise de 400 pour une valeur planifiée de 500 donne 0,8. Avant la date de début de la première tâche de la référence, l’indice est non calculable. Un projet dont toutes les tâches sont terminées à la date de fin prévue par la référence affiche 1. Une valeur acquise de 400 pour une valeur planifiée de 500 donne un écart de délai de −100."
 ```
 
+```yaml exigence
+section: "3.4.5.8.5"
+id: "WF-IND-0130-A"
+titre: "Évolution des indices"
+flexibilite: "F1"
+fbs: "FBS-4.8.4, FBS-4.8.5"
+pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1, PBS-3.2"
+corps: "Waterfall présente, pour le projet et pour chaque sous-projet, l’évolution de l’indice de coût et de l’indice de délai : un point par révision marquée, à sa date de marquage, et le dernier point au jour courant pour la révision en cours, avec les seuils de vigilance et d’alerte du référentiel (WF-REF-0170)."
+motif: "Un indice ne se lit qu’avec sa tendance : 0,9 qui remonte et 0,9 qui descend ne demandent pas la même décision. Les indicateurs des révisions marquées sont conservés (§4.4.2) ; les montrer dans le temps ne coûte rien de plus."
+verification: "Sur un projet de trois révisions marquées, chaque courbe porte quatre points, le dernier au jour courant ; les deux seuils sont tracés ; un sous-projet a ses courbes."
+```
+
 ##### 3.4.5.8.6. FBS-4.8.6 : Diagramme temps/temps
 
 Le diagramme temps/temps montre comment les dates prévues des jalons ont glissé d’une revue à l’autre. Chaque revue est un point sur l’axe horizontal ; la date alors prévue pour chaque jalon, un point sur l’axe vertical. Un jalon dont la date ne bouge pas trace une horizontale ; un jalon qui glisse monte ; quand il est franchi, sa courbe touche la diagonale et s’arrête.
@@ -2945,7 +2967,7 @@ verification: "Un jalon prévu au 30 juin dans trois revues successives trace un
 
 ##### 3.4.5.8.7. FBS-4.8.7 : Coûts cumulés (courbe en S)
 
-La courbe en S est la vue budgétaire du projet : ce qu’il devait coûter, ce qu’il a coûté, ce qu’il coûtera. Elle ne parle pas d’avancement, seulement d’argent dans le temps, et c’est ce qui la distingue des courbes de valeur acquise.
+La courbe en S est la vue budgétaire du projet : ce qu’il devait coûter, ce qu’il a coûté, ce qu’il coûtera. Elle ne parle pas d’avancement, seulement d’argent dans le temps, et c’est ce qui la distingue des courbes de valeur acquise. Décalée des délais de paiement, elle devient la projection des décaissements : quand l’argent sortira-t-il.
 
 ```yaml exigence
 section: "3.4.5.8.7"
@@ -2954,9 +2976,9 @@ titre: "Courbe de coûts cumulés"
 flexibilite: "F0"
 fbs: "FBS-4.8.7"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1, PBS-3.2"
-corps: "La courbe de coûts cumulés présente sur un même axe temporel : le budget de référence cumulé selon les dates de la référence ; le coût réel cumulé selon les dates de pièce, jusqu’à la date de calcul ; et, au-delà, la projection du chef de projet, le reste à engager étant étalé sur les dates de la révision courante. Les changements du budget de référence — avenants, risques survenus, dernier risque écarté — y apparaissent comme des marches, datées."
+corps: "La courbe de coûts cumulés présente sur un même axe temporel : le budget de référence cumulé selon les dates de la référence ; le coût réel cumulé selon les dates de pièce, jusqu’à la date de calcul ; et, au-delà, la projection du chef de projet, le reste à engager étant étalé sur les dates de la révision courante. Les changements du budget de référence — avenants, risques survenus, dernier risque écarté — y apparaissent comme des marches, datées. Sur demande, chaque montant est décalé du délai de paiement de sa ligne, et les provisions des risques identifiés s’ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, par mois."
 motif: "C’est la courbe que l’on montre en comité : elle dit d’un regard si le projet dépense au rythme prévu et où il atterrira. Dater les marches du budget évite qu’un saut soit lu comme une dérive alors qu’il est un avenant."
-verification: "La courbe du budget de référence atteint le budget de référence à la date de fin de la référence. Celle du coût réel s’arrête à la date de calcul, et la projection part de ce point pour atteindre la projection du chef de projet. Après contractualisation d’un avenant, la courbe du budget présente une marche à sa date."
+verification: "La courbe du budget de référence atteint le budget de référence à la date de fin de la référence. Celle du coût réel s’arrête à la date de calcul, et la projection part de ce point pour atteindre la projection du chef de projet. Après contractualisation d’un avenant, la courbe du budget présente une marche à sa date. Avec un délai de paiement de 60 jours sur toutes les lignes, la courbe décalée est la courbe de référence translatée de 60 jours ; la somme des décaissements à venir égale le reste à engager."
 ```
 
 ##### 3.4.5.8.8. FBS-4.8.8 : Courbes valeur acquise
@@ -2975,21 +2997,17 @@ motif: "L’écart vertical entre valeur acquise et coût réel est l’écart d
 verification: "À la date de calcul, l’écart vertical entre la courbe de valeur acquise et celle du coût réel égale la différence des deux grandeurs. La courbe de valeur planifiée atteint le budget de référence à la fin de la référence. Une tâche terminée produit une marche dans la valeur acquise à sa date de terminaison."
 ```
 
-##### 3.4.5.8.9. FBS-4.8.9 : Projections cash-out
+##### 3.4.5.8.9.
 
-Le cash-out répond à une question que le contrôleur de gestion pose et que l’EVM ignore : quand l’argent sortira-t-il ? Il ne dépend pas de la valeur acquise, seulement du reste à engager, des dates du planning courant et des délais de paiement.
-
-```yaml exigence
-section: "3.4.5.8.9"
-id: "WF-IND-0120-A"
-titre: "Projections de décaissement"
-flexibilite: "F0"
-fbs: "FBS-4.8.9"
-pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1, PBS-3.2"
-corps: "La projection de décaissement présente, mois par mois, les décaissements passés — le coût réel par mois de date de pièce — et les décaissements à venir, obtenus en étalant le montant réestimé de chaque ligne du reste à engager sur la durée de sa tâche dans la révision courante, par interpolation linéaire, puis en décalant chaque part de son délai de paiement. Les provisions des risques identifiés y figurent, à la date de la tâche qui les porte."
-motif: "Le décaissement suit la dépense d’un délai contractuel : c’est le délai de paiement qui sépare les deux, et c’est pour lui que chaque ligne le porte. Inclure les provisions donne une projection prudente, cohérente avec le projeté du chef de projet qui les contient."
-verification: "Une ligne de reste à engager portée par une tâche de deux mois avec un délai de paiement de trente jours apparaît sur les deux mois suivant ceux de la tâche. La somme des décaissements à venir égale le reste à engager. Les décaissements passés totalisent le coût réel du périmètre suivi."
-```
+|     |     |
+|-----|-----|
+|     |     |
+|     |     |
+|     |     |
+|     |     |
+|     |     |
+|     |     |
+|     |     |
 
 ## 3.5. Interactions entre fonctions
 
@@ -3146,7 +3164,7 @@ titre: "Lecture d'une grille"
 flexibilite: "F0"
 fbs: "FBS-4.3.2, FBS-4.4.2, FBS-4.5.2, FBS-4.6.1"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Une grille se trie sur chacune de ses colonnes et se filtre sur les colonnes que son paragraphe désigne. L'utilisateur choisit les colonnes visibles et leur largeur. Pendant le défilement vertical, les totaux et les en-têtes restent visibles ; pendant le défilement horizontal, les colonnes qui identifient la ligne restent visibles. Le choix des colonnes, des largeurs, du tri et des filtres est une préférence d'affichage (WF-ADM-0040), conservée par grille."
+corps: "Une grille se trie sur chacune de ses colonnes et se filtre sur chacune de ses colonnes (WF-IHM-0130). L'utilisateur choisit les colonnes visibles et leur largeur. Pendant le défilement vertical, les totaux et les en-têtes restent visibles ; pendant le défilement horizontal, les colonnes qui identifient la ligne restent visibles. Le choix des colonnes, des largeurs, du tri et des filtres est une préférence d'affichage (WF-ADM-0040), conservée par grille."
 motif: "Sur mille lignes, une grille dont l'en-tête ou le total disparaît au défilement oblige à remonter pour savoir ce qu'on lit, et une colonne d'identification qui part à gauche fait perdre la ligne en cours. Conserver les réglages par grille évite de refaire les mêmes choix à chaque ouverture, et les cantonner aux préférences garantit qu'ils ne changent rien pour les autres."
 verification: "Chaque colonne d'une grille se trie dans les deux sens. Après défilement de mille lignes, en-têtes et totaux sont toujours visibles, de même que la colonne de libellé après défilement horizontal. Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages."
 ```
@@ -3209,6 +3227,30 @@ pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
 corps: "Un utilisateur peut annuler ses modifications d'une révision en cours, une par une et dans l'ordre inverse de leur saisie, puis rétablir ce qu'il vient d'annuler. L'annulation porte sur les saisies directes : valeurs de cellules, création, modification, déplacement et suppression de tâches et de lignes. Elle ne porte ni sur l'application d'un import, ni sur les actions irréversibles — marquage d'une révision, désignation de la référence, sortie du cycle de vie, déclaration d'un risque survenu, exclusion d'une ligne de coût. Elle est refusée, en nommant l'objet en conflit, lorsqu'une modification postérieure porte sur le même objet. L'historique annulable couvre au moins les cinquante dernières modifications de la session."
 motif: "Une grille de mille lignes se remplit vite et se casse vite : un bloc collé une colonne trop à droite, une tâche supprimée avec ses lignes. Sans annulation, la seule issue est de ressaisir, ou d'abandonner la révision en cours pour repartir de la dernière révision marquée (WF-REV-0010), ce qui fait perdre bien plus que la faute. Une annulation est une modification comme une autre : elle passe par l'API, subit les mêmes règles et s'inscrit dans les colonnes d'audit (WF-DAT-0070) — ce n'est pas un retour dans le temps, et c'est ce qui la rend compatible avec plusieurs contributeurs sur un même projet (WF-PRJ-0060). Le refus en cas de modification postérieure est ce qui évite qu'une annulation défasse le travail d'un autre."
 verification: "La suppression d'une tâche puis son annulation restituent la tâche, ses lignes et ses liaisons. Cinquante modifications successives s'annulent une par une, puis se rétablissent dans l'ordre. L'annulation d'une modification qu'un autre contributeur a depuis reprise est refusée en nommant l'objet en conflit. Aucune commande n'annule un marquage, un import appliqué ou une exclusion de ligne de coût."
+```
+
+```yaml exigence
+section: "3.6"
+id: "WF-IHM-0120-A"
+titre: "Écran d’accueil"
+flexibilite: "F0"
+fbs: "FBS-2.1, FBS-4"
+pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
+corps: "À la connexion, l’utilisateur voit la liste des projets dont il est contributeur. Ce filtre est visible et peut être levé pour voir les projets que ses habilitations lui permettent d’ouvrir sans en être contributeur (WF-PRJ-0060). Sur une installation dont le référentiel est incomplet, l’accueil énonce les prérequis manquants et mène au référentiel (WF-CYC-0120)."
+motif: "Un utilisateur arrive pour travailler sur ses affaires : les lui présenter d’abord évite une recherche à chaque connexion, et le filtre reste levable pour que la liste ne soit jamais prise pour une restriction de lecture. Une installation neuve dont l’accueil serait vide sans explication serait une impasse."
+verification: "Un contributeur de deux projets les voit à sa connexion ; la levée du filtre montre aussi les projets qu’il peut ouvrir sans en être contributeur, et aucun autre. Sur une installation au référentiel incomplet, l’accueil nomme les prérequis manquants et mène au référentiel."
+```
+
+```yaml exigence
+section: "3.6"
+id: "WF-IHM-0130-A"
+titre: "Filtrage des tables et export des graphiques"
+flexibilite: "F0"
+fbs: "FBS-1, FBS-2, FBS-3, FBS-4"
+pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
+corps: "Toute table se filtre sur chacune de ses colonnes, et le filtre s’applique aux totaux qu’elle présente. Toute courbe et tout diagramme — Gantt, plan de charge, courbes d’indicateurs, matrice des risques — s’exportent en image PNG, avec leur titre, leur légende, le nom du projet, la révision et la date de calcul."
+motif: "Un filtre commun évite qu’une table l’ait et l’autre non ; une image exportée entre dans un compte rendu de revue sans copie d’écran, et dit d’elle-même d’où elle vient."
+verification: "La liste des projets filtrée sur un état ne compte que les projets de cet état dans ses totaux. Le plan de charge exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul."
 ```
 
 # 4. Architecture technique
@@ -3274,14 +3316,14 @@ titre: "Le texte est rendu au plus près du lecteur"
 flexibilite: "F0"
 fbs: "FBS-1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2"
-corps: "L'API ne renvoie pas de phrase destinée à être lue : elle renvoie un code et ses données, et le front rend le texte dans la langue du lecteur. Lorsqu'un service produit lui-même un texte destiné à une personne — courriel, fichier engendré, document exporté —, il le rend dans la langue du compte destinataire, ou dans celle de la requête lorsqu'aucun compte n'est encore connu. Un message conservé — compte rendu d'import, journal des imports, journal d'audit, alerte — est conservé sous forme de code et de données, et rendu à la lecture dans la langue de celui qui le lit."
-motif: "Une phrase engendrée par le serveur ne se traduit plus : elle arrive telle quelle dans une langue qui n'est pas forcément celle du lecteur. Conserver un message déjà rédigé produit un journal en plusieurs langues, illisible d'un bout à l'autre et impossible à relire dix ans plus tard. Le courriel de réinitialisation est l'exception nécessaire : il part avant toute session, d'où la langue de la requête."
-verification: "Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente son compte rendu en anglais. Le journal d'audit d'une même action se lit dans la langue de chaque lecteur. Un courriel de réinitialisation demandé depuis un navigateur en anglais part en anglais."
+corps: "L'API ne renvoie pas de phrase destinée à être lue : elle renvoie un code et ses données, et le front rend le texte dans la langue du lecteur. Lorsqu'un service produit lui-même un texte destiné à une personne — courriel, fichier engendré, document exporté —, il le rend dans la langue du compte destinataire. Les courriels d'authentification — lien de mot de passe, réinitialisation — partent du fournisseur d'identité, dans la langue du compte. Un message conservé — compte rendu d'import, journal des imports, journal d'audit, alerte — est conservé sous forme de code et de données, et rendu à la lecture dans la langue de celui qui le lit."
+motif: "Une phrase engendrée par le serveur ne se traduit plus : elle arrive telle quelle dans une langue qui n'est pas forcément celle du lecteur. Conserver un message déjà rédigé produit un journal en plusieurs langues, illisible d'un bout à l'autre et impossible à relire dix ans plus tard. Les modèles de courriel du fournisseur d'identité existent en français et en anglais, et c'est lui qui connaît la langue du compte."
+verification: "Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente son compte rendu en anglais. Le journal d'audit d'une même action se lit dans la langue de chaque lecteur. Un courriel de réinitialisation part du fournisseur d'identité, dans la langue du compte."
 ```
 
 ## 4.2. Découpage technique
 
-Waterfall est livré comme un produit : une application web, un service d’API, un worker, et les composants de données et d’exploitation qu’ils exigent. Le découpage ci-dessous nomme chaque composant d’un code PBS, comme le §3.4.1 nomme chaque fonction d’un code FBS, et les mêmes règles valent : un code ne change jamais, un composant nouveau prend le prochain code libre. La matrice du §4.2.2 relie les deux arborescences, et c’est d’elle que se déduit le champ PBS des exigences du §3.
+Waterfall est livré comme un produit : une application web, un service d’API, un worker, un fournisseur d’identité, et les composants de données et d’exploitation qu’ils exigent. Le découpage ci-dessous nomme chaque composant d’un code PBS, comme le §3.4.1 nomme chaque fonction d’un code FBS, et les mêmes règles valent : un code ne change jamais, un composant nouveau prend le prochain code libre. La matrice du §4.2.2 relie les deux arborescences, et c’est d’elle que se déduit le champ PBS des exigences du §3.
 
 Trois décisions commandent ce découpage, et il vaut mieux les énoncer avant l’arbre.
 
@@ -3310,7 +3352,7 @@ flowchart LR
     PBS_2_2_Worker["PBS-2.2<br>Worker"]
     PBS_2_3_Noyau_metier["PBS-2.3<br>Noyau métier"]
     PBS_2_4_Contrat_OpenAPI["PBS-2.4<br>Contrat OpenAPI"]
-    PBS_2_5_Authentification["PBS-2.5<br>Authentification"]
+    PBS_2_5_Integration_du_fournisseur_d_identite["PBS-2.5<br>Intégration du fournisseur d'identité"]
     PBS_3_1_PostgreSQL["PBS-3.1<br>PostgreSQL"]
     PBS_3_2_Redis["PBS-3.2<br>Redis"]
     PBS_3_3_Stockage_objet_S3["PBS-3.3<br>Stockage objet S3"]
@@ -3320,6 +3362,7 @@ flowchart LR
     PBS_5_1_Empaquetage_et_deploiement["PBS-5.1<br>Empaquetage et déploiement"]
     PBS_5_2_Chaine_CI_CD["PBS-5.2<br>Chaîne CI/CD"]
     PBS_5_3_Taches_planifiees["PBS-5.3<br>Tâches planifiées"]
+    PBS_5_4_Fournisseur_d_identite["PBS-5.4<br>Fournisseur d'identité"]
 
     Waterfall --> PBS_1_Frontend
     Waterfall --> PBS_2_Services_backend
@@ -3333,7 +3376,7 @@ flowchart LR
     PBS_2_Services_backend --> PBS_2_2_Worker
     PBS_2_Services_backend --> PBS_2_3_Noyau_metier
     PBS_2_Services_backend --> PBS_2_4_Contrat_OpenAPI
-    PBS_2_Services_backend --> PBS_2_5_Authentification
+    PBS_2_Services_backend --> PBS_2_5_Integration_du_fournisseur_d_identite
     PBS_3_Donnees --> PBS_3_1_PostgreSQL
     PBS_3_Donnees --> PBS_3_2_Redis
     PBS_3_Donnees --> PBS_3_3_Stockage_objet_S3
@@ -3343,9 +3386,10 @@ flowchart LR
     PBS_5_Plateforme --> PBS_5_1_Empaquetage_et_deploiement
     PBS_5_Plateforme --> PBS_5_2_Chaine_CI_CD
     PBS_5_Plateforme --> PBS_5_3_Taches_planifiees
+    PBS_5_Plateforme --> PBS_5_4_Fournisseur_d_identite
 
     classDef c1 fill:#E6D0DE,stroke:#b85450
-    class PBS_1_1_Application_web,PBS_1_2_Client_API_engendre,PBS_1_3_Composants_d_interface,PBS_2_1_Service_d_API,PBS_2_2_Worker,PBS_2_3_Noyau_metier,PBS_2_4_Contrat_OpenAPI,PBS_2_5_Authentification,PBS_3_1_PostgreSQL,PBS_3_2_Redis,PBS_3_3_Stockage_objet_S3,PBS_4_1_Metriques,PBS_4_2_Journaux,PBS_4_3_Tableau_de_bord_et_alertes,PBS_5_1_Empaquetage_et_deploiement,PBS_5_2_Chaine_CI_CD,PBS_5_3_Taches_planifiees c1
+    class PBS_1_1_Application_web,PBS_1_2_Client_API_engendre,PBS_1_3_Composants_d_interface,PBS_2_1_Service_d_API,PBS_2_2_Worker,PBS_2_3_Noyau_metier,PBS_2_4_Contrat_OpenAPI,PBS_2_5_Integration_du_fournisseur_d_identite,PBS_3_1_PostgreSQL,PBS_3_2_Redis,PBS_3_3_Stockage_objet_S3,PBS_4_1_Metriques,PBS_4_2_Journaux,PBS_4_3_Tableau_de_bord_et_alertes,PBS_5_1_Empaquetage_et_deploiement,PBS_5_2_Chaine_CI_CD,PBS_5_3_Taches_planifiees,PBS_5_4_Fournisseur_d_identite c1
     classDef c2 fill:#f8cecc,stroke:#b85450
     class PBS_1_Frontend,PBS_2_Services_backend,PBS_3_Donnees,PBS_4_Observabilite,PBS_5_Plateforme,Waterfall c2
 ```
@@ -3368,19 +3412,19 @@ Les services (Python, FastAPI).
 
 **PBS-2.1 Service d’API** : le processus qui expose le contrat, applique les permissions et répond aux requêtes ; sans état, multipliable.
 
-**PBS-2.2 Worker** : le processus qui exécute les tâches de fond prises dans la file — analyse et application des imports, marquage des révisions, exports, sauvegardes, synchronisation de l’annuaire ; même code que l’API, autre processus.
+**PBS-2.2 Worker** : le processus qui exécute les tâches de fond prises dans la file — analyse et application des imports, marquage des révisions, exports, sauvegardes, lecture des comptes du fournisseur d’identité ; même code que l’API, autre processus.
 
 **PBS-2.3 Noyau métier** : la bibliothèque partagée par les deux — le modèle, la machine d’état, les règles d’immuabilité, les calculs de planning, de chiffrage et d’indicateurs — découpée en modules calqués sur les blocs FBS.
 
 **PBS-2.4 Contrat OpenAPI** : le document de contrat, versionné, dont sont dérivés le client du front et les tests de conformité.
 
-**PBS-2.5 Authentification** : le module qui reconnaît un utilisateur et lui délivre une session, par l’un des fournisseurs de WF-ADM-0180 — comptes locaux, annuaire LDAP, fournisseur OIDC — et qui importe les comptes de l’annuaire (WF-ADM-0070) ou crée un compte à la première connexion par le fournisseur OIDC (WF-ADM-0180).
+**PBS-2.5 Intégration du fournisseur d’identité** : le module qui valide les jetons d’accès par les clés publiques du fournisseur (WF-ARC-0030), fait correspondre l’identité qu’ils portent au compte Waterfall, et lit et crée les comptes par l’API d’administration du fournisseur (WF-ADM-0070).
 
 #### 4.2.1.3. PBS-3 : Données
 
-**PBS-3.1 PostgreSQL** : toutes les données métier et les sessions, selon le §4.4 ; la seule source de vérité.
+**PBS-3.1 PostgreSQL** : toutes les données métier, selon le §4.4 ; la seule source de vérité.
 
-**PBS-3.2 Redis** : le cache des indicateurs de la révision en cours et la file de tâches ; rien n'y est durable, et tout s'y reconstruit depuis PostgreSQL.
+**PBS-3.2 Redis** : le cache des indicateurs de la révision en cours, les sessions du front et la file de tâches ; rien n'y est durable, et tout s'y reconstruit depuis PostgreSQL.
 
 #### 4.2.1.4. PBS-4 : Observabilité
 
@@ -3396,7 +3440,9 @@ Les services (Python, FastAPI).
 
 **PBS-5.2 Chaîne CI/CD** : la construction des images, l’exécution des tests et des contrôles de conformité au contrat, la publication des versions.
 
-**PBS-5.3 Tâches planifiées** : les sauvegardes planifiées (WF-ADM-0170) et la resynchronisation de l'annuaire, déclenchées par la plateforme, qui dépose la tâche en file à l'heure convenue ; le worker la prend comme les autres.
+**PBS-5.3 Tâches planifiées** : les sauvegardes planifiées (WF-ADM-0170) et la lecture périodique des comptes du fournisseur d'identité, déclenchées par la plateforme, qui dépose la tâche en file à l'heure convenue ; le worker la prend comme les autres.
+
+**PBS-5.4 Fournisseur d’identité** : Keycloak, livré et déployé avec la plateforme, qui porte les comptes locaux, fédère l’annuaire d’entreprise et relaie vers un fournisseur externe (WF-ADM-0180) ; il émet les jetons que l’API valide, et sa base est sauvegardée avec celle de Waterfall.
 
 ### 4.2.2. Allocation des fonctions
 
@@ -3404,7 +3450,7 @@ La matrice donne, pour chaque fonction de l’arborescence fonctionnelle, les co
 
 | Fonction                                                                     | Composants                                                  |
 |------------------------------------------------------------------------------|-------------------------------------------------------------|
-| FBS-1.1 Gestion des utilisateurs                                             | PBS-2.5, PBS-2.2 (import de l’annuaire), PBS-5.3            |
+| FBS-1.1 Gestion des utilisateurs                                             | PBS-2.5, PBS-5.4, PBS-2.2 (lecture des comptes), PBS-5.3    |
 | FBS-1.2 Gestion des rôles d’habilitation                                     | PBS-2.5, PBS-3.2 (autorisations évaluées)                   |
 | FBS-1.3 Surveillance de l’état du système                                    | PBS-4.1, PBS-4.3                                            |
 | FBS-1.4 Sauvegarde et restauration                                           | PBS-2.2, PBS-3.3, PBS-5.3                                   |
@@ -3429,7 +3475,7 @@ La matrice donne, pour chaque fonction de l’arborescence fonctionnelle, les co
 | FBS-4.6.2 Gestion des provisions pour risques                                | —                                                           |
 | FBS-4.7 Coûts réels                                                          | PBS-2.2 (import), PBS-3.3                                   |
 | FBS-4.8.1 à FBS-4.8.5 Indicateurs projets                                    | PBS-3.2 (révision en cours)                                 |
-| FBS-4.8.6 à FBS-4.8.9 Diagrammes et courbes                                  | PBS-1.3, PBS-3.2                                            |
+| FBS-4.8.6 à FBS-4.8.8 Diagrammes et courbes                                  | PBS-1.3, PBS-3.2                                            |
 | FBS-4.9 Cycle de vie du projet                                               | —                                                           |
 
 Tableau 6 Correspondances FBS – PBS
@@ -3461,13 +3507,13 @@ verification: "Le front ne contient aucun appel http vers l’API hors du client
 ```yaml exigence
 section: "4.2.2"
 id: "WF-ARC-0030-A"
-titre: "Fournisseurs d’authentification"
+titre: "Authentification déléguée"
 flexibilite: "F0"
 fbs: "FBS-1.1"
-pbs: "PBS-2.5"
-corps: "Le module d’authentification implémente trois fournisseurs : les comptes locaux, un annuaire LDAP — dont Active Directory — et un fournisseur d’identité OIDC. Les comptes locaux sont toujours actifs ; les deux autres s’activent et se paramètrent par WF-ADM-0180. L’import et la resynchronisation des comptes (WF-ADM-0070) n’existent qu’avec l’annuaire LDAP ; avec le fournisseur OIDC, le compte est créé à la première connexion à partir des attributs transmis, sans rôle. Quel que soit le fournisseur, l’API ne connaît que la session qu’il a produite et l’évalue de la même façon."
-motif: "L’entreprise cible dispose d’un Active Directory ; d’autres disposeront d’un fournisseur OIDC, ou de rien. Un socle local qui fonctionne seul et deux raccordements optionnels couvrent les trois cas sans imposer le déploiement d’un fournisseur d’identité pour Waterfall. Séparer l’authentification de l’évaluation des permissions est ce qui garde le RBAC indépendant du fournisseur."
-verification: "Une installation sans fournisseur externe authentifie un compte local. Une installation raccordée à un Active Directory authentifie un compte importé par ses identifiants d’annuaire, et un compte local par son mot de passe. Une installation raccordée à un fournisseur OIDC crée le compte d’une personne inconnue à sa première connexion et ne lui donne aucun rôle. Un même rôle d’habilitation produit les mêmes permissions pour un compte local et un compte importé."
+pbs: "PBS-2.5, PBS-5.4"
+corps: "L’authentification est déléguée à un fournisseur d’identité OpenID Connect livré avec la plateforme, qui porte les comptes locaux, la fédération d’un annuaire LDAP — dont Active Directory — et, le cas échéant, le relais vers un fournisseur d’identité externe. Le front obtient les jetons par le flux du code d’autorisation, côté serveur, et ne les transmet jamais au navigateur. L’API valide chaque jeton d’accès par les clés publiques du fournisseur et n’en tire que l’identité de l’appelant : l’état de son compte, ses rôles et ses permissions sont lus dans Waterfall à chaque requête. Un jeton d’accès vit au plus cinq minutes ; un jeton de rafraîchissement ne sert qu’une fois, et son emploi en délivre un nouveau."
+motif: "Un seul serveur d’autorisation sert le front, le serveur MCP et les applications voisines, et leur donne une seule connexion ; confier les mots de passe, le verrouillage et la fédération à un produit éprouvé retire du code de sécurité au projet. Ne tirer du jeton que l’identité garde aux permissions et à la désactivation leur effet immédiat (WF-ADM-0090, WF-SEC-0020), qu’un jeton porteur de rôles retarderait jusqu’à son expiration."
+verification: "Un compte local, un compte de l’annuaire et un compte venu d’un fournisseur externe obtiennent chacun un jeton, et agissent selon leurs rôles dans Waterfall. Un jeton d’accès expiré, ou signé par une autre clé, est refusé. Un jeton de rafraîchissement déjà employé est refusé. Le retrait d’un rôle prend effet à la requête suivante, sans attendre l’expiration du jeton. Le navigateur ne détient aucun jeton."
 ```
 
 ```yaml exigence
@@ -3477,9 +3523,9 @@ titre: "Rôles des composants de données"
 flexibilite: "F0"
 fbs: "FBS-4"
 pbs: "PBS-3"
-corps: "PostgreSQL est la seule source de vérité, et porte à ce titre les sessions. Redis ne porte que des données reconstructibles depuis PostgreSQL — le cache des indicateurs de la révision en cours — et la file de tâches. Le stockage objet ne porte que les fichiers en transit pendant un import et les sauvegardes. Aucune donnée métier n'existe ailleurs que dans PostgreSQL."
-motif: "Un composant qui porte de la vérité doit être sauvegardé, restauré et surveillé comme tel : n'en avoir qu'un est ce qui rend la sauvegarde (WF-ADM-0150) et la restauration complètes. Redis et le stockage objet peuvent être vidés sans perte : c'est cette propriété qui définit ce qu'on y met, et c'est pourquoi les sessions n'y sont pas — une session ne se recalcule pas."
-verification: "Après vidage de Redis, la plateforme fonctionne, aucun utilisateur n'est déconnecté et aucune donnée de projet ne manque. Une sauvegarde puis une restauration de PostgreSQL seul restitue tous les projets, révisions et comptes. Aucun import n'est appliqué depuis un fichier absent du stockage objet."
+corps: "PostgreSQL est la seule source de vérité des données de Waterfall ; les identifiants des comptes vivent dans la base du fournisseur d'identité (WF-ARC-0030), et aucune session n'est conservée en base. Redis ne porte que des données reconstructibles — le cache des indicateurs de la révision en cours, et la correspondance que le front garde entre le témoin du navigateur et les jetons, qu'une reconnexion reconstruit — et la file de tâches. Le stockage objet ne porte que les fichiers en transit pendant un import et les sauvegardes. Aucune donnée métier n'existe ailleurs que dans PostgreSQL."
+motif: "Un composant qui porte de la vérité doit être sauvegardé, restauré et surveillé comme tel : n'en avoir qu'un est ce qui rend la sauvegarde (WF-ADM-0150) et la restauration complètes. Redis et le stockage objet peuvent être vidés sans perte : c'est cette propriété qui définit ce qu'on y met, et une session du front s'y trouve parce que sa perte ne coûte qu'une reconnexion."
+verification: "Après vidage de Redis, la plateforme fonctionne, les utilisateurs se reconnectent et aucune donnée de projet ne manque. Une sauvegarde puis une restauration de PostgreSQL et de la base du fournisseur d'identité restituent tous les projets, révisions et comptes. Aucun import n'est appliqué depuis un fichier absent du stockage objet."
 ```
 
 ```yaml exigence
@@ -3509,22 +3555,26 @@ flowchart LR
         Front["Front<br>Next.js"]
         API["Service d'API<br>FastAPI"]
         Worker["Worker<br>FastAPI"]
+        IdP["Fournisseur d'identité<br>Keycloak"]
         PG[("PostgreSQL")]
         Redis[("Redis")]
         S3[("Stockage objet S3")]
         Prometheus["Prometheus"]
     end
-    Annuaire["Annuaire ou<br>fournisseur d'identité"]
+    Annuaire["Annuaire LDAP ou<br>fournisseur d'identité externe"]
     Navigateur --> Front
-    Navigateur --> Annuaire
+    Navigateur --> IdP
     Front --> API
+    Front --> IdP
+    Front --> Redis
+    API --> IdP
     API --> PG
     API --> Redis
     API --> S3
-    API --> Annuaire
     Worker --> PG
     Worker --> Redis
     Worker --> S3
+    IdP --> Annuaire
     Prometheus --> API
     Prometheus --> Worker
     Prometheus --> Front
@@ -3536,18 +3586,19 @@ flowchart LR
 
 Chaque flux technique porte un identifiant de la forme TFX-nn, stable, sur le modèle des flux fonctionnels du §3.1.2. Le sens est donné du demandeur vers le fournisseur.
 
-| Flux   | Source                | Destination            | Protocole                                       | Authentification                     |
-|--------|-----------------------|------------------------|-------------------------------------------------|--------------------------------------|
-| TFX-01 | Navigateur            | Front                  | HTTPS                                           | Session de l’utilisateur             |
-| TFX-02 | Front                 | Service d’API          | HTTPS, REST/JSON selon le contrat (WF-ARC-0060) | Jeton de session                     |
-| TFX-03 | Service d’API, worker | PostgreSQL             | Connexion chiffrée                              | Secret de la plateforme              |
-| TFX-04 | Service d’API, worker | Redis                  | Connexion chiffrée                              | Secret de la plateforme              |
-| TFX-05 | Service d’API, worker | Stockage objet         | S3 sur HTTPS                                    | Clés d’accès                         |
-| TFX-06 | Service d’API         | Annuaire LDAP          | LDAPS                                           | Compte de service                    |
-| TFX-07 | Navigateur            | Fournisseur d’identité | HTTPS, redirections OIDC                        | —                                    |
-| TFX-08 | Service d’API         | Fournisseur d’identité | HTTPS                                           | Secret client, validation des jetons |
-| TFX-09 | Prometheus            | Front, API, worker     | HTTP, point /metrics                            | Réseau interne au cluster            |
-| TFX-10 | Plateforme            | Redis                  | Dépôt en file des tâches planifiées             | Secret de la plateforme              |
+| Flux   | Source                 | Destination                                   | Protocole                                                     | Authentification                  |
+|--------|------------------------|-----------------------------------------------|---------------------------------------------------------------|-----------------------------------|
+| TFX-01 | Navigateur             | Front                                         | HTTPS                                                         | Témoin de session du front        |
+| TFX-02 | Front                  | Service d’API                                 | HTTPS, REST/JSON selon le contrat (WF-ARC-0060)               | Jeton d’accès (WF-ARC-0030)       |
+| TFX-03 | Service d’API, worker  | PostgreSQL                                    | Connexion chiffrée                                            | Secret de la plateforme           |
+| TFX-04 | Service d’API, worker  | Redis                                         | Connexion chiffrée                                            | Secret de la plateforme           |
+| TFX-05 | Service d’API, worker  | Stockage objet                                | S3 sur HTTPS                                                  | Clés d’accès                      |
+| TFX-06 | Fournisseur d’identité | Annuaire LDAP                                 | LDAPS                                                         | Compte de service                 |
+| TFX-07 | Navigateur             | Fournisseur d’identité                        | HTTPS, redirections OIDC                                      | —                                 |
+| TFX-08 | Front, service d’API   | Fournisseur d’identité                        | HTTPS : échange du code, clés publiques, API d’administration | Secret client ; compte de service |
+| TFX-09 | Prometheus             | Front, API, worker                            | HTTP, point /metrics                                          | Réseau interne au cluster         |
+| TFX-10 | Plateforme             | Redis                                         | Dépôt en file des tâches planifiées                           | Secret de la plateforme           |
+| TFX-11 | Fournisseur d’identité | Fournisseur d’identité externe, annuaire LDAP | HTTPS et OIDC ; LDAPS                                         | Secret client ; compte de service |
 
 Tableau 7 Tableau des flux techniques
 
@@ -3647,7 +3698,7 @@ titre: "Traitements longs confiés au worker"
 flexibilite: "F0"
 fbs: "FBS-4"
 pbs: "PBS-2.2, PBS-3.2"
-corps: "Les traitements dont la durée dépend du volume des données — analyse et application d’un import, marquage d’une révision, engendrement d’un export, sauvegarde et restauration, synchronisation de l’annuaire — sont exécutés par le worker à partir d’une file de tâches, et non dans la requête qui les demande. La requête rend la main en désignant la tâche créée, dont l’utilisateur suit l’avancement et le résultat. Une tâche interrompue est reprise ou échoue sans laisser d’état intermédiaire."
+corps: "Les traitements dont la durée dépend du volume des données — analyse et application d’un import, marquage d’une révision, engendrement d’un export, sauvegarde et restauration, lecture des comptes du fournisseur d’identité — sont exécutés par le worker à partir d’une file de tâches, et non dans la requête qui les demande. La requête rend la main en désignant la tâche créée, dont l’utilisateur suit l’avancement et le résultat. Une tâche interrompue est reprise ou échoue sans laisser d’état intermédiaire."
 motif: "Le marquage d’une révision de dix mille objets et l’import d’un fichier de dix mille lignes (§4.6.2) ne tiennent pas dans le temps d’une requête : les tenir quand même immobilise une instance, expose aux délais du proxy et à l’abandon du navigateur, et interdit toute reprise. La file donne en prime la reprise après incident, que WF-ARC-0080 exige."
 verification: "Le marquage d’une révision de dix mille objets n’immobilise aucune requête au-delà de la création de la tâche, et l’utilisateur en voit l’aboutissement. L’arrêt du worker pendant une tâche laisse la base inchangée, et la tâche est reprise après redémarrage. Aucun de ces traitements n’est joignable par un endpoint qui répondrait après l’avoir exécuté."
 ```
@@ -3696,7 +3747,7 @@ Le modèle conceptuel du §3.2 dit ce que sont les objets ; ce paragraphe dit c
 | Permission                                                         | permission                                                         | plateforme  |
 | Sauvegarde                                                         | backup                                                             | plateforme  |
 | Avatar                                                             | attribut de user_account                                           | plateforme  |
-| Session                                                            | session                                                            | plateforme  |
+| Session du front                                                   | — (Redis, WF-ARC-0040)                                             | plateforme  |
 | Projet                                                             | project                                                            | projet      |
 | Transition d’état d’un projet (WF-CYC-0130)                        | project_state_transition                                           | projet      |
 | Contributeur                                                       | contributor                                                        | projet      |
@@ -3729,7 +3780,7 @@ Tableau 9 Correspondance entre objets et tables
 
 - un objet du régime projet se supprime physiquement tant qu’aucune révision marquée ni aucune ligne de coût ne le référence ; au-delà, il est marqué supprimé et conservé. C’est ce qui donne à WF-PRJ-0050 sa mise en œuvre : un sous-projet auquel des coûts sont imputés n’est pas supprimable, et un sous-projet référencé par une révision marquée ne l’est pas davantage.
 
-**Intégrité.** Toutes les relations des diagrammes du §3.2 sont des clés étrangères déclarées, en refus par défaut : la base n’efface jamais une ligne pour en suivre une autre, sauf à l’intérieur d’une révision en cours, où la suppression d’une tâche entraîne ses lignes et ses liaisons. Les états — du projet, d’une tâche, d’un risque, d’une révision, d’un compte — sont des contraintes de vérification sur des valeurs énumérées, et les unicités que le §3 impose sont déclarées en base. Les montants sont des décimaux à deux chiffres dans la devise unique de l’installation (WF-REF-0140) ; les heures, des décimaux ; les dates du planning, des dates sans heure ; les horodatages, en temps universel.
+**Intégrité.** Toutes les relations des diagrammes du §3.2 sont des clés étrangères déclarées, en refus par défaut : la base n’efface jamais une ligne pour en suivre une autre, sauf à l’intérieur d’une révision en cours, où la suppression d’une tâche entraîne ses lignes et ses liaisons. Les états — du projet, d’une tâche, d’un risque, d’une révision, d’un compte — sont des contraintes de vérification sur des valeurs énumérées, et les unicités que le §3 impose sont déclarées en base. Les montants sont des décimaux à deux chiffres dans la devise unique de l’installation (WF-REF-0140) ; les heures, des décimaux ; le début et la fin d’une tâche, une date sans heure et des heures de travail écoulées ce jour-là ; les dates des pièces, des dates sans heure ; les horodatages, en temps universel.
 
 ```yaml exigence
 section: "4.4.1"
@@ -3786,9 +3837,9 @@ titre: "Types des grandeurs"
 flexibilite: "F0"
 fbs: "FBS-4"
 pbs: "PBS-3"
-corps: "Les montants sont des décimaux exacts à deux chiffres après la virgule, dans la devise unique de l’installation, jamais des flottants. Les heures et les quantités sont des décimaux exacts. Les dates du planning et des pièces sont des dates sans heure. Les horodatages d’audit et de marquage sont en temps universel. Les pourcentages sont conservés comme des décimaux exacts, non arrondis avant les calculs."
+corps: "Les montants sont des décimaux exacts à deux chiffres après la virgule, dans la devise unique de l’installation, jamais des flottants. Les heures et les quantités sont des décimaux exacts. Les dates des pièces sont des dates sans heure. Le début et la fin d’une tâche sont une date sans heure et un nombre d’heures de travail écoulées ce jour-là, sans fuseau. Les horodatages d’audit et de marquage sont en temps universel. Les pourcentages sont conservés comme des décimaux exacts, non arrondis avant les calculs. Un horodatage s’affiche dans l’heure locale du poste ; une date de planning s’affiche telle quelle."
 motif: "Un budget de référence est une somme de milliers de lignes : en flottant, deux sommes des mêmes lignes dans deux ordres différents ne donnent pas le même total, et l’indice de coût diffère entre deux écrans. Les dates sans heure évitent qu’un fuseau ne décale un jalon d’un jour."
-verification: "La somme des montants budgétés d’une révision est identique quel que soit l’ordre de sommation. Une tâche planifiée au 30 juin s’affiche au 30 juin sur tout poste client, quel que soit son fuseau. Un montant de 0,10 additionné dix fois donne exactement 1,00."
+verification: "La somme des montants budgétés d’une révision est identique quel que soit l’ordre de sommation. Une tâche planifiée au 30 juin s’affiche au 30 juin sur tout poste client, quel que soit son fuseau. Un montant de 0,10 additionné dix fois donne exactement 1,00. Deux tâches de quatre heures liées fin à début, sur un calendrier de huit heures, commencent et finissent le même jour."
 ```
 
 ### 4.4.2. Historisation et immuabilité des révisions
@@ -3937,12 +3988,12 @@ verification: "Une installation en version N passe en version N+1 sans interrupt
 
 Quatre environnements, et deux empaquetages pour les servir (WF-ARC-0050). Ce qui change de l'un à l'autre n'est ni le code ni le schéma — ce sont les mêmes images et les mêmes migrations partout — mais l'empaquetage, le dimensionnement, le fournisseur d'authentification et l'origine des données.
 
-| Environnement | Empaquetage                                  | Authentification         | Données                                                                   |
-|---------------|----------------------------------------------|--------------------------|---------------------------------------------------------------------------|
-| Développement | Compose, poste du développeur                | Comptes locaux           | Jeu de données fictif, engendré                                           |
-| Intégration   | Compose, créé et détruit par la chaîne CI/CD | Comptes locaux           | Jeu de données fictif, engendré à chaque exécution                        |
-| Préproduction | Chart Helm, dimensionnement de la production | Annuaire de l'entreprise | Jeu de référence, ou copie de production dont les comptes sont anonymisés |
-| Production    | Chart Helm                                   | Annuaire de l'entreprise | Données réelles                                                           |
+| Environnement | Empaquetage                                  | Authentification                                           | Données                                                                   |
+|---------------|----------------------------------------------|------------------------------------------------------------|---------------------------------------------------------------------------|
+| Développement | Compose, poste du développeur                | Fournisseur d'identité, comptes locaux                     | Jeu de données fictif, engendré                                           |
+| Intégration   | Compose, créé et détruit par la chaîne CI/CD | Fournisseur d'identité, comptes locaux                     | Jeu de données fictif, engendré à chaque exécution                        |
+| Préproduction | Chart Helm, dimensionnement de la production | Fournisseur d'identité fédérant l'annuaire de l'entreprise | Jeu de référence, ou copie de production dont les comptes sont anonymisés |
+| Production    | Chart Helm                                   | Fournisseur d'identité fédérant l'annuaire de l'entreprise | Données réelles                                                           |
 
 Tableau 10 Environnements gérés
 
@@ -3973,7 +4024,7 @@ titre: "Amorçage d'une installation neuve"
 flexibilite: "F0"
 fbs: "FBS-1, FBS-3"
 pbs: "PBS-5.1"
-corps: "L'installation d'une plateforme neuve applique les migrations du schéma, crée le catalogue des permissions, les trois rôles d'habilitation prédéfinis (WF-ADM-0010), un unique compte administrateur local dont le mot de passe est fixé à sa première connexion, un calendrier actif désigné par défaut portant des heures travaillées, et la langue par défaut de l'installation (WF-INTF-0160). Elle ne crée aucun autre objet du référentiel. Relancée sur une plateforme déjà installée, elle n'a aucun effet."
+corps: "L'installation d'une plateforme neuve applique les migrations du schéma, crée le catalogue des permissions, les trois rôles d'habilitation prédéfinis (WF-ADM-0010), un unique compte administrateur local, créé dans le fournisseur d'identité et dans Waterfall, dont le mot de passe est fixé à sa première connexion, un calendrier actif désigné par défaut portant des heures travaillées, et la langue par défaut de l'installation (WF-INTF-0160). Elle ne crée aucun autre objet du référentiel. Relancée sur une plateforme déjà installée, elle n'a aucun effet."
 motif: "Sans compte, personne ne peut entrer ; sans calendrier par défaut, WF-CYC-0120 interdit de créer le premier projet et WF-REF-0120 exige qu'il en existe un et un seul. Ce sont les deux seuls amorçages nécessaires. Aller plus loin — inventer des catégories de coût ou des rôles de ressources — imposerait à l'entreprise un vocabulaire qui n'est pas le sien. Fixer le mot de passe à la première connexion évite qu'un mot de passe d'installation traîne dans une procédure."
 verification: "Après installation, un administrateur se connecte, fixe son mot de passe, et dispose des trois rôles prédéfinis et du catalogue des permissions. La création d'un projet est refusée et nomme les prérequis manquants, jusqu'à ce qu'une catégorie de coût et un rôle de ressource aient été saisis. Une seconde exécution de l'installation ne crée ni compte ni calendrier supplémentaire."
 ```
@@ -3998,16 +4049,17 @@ verification: "Une mise à jour de la version N à la version N+1 s'exécute san
 
 ### 4.5.4. Modes dégradés
 
-La perte d'un composant ne doit pas devenir la perte de la plateforme. Le tableau ci-dessous dit ce qui reste possible, et c'est lui qui justifie deux choix faits ailleurs : que PostgreSQL soit la seule source de vérité (WF-ARC-0040), et que les comptes locaux existent toujours (WF-ADM-0180).
+La perte d'un composant ne doit pas devenir la perte de la plateforme. Le tableau ci-dessous dit ce qui reste possible, et c'est lui qui justifie deux choix faits ailleurs : que PostgreSQL soit la seule source de vérité (WF-ARC-0040), et que le fournisseur d'identité soit livré avec la plateforme et non confié à un tiers (WF-ARC-0030).
 
-| Composant indisponible             | Ce qui continue                                                                 | Ce qui s'arrête                                                               |
-|------------------------------------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
-| PostgreSQL                         | Rien                                                                            | Tout ; le service annonce l'indisponibilité au lieu de répondre partiellement |
-| Redis                              | Tout, les indicateurs de la révision en cours étant recalculés à chaque requête | La prise de nouvelles tâches                                                  |
-| Stockage objet                     | Tout le reste                                                                   | Les imports, les exports et les sauvegardes                                   |
-| Worker                             | La consultation et la saisie ; les tâches s'accumulent en file sans perte       | L'aboutissement des imports, des marquages, des exports et des sauvegardes    |
-| Annuaire ou fournisseur d'identité | La connexion des comptes locaux, et les sessions déjà ouvertes                  | La connexion des comptes venus du fournisseur ; la synchronisation            |
-| Prometheus                         | Tout                                                                            | Les métriques de l'écran d'état et les alertes                                |
+| Composant indisponible | Ce qui continue                                                                 | Ce qui s'arrête                                                                                 |
+|------------------------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| PostgreSQL             | Rien                                                                            | Tout ; le service annonce l'indisponibilité au lieu de répondre partiellement                   |
+| Redis                  | Tout, les indicateurs de la révision en cours étant recalculés à chaque requête | La prise de nouvelles tâches                                                                    |
+| Stockage objet         | Tout le reste                                                                   | Les imports, les exports et les sauvegardes                                                     |
+| Worker                 | La consultation et la saisie ; les tâches s'accumulent en file sans perte       | L'aboutissement des imports, des marquages, des exports et des sauvegardes                      |
+| Fournisseur d'identité | Les connexions en cours, jusqu'à l'expiration de leur jeton d'accès             | Toute connexion et tout renouvellement de jeton, pour tous les comptes ; la lecture des comptes |
+| Annuaire d'entreprise  | Tout, pour les comptes locaux et les connexions en cours                        | La connexion des comptes de l'annuaire ; leur synchronisation                                   |
+| Prometheus             | Tout                                                                            | Les métriques de l'écran d'état et les alertes                                                  |
 
 Tableau 11 Modes dégradés
 
@@ -4049,10 +4101,10 @@ id: "WF-SEC-0020-A"
 titre: "Session et révocation"
 flexibilite: "F0"
 fbs: "FBS-1.1"
-pbs: "PBS-2.5"
-corps: "Une session authentifiée est conservée en base. Elle expire au terme de douze heures, et après deux heures sans activité, la dernière activité étant mise à jour au plus une fois par minute. Elle est révoquée immédiatement par la désactivation du compte, par le retrait de tous ses rôles, et par la déconnexion demandée par l'utilisateur. La révocation vaut pour toutes les sessions ouvertes du compte, sur tous ses postes."
-motif: "WF-ADM-0060 veut qu'un compte désactivé ne puisse plus se connecter ; sans révocation des sessions ouvertes, il continue de travailler jusqu'à leur expiration. La révocation sur tous les postes est ce qui rend la désactivation effective au moment où l'administrateur la décide, et non plus tard."
-verification: "La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. Une session inactive au-delà du délai est refusée. Un utilisateur qui se déconnecte ne peut plus agir avec le jeton de cette session."
+pbs: "PBS-2.5, PBS-5.4"
+corps: "L'authentification produit un jeton d'accès et un jeton de rafraîchissement (WF-ARC-0030). Le jeton d'accès vit au plus cinq minutes ; le jeton de rafraîchissement expire au terme de douze heures, et après deux heures sans activité. La désactivation du compte, le retrait de tous ses rôles et la déconnexion demandée par l'utilisateur prennent effet à la requête suivante, sur tous ses postes : l'état du compte et ses rôles sont lus dans Waterfall à chaque requête, et le fournisseur d'identité révoque ses jetons. Une session expirée mène à l'écran de connexion ; la connexion refaite ramène à l'écran visé."
+motif: "WF-ADM-0060 veut qu'un compte désactivé ne puisse plus agir ; lire son état à chaque requête, et non dans le jeton, rend la désactivation effective au moment où l'administrateur la décide, et non à l'expiration du jeton. Les deux délais sont ceux d'une journée de travail."
+verification: "La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons."
 ```
 
 ```yaml exigence
@@ -4197,14 +4249,14 @@ titre: "Test de restauration périodique"
 flexibilite: "F0"
 fbs: "FBS-1.4"
 pbs: "PBS-5.1"
-corps: "Une sauvegarde est restaurée périodiquement, au moins une fois par mois, dans un environnement isolé créé pour l'occasion et détruit à la fin du test. Le test vérifie que la plateforme démarre, que le nombre de projets, de révisions marquées et de lignes de coût correspond à celui de la sauvegarde, et que les indicateurs conservés d'un échantillon de révisions marquées sont inchangés. Le résultat du test et sa date sont conservés et présentés à l'exploitant. Aucun utilisateur ne se connecte à cet environnement."
+corps: "Une sauvegarde est restaurée périodiquement, au moins une fois par mois, dans un environnement isolé créé pour l'occasion et détruit à la fin du test. Le test vérifie que la plateforme démarre, que le nombre de projets, de révisions marquées, de lignes de coût et de comptes du fournisseur d'identité correspond à celui de la sauvegarde, et que les indicateurs conservés d'un échantillon de révisions marquées sont inchangés. Le résultat du test et sa date sont conservés et présentés à l'exploitant. Aucun utilisateur ne se connecte à cet environnement."
 motif: "La vérification qui suit la production d'une sauvegarde (WF-ADM-0150) dit que le fichier est lisible ; elle ne dit pas qu'il est restaurable, ni que ce qu'il contient est complet. Seule une restauration le démontre, et une restauration qu'on ne fait qu'en cas de sinistre se fait pour la première fois le plus mauvais jour. L'isolement et la destruction de l'environnement sont ce qui permet ce test malgré WF-EXP-0010."
 verification: "Un test de restauration mensuel est exécuté, et son résultat daté est consultable. Le test échoue et le signale si le nombre de projets restaurés diffère de celui de la sauvegarde. L'environnement du test n'est joignable par aucun utilisateur et n'existe plus après le test."
 ```
 
 ### 4.6.5. Compatibilité
 
-Trois compatibilités engagent Waterfall : celle des navigateurs, qui conditionne l'accès ; celle des formats d'échange, déjà fixée par le §3 (WF-INTF-0040 pour MS Project de 2007 à 2024, WF-INTF-0070 pour les formats Excel de l'annexe B) ; et celle des composants d'infrastructure, qu'il faut annoncer puisque l'exploitant peut fournir les siens (WF-ARC-0050).
+Trois compatibilités engagent Waterfall : celle des navigateurs, qui conditionne l'accès ; celle des formats d'échange, déjà fixée par le §3 (WF-INTF-0040 pour le format XML de MS Project des versions 2010 et suivantes, WF-INTF-0070 pour les formats Excel de l'annexe B) ; et celle des composants d'infrastructure, qu'il faut annoncer puisque l'exploitant peut fournir les siens (WF-ARC-0050).
 
 ```yaml exigence
 section: "4.6.5"
@@ -4225,9 +4277,21 @@ titre: "Composants d'infrastructure exigés"
 flexibilite: "F0"
 fbs: "FBS-1"
 pbs: "PBS-3, PBS-5.1"
-corps: "Waterfall exige PostgreSQL dans une version au moins égale à 15, Redis dans une version au moins égale à 7, un stockage compatible avec l'interface S3, et, pour le déploiement par chart, Kubernetes dans une version au moins égale à 1.27. Pour le déploiement par Compose, un moteur de conteneurs compatible avec la spécification Compose v2, et une machine de quatre cœurs et huit gigaoctets de mémoire pour la plateforme entière, composants de données compris. Le chart ne dépend d'aucune distribution particulière de Kubernetes ni d'aucun greffon propre à un hébergeur. La version de chaque composant employé est présentée sur l'écran d'état du système."
+corps: "Waterfall exige PostgreSQL dans une version au moins égale à 15, Redis dans une version au moins égale à 7, un stockage compatible avec l'interface S3, Keycloak dans une version au moins égale à 26 comme fournisseur d'identité, et, pour le déploiement par chart, Kubernetes dans une version au moins égale à 1.27. Pour le déploiement par Compose, un moteur de conteneurs compatible avec la spécification Compose v2, et une machine de quatre cœurs et huit gigaoctets de mémoire pour la plateforme entière, composants de données compris. Le chart ne dépend d'aucune distribution particulière de Kubernetes ni d'aucun greffon propre à un hébergeur. La version de chaque composant employé est présentée sur l'écran d'état du système."
 motif: "L'exploitant fournit le plus souvent ses propres bases et son propre stockage (WF-ARC-0050) : il doit savoir ce qu'il doit fournir avant de s'engager. Le partitionnement des tables (WF-DAT-0050) et les contraintes du §4.4 supposent une version récente de PostgreSQL. Ne dépendre d'aucune distribution est ce qui permet d'installer sur le cluster existant plutôt que d'en réclamer un."
 verification: "Le déploiement échoue en le disant si un composant est d'une version antérieure à celle exigée. Le chart s'installe sur deux distributions de Kubernetes différentes sans modification. L'écran d'état présente la version de chaque composant. Le déploiement par Compose aboutit sur une machine conforme à ces caractéristiques."
+```
+
+```yaml exigence
+section: "4.6.5"
+id: "WF-CMP-0030-A"
+titre: "Fonctionnement sur réseau isolé"
+flexibilite: "F0"
+fbs: "FBS-1"
+pbs: "PBS-5.1, PBS-5.4"
+corps: "Waterfall s'installe, fonctionne et se met à jour sur un réseau sans accès à Internet. Aucun de ses composants, fournisseur d'identité compris, n'émet de flux hors du réseau de l'installation : ni police, ni script, ni icône chargés depuis un réseau de diffusion, ni télémétrie, ni vérification de mise à jour. Les images se chargent depuis un registre interne, les courriels partent par un serveur de messagerie interne, les certificats peuvent être émis par une autorité interne, et l'heure vient d'un serveur de temps interne. Sans serveur de messagerie, la réinitialisation d'un mot de passe se fait par un utilisateur habilité."
+motif: "Les entreprises visées hébergent souvent leurs outils de pilotage sur des réseaux fermés : ils portent les coûts de toutes leurs affaires. Un seul flux sortant suffit à interdire une installation, et c'est au choix de chaque dépendance qu'il s'introduit : l'écrire est ce qui le fait chercher."
+verification: "La plateforme s'installe depuis un registre interne et passe les tests de bout en bout sur un réseau dont tout flux sortant est bloqué, sans erreur ni attente. Aucun composant ne tente de connexion hors du réseau de l'installation pendant ces tests. Une plateforme dont les certificats sont émis par une autorité interne fonctionne."
 ```
 
 ## 4.7. Qualité et vérification
@@ -4258,6 +4322,18 @@ pbs: "PBS-2.3, PBS-5.2"
 corps: "Chaque exemple chiffré figurant dans un champ Vérif est repris comme cas de test du noyau métier, avec les mêmes données d'entrée et les mêmes valeurs attendues. Les calculs concernés — dates et chemin critique, montants et inflation, reste à engager, provisions, valeur acquise, indices et projections, agrégations de portefeuille — sont testés unitairement, sans base de données ni interface."
 motif: "Ces nombres ont été établis en écrivant les exigences, et ils encodent les décisions qui ont coûté le plus cher : un budget de référence qui ne se rebase pas, une provision figée à la valeur de la révision de référence, un indice de portefeuille qui est un rapport de sommes et non une moyenne. Un test qui les rejoue empêche qu'une réécriture du calcul les défasse sans que personne ne le voie. Les éprouver sans base ni interface les rend rapides, donc exécutés à chaque modification."
 verification: "Pour chacun des exemples chiffrés du document, un test porte les mêmes entrées et attend la même valeur. La modification d'une constante de calcul fait échouer au moins un de ces tests. Leur exécution complète ne demande ni base de données ni navigateur."
+```
+
+```yaml exigence
+section: "4.7"
+id: "WF-QUA-0080-A"
+titre: "Corpus de plannings de référence et schéma d’échange"
+flexibilite: "F0"
+fbs: "FBS-4.3, FBS-4.3.4"
+pbs: "PBS-2.3, PBS-5.2"
+corps: "Un corpus de plannings saisis dans MS Project et enregistrés au format XML, avec les dates que MS Project a calculées, est versionné avec le code. Il couvre au moins les quatre types de liaison, des décalages positifs et négatifs dans chaque unité, en temps écoulé et en pourcentage, des calendriers dont les journées n’ont pas toutes la même durée, des tâches récapitulatives, des jalons et des tâches en mode manuel. Pour chaque planning du corpus, un test lit le fichier et vérifie que Waterfall calcule, pour chaque tâche, les mêmes dates de début et de fin que MS Project. Tout fichier que Waterfall exporte au format MS Project est valide contre le schéma XML publié par Microsoft pour ce format (WF-INTF-0040) ; ce schéma n’est pas versionné avec le code, et le test qui l’emploie se déclare non exécuté lorsqu’il est absent."
+motif: "La chaîne d’intégration ne peut pas exécuter MS Project, et un moteur éprouvé contre ses propres résultats ne prouve rien. Prendre pour valeurs attendues celles que MS Project a calculées fait de l’égalité des dates de WF-INTF-0050 et de WF-INTF-0060 une propriété vérifiée à chaque modification, et non constatée une fois à la recette. C’est la raison qui fait déjà des exemples chiffrés du document des cas de test (WF-QUA-0020). Le schéma garantit ce que le corpus ne voit pas — qu’un fichier exporté s’ouvre —, et le corpus ce que le schéma ignore — que les dates sont les mêmes. Un test qui passerait faute de schéma cacherait son absence."
+verification: "Chaque cas cité par le corps figure dans au moins un planning du corpus. La modification de la règle de calcul des dates fait échouer au moins un test du corpus. Leur exécution ne demande ni MS Project, ni base de données, ni navigateur. Chaque planning du corpus réimporté puis exporté par Waterfall est valide contre le schéma ; un élément exporté hors de l’ordre du schéma fait échouer ce test, et l’absence du schéma le marque non exécuté."
 ```
 
 ```yaml exigence
@@ -4330,7 +4406,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-ADM-0040-A | 3.4.2.1 | Préférences d’affichage | F1 |
 | WF-ADM-0050-A | 3.4.2.1 | Attributs d’un compte utilisateur | F0 |
 | WF-ADM-0060-A | 3.4.2.1 | Cycle de vie d’un compte | F0 |
-| WF-ADM-0070-A | 3.4.2.1 | Import des comptes depuis l’annuaire d’entreprise | F0 |
+| WF-ADM-0070-A | 3.4.2.1 | Lecture des comptes du fournisseur d’identité | F0 |
 | WF-ADM-0080-A | 3.4.2.1 | Avatar | F0 |
 | WF-ADM-0090-A | 3.4.2.2 | Rôles et permissions | F0 |
 | WF-ADM-0100-A | 3.4.2.2 | Catalogue des permissions | F0 |
@@ -4344,7 +4420,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-ADM-0180-A | 3.4.2.1 | Fournisseurs d’authentification | F0 |
 | WF-ARC-0010-A | 4.2.2 | Un noyau, un service, un worker | F0 |
 | WF-ARC-0020-A | 4.2.2 | Le contrat est le seul contrat | F0 |
-| WF-ARC-0030-A | 4.2.2 | Fournisseurs d’authentification | F0 |
+| WF-ARC-0030-A | 4.2.2 | Authentification déléguée | F0 |
 | WF-ARC-0040-A | 4.2.2 | Rôles des composants de données | F0 |
 | WF-ARC-0050-A | 4.2.2 | Empaquetage et déploiement | F0 |
 | WF-ARC-0060-A | 4.1.1 | Contrat OpenAPI | F0 |
@@ -4355,6 +4431,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-ARC-0110-A | 4.1.3 | Le texte est rendu au plus près du lecteur | F0 |
 | WF-CMP-0010-A | 4.6.5 | Navigateurs et affichage | F0 |
 | WF-CMP-0020-A | 4.6.5 | Composants d'infrastructure exigés | F0 |
+| WF-CMP-0030-A | 4.6.5 | Fonctionnement sur réseau isolé | F0 |
 | WF-CRE-0010-A | 3.4.5.7 | Attributs d’une ligne de coût | F0 |
 | WF-CRE-0020-A | 3.4.5.7 | Imputation d’une ligne de coût | F0 |
 | WF-CRE-0030-A | 3.4.5.7 | Exclusion du périmètre suivi | F0 |
@@ -4410,6 +4487,8 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-IHM-0090-A | 3.6 | Refus et commandes indisponibles | F0 |
 | WF-IHM-0100-A | 3.6 | Accessibilité minimale | F0 |
 | WF-IHM-0110-A | 3.6 | Annulation et rétablissement des saisies | F0 |
+| WF-IHM-0120-A | 3.6 | Écran d’accueil | F0 |
+| WF-IHM-0130-A | 3.6 | Filtrage des tables et export des graphiques | F0 |
 | WF-IND-0010-A | 3.4.5.8 | Date et périmètre de calcul | F0 |
 | WF-IND-0020-A | 3.4.5.8 | Granularité des indicateurs | F0 |
 | WF-IND-0030-A | 3.4.5.8 | Valeur acquise | F0 |
@@ -4421,7 +4500,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-IND-0090-A | 3.4.5.8.6 | Diagramme temps/temps | F0 |
 | WF-IND-0100-A | 3.4.5.8.7 | Courbe de coûts cumulés | F0 |
 | WF-IND-0110-A | 3.4.5.8.8 | Courbes de valeur acquise | F0 |
-| WF-IND-0120-A | 3.4.5.8.9 | Projections de décaissement | F0 |
+| WF-IND-0130-A | 3.4.5.8.5 | Évolution des indices | F1 |
 | WF-INTF-0010-A | 3.1.3 | Usages du chef de projet | F0 |
 | WF-INTF-0020-A | 3.1.3 | Usages du manager | F0 |
 | WF-INTF-0030-A | 3.1.3 | Usages de l’administrateur | F0 |
@@ -4458,6 +4537,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-PLA-0130-A | 3.4.5.3 | Attributs d’une tâche | F0 |
 | WF-PLA-0140-A | 3.4.5.3.1 | Chronologies nommées | F0 |
 | WF-PLA-0150-A | 3.4.5.3 | Horizon d’un projet | F0 |
+| WF-PLA-0160-A | 3.4.5.3 | Unités de durée | F0 |
 | WF-PRJ-0010-A | 3.4.5.2 | Code projet | F0 |
 | WF-PRJ-0020-A | 3.4.5.2.1 | Lotissement | F0 |
 | WF-PRJ-0030-A | 3.4.5.2.1 | Squelette de planning | F1 |
@@ -4485,6 +4565,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-QUA-0050-A | 4.7 | Tests de bout en bout | F0 |
 | WF-QUA-0060-A | 4.7 | Tests de charge et non-régression des temps de réponse | F0 |
 | WF-QUA-0070-A | 4.7 | Complétude des traductions | F0 |
+| WF-QUA-0080-A | 4.7 | Corpus de plannings de référence et schéma d’échange | F0 |
 | WF-RAE-0010-A | 3.4.5.5 | Composition du reste à engager | F0 |
 | WF-RAE-0020-A | 3.4.5.5.1 | Indicateurs de reste à engager | F0 |
 | WF-RAE-0030-A | 3.4.5.5.2 | Démarrage d’une tâche | F0 |
@@ -4535,7 +4616,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | Acteur                              | Désigne un utilisateur type de Waterfall, caractérisé par les usages qu'il fait de la plateforme. Un acteur ne porte pas de permissions : celles-ci sont portées par les rôles d'habilitation.                                                                                                                                                                                                                                    |
 | Année de consommation               | Désigne l'année au cours de laquelle une charge sera consommée, d'après le planning.                                                                                                                                                                                                                                                                                                                                              |
 | Année de référence                  | Désigne l'année des taux horaires retenus pour chiffrer une révision. Pour un devis, il s'agit de l'année de création du devis. Pour un reste à engager, il s'agit de l'année des taux retenus lors de sa dernière mise à jour. Les années suivantes sont projetées par le taux d'inflation du projet.                                                                                                                            |
-| Annuaire d'entreprise               | Désigne le système de l'entreprise qui fait foi pour l'identité des personnes. Waterfall en importe les comptes et leur délègue l'authentification, sans y écrire.                                                                                                                                                                                                                                                                |
+| Annuaire d'entreprise               | Désigne le système de l'entreprise qui fait foi pour l'identité des personnes. Le fournisseur d'identité livré avec Waterfall le fédère : Waterfall en lit les comptes et lui délègue leur authentification, sans y écrire.                                                                                                                                                                                                       |
 | Avancement financier                | Désigne la part de la dépense finale déjà engagée : le coût réel rapporté au projeté du chef de projet (WF-IND-0040).                                                                                                                                                                                                                                                                                                             |
 | Avancement physique                 | Désigne la part du travail promis qui est faite : la valeur acquise rapportée au budget de référence (WF-IND-0060).                                                                                                                                                                                                                                                                                                               |
 | Avenant                             | Désigne une modification contractuelle du projet en cours d'exécution. Il est préparé comme une structure différentielle, puis fusionné à sa contractualisation, ce qui produit une nouvelle révision de référence.                                                                                                                                                                                                               |
@@ -4550,7 +4631,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | Chronologie                         | Désigne une vue synthétique du planning, nommée et conservée, qui ne présente que les tâches et les jalons qui y ont été inscrits. Un projet peut en porter plusieurs.                                                                                                                                                                                                                                                            |
 | Consommation du budget              | Désigne la part du budget de référence déjà dépensée (WF-IND-0040).                                                                                                                                                                                                                                                                                                                                                               |
 | Consommé                            | Désigne le montant des dépenses réalisées à une date donnée.                                                                                                                                                                                                                                                                                                                                                                      |
-| Contributeur                        | Désigne un utilisateur inscrit sur la liste des participants d'un projet. Cette liste est propre au projet et distincte des rôles d'habilitation.                                                                                                                                                                                                                                                                                 |
+| Contributeur                        | Désigne un utilisateur inscrit sur la liste des participants d'un projet. Cette liste est propre au projet et distincte des rôles d'habilitation. Chaque inscription porte une qualité, chef de projet ou contributeur.                                                                                                                                                                                                           |
 | Coût réel                           | Désigne le montant total des dépenses effectivement payées pour réaliser les travaux à une date donnée.                                                                                                                                                                                                                                                                                                                           |
 | Date de calcul                      | Désigne la date à laquelle un indicateur est établi : la date de marquage pour une révision marquée, le jour courant pour la révision en cours.                                                                                                                                                                                                                                                                                   |
 | Débours                             | Désigne le coût unitaire d'une ligne de devis hors main-d'œuvre.                                                                                                                                                                                                                                                                                                                                                                  |
@@ -4565,6 +4646,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | État d'avancement                   | Désigne l'état d'une tâche : non démarrée, démarrée, ou terminée. Le passage à l'état démarré est commandé par l'utilisateur ; l'état terminé résulte d'un reste à engager nul.                                                                                                                                                                                                                                                   |
 | Fin à Début                         | Désigne une liaison selon laquelle la tâche successeur ne peut commencer qu’après la fin de la tâche prédécesseur.                                                                                                                                                                                                                                                                                                                |
 | Fin à Fin                           | Désigne une liaison selon laquelle la tâche successeur ne peut se terminer qu’après la fin de la tâche prédécesseur.                                                                                                                                                                                                                                                                                                              |
+| Fournisseur d'identité              | Désigne le composant livré avec la plateforme (Keycloak) qui authentifie les utilisateurs et émet les jetons que l'API valide. Il porte les comptes locaux, fédère l'annuaire d'entreprise et relaie vers un fournisseur externe.                                                                                                                                                                                                 |
 | Gravité                             | Désigne le coût qu'un risque entraînerait s'il survenait. Elle est le total du devis propre au risque.                                                                                                                                                                                                                                                                                                                            |
 | Hors sous-projet                    | Désigne l'ensemble qui reçoit les lignes de devis sans sous-projet et les lignes de coût imputées au seul projet. Il figure comme un sous-projet de plus dans toutes les ventilations.                                                                                                                                                                                                                                            |
 | Indice de coût                      | Désigne l'indicateur qui rapporte la valeur acquise au coût réel : inférieur à 1, le travail fait a coûté plus que promis (WF-IND-0070).                                                                                                                                                                                                                                                                                          |
@@ -4650,7 +4732,7 @@ Cette annexe est informative. Elle dit avec quoi les propriétés du §4.7 sont 
 | Composants et styles                | Tailwind CSS, shadcn/ui                            | PBS-1.3                                         |
 | Icônes                              | Lucide                                             | PBS-1.3                                         |
 | Grilles denses                      | Composants propres fondés sur TanStack Table       | PBS-1.3, WF-IHM-0040 à WF-IHM-0060, WF-IHM-0110 |
-| Courbes et diagrammes d'indicateurs | Apache ECharts                                     | PBS-1.3, FBS-4.8.6 à FBS-4.8.9                  |
+| Courbes et diagrammes d'indicateurs | Apache ECharts                                     | PBS-1.3, FBS-4.8.6 à FBS-4.8.8                  |
 | Gantt et arborescence de tâches     | Rendu propre, en lecture seule                     | PBS-1.3                                         |
 | Format et analyse statique du front | ESLint, Prettier                                   | WF-QUA-0030                                     |
 | Tests de bout en bout               | Playwright                                         | WF-QUA-0050                                     |
@@ -4658,6 +4740,7 @@ Cette annexe est informative. Elle dit avec quoi les propriétés du §4.7 sont 
 | Journaux structurés                 | Structlog                                          | WF-OBS-0020                                     |
 | Métriques                           | Bibliothèque cliente Prometheus                    | WF-OBS-0010                                     |
 | Conteneurs et empaquetage           | Docker, Compose v2, Helm                           | WF-ARC-0050                                     |
+| Fournisseur d'identité              | Keycloak                                           | WF-ARC-0030, PBS-5.4                            |
 | Chaîne d'intégration                | GitHub Actions                                     | PBS-5.2                                         |
 
 # ANNEXE D: Points ouverts

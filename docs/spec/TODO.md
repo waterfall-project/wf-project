@@ -1,6 +1,6 @@
 # Trous de la spécification, à intégrer au document Word
 
-**Toutes les entrées sont tranchées au 2026-10-03** : chaque entrée porte une ligne « Tranché » ; le fichier s'intègre au Word en une passe.
+**Toutes les entrées sont tranchées et intégrées au Word le 2026-10-03**, en modifications suivies sous l'auteur Claude. Le fichier se vide une fois les modifications acceptées dans Word ; l'annexe B (entrée 16) reste à écrire au cadrage d'EP-09 et d'EP-12.
 
 Ce fichier accumule ce que le cadrage et la construction révèlent : des décisions prises en
 route qui devraient vivre dans la spécification, et n'y sont pas. L'auteur les intègre au

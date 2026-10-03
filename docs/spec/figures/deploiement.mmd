@@ -4,22 +4,26 @@ flowchart LR
         Front["Front<br>Next.js"]
         API["Service d'API<br>FastAPI"]
         Worker["Worker<br>FastAPI"]
+        IdP["Fournisseur d'identité<br>Keycloak"]
         PG[("PostgreSQL")]
         Redis[("Redis")]
         S3[("Stockage objet S3")]
         Prometheus["Prometheus"]
     end
-    Annuaire["Annuaire ou<br>fournisseur d'identité"]
+    Annuaire["Annuaire LDAP ou<br>fournisseur d'identité externe"]
     Navigateur --> Front
-    Navigateur --> Annuaire
+    Navigateur --> IdP
     Front --> API
+    Front --> IdP
+    Front --> Redis
+    API --> IdP
     API --> PG
     API --> Redis
     API --> S3
-    API --> Annuaire
     Worker --> PG
     Worker --> Redis
     Worker --> S3
+    IdP --> Annuaire
     Prometheus --> API
     Prometheus --> Worker
     Prometheus --> Front

@@ -627,9 +627,6 @@
         <mxCell id="Vk6PoZ0Q4BLFJRlDGx-L-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Vk6PoZ0Q4BLFJRlDGx-L-10" target="Vk6PoZ0Q4BLFJRlDGx-L-17">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="Vk6PoZ0Q4BLFJRlDGx-L-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Vk6PoZ0Q4BLFJRlDGx-L-10" target="Vk6PoZ0Q4BLFJRlDGx-L-18">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="Vk6PoZ0Q4BLFJRlDGx-L-10" value="FBS-4.8&#xa;Indicateurs projets" style="whiteSpace=wrap;strokeWidth=2;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=#006EAF;" vertex="1" parent="1">
           <mxGeometry x="1200" y="2480" width="195" height="38" as="geometry" />
         </mxCell>
@@ -653,9 +650,6 @@
         </mxCell>
         <mxCell id="Vk6PoZ0Q4BLFJRlDGx-L-17" value="FBS-4.8.8&#xa;Courbes valeur acquise" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
           <mxGeometry x="1280" y="3118" width="200" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="Vk6PoZ0Q4BLFJRlDGx-L-18" value="FBS-4.8.9&#xa;Projections cash-out" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="1280" y="3198" width="200" height="40" as="geometry" />
         </mxCell>
         <mxCell id="Vk6PoZ0Q4BLFJRlDGx-L-19" value="FBS-4.8.1&#xa;Avancement financier" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
           <mxGeometry x="1280" y="2558" width="200" height="40" as="geometry" />
@@ -863,7 +857,7 @@
         <mxCell id="Q8H_T37byqV71rfOKQSI-4" value="PBS-2.4&#xa;Contrat OpenAPI" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
           <mxGeometry x="80" y="1680" width="200" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="Q8H_T37byqV71rfOKQSI-5" value="PBS-2.5&#xa;Authentification" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
+        <mxCell id="Q8H_T37byqV71rfOKQSI-5" value="PBS-2.5&#xa;Intégration du fournisseur d&#39;identité" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
           <mxGeometry x="80" y="1760" width="200" height="40" as="geometry" />
         </mxCell>
         <mxCell id="Q8H_T37byqV71rfOKQSI-6" value="PBS-3.1&#xa;PostgreSQL" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
@@ -893,6 +887,13 @@
         <mxCell id="Q8H_T37byqV71rfOKQSI-14" value="PBS-5.3&#xa;Tâches planifiées" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
           <mxGeometry x="1160" y="1600" width="200" height="40" as="geometry" />
         </mxCell>
+        <mxCell id="pbs54-vertex" value="PBS-5.4&#xa;Fournisseur d&#39;identité" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="1680" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="pbs54-edge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="HZR8HeTLL0m2B0pKSx6v-6" target="pbs54-vertex">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
       </root>
     </mxGraphModel>
   </diagram>

@@ -60,6 +60,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PRJ-0090-A` | Probabilité de gain | fin — amorcée en EP-04 | — |
 | `WF-ARC-0010-A` | Un noyau, un service, un worker | fin — amorcée en EP-01 | — |
 | `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | fin — amorcée en EP-01 | — |
+| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | entière | — |
 
 ## Opérations du contrat
 
