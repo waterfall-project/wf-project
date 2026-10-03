@@ -65,7 +65,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-IND-0090-A` | Diagramme temps/temps | entière | — |
 | `WF-IND-0100-A` | Courbe de coûts cumulés | entière | — |
 | `WF-IND-0110-A` | Courbes de valeur acquise | entière | — |
-| `WF-IND-0120-A` | Projections de décaissement | entière | — |
+| `WF-IND-0130-A` | Évolution des indices | entière | — |
 | `WF-ARC-0070-A` | Autorité du serveur | fin — amorcée en EP-04 | — |
 | `WF-DAT-0030-A` | Identité de lignée des objets d’une révision | fin — amorcée en EP-04 | — |
 | `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | fin — amorcée en EP-04 | — |

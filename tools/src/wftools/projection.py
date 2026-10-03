@@ -17,7 +17,7 @@ from wftools import REPOSITORY
 
 PROJECTION = REPOSITORY / "docs" / "spec" / "waterfall-spec.md"
 
-EXAMPLE_IDENTIFIER = "WF-EXAMP-0010-A"
+EXAMPLE_IDENTIFIER = "WF-EXA-0010-A"
 """The requirement of section 1.3.1, which shows the form of a requirement.
 
 It is not a requirement of the product: a tool that counts, covers or checks requirements

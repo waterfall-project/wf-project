@@ -73,7 +73,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-CYC-0110-A` | Consultation des projets terminaux | entière | — |
 | `WF-CYC-0130-A` | Datation des transitions | entière | — |
 | `WF-ADM-0110-A` | Évaluation d’une action | fin — amorcée en EP-03 | — |
-| `WF-REV-0010-A` | Une seule révision en cours | entière | — |
+| `WF-REV-0010-A` | Unicité de la révision en cours | entière | — |
 | `WF-REV-0020-A` | Marquage d’une révision | entière | — |
 | `WF-REV-0030-A` | Contenu de l’instantané | début — close en EP-07 | — |
 | `WF-REV-0040-A` | Désignation de la révision de référence | début — close en EP-08 | — |

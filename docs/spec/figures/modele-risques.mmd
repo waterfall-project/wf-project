@@ -1,0 +1,14 @@
+classDiagram
+    direction LR
+    class Projet["Projet"]
+    class Risque["Risque"]
+    class Structure["Structure de coûts"]
+    class LigneDevis["Ligne de devis"]
+
+    Projet "1" o-- "*" Risque : risques
+    Risque "1" --> "1" Structure : devis propre
+    Risque "1" --> "1" LigneDevis : provision
+
+    style Projet fill:#eeeeee,stroke:#999999,color:#666666
+    style Structure fill:#eeeeee,stroke:#999999,color:#666666
+    style LigneDevis fill:#eeeeee,stroke:#999999,color:#666666

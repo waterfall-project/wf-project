@@ -71,7 +71,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-IHM-0060-A` | Lecture d'une grille | fin — amorcée en EP-02 | — |
 | `WF-ADM-0050-A` | Attributs d’un compte utilisateur | entière | — |
 | `WF-ADM-0060-A` | Cycle de vie d’un compte | entière | — |
-| `WF-ADM-0070-A` | Import des comptes depuis l’annuaire d’entreprise | entière | — |
+| `WF-ADM-0070-A` | Lecture des comptes du fournisseur d’identité | entière | — |
 | `WF-ADM-0080-A` | Avatar | entière | — |
 | `WF-ADM-0140-A` | Authentification et mot de passe | entière | — |
 | `WF-ADM-0180-A` | Fournisseurs d’authentification | entière | — |
@@ -80,10 +80,11 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-ADM-0090-A` | Rôles et permissions | entière | — |
 | `WF-ADM-0100-A` | Catalogue des permissions | entière | — |
 | `WF-ADM-0110-A` | Évaluation d’une action | début — close en EP-04 | — |
+| `WF-IHM-0120-A` | Écran d’accueil | entière | — |
 | `WF-ADM-0120-A` | Dernier administrateur | entière | — |
 | `WF-ARC-0060-A` | Contrat OpenAPI | fin — amorcée en EP-01 | — |
 | `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-12 | — |
-| `WF-ARC-0030-A` | Fournisseurs d’authentification | entière | — |
+| `WF-ARC-0030-A` | Authentification déléguée | entière | — |
 | `WF-ARC-0090-A` | Traitements longs confiés au worker | début — close en EP-13 | — |
 | `WF-DAT-0060-A` | Identifiants | début — close en EP-04 | — |
 | `WF-DAT-0070-A` | Colonnes d’audit | début — close en EP-09 | — |

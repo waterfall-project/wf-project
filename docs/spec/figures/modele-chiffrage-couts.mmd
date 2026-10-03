@@ -1,0 +1,22 @@
+classDiagram
+    direction LR
+    class LigneDevis["Ligne de devis"]
+    class LigneCout["Ligne de coût"]
+    class Tache["Tâche"]
+    class Categorie["Catégorie de coût"]
+    class Role["Rôle de ressource"]
+    class SousProjet["Sous-projet"]
+    class Projet["Projet"]
+
+    Tache "1" o-- "*" LigneDevis : porte
+    LigneDevis "*" --> "1" Categorie : relève de
+    LigneDevis "*" --> "0..1" Role : main-d'œuvre
+    LigneDevis "*" --> "0..1" SousProjet : regroupée dans
+    LigneCout "*" --> "1" Projet : imputée à
+    LigneCout "*" --> "0..1" SousProjet : imputée à
+
+    style Tache fill:#eeeeee,stroke:#999999,color:#666666
+    style Categorie fill:#eeeeee,stroke:#999999,color:#666666
+    style Role fill:#eeeeee,stroke:#999999,color:#666666
+    style SousProjet fill:#eeeeee,stroke:#999999,color:#666666
+    style Projet fill:#eeeeee,stroke:#999999,color:#666666

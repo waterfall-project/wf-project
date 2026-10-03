@@ -1,0 +1,15 @@
+classDiagram
+    direction LR
+    class Noeud["Nœud d'organisation"]
+    class Role["Rôle de ressource"]
+    class Calendrier["Calendrier"]
+    class Categorie["Catégorie de coût"]
+    class Nature["Nature de coût"]
+    class Taux["Taux horaire"]
+
+    Noeud "0..1" o-- "*" Noeud : sous-nœuds
+    Role "*" --> "1" Noeud : rattaché à
+    Role "*" --> "1" Categorie : relève de
+    Role "*" --> "1" Calendrier : travaille selon
+    Categorie "*" --> "1" Nature : appartient à
+    Categorie "1" o-- "*" Taux : un par année

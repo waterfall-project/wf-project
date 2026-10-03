@@ -1,0 +1,16 @@
+classDiagram
+    direction LR
+    class Projet["Projet"]
+    class Revision["Révision"]
+    class Structure["Structure de coûts"]
+    class Tache["Tâche"]
+    class ObjetRef["Objet du référentiel"]
+
+    Projet "1" o-- "*" Revision : révisions
+    Revision "1" o-- "*" Structure : structures de coûts
+    Revision "*" ..> "*" ObjetRef : valeurs employées
+    Structure "1" o-- "*" Tache : arbre
+    Tache "0..1" o-- "*" Tache : sous-tâches
+
+    style Tache fill:#eeeeee,stroke:#999999,color:#666666
+    style ObjetRef fill:#eeeeee,stroke:#999999,color:#666666

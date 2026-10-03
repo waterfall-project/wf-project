@@ -1,0 +1,20 @@
+classDiagram
+    direction LR
+    class Structure["Structure de coûts"]
+    class Tache["Tâche"]
+    class Jalon["Jalon"]
+    class Liaison["Liaison"]
+    class LigneDevis["Ligne de devis"]
+    class Calendrier["Calendrier"]
+
+    Structure "1" o-- "*" Tache : arbre
+    Tache "0..1" o-- "*" Tache : sous-tâches
+    Tache <|-- Jalon : durée nulle
+    Liaison "*" --> "1" Tache : prédécesseur
+    Liaison "*" --> "1" Tache : successeur
+    Tache "1" o-- "*" LigneDevis : porte
+    Tache "*" ..> "1" Calendrier : calendrier applicable
+
+    style Structure fill:#eeeeee,stroke:#999999,color:#666666
+    style LigneDevis fill:#eeeeee,stroke:#999999,color:#666666
+    style Calendrier fill:#eeeeee,stroke:#999999,color:#666666

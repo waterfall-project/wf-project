@@ -503,7 +503,7 @@ qui a besoin des exigences les lit par `wftools.projection`, qui lit la projecti
 `docs/spec/waterfall-spec.md` : un seul lecteur, pour que deux outils ne puissent pas
 diverger sur ce qu'une exigence dit. Il compare les textes après normalisation — apostrophes
 et espaces typographiques rendus simples —, et découpe un Vérif en phrases. L'exemple du
-§1.3.1, `WF-EXAMP-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
+§1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
 
 *Contrôle* : `make test-tools`.
 
