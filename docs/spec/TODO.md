@@ -263,16 +263,32 @@ librement dans le document.
   2007, 2010, 2013, 2016, 2019, 2021 et 2024. Seule la version 2013 est disponible
   aujourd'hui ; une licence plus récente sera prise le moment venu. En l'état, l'exigence
   resterait non vérifiée, et WF-QUA-0010 bloquerait la publication du MVP.
-- **À trancher en intégrant** : proposé, le corps ramené à ce qui se vérifie pour le MVP —
-  MS Project 2013 —, et l'élargissement aux autres versions par une révision ultérieure,
-  avec la licence. Écarté : garder le corps et réduire le seul Vérif, qui ne vérifierait
-  plus ce que le corps promet.
+- **Ce que le schéma établit (2026-10-03)** : le format d'échange XML de MS Project n'a pas
+  changé depuis 2010. Le schéma de Project 2013 (`mspdi_pj15.xsd`, SDK Project 2013,
+  révision du 2012-07-18) garde l'espace de noms `http://schemas.microsoft.com/project/2007`
+  et dit lui-même, sur `SaveVersion` : « 12 = Project 2007, 14 = Project 2010. Project 2013
+  saves the same XML version as Project 2010 ». Les champs de la planification manuelle
+  (`Manual`, `ManualStart`, `ManualFinish`, `ManualDuration`), que WF-PLA-0020 transporte,
+  y sont, et manquent au schéma de 2007. Les pages de documentation des versions 2010, 2013
+  et 2016 republient des extraits du schéma de 2007, inutilisables pour valider. Un seul
+  format depuis 2010, lu par toutes les versions suivantes, qui ignorent les éléments
+  qu'elles ne connaissent pas : c'est ce que le corps peut promettre, et ce qu'un fichier de
+  la version 2013 vérifie.
+- **À trancher en intégrant** : proposé, le corps nomme le format — celui des versions 2010
+  et suivantes — et non une liste de versions ; le Vérif se tient à ce qui est disponible,
+  la version 2013. Écarté : garder la liste de 2007 à 2024 et réduire le seul Vérif, qui ne
+  vérifierait plus ce que le corps promet ; ramener le corps à la seule version 2013, qui
+  promettrait moins que ce que le format garantit.
 - **Texte proposé** :
-  - corps de WF-INTF-0040, remplacer « dans les version de 2007 à 2024 » par « produits par
-    MS Project 2013 » ;
+  - corps de WF-INTF-0040, remplacer « des fichier XML de MS Project dans les version de
+    2007 à 2024 » par « des fichiers au format d'échange XML de MS Project des versions
+    2010 et suivantes » ;
   - Vérif de WF-INTF-0040, remplacer « Un fichier XML produit par chacune des versions
     2007, 2010, 2013, 2016, 2019, 2021 et 2024 de MS Project est importé sans erreur. » par
     « Un fichier XML produit par MS Project 2013 est importé sans erreur. »
+- **Hors du document** : le XSD ne se versionne pas dans le dépôt — son en-tête réserve tous
+  les droits à Microsoft et n'accorde aucune licence de redistribution, que `reuse lint`
+  exigerait de déclarer. L'entrée 15 dit comment les tests s'en servent.
 
 ## 15. Un corpus de plannings calculés par MS Project
 
@@ -285,24 +301,41 @@ librement dans le document.
   les valeurs attendues sont celles de MS Project, non celles que le moteur produit. Le
   corpus peut se constituer dès maintenant, avec MS Project 2013, avant le cadrage d'EP-06 ;
   c'est lui qui éprouvera les entrées 9 à 13.
-- **Texte proposé** (nouvelle exigence, F0, FBS-4.3, PBS-2.3 et PBS-5.2) :
-  - titre : « Corpus de plannings de référence » ;
+
+  Le corpus prouve les dates ; il ne prouve pas qu'un fichier exporté par Waterfall
+  s'ouvre : MS Project est strict sur l'ordre des éléments, et un fichier mal formé se
+  découvre à l'ouverture. Le schéma XML de MS Project (entrée 14) garantit cette
+  structure-là, et rien d'autre : un fichier valide peut donner d'autres dates. La
+  compatibilité tient donc sur deux preuves, le schéma pour la structure, le corpus pour
+  les dates. Le schéma n'étant pas redistribuable, le test qui s'en sert le lit à un
+  chemin déclaré du poste ou de la chaîne, et se déclare non exécuté — jamais réussi —
+  quand il n'y est pas.
+- **Texte proposé** (nouvelle exigence, F0, FBS-4.3 et FBS-4.3.4, PBS-2.3 et PBS-5.2) :
+  - titre : « Corpus de plannings de référence et schéma d'échange » ;
   - corps : « Un corpus de plannings saisis dans MS Project et enregistrés au format XML,
     avec les dates que MS Project a calculées, est versionné avec le code. Il couvre au
     moins les quatre types de liaison, des décalages positifs et négatifs dans chaque
     unité, des calendriers dont les journées n'ont pas toutes la même durée, des tâches
     récapitulatives, des jalons et des tâches en mode manuel. Pour chaque planning du
     corpus, un test lit le fichier et vérifie que Waterfall calcule, pour chaque tâche, les
-    mêmes dates de début et de fin que MS Project. » ;
+    mêmes dates de début et de fin que MS Project. Tout fichier que Waterfall exporte au
+    format MS Project est valide contre le schéma XML publié par Microsoft pour ce format
+    (WF-INTF-0040) ; ce schéma n'est pas versionné avec le code, et le test qui l'emploie
+    se déclare non exécuté lorsqu'il est absent. » ;
   - motif : « La chaîne d'intégration ne peut pas exécuter MS Project, et un moteur éprouvé
     contre ses propres résultats ne prouve rien. Prendre pour valeurs attendues celles que
     MS Project a calculées fait de l'égalité des dates de WF-INTF-0050 et de WF-INTF-0060
     une propriété vérifiée à chaque modification, et non constatée une fois à la recette.
     C'est la raison qui fait déjà des exemples chiffrés du document des cas de test
-    (WF-QUA-0020). » ;
+    (WF-QUA-0020). Le schéma garantit ce que le corpus ne voit pas — qu'un fichier exporté
+    s'ouvre —, et le corpus ce que le schéma ignore — que les dates sont les mêmes. Un test
+    qui passerait faute de schéma cacherait son absence. » ;
   - Vérif : « Chaque cas cité par le corps figure dans au moins un planning du corpus. La
     modification de la règle de calcul des dates fait échouer au moins un test du corpus.
-    Leur exécution ne demande ni MS Project, ni base de données, ni navigateur. »
+    Leur exécution ne demande ni MS Project, ni base de données, ni navigateur. Chaque
+    planning du corpus réimporté puis exporté par Waterfall est valide contre le schéma ;
+    un élément exporté hors de l'ordre du schéma fait échouer ce test, et l'absence du
+    schéma le marque non exécuté. »
 
 ## 16. Les formats Excel de l'annexe B
 
