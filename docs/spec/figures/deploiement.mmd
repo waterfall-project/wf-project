@@ -1,0 +1,25 @@
+flowchart LR
+    Navigateur["Navigateur"]
+    subgraph Cluster["Cluster Kubernetes"]
+        Front["Front<br>Next.js"]
+        API["Service d'API<br>FastAPI"]
+        Worker["Worker<br>FastAPI"]
+        PG[("PostgreSQL")]
+        Redis[("Redis")]
+        S3[("Stockage objet S3")]
+        Prometheus["Prometheus"]
+    end
+    Annuaire["Annuaire ou<br>fournisseur d'identité"]
+    Navigateur --> Front
+    Navigateur --> Annuaire
+    Front --> API
+    API --> PG
+    API --> Redis
+    API --> S3
+    API --> Annuaire
+    Worker --> PG
+    Worker --> Redis
+    Worker --> S3
+    Prometheus --> API
+    Prometheus --> Worker
+    Prometheus --> Front

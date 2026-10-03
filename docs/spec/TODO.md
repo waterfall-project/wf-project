@@ -86,16 +86,6 @@ librement dans le document.
   - Vérif de WF-RAE-0030, remplacer « Une tâche non démarrée n'y est pas modifiable. » par
     « Une tâche non démarrée n'y apparaît qu'à la demande. »
 
-## 8. Le document décrit le périmètre du MVP
-
-- **Où** : §1.1 (Objet).
-- **Quoi** : décidé le 2026-09-30 — la spécification actuelle est le périmètre du MVP,
-  attendu avant la fin de 2026. Ce qui viendra ensuite ne relève pas du périmètre exclu
-  (§2.2) : ce sont des évolutions, qui passeront par des révisions du document. Rien ne dit
-  aujourd'hui à quelle version du produit le document s'applique.
-- **Texte proposé** (§1.1, ajout) : « Le périmètre décrit par ce document est celui de la
-  première version publiée de Waterfall. Ses évolutions ultérieures feront l'objet de
-  révisions du document. »
 
 ## 9. Le planning se calcule en heures
 
