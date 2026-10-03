@@ -136,6 +136,8 @@ librement dans le document.
     n'intervient dans le calcul de MS Project. »
 - **Suites hors du document** : le contrat (durée, début et fin d'une tâche, décalage d'une
   liaison) et la grille de planning d'EP-02 (US-0220). À intégrer avant le cadrage d'EP-06.
+- **Revue Word du 2026-10-03** : le commentaire porté sur WF-PLA-0010 (« C'est cette phrase qui a
+  fait mal ») renvoie aux entrées 9 à 12 ; rien de plus à trancher ici.
 
 ## 10. La conversion des unités de durée
 
@@ -349,6 +351,15 @@ librement dans le document.
   lignes ; par l'identifiant de lignée, un fichier construit de zéro dans Excel n'en a pas.
   C'est ce choix qui rend vraie la phrase « Un second import du même fichier donne un devis
   identique » (WF-INTF-0100).
+- **Décidé en revue (2026-10-03)**, à reporter dans l'annexe et dans les textes qui la citent :
+  le fichier « Devis » présente une synthèse en premier onglet, puis un onglet par lot du
+  lotissement ; le fichier « Reste à engager », un onglet par sous-projet. Le lotissement
+  conditionne donc la structure du fichier de devis : le §3.4.5.2.1 (« Il ne conditionne
+  rien : un projet se chiffre et se pilote sans lui ») et le §3.2.3 (« sa seule valeur est
+  pratique ») sont à reprendre, de même que WF-INTF-0120 (« Le sous-projet est repris s'il
+  est renseigné »), puisque l'onglet le porte. Reste à dire ce que devient une ligne sans lot
+  — le lot unique du lotissement par défaut — et sans sous-projet — l'ensemble « hors
+  sous-projet ».
 - **PO-01** : l'extraction des engagements et des heures relève de l'après-MVP. Le format
   étant versionné (WF-INTF-0070), il pourra s'étendre sans rendre illisibles les fichiers
   existants : rien à prévoir dans cette passe.
@@ -508,3 +519,315 @@ librement dans le document.
     en bout sur un réseau dont tout flux sortant est bloqué, sans erreur ni attente. Aucun
     composant ne tente de connexion hors du réseau de l'installation pendant ces tests. Une
     plateforme dont les certificats sont émis par une autorité interne fonctionne. »
+
+## 20. La consultation d'un projet restreinte à ses contributeurs
+
+- **Où** : WF-PRJ-0060 (corps, Vérif) ; WF-ADM-0110 (corps, Vérif) ; §3.2.3 « Les
+  contributeurs » ; §3.4.2.2, paragraphe « Les permissions ne portent que sur ce qu'on peut
+  faire, jamais sur quel projet » ; WF-INTF-0020 (le manager « consulte les indicateurs sur
+  tous les projets ») ; entrée 2 du présent fichier.
+- **Quoi** : revue du 2026-10-03, quatre commentaires. La règle actuelle — la liste des
+  contributeurs restreint la saisie, la consultation ne dépend que des habilitations — laisse
+  tout projet lisible par quiconque porte la permission de consulter. L'auteur veut que la
+  consultation d'un projet soit elle aussi réservée à ses contributeurs, sans que cela prive
+  le portefeuille (FBS-2) des projets que l'utilisateur ne peut pas ouvrir : les indicateurs
+  consolidés se calculent sur tout le périmètre.
+- **À trancher** :
+  - la règle. Proposé : la liste des contributeurs porte la consultation comme la saisie — un
+    projet n'est ouvert que par ses contributeurs —, et une permission distincte, « consulter
+    tous les projets », lève cette restriction pour les fonctions de direction. Le portefeuille
+    agrège tout le périmètre quelle que soit la liste, parce qu'il ne montre que des sommes et
+    des listes, jamais le contenu d'un projet ; un projet qu'on ne peut pas ouvrir y figure par
+    son libellé, son état et ses totaux, sans lien. Écarté : filtrer aussi le portefeuille par
+    contributeur, qui ferait mentir le carnet et le pipeline ;
+  - ce que montre la liste des projets (entrée 1) : les projets du contributeur par défaut, et
+    la levée du filtre ne montre que ceux que la permission « consulter tous les projets »
+    permet d'ouvrir ;
+  - le rôle prédéfini « manager » porte-t-il « consulter tous les projets » ? Proposé : oui,
+    c'est l'usage de WF-INTF-0020.
+- **Texte proposé** (WF-PRJ-0060, corps) : « Un projet porte la liste des utilisateurs qui y
+  contribuent, dont son créateur. La consultation et la saisie sur un projet sont réservées à
+  ses contributeurs, chacune sous sa permission ; la permission « consulter tous les
+  projets » ouvre à la consultation les projets dont l'utilisateur n'est pas contributeur.
+  Les vues du portefeuille agrègent tous les projets du périmètre, qu'ils soient ou non
+  ouvrables par l'utilisateur. » Vérif : « Un utilisateur habilité à consulter les projets,
+  non contributeur d'un projet et sans la permission « consulter tous les projets », ne
+  l'ouvre pas et ne le trouve pas par son adresse ; le carnet du portefeuille le compte
+  pourtant. Inscrit comme contributeur, il l'ouvre. »
+- **Suites hors du document** : le catalogue des permissions (WF-ADM-0100) gagne une
+  permission transverse ; le contrat répond déjà 404 sur une consultation refusée (entrée 2) ;
+  l'accueil d'EP-02 (US-0100) et le cadrage d'EP-03 et d'EP-11.
+
+## 21. La qualité d'un contributeur dépend du projet
+
+- **Où** : WF-ADM-0090 (corps) ; WF-PRJ-0060 ; §3.4.2.2.
+- **Quoi** : revue du 2026-10-03 : « un utilisateur peut très bien être chef de projet sur un
+  projet, simple contributeur sur un autre ». Aujourd'hui les rôles d'habilitation sont
+  globaux : un porteur du rôle « chef de projet » l'est sur tous les projets où il est
+  contributeur. Deux lectures de la demande :
+  - la liste des contributeurs qualifie chacun — chef de projet, ou contributeur — et la
+    qualité restreint ce que les permissions du rôle global autorisent sur ce projet (un
+    contributeur saisit les charges de son métier, ne marque pas de révision, ne touche ni au
+    lotissement ni aux contributeurs) ;
+  - les rôles d'habilitation s'attribuent par projet, et non plus au compte : c'est un autre
+    modèle, où chaque inscription à un projet porte ses rôles.
+- **À trancher** : proposé, la première lecture, qui garde le modèle à deux mécanismes (ce
+  qu'on sait faire, où on le fait) et ajoute une seule donnée à la liste des contributeurs. La
+  seconde revient à des habilitations par projet, que l'administration ne pourrait plus
+  tenir à l'échelle de trois cents projets. Reste à dire précisément ce qu'un « contributeur »
+  peut faire : proposé, tout ce que ses rôles permettent, moins les actions structurantes du
+  catalogue (WF-ADM-0100 : marquer, désigner la référence, sorties du cycle de vie, risque
+  survenu) et moins le paramétrage du projet (FBS-4.2), réservés aux chefs de projet du
+  projet.
+- **Texte proposé** : attend la décision ; touche WF-PRJ-0060, WF-ADM-0110 et le §3.2.3.
+
+## 22. Les lignes d'un risque survenu portent un montant budgété
+
+- **Où** : WF-RIS-0050 (corps, Vérif) ; WF-RIS-0060 (corps, Vérif) ; WF-IND-0030 (corps) ;
+  WF-RAE-0040 (dernière phrase) ; §3.2.5 « Montants d'une ligne » ; §3.2.6.
+- **Quoi** : revue du 2026-10-03, quatre commentaires. Aujourd'hui, à la survenance, les
+  lignes du devis propre entrent dans la structure principale avec un montant budgété nul, la
+  provision entre dans le budget de référence à sa valeur, et sa valeur s'acquiert d'un bloc
+  quand toutes les tâches issues du devis propre sont terminées. L'auteur veut que chaque
+  ligne fusionnée porte pour montant budgété sa part de la provision — son montant dans le
+  devis propre multiplié par la probabilité retenue à la référence —, de sorte que la somme
+  des montants budgétés des lignes fusionnées soit la provision, et que la valeur acquise
+  s'acquière ligne par ligne, tâche par tâche, comme pour toute ligne. Le dépassement — on
+  dépense la gravité, on n'avait budgété que la provision — dégrade l'indice de coût, et les
+  provisions des risques écartés, entrant dans le budget, le rétablissent.
+- **Ce qui ne change pas** : les chiffres du Vérif de WF-RIS-0050 (devis 1 060, référence
+  1 000 puis 1 060, écart 190, puis 1 100) restent justes ; seul le mécanisme change.
+- **À trancher** :
+  - l'arrondi : la part de chaque ligne est arrondie au centime, et la dernière ligne porte le
+    reste, pour que la somme soit exactement la provision ;
+  - le moment où la provision d'un risque écarté entre dans le budget de référence :
+    aujourd'hui, seulement lorsque plus aucun risque n'est identifié (WF-RIS-0050) ; le
+    commentaire se lit aussi « à chaque risque écarté ». Proposé : garder la règle actuelle,
+    qui évite qu'un écartement précoce gonfle le budget d'un projet encore exposé ;
+  - la ligne de provision elle-même, après survenance : proposé, elle disparaît de la
+    structure principale, remplacée par les lignes fusionnées qui en portent le montant.
+- **Texte proposé** :
+  - WF-RIS-0060, corps, remplacer « Les lignes fusionnées portent un montant budgété nul et,
+    pour montant réestimé, celui du devis propre. » par « Chaque ligne fusionnée porte, pour
+    montant budgété, son montant dans le devis propre multiplié par la probabilité du risque
+    dans la révision de référence, arrondi au centime, la dernière ligne portant le reste de
+    sorte que leur somme soit la provision ; et, pour montant réestimé, son montant dans le
+    devis propre. La ligne de provision du risque est retirée de la structure principale. » ;
+    supprimer la dernière phrase (« La valeur de la provision est acquise lorsque… ») ;
+  - WF-RIS-0050, corps, remplacer « tandis que les lignes issues de son devis propre y entrent
+    avec un montant budgété nul » par « portée par les lignes issues de son devis propre
+    (WF-RIS-0060) » ;
+  - WF-IND-0030, corps, supprimer « Les lignes issues d'un risque survenu, de montant budgété
+    nul, n'y contribuent pas ; la provision du risque s'acquiert selon WF-RIS-0060. » ;
+  - Vérif de WF-RIS-0060 : « Après déclaration de survenance d'un risque de gravité 200 à
+    30 %, dont le devis propre porte deux lignes de 120 et 80, les lignes fusionnées portent
+    des montants budgétés de 36 et 24, et des montants réestimés de 120 et 80. La valeur
+    acquise augmente de 36 à la terminaison de la première tâche. »
+- **Suites hors du document** : le contrat (RiskOccurrence) et EP-08.
+
+## 23. Le devis n'affiche pas de montant réestimé
+
+- **Où** : WF-DEV-0050 (corps, Vérif) ; WF-DEV-0020 (corps) ; §3.2.5 « Montants d'une
+  ligne » ; maquette d'EP-02 (US-0130, grille de devis).
+- **Quoi** : revue du 2026-10-03, deux commentaires. La maquette montre les deux montants —
+  budgété, réestimé — sur la grille de devis. Pour l'auteur, le montant réestimé n'a pas de
+  sens sur le devis, qui définit le budget de référence : les deux colonnes ne vont que sur la
+  grille de reste à engager. Le devis montre, pour chaque ligne, son montant à l'année de
+  référence et son montant corrigé de l'inflation (WF-DEV-0040), pour que l'utilisateur voie
+  ce que l'inflation ajoute.
+- **Ce qui ne change pas** : les deux montants restent des attributs de la ligne
+  (WF-DEV-0020) ; c'est la présentation qui change.
+- **Texte proposé** (WF-DEV-0050, corps) : remplacer « son délai de paiement et son montant »
+  par « son délai de paiement, son montant à l'année de référence et son montant corrigé de
+  l'inflation (WF-DEV-0040) ». Vérif, ajout : « La grille de devis ne présente ni montant
+  budgété ni montant réestimé ; une ligne dont la tâche se place deux ans après l'année de
+  référence, avec une inflation de 2 %, affiche un montant corrigé supérieur de 4,04 % à son
+  montant. »
+- **Suites hors du document** : issue de front sur US-0130 ; le contrat, si la grille lit
+  les deux montants par un champ dédié.
+
+## 24. Les bases de calcul du plan de charge
+
+- **Où** : WF-DEV-0070 (corps, Vérif).
+- **Quoi** : revue du 2026-10-03 : le plan de charge se calcule « soit sur le devis d'une
+  révision, soit sur le reste à engager courant » ; l'auteur veut trois bases — le devis de
+  référence, le reste à engager d'une révision marquée, le reste à engager courant.
+- **Texte proposé** (corps) : remplacer « calculée soit sur le devis d'une révision, soit sur
+  le reste à engager courant » par « calculée, au choix, sur les montants budgétés de la
+  révision de référence, sur les montants réestimés d'une révision marquée, ou sur ceux de la
+  révision en cours ». Vérif, ajout : « Les trois bases sont proposées ; sur un projet sans
+  révision de référence, seule la révision en cours l'est. »
+
+## 25. La réestimation du reste à engager et les dates du planning
+
+- **Où** : WF-RAE-0040 (corps, Vérif) ; WF-PLA-0080 ; §3.4.5.5.
+- **Quoi** : revue du 2026-10-03. Réestimer le reste à engager d'une tâche démarrée décale
+  souvent sa fin ; rien ne rappelle au chef de projet de revoir les dates des tâches en cours.
+  Deux voies proposées par l'auteur : afficher dans la grille de reste à engager, pour chaque
+  tâche en édition, sa date de fin prévue, modifiable ; ou faire apparaître les tâches
+  démarrées dans la grille de planning, par un filtre.
+- **Avis** : la seconde, complétée. La saisie des dates a un seul lieu, la grille de planning
+  (c'est la raison de WF-PLA-0090 pour le Gantt), et une date modifiée depuis le reste à
+  engager relancerait le calcul des dates hors de l'écran qui le montre. La grille de reste à
+  engager affiche la date de fin de chaque tâche, en lecture, et signale celles dont la fin est
+  antérieure à la date de calcul ; la grille de planning gagne un filtre « tâches démarrées »,
+  et la revue y passe après le reste à engager — c'est l'ordre du flux de travail (figure 16).
+- **Texte proposé** :
+  - WF-RAE-0040, corps, ajout : « La grille présente la date de fin de chaque tâche, sans la
+    rendre saisissable, et signale les tâches démarrées dont la fin est antérieure à la date
+    de calcul. » Vérif : « Une tâche démarrée dont la fin est dépassée est signalée ; sa date
+    n'est pas modifiable depuis cette grille. » ;
+  - WF-PLA-0080, corps, remplacer « de filtrer sur le sous-arbre d'une récapitulative » par
+    « de filtrer sur le sous-arbre d'une récapitulative ou sur les tâches démarrées ».
+
+## 26. L'état d'une tâche : trois valeurs, montrées par une marque
+
+- **Où** : WF-PLA-0130 (corps) ; WF-PLA-0080 (corps, Vérif) ; §3.4.5.3.
+- **Quoi** : revue du 2026-10-03, deux commentaires. « État d'avancement » se lit comme un
+  pourcentage, alors que c'est l'état du cycle d'une tâche — non démarrée, démarrée,
+  terminée — qui commande le Kanban, la réestimation et la valeur acquise. L'auteur doute de
+  l'intérêt d'une colonne pour une feuille, dont l'avancement est 0 ou 100 %, et suggère une
+  marque visuelle pour les tâches terminées.
+- **Texte proposé** :
+  - WF-PLA-0130 et partout : « état » au lieu d'« état d'avancement » ; corps, remplacer « et
+    un état d'avancement » par « et un état — non démarrée, démarrée, terminée » ;
+  - WF-PLA-0080, corps, remplacer « son état d'avancement, son avancement physique » par « son
+    état, signalé par une marque visuelle et non par une colonne, et, pour une récapitulative,
+    son avancement physique ». Vérif, ajout : « Une tâche terminée se distingue d'une tâche
+    démarrée sans lire de colonne ; une feuille ne porte pas d'avancement physique. »
+
+## 27. Le Gantt suit le pliage de la grille
+
+- **Où** : WF-PLA-0090 (corps, Vérif) ; annexe C (rendu propre du Gantt).
+- **Quoi** : revue du 2026-10-03 : « comment gère-t-on les pliages/dépliages sur la grille ?
+  Un nouveau SVG à chaque fois ? ». La spécification ne dit pas que le Gantt et la grille
+  partagent leur état de pliage. Côté réalisation, le Gantt est dessiné ligne par ligne, pour
+  les seules lignes visibles ; plier une récapitulative retire ses lignes et redessine les
+  suivantes, ce que le rendu par composants fait sans reconstruire le dessin entier. C'est
+  un choix d'EP-06, pas du document.
+- **Texte proposé** (WF-PLA-0090, corps, ajout) : « Le diagramme et la grille de planning
+  présentent le même arbre, plié de la même façon : plier ou déplier une récapitulative dans
+  l'un le fait dans l'autre. » Vérif : « Une récapitulative pliée dans la grille l'est dans le
+  Gantt, et réciproquement. »
+
+## 28. Les objets désactivés sont signalés sur les lignes qui les emploient
+
+- **Où** : WF-REF-0010 (corps, Vérif) ; WF-DEV-0050 ; WF-RAE-0040.
+- **Quoi** : revue du 2026-10-03. Un objet désactivé reste lisible partout où il est employé ;
+  l'auteur veut qu'il soit signalé sur les lignes de devis d'un projet en chiffrage — où le
+  chef de projet doit le remplacer, puisqu'il n'y a pas encore de référence — et sur les
+  lignes de reste à engager d'un projet en cours, où il reste simplement visible.
+- **Texte proposé** (WF-REF-0010, corps, ajout) : « Une ligne de devis ou de reste à engager
+  qui emploie un objet désactivé le signale visuellement. » Vérif, ajout : « Après
+  désactivation d'un rôle de ressource, les lignes qui le portent sont signalées dans la
+  grille de devis et dans celle du reste à engager, et restent lisibles. »
+
+## 29. La colonne de taux d'une nouvelle année : le texte contredit WF-REF-0060
+
+- **Où** : §3.4.4.1.2, paragraphe « Un taux est une valeur constatée ».
+- **Quoi** : revue du 2026-10-03. Le texte dit « Au changement d'année, une colonne vide
+  apparaît », WF-REF-0060 dit « Aucune colonne n'est créée automatiquement ». L'exigence fait
+  foi ; l'auteur confirme : un utilisateur habilité ajoute la colonne.
+- **Texte proposé** : remplacer « Au changement d'année, une colonne vide apparaît, que les
+  utilisateurs habilités renseignent (WF-REF-0060). » par « Un utilisateur habilité ajoute la
+  colonne de la nouvelle année et la renseigne (WF-REF-0060) ; aucune colonne n'apparaît
+  d'elle-même. »
+
+## 30. Le dépassement potentiel au portefeuille
+
+- **Où** : WF-PTF-0050 (corps, Vérif) ; WF-PTF-0060.
+- **Quoi** : revue du 2026-10-03 : ajouter au portefeuille la somme des coûts réels et des
+  restes à engager, pour donner une indication de dépassement potentiel. Cette somme est la
+  projection du chef de projet (WF-IND-0050), et WF-PTF-0060 présente déjà « les trois
+  projections à terminaison agrégées » face au carnet, dans la performance du portefeuille.
+- **À trancher** : l'indication existe au §3.4.3.3 ; manque-t-elle sur la liste des projets
+  (§3.4.3.1) ? Proposé : la liste des projets gagne, pour chaque projet en cours, sa projection
+  du chef de projet et son écart au budget de référence, sans nouvelle valeur du portefeuille.
+- **Texte proposé** (WF-PTF-0040, liste des projets, corps) : ajouter aux colonnes « la projection du chef de projet et son écart au budget de référence, pour un
+  projet en cours ».
+
+## 31. Le diagramme temps/temps et les décaissements se calculent pour le seul projet
+
+- **Où** : WF-IND-0020 (corps).
+- **Quoi** : revue du 2026-10-03 : l'auteur ne se souvient plus de la raison. Elle est que les
+  sous-projets sont des périmètres de coûts, non de temps : un sous-projet regroupe des lignes,
+  dont les tâches sont dispersées dans le planning, et il n'a ni jalon ni date de fin. Le
+  diagramme temps/temps suit des jalons, donc le projet. Les décaissements, eux, pourraient se
+  ventiler par sous-projet, puisque chaque ligne en porte un et un délai de paiement.
+- **À trancher** : garder la règle pour le diagramme temps/temps ; pour les décaissements,
+  proposé : les calculer aussi par sous-projet, ce qui ne coûte qu'un filtre. Écarté : un
+  temps/temps par sous-projet, qui n'aurait pas de jalon à suivre.
+- **Texte proposé** (corps) : remplacer « Le diagramme temps/temps et les projections de
+  décaissement se calculent pour le seul projet. » par « Le diagramme temps/temps se calcule
+  pour le seul projet : il suit des jalons, qu'un sous-projet n'a pas. »
+
+## 32. L'exemple des dix tâches
+
+- **Où** : §3.4.5.8.3, paragraphe « L'avancement physique dit quelle part du travail promis
+  est faite ».
+- **Quoi** : revue du 2026-10-03 : « un projet découpé en dix tâches aura un avancement
+  grossier » est discutable — tout dépend de la durée du projet.
+- **Texte proposé** : remplacer « sa finesse est celle du découpage du planning, et un projet
+  découpé en dix tâches aura un avancement grossier » par « sa finesse est celle du découpage
+  du planning ».
+
+## 33. L'évolution des indices de coût et de délai
+
+- **Où** : §3.4.5.8.4 et §3.4.5.8.5 ; nouvelle exigence, prochain identifiant libre
+  `WF-IND-0130` ; WF-PTF-0060 (« l'évolution de l'ensemble dans le temps » existe déjà pour le
+  portefeuille).
+- **Quoi** : revue du 2026-10-03, deux commentaires : une courbe d'évolution de chaque indice.
+  Les indicateurs sont calculés au marquage de chaque révision et conservés (§4.4.2) : la
+  courbe par révision marquée ne demande aucun calcul nouveau.
+- **Texte proposé** (nouvelle exigence, F1, FBS-4.8, PBS-1.1, PBS-2.1, PBS-2.3) :
+  - titre : « Évolution des indices » ;
+  - corps : « Waterfall présente, pour le projet et pour chaque sous-projet, l'évolution de
+    l'indice de coût et de l'indice de délai : un point par révision marquée, à sa date de
+    marquage, et le dernier point au jour courant pour la révision en cours, avec les seuils de
+    vigilance et d'alerte du référentiel. » ;
+  - motif : « Un indice ne se lit qu'avec sa tendance : 0,9 qui remonte et 0,9 qui descend ne
+    demandent pas la même décision. Les indicateurs des révisions marquées sont conservés ;
+    les montrer dans le temps ne coûte rien de plus. » ;
+  - Vérif : « Sur un projet de trois révisions marquées, chaque courbe porte quatre points, le
+    dernier au jour courant ; les deux seuils sont tracés ; un sous-projet a ses courbes. »
+
+## 34. Les projections de décaissement et la courbe en S
+
+- **Où** : WF-IND-0100, WF-IND-0120 ; §3.4.5.8.7 et §3.4.5.8.9 ; FBS-4.8.9.
+- **Quoi** : revue du 2026-10-03 : les deux indicateurs semblent dire la même chose. La courbe
+  en S cumule les montants aux dates des tâches — le budget, le réel aux dates de pièce, la
+  projection sur les dates du reste à engager ; la projection de décaissement prend les mêmes
+  montants, mois par mois, décalés du délai de paiement de chaque ligne : c'est la même
+  courbe translatée, qui ne s'en écarte que lorsque les délais de paiement diffèrent d'une
+  ligne à l'autre, et elle montre en plus les provisions des risques identifiés.
+- **À trancher** : proposé, fusionner — la courbe en S gagne une option « décalée des délais
+  de paiement », qui montre la trésorerie, et WF-IND-0120 disparaît, avec la fonction
+  FBS-4.8.9 et la figure de l'arborescence. Écarté : garder deux écrans pour une translation.
+  Point d'attention : l'exigence est citée par la roadmap (EP-10) et par le contrat ; le
+  périmètre exclu (§2.2) admet « la projection et le suivi des dépenses ».
+- **Texte proposé** (WF-IND-0100, corps, ajout) : « Sur demande, chaque montant est décalé du
+  délai de paiement de sa ligne, et les provisions des risques identifiés s'ajoutent à la
+  date de la tâche qui les porte : la courbe présente alors les décaissements. » Vérif,
+  ajout : « Avec un délai de paiement de 60 jours sur toutes les lignes, la courbe décalée est
+  la courbe de référence translatée de 60 jours. »
+
+## 35. Tables filtrables, graphiques exportables en PNG
+
+- **Où** : §3.6, nouvelle exigence — après celle de l'entrée 1, prochain identifiant libre
+  `WF-IHM-0130` ; WF-DEV-0070 (le commentaire y demande l'export du plan de charge).
+- **Quoi** : revue du 2026-10-03, deux commentaires : toute table se filtre ; toute courbe et
+  toute représentation graphique s'exporte en PNG. Les grilles ont chacune leurs filtres
+  (WF-PLA-0080, WF-DEV-0050, WF-RIS-0040…) ; rien ne le dit en règle générale, ni pour les
+  tables du portefeuille et de l'administration.
+- **Texte proposé** (nouvelle exigence, F0, FBS-1 à FBS-4, PBS-1.1, PBS-1.3) :
+  - titre : « Filtrage des tables et export des graphiques » ;
+  - corps : « Toute table se filtre sur chacune de ses colonnes, et le filtre s'applique aux
+    totaux qu'elle présente. Toute courbe et tout diagramme — Gantt, plan de charge, courbes
+    d'indicateurs, matrice des risques — s'exportent en image PNG, avec leur titre, leur
+    légende, le nom du projet, la révision et la date de calcul. » ;
+  - motif : « Un filtre commun évite qu'une table l'ait et l'autre non ; une image exportée
+    entre dans un compte rendu de revue sans copie d'écran, et dit d'elle-même d'où elle
+    vient. » ;
+  - Vérif : « La liste des projets filtrée sur un état ne compte que les projets de cet état
+    dans ses totaux. Le plan de charge exporté est une image PNG qui porte le nom du projet,
+    la révision et la date de calcul. »
