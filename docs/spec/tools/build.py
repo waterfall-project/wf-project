@@ -68,6 +68,10 @@ RE_CAPTION = re.compile(r"^(Figure|Tableau)\s*(\d+)?\s*[:–—-]?\s*(.*)$")
 RE_IMG = re.compile(r"^<img\s+(?P<attrs>.*?)\s*/?>$", re.DOTALL)
 RE_ATTR = re.compile(r'(\w+)="([^"]*)"')
 RE_ARROW = re.compile(r"(-{2,3}>|={2,3}>|-\.->|-{3,}|={3,}|--[ox])")
+# A revision mark of Word: an insertion, a deletion, a move, or a change of properties.
+# The word boundary keeps w:delText and w:instrText out.
+RE_TRACKED_CHANGE = re.compile(r"<w:(?:ins|del|moveFrom|moveTo|\w+Change)\b")
+RE_COMMENT_THREAD = re.compile(r"<w15:commentEx\b[^>]*>")
 PAIR = 2
 """A requirement table has two columns: the label, and the value."""
 
@@ -104,6 +108,50 @@ class BuildNotes:
 # --------------------------------------------------------------------------- #
 # Step 1: pandoc extraction
 # --------------------------------------------------------------------------- #
+
+
+def pending_review_marks(docx: Path) -> list[str]:
+    """Return what the Word document still holds under review, one message per kind.
+
+    Pandoc accepts every tracked change silently and drops the comments: a
+    projection built from a document under review would present as adopted what
+    its author has not accepted yet. Each message is a warning, so that --strict
+    refuses to publish until the changes are accepted or rejected and the comment
+    threads resolved in Word. A thread is a comment without a parent; Word marks
+    it done in commentsExtended.xml, and a document that has comments but no such
+    part has them all open.
+    """
+    with zipfile.ZipFile(docx) as archive:
+        names = set(archive.namelist())
+
+        def part(name: str) -> str:
+            return archive.read(name).decode("utf-8") if name in names else ""
+
+        document = part("word/document.xml")
+        comments = part("word/comments.xml")
+        extended = part("word/commentsExtended.xml")
+    messages: list[str] = []
+    changes = len(RE_TRACKED_CHANGE.findall(document))
+    if changes:
+        messages.append(
+            f"{changes} tracked change(s) pending in the Word document: accept or reject "
+            "them in Word before publishing — pandoc accepts them all silently"
+        )
+    if extended:
+        threads = [
+            mark.group(0)
+            for mark in RE_COMMENT_THREAD.finditer(extended)
+            if "w15:paraIdParent" not in mark.group(0)
+        ]
+        open_threads = sum('w15:done="1"' not in thread for thread in threads)
+    else:
+        open_threads = comments.count("<w:comment ")
+    if open_threads:
+        messages.append(
+            f"{open_threads} open comment thread(s) in the Word document: resolve them "
+            "in Word before publishing — pandoc drops the comments"
+        )
+    return messages
 
 
 def unwrap_simple_fields(docx: Path, target: Path) -> int:
@@ -793,6 +841,8 @@ def main() -> int:
 
     notes = BuildNotes(verbose=arguments.verbose)
     config = load_figure_config(ROOT / arguments.config)
+    for message in pending_review_marks(docx):
+        notes.warn(message)
 
     with tempfile.TemporaryDirectory() as temporary:
         readable = Path(temporary) / docx.name

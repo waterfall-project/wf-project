@@ -136,6 +136,15 @@ d'un constat oublié.
 Relancer `./build.sh` après les corrections : le diff affiché vérifie que les
 modifications Word ont bien atterri là où on les attendait.
 
+Une revue peut aussi se faire dans Word même, en commentaires et en suivi des
+modifications : les corrections sont alors proposées en modifications suivies,
+avec une réponse à chaque commentaire, et l'auteur les accepte ou les refuse dans
+Word. Tant que le document porte des modifications en attente ou des fils de
+commentaires non résolus, `./build.sh` l'avertit et `make build-doc-strict`
+échoue : pandoc accepte toutes les modifications en silence et ignore les
+commentaires, et la projection présenterait comme adopté ce qui ne l'est pas
+encore. La projection ne se régénère donc que depuis un document accepté.
+
 ## Suivi de version
 
 Le dépôt est sous Git, et c'est ce qui rend le cycle ci-dessus lisible : le diff
