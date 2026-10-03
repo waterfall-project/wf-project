@@ -2397,7 +2397,7 @@ flowchart LR
     FBS_4_3_2_Grille_de_planning["FBS-4.3.2<br>Grille de planning"]
     FBS_4_3_3_Diagramme_de_GANTT["FBS-4.3.3<br>Diagramme de GANTT"]
     FBS_4_3_4_Imports_Exports["FBS-4.3.4<br>Imports / Exports"]
-    FBS_4_3_5_Arborescence_de_taches["FBS-4.3.5<br>Arborescence de taches"]
+    FBS_4_3_5_Arborescence_de_taches["FBS-4.3.5<br>Arborescence de tâches"]
 
     FBS_4_3_Planification --> FBS_4_3_1_Chronologie
     FBS_4_3_Planification --> FBS_4_3_2_Grille_de_planning
@@ -3297,7 +3297,7 @@ flowchart LR
         Analyser_les_indicateurs["Analyser les indicateurs"]
         Creer_une_revision_de_revue("Créer une révision de revue")
         Mettre_a_jour_le_planning_et_le_reste_a_engager("Mettre à jour le planning et le reste à engager")
-        Importer_les_couts_reels("Importer les couts réels")
+        Importer_les_couts_reels("Importer les coûts réels")
         Marquer_la_revision("Marquer la révision")
     end
     subgraph Construction_de_l_offre["Construction de l'offre"]
@@ -3308,10 +3308,10 @@ flowchart LR
         Marquer_une_revision("Marquer une révision")
     end
     Designer_la_revision_de_reference("Désigner la révision de référence")
-    Cloturer_le_projet("Cloturer le projet")
-    Fusionner_le_differentiel_Nouvelle_revision_de_reference("Fusionner le differentiel.<br>Nouvelle révision de référence")
+    Cloturer_le_projet("Clôturer le projet")
+    Fusionner_le_differentiel_Nouvelle_revision_de_reference("Fusionner le différentiel<br>Nouvelle révision de référence")
 
-    Pilotage -.->|"Avenant contractualisé ou<br>risque survennu"| Fusionner_le_differentiel_Nouvelle_revision_de_reference
+    Pilotage -.->|"Avenant contractualisé ou<br>risque survenu"| Fusionner_le_differentiel_Nouvelle_revision_de_reference
     Analyser_les_indicateurs -->|"Poursuivre le pilotage"| Creer_une_revision_de_revue
     Analyser_les_indicateurs -->|"Terminer le projet"| Cloturer_le_projet
     Creer_le_projet --> Parametrer_le_projet
@@ -3590,7 +3590,7 @@ flowchart LR
     PBS_4_2_Journaux["PBS-4.2<br>Journaux"]
     PBS_4_3_Tableau_de_bord_et_alertes["PBS-4.3<br>Tableau de bord et alertes"]
     PBS_5_1_Empaquetage_et_deploiement["PBS-5.1<br>Empaquetage et déploiement"]
-    PBS_5_2_Chaine_CI_CD["PBS-5.2<br>Chaine CI/CD"]
+    PBS_5_2_Chaine_CI_CD["PBS-5.2<br>Chaîne CI/CD"]
     PBS_5_3_Taches_planifiees["PBS-5.3<br>Tâches planifiées"]
 
     Waterfall --> PBS_1_Frontend

@@ -505,7 +505,7 @@
         <mxCell id="U5et5V4hRopLispx97pS-9" value="FBS-4.3.4&#xa;Imports / Exports" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
           <mxGeometry x="-490" y="2850" width="200" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="DvLGu9cg0o78n5a73amC-1" value="FBS-4.3.5&#xa;Arborescence de taches" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+        <mxCell id="DvLGu9cg0o78n5a73amC-1" value="FBS-4.3.5&#xa;Arborescence de tâches" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
           <mxGeometry x="-490" y="2923" width="200" height="40" as="geometry" />
         </mxCell>
       </root>
@@ -887,7 +887,7 @@
         <mxCell id="Q8H_T37byqV71rfOKQSI-12" value="PBS-5.1&#xa;Empaquetage et déploiement" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
           <mxGeometry x="1160" y="1440" width="200" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="Q8H_T37byqV71rfOKQSI-13" value="PBS-5.2&#xa;Chaine CI/CD" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
+        <mxCell id="Q8H_T37byqV71rfOKQSI-13" value="PBS-5.2&#xa;Chaîne CI/CD" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
           <mxGeometry x="1160" y="1520" width="200" height="40" as="geometry" />
         </mxCell>
         <mxCell id="Q8H_T37byqV71rfOKQSI-14" value="PBS-5.3&#xa;Tâches planifiées" style="whiteSpace=wrap;strokeWidth=2;fillColor=#E6D0DE;strokeColor=#b85450;" vertex="1" parent="1">
@@ -904,7 +904,7 @@
         <mxCell id="6B8UxLb_9WXyIzn_eBGu-34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="6B8UxLb_9WXyIzn_eBGu-24" target="6B8UxLb_9WXyIzn_eBGu-23">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="6B8UxLb_9WXyIzn_eBGu-36" value="Avenant contractualisé ou&lt;div&gt;risque survennu&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" vertex="1" connectable="0" parent="6B8UxLb_9WXyIzn_eBGu-34">
+        <mxCell id="6B8UxLb_9WXyIzn_eBGu-36" value="Avenant contractualisé ou&lt;div&gt;risque survenu&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" vertex="1" connectable="0" parent="6B8UxLb_9WXyIzn_eBGu-34">
           <mxGeometry x="-0.0245" relative="1" as="geometry">
             <mxPoint y="6" as="offset" />
           </mxGeometry>
@@ -998,13 +998,13 @@
         <mxCell id="6B8UxLb_9WXyIzn_eBGu-29" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="6B8UxLb_9WXyIzn_eBGu-20" target="6B8UxLb_9WXyIzn_eBGu-21">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="6B8UxLb_9WXyIzn_eBGu-20" value="Importer les couts réels" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+        <mxCell id="6B8UxLb_9WXyIzn_eBGu-20" value="Importer les coûts réels" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
           <mxGeometry x="480" y="700" width="100" height="100" as="geometry" />
         </mxCell>
         <mxCell id="6B8UxLb_9WXyIzn_eBGu-21" value="Marquer la révision" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
           <mxGeometry x="340" y="700" width="100" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="6B8UxLb_9WXyIzn_eBGu-22" value="Cloturer le projet" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+        <mxCell id="6B8UxLb_9WXyIzn_eBGu-22" value="Clôturer le projet" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
           <mxGeometry x="-90" y="670" width="100" height="100" as="geometry" />
         </mxCell>
         <mxCell id="6B8UxLb_9WXyIzn_eBGu-35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="6B8UxLb_9WXyIzn_eBGu-23" target="6B8UxLb_9WXyIzn_eBGu-11">
@@ -1016,7 +1016,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="6B8UxLb_9WXyIzn_eBGu-23" value="Fusionner le differentiel.&lt;div&gt;Nouvelle révision de référence&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+        <mxCell id="6B8UxLb_9WXyIzn_eBGu-23" value="Fusionner le différentiel&lt;div&gt;Nouvelle révision de référence&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
           <mxGeometry x="-90" y="800" width="100" height="100" as="geometry" />
         </mxCell>
         <mxCell id="6B8UxLb_9WXyIzn_eBGu-30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.77;entryY=0.293;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="6B8UxLb_9WXyIzn_eBGu-21" target="6B8UxLb_9WXyIzn_eBGu-1">
