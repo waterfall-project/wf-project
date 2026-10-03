@@ -328,27 +328,27 @@ librement dans le document.
   identique » (WF-INTF-0100).
 - **PO-01** : l'extraction des engagements et des heures relève de l'après-MVP. Le format
   étant versionné (WF-INTF-0070), il pourra s'étendre sans rendre illisibles les fichiers
-  existants : rien à prévoir dans la révision B.
+  existants : rien à prévoir dans cette passe.
 
-## 17. La révision B du document
+## 17. Le document reste en révision A jusqu'au tag
 
-- **Où** : historique des modifications ; indice de chaque exigence modifiée.
+- **Où** : historique des modifications ; indice de chaque exigence modifiée ; §1.3.1.
 - **Quoi** : les entrées 5 à 7, 9 à 14 et 18 modifient le corps ou le Vérif d'exigences
-  existantes. Le §1.3.1 veut que l'indice d'une exigence modifiée change, de A à B. L'outil
-  de la roadmap (`make roadmap`) et le rapport de couverture des exigences refusent un
-  identifiant dont l'indice est périmé : chaque US et chaque test qui cite une exigence
-  modifiée devra suivre. Peu de tests citent aujourd'hui une exigence métier, et c'est le
-  moment où le passage coûte le moins. L'historique ne porte qu'une ligne, sans objet ni
-  auteur.
-- **À trancher en intégrant** : proposé, chaque exigence modifiée passe à l'indice B, et le
-  document à la révision B — la règle du §1.3.1 telle qu'elle est écrite. Écarté : garder
-  l'indice A pour les corrections faites avant le premier code métier ; moins de reprises,
-  mais l'indice ne dirait plus qu'une exigence a changé. Les exigences nouvelles
-  (entrées 1, 10, 15 et 19) naissent à l'indice A.
-- **Texte proposé** (historique, nouvelle ligne) : révision « B », objet « Authentification
-  déléguée à un fournisseur d'identité ; fonctionnement sur réseau isolé ; planning calculé
-  en heures ; échanges MS Project ramenés à la version 2013 ; corpus de plannings de
-  référence ; formats Excel de l'annexe B ; décisions du cadrage d'EP-02 ».
+  existantes, et le §1.3.1 veut que l'indice d'une exigence modifiée change. **Tranché
+  (2026-10-03) : pas de révision B.** Le document reste en révision A, et toute exigence
+  modifiée par cette passe garde son indice `-A`. La révision A n'est pas encore un état
+  de référence : elle se met en cohérence avec le contrat d'API et la maquette d'EP-02, et
+  c'est cet ensemble cohérent — spécification, contrat, maquette — qu'un tag Git fixera à
+  la fin d'EP-02. Le suivi des modifications d'exigences, au sens du §1.3.1, ne commence
+  qu'après ce tag : la première exigence modifiée ensuite passera à l'indice B, et le
+  document avec elle. Les US de la roadmap et les tests continuent donc de citer les
+  identifiants en `-A`, et `make roadmap` n'a rien à reprendre.
+- **À faire en intégrant** : ne toucher ni à l'indice de révision du document, ni à celui
+  des exigences ; les exigences nouvelles (entrées 1, 10, 15 et 19) naissent à l'indice A.
+  Si l'historique des modifications doit dire quelque chose, c'est sur la ligne de la
+  révision A, dont l'objet et l'auteur sont vides.
+- **Suite hors du document** : le tag, posé par une personne sur `main`, après la fusion
+  d'EP-02 et de cette passe.
 
 ## 18. L'authentification déléguée à un fournisseur d'identité
 
