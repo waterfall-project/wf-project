@@ -17,3 +17,5 @@ backend/coverage.json
 .coverage
 test-results/
 playwright-report/
+# Schémas XML de MS Project, non redistribuables : lus sur le poste, jamais versionnés
+/docs/schemas/
