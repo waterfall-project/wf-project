@@ -981,9 +981,9 @@ titre: "Confirmation des sorties"
 flexibilite: "F0"
 fbs: "FBS-4.9"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Une sortie manuelle n’est appliquée qu’après une confirmation qui énonce son caractère définitif et ce qu’elle rend non modifiable."
+corps: "Une sortie manuelle n’est appliquée qu’après une confirmation qui énonce son caractère définitif et ce qu’elle rend non modifiable. La confirmation propose la saisie d’un motif, facultatif, que la transition conserve (WF-CYC-0130)."
 motif: "C’est la seule action de l’application qu’aucun geste ultérieur ne peut annuler."
-verification: "La confirmation nomme l’état visé, son motif, et le passage en lecture seule du projet et de toutes ses données."
+verification: "La confirmation nomme l’état visé et le passage en lecture seule du projet et de toutes ses données, et propose la saisie d’un motif ; une sortie confirmée sans motif est appliquée."
 ```
 
 ```yaml exigence
@@ -993,9 +993,9 @@ titre: "Datation des transitions"
 flexibilite: "F0"
 fbs: "FBS-4.9"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Chaque transition d’état d’un projet est datée du jour où elle se produit, et l’historique de ses états est consultable depuis le projet. Ces dates ne sont pas modifiables."
+corps: "Chaque transition d’état d’un projet est datée du jour où elle se produit et porte son auteur ; une sortie manuelle conserve le motif donné à sa confirmation (WF-CYC-0090). L’historique des états, avec ces dates, ces auteurs et ces motifs, est consultable depuis le projet. Rien n’y est modifiable."
 motif: "Les statistiques de portefeuille se calculent par période — projets terminés, offres perdues ou gagnées, portefeuille à une date passée — et n’ont de sens que si chaque changement d’état est situé dans le temps par le fait qui l’a produit, non par une saisie."
-verification: "Après passage d’un projet à En cours puis à Terminé, l’historique présente les deux transitions avec leur date. Un projet passé à Perdu le 15 mars compte parmi les offres closes de mars et d’aucun autre mois."
+verification: "Après passage d’un projet à En cours puis à Terminé, l’historique présente les deux transitions avec leur date. Un projet passé à Perdu le 15 mars compte parmi les offres closes de mars et d’aucun autre mois. Une sortie à Perdu confirmée avec un motif présente ce motif dans l’historique ; une transition automatique n’en porte aucun."
 ```
 
 ```yaml exigence
@@ -2997,18 +2997,6 @@ motif: "L’écart vertical entre valeur acquise et coût réel est l’écart d
 verification: "À la date de calcul, l’écart vertical entre la courbe de valeur acquise et celle du coût réel égale la différence des deux grandeurs. La courbe de valeur planifiée atteint le budget de référence à la fin de la référence. Une tâche terminée produit une marche dans la valeur acquise à sa date de terminaison."
 ```
 
-##### 3.4.5.8.9.
-
-|     |     |
-|-----|-----|
-|     |     |
-|     |     |
-|     |     |
-|     |     |
-|     |     |
-|     |     |
-|     |     |
-
 ## 3.5. Interactions entre fonctions
 
 Les paragraphes précédents décrivent les fonctions une à une. Celui-ci décrit ce qui les relie : la structure qu’elles partagent, et l’ordre dans lequel elles s’enchaînent au cours de la vie d’un projet.
@@ -3425,6 +3413,8 @@ Les services (Python, FastAPI).
 **PBS-3.1 PostgreSQL** : toutes les données métier, selon le §4.4 ; la seule source de vérité.
 
 **PBS-3.2 Redis** : le cache des indicateurs de la révision en cours, les sessions du front et la file de tâches ; rien n'y est durable, et tout s'y reconstruit depuis PostgreSQL.
+
+**PBS-3.3 Stockage objet S3** : le stockage objet compatible S3 qui reçoit les fichiers en transit pendant un import, supprimés à l’application ou à l’expiration (WF-ARC-0100), et les sauvegardes (WF-ADM-0150) ; c’est de lui qu’elles se copient hors de la plateforme.
 
 #### 4.2.1.4. PBS-4 : Observabilité
 

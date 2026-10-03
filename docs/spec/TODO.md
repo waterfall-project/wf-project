@@ -919,3 +919,20 @@ librement dans le document.
   - Vérif : « La liste des projets filtrée sur un état ne compte que les projets de cet état
     dans ses totaux. Le plan de charge exporté est une image PNG qui porte le nom du projet,
     la révision et la date de calcul. »
+
+## 36. Le motif d'une sortie du cycle de vie
+
+- **Tranché (2026-10-03)** : le motif est celui que l'utilisateur saisit à la confirmation,
+  facultatif ; la transition le conserve et l'historique le présente. Intégré au Word le
+  même jour (WF-CYC-0090, WF-CYC-0130).
+
+- **Où** : WF-CYC-0090 (corps, Vérif) ; WF-CYC-0130 (corps, Vérif) ; issues #190 (spec)
+  et #185 (contrat).
+- **Quoi** : « La confirmation nomme l'état visé, son motif » se lisait de deux façons —
+  le motif saisi par l'utilisateur, ou la raison d'être de l'état visé. Le front d'EP-02 a
+  retenu un motif saisi, facultatif, que le contrat écrit (`ProjectExit.reason`) sans le
+  relire : `StateTransition` ne le porte pas (#185).
+- **Suites hors du document** : le contrat — `reason` nullable sur `StateTransition`, un
+  exemple `exited` dans `state_transitions.json` (#185) ; l'écran du cycle de vie d'EP-02
+  affiche le motif dans l'historique.
+
