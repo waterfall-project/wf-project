@@ -11,6 +11,17 @@
       - $ref: ../components/parameters.yaml#/Offset
       - $ref: ../components/parameters.yaml#/Search
       - $ref: ../components/parameters.yaml#/IncludeInactive
+      - name: origins
+        in: query
+        description: Restreint aux comptes de ces origines (WF-IHM-0130).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/access.yaml#/UserOrigin }
+        explode: false
+      - name: org_node_id
+        in: query
+        description: Restreint aux comptes rattachés à ce nœud d'organisation (WF-IHM-0130).
+        schema: { $ref: ../components/common.yaml#/Uuid }
     responses:
       '200':
         description: Comptes, les désactivés restant lisibles (WF-ADM-0060).
@@ -246,6 +257,8 @@
     description: >-
       Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010,
       WF-ADM-0090).
+    parameters:
+      - $ref: ../components/parameters.yaml#/Search
     responses:
       '200':
         description: Rôles, dont les trois prédéfinis (WF-ADM-0010).

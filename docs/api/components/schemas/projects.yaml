@@ -61,6 +61,8 @@ CommandCondition:
   description: >-
     Condition qu'une commande exige, nommée par le serveur quand elle manque, et
     rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110).
+    `is_project_manager` manque à qui n'est que contributeur pour une action structurante
+    ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110).
     `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet
     — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que
     soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
@@ -71,6 +73,7 @@ CommandCondition:
     (WF-IHM-0080, WF-ARC-0090).
   enum:
     - is_contributor
+    - is_project_manager
     - project_not_terminal
     - project_in_progress
     - project_in_pricing
@@ -156,15 +159,21 @@ ProjectUpdate:
 
 StateTransition:
   type: object
-  required: [from_state, to_state, occurred_at, actor]
+  required: [from_state, to_state, occurred_at, actor, reason]
   description: >-
-    Transition datée du jour où elle s'est produite, non modifiable (WF-CYC-0130).
+    Transition datée du jour où elle s'est produite, avec son auteur et, pour une sortie
+    manuelle, le motif donné à sa confirmation ; non modifiable (WF-CYC-0130).
   properties:
     from_state:
       anyOf: [{ $ref: '#/ProjectState' }, { type: 'null' }]
     to_state: { $ref: '#/ProjectState' }
     occurred_at: { $ref: ../common.yaml#/Timestamp }
     actor: { $ref: ../common.yaml#/ActorRef }
+    reason:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Motif donné à la sortie manuelle qui a produit la transition (WF-CYC-0090) ; nul
+        pour une transition automatique ou une sortie confirmée sans motif.
 
 NextState:
   type: object
@@ -201,6 +210,7 @@ ProjectExit:
       description: 'Faux ou absent, la sortie est refusée : la confirmation est la garde de WF-CYC-0090.'
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130).
 
 WorkBreakdown:
   type: object
@@ -273,24 +283,46 @@ SubprojectUpdate:
       properties:
         lock_version: { $ref: ../common.yaml#/LockVersion }
 
+ContributorKind:
+  type: string
+  enum: [project_manager, contributor]
+  description: >-
+    Qualité d'un contributeur : chef de projet ou contributeur. Les actions structurantes
+    du catalogue et le paramétrage du projet sont réservés à ses chefs de projet, la
+    saisie à tous ses contributeurs (WF-PRJ-0060, WF-ADM-0110).
+
 Contributor:
   type: object
-  required: [user_id, display_name]
+  required: [user_id, display_name, kind]
   description: >-
-    Contributeur d'un projet. Toute saisie y est réservée aux contributeurs ; la
-    consultation ne dépend que des habilitations (WF-PRJ-0060).
+    Contributeur d'un projet, avec sa qualité. La consultation et la saisie sur un projet
+    sont réservées à ses contributeurs, chacune sous sa permission ; la permission
+    « consulter tous les projets » ouvre à la consultation les projets dont l'utilisateur
+    n'est pas contributeur (WF-PRJ-0060).
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
     display_name: { type: string }
+    kind: { $ref: '#/ContributorKind' }
     is_active: { type: boolean }
+
+ContributorWrite:
+  type: object
+  required: [user_id, kind]
+  properties:
+    user_id: { $ref: ../common.yaml#/Uuid }
+    kind: { $ref: '#/ContributorKind' }
 
 ContributorsWrite:
   type: object
-  required: [user_ids, lock_version]
+  required: [contributors, lock_version]
+  description: >-
+    La liste entière, chacun avec sa qualité ; un projet garde au moins un chef de projet
+    (WF-PRJ-0060).
   properties:
-    user_ids:
+    contributors:
       type: array
-      items: { $ref: ../common.yaml#/Uuid }
+      minItems: 1
+      items: { $ref: '#/ContributorWrite' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ContributorSuggestion:

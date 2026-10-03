@@ -100,7 +100,8 @@
       "project_exit",
       "risk_occurrence",
       "cost_line_exclude",
-      "platform_restore"
+      "platform_restore",
+      "all_projects_read"
     ],
     "expires_at": "2026-03-17T08:00:00Z",
     "idle_expires_at": "2026-03-16T16:05:00Z"
