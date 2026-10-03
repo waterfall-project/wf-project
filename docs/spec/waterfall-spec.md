@@ -6,7 +6,8 @@ nombre_exigences: 203
 ---
 
 <!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER.
-     Les sources sont stb-waterfall.docx (Word) et waterfall.visuels.drawio (draw.io).
+     Les sources sont stb-waterfall.docx (Word), waterfall.visuels.drawio (draw.io)
+     et les fichiers Mermaid de figures/.
      Toute correction se fait dans ces fichiers, puis ./build.sh. -->
 
 <p align="center">
@@ -25,11 +26,281 @@ Historique des modifications
 | A        | 17/09/2026 |       |        |
 |          |            |       |        |
 
+1\. Généralités 11
+
+1.1. Objet 11
+
+1.2. Sigles et terminologie 11
+
+1.3. Identification des exigences 12
+
+1.3.1. Forme des exigences 12
+
+1.3.2. Codes de domaines 12
+
+2\. Présentation générale 14
+
+2.1. Périmètre inclus 15
+
+2.2. Périmètre exclu 16
+
+3\. Architecture fonctionnelle 18
+
+3.1. Contexte et interactions externes 18
+
+3.1.1. Diagramme de contexte 19
+
+3.1.2. Flux de données 19
+
+3.1.3. Interactions avec les utilisateurs 21
+
+3.1.4. Interactions avec les systèmes externes 23
+
+3.1.5. Langue de l'interface 27
+
+3.2. Modèle conceptuel 29
+
+3.2.1. Conventions 30
+
+3.2.2. Référentiel de l’entreprise 30
+
+3.2.3. Structure d’un projet 32
+
+3.2.4. Planning 35
+
+3.2.5. Chiffrage et coûts 36
+
+3.2.6. Risques 38
+
+3.3. Modes de fonctionnements 39
+
+3.3.1. Cycle de vie de la plateforme 40
+
+3.3.2. Cycle de vie d’un projet 40
+
+3.4. Découpage fonctionnel 44
+
+3.4.1. Arborescence fonctionnelle 44
+
+3.4.2. FBS-1 : Administration 45
+
+3.4.2.1. FBS-1.1 : Gestion des utilisateurs 45
+
+3.4.2.2. FBS-1.2 : Gestion des rôles d’habilitation 49
+
+3.4.2.3. FBS-1.3 : Surveillance de l’état du système 52
+
+3.4.2.4. FBS-1.4 : Sauvegarde et restauration 52
+
+3.4.3. FBS-2 : Portefeuille 53
+
+3.4.3.1. FBS-2.1 : Portefeuille de projets 55
+
+3.4.3.2. FBS-2.2 : Plan de charge agrégé 56
+
+3.4.3.3. FBS-2.3 : Performance du portefeuille 57
+
+3.4.3.4. FBS-2.4 : Structure des coûts du portefeuille 57
+
+3.4.3.5. FBS-2.5 : Risques du portefeuille 58
+
+3.4.3.6. FBS-2.6 : Décaissements du portefeuille 58
+
+3.4.3.7. FBS-2.7 : Santé du pilotage 59
+
+3.4.4. FBS-3 : Paramètres applicatifs 59
+
+3.4.4.1. FBS-3.1 : Paramètres de coûts 61
+
+3.4.4.1.1. FBS-3.1.1 : Nature et catégories de coûts 61
+
+3.4.4.1.2. FBS-3.1.2 : Taux horaires 62
+
+3.4.4.2. FBS-3.2 : Paramètres de ressources 63
+
+3.4.4.2.1. FBS-3.2.1 : Arbre d’organisation 63
+
+3.4.4.2.2. FBS-3.2.2 : Rôles de ressources 64
+
+3.4.4.2.3. FBS-3.2.3 : Calendriers 65
+
+3.4.4.3. FBS-3.3 : Paramètres de risques 66
+
+3.4.4.4. FBS-3.4 : Paramètres d’indicateurs 66
+
+3.4.5. FBS-4 : Projets 67
+
+3.4.5.1. FBS-4.1 : Gestion des révisions 67
+
+3.4.5.2. FBS-4.2 : Paramètres de projets 72
+
+3.4.5.2.1. FBS-4.2.1 : Lotissement du projet 73
+
+3.4.5.2.2. FBS-4.2.2 : Taux d’inflation 74
+
+3.4.5.2.3. FBS-4.2.3 : Sous-projets 75
+
+3.4.5.2.4. FBS-4.2.4 : Contributeurs 75
+
+3.4.5.2.5. FBS-4.2.5 : Probabilité de gain 76
+
+3.4.5.3. FBS-4.3 : Planification 77
+
+3.4.5.3.1. FBS-4.3.1 : Chronologie 81
+
+3.4.5.3.2. FBS-4.3.2 : Grille de planning 81
+
+3.4.5.3.3. FBS-4.3.3 : Diagramme de GANTT 82
+
+3.4.5.3.4. FBS-4.3.4 : Imports / Exports 83
+
+3.4.5.3.5. FBS-4.3.5 : Arborescence de taches (WBS) 83
+
+3.4.5.4. FBS-4.4 : Chiffrage et devis 84
+
+3.4.5.4.1. FBS-4.4.1 : Indicateurs de devis 86
+
+3.4.5.4.2. FBS-4.4.2 : Grille de devis 87
+
+3.4.5.4.3. FBS-4.4.3 : Gestion des coûts 87
+
+3.4.5.4.4. FBS-4.4.4 : Plan de charge du projet 89
+
+3.4.5.5. FBS-4.5 : Estimation du reste à engager 89
+
+3.4.5.5.1. FBS-4.5.1 : Indicateurs de reste à engager 90
+
+3.4.5.5.2. FBS-4.5.3 : Kanban – Démarrage des tâches 91
+
+3.4.5.5.3. FBS-4.5.2 : Grille de reste à engager 91
+
+3.4.5.6. FBS-4.6 : Gestion des risques 92
+
+3.4.5.6.1. FBS-4.6.1 : Grille de suivi des risques 94
+
+3.4.5.6.2. FBS-4.6.2 : Gestion des provisions pour risques 95
+
+3.4.5.7. FBS-4.7 : Coûts réels 96
+
+3.4.5.8. FBS-4.8 : Indicateurs projets 98
+
+3.4.5.8.1. FBS-4.8.1 : Avancement financier 100
+
+3.4.5.8.2. FBS-4.8.2 : Projection à terminaison 101
+
+3.4.5.8.3. FBS-4.8.3 : Avancement physique 102
+
+3.4.5.8.4. FBS-4.8.4 : Indicateur de coûts (CPI) 102
+
+3.4.5.8.5. FBS-4.8.5 : Indicateur de délais (SPI) 103
+
+3.4.5.8.6. FBS-4.8.6 : Diagramme temps/temps 103
+
+3.4.5.8.7. FBS-4.8.7 : Coûts cumulés (courbe en S) 104
+
+3.4.5.8.8. FBS-4.8.8 : Courbes valeur acquise 104
+
+3.4.5.8.9. FBS-4.8.9 : Projections cash-out 105
+
+3.5. Interactions entre fonctions 105
+
+3.5.1. Arbre commun 105
+
+3.5.2. Flux de travail principal 106
+
+3.6. Principes d'interface 106
+
+4\. Architecture technique 113
+
+4.1. Principes d’architecture 113
+
+4.1.1. Le contrat fait foi 113
+
+4.1.2. Le serveur est l’autorité 113
+
+4.1.3. Les services sont sans état 114
+
+4.2. Découpage technique 115
+
+4.2.1. Arborescence produit 117
+
+4.2.1.1. PBS-1 : Frontend 118
+
+4.2.1.2. PBS-2 : Services backend 118
+
+4.2.1.3. PBS-3 : Données 118
+
+4.2.1.4. PBS-4 : Observabilité 119
+
+4.2.1.5. PBS-5 : Plateforme 119
+
+4.2.2. Allocation des fonctions 119
+
+4.3. Interactions techniques 123
+
+4.3.1. Diagramme de déploiement 123
+
+4.3.2. Tableau des flux techniques 124
+
+4.3.3. Réalisation des flux fonctionnels 124
+
+4.3.4. Diagrammes de séquence 125
+
+4.4. Données 128
+
+4.4.1. Modèle de données et conventions 128
+
+4.4.2. Historisation et immuabilité des révisions 133
+
+4.4.3. Idempotence des imports 136
+
+4.4.4. Stockage des fichiers 137
+
+4.4.5. Cache 137
+
+4.4.6. Evolution du schéma 138
+
+4.5. Modes de fonctionnement techniques 139
+
+4.5.1. Environnement 139
+
+4.5.2. Installation initiale 140
+
+4.5.3. Déploiement et mise à jour 141
+
+4.5.4. Modes dégradés 141
+
+4.6. Exigences transverses 143
+
+4.6.1. Sécurité 143
+
+4.6.2. Performance et volumétrie 144
+
+4.6.3. Observabilité 147
+
+4.6.4. Sauvegarde et reprise 148
+
+4.6.5. Compatibilité 149
+
+4.7. Qualité et vérification 150
+
+Index des exigences 154
+
+ANNEXE A: Glossaire 157
+
+ANNEXE B: Formats d’échanges Excel 164
+
+ANNEXE C: Outillage retenu 165
+
+ANNEXE D: Points ouverts 167
+
 # 1. Généralités
 
 ## 1.1. Objet
 
-Ce document constitue la spécification technique et fonctionnelle du logiciel Waterfall. Le logiciel Waterfall est un logiciel de gestion de projet, il permet de gérer la planification, le chiffrage et le pilotage des projets.
+Ce document constitue la spécification fonctionnelle et technique du logiciel Waterfall. Le logiciel Waterfall est un logiciel de gestion de projet, il permet de gérer la planification, le chiffrage et le pilotage des projets.
+
+Le périmètre décrit par ce document est celui de la première version publiée de Waterfall. Ses évolutions ultérieures feront l'objet de révisions du document.
 
 ## 1.2. Sigles et terminologie
 
@@ -93,7 +364,7 @@ Ci-dessous un exemple d’exigence :
 
 ```yaml exigence
 section: "1.3.1"
-id: "WF-EXAMP-0010-A"
+id: "WF-EXA-0010-A"
 titre: "Support multi-utilisateur"
 flexibilite: "F0"
 fbs: "FBS-1.1"
@@ -149,7 +420,7 @@ La révision retenue lors de la contractualisation sert ensuite de référence p
 
 2.  **Contractualisation et pilotage du projet**.
 
-La seconde phase correspond au suivi du projet pendant son exécution. Les informations relatives au planning, aux coûts réels, au reste à engager et aux risques sont régulièrement mises à jour.
+La seconde phase correspond au pilotage du projet pendant son exécution. Les informations relatives au planning, aux coûts réels, au reste à engager et aux risques sont régulièrement mises à jour.
 
 À chaque revue, Waterfall consolide ces données et recalcule les indicateurs nécessaires à l’analyse de la performance du projet, notamment en matière de coûts, de délais, d’avancement et de risques.
 
@@ -181,9 +452,9 @@ Waterfall couvre la construction et la gestion des offres, notamment :
 
 - la gestion des provisions associées aux risques ;
 
-- l’estimation des chances de gain de l’offre, qui pondère le portefeuille et le plan de charge ;
+- l’estimation des chances de gain de l’offre, qui pondère le portefeuille et le plan de charge.
 
-- Une interface en français et en anglais. Chaque utilisateur travaille dans sa langue, sur les mêmes données : Waterfall traduit ce qu'il affiche, jamais ce qui a été saisi.
+-
 
 Les offres sont versionnées et historisées afin de prendre en charge les cycles de négociation longs et de conserver la trace des différentes hypothèses, évolutions de périmètre et estimations et risques identifiés.
 
@@ -298,9 +569,9 @@ flowchart LR
 
 ### 3.1.2. Flux de données
 
-Ce paragraphe recense les échanges de Waterfall avec son environnement. Il ne porte qu’une exigence, WF-INTF-0150, qui en ferme la liste : les échanges eux-mêmes sont spécifiés par les exigences des interactions avec les systèmes externes, auxquelles les tableaux renvoient.
+Ce paragraphe recense les échanges de Waterfall avec son environnement.
 
-Les flux sont ensuite détaillés dans deux tableaux, l’un pour les systèmes externes, l’autre pour les acteurs. Chaque flux porte un identifiant de la forme FLX-nn, stable, que les exigences peuvent citer. Le sens est donné du point de vue de Waterfall, entrant ou sortant. La colonne « Mode d’échange » indique le support et renvoie à l’exigence qui le spécifie. La colonne « Fréquence » donne le rythme attendu en exploitation, et non une contrainte de performance.
+Les flux sont détaillés dans deux tableaux, l’un pour les systèmes externes, l’autre pour les acteurs. Chaque flux porte un identifiant de la forme FLX-nn, stable, que les exigences peuvent citer. Le sens est donné du point de vue de Waterfall, entrant ou sortant. La colonne « Mode d’échange » indique le support et renvoie à l’exigence qui le spécifie. La colonne « Fréquence » donne le rythme attendu en exploitation, et non une contrainte de performance.
 
 Un flux échappe à cette lecture : FLX-08 relie l’ERP à Excel sans passer par Waterfall. Il figure au tableau pour expliquer d’où viennent les coûts réels, et porte la mention « hors périmètre ».
 
@@ -358,7 +629,7 @@ flexibilite: "F0"
 fbs: "FBS-1.2"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
 corps: "Waterfall doit permettre à un utilisateur habilité de construire le planning d’un projet, d’en structurer le devis, d’en gérer les risques, d’en estimer le reste à engager, et d’importer ou d’exporter les données du projet par fichier. Le rôle prédéfini « chef de projet » accorde ces permissions."
-motif: "Ces usages sont ceux de l’acteur qui connaît le contenu technique du projet et produit les données d’entrée du calcul des indicateurs. Ils fixent le contenu du rôle prédéfini correspondant, sans réserver ces actions à un acteur : dans une organisation matricielle, une partie d’entre elles revient souvent aux managers des métiers."
+motif: "Ces usages sont ceux de l’acteur qui connaît le contenu technique du projet et produit les données d’entrée du calcul des indicateurs. Ils fixent le contenu du rôle prédéfini correspondant, sans réserver ces actions à un acteur : dans une organisation matricielle, une partie d’entre elles peut revenir aux managers des métiers."
 verification: "Un utilisateur porteur du rôle prédéfini « chef de projet » atteint, sur un projet où il est habilité, les fonctions de planification (FBS-4.3), de chiffrage (FBS-4.4), de gestion des risques (FBS-4.6), d’estimation du reste à engager (FBS-4.5) et d’échange des fichiers du tableau des flux (FLX-01 à FLX-07), et les mène jusqu’à leur terme."
 ```
 
@@ -519,7 +790,7 @@ titre: "Import des coûts réels (FLX-07)"
 flexibilite: "F0"
 fbs: "FBS-4.7"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1, PBS-3.3"
-corps: "Un utilisateur habilité peut importer des coûts réels depuis un fichier Excel au format « Coûts réels » de l’ ANNEXE B: Formats d’échanges Excel, extrait de l’ERP sur une période donnée. Chaque ligne du fichier porte un numéro de pièce, qui l’identifie. Une ligne dont le numéro de pièce a déjà été importé met à jour la ligne de coût existante au lieu d’en créer une nouvelle, sans en modifier l’exclusion ; une ligne dont le numéro est inconnu est ajoutée. L’imputation des lignes suit WF-CRE-0020."
+corps: "Un utilisateur habilité peut importer des coûts réels depuis un fichier Excel au format « Coûts réels » de l’ ANNEXE B: Formats d’échanges Excel, extrait de l’ERP sur une période donnée. Chaque ligne du fichier porte un numéro de pièce, qui l’identifie. Une ligne dont le numéro de pièce a déjà été importé met à jour la ligne de coût existante au lieu d’en créer une nouvelle, sans en modifier l’exclusion ; une ligne dont le numéro est inconnu est ajoutée. L’imputation des lignes suit WF-CRE-0020."
 motif: "Les extractions se font de date à date et rien ne garantit que deux périodes successives ne se recouvrent pas. Le numéro de pièce permet de reconnaître une écriture déjà importée, donc de rejouer un import sans compter deux fois la même dépense, ce qui fausserait le coût réel, l’indice de coût et l’avancement financier."
 verification: "Deux imports successifs du même fichier donnent le même total de coûts réels. Si deux fichiers ont des périodes qui se recouvrent, une ligne présente dans les deux n’est comptée qu’une fois. Une ligne déjà importée dont le montant a changé dans l’ERP est mise à jour, et son exclusion est préservée. Le compte rendu (WF-INTF-0080) présente les lignes ajoutées, mises à jour et ignorées avant confirmation."
 ```
@@ -549,7 +820,7 @@ titre: "Ce qui est traduit et ce qui ne l'est pas"
 flexibilite: "F0"
 fbs: "FBS-1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Sont traduits : les libellés de l'interface, les intitulés de colonnes, les noms des indicateurs, les messages d'erreur et les comptes rendus, l'aide en ligne, et les libellés des valeurs que le document fixe — états d'un projet, d'une tâche, d'une révision, d'un risque et d'un compte, types de nature de coût, types de liaison, zones d'un indice. Ne sont pas traduits : les libellés et descriptions saisis par les utilisateurs, les noms de version, les objets du référentiel, les libellés des rôles d'habilitation, et les colonnes conservées des lignes de coût. Un texte saisi n'est jamais dupliqué par langue."
+corps: "Sont traduits : les libellés de l'interface, les intitulés de colonnes, les noms des indicateurs, les messages d'erreur et les comptes rendus, l'aide en ligne, et les libellés des valeurs que le document fixe états d'un projet, d'une tâche, d'une révision, d'un risque et d'un compte, types de nature de coût, types de liaison, zones d'un indice. Ne sont pas traduits : les libellés et descriptions saisis par les utilisateurs, les noms de version, les objets du référentiel, les libellés des rôles d'habilitation, et les colonnes conservées des lignes de coût. Un texte saisi n'est jamais dupliqué par langue."
 motif: "Un libellé saisi est une donnée : il figure dans une offre remise au client, dans un export et dans une révision marquée, et le traduire le rendrait différent selon le lecteur. Les valeurs fixées par le document, elles, portent un code : leur libellé n'est qu'un affichage, et rien n'empêche de l'afficher dans la langue du lecteur. La règle se réduit donc à une question : qui a écrit ce texte ?"
 verification: "Deux utilisateurs de langues différentes ouvrant le même projet voient les mêmes libellés de tâches et de lignes, et des intitulés de colonnes et des libellés d'états différents. Aucun écran ne propose de saisir un libellé dans une seconde langue. Un projet créé par l'un est lisible par l'autre sans mention d'absence de traduction."
 ```
@@ -561,16 +832,28 @@ titre: "Formats indépendants de la langue"
 flexibilite: "F0"
 fbs: "FBS-1"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1"
-corps: "Les formats d'échange ne dépendent pas de la langue de l'interface : les en-têtes de colonnes des formats Excel de l'annexe B, les noms de champs des fichiers MS Project, et les dates et nombres du contrat d'API sont fixes. L'affichage, lui, suit la langue de l'utilisateur : format de date, séparateur décimal, séparateur de milliers, position du symbole monétaire et ordre alphabétique des listes. Le changement de langue ne modifie aucune donnée ni aucun montant, seulement leur présentation."
+corps: "Les formats d'échange ne dépendent pas de la langue de l'interface : les en-têtes de colonnes des formats Excel de l’ANNEXE B: Formats d’échanges Excel, les noms de champs des fichiers MS Project, et les dates et nombres du contrat d'API sont fixes. L'affichage, lui, suit la langue de l'utilisateur : format de date, séparateur décimal, séparateur de milliers, position du symbole monétaire et ordre alphabétique des listes. Le changement de langue ne modifie aucune donnée ni aucun montant, seulement leur présentation."
 motif: "Un devis exporté par un utilisateur français doit pouvoir être réimporté par un utilisateur anglais, faute de quoi la réversibilité de WF-INTF-0060 ne vaut que pour une langue et les équipes ne peuvent plus échanger de fichiers. Fixer les en-têtes une fois pour toutes est la seule façon de le garantir. À l'inverse, afficher une date au format d'une autre langue est le moyen le plus sûr de confondre le 3 décembre et le 12 mars."
 verification: "Un devis exporté par un utilisateur en français et réimporté par un utilisateur en anglais donne un devis identique, sans avertissement de format. Le même montant s'affiche « 1 234,56 » en français et « 1,234.56 » en anglais, et le total du projet est le même. Le fichier Excel exporté porte les mêmes en-têtes quelle que soit la langue de celui qui l'exporte."
 ```
 
 ## 3.2. Modèle conceptuel
 
-Le modèle conceptuel décrit les objets que Waterfall manipule et les relations qui les unissent. Il ne dit ni ce que le logiciel fait de ces objets, ce qui est l’objet du découpage fonctionnel (§3.4. Découpage fonctionnel), ni comment ils sont stockés, ce qui relève du modèle de données (§4.4. Données). Les objets portent les noms définis en ANNEXE A: Glossaire, et aucun autre.
+Le modèle conceptuel décrit les objets que Waterfall manipule et les relations qui les unissent. Il ne dit ni ce que le logiciel fait de ces objets, ce qui est l’objet du découpage fonctionnel (§3.4), ni comment ils sont stockés, ce qui relève du modèle de données (§4.4). Les objets portent les noms définis en ANNEXE A: Glossaire, et aucun autre.
 
-Le modèle est présenté en cinq grappes, du plus stable au plus vivant. Les référentiels de l’entreprise, communs à tous les projets, viennent d’abord. Viennent ensuite la structure d’un projet et ses révisions, puis le contenu d’une révision : le planning d’un côté, le chiffrage et les coûts de l’autre. Les risques, qui s’appuient sur les deux, viennent en dernier. Chaque grappe comprend un diagramme, un texte qui explique les relations non évidentes, et la liste des fonctions qui manipulent ses objets.
+Le modèle est présenté en cinq grappes, du plus stable au plus vivant :
+
+- Les référentiels de l’entreprise, communs à tous les projets ;
+
+- La structure d’un projet et ses révisions ;
+
+- Le planning contenu par la révision ;
+
+- Le chiffrage et les coûts également contenu par la révision ;
+
+- Les risques, qui s’appuient sur les deux précédents.
+
+Chaque grappe comprend un diagramme, un texte qui explique les relations non évidentes, et la liste des fonctions qui manipulent ses objets.
 
 Cette section ne porte aucune exigence. Les règles qu’elle fait apparaître sont portées par les exigences des blocs fonctionnels qui manipulent les objets concernés.
 
@@ -602,7 +885,7 @@ Chaque grappe se termine par la ligne « Manipulé par », qui donne les fonctio
 
 Le référentiel porte ce qui est commun à tous les projets et qu’aucun projet ne redéfinit pour lui-même. Il comprend cinq ensembles, et eux seuls : l’arbre d’organisation, les rôles de ressources, les natures et catégories de coût, les taux horaires et les calendriers. Il est paramétré par les utilisateurs habilités (FBS-3).
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : figures/modele-referentiel.mmd — régénéré par tools/build.py -->
 
 ```mermaid
 classDiagram
@@ -613,6 +896,7 @@ classDiagram
     class Categorie["Catégorie de coût"]
     class Nature["Nature de coût"]
     class Taux["Taux horaire"]
+
     Noeud "0..1" o-- "*" Noeud : sous-nœuds
     Role "*" --> "1" Noeud : rattaché à
     Role "*" --> "1" Categorie : relève de
@@ -641,7 +925,7 @@ Seules les catégories de main-d’œuvre portent des taux horaires, à raison d
 
 Un projet porte deux découpages indépendants, un jeu de révisions, et le code sous lequel l’ERP le connaît.
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : figures/decoupage-projet.mmd — régénéré par tools/build.py -->
 
 ```mermaid
 classDiagram
@@ -652,11 +936,13 @@ classDiagram
     class Livrable["Livrable"]
     class SousProjet["Sous-projet"]
     class Utilisateur["Utilisateur"]
+
     Projet "1" o-- "*" Poste : lotissement
     Poste "1" o-- "*" Lot : contient
     Lot "1" o-- "*" Livrable : contient
     Projet "1" o-- "*" SousProjet : sous-projets
     Projet "*" ..> "*" Utilisateur : contributeurs
+
     style Utilisateur fill:#eeeeee,stroke:#999999,color:#666666
 ```
 
@@ -672,7 +958,7 @@ Les **sous-projets**, eux, portent les codes définis dans l’ERP à la saisie 
 
 **Les contributeurs.** Un projet porte la liste des utilisateurs qui y contribuent : le chef de projet qui le structure, et les managers des métiers qui en chiffrent la charge. Waterfall propose d’y ajouter les utilisateurs des services dont un rôle est employé par le planning ; le chef de projet confirme. Cette liste est une donnée du projet, comme son lotissement, et non une portée d’habilitation : elle dit qui participe à cette affaire, là où les rôles d’habilitation disent ce qu’un utilisateur a le droit de faire. Une affaire multi-métiers ne relève d’aucun service en particulier, et sa liste de contributeurs change à chaque projet, contrairement à l’organigramme.
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : figures/revisions-structure-couts.mmd — régénéré par tools/build.py -->
 
 ```mermaid
 classDiagram
@@ -682,11 +968,13 @@ classDiagram
     class Structure["Structure de coûts"]
     class Tache["Tâche"]
     class ObjetRef["Objet du référentiel"]
+
     Projet "1" o-- "*" Revision : révisions
     Revision "1" o-- "*" Structure : structures de coûts
     Revision "*" ..> "*" ObjetRef : valeurs employées
     Structure "1" o-- "*" Tache : arbre
     Tache "0..1" o-- "*" Tache : sous-tâches
+
     style Tache fill:#eeeeee,stroke:#999999,color:#666666
     style ObjetRef fill:#eeeeee,stroke:#999999,color:#666666
 ```
@@ -707,7 +995,7 @@ classDiagram
 
 Le planning n’est pas un objet distinct : c’est l’arbre de tâches d’une structure de coûts, vu du côté du temps. Les mêmes tâches, vues du côté de l’argent, portent les lignes de devis du §3.2.5. C’est cette unicité qui garantit la cohérence entre les deux : déplacer une tâche déplace ce qu’elle coûte, sans qu’aucune règle n’ait à le dire.
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : figures/modele-planning.mmd — régénéré par tools/build.py -->
 
 ```mermaid
 classDiagram
@@ -718,6 +1006,7 @@ classDiagram
     class Liaison["Liaison"]
     class LigneDevis["Ligne de devis"]
     class Calendrier["Calendrier"]
+
     Structure "1" o-- "*" Tache : arbre
     Tache "0..1" o-- "*" Tache : sous-tâches
     Tache <|-- Jalon : durée nulle
@@ -725,6 +1014,7 @@ classDiagram
     Liaison "*" --> "1" Tache : successeur
     Tache "1" o-- "*" LigneDevis : porte
     Tache "*" ..> "1" Calendrier : calendrier applicable
+
     style Structure fill:#eeeeee,stroke:#999999,color:#666666
     style LigneDevis fill:#eeeeee,stroke:#999999,color:#666666
     style Calendrier fill:#eeeeee,stroke:#999999,color:#666666
@@ -746,9 +1036,9 @@ classDiagram
 
 ### 3.2.5. Chiffrage et coûts
 
-Le devis est la vue d’une structure de coûts du côté de l’argent, comme le planning en est la vue du côté du temps. Ce sont les mêmes tâches : une ligne de devis est toujours portée par l’une d’elles, et hérite ainsi de ses dates.
+Le devis est la vue d’une structure de coûts du côté de l’argent, comme le planning en est la vue du côté du temps. Ce sont les mêmes tâches : une ligne de devis est toujours portée par l’une d’elles, et hérite ainsi de ses dates. Il s’agit là du nécessaire au calcul de la valeur planifiée.
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : figures/modele-chiffrage-couts.mmd — régénéré par tools/build.py -->
 
 ```mermaid
 classDiagram
@@ -760,12 +1050,14 @@ classDiagram
     class Role["Rôle de ressource"]
     class SousProjet["Sous-projet"]
     class Projet["Projet"]
+
     Tache "1" o-- "*" LigneDevis : porte
     LigneDevis "*" --> "1" Categorie : relève de
     LigneDevis "*" --> "0..1" Role : main-d'œuvre
     LigneDevis "*" --> "0..1" SousProjet : regroupée dans
     LigneCout "*" --> "1" Projet : imputée à
     LigneCout "*" --> "0..1" SousProjet : imputée à
+
     style Tache fill:#eeeeee,stroke:#999999,color:#666666
     style Categorie fill:#eeeeee,stroke:#999999,color:#666666
     style Role fill:#eeeeee,stroke:#999999,color:#666666
@@ -781,7 +1073,7 @@ classDiagram
 
 **Le reste à engager n’est pas un autre objet. **Ce sont les mêmes lignes, dans la structure principale de la révision courante, lues par leur montant réestimé. Le reste à engager n’expose à la réestimation que les lignes des tâches démarrées : une tâche non démarrée garde son montant budgété, corrigé de l’inflation si elle a glissé dans le temps, et une tâche dont le reste à engager est nul est terminée.
 
-**La valeur acquise vient des tâches.** Quand une tâche passe à zéro, la valeur de ses lignes dans la structure de référence est acquise. C’est le montant budgété qui s’acquiert, jamais celui qui est facturé : l’écart entre les deux est précisément ce que l’indicateur de coûts mesure. Un acompte de sous-traitance s’acquiert donc au franchissement de son jalon, et une fourniture à sa réception, pour peu que l’utilisateur ait créé le jalon correspondant.
+**La valeur acquise vient des tâches.** Quand le reste à engagé d’une tâche passe à zéro, la valeur de ses lignes dans la structure de référence est acquise. C’est le montant budgété qui s’acquiert, jamais celui qui est facturé : l’écart entre les deux est précisément ce que l’indicateur de coûts mesure. Un acompte de sous-traitance s’acquiert donc au franchissement de son jalon, et une fourniture à sa réception, pour peu que l’utilisateur ait créé le jalon correspondant.
 
 **Les coûts réels viennent d’ailleurs.** Une ligne de coût est une ligne comptable importée de l’ERP. Elle ne se rattache à aucune tâche et à aucune révision : elle est imputée au projet, et au sous-projet lorsque son code en désigne un. Le rapprochement entre ce qui a été dépensé et ce qui avait été prévu se fait donc à la maille du sous-projet, qui regroupe des lignes de devis. C’est pourquoi le sous-projet est la granularité minimale de l’avancement financier : c’est la plus fine où les deux mondes se rejoignent.
 
@@ -791,7 +1083,7 @@ classDiagram
 
 Un risque est porté par le projet, et non par une révision : c’est lui qui traverse le temps, tandis que chaque révision fige l’évaluation qu’on en faisait à sa date.
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : figures/modele-risques.mmd — régénéré par tools/build.py -->
 
 ```mermaid
 classDiagram
@@ -800,9 +1092,11 @@ classDiagram
     class Risque["Risque"]
     class Structure["Structure de coûts"]
     class LigneDevis["Ligne de devis"]
+
     Projet "1" o-- "*" Risque : risques
     Risque "1" --> "1" Structure : devis propre
     Risque "1" --> "1" LigneDevis : provision
+
     style Projet fill:#eeeeee,stroke:#999999,color:#666666
     style Structure fill:#eeeeee,stroke:#999999,color:#666666
     style LigneDevis fill:#eeeeee,stroke:#999999,color:#666666
@@ -835,11 +1129,11 @@ Ces prérequis se vérifient en deux temps. L’existence du référentiel se v�
 ```yaml exigence
 section: "3.3.1"
 id: "WF-CYC-0120-A"
-titre: "Référentiel minimal requis pour créer un projet"
+titre: "Référentiel minimal requis pour la création d’un projet"
 flexibilite: "F0"
 fbs: "FBS-3, FBS-4.9"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La création d’un projet est refusée tant que le référentiel commun est incomplet, c’est-à-dire tant qu’il manque l’un des éléments suivants : un calendrier par défaut actif dont au moins un jour de la semaine compte des heures travaillées, au moins une catégorie de coût active, au moins un rôle de ressource actif."
+corps: "La création d’un projet est refusée tant que le référentiel commun est incomplet, c’est-à-dire tant qu’il manque l’un des éléments suivants : un calendrier par défaut actif dont au moins un jour de la semaine compte des heures travaillées ; au moins une catégorie de coût active ; au moins un rôle de ressource actif."
 motif: "Si aucun jour ne compte d’heures travaillées, toute durée calculée vaut zéro. Sans catégorie de coût ni rôle, aucune ligne de devis ne peut être chiffrée. Laisser créer le projet ne ferait que déplacer l’échec vers un écran où sa cause n’est plus visible. Les taux horaires ne font pas partie de ces prérequis : ils ne sont exigés que pour les catégories de coût qu’un devis emploie réellement, et pour son année de référence (WF-DEV-0010)."
 verification: "Sur une plateforme dont le référentiel est incomplet, la création d’un projet est refusée, et le refus nomme chaque prérequis manquant. La création aboutit dès que tous les prérequis sont satisfaits."
 ```
@@ -1000,9 +1294,19 @@ verification: "Toutes les vues de consultation d’un projet clos s’affichent 
 
 ## 3.4. Découpage fonctionnel
 
-Ce chapitre spécifie les fonctions de Waterfall une à une, dans l’ordre d’une arborescence qui les recense toutes et leur donne un code. Ce code est ce que chaque exigence cite pour dire à quelle fonction elle se rapporte, et c’est par lui — jamais par un numéro de section — que les fonctions se désignent entre elles.
+Ce chapitre spécifie les fonctions de Waterfall une à une, dans l’ordre d’une arborescence qui les recense toutes et leur donne un code.
 
-Quatre blocs le composent. L’administration porte l’exploitation de la plateforme : les comptes, les droits, la surveillance, les sauvegardes. Le management porte les vues qui traversent les projets. Les paramètres applicatifs portent le référentiel que tous les projets partagent. Le bloc des projets, de loin le plus étendu, porte tout ce qu’un projet contient et tout ce qu’on y fait, de la révision à l’indicateur. Chaque bloc s’ouvre par un texte qui dit ce qu’il couvre et ce qu’il laisse aux autres, puis énonce ses exigences.
+Quatre blocs le composent :
+
+- L’administration (FBS-1) porte l’exploitation de la plateforme : les comptes, les droits, la surveillance, les sauvegardes.
+
+- Le portefeuille (FBS-2) porte les vues qui traversent les projets.
+
+- Les paramètres applicatifs (FBS-3) portent le référentiel que tous les projets partagent.
+
+- Le bloc des projets (FBS-4), de loin le plus étendu, porte tout ce qu’un projet contient et tout ce qu’on y fait, de la révision à l’indicateur.
+
+Chaque bloc s’ouvre par un texte qui dit ce qu’il couvre et ce qu’il laisse aux autres, puis énonce ses exigences.
 
 ### 3.4.1. Arborescence fonctionnelle
 
@@ -1101,9 +1405,9 @@ flowchart LR
 
 Ce bloc porte les fonctions d’exploitation de la plateforme : qui peut s’y connecter, ce que chacun a le droit d’y faire, et si elle fonctionne. Aucune d’elles ne modifie une donnée de projet en particulier ; la restauration les remplace toutes ensemble, sans en distinguer aucune.
 
-Le système de droits repose sur deux mécanismes qui ne se substituent pas l’un à l’autre. Les **rôles d’habilitation** disent ce qu’un utilisateur a le droit de faire ; la **liste des contributeurs** de chaque projet dit sur quels projets il le fait (WF-PRJ-0060). Le premier est administré ici ; la seconde appartient au projet.
+Le système de droits repose sur deux mécanismes qui ne se substituent pas l’un à l’autre. Les **rôles d’habilitation** disent ce qu’un utilisateur a le droit de faire ; la **liste des contributeurs** de chaque projet dit sur quels projets il le fait (WF-PRJ-0060). Le premier est administré ici ; la seconde appartient au projet.
 
-#### 3.4.2.1. Gestion des utilisateurs
+#### 3.4.2.1. FBS-1.1 : Gestion des utilisateurs
 
 Un compte est ce par quoi une personne existe dans Waterfall : une identité, un état, des rôles, et quelques réglages qui lui sont propres. Les comptes viennent le plus souvent de l’annuaire de l’entreprise, qui reste la source de leur identité ; Waterfall n’y ajoute que ce que l’annuaire ignore — les rôles, le rattachement à l’organisation, les préférences.
 
@@ -1205,7 +1509,7 @@ motif: "L’avatar rend lisible d’un coup d’œil qui a marqué une révision
 verification: "Un utilisateur ajoute, remplace et retire son avatar sans intervention d’un administrateur. Il ne peut pas modifier celui d’un autre. Un compte sans avatar est affiché avec une image par défaut."
 ```
 
-#### 3.4.2.2. Gestion des rôles d’habilitation
+#### 3.4.2.2. FBS-1.2 : Gestion des rôles d’habilitation
 
 Waterfall applique un contrôle d’accès par rôles. Une **permission** est le droit d’accomplir une action ; un **rôle** est un ensemble de permissions ; un utilisateur porte un ou plusieurs rôles et dispose de l’union de leurs permissions. Trois rôles sont livrés avec la plateforme (WF-ADM-0010), et une entreprise peut en composer d’autres : aucune action n’est réservée à un acteur (WF-ADM-0020).
 
@@ -1283,7 +1587,7 @@ motif: "Sans cette garde, une installation peut se retrouver sans personne pour 
 verification: "La désactivation du dernier compte administrateur est refusée, de même que le retrait de son rôle. Elle est acceptée dès qu’un second compte actif porte la permission."
 ```
 
-#### 3.4.2.3. Surveillance de l’état du système
+#### 3.4.2.3. FBS-1.3 : Surveillance de l’état du système
 
 L’écran d’état répond à une question simple : la plateforme fonctionne-t-elle, et sinon, qu’est-ce qui ne va pas ? Il s’adresse à celui qui exploite Waterfall, non à ceux qui l’utilisent, et il ne montre que ce qu’un exploitant peut faire de ses mains. Les métriques qui l’alimentent relèvent de l’architecture technique.
 
@@ -1299,7 +1603,7 @@ motif: "Un exploitant a besoin de savoir en quelques secondes si un composant es
 verification: "L’arrêt d’un composant apparaît sur l’écran d’état à la vérification suivante. L’écran indique la version installée et la date de la dernière synchronisation de l’annuaire. Il s’affiche pour un utilisateur habilité qui n’est contributeur d’aucun projet. L'écran indique la date du dernier test de restauration."
 ```
 
-#### 3.4.2.4. Sauvegarde et restauration
+#### 3.4.2.4. FBS-1.4 : Sauvegarde et restauration
 
 Une sauvegarde de Waterfall porte sur la base, qui contient tout ce que la plateforme sait : les projets, leurs révisions, le référentiel, les comptes. Les fichiers importés ne vivent que le temps de leur import et n’ont pas à être sauvegardés. Ce paragraphe décrit ce qu’un administrateur en voit et en fait ; la façon dont elle est réalisée, où elle est conservée et à quelle perte de données on consent relèvent de l’architecture technique.
 
@@ -1383,7 +1687,7 @@ motif: "Le portefeuille est fait pour ceux qui décident sans faire : un manage
 verification: "Un utilisateur habilité au portefeuille mais contributeur d’aucun projet consulte toutes les vues. Aucune vue ne propose de modifier une donnée. Depuis chaque vue, chaque projet du périmètre s’ouvre."
 ```
 
-#### 3.4.3.1. Portefeuille de projets
+#### 3.4.3.1. FBS-2.1 : Portefeuille de projets
 
 La liste des projets est la porte d’entrée du bloc : elle dit ce qu’il y a, dans quel état, et ce que cela vaut. Sa première fonction est de répondre à la question la plus simple et la plus souvent posée — que vaut le portefeuille ? — en distinguant ce qui est signé de ce qui ne l’est pas.
 
@@ -1411,7 +1715,7 @@ motif: "Ces trois valeurs répondent à trois questions distinctes — ce qui es
 verification: "Le carnet ne compte que les projets en cours, le pipeline que les projets en chiffrage. Une offre à 40 % de probabilité contribue pour tout au pipeline brut et pour 40 % au pipeline pondéré. Sur dix offres closes dans la période, dont quatre gagnées, le taux de transformation vaut 40 %."
 ```
 
-#### 3.4.3.2. Plan de charge agrégé
+#### 3.4.3.2. FBS-2.2 : Plan de charge agrégé
 
 Le plan de charge agrégé somme les plans de charge des projets pour répondre à la question des ressources : a-t-on les bras, rôle par rôle, mois par mois ? Il se lit contre la capacité, et c’est le taux de charge qui dit s’il faut embaucher, sous-traiter ou arbitrer.
 
@@ -1427,7 +1731,7 @@ motif: "La charge d’un projet en cours est ce qu’il reste à faire, pas ce q
 verification: "Sur deux projets en cours dont les restes à engager portent 100 et 150 heures d’un même rôle le même mois, le plan agrégé porte 250 heures. Une offre à 50 % avec 100 heures ajoute 50 heures quand le chiffrage est inclus, rien sinon. Un mois à 120 % de la capacité est signalé."
 ```
 
-#### 3.4.3.3. Performance du portefeuille
+#### 3.4.3.3. FBS-2.3 : Performance du portefeuille
 
 La performance du portefeuille répond aux deux questions que l’entreprise pose à ses projets — tient-on les budgets, tient-on les délais ? — avec les mêmes indices qu’un projet, agrégés par sommes. Elle y ajoute ce qu’un projet seul ne peut pas montrer : la répartition des projets par zone, et l’évolution de l’ensemble dans le temps.
 
@@ -1443,7 +1747,7 @@ motif: "Un indice agrégé dit où en est l’entreprise ; la répartition par 
 verification: "L’indice de coût agrégé est le rapport de la somme des valeurs acquises à la somme des coûts réels des projets du périmètre. La répartition par zone compte chaque projet une fois. L’évolution trimestrielle à une date passée ne change pas quand une révision est marquée après cette date."
 ```
 
-#### 3.4.3.4. Structure des coûts du portefeuille
+#### 3.4.3.4. FBS-2.4 : Structure des coûts du portefeuille
 
 La structure des coûts dit de quoi le portefeuille est fait : quelle part de main-d’œuvre, de matière, de sous-traitance, de provisions. Elle se lit sur ce qui a été budgété et sur ce qui reste à engager — jamais sur la dépense, que l’ERP ne ventile pas par nature.
 
@@ -1459,7 +1763,7 @@ motif: "La part de sous-traitance, la part de matière et la part de main-d’œ
 verification: "La somme des parts par nature vaut cent pour cent, sur le budget comme sur le reste à engager. La ventilation par nœud ne porte que sur la main-d’œuvre. Aucune vue ne propose de ventilation du coût réel par nature."
 ```
 
-#### 3.4.3.5. Risques du portefeuille
+#### 3.4.3.5. FBS-2.5 : Risques du portefeuille
 
 Les risques du portefeuille montrent ce que l’entreprise porte d’incertain, tous projets confondus : combien elle provisionne, quels risques pèsent le plus, et ce que ses provisions sont devenues.
 
@@ -1475,7 +1779,7 @@ motif: "Un risque à 200 000 € pèse sur l’entreprise quel que soit le proje
 verification: "Le total des provisions identifiées égale la somme des provisions des risques identifiés des projets du périmètre. La matrice compte chaque risque identifié une fois. Un risque survenu dans la période compte dans les provisions survenues, un risque écarté dans les provisions écartées."
 ```
 
-#### 3.4.3.6. Décaissements du portefeuille
+#### 3.4.3.6. FBS-2.6 : Décaissements du portefeuille
 
 Le cash-out du portefeuille est la seule vue de ce bloc qui s’adresse d’abord au contrôleur de gestion : quand l’argent sortira-t-il, tous projets confondus ? C’est la somme des projections de décaissement des projets, et rien d’autre.
 
@@ -1491,7 +1795,7 @@ motif: "La trésorerie se pilote au niveau de l’entreprise, pas du projet : c
 verification: "Le décaissement agrégé d’un mois égale la somme des décaissements de ce mois sur les projets du périmètre. Un projet en chiffrage à 40 % contribue pour 40 % de sa projection lorsqu’il est inclus."
 ```
 
-#### 3.4.3.7. Santé du pilotage
+#### 3.4.3.7. FBS-2.7 : Santé du pilotage
 
 Tous les indicateurs précédents valent ce que valent les revues qui les alimentent. Cette vue dit si le pilotage lui-même est tenu : qui n’a pas fait sa revue, qui n’a pas réexaminé ses risques, qui n’a pas importé ses coûts. C’est la vue qui permet de faire confiance aux autres.
 
@@ -1565,9 +1869,9 @@ motif: "Un référentiel dont rien ne se supprime accumule les objets désactiv�
 verification: "Un objet désactivé n’apparaît pas dans la liste par défaut, apparaît lorsque l’affichage des objets désactivés est demandé, et peut y être réactivé."
 ```
 
-#### 3.4.4.1. Paramètres de coûts
+#### 3.4.4.1. FBS-3.1 : Paramètres de coûts
 
-Deux paramétrages distincts, souvent confondus. Les natures et les catégories décrivent **ce qu’est** une dépense : elles servent à la ventiler dans le devis et à la nommer en comptabilité. Les taux horaires disent **combien elle coûte**, année par année.
+Deux paramétrages distincts, souvent confondus. Les natures et les catégories décrivent ce qu’est une dépense : elles servent à la ventiler dans le devis et à la nommer en comptabilité. Les taux horaires disent combien elle coûte, année par année.
 
 ```yaml exigence
 section: "3.4.4.1"
@@ -1581,7 +1885,7 @@ motif: "La devise ne sert qu’à l’affichage. Gérer plusieurs devises suppos
 verification: "La devise apparaît partout où un montant est affiché ou exporté, et aucun écran ne propose d’en changer ni d’en saisir une seconde."
 ```
 
-##### 3.4.4.1.1. Nature et catégories de coûts
+##### 3.4.4.1.1. FBS-3.1.1 : Nature et catégories de coûts
 
 La nature est le niveau que l’utilisateur voit dans son devis : main-d’œuvre, fourniture, frais, unité d’œuvre, provision. La catégorie est le niveau que la comptabilité reconnaît, et c’est elle qui porte le taux horaire. Les deux se paramètrent ici, avec leurs codes (WF-REF-0030, WF-REF-0040).
 
@@ -1611,7 +1915,7 @@ motif: "La catégorie est ce par quoi la comptabilité nomme la dépense, et ell
 verification: "La création d’une catégorie sans nature est refusée. La création d’une catégorie dont le code comptable existe déjà est refusée."
 ```
 
-##### 3.4.4.1.2. Taux horaires
+##### 3.4.4.1.2. FBS-3.1.2 : Taux horaires
 
 Les taux se présentent comme une grille : une ligne par catégorie de main-d’œuvre, une colonne par année (WF-REF-0050). Ils sont exprimés dans la devise de l’installation (WF-REF-0140).
 
@@ -1641,7 +1945,7 @@ motif: "Les taux d’une année nouvelle sont des valeurs constatées, souvent c
 verification: "L’ajout d’une colonne pour une année déjà présente est refusé. Une colonne ajoutée est vide, et les taux des années précédentes sont inchangés."
 ```
 
-#### 3.4.4.2. Paramètres de ressources
+#### 3.4.4.2. FBS-3.2 : Paramètres de ressources
 
 Trois paramétrages qui se complètent :
 
@@ -1651,7 +1955,7 @@ Trois paramétrages qui se complètent :
 
 - le calendrier dit quand il travaille.
 
-##### 3.4.4.2.1. Arbre d’organisation
+##### 3.4.4.2.1. FBS-3.2.1 : Arbre d’organisation
 
 L’arbre reproduit l’organigramme de l’entreprise, sans limite de profondeur (WF-REF-0070). Il sert à classer les rôles de ressources et à les regrouper par service ou département dans le plan de charge. Une réorganisation se traduit par des désactivations en cascade : les rôles ne se déplacent pas d’un nœud à l’autre, ils sont recréés sous les nouveaux nœuds (WF-REF-0080). Un nœud, lui, peut être déplacé dans l’arbre. Les regroupements par service, notamment le plan de charge agrégé, sont toujours lus à travers l’organigramme courant : déplacer un nœud change donc la présentation des données passées, sans en changer les valeurs.
 
@@ -1679,7 +1983,7 @@ motif: "Lors d’une réorganisation, les services changent de périmètre et le
 verification: "La désactivation d’un nœud portant deux niveaux de descendants et des rôles les désactive tous. La réactivation d’un rôle dont le nœud est désactivé est refusée."
 ```
 
-##### 3.4.4.2.2. Rôles de ressources
+##### 3.4.4.2.2. FBS-3.2.2 : Rôles de ressources
 
 Un rôle représente un poste, par exemple « Ingénieur logiciel », et non une personne. Ses trois rattachements sont obligatoires, car chacun sert à quelque chose : le nœud le place dans l’organigramme, la catégorie fixe son taux, le calendrier donne ses jours travaillés (WF-REF-0090). Sa capacité, unique et invariable, est ce que le plan de charge confronte à la charge des projets (WF-REF-0100).
 
@@ -1707,7 +2011,7 @@ motif: "Le plan de charge compare une charge à une capacité stable. Une capaci
 verification: "Un rôle ne porte qu’une capacité, sans date de validité. Le plan de charge agrégé compare la charge mensuelle de chaque rôle à son nombre d’heures."
 ```
 
-##### 3.4.4.2.3. Calendriers
+##### 3.4.4.2.3. FBS-3.2.3 : Calendriers
 
 Un calendrier se résume à sept valeurs, une par jour de la semaine (WF-REF-0110). Il décrit le rythme d’un rôle, pas d’une personne : ni jours fériés, ni temps partiels. L’un d’eux est désigné par défaut et s’applique aux tâches qui ne portent aucune ligne de main-d’œuvre (WF-REF-0120, WF-PLA-0010).
 
@@ -1735,7 +2039,7 @@ motif: "Le calendrier par défaut s’applique aux tâches auxquelles aucun rôl
 verification: "Désigner un calendrier par défaut retire cette désignation au précédent. La désactivation du calendrier par défaut est refusée tant qu’un autre n’a pas été désigné."
 ```
 
-#### 3.4.4.3. Paramètres de risques
+#### 3.4.4.3. FBS-3.3 : Paramètres de risques
 
 Ce paragraphe ne porte aujourd’hui qu’un seul paramètre : les bornes de la matrice qui classe les risques d’un projet (WF-REF-0160). Elles sont communes à tous les projets parce qu’elles traduisent la politique de risques de l’entreprise : le niveau à partir duquel un risque devient préoccupant ne dépend pas de l’affaire, mais de ce que l’entreprise accepte de porter. Exprimées en pourcentage du budget de référence, elles restent comparables d’un projet à l’autre, quelle que soit sa taille.
 
@@ -1751,7 +2055,7 @@ motif: "Une gravité est un montant, et un même montant ne pèse pas de la mêm
 verification: "Les six bornes sont saisissables et ordonnées. Un même risque, rapporté à deux projets de budgets différents, ne tombe pas dans le même niveau de gravité."
 ```
 
-#### 3.4.4.4. Paramètres d’indicateurs
+#### 3.4.4.4. FBS-3.4 : Paramètres d’indicateurs
 
 Les indices de coût et de délai n’ont de sens que comparés à des seuils : à partir de quel écart un projet mérite-t-il l’attention, puis l’alerte ? Ces seuils traduisent la tolérance de l’entreprise, non celle d’un projet, et se paramètrent donc ici, comme les bornes de la matrice de risques.
 
@@ -1785,7 +2089,7 @@ Ce bloc est le cœur du travail quotidien : tout ce qu’un projet porte et tou
 
 Deux choses conditionnent tout le reste. Ce qui est modifiable dépend de l’état du projet et de celui de ses révisions : une révision marquée ne bouge plus, un projet terminal non plus. Et le planning et le devis ne sont pas deux ouvrages distincts mais deux vues d’un même arbre, ce qui explique qu’une action dans l’un se répercute dans l’autre.
 
-#### 3.4.5.1. Gestion des révisions
+#### 3.4.5.1. FBS-4.1 : Gestion des révisions
 
 Une révision est la mémoire du projet. Tant qu’elle est en cours d’élaboration, elle est l’endroit où tout se passe : la saisie, les imports, la réestimation. Une fois marquée, elle ne bouge plus, et le travail continue dans la suivante.
 
@@ -1911,11 +2215,11 @@ motif: "C'est la seule règle de composition du modèle qui ne figurait que dans
 verification: "Une révision nouvellement créée comporte une structure principale et aucune autre. Deux structures différentielles coexistent dans une même révision, et la fusion de l'une laisse l'autre intacte. Un risque déclaré ajoute une structure propre, présente dans chaque révision marquée postérieure."
 ```
 
-#### 3.4.5.2. Paramètres de projets
+#### 3.4.5.2. FBS-4.2 : Paramètres de projets
 
 Un projet porte peu de paramètres, et aucun n’est réellement bloquant : le lotissement a une valeur par défaut, le taux d’inflation vaut zéro, les codes viennent de l’ERP quand la commande arrive. C’est ce qui permet de créer un projet et de commencer à chiffrer sans rien avoir décidé.
 
-Ces paramètres ne se ressemblent pas. Le **lotissement** décrit la commande et sert à amorcer le planning. Le **taux d’inflation** est une hypothèse de chiffrage. Les **codes de sous-projets** sont la clé qui permettra de rapprocher les coûts réels du budget. Le code du projet lui-même est celui sous lequel l’ERP le connaît (WF-PRJ-0010). La **liste des contributeurs**, enfin, dit qui travaille sur cette affaire. La **probabilité de gain**, enfin, dit ce que vaut l’offre tant qu’elle n’est pas gagnée : c’est elle qui permet au portefeuille de compter un projet en chiffrage pour ce qu’il pèse, et non pour tout ou rien.
+Ces paramètres ne se ressemblent pas. Le **lotissement** décrit la commande et sert à amorcer le planning. Le **taux d’inflation** est une hypothèse de chiffrage. Les **codes de sous-projets** sont la clé qui permettra de rapprocher les coûts réels du budget. Le code du projet lui-même est celui sous lequel l’ERP le connaît (WF-PRJ-0010). La **liste des contributeurs**, enfin, dit qui travaille sur cette affaire. La **probabilité de gain**, enfin, pondère la valeur de l’offre tant qu’elle n’est pas gagnée : c’est elle qui permet au portefeuille de compter un projet en chiffrage pour ce qu’il pèse, et non pour tout ou rien.
 
 <!-- source : waterfall.visuels.drawio, page « FBS-4.2 » — régénéré par tools/build.py -->
 
@@ -1966,7 +2270,7 @@ motif: "Le libellé est ce sous quoi le projet apparaît dans le portefeuille. L
 verification: "La création d’un projet sans libellé est refusée. La date de réception de la commande est saisissable à tout moment et n’est exigée par aucune transition."
 ```
 
-##### 3.4.5.2.1. Lotissement du projet
+##### 3.4.5.2.1. FBS-4.2.1 : Lotissement du projet
 
 Le lotissement reproduit le découpage du bon de commande en postes, lots et livrables (WF-PRJ-0020). Il ne conditionne rien : un projet se chiffre et se pilote sans lui.
 
@@ -1996,7 +2300,7 @@ motif: "C’est une aide à la saisie, au même titre que l’import MS Project 
 verification: "La génération sur un lotissement de deux postes et trois lots produit les récapitulatives, les feuilles et les jalons attendus, avec leurs liaisons. Elle n’est plus proposée dès que la structure comporte une tâche. Modifier ensuite le lotissement ne change pas le planning."
 ```
 
-##### 3.4.5.2.2. Taux d’inflation
+##### 3.4.5.2.2. FBS-4.2.2 : Taux d’inflation
 
 Le chiffrage n’emploie que les taux horaires de l’année de référence. Le taux d’inflation du projet est ce qui les projette sur les années suivantes, dont les taux ne sont pas encore connus (WF-PRJ-0040).
 
@@ -2012,7 +2316,7 @@ motif: "Le taux d’inflation projette les taux horaires connus sur les années 
 verification: "La modification du taux d’inflation laisse inchangés les montants des révisions marquées. Dans la révision en cours, les charges dont l’année de consommation suit l’année de référence sont rechiffrées, les autres non."
 ```
 
-##### 3.4.5.2.3. Sous-projets
+##### 3.4.5.2.3. FBS-4.2.3 : Sous-projets
 
 Les codes de sous-projets viennent de l’ERP, à la saisie de la commande : ils ne sont donc pas connus pendant le chiffrage (WF-PRJ-0050). Leur découpage est une affaire d’habitude — par phase, par métier, ou selon le lotissement — et Waterfall n’en impose aucune.
 
@@ -2030,7 +2334,7 @@ motif: "Les codes viennent de l’ERP à la commande et ne sont pas connus penda
 verification: "Un projet se chiffre sans aucun sous-projet. La création de deux sous-projets de même code dans un même projet est refusée. La suppression d’un sous-projet portant des coûts réels est refusée."
 ```
 
-##### 3.4.5.2.4. Contributeurs
+##### 3.4.5.2.4. FBS-4.2.4 : Contributeurs
 
 Une affaire multi-métiers ne relève d’aucun service en particulier : le chef de projet la structure, et les managers des métiers en chiffrent la charge. La liste des contributeurs dit qui participe à cette affaire-là (WF-PRJ-0060). Elle est une donnée du projet, au même titre que son lotissement, et change à chaque affaire — contrairement à l’organigramme, qui décrit l’entreprise et ne bouge qu’aux réorganisations.
 
@@ -2060,7 +2364,7 @@ motif: "Affecter un rôle à une tâche révèle le service concerné : le chef
 verification: "Après affectation à une tâche d’un rôle relevant d’un service dont aucun utilisateur n’est contributeur, Waterfall propose les utilisateurs de ce service. Tant que la proposition n’est pas confirmée, la liste est inchangée."
 ```
 
-##### 3.4.5.2.5. Probabilité de gain
+##### 3.4.5.2.5. FBS-4.2.5 : Probabilité de gain
 
 Une offre en chiffrage n’est pas un projet : elle peut ne jamais se faire. Compter son devis pour tout dans le portefeuille surestime le carnet ; ne pas le compter le sous-estime. La probabilité de gain est le poids que le chef de projet donne à son offre, et c’est par elle que le portefeuille et le plan de charge agrégé comptent les projets en chiffrage pour ce qu’ils valent (FBS-2).
 
@@ -2076,7 +2380,7 @@ motif: "Le pipeline d’offres vaut ce qu’on a de chances de gagner, pas la so
 verification: "Une offre à 40 % de probabilité et 100 000 € de devis pèse 40 000 € dans le pipeline pondéré et 40 % de sa charge dans le plan de charge agrégé pondéré. Le devis et les indicateurs du projet lui-même sont identiques à 0 % et à 100 %. La modification de la probabilité est refusée à partir de l’état En cours."
 ```
 
-#### 3.4.5.3. Planification
+#### 3.4.5.3. FBS-4.3 : Planification
 
 Le planning est l’arbre de tâches d’une structure de coûts, vu du côté du temps (§3.2.4). Ce bloc décrit comment il se construit et se consulte : une grille pour saisir, un diagramme de Gantt pour voir les enchaînements, une chronologie pour communiquer, une arborescence pour montrer le découpage. Toutes ces vues montrent les mêmes tâches.
 
@@ -2188,9 +2492,9 @@ titre: "Attributs d’une tâche"
 flexibilite: "F0"
 fbs: "FBS-4.3"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Une tâche porte un libellé, une description facultative, une durée, une date de début, une date de fin, un mode de planification et un état d’avancement. Elle porte en outre la date à laquelle elle a été démarrée et celle à laquelle elle a été terminée, renseignées lors du changement d’état, avec la date du jour par défaut. La durée d’un jalon est nulle ; celles d’une tâche récapitulative, comme ses dates et son état, sont calculées à partir de ses subordonnées. Elle porte en outre trois valeurs calculées, qui ne sont pas saisissables : sa marge totale et son appartenance au chemin critique (WF-PLA-0100), et, pour une récapitulative, son avancement physique (WF-IND-0060). La description est transportée par les imports et les exports MS Project."
-motif: "Ce sont les attributs que toutes les vues affichent et que les échanges MS Project transportent. Les dates de démarrage et de terminaison sont ce qui situe la valeur acquise dans le temps : sans elles, elle ne serait connue qu’aux dates de revue, et l’indice de délai serait faux de la durée d’une revue."
-verification: "Chacun de ces attributs est affiché dans la grille de planning, et ceux que MS Project connaît sont transportés par l’export. Le passage à l’état démarré ou terminé demande une date, proposée au jour courant et modifiable. La durée d’un jalon est nulle et n’est pas modifiable ; les dates d’une récapitulative ne sont pas saisissables. La marge totale, la criticité et l'avancement physique s'affichent et ne sont pas saisissables."
+corps: "Une tâche porte : un libellé, une description facultative, une durée, une date de début, une date de fin, un mode de planification et un état d’avancement. Elle porte en outre la date à laquelle elle a été démarrée et celle à laquelle elle a été terminée, renseignées lors du changement d’état, avec la date du jour par défaut. La durée d’un jalon est nulle ; celles d’une tâche récapitulative, comme ses dates et son état, sont calculées à partir de ses subordonnées. Elle porte en outre trois valeurs calculées, qui ne sont pas saisissables : sa marge totale son appartenance au chemin critique (WF-PLA-0100), pour une récapitulative, son avancement physique (WF-IND-0060). La description est transportée par les imports et les exports MS Project."
+motif: "Ce sont les attributs que toutes les vues affichent et que les échanges MS Project transportent. Les dates de démarrage et de terminaison sont ce qui situe la valeur acquise dans le temps : sans elles, elle ne serait connue qu’aux dates de revue, et l’indice de délai serait faux de la durée d’une revue."
+verification: "Chacun de ces attributs est affiché dans la grille de planning, et ceux que MS Project connaît sont transportés par l’export. Le passage à l’état démarré ou terminé demande une date, proposée au jour courant et modifiable. La durée d’un jalon est nulle et n’est pas modifiable ; les dates d’une récapitulative ne sont pas saisissables. La marge totale, la criticité et l'avancement physique s'affichent et ne sont pas saisissables."
 ```
 
 ```yaml exigence
@@ -2205,7 +2509,7 @@ motif: "Quinze ans est la borne au-delà de laquelle ni les taux horaires archiv
 verification: "Le déplacement d’une tâche qui porterait la fin du projet à quinze ans et un jour de son début est refusé, et la tâche est nommée. Un import MS Project dont le planning s’étend sur seize ans est rejeté au compte rendu."
 ```
 
-##### 3.4.5.3.1. Chronologie
+##### 3.4.5.3.1. FBS-4.3.1 : Chronologie
 
 Une chronologie est une vue synthétique destinée à être montrée : elle ne présente que les tâches et les jalons qui y ont été inscrits. Un projet peut en porter plusieurs, chacune nommée et conservée, parce qu’on ne montre pas la même chose à un comité de direction, à un client et à une équipe.
 
@@ -2233,7 +2537,7 @@ motif: "Une chronologie est un support de communication, et l’on ne montre pas
 verification: "Deux chronologies d’un même projet portent des sélections distinctes et se retrouvent d’une session à l’autre. L’export produit un fichier PNG de la chronologie affichée."
 ```
 
-##### 3.4.5.3.2. Grille de planning
+##### 3.4.5.3.2. FBS-4.3.2 : Grille de planning
 
 La grille est l’outil de saisie du planning. Son objectif est d’offrir à un utilisateur de Microsoft Project des fonctions et une ergonomie qui lui soient familières : arbre pliable, indentation au clavier, recalcul immédiat, recherche sur les libellés.
 
@@ -2249,7 +2553,7 @@ motif: "La grille est l’outil de saisie du planning, et ses utilisateurs vienn
 verification: "Chacune des colonnes citées est présente. L’indentation d’un groupe de tâches déplace le groupe entier sous la tâche précédente. La recherche sur un libellé ne laisse voir que les tâches correspondantes et leurs parents. Les trois sortes de tâches se distinguent sans lire leur durée."
 ```
 
-##### 3.4.5.3.3. Diagramme de GANTT
+##### 3.4.5.3.3. FBS-4.3.3 : Diagramme de GANTT
 
 Le Gantt montre les tâches sur un axe temporel, avec leurs liaisons et leur hiérarchie. À la différence de Microsoft Project, il se consulte mais ne se modifie pas : toute saisie passe par la grille. Une seule façon de modifier un planning évite les gestes dont l’effet dépend de la vue où on les fait.
 
@@ -2277,14 +2581,18 @@ motif: "Le chemin critique est ce qu’un chef de projet regarde en premier pour
 verification: "Sur un planning à deux branches parallèles de durées différentes, la branche la plus longue est critique et l’autre porte une marge égale à leur écart. Allonger une tâche de la branche courte au-delà de sa marge la rend critique à son tour. Une tâche en mode manuel n’affiche aucune marge et n’apparaît jamais sur le chemin critique, alors que ses successeurs automatiques voient leurs marges calculées à partir de ses dates."
 ```
 
-##### 3.4.5.3.4. Arborescence de taches (WBS)
+##### 3.4.5.3.4. FBS-4.3.4 : Imports / Exports
+
+Les échanges MS Project sont décrits avec les autres interactions externes : l’import par WF-INTF-0040, l’export par WF-INTF-0050, et leur réversibilité par WF-INTF-0060. Ce paragraphe n’en est que le point d’accès depuis le planning.
+
+##### 3.4.5.3.5. FBS-4.3.5 : Arborescence de taches (WBS)
 
 Le WBS présente la structure de l’affaire plutôt que son calendrier : il montre comment le travail se découpe, sans axe temporel ni liaisons. C’est la vue qu’on met dans un dossier de revue ou qu’on montre au client, là où le Gantt sert à travailler.
 
 Deux choses le rendent utilisable : le choix du niveau de profondeur, qui décide de ce qu’on montre (WF-PLA-0110), et une mise en page pensée pour la page A4 (WF-PLA-0120). Un planning de plusieurs centaines de tâches ne se montre pas ; ses trois premiers niveaux, si. Le WBS ne représente que les tâches récapitulatives : ni les jalons, ni les tâches feuilles, qui relèvent du travail à faire et non du découpage de l’affaire.
 
 ```yaml exigence
-section: "3.4.5.3.4"
+section: "3.4.5.3.5"
 id: "WF-PLA-0110-A"
 titre: "Vue en arborescence de tâches"
 flexibilite: "F0"
@@ -2296,7 +2604,7 @@ verification: "Sur un planning de quatre niveaux, l’affichage demandé au nive
 ```
 
 ```yaml exigence
-section: "3.4.5.3.4"
+section: "3.4.5.3.5"
 id: "WF-PLA-0120-A"
 titre: "Export de l’arborescence de tâches"
 flexibilite: "F0"
@@ -2307,13 +2615,11 @@ motif: "Le WBS est fait pour être imprimé ou inséré dans un document. Une ar
 verification: "L’export d’un planning de trois niveaux produit un fichier PNG dont le premier niveau est disposé horizontalement et les suivants verticalement. Le contenu ne dépend que du niveau demandé."
 ```
 
-##### 3.4.5.3.5. Imports / Exports
+##### 3.4.5.3.6.
 
-Les échanges MS Project sont décrits avec les autres interactions externes : l’import par WF-INTF-0040, l’export par WF-INTF-0050, et leur réversibilité par WF-INTF-0060. Ce paragraphe n’en est que le point d’accès depuis le planning.
+#### 3.4.5.4. FBS-4.4 : Chiffrage et devis
 
-#### 3.4.5.4. Chiffrage et devis
-
-Le devis est la vue d’une structure de coûts du côté de l’argent : ses lignes sont portées par les tâches du planning, et en héritent leurs dates. Chiffrer consiste donc à accrocher des lignes aux tâches, non à construire un second arbre.
+Le devis est la vue financière d’une structure de coûts : ses lignes sont portées par les tâches du planning, et en héritent leurs dates. Chiffrer consiste donc à accrocher des lignes aux tâches, non à construire un second arbre.
 
 Ce bloc décrit comment ces lignes se saisissent, comment elles se convertissent en montants, ce que le chiffrage totalise et la charge qu’il représente dans le temps. La grille de devis et celle du planning agissent sur le même arbre : ce qui structure l’un structure l’autre.
 
@@ -2364,7 +2670,7 @@ motif: "La catégorie est ce que toute ligne a en commun : elle porte le code co
 verification: "Une ligne de main-d’œuvre refuse la saisie d’un débours ; une ligne hors main-d’œuvre refuse celle d’une charge et d’un rôle. Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence. Le montant d’une ligne de provision n’est pas saisissable. Une ligne créée dans la révision de référence porte des montants budgété et réestimé égaux ; une ligne créée après porte un montant budgété nul. La réestimation d’une ligne ne modifie pas son montant budgété."
 ```
 
-##### 3.4.5.4.1. Indicateurs de devis
+##### 3.4.5.4.1. FBS-4.4.1 : Indicateurs de devis
 
 Un devis ne se lit pas ligne à ligne. Ces indicateurs donnent, pendant le chiffrage, les totaux qui permettent d’arbitrer : par nature de coût, pour voir la part de la main-d’œuvre, par sous-projet, pour préparer le rapprochement comptable, et par poste du lotissement, pour répondre au client dans les termes de sa commande.
 
@@ -2380,7 +2686,7 @@ motif: "La part de chaque nature dans le total est ce qu’un chiffreur regarde 
 verification: "La somme des totaux par nature égale le total général, et la somme de leurs pourcentages vaut cent. Sur un planning importé sans structure de postes, les totaux par poste sont absents plutôt que nuls."
 ```
 
-##### 3.4.5.4.2. Grille de devis
+##### 3.4.5.4.2. FBS-4.4.2 : Grille de devis
 
 La grille est l’outil de saisie du chiffrage. Elle présente les lignes sous l’arbre des tâches qui les portent, ce qui rend visible d’un coup d’œil ce que coûte chaque partie du planning.
 
@@ -2396,7 +2702,7 @@ motif: "La grille de devis et celle du planning agissent sur le même arbre : s
 verification: "La création d’une tâche récapitulative depuis la grille de devis la fait apparaître dans la grille de planning, et le déplacement d’un sous-arbre depuis l’une se répercute dans l’autre. Le montant d’une récapitulative suit celui de ses subordonnées et n’est pas modifiable."
 ```
 
-##### 3.4.5.4.3. Gestion des coûts
+##### 3.4.5.4.3. FBS-4.4.3 : Gestion des coûts
 
 C’est ici que les lignes deviennent des montants. Deux chemins, selon la nature de la catégorie : la main-d’œuvre se chiffre par un taux horaire, le reste par un débours. Dans les deux cas, le montant est celui de l’année de référence, projeté sur l’année où la charge sera consommée.
 
@@ -2436,7 +2742,7 @@ motif: "La valeur planifiée est le repère de l’indice de délai : elle doit
 verification: "Sur un projet dont le budget de référence est de 1 000, la valeur planifiée vaut 1 000 à la date de fin de la dernière tâche de la référence, et 0 avant le début de la première. Une ligne portée par une tâche de deux mois contribue pour moitié à la fin du premier mois. Retarder une tâche dans la révision courante ne change pas la valeur planifiée. Après contractualisation d’un avenant, la valeur planifiée totalise le nouveau budget de référence."
 ```
 
-##### 3.4.5.4.4. Plan de charge du projet
+##### 3.4.5.4.4. FBS-4.4.4 : Plan de charge du projet
 
 Le plan de charge traduit le devis en besoin de ressources : combien d’heures, de quel rôle, et quel mois. C’est la vue que le manager consolide ensuite sur plusieurs projets (FBS-2.2).
 
@@ -2452,11 +2758,11 @@ motif: "Le plan de charge sert à anticiper les besoins en ressources : embauch
 verification: "La charge d’une ligne portée par une tâche de deux mois apparaît sur ces deux mois, au prorata de la durée de la tâche dans chacun. La capacité de chaque rôle est affichée. Le filtre par nœud d’organisation ne laisse voir que les rôles qui en relèvent. Le plan de charge calculé sur le reste à engager ignore les lignes des tâches terminées."
 ```
 
-#### 3.4.5.5. Estimation du reste à engager
+#### 3.4.5.5. FBS-4.5 : Estimation du reste à engager
 
 Le reste à engager est la projection de ce qu’il reste à dépenser pour terminer le projet. Il n’introduit aucun objet : ce sont les lignes de devis de la structure principale de la révision courante, vues sous un autre angle.
 
-Trois cas se présentent, selon l’état de la tâche qui porte les lignes. Une tâche non démarrée vaut ce que la référence prévoyait ; une tâche démarrée vaut ce que le chef de projet réestime ; une tâche terminée vaut zéro. C’est le Kanban qui fait passer une tâche du premier cas au deuxième (§**Erreur ! Source du renvoi introuvable.**), et la saisie d’un reste à engager nul qui la fait passer au troisième.
+Trois cas se présentent, selon l’état de la tâche qui porte les lignes. Une tâche non démarrée vaut ce que la référence prévoyait ; une tâche démarrée vaut ce que le chef de projet réestime ; une tâche terminée vaut zéro. C’est le Kanban qui fait passer une tâche du premier cas au deuxième (§3.4.5.5.2), et la saisie d’un reste à engager nul qui la fait passer au troisième.
 
 <!-- source : waterfall.visuels.drawio, page « FBS-4.5 » — régénéré par tools/build.py -->
 
@@ -2491,7 +2797,7 @@ motif: "Une tâche non démarrée n’a pas de raison d’être réestimée : s
 verification: "Sur un projet dont une tâche est terminée, une démarrée et une non démarrée, le reste à engager vaut la somme des deux dernières, la démarrée pour son montant réestimé et l’autre pour son montant de référence projeté. Le décalage d’une tâche non démarrée d’une année modifie son montant du taux d’inflation."
 ```
 
-##### 3.4.5.5.1. Indicateurs de reste à engager
+##### 3.4.5.5.1. FBS-4.5.1 : Indicateurs de reste à engager
 
 Ces indicateurs situent la réestimation par rapport à deux repères : ce qui avait été promis, c’est-à-dire la référence, et ce qui avait été estimé à la revue précédente.
 
@@ -2507,7 +2813,7 @@ motif: "Un reste à engager ne se juge pas dans l’absolu. L’écart avec la r
 verification: "Les écarts sont présents et signés. Un sous-projet dont le coût réel augmenté du reste à engager dépasse son budget est signalé par la couleur, les autres non. Sur un projet sans revue précédente, l’écart correspondant est absent plutôt que nul."
 ```
 
-##### 3.4.5.5.2. Kanban – Démarrage des tâches
+##### 3.4.5.5.2. FBS-4.5.3 : Kanban – Démarrage des tâches
 
 Le Kanban est la vue par laquelle le chef de projet déclare qu’une tâche a commencé. Ce geste n’a pas d’autre effet que de décider ce que la revue suivante lui demandera de réestimer.
 
@@ -2523,7 +2829,7 @@ motif: "Waterfall ne suit pas l’exécution du travail au jour le jour, ce que 
 verification: "Une tâche passée à l’état démarré voit ses lignes apparaître dans la grille de reste à engager. Une tâche non démarrée n’y est pas modifiable. Le passage direct de non démarrée à terminée n’est possible que pour un jalon. Aucune commande ne fait passer une tâche démarrée à l'état non démarré."
 ```
 
-##### 3.4.5.5.3. Grille de reste à engager
+##### 3.4.5.5.3. FBS-4.5.2 : Grille de reste à engager
 
 Une revue périodique est un re-chiffrage, non une simple relecture. Le cas courant est celui d’un projet qui se déroule comme prévu : seules les tâches démarrées sont réestimées, et la grille n’expose qu’elles pour éviter de noyer le chef de projet sous des centaines de lignes inchangées. Mais un projet ne se déroule pas toujours comme prévu : des tâches non anticipées apparaissent, d’autres doivent être réestimées avant même d’avoir commencé. La grille permet les deux.
 
@@ -2536,8 +2842,8 @@ titre: "Grille de reste à engager"
 flexibilite: "F0"
 fbs: "FBS-4.5.2"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La grille de reste à engager présente les lignes sous l’arbre des tâches, avec pour chacune son montant budgété, son montant réestimé au reste à engager précédent, et son montant réestimé courant. Elle expose par défaut les seules lignes des tâches démarrées ; l’utilisateur peut y faire apparaître les tâches non démarrées pour les réestimer. Les lignes des tâches terminées ne sont pas modifiables. La saisie d’un reste à engager nul pour toutes les lignes d’une tâche la fait passer à l’état terminé ; la rouvrir ensuite passe par le Kanban (WF-RAE-0030). Une préférence d’affichage permet de distinguer visuellement les lignes dont le montant budgété est nul (WF-ADM-0040)."
-motif: "Réestimer suppose de voir ce à quoi l’on se compare. N’exposer par défaut que les tâches démarrées évite de noyer le chef de projet sous des lignes inchangées quand le projet se déroule bien ; pouvoir ouvrir les autres est nécessaire dès que ce n’est plus le cas, car une tâche non commencée peut déjà se savoir sous-estimée."
+corps: "La grille de reste à engager présente les lignes sous l’arbre des tâches, avec pour chacune : son montant budgété, son montant réestimé au reste à engager précédent, et son montant réestimé courant. Elle expose par défaut les seules lignes des tâches démarrées ; l’utilisateur peut y faire apparaître les tâches non démarrées pour les réestimer. Les lignes des tâches terminées ne sont pas modifiables. La saisie d’un reste à engager nul pour toutes les lignes d’une tâche la fait passer à l’état terminé ; la rouvrir ensuite passe par le Kanban (WF-RAE-0030). Une préférence d’affichage permet de distinguer visuellement les lignes dont le montant budgété est nul (WF-ADM-0040)."
+motif: "Réestimer suppose de voir ce à quoi l’on se compare. N’exposer par défaut que les tâches démarrées évite de noyer le chef de projet sous des lignes inchangées quand le projet se déroule bien ; pouvoir ouvrir les autres est nécessaire dès que ce n’est plus le cas, car une tâche non commencée peut déjà se savoir sous-estimée."
 verification: "Les trois montants sont présents pour chaque ligne. Les tâches non démarrées n’apparaissent qu’à la demande, et sont alors modifiables. La modification d’une ligne portée par une tâche terminée est refusée."
 ```
 
@@ -2553,7 +2859,7 @@ motif: "Aucun chiffrage n’est complet : du travail non prévu apparaît toujo
 verification: "Après ajout d’une tâche chiffrée en revue périodique, le reste à engager et la projection à terminaison augmentent de son montant, le budget de référence est inchangé, et l’indice de coût se dégrade."
 ```
 
-#### 3.4.5.6. Gestion des risques
+#### 3.4.5.6. FBS-4.6 : Gestion des risques
 
 Un risque est un événement incertain qui, s’il se produit, coûtera de l’argent et du temps. Waterfall le traite comme un devis à part, pondéré par sa probabilité : le chiffrer suppose de décrire ce qu’il coûterait, et c’est ce chiffrage qui donne sa gravité.
 
@@ -2618,7 +2924,7 @@ motif: "Chiffrer un risque, c’est décrire ce qu’il faudrait faire s’il se
 verification: "La grille de devis d’un risque offre les mêmes opérations que celle du projet. La modification du devis propre d’un risque identifié ne change ni le budget de référence ni les indicateurs du projet."
 ```
 
-##### 3.4.5.6.1. Grille de suivi des risques
+##### 3.4.5.6.1. FBS-4.6.1 : Grille de suivi des risques
 
 La grille de suivi est le registre des risques du projet. C’est elle qu’on parcourt à chaque revue pour réexaminer les probabilités et les états.
 
@@ -2629,12 +2935,12 @@ titre: "Grille de suivi des risques"
 flexibilite: "F0"
 fbs: "FBS-4.6.1"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "La grille de suivi des risques présente, pour chaque risque du projet, son libellé, sa probabilité, sa gravité, le montant de sa provision, son état et la date de son dernier réexamen. Elle donne accès à la description du risque, à ses actions de mitigation et à l’historique de ses réexamens, qui montre l’évolution de sa probabilité et de sa gravité. Elle se trie par montant de provision et se filtre par état. Chaque ligne porte une couleur donnée par une matrice de risques à quatre niveaux de probabilité et quatre niveaux de gravité. Le total des provisions y figure, en distinguant les risques identifiés, survenus et écartés."
-motif: "Un registre des risques se lit par ordre d’importance, et l’importance d’un risque est le montant qu’il fait peser sur le projet. L’historique montre si le risque s’aggrave ou se résorbe, ce qu’un état instantané ne dit pas. Les actions de mitigation sont ce sur quoi la revue porte réellement : on ne discute pas d’une probabilité, on discute de ce qu’on fait pour la réduire. La matrice donne la lecture visuelle attendue d’un registre des risques."
+corps: "La grille de suivi des risques présente, pour chaque risque du projet : son libellé, sa probabilité, sa gravité, le montant de sa provision, son état et la date de son dernier réexamen. Elle donne accès : à la description du risque, à ses actions de mitigation et à l’historique de ses réexamens, qui montre l’évolution de sa probabilité et de sa gravité. Elle se trie par montant de provision et se filtre par état. Chaque ligne porte une couleur donnée par une matrice de risques à quatre niveaux de probabilité et quatre niveaux de gravité. Le total des provisions y figure, en distinguant les risques identifiés, survenus et écartés."
+motif: "Un registre des risques se lit par ordre d’importance, et l’importance d’un risque est le montant qu’il fait peser sur le projet. L’historique montre si le risque s’aggrave ou se résorbe, ce qu’un état instantané ne dit pas. Les actions de mitigation sont ce sur quoi la revue porte réellement : on ne discute pas d’une probabilité, on discute de ce qu’on fait pour la réduire. La matrice donne la lecture visuelle attendue d’un registre des risques."
 verification: "Les six colonnes sont présentes, ainsi que l’accès aux deux notes et à l’historique. Le tri par provision classe les risques du plus lourd au plus léger. Un risque dont la probabilité augmente change de couleur conformément à la matrice. Les trois totaux sont distincts et leur somme égale le total général."
 ```
 
-##### 3.4.5.6.2. Gestion des provisions pour risques
+##### 3.4.5.6.2. FBS-4.6.2 : Gestion des provisions pour risques
 
 C’est ici que se joue la mécanique qui empêche un projet de consommer ses provisions sans que cela se voie. Une provision pèse sur le devis dès l’identification du risque, mais elle n’entre dans le budget de référence que lorsqu’elle sert.
 
@@ -2662,7 +2968,7 @@ motif: "Les tâches d’un risque survenu deviennent du travail comme un autre 
 verification: "Après déclaration de survenance, les tâches du devis propre figurent dans la structure principale et la révision produite est la référence. La valeur acquise du projet n’augmente d’aucun montant tant que l’une de ces tâches n’est pas terminée, puis augmente du montant de la provision lorsque la dernière l’est."
 ```
 
-#### 3.4.5.7. Coûts réels
+#### 3.4.5.7. FBS-4.7 : Coûts réels
 
 Les coûts réels ne sont pas produits par Waterfall : ils viennent de l’ERP, par extraction périodique. Ce bloc ne décrit donc pas leur production, mais ce que Waterfall en fait une fois importés : à quoi il les rattache, ce qu’il en compte, et ce qu’il en écarte.
 
@@ -2730,7 +3036,7 @@ motif: "La date d’une pièce dit quand la dépense a eu lieu, celle de l’imp
 verification: "Après un import, le journal présente une entrée datée du jour avec ses comptes de lignes, et la consultation des coûts réels affiche cette date comme celle du dernier import."
 ```
 
-#### 3.4.5.8. Indicateurs projets
+#### 3.4.5.8. FBS-4.8 : Indicateurs projets
 
 Les indicateurs sont ce pour quoi tout le reste existe. Ils mettent en relation quatre grandeurs que les blocs précédents ont construites :
 
@@ -2817,7 +3123,7 @@ motif: "La valeur acquise mesure le travail fait au prix où il avait été prom
 verification: "Une tâche terminée le 12 du mois contribue à la valeur acquise dès cette date, non à la revue suivante. Une tâche dont le coût réel dépasse le montant budgété contribue pour le montant budgété. La valeur acquise d’un projet dont toutes les tâches sont terminées et tous les risques écartés égale son budget de référence."
 ```
 
-##### 3.4.5.8.1. Avancement financier
+##### 3.4.5.8.1. FBS-4.8.1 : Avancement financier
 
 L’avancement financier dit où en est la dépense par rapport à ce qu’elle finira par être : le coût réel rapporté au projeté du chef de projet. Il se lit avec la consommation du budget, qui rapporte le même coût réel au budget de référence : les deux ensemble disent si l’on dépense vite, et si l’on dépense trop.
 
@@ -2833,7 +3139,7 @@ motif: "L’avancement financier est le seul indicateur qui ne dépende pas de l
 verification: "Sur un sous-projet de budget 100, de coût réel 70 et de reste à engager 70, l’avancement financier vaut 50 % et la consommation 70 %. Un sous-projet sans coût réel ni reste à engager affiche un avancement financier non calculable."
 ```
 
-##### 3.4.5.8.2. Projection à terminaison
+##### 3.4.5.8.2. FBS-4.8.2 : Projection à terminaison
 
 Trois projections répondent à la même question — combien ce projet coûtera-t-il ? — avec trois hypothèses. Au budget : ce qui reste coûtera ce qui était prévu. Du chef de projet : ce qui reste coûtera ce qu’il estime. Au rythme constaté : ce qui reste coûtera comme ce qui est fait a coûté. Aucune n’est plus vraie que les autres ; c’est leur écart qui renseigne. Quand celle du chef de projet est plus basse que le rythme constaté, il croit que la dérive va s’arrêter, et c’est cette croyance que la revue doit interroger.
 
@@ -2844,12 +3150,12 @@ titre: "Projections à terminaison"
 flexibilite: "F0"
 fbs: "FBS-4.8.2"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1, PBS-3.2"
-corps: "Waterfall présente trois projections à terminaison, par sous-projet et pour le projet. La projection au budget est la somme du coût réel et de la part du budget de référence non encore acquise. La projection du chef de projet est la somme du coût réel et du reste à engager. La projection au rythme constaté est le budget de référence divisé par l’indice de coût ; elle est non calculable tant que l’indice ne l’est pas. Les trois sont présentées ensemble, avec leur écart au budget de référence."
-motif: "Chaque projection repose sur une hypothèse sur le travail restant : qu’il coûtera le prix prévu, le prix estimé, ou le prix constaté sur ce qui est fait. Les nommer par leur hypothèse et non par un jugement — optimiste, réaliste — évite un contresens : sur un projet qui dépense moins que prévu, c’est la projection au budget qui est la plus pessimiste. Les présenter ensemble fait de leur écart un indicateur en soi."
+corps: "Waterfall présente trois projections à terminaison, par sous-projet et pour le projet. La projection au budget est la somme du coût réel et de la part du budget de référence non encore acquise. La projection du chef de projet est la somme du coût réel et du reste à engager. La projection au rythme constaté est le budget de référence divisé par l’indice de coût ; elle est non calculable tant que l’indice ne l’est pas. Les trois sont présentées ensemble, avec leur écart au budget de référence."
+motif: "Chaque projection repose sur une hypothèse sur le travail restant : qu’il coûtera le prix prévu, le prix estimé, ou le prix constaté sur ce qui est fait. Les nommer par leur hypothèse et non par un jugement — optimiste, réaliste — évite un contresens : sur un projet qui dépense moins que prévu, c’est la projection au budget qui est la plus pessimiste. Les présenter ensemble fait de leur écart un indicateur en soi."
 verification: "Sur un projet de budget 1 000, de valeur acquise 400, de coût réel 500 et de reste à engager 550, les projections valent 1 100 au budget, 1 050 pour le chef de projet et 1 250 au rythme constaté. Avant tout coût réel, la projection au rythme constaté est non calculable et les deux autres sont affichées."
 ```
 
-##### 3.4.5.8.3. Avancement physique
+##### 3.4.5.8.3. FBS-4.8.3 : Avancement physique
 
 L’avancement physique dit quelle part du travail promis est faite, indépendamment de ce qu’elle a coûté. Il s’acquiert tâche par tâche, à la terminaison, et se lit donc par paliers : sa finesse est celle du découpage du planning, et un projet découpé en dix tâches aura un avancement grossier. C’est une conséquence assumée du modèle, non un défaut de calcul.
 
@@ -2865,7 +3171,7 @@ motif: "La valeur acquise s’obtient par tâche terminée, jamais par pourcenta
 verification: "Sur un budget de 1 000 dont 400 sont portés par des tâches terminées, l’avancement physique vaut 40 %. Une tâche démarrée à 90 % de son temps ne contribue pas. Une récapitulative dont deux subordonnées sur trois sont terminées, de montants budgétés 100, 100 et 200, affiche 50 %."
 ```
 
-##### 3.4.5.8.4. Indicateur de coûts (CPI)
+##### 3.4.5.8.4. FBS-4.8.4 : Indicateur de coûts (CPI)
 
 ```yaml exigence
 section: "3.4.5.8.4"
@@ -2879,7 +3185,7 @@ motif: "Un indice inférieur à 1 dit que le travail fait a coûté plus que pro
 verification: "Une valeur acquise de 400 pour un coût réel de 500 donne 0,8. L’indice change de zone quand il franchit un seuil, dans un sens comme dans l’autre. Avant le premier import de coûts réels, il est affiché non calculable. Une valeur acquise de 400 pour un coût réel de 500 donne un écart de coût de −100."
 ```
 
-##### 3.4.5.8.5. Indicateur de délais (SPI)
+##### 3.4.5.8.5. FBS-4.8.5 : Indicateur de délais (SPI)
 
 ```yaml exigence
 section: "3.4.5.8.5"
@@ -2893,7 +3199,7 @@ motif: "Un indice inférieur à 1 dit que moins de travail a été fait que la r
 verification: "Une valeur acquise de 400 pour une valeur planifiée de 500 donne 0,8. Avant la date de début de la première tâche de la référence, l’indice est non calculable. Un projet dont toutes les tâches sont terminées à la date de fin prévue par la référence affiche 1. Une valeur acquise de 400 pour une valeur planifiée de 500 donne un écart de délai de −100."
 ```
 
-##### 3.4.5.8.6. Diagramme temps/temps
+##### 3.4.5.8.6. FBS-4.8.6 : Diagramme temps/temps
 
 Le diagramme temps/temps montre comment les dates prévues des jalons ont glissé d’une revue à l’autre. Chaque revue est un point sur l’axe horizontal ; la date alors prévue pour chaque jalon, un point sur l’axe vertical. Un jalon dont la date ne bouge pas trace une horizontale ; un jalon qui glisse monte ; quand il est franchi, sa courbe touche la diagonale et s’arrête.
 
@@ -2909,7 +3215,7 @@ motif: "Un jalon qui glisse à chaque revue se voit sur ce diagramme avant que q
 verification: "Un jalon prévu au 30 juin dans trois revues successives trace une horizontale. Un jalon repoussé d’un mois à chaque revue trace une droite de pente 1. Un jalon terminé n’a plus de point après sa terminaison, et son dernier point est sur la diagonale."
 ```
 
-##### 3.4.5.8.7. Coûts cumulés (courbe en S)
+##### 3.4.5.8.7. FBS-4.8.7 : Coûts cumulés (courbe en S)
 
 La courbe en S est la vue budgétaire du projet : ce qu’il devait coûter, ce qu’il a coûté, ce qu’il coûtera. Elle ne parle pas d’avancement, seulement d’argent dans le temps, et c’est ce qui la distingue des courbes de valeur acquise.
 
@@ -2925,7 +3231,7 @@ motif: "C’est la courbe que l’on montre en comité : elle dit d’un regard
 verification: "La courbe du budget de référence atteint le budget de référence à la date de fin de la référence. Celle du coût réel s’arrête à la date de calcul, et la projection part de ce point pour atteindre la projection du chef de projet. Après contractualisation d’un avenant, la courbe du budget présente une marche à sa date."
 ```
 
-##### 3.4.5.8.8. Courbes valeur acquise
+##### 3.4.5.8.8. FBS-4.8.8 : Courbes valeur acquise
 
 Les courbes de valeur acquise sont la vue de performance : trois courbes, valeur planifiée, valeur acquise et coût réel, dont les écarts verticaux sont les écarts de coût et de délai, et les écarts horizontaux le retard en temps. Là où la courbe en S dit combien, celles-ci disent si l’on a fait ce qu’on devait, et à quel prix.
 
@@ -2941,7 +3247,7 @@ motif: "L’écart vertical entre valeur acquise et coût réel est l’écart d
 verification: "À la date de calcul, l’écart vertical entre la courbe de valeur acquise et celle du coût réel égale la différence des deux grandeurs. La courbe de valeur planifiée atteint le budget de référence à la fin de la référence. Une tâche terminée produit une marche dans la valeur acquise à sa date de terminaison."
 ```
 
-##### 3.4.5.8.9. Projections cash-out
+##### 3.4.5.8.9. FBS-4.8.9 : Projections cash-out
 
 Le cash-out répond à une question que le contrôleur de gestion pose et que l’EVM ignore : quand l’argent sortira-t-il ? Il ne dépend pas de la valeur acquise, seulement du reste à engager, des dates du planning courant et des délais de paiement.
 
@@ -2983,43 +3289,49 @@ Le détail de cette structure est au §3.2 : la structure de coûts et ses natu
 
 La figure suivante présente l’enchaînement des fonctions au cours de la vie d’un projet. Les traits pleins sont le cours normal ; les pointillés, les événements contractuels qui déplacent la référence.
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : waterfall.visuels.drawio, page « Flux de travail » — régénéré par tools/build.py -->
 
 ```mermaid
 flowchart LR
-    subgraph offre["Construction de l'offre"]
-    A["Créer le projet"]
-    B["Paramétrer<br>le projet"]
-    C["Construire<br>le planning"]
-    D["Chiffrer<br>le devis"]
-    E["Marquer<br>une révision"]
+    subgraph Pilotage["Pilotage"]
+        Analyser_les_indicateurs["Analyser les indicateurs"]
+        Creer_une_revision_de_revue("Créer une révision de revue")
+        Mettre_a_jour_le_planning_et_le_reste_a_engager("Mettre à jour le planning et le reste à engager")
+        Importer_les_couts_reels("Importer les couts réels")
+        Marquer_la_revision("Marquer la révision")
     end
-    F["Désigner la révision<br>de référence"]
-    subgraph pilotage["Pilotage"]
-    G["Créer une révision<br>de revue"]
-    H["Mettre à jour le planning<br>et le reste à engager"]
-    I["Importer<br>les coûts réels"]
-    J["Marquer<br>la révision"]
-    K{"Analyse des<br>indicateurs"}
+    subgraph Construction_de_l_offre["Construction de l'offre"]
+        Creer_le_projet("Créer le projet")
+        Parametrer_le_projet("Paramétrer le projet")
+        Construire_le_planning("Construire le planning")
+        Chiffrer_le_devis("Chiffrer le devis")
+        Marquer_une_revision("Marquer une révision")
     end
-    L["Clôturer le projet"]
-    M["Fusionner le différentiel<br>Nouvelle révision de référence"]
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E -->|"Nouvelle offre"| C
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-    I --> J
-    J --> K
-    K -->|"Poursuivre le pilotage"| G
-    K -->|"Terminer le projet"| L
-    pilotage -.->|"Avenant contractualisé<br>ou risque survenu"| M
-    M -.-> G
+    Designer_la_revision_de_reference("Désigner la révision de référence")
+    Cloturer_le_projet("Cloturer le projet")
+    Fusionner_le_differentiel_Nouvelle_revision_de_reference("Fusionner le differentiel.<br>Nouvelle révision de référence")
+
+    Pilotage -.->|"Avenant contractualisé ou<br>risque survennu"| Fusionner_le_differentiel_Nouvelle_revision_de_reference
+    Analyser_les_indicateurs -->|"Poursuivre le pilotage"| Creer_une_revision_de_revue
+    Analyser_les_indicateurs -->|"Terminer le projet"| Cloturer_le_projet
+    Creer_le_projet --> Parametrer_le_projet
+    Parametrer_le_projet --> Construire_le_planning
+    Construire_le_planning --> Chiffrer_le_devis
+    Chiffrer_le_devis --> Marquer_une_revision
+    Marquer_une_revision -->|"Nouvelle offre"| Construire_le_planning
+    Marquer_une_revision --> Designer_la_revision_de_reference
+    Designer_la_revision_de_reference --> Creer_une_revision_de_revue
+    Creer_une_revision_de_revue --> Mettre_a_jour_le_planning_et_le_reste_a_engager
+    Mettre_a_jour_le_planning_et_le_reste_a_engager --> Importer_les_couts_reels
+    Importer_les_couts_reels --> Marquer_la_revision
+    Fusionner_le_differentiel_Nouvelle_revision_de_reference -.-> Creer_une_revision_de_revue
+    Marquer_la_revision --> Analyser_les_indicateurs
+
+    classDef c1 fill:#ffe6cc,stroke:#d79b00
+    class Analyser_les_indicateurs,Chiffrer_le_devis,Cloturer_le_projet,Construire_le_planning,Creer_le_projet,Creer_une_revision_de_revue,Designer_la_revision_de_reference,Fusionner_le_differentiel_Nouvelle_revision_de_reference,Importer_les_couts_reels,Marquer_la_revision,Marquer_une_revision,Mettre_a_jour_le_planning_et_le_reste_a_engager,Parametrer_le_projet c1
 ```
+
+*Figure 16 — Flux de travail principal*
 
 **Pendant la construction de l’offre**, le cycle planning-devis-révision se répète à chaque version remise au client. Chaque révision marquée conserve les hypothèses et les taux qui l’ont produite.
 
@@ -3253,53 +3565,64 @@ Trois composants de données, chacun pour ce qu’il sait faire. PostgreSQL est 
 
 ### 4.2.1. Arborescence produit
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : waterfall.visuels.drawio, page « PBS » — régénéré par tools/build.py -->
 
 ```mermaid
 flowchart LR
-    PBS["PBS<br>Waterfall"]
-    PBS1["PBS-1<br>Frontend"]
-    PBS11["PBS-1.1<br>Application web"]
-    PBS12["PBS-1.2<br>Client API engendré"]
-    PBS13["PBS-1.3<br>Composants d'interface"]
-    PBS2["PBS-2<br>Services backend"]
-    PBS21["PBS-2.1<br>Service d'API"]
-    PBS22["PBS-2.2<br>Worker"]
-    PBS23["PBS-2.3<br>Noyau métier"]
-    PBS24["PBS-2.4<br>Contrat OpenAPI"]
-    PBS25["PBS-2.5<br>Authentification"]
-    PBS3["PBS-3<br>Données"]
-    PBS31["PBS-3.1<br>PostgreSQL"]
-    PBS32["PBS-3.2<br>Redis"]
-    PBS33["PBS-3.3<br>Stockage objet S3"]
-    PBS4["PBS-4<br>Observabilité"]
-    PBS41["PBS-4.1<br>Métriques"]
-    PBS42["PBS-4.2<br>Journaux"]
-    PBS43["PBS-4.3<br>Tableau de bord et alertes"]
-    PBS5["PBS-5<br>Plateforme"]
-    PBS51["PBS-5.1<br>Empaquetage et déploiement"]
-    PBS52["PBS-5.2<br>Chaîne CI/CD"]
-    PBS53["PBS-5.3<br>Tâches planifiées"]
-    PBS --> PBS1 --> PBS11
-    PBS1 --> PBS12
-    PBS1 --> PBS13
-    PBS --> PBS2 --> PBS21
-    PBS2 --> PBS22
-    PBS2 --> PBS23
-    PBS2 --> PBS24
-    PBS2 --> PBS25
-    PBS --> PBS3 --> PBS31
-    PBS3 --> PBS32
-    PBS3 --> PBS33
-    PBS --> PBS4 --> PBS41
-    PBS4 --> PBS42
-    PBS4 --> PBS43
-    PBS --> PBS5 --> PBS51
-    PBS5 --> PBS52
-    PBS5 --> PBS53
+    Waterfall["Waterfall"]
+    PBS_1_Frontend["PBS-1<br>Frontend"]
+    PBS_1_1_Application_web["PBS-1.1<br>Application web"]
+    PBS_2_Services_backend["PBS-2<br>Services backend"]
+    PBS_3_Donnees["PBS-3<br>Données"]
+    PBS_4_Observabilite["PBS-4<br>Observabilité"]
+    PBS_5_Plateforme["PBS-5<br>Plateforme"]
+    PBS_1_2_Client_API_engendre["PBS-1.2<br>Client API engendré"]
+    PBS_1_3_Composants_d_interface["PBS-1.3<br>Composants d'interface"]
+    PBS_2_1_Service_d_API["PBS-2.1<br>Service d'API"]
+    PBS_2_2_Worker["PBS-2.2<br>Worker"]
+    PBS_2_3_Noyau_metier["PBS-2.3<br>Noyau métier"]
+    PBS_2_4_Contrat_OpenAPI["PBS-2.4<br>Contrat OpenAPI"]
+    PBS_2_5_Authentification["PBS-2.5<br>Authentification"]
+    PBS_3_1_PostgreSQL["PBS-3.1<br>PostgreSQL"]
+    PBS_3_2_Redis["PBS-3.2<br>Redis"]
+    PBS_3_3_Stockage_objet_S3["PBS-3.3<br>Stockage objet S3"]
+    PBS_4_1_Metriques["PBS-4.1<br>Métriques"]
+    PBS_4_2_Journaux["PBS-4.2<br>Journaux"]
+    PBS_4_3_Tableau_de_bord_et_alertes["PBS-4.3<br>Tableau de bord et alertes"]
+    PBS_5_1_Empaquetage_et_deploiement["PBS-5.1<br>Empaquetage et déploiement"]
+    PBS_5_2_Chaine_CI_CD["PBS-5.2<br>Chaine CI/CD"]
+    PBS_5_3_Taches_planifiees["PBS-5.3<br>Tâches planifiées"]
+
+    Waterfall --> PBS_1_Frontend
+    Waterfall --> PBS_2_Services_backend
+    Waterfall --> PBS_3_Donnees
+    Waterfall --> PBS_4_Observabilite
+    Waterfall --> PBS_5_Plateforme
+    PBS_1_Frontend --> PBS_1_1_Application_web
+    PBS_1_Frontend --> PBS_1_2_Client_API_engendre
+    PBS_1_Frontend --> PBS_1_3_Composants_d_interface
+    PBS_2_Services_backend --> PBS_2_1_Service_d_API
+    PBS_2_Services_backend --> PBS_2_2_Worker
+    PBS_2_Services_backend --> PBS_2_3_Noyau_metier
+    PBS_2_Services_backend --> PBS_2_4_Contrat_OpenAPI
+    PBS_2_Services_backend --> PBS_2_5_Authentification
+    PBS_3_Donnees --> PBS_3_1_PostgreSQL
+    PBS_3_Donnees --> PBS_3_2_Redis
+    PBS_3_Donnees --> PBS_3_3_Stockage_objet_S3
+    PBS_4_Observabilite --> PBS_4_1_Metriques
+    PBS_4_Observabilite --> PBS_4_2_Journaux
+    PBS_4_Observabilite --> PBS_4_3_Tableau_de_bord_et_alertes
+    PBS_5_Plateforme --> PBS_5_1_Empaquetage_et_deploiement
+    PBS_5_Plateforme --> PBS_5_2_Chaine_CI_CD
+    PBS_5_Plateforme --> PBS_5_3_Taches_planifiees
+
+    classDef c1 fill:#E6D0DE,stroke:#b85450
+    class PBS_1_1_Application_web,PBS_1_2_Client_API_engendre,PBS_1_3_Composants_d_interface,PBS_2_1_Service_d_API,PBS_2_2_Worker,PBS_2_3_Noyau_metier,PBS_2_4_Contrat_OpenAPI,PBS_2_5_Authentification,PBS_3_1_PostgreSQL,PBS_3_2_Redis,PBS_3_3_Stockage_objet_S3,PBS_4_1_Metriques,PBS_4_2_Journaux,PBS_4_3_Tableau_de_bord_et_alertes,PBS_5_1_Empaquetage_et_deploiement,PBS_5_2_Chaine_CI_CD,PBS_5_3_Taches_planifiees c1
+    classDef c2 fill:#f8cecc,stroke:#b85450
+    class PBS_1_Frontend,PBS_2_Services_backend,PBS_3_Donnees,PBS_4_Observabilite,PBS_5_Plateforme,Waterfall c2
 ```
 
-*Figure 16 — Arborescence produit*
+*Figure 17 — Arborescence produit*
 
 #### 4.2.1.1. PBS-1 : Frontend
 
@@ -3449,19 +3772,19 @@ verification: "Le chart s’installe sur un cluster vierge avec ses composants d
 
 Le déploiement compte trois processus applicatifs — le front, le service d’API et le worker — et trois composants de données, tous dans le cluster ou fournis par l’exploitant (WF-ARC-0050). Le navigateur ne parle qu’au front et, le cas échéant, au fournisseur d’identité ; aucun composant de données n’est joignable de l’extérieur.
 
-<!-- source : texte alternatif Word — régénéré par tools/build.py -->
+<!-- source : figures/deploiement.mmd — régénéré par tools/build.py -->
 
 ```mermaid
 flowchart LR
     Navigateur["Navigateur"]
     subgraph Cluster["Cluster Kubernetes"]
-    Front["Front<br>Next.js"]
-    API["Service d'API<br>FastAPI"]
-    Worker["Worker<br>FastAPI"]
-    PG[("PostgreSQL")]
-    Redis[("Redis")]
-    S3[("Stockage objet S3")]
-    Prometheus["Prometheus"]
+        Front["Front<br>Next.js"]
+        API["Service d'API<br>FastAPI"]
+        Worker["Worker<br>FastAPI"]
+        PG[("PostgreSQL")]
+        Redis[("Redis")]
+        S3[("Stockage objet S3")]
+        Prometheus["Prometheus"]
     end
     Annuaire["Annuaire ou<br>fournisseur d'identité"]
     Navigateur --> Front
@@ -3479,7 +3802,7 @@ flowchart LR
     Prometheus --> Front
 ```
 
-*Figure 17 — Diagramme de déploiement*
+*Figure 18 — Diagramme de déploiement*
 
 ### 4.3.2. Tableau des flux techniques
 
@@ -3556,7 +3879,7 @@ sequenceDiagram
     end
 ```
 
-*Figure 18 — Diagramme de séquence des imports*
+*Figure 19 — Diagramme de séquence des imports*
 
 **Le marquage d'une révision.** Les deux écritures se font dans une transaction unique : figer la révision, puis calculer et conserver ses indicateurs (WF-DAT-0040). Si l'une échoue, aucune n'a eu lieu. La révision suivante n'est créée qu'à la demande, ou par le premier import qui survient (WF-REV-0010, WF-INTF-0090), et c'est alors qu'a lieu la copie.
 
@@ -3587,7 +3910,7 @@ sequenceDiagram
     Note over U,B: la révision suivante n'est créée qu'à la demande,<br/>ou par le premier import : c'est alors qu'a lieu la copie
 ```
 
-*Figure 19 — Diagramme de séquence du marquage de révision*
+*Figure 20 — Diagramme de séquence du marquage de révision*
 
 ```yaml exigence
 section: "4.3.4"
@@ -4269,7 +4592,7 @@ motif: "Une traduction se dégrade par omission, une clé à la fois, et le déf
 verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîne. Un texte destiné à l'utilisateur écrit en dur dans le code fait échouer la chaîne. Le parcours de bout en bout s'exécute et aboutit en français comme en anglais."
 ```
 
-# Index des exigences
+# 5. Index des exigences
 
 | Exigence | Section | Titre | Flex |
 |---|---|---|---|
@@ -4318,7 +4641,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-CYC-0090-A | 3.3.2 | Confirmation des sorties | F0 |
 | WF-CYC-0100-A | 3.3.2 | Lecture seule des projets terminaux | F0 |
 | WF-CYC-0110-A | 3.3.2 | Consultation des projets terminaux | F0 |
-| WF-CYC-0120-A | 3.3.1 | Référentiel minimal requis pour créer un projet | F0 |
+| WF-CYC-0120-A | 3.3.1 | Référentiel minimal requis pour la création d’un projet | F0 |
 | WF-CYC-0130-A | 3.3.2 | Datation des transitions | F0 |
 | WF-DAT-0010-A | 4.4.2 | Copie complète des révisions | F0 |
 | WF-DAT-0020-A | 4.4.2 | Immuabilité garantie par la base | F0 |
@@ -4402,8 +4725,8 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-PLA-0080-A | 3.4.5.3.2 | Grille de planning | F0 |
 | WF-PLA-0090-A | 3.4.5.3.3 | Diagramme de Gantt | F0 |
 | WF-PLA-0100-A | 3.4.5.3.3 | Chemin critique | F0 |
-| WF-PLA-0110-A | 3.4.5.3.4 | Vue en arborescence de tâches | F0 |
-| WF-PLA-0120-A | 3.4.5.3.4 | Export de l’arborescence de tâches | F0 |
+| WF-PLA-0110-A | 3.4.5.3.5 | Vue en arborescence de tâches | F0 |
+| WF-PLA-0120-A | 3.4.5.3.5 | Export de l’arborescence de tâches | F0 |
 | WF-PLA-0130-A | 3.4.5.3 | Attributs d’une tâche | F0 |
 | WF-PLA-0140-A | 3.4.5.3.1 | Chronologies nommées | F0 |
 | WF-PLA-0150-A | 3.4.5.3 | Horizon d’un projet | F0 |
@@ -4477,7 +4800,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-SEC-0020-A | 4.6.1 | Session et révocation | F0 |
 | WF-SEC-0030-A | 4.6.1 | Journal d'audit des actions irréversibles ou structurantes | F0 |
 
-# ANNEXE A: Glossaire
+# 6. ANNEXE A: Glossaire
 
 | Terme                               | Définition                                                                                                                                                                                                                                                                                                                                                                                                                        |
 |-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -4574,13 +4897,13 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 
 Tableau 15 Définitions
 
-# ANNEXE B: Formats d’échanges Excel
+# 7. ANNEXE B: Formats d’échanges Excel
 
 Les formats « Devis » et « Reste à engager » comportent une colonne de désignation de tâche, obligatoire, et une colonne de sous-projet, facultative.
 
 Les en-têtes de colonnes ci-dessous sont ceux des fichiers, dans tous les cas : ils ne suivent pas la langue de l'interface, de sorte qu'un fichier exporté par un utilisateur soit importable par un autre (WF-INTF-0180).
 
-# ANNEXE C: Outillage retenu
+# 8. ANNEXE C: Outillage retenu
 
 Cette annexe est informative. Elle dit avec quoi les propriétés du §4.7 sont obtenues aujourd'hui ; un outil peut être remplacé sans qu'aucune exigence change, pourvu que la propriété reste garantie. Les versions ne sont pas fixées ici : elles vivent dans les fichiers de dépendances du dépôt.
 
@@ -4609,7 +4932,7 @@ Cette annexe est informative. Elle dit avec quoi les propriétés du §4.7 sont 
 | Conteneurs et empaquetage           | Docker, Compose v2, Helm                           | WF-ARC-0050                                     |
 | Chaîne d'intégration                | GitHub Actions                                     | PBS-5.2                                         |
 
-# ANNEXE D: Points ouverts
+# 9. ANNEXE D: Points ouverts
 
 | ID    | Sujet                                                                                                                                                                                                                                                                                                                                                      |
 |-------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

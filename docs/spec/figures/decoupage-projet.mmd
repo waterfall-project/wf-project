@@ -1,0 +1,16 @@
+classDiagram
+    direction LR
+    class Projet["Projet"]
+    class Poste["Poste"]
+    class Lot["Lot"]
+    class Livrable["Livrable"]
+    class SousProjet["Sous-projet"]
+    class Utilisateur["Utilisateur"]
+
+    Projet "1" o-- "*" Poste : lotissement
+    Poste "1" o-- "*" Lot : contient
+    Lot "1" o-- "*" Livrable : contient
+    Projet "1" o-- "*" SousProjet : sous-projets
+    Projet "*" ..> "*" Utilisateur : contributeurs
+
+    style Utilisateur fill:#eeeeee,stroke:#999999,color:#666666

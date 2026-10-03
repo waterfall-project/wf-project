@@ -2,14 +2,15 @@
 
 ## Principe
 
-Deux fichiers font foi, et deux seulement :
+Trois sources font foi, et trois seulement :
 
-| Fichier | Contient | Édité avec |
+| Source | Contient | Éditée avec |
 |---|---|---|
 | `stb-waterfall.docx` | tout le texte, les tableaux, les exigences | Word |
-| `waterfall.visuels.drawio` | les diagrammes | draw.io |
+| `waterfall.visuels.drawio` | les diagrammes dessinés : contexte, arborescences, cycle de vie, flux de travail | draw.io |
+| `figures/*.mmd` | les diagrammes écrits : modèle conceptuel, déploiement, séquences | un éditeur de texte |
 
-`waterfall-spec.md` est **généré** à partir de ces deux fichiers. Il n'est jamais
+`waterfall-spec.md` est **généré** à partir de ces sources. Il n'est jamais
 édité à la main : la prochaine génération écraserait la modification sans
 prévenir. Il existe pour qu'un agent puisse lire la spécification — pas pour
 remplacer le document Word, qui reste le livrable.
@@ -48,23 +49,22 @@ Trois choses, qui sont ce qui rend le retour de revue possible :
 2. **Les exigences en blocs YAML**, avec leur numéro de section. Un agent peut
    alors les citer et les filtrer (par domaine, par flexibilité) au lieu de
    reformuler un tableau.
-3. **Les diagrammes en Mermaid**, donc lisibles. Trois origines possibles :
-   - le **texte alternatif** de l'image dans Word, s'il contient déjà du Mermaid —
-     c'est le cas de la figure 2, dont le diagramme draw.io a été créé à partir
-     d'un source Mermaid conservé dans le texte alternatif ;
-   - le fichier **draw.io**, via `tools/figures.toml` qui associe une légende de
-     figure à une page du fichier ;
-   - un **fichier `.mmd` du dépôt**, via la clé `source` de `tools/figures.toml`.
-     C'est la seule voie pour un `sequenceDiagram` : Word aplatit le texte
-     alternatif sur une ligne, et une séquence ne se re-segmente pas sans
-     ambiguïté. Les figures 18 et 19 viennent de là.
+3. **Les diagrammes en Mermaid**, donc lisibles. `tools/figures.toml` associe
+   chaque légende de figure à sa source, de deux origines possibles :
+   - une **page du fichier draw.io** (clé `page`), convertie en flowchart ;
+   - un **fichier `.mmd` du dépôt** (clé `source`), repris tel quel — c'est la
+     seule voie pour un diagramme de classes ou de séquence.
 
-   Une figure sans aucune des trois est conservée en image, et signalée.
+   Le texte alternatif de l'image dans Word n'est jamais lu : Word le réécrit sur
+   une ligne, et un diagramme n'y survit pas. Une figure sans entrée est conservée
+   en image, et signalée.
 
 L'index des exigences est reconstruit à la génération : les numéros de page de
 Word n'ont pas de sens dans un Markdown.
 
 ## Ajouter une figure
+
+Un diagramme dessiné — boîtes et flèches — se fait dans draw.io :
 
 1. Dessiner la page dans `waterfall.visuels.drawio` ; lui donner un nom explicite.
 2. Insérer l'image dans Word, avec sa légende `Figure n — <titre>`.
@@ -77,22 +77,24 @@ Word n'ont pas de sens dans un Markdown.
    direction = "LR"
    ```
 
-Deux variantes :
+Un diagramme écrit — classes, séquence, ou tout diagramme que draw.io ne sait pas
+rendre — se fait en Mermaid :
 
-- si le diagramme vient d'un source Mermaid simple — un `flowchart`, un
-  `classDiagram`, un `stateDiagram` —, le coller dans le **texte alternatif** de
-  l'image dans Word. Aucune entrée dans `figures.toml` n'est alors nécessaire, et
-  le source reste attaché à l'image ;
-- si c'est un `sequenceDiagram`, ou tout diagramme que l'aplatissement de Word
-  abîmerait, écrire le source dans `figures/<nom>.mmd`, engendrer l'image
-  (`mmdc -i figures/<nom>.mmd -o figures/<nom>.png -b white -s 2`), l'insérer dans
-  Word **sans texte alternatif**, et déclarer la source :
+1. Écrire le source dans `figures/<nom>.mmd`.
+2. Engendrer l'image (`mmdc -i figures/<nom>.mmd -o figures/<nom>.png -b white -s 2`)
+   et l'insérer dans Word avec sa légende. Si l'image est plutôt dessinée dans
+   draw.io à partir du source, comme celles du modèle conceptuel, le fichier
+   `.mmd` reste la source et l'image n'a pas de `.png` dans `figures/`.
+3. Déclarer la source :
 
-  ```toml
-  [[figure]]
-  legende = "<fragment de la légende Word>"
-  source = "figures/<nom>.mmd"
-  ```
+   ```toml
+   [[figure]]
+   legende = "<fragment de la légende Word>"
+   source = "figures/<nom>.mmd"
+   ```
+
+Le texte alternatif de l'image dans Word ne porte jamais le source : il n'est pas
+lu, et Word ne le conserve pas fidèlement.
 
 Dans draw.io, relier les flèches **aux formes** plutôt que de les poser librement :
 une flèche non reliée n'a pas de source ni de cible dans le fichier, et le
