@@ -2,9 +2,9 @@
   "generated_by": "make fixtures",
   "examples": [
     {
-      "key": "WF-INTF-0040-A#f8bd140f097f",
+      "key": "WF-INTF-0040-A#90a413b0721b",
       "requirement": "WF-INTF-0040-A",
-      "sentence": "Un fichier XML produit par chacune des versions 2007, 2010, 2013, 2016, 2019, 2021 et 2024 de MS Project est importé sans erreur."
+      "sentence": "Un fichier XML produit par MS Project 2013 est importé sans erreur."
     },
     {
       "key": "WF-INTF-0180-A#ade0abdb1ba2",
@@ -25,6 +25,11 @@
       "key": "WF-PTF-0020-A#c424fdc63fd8",
       "requirement": "WF-PTF-0020-A",
       "sentence": "Une offre à 40 % de probabilité et 100 000 de devis contribue pour 40 000 à la valeur du pipeline."
+    },
+    {
+      "key": "WF-PTF-0040-A#b7dfea08ee32",
+      "requirement": "WF-PTF-0040-A",
+      "sentence": "Un projet en cours de budget 1 000, de coût réel 500 et de reste à engager 550 affiche une projection de 1 050 et un écart de 50."
     },
     {
       "key": "WF-PTF-0050-A#2495b6b38022",
@@ -77,9 +82,34 @@
       "sentence": "Le devis et les indicateurs du projet lui-même sont identiques à 0 % et à 100 %."
     },
     {
+      "key": "WF-PLA-0030-A#0db0c7e480a9",
+      "requirement": "WF-PLA-0030-A",
+      "sentence": "Un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours de travail."
+    },
+    {
+      "key": "WF-PLA-0160-A#bbe6853cf3ce",
+      "requirement": "WF-PLA-0160-A",
+      "sentence": "Avec les valeurs par défaut, une durée saisie « 2 j » vaut seize heures, « 1 sem » quarante heures et « 1 m » cent soixante heures."
+    },
+    {
+      "key": "WF-PLA-0160-A#8e3b08233deb",
+      "requirement": "WF-PLA-0160-A",
+      "sentence": "Un décalage saisi « 1 sem » est exporté puis réimporté sans changer d'unité."
+    },
+    {
+      "key": "WF-PLA-0160-A#0d99e6157bd6",
+      "requirement": "WF-PLA-0160-A",
+      "sentence": "Un décalage de 2 ej placé un vendredi soir fait commencer le successeur le dimanche soir."
+    },
+    {
       "key": "WF-PLA-0110-A#7e0f932d2ca2",
       "requirement": "WF-PLA-0110-A",
       "sentence": "Sur un planning de quatre niveaux, l'affichage demandé au niveau 2 ne représente que les récapitulatives des deux premiers niveaux, sous le nœud du projet."
+    },
+    {
+      "key": "WF-DEV-0050-A#7fc49e5bd099",
+      "requirement": "WF-DEV-0050-A",
+      "sentence": "La grille de devis ne présente ni montant budgété ni montant réestimé ; une ligne dont la tâche se place deux ans après l'année de référence, avec une inflation de 2 %, affiche un montant corrigé supérieur de 4,04 % à son montant."
     },
     {
       "key": "WF-DEV-0030-A#e6c446928b5b",
@@ -105,6 +135,16 @@
       "key": "WF-RIS-0050-A#f1eeb908b16f",
       "requirement": "WF-RIS-0050-A",
       "sentence": "Si un second risque de provision 40 est ensuite écarté alors qu'aucun autre risque n'est identifié, le budget de référence passe à 1 100."
+    },
+    {
+      "key": "WF-RIS-0060-A#7e4be2e49569",
+      "requirement": "WF-RIS-0060-A",
+      "sentence": "Après déclaration de survenance d'un risque de gravité 200 à 30 %, dont le devis propre porte deux lignes de 120 et 80, les tâches du devis propre figurent dans la structure principale, la révision produite est la référence, les lignes fusionnées portent des montants budgétés de 36 et 24 et des montants réestimés de 120 et 80, et la ligne de provision a disparu."
+    },
+    {
+      "key": "WF-RIS-0060-A#c5fd9864348d",
+      "requirement": "WF-RIS-0060-A",
+      "sentence": "La valeur acquise augmente de 36 à la terminaison de la première tâche."
     },
     {
       "key": "WF-IND-0030-A#c3aebc79b97d",
@@ -170,6 +210,11 @@
       "key": "WF-IND-0090-A#ba74e32925d5",
       "requirement": "WF-IND-0090-A",
       "sentence": "Un jalon repoussé d'un mois à chaque revue trace une droite de pente 1."
+    },
+    {
+      "key": "WF-IND-0100-A#3fa692e507f8",
+      "requirement": "WF-IND-0100-A",
+      "sentence": "Avec un délai de paiement de 60 jours sur toutes les lignes, la courbe décalée est la courbe de référence translatée de 60 jours ; la somme des décaissements à venir égale le reste à engager."
     },
     {
       "key": "WF-IHM-0100-A#bcb52ee478df",

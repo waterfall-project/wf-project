@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **150 opérations sur 116 chemins, dans 12 familles.**
-Le contrat cite **178 des 203 exigences** de la spécification.
+Le contrat cite **177 des 208 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -245,15 +245,17 @@ Le contrat cite **178 des 203 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-25 sur 203. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+31 sur 208. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
 |---|---|---|
 | ARC | WF-ARC-0010, WF-ARC-0040, WF-ARC-0050, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
-| CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
+| CMP | WF-CMP-0010, WF-CMP-0030 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010, WF-EXP-0020, WF-EXP-0030, WF-EXP-0050 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
-| IHM | WF-IHM-0010, WF-IHM-0040, WF-IHM-0100 | Invariants d'interface : navigation, saisie au clavier, accessibilité. Ils vivent dans le front. |
+| IHM | WF-IHM-0010, WF-IHM-0040, WF-IHM-0100, WF-IHM-0120, WF-IHM-0130 | Invariants d'interface : navigation, saisie au clavier, accessibilité. Ils vivent dans le front. |
+| IND | WF-IND-0130 | WF-IND-0130, l'évolution des indices, attend la mise à jour du contrat qui suit la revue de la spécification du 2026-10-03 : une lecture des courbes d'indices y entrera, et la projection de décaissement (WF-IND-0120, retirée) en sortira. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
-| QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |
+| PLA | WF-PLA-0160 | WF-PLA-0160, les unités de durée, attend la même mise à jour : les constantes de conversion de l'installation entrent dans le référentiel du contrat. |
+| QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |

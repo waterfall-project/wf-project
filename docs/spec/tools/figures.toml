@@ -1,16 +1,45 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-# Association entre une figure du document Word et une page du fichier draw.io.
+# Association entre une figure du document Word et sa source Mermaid.
 #
-# Une figure n'a besoin d'une entrée ici que si son texte alternatif Word ne
-# contient pas déjà un source Mermaid. `legende` est un fragment de la légende
-# telle qu'elle apparaît sous la figure dans Word ; `direction` est la direction
-# du flowchart Mermaid (LR, TD, RL, BT).
+# Chaque figure a une entrée ici : sans elle, l'image est conservée telle quelle
+# et le build l'avertit. `legende` est un fragment de la légende telle qu'elle
+# apparaît sous la figure dans Word. La source est soit une page du fichier
+# draw.io (`page`, avec `direction`, la direction du flowchart Mermaid : LR, TD,
+# RL, BT), soit un fichier Mermaid du dépôt (`source`). Le texte alternatif de
+# l'image dans Word n'est jamais lu.
 
 [[figure]]
 legende = "Diagramme de contexte"
 page = "Contexte"
 direction = "LR"
+
+# Modèle conceptuel : des diagrammes de classes, tenus en Mermaid dans le dépôt.
+# L'image dans Word a été dessinée dans draw.io à partir de ces sources.
+
+[[figure]]
+legende = "Modèle conceptuel du référentiel"
+source = "figures/modele-referentiel.mmd"
+
+[[figure]]
+legende = "Découpage d'un projet"
+source = "figures/decoupage-projet.mmd"
+
+[[figure]]
+legende = "Révisions et structure de co"
+source = "figures/revisions-structure-couts.mmd"
+
+[[figure]]
+legende = "Modèle conceptuel du planning"
+source = "figures/modele-planning.mmd"
+
+[[figure]]
+legende = "Modèle conceptuel du chiffrage"
+source = "figures/modele-chiffrage-couts.mmd"
+
+[[figure]]
+legende = "Modèle conceptuel des risques"
+source = "figures/modele-risques.mmd"
 
 # Arborescence fonctionnelle : une page draw.io par figure.
 # Les fragments se recouvrent ; le build retient le plus long qui correspond.
@@ -57,13 +86,21 @@ page = "Cycle de vie projet"
 direction = "LR"
 
 [[figure]]
+legende = "Flux de travail principal"
+page = "Flux de travail"
+direction = "LR"
+
+[[figure]]
 legende = "Arborescence produit"
 page = "PBS"
 direction = "LR"
 
-# Diagrammes de séquence : la source est tenue dans le dépôt, car le texte
-# alternatif Word aplatit le diagramme sur une ligne et une séquence ne se
-# re-segmente pas sans ambiguïté.
+# Diagrammes techniques, tenus en Mermaid dans le dépôt ; l'image dans Word est
+# engendrée par mmdc à partir du fichier.
+
+[[figure]]
+legende = "Diagramme de déploiement"
+source = "figures/deploiement.mmd"
 
 [[figure]]
 legende = "Diagramme de séquence des imports"

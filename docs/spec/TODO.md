@@ -6,63 +6,34 @@ Word en une passe, lance `make build-doc`, puis efface les entrées intégrées.
 suit la forme des constats de revue : où, quoi, et un texte proposé — à retravailler
 librement dans le document.
 
-## 1. L'écran d'accueil à la connexion
+Les trente-six entrées de la passe du 2026-10-03 sont tranchées et intégrées ; leurs
+décisions se lisent dans l'historique Git de ce fichier (dernière version complète au
+commit d314a11). Une seule attend son tour.
 
-- **Où** : §3.6 (principes d'interface), nouvelle exigence — prochain identifiant libre
-  `WF-IHM-0120`.
-- **Quoi** : rien ne dit ce qu'un utilisateur voit en arrivant. Décidé au cadrage d'EP-02
-  (2026-09-28) : la liste des projets dont il est contributeur.
-- **Hypothèse à trancher en intégrant** : c'est un filtre par défaut, visible et levable —
-  pas une restriction de lecture, qui contredirait WF-PRJ-0060 (« la consultation ne dépend
-  que des habilitations »).
-- **Texte proposé** — Corps : « À la connexion, l'utilisateur voit la liste des projets dont
-  il est contributeur. Ce filtre est visible et peut être levé pour voir tout ce que ses
-  habilitations permettent de consulter. » Vérif : « Un contributeur de deux projets les
-  voit à sa connexion ; la levée du filtre montre aussi les projets qu'il peut seulement
-  consulter. »
+## 1. Les formats Excel de l'annexe B
 
-## 2. Introuvable et lecture refusée : le même écran
-
-- **Où** : WF-ADM-0110 (corps), ou §3.6.
-- **Quoi** : le contrat répond 404 quand la permission de consultation manque, précisément
-  pour que l'existence d'un objet ne fuie pas. L'interface doit tenir la même ligne : une
-  adresse inexistante et une lecture refusée mènent au même écran « introuvable ». La spec
-  ne le dit que côté API.
-- **Texte proposé** (corps de WF-ADM-0110, ajout) : « L'interface présente le même écran
-  pour un objet inexistant et pour un objet dont la consultation n'est pas permise. »
-
-## 3. L'installation neuve guide vers le référentiel
-
-- **Où** : WF-CYC-0120 (corps ou Vérif), ou l'exigence de l'entrée 1.
-- **Quoi** : tant que le référentiel minimal est incomplet, la création de projet est
-  refusée (WF-CYC-0120). Rien ne dit ce que voit l'administrateur d'une installation
-  neuve : un accueil vide sans explication serait une impasse.
-- **Texte proposé** (Vérif, ajout) : « Sur une installation dont le référentiel est
-  incomplet, l'accueil énonce les prérequis manquants et mène au référentiel. »
-
-## 4. La session qui expire ramène où l'on allait
-
-- **Où** : WF-SEC-0020 (corps), ou §3.6.
-- **Quoi** : rien ne dit ce que vit l'utilisateur quand sa session expire en cours de
-  travail.
-- **Texte proposé** (corps, ajout) : « Une session expirée mène à l'écran de connexion ;
-  la connexion refaite ramène à l'écran visé. »
-
-## 5. La saisie des nombres suit la langue
-
-- **Où** : WF-INTF-0180 (corps).
-- **Quoi** : l'exigence couvre l'affichage (« 1 234,56 » / « 1,234.56 ») mais pas la
-  saisie. Décidé au cadrage : on saisit au format de sa langue, la valeur voyage en décimal
-  exact.
-- **Texte proposé** (corps, ajout) : « La saisie d'un nombre suit le format de la langue de
-  l'interface — virgule décimale en français, point en anglais. »
-
-## 6. Les horodatages s'affichent en heure locale
-
-- **Où** : WF-DAT-0100 ou WF-INTF-0180 (corps).
-- **Quoi** : les horodatages sont conservés en temps universel, les dates de planning sans
-  heure ne bougent jamais de fuseau — mais rien ne dit dans quelle heure s'affiche un
-  horodatage (date de calcul d'un indicateur, colonnes d'audit). Décidé au cadrage : l'heure
-  locale du poste.
-- **Texte proposé** (corps de WF-DAT-0100, ajout) : « Un horodatage s'affiche dans l'heure
-  locale du poste ; une date de planning s'affiche telle quelle. »
+- **Où** : annexe B ; WF-INTF-0070 à WF-INTF-0140 ; WF-CRE-0010 et WF-CRE-0020.
+- **Quand** : au cadrage d'EP-09 pour le format « Coûts réels », au cadrage d'EP-12 pour
+  « Devis » et « Reste à engager ». Décidé le 2026-10-03 : l'annexe reste à deux phrases
+  jusque-là.
+- **Déjà tranché**, à reprendre tel quel en rédigeant :
+  - le fichier « Devis » présente une synthèse en premier onglet, puis un onglet par lot du
+    lotissement ; le fichier « Reste à engager », un onglet par sous-projet ; le §3.2.3, le
+    §3.4.5.2.1 et WF-INTF-0120 le disent déjà ;
+  - une ligne désigne sa tâche par son identifiant de lignée, écrit par l'export, et à défaut
+    par le libellé de la tâche ; un libellé ambigu est signalé au compte rendu, de sorte
+    qu'un fichier construit de zéro dans Excel reste importable ;
+  - une ligne de coût porte un numéro de pièce, une date de pièce, un montant signé, un
+    élément d'OTP de la forme préfixe.code projet/code sous-projet (WF-CRE-0020), et des
+    colonnes conservées à titre d'information — le fournisseur, le texte de la commande, la
+    référence, le document d'achat (motif de WF-CRE-0010) ;
+  - une ligne de devis ou de reste à engager désigne sa tâche et son sous-projet, sa
+    catégorie ou, pour la main-d'œuvre, son rôle, sa quantité, sa charge ou son débours
+    (WF-INTF-0100), son délai de paiement (WF-DEV-0020) et, pour le reste à engager, son
+    montant réestimé ;
+  - le numéro de version du format est inscrit dans le fichier (WF-INTF-0070), à un
+    emplacement que l'annexe fixera ;
+  - ce qu'il reste à dire : la ligne sans lot (le lot unique du lotissement par défaut) et
+    la ligne sans sous-projet (l'ensemble « hors sous-projet »).
+- **PO-01** : l'extraction des engagements et des heures relève de l'après-MVP ; le format
+  étant versionné, il s'étendra sans rendre illisibles les fichiers existants.
