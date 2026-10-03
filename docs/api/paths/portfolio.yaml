@@ -9,8 +9,11 @@
     summary: Liste des projets du portefeuille
     description: >-
       Libellé, code, état, budget de référence ou devis courant et probabilité, projection
-      du chef de projet, indices avec leur zone, et date de la dernière révision marquée
-      (WF-PTF-0040).
+      du chef de projet et, pour un projet en cours, son écart au budget de référence,
+      indices avec leur zone, et date de la dernière révision marquée (WF-PTF-0040). La
+      liste se filtre par état, par période, par zone et par recherche sur le libellé ;
+      le tri est fait par le serveur, et `meta.total` compte les projets retenus
+      (WF-IHM-0130).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -20,6 +23,33 @@
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - $ref: ../components/parameters.yaml#/Search
+      - name: zones
+        in: query
+        description: >-
+          Restreint aux projets dont l'indice de coût ou l'indice de délai est dans l'une
+          de ces zones : les projets en alerte, d'abord (WF-PTF-0040, WF-IHM-0130).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
+        explode: false
+      - name: sort_by
+        in: query
+        description: Colonne du tri ; absente, le libellé.
+        schema:
+          type: string
+          enum:
+            - label
+            - code
+            - state
+            - reference_budget
+            - current_estimate
+            - win_probability
+            - project_manager_projection
+            - delta_to_reference
+            - cost_index
+            - schedule_index
+            - last_marked_at
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Projets du périmètre.

@@ -101,8 +101,11 @@ RiskOccurrence:
   required: [confirmed, version_name]
   description: >-
     Déclare le risque survenu : fusionne son devis propre dans la structure
-    principale, les lignes fusionnées portant un montant budgété nul, et la
-    révision marquée qui en résulte devient la référence (WF-RIS-0060). Définitif.
+    principale, chaque ligne fusionnée portant pour montant budgété sa part de la
+    provision — son montant multiplié par la probabilité du risque dans la révision de
+    référence, arrondi au centime, le reste sur la dernière — et pour montant réestimé
+    son montant ; la ligne de provision est retirée, et la révision marquée qui en
+    résulte devient la référence (WF-RIS-0060). Définitif.
   properties:
     confirmed:
       type: boolean

@@ -1,0 +1,296 @@
+{
+  "summary": "L'évolution des indices du projet et de ses mailles : un point par révision marquée — l'offre et la référence, marquées avant tout coût réel, n'ont pas d'indice calculable — et le dernier au jour courant, où le projet n'a toujours aucun coût réel et une valeur acquise nulle ; les seuils du référentiel, 0,9 et 0,8 (WF-IND-0130, WF-REF-0170).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "revision_status": "draft",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "thresholds": {
+      "cost_watch": "0.9",
+      "cost_alert": "0.8",
+      "schedule_watch": "0.9",
+      "schedule_alert": "0.8"
+    },
+    "scopes": [
+      {
+        "scope": "project",
+        "label": null,
+        "points": [
+          {
+            "at": "2025-12-15T16:00:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000100",
+            "version_name": "Offre v1.0",
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          },
+          {
+            "at": "2026-02-01T09:00:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+            "version_name": "Référence",
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          },
+          {
+            "at": "2026-03-16T14:05:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+            "version_name": null,
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": true,
+                "value": "0",
+                "reason": null
+              },
+              "zone": "alert"
+            }
+          }
+        ]
+      },
+      {
+        "scope": "01926f3a-7c00-7000-8000-000000000801",
+        "label": "Poste de commande",
+        "points": [
+          {
+            "at": "2025-12-15T16:00:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000100",
+            "version_name": "Offre v1.0",
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          },
+          {
+            "at": "2026-02-01T09:00:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+            "version_name": "Référence",
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          },
+          {
+            "at": "2026-03-16T14:05:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+            "version_name": null,
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": true,
+                "value": "0",
+                "reason": null
+              },
+              "zone": "alert"
+            }
+          }
+        ]
+      },
+      {
+        "scope": "01926f3a-7c00-7000-8000-000000000802",
+        "label": "Essais et mise en service",
+        "points": [
+          {
+            "at": "2025-12-15T16:00:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000100",
+            "version_name": "Offre v1.0",
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          },
+          {
+            "at": "2026-02-01T09:00:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+            "version_name": "Référence",
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          },
+          {
+            "at": "2026-03-16T14:05:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+            "version_name": null,
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          }
+        ]
+      },
+      {
+        "scope": "unassigned",
+        "label": null,
+        "points": [
+          {
+            "at": "2025-12-15T16:00:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000100",
+            "version_name": "Offre v1.0",
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          },
+          {
+            "at": "2026-02-01T09:00:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+            "version_name": "Référence",
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          },
+          {
+            "at": "2026-03-16T14:05:00Z",
+            "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+            "version_name": null,
+            "cost_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_actual_cost"
+              },
+              "zone": null
+            },
+            "schedule_index": {
+              "value": {
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
+              },
+              "zone": null
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

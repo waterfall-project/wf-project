@@ -68,13 +68,19 @@
     tags: [estimate]
     summary: Plan de charge du projet
     description: >-
-      Par rôle et par mois, sur le devis d'une révision ou sur le reste à engager
-      courant, avec la capacité de chaque rôle en regard (WF-DEV-0070).
+      Par rôle et par mois, au choix sur les montants budgétés de la révision de
+      référence, sur les montants réestimés d'une révision marquée, nommée par
+      `revision_id`, ou sur ceux de la révision en cours, avec la capacité de chaque rôle
+      en regard (WF-DEV-0070). Sur un projet sans révision de référence, seule la
+      révision en cours est une base : les deux autres sont refusées (409,
+      `STATE_FORBIDS_OPERATION`), et `marked_remaining` l'est aussi sans `revision_id`
+      ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/WorkloadBasis
       - name: revision_id
         in: query
+        description: La révision marquée dont les montants réestimés font la base ; exigée avec `marked_remaining`, ignorée sinon.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: org_node_id
         in: query
@@ -86,6 +92,12 @@
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/WorkloadPlan }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: 'Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070).'
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
 /projects/{project_id}/remaining-indicators:
   get:
@@ -195,14 +207,25 @@
     summary: Courbe de coûts cumulés
     description: >-
       Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la
-      projection du chef de projet. Les changements du budget apparaissent comme des
-      marches datées (WF-IND-0100).
+      projection du chef de projet, le reste à engager étalé sur les dates de la
+      révision courante. Les changements du budget apparaissent comme des marches
+      datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de
+      paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date
+      de la tâche qui les porte : la courbe présente alors les décaissements, passés et
+      à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des
+      décaissements à venir égale le reste à engager (WF-IND-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/AsOf
+      - name: payment_delays
+        in: query
+        description: >-
+          Vrai, les séries sont décalées des délais de paiement et portent les provisions
+          des risques identifiés : ce sont les décaissements (WF-IND-0100).
+        schema: { type: boolean, default: false }
     responses:
       '200':
-        description: Séries cumulées.
+        description: Séries cumulées, décaissements par mois compris quand `payment_delays` est vrai.
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/CurveSeries }
@@ -228,24 +251,28 @@
             schema: { $ref: ../components/schemas/indicators.yaml#/CurveSeries }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
-/projects/{project_id}/indicators/cash-out:
+/projects/{project_id}/indicators/index-history:
   get:
-    operationId: getProjectCashOut
+    operationId: getIndexHistory
     tags: [indicators]
-    summary: Projection de décaissement
+    summary: Évolution des indices
     description: >-
-      Le passé par mois de date de pièce, l'avenir en étalant le reste à engager puis en
-      décalant chaque part de son délai de paiement ; les provisions des risques
-      identifiés y figurent (WF-IND-0120).
+      Pour le projet et pour chaque sous-projet, l'ensemble « hors sous-projet » compris
+      (WF-IND-0020), l'évolution de l'indice de coût et de l'indice de délai : un point par
+      révision marquée, à sa date de marquage, tel que son marquage l'a conservé
+      (WF-DAT-0040), et le dernier point au jour courant pour la révision en cours, avec
+      les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un
+      indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un
+      point non calculable, jamais omis.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
-      - name: horizon_months
-        in: query
-        schema: { type: integer, minimum: 1, maximum: 240 }
     responses:
       '200':
-        description: Décaissements par mois.
+        description: Courbes des indices par maille, et les seuils.
         content:
           application/json:
-            schema: { $ref: ../components/schemas/indicators.yaml#/CashOut }
+            schema: { $ref: ../components/schemas/indicators.yaml#/IndexHistory }
+            examples:
+              witness: { $ref: ../../../fixtures/api/index_history.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

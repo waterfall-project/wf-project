@@ -6,7 +6,8 @@
     description: >-
       Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la
       case de matrice et les totaux de provisions (WF-RIS-0040). Le tri et les filtres
-      sont faits par le serveur, et les totaux sont ceux des risques retenus.
+      sont faits par le serveur, et les totaux sont ceux des risques retenus
+      (WF-IHM-0130).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: states
@@ -14,6 +15,13 @@
         schema:
           type: array
           items: { $ref: ../components/schemas/risks.yaml#/RiskState }
+        explode: false
+      - name: zones
+        in: query
+        description: Restreint aux risques dont la case de matrice est dans l'une de ces zones.
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
         explode: false
       - $ref: ../components/parameters.yaml#/Search
       - name: sort_by
@@ -165,11 +173,15 @@
     tags: [risks]
     summary: Déclarer un risque survenu
     description: >-
-      Fusionne les tâches et les lignes du devis propre dans la structure principale,
-      avec un montant budgété nul, et la révision marquée qui en résulte devient la
-      référence ; la provision retenue est celle de la révision de référence
-      (WF-RIS-0060, WF-RIS-0050). Définitif, confié au worker, inscrit au journal
-      d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
+      Fusionne les tâches et les lignes du devis propre dans la structure principale.
+      Chaque ligne fusionnée porte, pour montant budgété, son montant dans le devis
+      propre multiplié par la probabilité du risque dans la révision de référence,
+      arrondi au centime, la dernière ligne portant le reste de sorte que leur somme
+      soit la provision ; pour montant réestimé, son montant dans le devis propre. La
+      ligne de provision est retirée de la structure principale, et la révision marquée
+      qui en résulte devient la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple
+      `risk_occurred` de `listNodes` montre la structure obtenue. Définitif, confié au
+      worker, inscrit au journal d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
