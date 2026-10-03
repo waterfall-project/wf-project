@@ -86,7 +86,7 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   readonly total?: (totals: Totals) => CellValue;
 }
 
-/** A field whose value the server computes, as the contract names it: `task.finish_date`. */
+/** A field whose value the server computes, as the contract names it: `task.finish`. */
 export type ComputedValueField = components["schemas"]["ComputedValueField"];
 
 /**

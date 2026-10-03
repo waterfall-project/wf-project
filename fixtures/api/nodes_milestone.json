@@ -14,16 +14,31 @@
         "task": {
           "label": "Réalisation",
           "scheduling_mode": "automatic",
-          "duration_days": 0,
-          "start_date": "2026-09-30",
-          "finish_date": "2026-09-30",
+          "duration": {
+            "value": "0",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-09-30",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-09-30",
+            "hours": "0"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00"
         },
-        "computed_fields": ["task.duration_days", "task.start_date", "task.finish_date", "task.progress"]
+        "computed_fields": [
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ]
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000512",
@@ -37,16 +52,29 @@
         "task": {
           "label": "Réception usine",
           "scheduling_mode": "automatic",
-          "duration_days": 0,
-          "start_date": "2026-09-30",
-          "finish_date": "2026-09-30",
+          "duration": {
+            "value": "0",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-09-30",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-09-30",
+            "hours": "0"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00"
         },
-        "computed_fields": ["task.start_date", "task.finish_date"]
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ]
       }
     ],
     "totals": {

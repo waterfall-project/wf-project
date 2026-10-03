@@ -14,19 +14,29 @@
         "task": {
           "label": "Études",
           "scheduling_mode": "automatic",
-          "duration_days": 40,
-          "start_date": "2026-03-02",
-          "finish_date": "2026-04-24",
+          "duration": {
+            "value": "40",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-03-02",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-24",
+            "hours": "8"
+          },
           "progress": "started",
+          "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
           "budgeted_amount": "100000.00",
           "reestimated_amount": "100000.00"
         },
         "computed_fields": [
-          "task.duration_days",
-          "task.start_date",
-          "task.finish_date",
+          "task.duration",
+          "task.start",
+          "task.finish",
           "task.progress"
         ]
       },
@@ -42,10 +52,20 @@
         "task": {
           "label": "Études de détail",
           "scheduling_mode": "automatic",
-          "duration_days": 30,
-          "start_date": "2026-03-02",
-          "finish_date": "2026-04-10",
+          "duration": {
+            "value": "30",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-03-02",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-10",
+            "hours": "8"
+          },
           "progress": "started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
           "budgeted_amount": "100000.00",
@@ -54,8 +74,8 @@
           "is_critical": true
         },
         "computed_fields": [
-          "task.start_date",
-          "task.finish_date"
+          "task.start",
+          "task.finish"
         ]
       },
       {
@@ -73,7 +93,9 @@
           "quantity": "600",
           "budgeted_amount": "100000.00",
           "reestimated_amount": "100000.00",
+          "inflated_amount": "100000.00",
           "is_computed": false,
+          "uses_inactive_object": false,
           "previous_reestimated_amount": null,
           "remaining_entry": {
             "is_available": true,
@@ -94,10 +116,20 @@
         "task": {
           "label": "Revue de conception",
           "scheduling_mode": "automatic",
-          "duration_days": 10,
-          "start_date": "2026-04-13",
-          "finish_date": "2026-04-24",
+          "duration": {
+            "value": "10",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-04-13",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-24",
+            "hours": "8"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
           "budgeted_amount": "0.00",
@@ -106,16 +138,18 @@
           "is_critical": true
         },
         "computed_fields": [
-          "task.start_date",
-          "task.finish_date"
+          "task.start",
+          "task.finish"
         ],
         "predecessors": [
           {
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000502",
             "predecessor_row_number": 2,
             "link_type": "finish_to_start",
-            "lag": 0,
-            "lag_unit": "days"
+            "lag": {
+              "value": "0",
+              "unit": "d"
+            }
           }
         ]
       }

@@ -213,8 +213,10 @@ PermissionCode:
     Code du catalogue, livré et non modifiable : deux permissions par fonction de
     second niveau, consulter et modifier, la permission d'une fonction couvrant ses
     sous-fonctions ; plus une permission propre par action irréversible ou
-    structurante (WF-ADM-0100). L'énumération est le catalogue : une permission
-    nouvelle est une modification du contrat.
+    structurante, dont « consulter tous les projets », qui ouvre à la consultation les
+    projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060).
+    L'énumération est le catalogue : une permission nouvelle est une modification du
+    contrat.
   enum:
     # FBS-1 — Administration.
     - users.read
@@ -275,6 +277,7 @@ PermissionCode:
     - risk_occurrence
     - cost_line_exclude
     - platform_restore
+    - all_projects_read
 
 Permission:
   type: object
@@ -283,7 +286,10 @@ Permission:
     code: { $ref: '#/PermissionCode' }
     kind:
       type: string
-      enum: [function_read, function_write, irreversible]
+      enum: [function_read, function_write, irreversible, structuring]
+      description: >-
+        Consultation ou modification d'une fonction, action irréversible, ou permission
+        structurante — consulter tous les projets (WF-ADM-0100).
     fbs_code:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Fonction de second niveau couverte, pour les deux premières natures.

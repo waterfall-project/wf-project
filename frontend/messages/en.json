@@ -181,8 +181,9 @@
     "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
     "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
     "days": "{days, number} d",
+    "duration": "{value} {unit}",
     "critical": "Critical path",
-    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag, number} {unit, select, weeks {wk} months {mo} other {d}}} lead {{lag, number} {unit, select, weeks {wk} months {mo} other {d}}} other {}}",
+    "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";"
   },
   "computedValue": {
@@ -466,6 +467,7 @@
     "INVALID_CREDENTIALS": "Incorrect email address or password.",
     "PERMISSION_MISSING": "You do not have the required permission.",
     "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
+    "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",
     "PROJECT_TERMINAL": "The project is closed and can no longer be changed.",
     "REVISION_MARKED": "The revision is marked and can no longer be changed.",
     "NOT_FOUND": "Not found: this item does not exist, or you do not have access to it.",
@@ -475,6 +477,7 @@
     "REFERENCE_NOT_CORRECTABLE": "The reference revision can no longer be corrected.",
     "UNDO_CONFLICT": "Cannot undo: the data has changed since.",
     "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
+    "LAST_PROJECT_MANAGER": "A project keeps at least one project manager.",
     "ACCESS_ROLE_IN_USE": "This access role is still assigned to accounts.",
     "DEFAULT_CALENDAR_REQUIRED": "A default calendar is required.",
     "HAS_ACTUAL_COSTS": "Actual costs are booked against it.",
@@ -619,7 +622,8 @@
     "project_exit": "Close a project: completed, lost or abandoned",
     "risk_occurrence": "Declare that a risk has occurred",
     "cost_line_exclude": "Exclude actual cost lines",
-    "platform_restore": "Restore the platform"
+    "platform_restore": "Restore the platform",
+    "all_projects_read": "View every project"
   },
   "enums": {
     "ComponentHealth": {
@@ -707,7 +711,8 @@
       "kind": {
         "function_read": "View a function",
         "function_write": "Edit a function",
-        "irreversible": "Irreversible or structuring action"
+        "irreversible": "Irreversible action",
+        "structuring": "Structuring permission"
       }
     },
     "Backup": {
@@ -764,6 +769,7 @@
     },
     "CommandCondition": {
       "is_contributor": "being a contributor to the project",
+      "is_project_manager": "being a project manager of the project",
       "project_not_terminal": "project not closed",
       "project_in_progress": "project in progress",
       "project_in_pricing": "project in pricing",
@@ -786,6 +792,10 @@
         "lost": "Lost",
         "abandoned": "Abandoned"
       }
+    },
+    "ContributorKind": {
+      "project_manager": "Project manager",
+      "contributor": "Contributor"
     },
     "RevisionStatus": {
       "draft": "Draft",
@@ -863,16 +873,36 @@
       "finish_to_finish": "Finish-to-finish (FF)",
       "start_to_finish": "Start-to-finish (SF)"
     },
+    "DurationUnit": {
+      "min": "min",
+      "h": "h",
+      "d": "d",
+      "w": "wk",
+      "mo": "mo",
+      "emin": "emin",
+      "eh": "eh",
+      "ed": "ed",
+      "ew": "ewk",
+      "emo": "emo"
+    },
     "LagUnit": {
-      "days": "days",
-      "weeks": "weeks",
-      "months": "months"
+      "min": "min",
+      "h": "h",
+      "d": "d",
+      "w": "wk",
+      "mo": "mo",
+      "emin": "emin",
+      "eh": "eh",
+      "ed": "ed",
+      "ew": "ewk",
+      "emo": "emo",
+      "percent": "%"
     },
     "ComputedField": {
       "task": {
-        "duration_days": "Duration (days)",
-        "start_date": "Start",
-        "finish_date": "Finish",
+        "duration": "Duration",
+        "start": "Start",
+        "finish": "Finish",
         "progress": "Progress"
       },
       "estimate_line": {
@@ -883,9 +913,9 @@
     },
     "ComputedValueField": {
       "task": {
-        "duration_days": "Duration of the task",
-        "start_date": "Start of the task",
-        "finish_date": "Finish of the task",
+        "duration": "Duration of the task",
+        "start": "Start of the task",
+        "finish": "Finish of the task",
         "progress": "Progress of the task",
         "physical_progress": "Physical progress of the task",
         "total_float_days": "Total float of the task",
@@ -898,7 +928,8 @@
         "unit_disbursement": "Unit disbursement of the line",
         "budgeted_amount": "Budgeted amount of the line",
         "reestimated_amount": "Re-estimated amount of the line",
-        "previous_reestimated_amount": "Previous re-estimated amount of the line"
+        "previous_reestimated_amount": "Previous re-estimated amount of the line",
+        "inflated_amount": "Inflation-corrected amount of the line"
       }
     },
     "ComputedDependency": {
@@ -911,7 +942,8 @@
       "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement, projected onto its year of consumption.",
       "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
-      "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete."
+      "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
+      "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate."
     },
     "ProgressUpdate": {
       "progress": {
@@ -921,8 +953,9 @@
     },
     "WorkloadPlan": {
       "basis": {
-        "estimate": "Estimate",
-        "remaining": "Estimate to complete"
+        "reference_budget": "Budget of the reference revision",
+        "marked_remaining": "Remaining of a marked revision",
+        "current_remaining": "Remaining of the current revision"
       }
     },
     "NotComputableReason": {
@@ -1035,8 +1068,9 @@
       "unassigned": "No subproject"
     },
     "WorkloadBasis": {
-      "estimate": "Estimate",
-      "remaining": "Estimate to complete"
+      "reference_budget": "Budget of the reference revision",
+      "marked_remaining": "Remaining of a marked revision",
+      "current_remaining": "Remaining of the current revision"
     }
   }
 }

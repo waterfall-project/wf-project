@@ -39,6 +39,15 @@ PortfolioProjectRow:
       anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
     project_manager_projection:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        Projection à terminaison du chef de projet, coût réel et reste à engager
+        (WF-IND-0050) ; nulle hors d'un projet en cours.
+    delta_to_reference:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        Écart de cette projection au budget de référence, positif quand elle le dépasse :
+        budget 1 000, coût réel 500, reste à engager 550, projection 1 050, écart 50
+        (WF-PTF-0040). Nul hors d'un projet en cours.
     cost_index:
       anyOf: [{ $ref: indicators.yaml#/IndexValue }, { type: 'null' }]
     schedule_index:
@@ -171,18 +180,15 @@ PortfolioRisks:
 PortfolioCashOut:
   type: object
   required: [scope, months]
-  description: Somme des projections de décaissement des projets du périmètre (WF-PTF-0100).
+  description: >-
+    Somme, mois par mois, des décaissements des projets du périmètre, ceux que la courbe
+    de coûts cumulés de chacun rend avec les délais de paiement (WF-PTF-0100,
+    WF-IND-0100).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     months:
       type: array
-      items:
-        type: object
-        required: [month, past, forecast]
-        properties:
-          month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
-          past: { $ref: ../common.yaml#/Money }
-          forecast: { $ref: ../common.yaml#/Money }
+      items: { $ref: indicators.yaml#/CashOutMonth }
 
 PilotHealth:
   type: object

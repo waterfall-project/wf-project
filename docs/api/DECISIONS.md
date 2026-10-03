@@ -225,6 +225,105 @@ décalage garde son unité (`lag`, `lag_unit` : jours, semaines ou mois, WF-PLA-
 EP-02). C'est un filtre que l'utilisateur voit et lève, jamais une restriction de lecture :
 la consultation ne dépend que des habilitations (WF-PRJ-0060).
 
+## Révision de la spécification du 2026-10-03 (EP-02/L7)
+
+Ce que la spécification revue impose, et la forme retenue pour chaque chose (#213).
+
+**Une durée est un objet, dans l'unité de sa saisie** (`Duration { value, unit }`,
+`DurationUnit`, WF-PLA-0160). `duration_days` convertissait en jours ce que l'utilisateur
+avait saisi en semaines ou en mois, et ne savait pas dire un temps écoulé. `value` est un
+`Decimal` du contrat, comme `Hours` : MS Project accepte « 2,5 j », et un flottant est
+interdit (WF-DAT-0100). `unit` est un code court, celui du suffixe de MS Project en anglais
+(`d`, `w`, `mo`, `ed`…), que le front rend par le suffixe de la langue du lecteur
+(`j`, `sem`, `m`, `ej`…). Le décalage d'une liaison a la même forme (`Lag`, `LagUnit`), avec
+une unité de plus, `percent`, que seule une liaison accepte (WF-PLA-0030) : deux énumérations
+nommées plutôt qu'une seule restreinte par facette, pour que chacune ait ses clés de
+catalogue et que le typage refuse un pourcentage sur une tâche. `lag` et `lag_unit` sont
+remplacés par `lag`. Les constantes de conversion sont une ressource du référentiel,
+`GET`/`PUT /reference/duration-units` (`DurationUnits`, 8, 40, 20 par défaut), sous la
+permission des paramètres de ressources comme les calendriers, et lisibles par quiconque
+consulte un projet : un paramètre de l'installation, pas du projet.
+
+**Le début et la fin d'une tâche sont un instant de travail** (`WorkInstant { date, hours }`,
+WF-DAT-0100) : la date sans heure et les heures de travail écoulées ce jour-là, sans fuseau
+— deux tâches de quatre heures liées fin à début finissent le même jour. `start_date` et
+`finish_date` deviennent `start` et `finish`, sur la facette, dans `computed_fields`, dans
+`ComputedValueField` et dans le tri de `listNodes`. Les dates des gestes (`started_on`,
+`completed_on`), des pièces et des courbes restent des dates. `hours` est un `Hours`, décimal
+exact : un calendrier de sept heures et demie existe.
+
+**Les permissions distinguent le chef de projet** (WF-PRJ-0060, WF-ADM-0100, WF-ADM-0110).
+`all_projects_read` entre au catalogue, de nature `structuring` — une quatrième nature de
+`Permission.kind`, car consulter n'est pas irréversible — et ouvre à la consultation les projets
+dont l'utilisateur n'est pas contributeur. `Contributor.kind` dit la qualité, `project_manager`
+ou `contributor` (`ContributorKind`), en lecture comme en écriture : `ContributorsWrite` porte
+désormais des `{ user_id, kind }`, et non des identifiants nus. La condition
+`is_project_manager` et le code `NOT_PROJECT_MANAGER` nomment le refus d'une action structurante
+ou du paramétrage à qui n'est que contributeur, comme `is_contributor` et `NOT_CONTRIBUTOR` le
+font pour la saisie ; `LAST_PROJECT_MANAGER` (409) refuse une liste de contributeurs qui ne
+garderait aucun chef de projet, sur le modèle de `LAST_ADMINISTRATOR`, et un compte inconnu ou
+désactivé est refusé par 422. `listProjects`, filtre levé, ne rend que les projets que
+l'appelant peut ouvrir ; le refus d'une consultation reste un 404.
+
+**Toute liste se filtre sur ce que son écran présente** (WF-IHM-0130). Les listes qui n'avaient
+que la recherche gagnent les filtres que la spécification nomme pour leur grille : l'état des
+révisions, la qualité des contributeurs, l'origine et le rattachement des comptes, le type
+des natures de coût, la nature des catégories, la zone des risques et des projets du
+portefeuille, la recherche sur les objets du référentiel, les rôles d'habilitation et les
+sous-projets ; la liste du portefeuille gagne son tri. Les totaux suivent les filtres, et
+`meta.total` compte ce qui est retenu. Le filtre de `listNodes` sur l'état des tâches reste
+`progress` — nommé comme la propriété qu'il filtre et la colonne qu'il trie —, ce que
+WF-PLA-0080 et WF-RAE-0040 demandent sous le nom d'état. Les journaux (imports, imports de
+coûts, sauvegardes, réexamens) restent sans filtre : la spécification n'en nomme aucun pour
+eux, et un filtre viendra avec l'écran qui le demande.
+
+**Les décaissements sont la courbe de coûts cumulés, décalée** (WF-IND-0100 ; WF-IND-0120
+retirée). `getProjectCashOut` et `CashOut` disparaissent : `getCostCurve` prend
+`payment_delays`, qui décale chaque montant du délai de paiement de sa ligne et ajoute les
+provisions des risques identifiés, et la réponse le dit (`payment_delays`) et détaille alors les
+mois (`cash_out_by_month`, nul sinon). Le mois de décaissement est un schéma partagé
+(`CashOutMonth`), que le décaissement du portefeuille réemploie (WF-PTF-0100) : le portefeuille
+somme ce que les projets rendent.
+
+**L'évolution des indices est une lecture** (`getIndexHistory`, WF-IND-0130). Par maille — le
+projet, chaque sous-projet, « hors sous-projet » (WF-IND-0020) —, un point par révision
+marquée, à sa date de marquage (`at`, un horodatage comme `marked_at`), avec les deux indices
+que le marquage a conservés (WF-DAT-0040), et le dernier point au jour courant pour la
+révision en cours, dont `version_name` est nul ; les seuils du référentiel sont rendus avec
+(`IndexThresholds`), pour être tracés. Un indice non calculable à un marquage est un point non
+calculable, jamais omis : chaque courbe garde un point par révision.
+
+**Le motif d'une sortie se relit** (`StateTransition.reason`, WF-CYC-0090, WF-CYC-0130, #185) :
+nul pour une transition automatique ou une sortie confirmée sans motif ; l'exemple `exited`
+montre une offre perdue avec le sien.
+
+**La grille de devis lit le montant corrigé de l'inflation** (`inflated_amount`, WF-DEV-0050,
+WF-DEV-0040) : calculé, il entre dans `ComputedValueField`, et `inflation` dans
+`ComputedDependency` dit d'où il vient. `budgeted_amount` et `reestimated_amount` restent des
+attributs de la ligne, que la grille de reste à engager lit (WF-RAE-0040).
+
+**Le plan de charge nomme sa base** (`basis` : `reference_budget`, `marked_remaining` avec
+`revision_id`, `current_remaining`, WF-DEV-0070). Sur un projet sans révision de référence,
+seule la révision en cours est une base : les deux autres sont refusées par 409.
+
+**La tâche dit si sa fin est dépassée** (`finish_overdue`, WF-RAE-0040, WF-PLA-0080), et **la
+ligne si elle emploie un objet désactivé** (`uses_inactive_object`, WF-REF-0010) : deux
+booléens calculés, que les grilles signalent sans recopier la règle — la date de calcul, le
+référentiel.
+
+**La survenance d'un risque répartit la provision** (WF-RIS-0060) : les descriptions de
+`declareRiskOccurrence` et de `RiskOccurrence` disent la part de chaque ligne fusionnée, et
+l'exemple `risk_occurred` de `listNodes` montre la structure obtenue — 36 et 24 pour 120 et 80 à
+30 %, la ligne de provision retirée.
+
+**La liste des projets du portefeuille porte l'écart à la référence** (`delta_to_reference`,
+WF-PTF-0040), nul hors d'un projet en cours. La projection du chef de projet que la même
+exigence nomme est `project_manager_projection`, qui existait : un second champ l'aurait
+répétée.
+
+**Sans surface** : WF-IHM-0120, l'accueil, est le filtre `is_contributor` existant ; WF-CMP-0030
+et WF-QUA-0080 relèvent du déploiement et de la chaîne.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

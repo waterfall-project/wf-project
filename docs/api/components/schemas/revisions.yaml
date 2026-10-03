@@ -266,9 +266,9 @@ Node:
 ComputedField:
   type: string
   enum:
-    - task.duration_days
-    - task.start_date
-    - task.finish_date
+    - task.duration
+    - task.start
+    - task.finish
     - task.progress
     - estimate_line.quantity
     - estimate_line.hours
@@ -281,9 +281,9 @@ ComputedValueField:
     que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants,
     la marge, l'avancement physique (WF-IHM-0030).
   enum:
-    - task.duration_days
-    - task.start_date
-    - task.finish_date
+    - task.duration
+    - task.start
+    - task.finish
     - task.progress
     - task.physical_progress
     - task.total_float_days
@@ -295,6 +295,7 @@ ComputedValueField:
     - estimate_line.budgeted_amount
     - estimate_line.reestimated_amount
     - estimate_line.previous_reestimated_amount
+    - estimate_line.inflated_amount
 
 ComputedDependency:
   type: string
@@ -312,7 +313,9 @@ ComputedDependency:
     grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ;
     `reference_revision`, le montant budgété, fixé par la révision de référence
     (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du
-    reste à engager (WF-RAE-0040).
+    reste à engager (WF-RAE-0040) ; `inflation`, le montant corrigé de l'inflation, du
+    montant de la ligne, du taux d'inflation du projet et de son année de consommation
+    (WF-DEV-0040, WF-DEV-0050).
   enum:
     - subordinates
     - lines_and_subordinates
@@ -324,6 +327,7 @@ ComputedDependency:
     - risk
     - reference_revision
     - remaining_reviews
+    - inflation
 
 DependencyRow:
   type: object
@@ -397,34 +401,83 @@ SchedulingMode:
     Mode de planification de la tâche : dates calculées depuis les liaisons, ou
     saisies (WF-PLA-0020).
 
+DurationUnit:
+  type: string
+  enum: [min, h, d, w, mo, emin, eh, ed, ew, emo]
+  description: >-
+    Unité d'une durée, conservée telle qu'elle a été saisie ou importée (WF-PLA-0160) :
+    minutes, heures, jours, semaines et mois de travail, que les constantes de
+    l'installation convertissent en heures (`DurationUnits`) ; minutes, heures, jours,
+    semaines et mois écoulés, qui se convertissent sans calendrier — un jour écoulé vaut
+    vingt-quatre heures, une semaine sept jours, un mois trente jours. Le front l'écrit
+    par le suffixe de Microsoft Project dans la langue du lecteur (`j`, `sem`, `ej`…).
+
+Duration:
+  type: object
+  required: [value, unit]
+  description: >-
+    Durée d'une tâche dans l'unité de sa saisie, en temps de travail ou en temps écoulé
+    (WF-PLA-0160). Nulle pour un jalon (WF-PLA-0050).
+  properties:
+    value:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: Jamais négative.
+    unit: { $ref: '#/DurationUnit' }
+
+LagUnit:
+  type: string
+  enum: [min, h, d, w, mo, emin, eh, ed, ew, emo, percent]
+  description: >-
+    Unité du décalage d'une liaison (WF-PLA-0030) : celles d'une durée, et le
+    pourcentage de la durée du prédécesseur — un décalage de 50 % sur un prédécesseur
+    de dix jours vaut cinq jours de travail.
+
+Lag:
+  type: object
+  required: [value, unit]
+  description: >-
+    Décalage d'une liaison dans l'unité de sa saisie, positif ou négatif — négatif,
+    c'est une avance —, conservé sans conversion (WF-PLA-0030, WF-PLA-0160).
+  properties:
+    value: { $ref: ../common.yaml#/Decimal }
+    unit: { $ref: '#/LagUnit' }
+
 TaskFacet:
   type: object
   required:
     - label
     - scheduling_mode
-    - duration_days
-    - start_date
-    - finish_date
+    - duration
+    - start
+    - finish
     - progress
+    - finish_overdue
     - is_summary
     - is_milestone
     - budgeted_amount
     - reestimated_amount
   description: >-
     Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique,
-    dates et durée d'une récapitulative, marge, criticité, avancement physique —
-    ne sont pas saisissables (WF-IHM-0030).
+    dates et durée d'une récapitulative, marge, criticité, avancement physique, fin
+    dépassée — ne sont pas saisissables (WF-IHM-0030). La durée est portée dans l'unité
+    de sa saisie (WF-PLA-0160) ; le début et la fin sont une date et les heures de
+    travail écoulées ce jour-là (WF-DAT-0100).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     scheduling_mode: { $ref: '#/SchedulingMode' }
-    duration_days: { type: integer, minimum: 0 }
-    start_date:
-      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
-    finish_date:
-      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    duration: { $ref: '#/Duration' }
+    start:
+      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+    finish:
+      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
     progress: { $ref: '#/TaskProgress' }
+    finish_overdue:
+      type: boolean
+      description: >-
+        Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de
+        calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon.
     started_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
     completed_on:
@@ -475,12 +528,19 @@ EstimateLineFacet:
     - quantity
     - budgeted_amount
     - reestimated_amount
+    - inflated_amount
     - is_computed
+    - uses_inactive_object
     - remaining_entry
   description: >-
-    Facette argent d'un nœud. Les deux montants sont calculés et non saisissables :
+    Facette argent d'un nœud. Les trois montants sont calculés et non saisissables :
     le budgété est fixé par la révision de référence et nul pour une ligne ajoutée
-    après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-DEV-0030).
+    après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-DEV-0030),
+    et le montant corrigé de l'inflation est le montant projeté sur l'année de
+    consommation de la ligne (WF-DEV-0040), celui que la grille de devis présente avec
+    le montant à l'année de référence (WF-DEV-0050). Une ligne qui emploie un objet du
+    référentiel désactivé le dit (`uses_inactive_object`), pour que les grilles de devis
+    et de reste à engager la signalent (WF-REF-0010).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
@@ -495,12 +555,22 @@ EstimateLineFacet:
       description: Débours unitaire d'une ligne hors main-d'œuvre (WF-DEV-0020).
     payment_delay_days:
       anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
-      description: Délai de paiement, employé par la projection de décaissement (WF-IND-0120).
+      description: >-
+        Délai de paiement, dont la courbe de coûts cumulés décale le montant de la ligne
+        quand elle présente les décaissements (WF-IND-0100).
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020).
     budgeted_amount: { $ref: ../common.yaml#/Money }
     reestimated_amount: { $ref: ../common.yaml#/Money }
+    inflated_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Montant corrigé de l'inflation, calculé : le montant de la ligne projeté sur son
+        année de consommation au taux d'inflation du projet, chaque part d'une tâche à
+        cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050).
+        Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte
+        supérieur de 4,04 % à son montant.
     previous_reestimated_amount:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
@@ -514,6 +584,13 @@ EstimateLineFacet:
       description: >-
         Vrai pour une ligne de provision, dont le montant est calculé depuis le
         risque et jamais saisi (WF-RIS-0010).
+    uses_inactive_object:
+      type: boolean
+      description: >-
+        Calculé : vrai quand la catégorie de coût, le rôle de ressource ou la nature de
+        la ligne est désactivé dans le référentiel ; la ligne reste lisible, la grille
+        la signale (WF-REF-0010). Le refus d'une saisie qui emploierait un objet
+        désactivé est inchangé (`INACTIVE_REFERENCE_OBJECT`).
     remaining_entry:
       allOf: [{ $ref: '#/EntryAvailability' }]
       description: >-
@@ -531,22 +608,16 @@ LinkType:
   enum: [finish_to_start, start_to_start, finish_to_finish, start_to_finish]
   description: Les quatre types de liaison (WF-PLA-0030).
 
-LagUnit:
-  type: string
-  enum: [days, weeks, months]
-  description: Unité d'un décalage de liaison, conservée telle qu'elle a été saisie ou importée (WF-PLA-0030).
-
 PredecessorWrite:
   type: object
-  required: [predecessor_node_id, link_type, lag, lag_unit]
+  required: [predecessor_node_id, link_type, lag]
   description: >-
     Liaison d'une tâche à l'un de ses prédécesseurs, avec son décalage dans son unité :
     négatif, c'est une avance (WF-PLA-0030).
   properties:
     predecessor_node_id: { $ref: ../common.yaml#/Uuid }
     link_type: { $ref: '#/LinkType' }
-    lag: { type: integer }
-    lag_unit: { $ref: '#/LagUnit' }
+    lag: { $ref: '#/Lag' }
 
 Predecessor:
   description: >-
@@ -605,17 +676,20 @@ NodeCreate:
 TaskFacetWrite:
   type: object
   required: [label, lock_version]
-  description: Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées.
+  description: >-
+    Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées.
+    La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en
+    mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
     scheduling_mode: { $ref: '#/SchedulingMode' }
-    duration_days: { type: integer, minimum: 0 }
-    start_date:
-      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
-    finish_date:
-      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    duration: { $ref: '#/Duration' }
+    start:
+      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+    finish:
+      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 EstimateLineWrite:

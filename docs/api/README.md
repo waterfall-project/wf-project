@@ -35,7 +35,7 @@ Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
 | `snake_case` pour les chemins, les champs et les paramètres | — |
 | `camelCase` pour l'`operationId`, qui devient un nom de méthode dans les clients générés | `listProjects` |
 | Les noms du tableau de correspondance du §4.4.1 : `estimate_line` est une ligne de devis, `cost_line` une ligne de coût réel | §4.4.1 |
-| Décimaux exacts transportés en chaîne, dates de planning sans heure, horodatages en temps universel | WF-DAT-0100 |
+| Décimaux exacts transportés en chaîne, dates de planning sans heure, début et fin d'une tâche en date et heures de travail écoulées (`WorkInstant`), horodatages en temps universel | WF-DAT-0100 |
 | Une seule enveloppe d'erreur, portant un code machine et ses paramètres, jamais une phrase | WF-ARC-0110 |
 | 404 lorsque la permission de consultation manque, 403 lorsque c'est l'écriture ou la qualité de contributeur | WF-ADM-0110 |
 | `lock_version` sur les écritures concurrentes, refus par 412 | WF-IHM-0110 |

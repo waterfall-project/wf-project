@@ -1,0 +1,201 @@
+{
+  "summary": "Le sous-arbre fusionné dans la structure principale par la survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 % : ses deux tâches et leurs lignes de 120 et 80 y figurent, avec des montants budgétés de 36 et 24 — la provision de 60 répartie au prorata, arrondie au centime, le reste sur la dernière — et des montants réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative somme ses lignes (WF-RIS-0060, WF-RIS-0050).",
+  "value": {
+    "items": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000541",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000641",
+        "kind": "task",
+        "parent_id": null,
+        "position": 0,
+        "row_number": 1,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Risque survenu — Retard de livraison des armoires",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "10",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-04",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-05-15",
+            "hours": "8"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": true,
+          "is_milestone": false,
+          "budgeted_amount": "60.00",
+          "reestimated_amount": "200.00"
+        },
+        "computed_fields": [
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000542",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000642",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000541",
+        "position": 0,
+        "row_number": 2,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Relance du fournisseur",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "5",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-04",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-05-08",
+            "hours": "8"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "36.00",
+          "reestimated_amount": "120.00",
+          "total_float_days": 0,
+          "is_critical": true
+        },
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000543",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000643",
+        "kind": "estimate_line",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000542",
+        "position": 0,
+        "row_number": 3,
+        "level": 3,
+        "lock_version": 1,
+        "estimate_line": {
+          "label": "Frais de relance",
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+          "quantity": "1",
+          "resource_role_id": null,
+          "hours": null,
+          "unit_disbursement": "120.00",
+          "subproject_id": null,
+          "budgeted_amount": "36.00",
+          "reestimated_amount": "120.00",
+          "inflated_amount": "120.00",
+          "previous_reestimated_amount": null,
+          "consumption_year": 2026,
+          "is_computed": false,
+          "uses_inactive_object": false,
+          "remaining_entry": {
+            "is_available": true,
+            "missing_conditions": []
+          }
+        },
+        "computed_fields": []
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000544",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000644",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000541",
+        "position": 1,
+        "row_number": 4,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Transport exceptionnel",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "5",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-11",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-05-15",
+            "hours": "8"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "24.00",
+          "reestimated_amount": "80.00",
+          "total_float_days": 0,
+          "is_critical": true
+        },
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ],
+        "predecessors": [
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000542",
+            "predecessor_row_number": 2,
+            "link_type": "finish_to_start",
+            "lag": {
+              "value": "0",
+              "unit": "d"
+            }
+          }
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000545",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000645",
+        "kind": "estimate_line",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000544",
+        "position": 0,
+        "row_number": 5,
+        "level": 3,
+        "lock_version": 1,
+        "estimate_line": {
+          "label": "Affrètement",
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+          "quantity": "1",
+          "resource_role_id": null,
+          "hours": null,
+          "unit_disbursement": "80.00",
+          "subproject_id": null,
+          "budgeted_amount": "24.00",
+          "reestimated_amount": "80.00",
+          "inflated_amount": "80.00",
+          "previous_reestimated_amount": null,
+          "consumption_year": 2026,
+          "is_computed": false,
+          "uses_inactive_object": false,
+          "remaining_entry": {
+            "is_available": true,
+            "missing_conditions": []
+          }
+        },
+        "computed_fields": []
+      }
+    ],
+    "totals": {
+      "task_count": 3,
+      "estimate_line_count": 2,
+      "hours": "0",
+      "budgeted_amount": "60.00",
+      "reestimated_amount": "200.00"
+    }
+  }
+}

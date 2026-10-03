@@ -132,13 +132,19 @@ def test_a_task_sums_the_lines_under_it_and_the_totals_all_of_them(
 def test_a_task_lasts_its_duration_in_working_days(items: list[Node]) -> None:
     for node in tasks(items):
         task = node["task"]
-        assert date.fromisoformat(task["start_date"]).weekday() < 5
-        assert date.fromisoformat(task["finish_date"]).weekday() < 5
+        start, finish = task["start"]["date"], task["finish"]["date"]
+        assert date.fromisoformat(start).weekday() < 5
+        assert date.fromisoformat(finish).weekday() < 5
+        # A task starts at the first hour of its first day and finishes at the last of its
+        # last, as WF-DAT-0100 writes an instant of work; a milestone sits at one instant.
+        assert task["duration"]["unit"] == "d"
+        assert task["finish_overdue"] is False
         if task["is_milestone"]:
-            assert task["duration_days"] == 0
-            assert task["start_date"] == task["finish_date"]
+            assert task["duration"]["value"] == "0"
+            assert task["start"] == task["finish"]
         else:
-            assert working_days(task["start_date"], task["finish_date"]) == task["duration_days"]
+            assert (task["start"]["hours"], task["finish"]["hours"]) == ("0", "8")
+            assert working_days(start, finish) == int(task["duration"]["value"])
 
 
 def test_a_task_starts_after_its_predecessors_finish(items: list[Node]) -> None:
@@ -148,16 +154,17 @@ def test_a_task_starts_after_its_predecessors_finish(items: list[Node]) -> None:
             designated = nodes[link["predecessor_node_id"]]
             assert link["predecessor_row_number"] == designated["row_number"]
         finishes = [
-            nodes[link["predecessor_node_id"]]["task"]["finish_date"]
+            nodes[link["predecessor_node_id"]]["task"]["finish"]
             for link in node.get("predecessors", [])
         ]
         if not finishes:
             continue
         task = node["task"]
         if task["is_milestone"]:
-            assert task["start_date"] == max(finishes)
+            # Where its predecessors finish: the last hour of their last day.
+            assert task["start"] == max(finishes, key=_instant)
         else:
-            assert working_days(max(finishes), task["start_date"]) == 2
+            assert working_days(max(finishes, key=_instant)["date"], task["start"]["date"]) == 2
 
 
 def test_a_summary_spans_its_subordinates(items: list[Node]) -> None:
@@ -166,18 +173,22 @@ def test_a_summary_spans_its_subordinates(items: list[Node]) -> None:
         if not task["is_summary"]:
             continue
         below = [child["task"] for child in children(items, node)]
-        assert task["start_date"] == min(child["start_date"] for child in below)
-        assert task["finish_date"] == max(child["finish_date"] for child in below)
-        assert "task.duration_days" in node["computed_fields"]
+        assert task["start"] == min((child["start"] for child in below), key=_instant)
+        assert task["finish"] == max((child["finish"] for child in below), key=_instant)
+        assert "task.duration" in node["computed_fields"]
         assert "total_float_days" not in task
+
+
+def _instant(instant: dict[str, str]) -> tuple[str, Decimal]:
+    return instant["date"], Decimal(instant["hours"])
 
 
 def test_the_critical_path_runs_to_the_last_finish(items: list[Node]) -> None:
     work = [node["task"] for node in tasks(items) if not node["task"]["is_summary"]]
-    last = max(task["finish_date"] for task in work)
+    last = max(task["finish"]["date"] for task in work)
     assert all(task["total_float_days"] >= 0 for task in work)
     assert all(task["is_critical"] == (task["total_float_days"] == 0) for task in work)
-    assert all(task["is_critical"] for task in work if task["finish_date"] == last)
+    assert all(task["is_critical"] for task in work if task["finish"]["date"] == last)
     assert 0 < sum(task["is_critical"] for task in work) < len(work)
 
 
@@ -189,12 +200,12 @@ def test_progress_is_that_of_the_day_the_examples_are_read(items: list[Node]) ->
         if task["is_summary"]:
             continue
         if task["progress"] == "completed":
-            assert task["finish_date"] < today
-            assert task["completed_on"] == task["finish_date"]
+            assert task["finish"]["date"] < today
+            assert task["completed_on"] == task["finish"]["date"]
         elif task["progress"] == "started":
-            assert task["start_date"] <= today <= task["finish_date"]
+            assert task["start"]["date"] <= today <= task["finish"]["date"]
         else:
-            assert today < task["start_date"] or task["is_milestone"]
+            assert today < task["start"]["date"] or task["is_milestone"]
     states = Counter(node["task"]["progress"] for node in tasks(items))
     assert set(states) == {"completed", "started", "not_started"}
     for node in lines(items):
@@ -202,6 +213,26 @@ def test_progress_is_that_of_the_day_the_examples_are_read(items: list[Node]) ->
         entry = node["estimate_line"]["remaining_entry"]
         assert entry["is_available"] is not completed
         assert entry["missing_conditions"] == (["task_not_completed"] if completed else [])
+
+
+def test_a_line_is_projected_on_the_year_its_task_starts(items: list[Node]) -> None:
+    nodes = by_id(items)
+    for node in lines(items):
+        line = node["estimate_line"]
+        start = nodes[node["parent_id"]]["task"]["start"]["date"]
+        assert line["consumption_year"] == int(start[:4])
+        assert line["uses_inactive_object"] is False
+    # Witness values, at 3 % a year: a line of 2026 is not projected, the first line of 2027
+    # grows by 3 %, the last line of the structure, of 2029, by 9.27 %.
+    projected = {
+        4: (2026, "2640.00", "2640.00"),
+        1363: (2027, "440.00", "453.20"),
+        5999: (2029, "758.80", "829.16"),
+    }
+    for row, (year, amount, inflated) in projected.items():
+        line = items[row - 1]["estimate_line"]
+        assert (line["consumption_year"], line["budgeted_amount"]) == (year, amount)
+        assert line["inflated_amount"] == inflated
 
 
 def test_a_provision_is_computed_and_outside_the_subprojects(items: list[Node]) -> None:
@@ -267,8 +298,7 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
             "predecessor_node_id": row(before)["node_id"],
             "predecessor_row_number": before,
             "link_type": "finish_to_start",
-            "lag": 0,
-            "lag_unit": "days",
+            "lag": {"value": "0", "unit": "d"},
         }
         return row(number)["predecessors"] == [link]
 
@@ -287,10 +317,10 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         (201, "Études — Ligne d'essais"),
         (401, "Études — Utilités"),
     ]
-    assert "task.finish_date" in row(1)["computed_fields"]
+    assert "task.finish" in row(1)["computed_fields"]
     dependencies = cast("dict[str, Any]", mockdata.summary_dependencies(answer))
     assert dependencies["node_id"] == row(1)["node_id"]
-    assert dependencies["field"] == "task.finish_date"
+    assert dependencies["field"] == "task.finish"
     assert dependencies["depends_on"] == ["subordinates"]
     assert [(entry["row_number"], entry["label"]) for entry in dependencies["rows"]] == [
         (2, "Études — Poste de commande"),

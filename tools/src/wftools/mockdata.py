@@ -194,6 +194,7 @@ def universe_rows() -> list[JsonObject]:
         "current_estimate": None,
         "win_probability": project["win_probability"],
         "project_manager_projection": indicators["projections"]["project_manager"],
+        "delta_to_reference": indicators["projections"]["variance_project_manager"],
         "cost_index": indicators["cost_index"],
         "schedule_index": indicators["schedule_index"],
         "last_marked_at": marked,
@@ -207,6 +208,7 @@ def universe_rows() -> list[JsonObject]:
         "current_estimate": None,
         "win_probability": offer["win_probability"],
         "project_manager_projection": None,
+        "delta_to_reference": None,
         "cost_index": None,
         "schedule_index": None,
         "last_marked_at": None,
@@ -228,6 +230,7 @@ def _portfolio_row(n: int, label: str) -> JsonObject:
             "current_estimate": money(amount),
             "win_probability": _WIN_PROBABILITIES[draw(f"win/{n}", 0, len(_WIN_PROBABILITIES) - 1)],
             "project_manager_projection": None,
+            "delta_to_reference": None,
             "cost_index": None,
             "schedule_index": None,
             "last_marked_at": None,
@@ -241,6 +244,7 @@ def _portfolio_row(n: int, label: str) -> JsonObject:
         "current_estimate": None,
         "win_probability": "1",
         "project_manager_projection": money(projection),
+        "delta_to_reference": money(projection - amount),
         "cost_index": _index(Decimal(draw(f"cost/{n}", 70, 120)) / 100),
         "schedule_index": _index(Decimal(draw(f"schedule/{n}", 70, 120)) / 100),
         "last_marked_at": f"{marked.isoformat()}T17:00:00Z",
@@ -412,7 +416,7 @@ def summary_dependencies(answer: JsonObject) -> JsonObject:
     ]
     return {
         "node_id": summary["node_id"],
-        "field": "task.finish_date",
+        "field": "task.finish",
         "depends_on": ["subordinates"],
         "rows": rows,
     }

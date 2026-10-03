@@ -6,8 +6,8 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**153 opérations sur 119 chemins, dans 12 familles.**
-Le contrat cite **177 des 208 exigences** de la spécification.
+**155 opérations sur 120 chemins, dans 12 familles.**
+Le contrat cite **181 des 208 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -83,7 +83,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 
 ## Référentiel commun
 
-`paths/reference.yaml` — 26 opérations
+`paths/reference.yaml` — 28 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -98,6 +98,8 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 | POST | `/reference/resource-roles` | Créer un rôle de ressource | WF-REF-0090, WF-REF-0100 |
 | PATCH | `/reference/resource-roles/{resource_role_id}` | Modifier un rôle de ressource | WF-REF-0090, WF-REF-0130 |
 | PUT | `/reference/resource-roles/{resource_role_id}/activation` | Désactiver ou réactiver un rôle de ressource | WF-REF-0010, WF-REF-0020 |
+| GET | `/reference/duration-units` | Constantes de conversion des unités de durée | WF-PLA-0160 |
+| PUT | `/reference/duration-units` | Régler les constantes de conversion des unités de durée | WF-ADM-0100, WF-PLA-0160, WF-REF-0130 |
 | GET | `/reference/calendars` | Calendriers | WF-REF-0110, WF-REF-0120 |
 | POST | `/reference/calendars` | Créer un calendrier | WF-REF-0110 |
 | PATCH | `/reference/calendars/{calendar_id}` | Modifier un calendrier | WF-REF-0110, WF-REF-0130 |
@@ -120,13 +122,13 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects` | Projets | WF-PRJ-0060, WF-PTF-0030 |
+| GET | `/projects` | Projets | WF-ADM-0110, WF-IHM-0120, WF-IHM-0130, WF-PRJ-0060, WF-PTF-0030 |
 | POST | `/projects` | Créer un projet | WF-CYC-0010, WF-CYC-0120, WF-PRJ-0060 |
 | GET | `/projects/{project_id}` | Un projet | WF-CYC-0010, WF-PRJ-0010, WF-PRJ-0080 |
-| PATCH | `/projects/{project_id}` | Modifier les paramètres d'un projet | WF-CYC-0100, WF-PRJ-0040, WF-PRJ-0060, WF-PRJ-0090 |
-| GET | `/projects/{project_id}/state-transitions` | Historique daté des états | WF-CYC-0130, WF-PTF-0050 |
+| PATCH | `/projects/{project_id}` | Modifier les paramètres d'un projet | WF-ADM-0110, WF-CYC-0100, WF-PRJ-0040, WF-PRJ-0060, WF-PRJ-0090 |
+| GET | `/projects/{project_id}/state-transitions` | Historique daté des états | WF-CYC-0090, WF-CYC-0130, WF-PTF-0050 |
 | GET | `/projects/{project_id}/next-state` | Prochain état, déclencheur et conditions restantes | WF-CYC-0020, WF-CYC-0050 |
-| POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-SEC-0030 |
+| POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-PRJ-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-PRJ-0020 |
 | PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-PRJ-0020 |
 | GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-PRJ-0050 |
@@ -134,7 +136,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 | PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Modifier un sous-projet | WF-PRJ-0050 |
 | DELETE | `/projects/{project_id}/subprojects/{subproject_id}` | Supprimer un sous-projet | WF-DAT-0080, WF-PRJ-0050 |
 | GET | `/projects/{project_id}/contributors` | Contributeurs du projet | WF-PRJ-0060 |
-| PUT | `/projects/{project_id}/contributors` | Inscrire ou retirer des contributeurs | WF-PRJ-0060 |
+| PUT | `/projects/{project_id}/contributors` | Inscrire ou retirer des contributeurs | WF-ADM-0110, WF-PRJ-0060 |
 | GET | `/projects/{project_id}/contributors/suggestions` | Contributeurs proposés | WF-PRJ-0070 |
 | GET | `/projects/{project_id}/timelines` | Chronologies du projet | WF-PLA-0140 |
 | POST | `/projects/{project_id}/timelines` | Créer une chronologie | WF-PLA-0140 |
@@ -162,9 +164,9 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-RAE-0050 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-PLA-0070 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies` | Ce dont dépend une valeur calculée | WF-IHM-0030, WF-PLA-0040 |
-| PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150 |
+| PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-RIS-0010 |
-| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors` | Remplacer les prédécesseurs d'une tâche | WF-PLA-0030, WF-PLA-0040 |
+| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors` | Remplacer les prédécesseurs d'une tâche | WF-PLA-0030, WF-PLA-0040, WF-PLA-0160 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Démarrer ou terminer une tâche | WF-IND-0030, WF-PLA-0040, WF-RAE-0030 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Réestimer une ligne | WF-RAE-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking` | Inscrire ou retirer une tâche des suivis | WF-PLA-0060 |
@@ -190,7 +192,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 | GET | `/projects/{project_id}/indicators/milestone-tracking` | Diagramme temps/temps | WF-IND-0090 |
 | GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-IND-0100 |
 | GET | `/projects/{project_id}/indicators/earned-value-curves` | Courbes de valeur acquise | WF-IND-0110 |
-| GET | `/projects/{project_id}/indicators/cash-out` | Projection de décaissement | WF-IND-0120 |
+| GET | `/projects/{project_id}/indicators/index-history` | Évolution des indices | WF-DAT-0040, WF-IND-0020, WF-IND-0130, WF-REF-0170 |
 
 ## Risques et provisions
 
@@ -198,7 +200,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects/{project_id}/risks` | Registre des risques | WF-RIS-0040 |
+| GET | `/projects/{project_id}/risks` | Registre des risques | WF-IHM-0130, WF-RIS-0040 |
 | POST | `/projects/{project_id}/risks` | Déclarer un risque | WF-RIS-0010, WF-RIS-0030, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}` | Un risque | WF-RIS-0010, WF-RIS-0020 |
 | PATCH | `/projects/{project_id}/risks/{risk_id}` | Modifier un risque | WF-RIS-0010, WF-RIS-0030 |
@@ -237,7 +239,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/portfolio/projects` | Liste des projets du portefeuille | WF-PTF-0040 |
+| GET | `/portfolio/projects` | Liste des projets du portefeuille | WF-IHM-0130, WF-PTF-0040 |
 | GET | `/portfolio/value` | Carnet, pipeline et réalisé | WF-PTF-0020, WF-PTF-0050 |
 | GET | `/portfolio/workload` | Plan de charge agrégé | WF-PTF-0060 |
 | GET | `/portfolio/performance` | Indices, projections, répartition par zone et évolution trimestrielle | WF-PTF-0010, WF-PTF-0020, WF-PTF-0070 |
@@ -248,7 +250,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-31 sur 208. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+27 sur 208. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -257,8 +259,6 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | CMP | WF-CMP-0010, WF-CMP-0030 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010, WF-EXP-0020, WF-EXP-0030, WF-EXP-0050 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
-| IHM | WF-IHM-0010, WF-IHM-0040, WF-IHM-0100, WF-IHM-0120, WF-IHM-0130 | Invariants d'interface : navigation, saisie au clavier, accessibilité. Ils vivent dans le front. |
-| IND | WF-IND-0130 | WF-IND-0130, l'évolution des indices, attend la mise à jour du contrat qui suit la revue de la spécification du 2026-10-03 : une lecture des courbes d'indices y entrera, et la projection de décaissement (WF-IND-0120, retirée) en sortira. |
+| IHM | WF-IHM-0010, WF-IHM-0040, WF-IHM-0100 | Invariants d'interface : navigation, saisie au clavier, accessibilité. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
-| PLA | WF-PLA-0160 | WF-PLA-0160, les unités de durée, attend la même mise à jour : les constantes de conversion de l'installation entrent dans le référentiel du contrat. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |

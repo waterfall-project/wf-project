@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The cells of the grid of the planning that are more than a value formatted (WF-PLA-0080): the
- * scheduling mode and the progress of a task, each an icon named for its value; its duration
- * and its total float in days; the critical path marked on the float by an icon and bold type,
- * never by a colour alone (WF-PLA-0100); and its predecessors, named by their row numbers with
- * the type of each link and its lag in its unit, as Microsoft Project writes them (WF-PLA-0030).
+ * scheduling mode and the progress of a task, each an icon named for its value; its duration in
+ * the unit of its entry (WF-PLA-0160) and its total float in days; the critical path marked on
+ * the float by an icon and bold type, never by a colour alone (WF-PLA-0100); and its
+ * predecessors, named by their row numbers with the type of each link and its lag in its unit,
+ * as Microsoft Project writes them (WF-PLA-0030).
  *
  * Everything shown is what the API gives: the mode, the progress, the float and the critical
  * path are read from the task, never deduced from its dates. A predecessor is named by the row
@@ -15,9 +16,10 @@
 "use client";
 
 import { Circle, CircleCheck, Contrast, Flame, type LucideIcon, PenLine, Zap } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { formatDecimal } from "@/i18n/format";
 
 import type { PlanningNode } from "./planning";
 
@@ -29,6 +31,15 @@ type TaskProgress = components["schemas"]["TaskProgress"];
 
 /** A link of a task to one of its predecessors (WF-PLA-0030). */
 type Predecessor = components["schemas"]["Predecessor"];
+
+/** A duration in the unit of its entry (WF-PLA-0160). */
+type Duration = components["schemas"]["Duration"];
+
+/** A lag in its unit: those of a duration, or a share of the predecessor (WF-PLA-0030). */
+type Lag = components["schemas"]["Lag"];
+
+/** An exact decimal of the contract that reads as zero: `0`, `-0`, `0.00`. */
+const ZERO = /^-?0+(\.0+)?$/;
 
 /** The icon of each scheduling mode: a mode added without one breaks the typing. */
 export const SCHEDULING_MODE_ICONS = {
@@ -86,6 +97,20 @@ export function DaysCell({ days }: { readonly days: number | null | undefined })
 }
 
 /**
+ * Render a duration as it was entered: its value, formatted as the exact decimal it is, and the
+ * suffix of its unit in the language of the interface, as Microsoft Project writes it
+ * (WF-PLA-0160).
+ */
+export function DurationCell({ duration }: { readonly duration: Duration | undefined }) {
+  const t = useTranslations("planningGrid");
+  const units = useTranslations("enums.DurationUnit");
+  const locale = useLocale();
+  return duration === undefined
+    ? null
+    : t("duration", { value: formatDecimal(duration.value, locale), unit: units(duration.unit) });
+}
+
+/**
  * Render the total float of a task, in days — none for a task in manual mode, which bears no
  * float (WF-PLA-0100) —, and, on the critical path, the icon that names it before the float set
  * in bold: the mark reads without its colour.
@@ -106,12 +131,12 @@ export function FloatCell({ node }: { readonly node: PlanningNode }) {
   );
 }
 
-/** The direction of the lag of a link: a lag, a lead, or none. */
-function direction(lag: number): "lag" | "lead" | "none" {
-  if (lag > 0) {
-    return "lag";
+/** The direction of the lag of a link: a lag, a lead, or none — read on the decimal, never a float. */
+function direction(lag: Lag): "lag" | "lead" | "none" {
+  if (ZERO.test(lag.value)) {
+    return "none";
   }
-  return lag < 0 ? "lead" : "none";
+  return lag.value.startsWith("-") ? "lead" : "lag";
 }
 
 /**
@@ -119,7 +144,7 @@ function direction(lag: number): "lag" | "lead" | "none" {
  * lag, which the row number alone says.
  */
 function shownLink({ link_type, lag }: Predecessor): string {
-  return link_type === "finish_to_start" && lag === 0 ? "none" : link_type;
+  return link_type === "finish_to_start" && direction(lag) === "none" ? "none" : link_type;
 }
 
 /**
@@ -130,13 +155,15 @@ function shownLink({ link_type, lag }: Predecessor): string {
  */
 export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations("planningGrid");
+  const units = useTranslations("enums.LagUnit");
+  const locale = useLocale();
   const name = (predecessor: Predecessor) =>
     t("predecessor", {
       row: predecessor.predecessor_row_number.toString(),
       link: shownLink(predecessor),
       direction: direction(predecessor.lag),
-      lag: predecessor.lag,
-      unit: predecessor.lag_unit,
+      lag: formatDecimal(predecessor.lag.value, locale),
+      unit: units(predecessor.lag.unit),
     });
   return (node.predecessors ?? []).map(name).join(t("predecessorSeparator"));
 }

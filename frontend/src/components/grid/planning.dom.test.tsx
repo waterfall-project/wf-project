@@ -268,9 +268,9 @@ describe("the grid of the planning", () => {
     // What the API would answer of the dossier linked to its two predecessors otherwise.
     const [studies, review] = [planning.items[1], planning.items[3]];
     const links = [
-      { node: studies, lag: 2, unit: "months" as const },
-      { node: review, lag: -1, unit: "weeks" as const },
-    ].flatMap(({ node, lag, unit }) =>
+      { node: studies, lag: { value: "2", unit: "mo" as const } },
+      { node: review, lag: { value: "-1", unit: "w" as const } },
+    ].flatMap(({ node, lag }) =>
       node === undefined
         ? []
         : [
@@ -279,7 +279,6 @@ describe("the grid of the planning", () => {
               predecessor_row_number: node.row_number,
               link_type: "start_to_start" as const,
               lag,
-              lag_unit: unit,
             },
           ],
     );

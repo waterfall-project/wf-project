@@ -181,8 +181,9 @@
     "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
     "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
     "days": "{days, number} j",
+    "duration": "{value} {unit}",
     "critical": "Chemin critique",
-    "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag, number} {unit, select, weeks {sem} months {m} other {j}}} lead {{lag, number} {unit, select, weeks {sem} months {m} other {j}}} other {}}",
+    "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";"
   },
   "computedValue": {
@@ -466,6 +467,7 @@
     "INVALID_CREDENTIALS": "Adresse électronique ou mot de passe incorrect.",
     "PERMISSION_MISSING": "Vous n’avez pas la permission nécessaire.",
     "NOT_CONTRIBUTOR": "Seuls les contributeurs du projet peuvent le faire.",
+    "NOT_PROJECT_MANAGER": "Seuls les chefs de projet peuvent le faire.",
     "PROJECT_TERMINAL": "Le projet est clos : il ne se modifie plus.",
     "REVISION_MARKED": "La révision est marquée : elle ne se modifie plus.",
     "NOT_FOUND": "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès.",
@@ -475,6 +477,7 @@
     "REFERENCE_NOT_CORRECTABLE": "La révision de référence ne peut plus être corrigée.",
     "UNDO_CONFLICT": "Impossible d’annuler : la donnée a été modifiée depuis.",
     "LAST_ADMINISTRATOR": "Au moins un compte actif doit garder les permissions d’administration.",
+    "LAST_PROJECT_MANAGER": "Un projet garde au moins un chef de projet.",
     "ACCESS_ROLE_IN_USE": "Ce rôle d’habilitation est encore attribué à des comptes.",
     "DEFAULT_CALENDAR_REQUIRED": "Un calendrier par défaut est requis.",
     "HAS_ACTUAL_COSTS": "Des coûts réels y sont imputés.",
@@ -619,7 +622,8 @@
     "project_exit": "Clore un projet : terminé, perdu ou abandonné",
     "risk_occurrence": "Déclarer la survenance d’un risque",
     "cost_line_exclude": "Exclure des lignes de coût réel",
-    "platform_restore": "Restaurer la plateforme"
+    "platform_restore": "Restaurer la plateforme",
+    "all_projects_read": "Consulter tous les projets"
   },
   "enums": {
     "ComponentHealth": {
@@ -707,7 +711,8 @@
       "kind": {
         "function_read": "Consultation d’une fonction",
         "function_write": "Modification d’une fonction",
-        "irreversible": "Action irréversible ou structurante"
+        "irreversible": "Action irréversible",
+        "structuring": "Permission structurante"
       }
     },
     "Backup": {
@@ -764,6 +769,7 @@
     },
     "CommandCondition": {
       "is_contributor": "être contributeur du projet",
+      "is_project_manager": "être chef de projet",
       "project_not_terminal": "projet non clos",
       "project_in_progress": "projet en cours",
       "project_in_pricing": "projet en chiffrage",
@@ -786,6 +792,10 @@
         "lost": "Perdu",
         "abandoned": "Abandonné"
       }
+    },
+    "ContributorKind": {
+      "project_manager": "Chef de projet",
+      "contributor": "Contributeur"
     },
     "RevisionStatus": {
       "draft": "En cours d’élaboration",
@@ -863,16 +873,36 @@
       "finish_to_finish": "Fin à fin (FF)",
       "start_to_finish": "Début à fin (DF)"
     },
+    "DurationUnit": {
+      "min": "min",
+      "h": "h",
+      "d": "j",
+      "w": "sem",
+      "mo": "m",
+      "emin": "emin",
+      "eh": "eh",
+      "ed": "ej",
+      "ew": "esem",
+      "emo": "em"
+    },
     "LagUnit": {
-      "days": "jours",
-      "weeks": "semaines",
-      "months": "mois"
+      "min": "min",
+      "h": "h",
+      "d": "j",
+      "w": "sem",
+      "mo": "m",
+      "emin": "emin",
+      "eh": "eh",
+      "ed": "ej",
+      "ew": "esem",
+      "emo": "em",
+      "percent": "%"
     },
     "ComputedField": {
       "task": {
-        "duration_days": "Durée (jours)",
-        "start_date": "Début",
-        "finish_date": "Fin",
+        "duration": "Durée",
+        "start": "Début",
+        "finish": "Fin",
         "progress": "Avancement"
       },
       "estimate_line": {
@@ -883,9 +913,9 @@
     },
     "ComputedValueField": {
       "task": {
-        "duration_days": "Durée de la tâche",
-        "start_date": "Début de la tâche",
-        "finish_date": "Fin de la tâche",
+        "duration": "Durée de la tâche",
+        "start": "Début de la tâche",
+        "finish": "Fin de la tâche",
         "progress": "Avancement de la tâche",
         "physical_progress": "Avancement physique de la tâche",
         "total_float_days": "Marge totale de la tâche",
@@ -898,7 +928,8 @@
         "unit_disbursement": "Débours unitaire de la ligne",
         "budgeted_amount": "Montant budgété de la ligne",
         "reestimated_amount": "Montant réestimé de la ligne",
-        "previous_reestimated_amount": "Montant réestimé précédent de la ligne"
+        "previous_reestimated_amount": "Montant réestimé précédent de la ligne",
+        "inflated_amount": "Montant corrigé de l’inflation de la ligne"
       }
     },
     "ComputedDependency": {
@@ -911,7 +942,8 @@
       "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
       "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
-      "remaining_reviews": "Le montant réestimé suit les revues du reste à engager."
+      "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
+      "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet."
     },
     "ProgressUpdate": {
       "progress": {
@@ -921,8 +953,9 @@
     },
     "WorkloadPlan": {
       "basis": {
-        "estimate": "Devis",
-        "remaining": "Reste à engager"
+        "reference_budget": "Budget de la révision de référence",
+        "marked_remaining": "Reste à engager d’une révision marquée",
+        "current_remaining": "Reste à engager de la révision en cours"
       }
     },
     "NotComputableReason": {
@@ -1035,8 +1068,9 @@
       "unassigned": "Hors sous-projet"
     },
     "WorkloadBasis": {
-      "estimate": "Devis",
-      "remaining": "Reste à engager"
+      "reference_budget": "Budget de la révision de référence",
+      "marked_remaining": "Reste à engager d’une révision marquée",
+      "current_remaining": "Reste à engager de la révision en cours"
     }
   }
 }

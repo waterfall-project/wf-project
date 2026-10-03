@@ -4,11 +4,14 @@
     tags: [projects]
     summary: Projets
     description: >-
-      La consultation ne dépend que des habilitations, jamais de la qualité de
-      contributeur (WF-PRJ-0060, WF-PTF-0030). Le filtre `is_contributor` restreint
-      la liste aux projets dont l'appelant est contributeur : c'est l'accueil, un
-      filtre que l'utilisateur voit et lève, jamais une restriction de lecture. Le
-      tri est fait par le serveur.
+      Les projets que l'appelant peut ouvrir, et eux seuls : ceux dont il est
+      contributeur et, s'il porte la permission « consulter tous les projets », tous les
+      autres (WF-PRJ-0060, WF-ADM-0110) — le portefeuille, lui, compte tous les projets du
+      périmètre (WF-PTF-0030). Le filtre `is_contributor` restreint la liste aux projets
+      dont l'appelant est contributeur : c'est l'accueil, un filtre que l'utilisateur
+      voit et lève (WF-IHM-0120) ; levé, la liste ne montre que ce qu'il peut ouvrir, et
+      rien d'autre. Le tri et les filtres sont faits par le serveur, et `meta.total`
+      compte les projets retenus (WF-IHM-0130).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -49,7 +52,7 @@
     summary: Créer un projet
     description: >-
       Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque
-      prérequis manquant (WF-CYC-0120). Le créateur est inscrit contributeur
+      prérequis manquant (WF-CYC-0120). Le créateur est inscrit chef de projet
       (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
     requestBody:
       required: true
@@ -96,8 +99,8 @@
     tags: [projects]
     summary: Modifier les paramètres d'un projet
     description: >-
-      Réservé aux contributeurs (WF-PRJ-0060) et refusé sur un projet terminal
-      (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours
+      Réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) et refusé sur un projet
+      terminal (WF-CYC-0100). La probabilité de gain n'est plus modifiable à partir de En cours
       (WF-PRJ-0090) ; le taux d'inflation l'est à tout moment et n'affecte aucune
       révision marquée (WF-PRJ-0040).
     parameters:
@@ -125,9 +128,10 @@
     tags: [projects]
     summary: Historique daté des états
     description: >-
-      Chaque transition est datée du jour où elle s'est produite et n'est pas
-      modifiable (WF-CYC-0130). C'est d'elle que dépendent les statistiques de
-      portefeuille par période (WF-PTF-0050).
+      Chaque transition est datée du jour où elle s'est produite, porte son auteur et,
+      pour une sortie manuelle, le motif donné à sa confirmation ; rien n'y est
+      modifiable (WF-CYC-0130, WF-CYC-0090). C'est d'elle que dépendent les statistiques
+      de portefeuille par période (WF-PTF-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
@@ -140,6 +144,7 @@
               items: { $ref: ../components/schemas/projects.yaml#/StateTransition }
             examples:
               witness: { $ref: ../../../fixtures/api/state_transitions.json }
+              exited: { $ref: ../../../fixtures/api/state_transitions_exited.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/next-state:
@@ -170,7 +175,9 @@
       Les trois seules transitions commandées : Terminé depuis En cours, Perdu depuis
       Chiffrage, Abandonné depuis tout état non terminal (WF-CYC-0060). Irréversible
       (WF-CYC-0080), appliquée après une confirmation qui énonce ce qu'elle rend non
-      modifiable (WF-CYC-0090), et inscrite au journal d'audit (WF-SEC-0030).
+      modifiable et propose un motif, que la transition conserve (WF-CYC-0090,
+      WF-CYC-0130), réservée aux chefs de projet (WF-PRJ-0060), et inscrite au journal
+      d'audit (WF-SEC-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -243,6 +250,10 @@
       Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - name: search
+        in: query
+        description: Recherche sur le code et le libellé (WF-IHM-0130).
+        schema: { type: string, minLength: 1, maxLength: 200 }
     responses:
       '200':
         description: Sous-projets, identifiés par leur code ERP (WF-PRJ-0050).
@@ -331,10 +342,17 @@
     tags: [projects]
     summary: Contributeurs du projet
     description: >-
-      Toute saisie est réservée aux contributeurs ; la consultation ne dépend que des
-      habilitations (WF-PRJ-0060).
+      Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet
+      nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - name: kinds
+        in: query
+        description: Restreint aux contributeurs de ces qualités (WF-IHM-0130).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/projects.yaml#/ContributorKind }
+        explode: false
     responses:
       '200':
         description: Contributeurs.
@@ -351,7 +369,10 @@
     tags: [projects]
     summary: Inscrire ou retirer des contributeurs
     description: >-
-      La liste vaut habilitation à saisir sur le projet (WF-PRJ-0060).
+      La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le
+      projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne
+      garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte
+      inconnu ou désactivé l'est par 422, `fields` le nommant.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -369,7 +390,13 @@
               items: { $ref: ../components/schemas/projects.yaml#/Contributor }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
 /projects/{project_id}/contributors/suggestions:
   get:

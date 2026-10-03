@@ -12,18 +12,28 @@
     "task": {
       "label": "Câblage et repérage des armoires",
       "scheduling_mode": "automatic",
-      "duration_days": 42,
-      "start_date": "2026-05-04",
-      "finish_date": "2026-06-30",
+      "duration": {
+        "value": "42",
+        "unit": "d"
+      },
+      "start": {
+        "date": "2026-05-04",
+        "hours": "0"
+      },
+      "finish": {
+        "date": "2026-06-30",
+        "hours": "8"
+      },
       "progress": "not_started",
+      "finish_overdue": false,
       "is_summary": false,
       "is_milestone": false,
       "budgeted_amount": "2734.56",
       "reestimated_amount": "2734.56"
     },
     "computed_fields": [
-      "task.start_date",
-      "task.finish_date"
+      "task.start",
+      "task.finish"
     ]
   }
 }

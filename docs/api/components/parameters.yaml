@@ -178,9 +178,10 @@ WorkloadBasis:
   in: query
   required: true
   description: >-
-    Base du plan de charge : le devis d'une révision, ou le reste à engager
-    courant (WF-DEV-0070).
-  schema: { type: string, enum: [estimate, remaining] }
+    Base du plan de charge : les montants budgétés de la révision de référence, les
+    montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la
+    révision en cours (WF-DEV-0070).
+  schema: { type: string, enum: [reference_budget, marked_remaining, current_remaining] }
 
 PortfolioStates:
   name: states

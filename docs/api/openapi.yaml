@@ -11,8 +11,9 @@ info:
 
     Conventions, toutes dictées par une exigence : identifiants UUID engendrés par le
     serveur, jamais séquentiels dans une URL (WF-DAT-0060) ; `snake_case` partout ;
-    décimaux exacts transportés en chaîne, dates de planning sans heure, horodatages en
-    temps universel (WF-DAT-0100) ; noms de la table de correspondance du §4.4.1, où
+    décimaux exacts transportés en chaîne, dates de planning sans heure, début et fin
+    d'une tâche en date et heures de travail écoulées, horodatages en temps universel
+    (WF-DAT-0100) ; noms de la table de correspondance du §4.4.1, où
     `estimate_line` est une ligne de devis et `cost_line` une ligne de coût réel ; une
     seule enveloppe d'erreur portant un code machine et ses paramètres, jamais une
     phrase (WF-ARC-0110) ; 404 lorsque la permission de consultation manque, 403
@@ -60,7 +61,7 @@ tags:
   - name: actual-costs
     description: Coûts réels importés de l'ERP (FBS-4.7).
   - name: indicators
-    description: Indicateurs projets, courbes et décaissements (FBS-4.8).
+    description: Indicateurs projets, courbes, décaissements et évolution des indices (FBS-4.8).
   - name: portfolio
     description: Vues multi-projets, en consultation seule (FBS-2).
   - name: exchanges
@@ -159,6 +160,8 @@ paths:
     $ref: ./paths/reference.yaml#/~1reference~1resource-roles~1{resource_role_id}
   /reference/resource-roles/{resource_role_id}/activation:
     $ref: ./paths/reference.yaml#/~1reference~1resource-roles~1{resource_role_id}~1activation
+  /reference/duration-units:
+    $ref: ./paths/reference.yaml#/~1reference~1duration-units
   /reference/calendars:
     $ref: ./paths/reference.yaml#/~1reference~1calendars
   /reference/calendars/{calendar_id}:
@@ -271,8 +274,8 @@ paths:
     $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators~1cost-curve
   /projects/{project_id}/indicators/earned-value-curves:
     $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators~1earned-value-curves
-  /projects/{project_id}/indicators/cash-out:
-    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators~1cash-out
+  /projects/{project_id}/indicators/index-history:
+    $ref: ./paths/analysis.yaml#/~1projects~1{project_id}~1indicators~1index-history
   /projects/{project_id}/risks:
     $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks
   /projects/{project_id}/risks/{risk_id}:

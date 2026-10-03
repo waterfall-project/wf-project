@@ -35,6 +35,9 @@ export interface Examples {
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators";
   };
+  "GET /projects/{project_id}/indicators/index-history": {
+    200: "index_history";
+  };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
   };
@@ -54,13 +57,13 @@ export interface Examples {
     200: "structures" | "structures_amendments";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_estimate" | "nodes_milestone" | "nodes_planning" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_estimate" | "nodes_milestone" | "nodes_planning" | "nodes_risk_occurred" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
   "GET /projects/{project_id}/state-transitions": {
-    200: "state_transitions";
+    200: "state_transitions" | "state_transitions_exited";
   };
   "GET /projects/{project_id}/subprojects": {
     200: "subprojects";
@@ -70,6 +73,9 @@ export interface Examples {
   };
   "GET /reference/cost-categories/{cost_category_id}/hourly-rates": {
     200: "volume/hourly_rates";
+  };
+  "GET /reference/duration-units": {
+    200: "duration_units";
   };
   "GET /reference/readiness": {
     200: "reference_readiness" | "reference_readiness_incomplete";

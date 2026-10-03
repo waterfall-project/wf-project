@@ -199,7 +199,11 @@ WorkloadPlan:
     context: { $ref: '#/CalculationContext' }
     basis:
       type: string
-      enum: [estimate, remaining]
+      enum: [reference_budget, marked_remaining, current_remaining]
+      description: >-
+        La base retenue : les montants budgétés de la révision de référence, les montants
+        réestimés d'une révision marquée, ou ceux de la révision en cours (WF-DEV-0070).
+        `context.revision_id` nomme la révision lue.
     roles:
       type: array
       items:
@@ -250,12 +254,20 @@ MilestoneTracking:
 
 CurveSeries:
   type: object
-  required: [context, series]
+  required: [context, payment_delays, series, cash_out_by_month]
   description: >-
     Séries temporelles cumulées. Les changements du budget de référence y
-    apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110).
+    apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec
+    les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses
+    séries sont décalées, et `cash_out_by_month` les détaille par mois.
   properties:
     context: { $ref: '#/CalculationContext' }
+    payment_delays:
+      type: boolean
+      description: >-
+        Vrai quand les séries sont celles des décaissements : chaque montant décalé du
+        délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la
+        date de la tâche qui les porte (WF-IND-0100). Faux sinon.
     series:
       type: array
       items:
@@ -290,22 +302,73 @@ CurveSeries:
           cause:
             type: string
             enum: [amendment, risk_occurred, last_risk_dismissed]
+    cash_out_by_month:
+      anyOf:
+        - type: array
+          items: { $ref: '#/CashOutMonth' }
+        - type: 'null'
+      description: >-
+        Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par
+        mois de date de pièce décalée, l'avenir en étalant le reste à engager et les
+        provisions des risques identifiés, chaque part décalée de son délai de paiement
+        (WF-IND-0100). Nul sinon.
 
-CashOut:
+CashOutMonth:
   type: object
-  required: [context, months]
+  required: [month, past, forecast]
   description: >-
-    Projection de décaissement : le passé par mois de date de pièce, l'avenir en
-    étalant le reste à engager puis en décalant chaque part de son délai de
-    paiement (WF-IND-0120).
+    Un mois de décaissements : ce qui a été décaissé, et ce qui le sera. Un mois porte
+    l'un ou l'autre selon qu'il précède ou suit la date de calcul (WF-IND-0100,
+    WF-PTF-0100).
+  properties:
+    month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+    past: { $ref: ../common.yaml#/Money }
+    forecast: { $ref: ../common.yaml#/Money }
+
+IndexHistory:
+  type: object
+  required: [context, thresholds, scopes]
+  description: >-
+    Évolution de l'indice de coût et de l'indice de délai, pour le projet et pour chaque
+    sous-projet : un point par révision marquée, à sa date de marquage, et le dernier au
+    jour courant pour la révision en cours, avec les seuils du référentiel à tracer
+    (WF-IND-0130, WF-REF-0170). Sur un projet de trois révisions marquées, chaque
+    courbe porte quatre points.
   properties:
     context: { $ref: '#/CalculationContext' }
-    months:
+    thresholds: { $ref: reference.yaml#/IndexThresholds }
+    scopes:
       type: array
-      items:
-        type: object
-        required: [month, past, forecast]
-        properties:
-          month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
-          past: { $ref: ../common.yaml#/Money }
-          forecast: { $ref: ../common.yaml#/Money }
+      description: Le projet d'abord, puis chaque sous-projet, puis « hors sous-projet ».
+      items: { $ref: '#/IndexHistoryScope' }
+
+IndexHistoryScope:
+  type: object
+  required: [scope, label, points]
+  description: Les courbes d'une maille de calcul (WF-IND-0020, WF-IND-0130).
+  properties:
+    scope:
+      type: string
+      description: '`project`, `unassigned`, ou l''identifiant d''un sous-projet (WF-IND-0020).'
+    label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: Le libellé du sous-projet ; nul pour le projet et pour « hors sous-projet ».
+    points:
+      type: array
+      description: Du plus ancien marquage au jour courant.
+      items: { $ref: '#/IndexHistoryPoint' }
+
+IndexHistoryPoint:
+  type: object
+  required: [at, revision_id, version_name, cost_index, schedule_index]
+  description: >-
+    Les deux indices d'une révision : à sa date de marquage, tels que le marquage les a
+    conservés (WF-DAT-0040) ; au jour courant pour la révision en cours, dont
+    `version_name` est nul (WF-IND-0130).
+  properties:
+    at: { $ref: ../common.yaml#/Timestamp }
+    revision_id: { $ref: ../common.yaml#/Uuid }
+    version_name:
+      anyOf: [{ type: string }, { type: 'null' }]
+    cost_index: { $ref: '#/IndexValue' }
+    schedule_index: { $ref: '#/IndexValue' }

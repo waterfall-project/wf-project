@@ -2,7 +2,7 @@
   "summary": "Ce dont dépend la date de fin de la récapitulative « Études » du planning : ses quatre subordonnées directes, nommées par leur numéro et leur libellé, que la grille les montre ou non (WF-IHM-0030, WF-PLA-0040).",
   "value": {
     "node_id": "01926f3a-7c00-7000-8000-000000000521",
-    "field": "task.finish_date",
+    "field": "task.finish",
     "depends_on": [
       "subordinates"
     ],

@@ -10,6 +10,17 @@
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
+      - name: status
+        in: query
+        description: Les états retenus, en cours ou marquée ; absents, toutes (WF-IHM-0130).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/revisions.yaml#/RevisionStatus }
+        explode: false
+      - name: search
+        in: query
+        description: Recherche sur le nom de version et la description.
+        schema: { type: string, minLength: 1, maxLength: 200 }
     responses:
       '200':
         description: Révisions, de la plus récente à la plus ancienne.
@@ -401,6 +412,10 @@
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: progress
         in: query
+        description: >-
+          Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la
+          grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre
+          par défaut que leurs lignes (WF-RAE-0040).
         schema:
           type: array
           items: { $ref: ../components/schemas/revisions.yaml#/TaskProgress }
@@ -420,9 +435,9 @@
             - label
             - description
             - scheduling_mode
-            - duration_days
-            - start_date
-            - finish_date
+            - duration
+            - start
+            - finish
             - progress
             - physical_progress
             - total_float_days
@@ -438,6 +453,7 @@
             - consumption_year
             - budgeted_amount
             - reestimated_amount
+            - inflated_amount
             - previous_reestimated_amount
       - $ref: ../components/parameters.yaml#/SortOrder
       - name: fields
@@ -471,6 +487,7 @@
               milestone: { $ref: ../../../fixtures/api/nodes_milestone.json }
               estimate: { $ref: ../../../fixtures/api/nodes_estimate.json }
               planning: { $ref: ../../../fixtures/api/nodes_planning.json }
+              risk_occurred: { $ref: ../../../fixtures/api/nodes_risk_occurred.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -581,7 +598,9 @@
     description: >-
       Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une
       récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle
-      (WF-PLA-0050). La durée du projet ne peut dépasser quinze ans (WF-PLA-0150).
+      (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps
+      écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser
+      quinze ans (WF-PLA-0150).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -652,8 +671,10 @@
     tags: [planning]
     summary: Remplacer les prédécesseurs d'une tâche
     description: >-
-      Les quatre types de liaison, avec décalage (WF-PLA-0030). Une liaison entre une
-      récapitulative et l'une de ses subordonnées est refusée (WF-PLA-0040).
+      Les quatre types de liaison, avec un décalage positif ou négatif dans l'unité de sa
+      saisie — temps de travail, temps écoulé ou pourcentage de la durée du prédécesseur
+      (WF-PLA-0030, WF-PLA-0160). Une liaison entre une récapitulative et l'une de ses
+      subordonnées est refusée (WF-PLA-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
