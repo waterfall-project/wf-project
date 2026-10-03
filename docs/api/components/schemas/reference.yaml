@@ -317,6 +317,36 @@ IndexThresholds:
     schedule_watch: { $ref: ../common.yaml#/Decimal }
     schedule_alert: { $ref: ../common.yaml#/Decimal }
 
+DurationUnits:
+  type: object
+  required: [hours_per_day, hours_per_week, days_per_month, lock_version]
+  description: >-
+    Les trois constantes de l'installation par lesquelles les jours, les semaines et les
+    mois de travail se convertissent en heures (WF-PLA-0160) : avec les valeurs par
+    défaut, « 2 j » vaut seize heures, « 1 sem » quarante et « 1 m » cent soixante.
+    Communes à tous les projets, comme la devise l'est aux montants.
+  properties:
+    hours_per_day:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: 8 par défaut.
+    hours_per_week:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: 40 par défaut.
+    days_per_month:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      description: 20 par défaut.
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+DurationUnitsWrite:
+  type: object
+  required: [hours_per_day, hours_per_week, days_per_month, lock_version]
+  description: Les trois constantes, strictement positives, et le compteur lu (WF-PLA-0160).
+  properties:
+    hours_per_day: { $ref: ../common.yaml#/Decimal }
+    hours_per_week: { $ref: ../common.yaml#/Decimal }
+    days_per_month: { $ref: ../common.yaml#/Decimal }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
 AlertZone:
   type: string
   enum: [nominal, watch, alert]

@@ -19,8 +19,10 @@
       "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
       "budgeted_amount": "2640.00",
       "reestimated_amount": "2640.00",
+      "inflated_amount": "2640.00",
       "previous_reestimated_amount": null,
       "is_computed": false,
+      "uses_inactive_object": false,
       "remaining_entry": {
         "is_available": false,
         "missing_conditions": [

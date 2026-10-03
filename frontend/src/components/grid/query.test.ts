@@ -20,7 +20,7 @@ describe("what the address asks of a grid", () => {
   it("asks no sort by a column the grid does not sort, nor the contract", () => {
     const read = (query: string) =>
       readGridQuery(new URLSearchParams(query), ESTIMATE_SORT_COLUMNS).sort;
-    expect(read("sort_by=start_date&sort_order=desc")).toBeUndefined();
+    expect(read("sort_by=start&sort_order=desc")).toBeUndefined();
     expect(read("sort_by=nothing")).toBeUndefined();
     expect(read("sort_order=desc")).toBeUndefined();
   });
@@ -31,7 +31,7 @@ describe("what the address asks of a grid", () => {
     const hours = { column: "hours", order: "desc" };
     expect(read("", hours)).toEqual({ column: "hours", order: "desc" });
     expect(read("sort_by=label", hours)).toEqual({ column: "label", order: "asc" });
-    expect(read("", { column: "start_date", order: "asc" })).toBeUndefined();
+    expect(read("", { column: "start", order: "asc" })).toBeUndefined();
     expect(read("", { column: "hours", order: "up" })).toEqual({ column: "hours", order: "asc" });
     expect(read("", null)).toBeUndefined();
   });

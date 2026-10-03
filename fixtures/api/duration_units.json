@@ -1,0 +1,9 @@
+{
+  "summary": "Les constantes de conversion des unités de durée à leurs valeurs par défaut : 8 heures par jour, 40 par semaine, 20 jours par mois (WF-PLA-0160).",
+  "value": {
+    "hours_per_day": "8",
+    "hours_per_week": "40",
+    "days_per_month": "20",
+    "lock_version": 1
+  }
+}

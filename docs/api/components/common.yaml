@@ -41,6 +41,19 @@ Timestamp:
   format: date-time
   description: Horodatage en temps universel (WF-DAT-0100).
 
+WorkInstant:
+  type: object
+  required: [date, hours]
+  description: >-
+    Début ou fin d'une tâche : une date sans heure et le nombre d'heures de travail
+    écoulées ce jour-là sur le calendrier applicable, sans fuseau (WF-DAT-0100). Deux
+    tâches de quatre heures liées fin à début, sur un calendrier de huit heures,
+    commencent et finissent le même jour : la première finit à `4`, la seconde commence
+    à `4` et finit à `8`.
+  properties:
+    date: { $ref: '#/PlanningDate' }
+    hours: { $ref: '#/Hours' }
+
 Language:
   type: string
   enum: [fr, en]
@@ -131,9 +144,12 @@ ErrorCode:
     - SESSION_EXPIRED
     - INVALID_CREDENTIALS
     # 403 — permission présente, condition manquante : `params.missing_permission`
-    # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090).
+    # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090). Une action
+    # structurante ou le paramétrage du projet exigent la qualité de chef de projet
+    # (WF-PRJ-0060).
     - PERMISSION_MISSING
     - NOT_CONTRIBUTOR
+    - NOT_PROJECT_MANAGER
     - PROJECT_TERMINAL
     - REVISION_MARKED
     # 404 — objet inexistant ou invisible, sans distinction (WF-ADM-0110).

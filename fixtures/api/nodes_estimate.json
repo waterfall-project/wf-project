@@ -14,16 +14,31 @@
         "task": {
           "label": "Poste de commande",
           "scheduling_mode": "automatic",
-          "duration_days": 42,
-          "start_date": "2026-05-04",
-          "finish_date": "2026-06-30",
+          "duration": {
+            "value": "42",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-04",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-30",
+            "hours": "8"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
           "budgeted_amount": "2734.56",
           "reestimated_amount": "2734.56"
         },
-        "computed_fields": ["task.duration_days", "task.start_date", "task.finish_date", "task.progress"]
+        "computed_fields": [
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ]
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000522",
@@ -37,16 +52,29 @@
         "task": {
           "label": "Câblage des armoires",
           "scheduling_mode": "automatic",
-          "duration_days": 42,
-          "start_date": "2026-05-04",
-          "finish_date": "2026-06-30",
+          "duration": {
+            "value": "42",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-04",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-30",
+            "hours": "8"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
           "budgeted_amount": "2734.56",
           "reestimated_amount": "2734.56"
         },
-        "computed_fields": ["task.start_date", "task.finish_date"]
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ]
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000523",
@@ -66,9 +94,14 @@
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
           "budgeted_amount": "1000.00",
           "reestimated_amount": "1000.00",
+          "inflated_amount": "1000.00",
           "previous_reestimated_amount": null,
           "is_computed": false,
-          "remaining_entry": { "is_available": true, "missing_conditions": [] }
+          "uses_inactive_object": false,
+          "remaining_entry": {
+            "is_available": true,
+            "missing_conditions": []
+          }
         },
         "computed_fields": []
       },
@@ -91,9 +124,14 @@
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
           "budgeted_amount": "1234.56",
           "reestimated_amount": "1234.56",
+          "inflated_amount": "1234.56",
           "previous_reestimated_amount": null,
           "is_computed": false,
-          "remaining_entry": { "is_available": true, "missing_conditions": [] }
+          "uses_inactive_object": false,
+          "remaining_entry": {
+            "is_available": true,
+            "missing_conditions": []
+          }
         },
         "computed_fields": []
       },
@@ -116,11 +154,19 @@
           "subproject_id": null,
           "budgeted_amount": "500.00",
           "reestimated_amount": "500.00",
+          "inflated_amount": "500.00",
           "previous_reestimated_amount": null,
           "is_computed": true,
-          "remaining_entry": { "is_available": true, "missing_conditions": [] }
+          "uses_inactive_object": false,
+          "remaining_entry": {
+            "is_available": true,
+            "missing_conditions": []
+          }
         },
-        "computed_fields": ["estimate_line.quantity", "estimate_line.unit_disbursement"]
+        "computed_fields": [
+          "estimate_line.quantity",
+          "estimate_line.unit_disbursement"
+        ]
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000526",
@@ -134,16 +180,29 @@
         "task": {
           "label": "Réception usine",
           "scheduling_mode": "automatic",
-          "duration_days": 0,
-          "start_date": "2026-06-30",
-          "finish_date": "2026-06-30",
+          "duration": {
+            "value": "0",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-06-30",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-30",
+            "hours": "8"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00"
         },
-        "computed_fields": ["task.start_date", "task.finish_date"]
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ]
       }
     ],
     "totals": {

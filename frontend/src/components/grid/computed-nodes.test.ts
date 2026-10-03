@@ -23,7 +23,7 @@ describe("the cells of a structure the server computes", () => {
     expect(computed(hours)).toEqual([]);
     expect(quantity.whole).toBe(false);
 
-    const finish = computedWhereNamed("task.finish_date");
+    const finish = computedWhereNamed("task.finish");
     // In the planning, the manual task of row 4 enters its dates; the others compute them.
     expect(planning.items.filter((node) => finish.in(node)).map((node) => node.row_number)).toEqual(
       [1, 2, 5, 6, 7],
@@ -32,9 +32,9 @@ describe("the cells of a structure the server computes", () => {
 
   it("name the field of the contract each shows, which the refusal asks the server about", () => {
     const [summary] = planning.items;
-    expect(
-      summary === undefined ? null : computedWhereNamed("task.finish_date").field(summary),
-    ).toBe("task.finish_date");
+    expect(summary === undefined ? null : computedWhereNamed("task.finish").field(summary)).toBe(
+      "task.finish",
+    );
     // An amount is the task's in a task, the line's in a line.
     const amount = computedAmount("reestimated_amount");
     expect(estimate.items.map((node) => amount.field(node))).toEqual([

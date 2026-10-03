@@ -7,9 +7,12 @@ lots, their work tasks and milestones — and five lines per task as §4.6.2 cou
 work task carries five lines; the lines the summaries and milestones do not carry are
 provisions, a sixth line spread evenly over the work tasks. The tasks are dated in working
 days from their finish-to-start links, with their total float, and their progress is the
-one of the day the examples of the contract are read. Amounts are ``Decimal``, summed
-exactly as the lines are made, so that the indicators of the estimate are those of the
-lines the grid shows.
+one of the day the examples of the contract are read. A task lasts whole working days: its
+duration is in days, it starts at the first hour of its first day and finishes at the last
+of its last (WF-DAT-0100, WF-PLA-0160). Amounts are ``Decimal``, summed exactly as the lines
+are made, so that the indicators of the estimate are those of the lines the grid shows; the
+amount of a line corrected for inflation is its amount projected on the year its task
+starts, at the inflation rate of the witness project (WF-DEV-0040).
 
 Nothing here reads the clock or draws at random: every drawn value comes from a hash of a
 fixed seed and of what it describes, so that two runs make the same structure, whatever the
@@ -48,6 +51,17 @@ the witness estimate reads 1,000.00 for 12.5 hours."""
 
 CENT = Decimal("0.01")
 SHARE = Decimal("0.0001")
+
+HOURS_PER_DAY = Decimal(8)
+"""The hours of a working day of the structure: those of the default calendar, and of the
+installation's constant (WF-PLA-0160)."""
+
+INFLATION_RATE = Decimal("0.03")
+"""The inflation rate of the witness project (project.json), which projects an amount on the
+year its line is consumed (WF-DEV-0040)."""
+
+REFERENCE_YEAR = 2026
+"""The reference year of the witness estimate: an amount of that year is not projected."""
 
 # The universe of the other examples of the contract.
 SUBPROJECT_CONTROL = "01926f3a-7c00-7000-8000-000000000801"
@@ -93,6 +107,23 @@ def working_offset(day: date) -> int:
 def money(value: Decimal) -> str:
     """Return an amount as the contract carries it: two decimals, never a float."""
     return str(value.quantize(CENT))
+
+
+def inflated(amount: Decimal, year: int) -> Decimal:
+    """Return an amount projected on a year, at the inflation rate of the witness project."""
+    return (amount * (1 + INFLATION_RATE) ** (year - REFERENCE_YEAR)).quantize(CENT)
+
+
+def work_instant(offset: int, *, end: bool) -> JsonObject:
+    """Return the start or the finish of a task on a working day.
+
+    Its date, and the hours of work elapsed that day: none at a start, the whole day at a
+    finish (WF-DAT-0100).
+    """
+    return {
+        "date": working_day(offset).isoformat(),
+        "hours": decimal(HOURS_PER_DAY if end else Decimal(0)),
+    }
 
 
 def decimal(value: Decimal) -> str:
@@ -359,8 +390,7 @@ class _Emitter:
                     "predecessor_node_id": identifier(_NODE, before.row),
                     "predecessor_row_number": before.row,
                     "link_type": "finish_to_start",
-                    "lag": 0,
-                    "lag_unit": "days",
+                    "lag": {"value": "0", "unit": "d"},
                 }
                 for before in task.predecessors
             ]
@@ -413,10 +443,12 @@ def _task_facet(task: Task) -> JsonObject:
     facet: JsonObject = {
         "label": task.label,
         "scheduling_mode": "automatic",
-        "duration_days": task.duration,
-        "start_date": working_day(task.start).isoformat(),
-        "finish_date": working_day(task.end).isoformat(),
+        "duration": {"value": str(task.duration), "unit": "d"},
+        "start": work_instant(task.start, end=False),
+        "finish": work_instant(task.end, end=True),
         "progress": state,
+        # A started task finishes after the day the examples are read: none is overdue.
+        "finish_overdue": False,
     }
     if state != "not_started" and not task.is_summary:
         facet["started_on"] = working_day(task.start).isoformat()
@@ -433,9 +465,9 @@ def _task_facet(task: Task) -> JsonObject:
 
 
 def _task_computed(task: Task) -> list[JsonValue]:
-    dates: list[JsonValue] = ["task.start_date", "task.finish_date"]
+    dates: list[JsonValue] = ["task.start", "task.finish"]
     if task.is_summary:
-        return ["task.duration_days", *dates, "task.progress"]
+        return ["task.duration", *dates, "task.progress"]
     return dates
 
 
@@ -454,6 +486,7 @@ def _line(task: Task, index: int, *, completed: bool) -> tuple[JsonObject, Decim
         if not kind.is_provision:
             quantity = draw(f"quantity/{key}", 1, 20)
         amount = quantity * unit
+    year = working_day(task.start).year
     line: JsonObject = {
         "label": kind.label,
         "cost_category_id": kind.category,
@@ -464,8 +497,11 @@ def _line(task: Task, index: int, *, completed: bool) -> tuple[JsonObject, Decim
         "subproject_id": _subproject(task, kind),
         "budgeted_amount": money(amount),
         "reestimated_amount": money(amount),
+        "inflated_amount": money(inflated(amount, year)),
         "previous_reestimated_amount": None,
+        "consumption_year": year,
         "is_computed": kind.is_provision,
+        "uses_inactive_object": False,
         "remaining_entry": {
             "is_available": not completed,
             "missing_conditions": ["task_not_completed"] if completed else [],

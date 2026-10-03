@@ -14,10 +14,20 @@
         "task": {
           "label": "Études",
           "scheduling_mode": "automatic",
-          "duration_days": 40,
-          "start_date": "2026-03-02",
-          "finish_date": "2026-04-24",
+          "duration": {
+            "value": "40",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-03-02",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-24",
+            "hours": "8"
+          },
           "progress": "started",
+          "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
           "budgeted_amount": "100000.00",
@@ -29,9 +39,9 @@
           }
         },
         "computed_fields": [
-          "task.duration_days",
-          "task.start_date",
-          "task.finish_date",
+          "task.duration",
+          "task.start",
+          "task.finish",
           "task.progress"
         ]
       },
@@ -47,10 +57,20 @@
         "task": {
           "label": "Études de détail",
           "scheduling_mode": "automatic",
-          "duration_days": 30,
-          "start_date": "2026-03-02",
-          "finish_date": "2026-04-10",
+          "duration": {
+            "value": "30",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-03-02",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-10",
+            "hours": "8"
+          },
           "progress": "completed",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
           "budgeted_amount": "100000.00",
@@ -61,8 +81,8 @@
           "completed_on": "2026-04-10"
         },
         "computed_fields": [
-          "task.start_date",
-          "task.finish_date"
+          "task.start",
+          "task.finish"
         ]
       },
       {
@@ -77,10 +97,20 @@
         "task": {
           "label": "Pupitres opérateurs",
           "scheduling_mode": "manual",
-          "duration_days": 40,
-          "start_date": "2026-03-02",
-          "finish_date": "2026-04-24",
+          "duration": {
+            "value": "40",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-03-02",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-24",
+            "hours": "8"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
           "budgeted_amount": "0.00",
@@ -102,10 +132,20 @@
         "task": {
           "label": "Revue de conception",
           "scheduling_mode": "automatic",
-          "duration_days": 10,
-          "start_date": "2026-04-13",
-          "finish_date": "2026-04-24",
+          "duration": {
+            "value": "10",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-04-13",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-24",
+            "hours": "8"
+          },
           "progress": "started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
           "budgeted_amount": "0.00",
@@ -119,13 +159,15 @@
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000522",
             "predecessor_row_number": 2,
             "link_type": "finish_to_start",
-            "lag": 0,
-            "lag_unit": "days"
+            "lag": {
+              "value": "0",
+              "unit": "d"
+            }
           }
         ],
         "computed_fields": [
-          "task.start_date",
-          "task.finish_date"
+          "task.start",
+          "task.finish"
         ]
       },
       {
@@ -140,10 +182,20 @@
         "task": {
           "label": "Réception des études",
           "scheduling_mode": "automatic",
-          "duration_days": 0,
-          "start_date": "2026-04-24",
-          "finish_date": "2026-04-24",
+          "duration": {
+            "value": "0",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-04-24",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-24",
+            "hours": "8"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
           "budgeted_amount": "0.00",
@@ -156,20 +208,24 @@
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000524",
             "predecessor_row_number": 5,
             "link_type": "finish_to_start",
-            "lag": 0,
-            "lag_unit": "days"
+            "lag": {
+              "value": "0",
+              "unit": "d"
+            }
           },
           {
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000523",
             "predecessor_row_number": 4,
             "link_type": "start_to_start",
-            "lag": 1,
-            "lag_unit": "weeks"
+            "lag": {
+              "value": "1",
+              "unit": "w"
+            }
           }
         ],
         "computed_fields": [
-          "task.start_date",
-          "task.finish_date"
+          "task.start",
+          "task.finish"
         ]
       },
       {
@@ -184,10 +240,20 @@
         "task": {
           "label": "Dossier de conception",
           "scheduling_mode": "automatic",
-          "duration_days": 5,
-          "start_date": "2026-04-09",
-          "finish_date": "2026-04-15",
+          "duration": {
+            "value": "5",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-04-09",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-15",
+            "hours": "8"
+          },
           "progress": "not_started",
+          "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
           "budgeted_amount": "0.00",
@@ -200,13 +266,15 @@
             "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000522",
             "predecessor_row_number": 2,
             "link_type": "finish_to_start",
-            "lag": -2,
-            "lag_unit": "days"
+            "lag": {
+              "value": "-2",
+              "unit": "d"
+            }
           }
         ],
         "computed_fields": [
-          "task.start_date",
-          "task.finish_date"
+          "task.start",
+          "task.finish"
         ]
       }
     ],

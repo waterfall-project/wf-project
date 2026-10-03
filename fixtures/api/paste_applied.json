@@ -20,8 +20,10 @@
         "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
         "budgeted_amount": "2640.00",
         "reestimated_amount": "2640.00",
+        "inflated_amount": "2640.00",
         "previous_reestimated_amount": null,
         "is_computed": false,
+        "uses_inactive_object": false,
         "remaining_entry": {
           "is_available": false,
           "missing_conditions": [
@@ -50,8 +52,10 @@
         "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
         "budgeted_amount": "5587.50",
         "reestimated_amount": "5587.50",
+        "inflated_amount": "5587.50",
         "previous_reestimated_amount": null,
         "is_computed": false,
+        "uses_inactive_object": false,
         "remaining_entry": {
           "is_available": false,
           "missing_conditions": [
@@ -80,8 +84,10 @@
         "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
         "budgeted_amount": "17323.52",
         "reestimated_amount": "25985.28",
+        "inflated_amount": "25985.28",
         "previous_reestimated_amount": null,
         "is_computed": false,
+        "uses_inactive_object": false,
         "remaining_entry": {
           "is_available": false,
           "missing_conditions": [

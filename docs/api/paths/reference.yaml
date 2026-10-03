@@ -66,6 +66,7 @@
     description: Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
+      - $ref: ../components/parameters.yaml#/Search
     responses:
       '200':
         description: Nœuds, sans limite de profondeur.
@@ -169,6 +170,7 @@
       (WF-REF-0090, WF-REF-0100, WF-REF-0150).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
+      - $ref: ../components/parameters.yaml#/Search
       - name: org_node_id
         in: query
         schema: { $ref: ../components/common.yaml#/Uuid }
@@ -257,6 +259,50 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
+/reference/duration-units:
+  get:
+    operationId: getDurationUnits
+    tags: [reference]
+    summary: Constantes de conversion des unités de durée
+    description: >-
+      Heures par jour, heures par semaine et jours par mois, par lesquelles les jours, les
+      semaines et les mois de travail se convertissent en heures sur tous les projets de
+      l'installation, et que l'export MS Project transporte (WF-PLA-0160). Lisibles par
+      quiconque consulte un projet : la grille de planning en a besoin pour dire ce que
+      vaut une durée.
+    responses:
+      '200':
+        description: Les trois constantes, 8, 40 et 20 par défaut (WF-PLA-0160).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/DurationUnits }
+            examples:
+              defaults: { $ref: ../../../fixtures/api/duration_units.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+  put:
+    operationId: setDurationUnits
+    tags: [reference]
+    summary: Régler les constantes de conversion des unités de durée
+    description: >-
+      Les trois constantes de l'installation, communes à tous les projets, sous la
+      permission des paramètres de ressources, comme les calendriers (WF-PLA-0160,
+      WF-ADM-0100). Une révision marquée garde les heures qu'elle a calculées
+      (WF-REF-0130).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/DurationUnitsWrite }
+    responses:
+      '200':
+        description: Constantes enregistrées.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/DurationUnits }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+
 /reference/calendars:
   get:
     operationId: listCalendars
@@ -266,6 +312,7 @@
       Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
+      - $ref: ../components/parameters.yaml#/Search
     responses:
       '200':
         description: Calendriers, dont celui par défaut (WF-REF-0110, WF-REF-0120).
@@ -379,6 +426,14 @@
       Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
+      - $ref: ../components/parameters.yaml#/Search
+      - name: kinds
+        in: query
+        description: Restreint aux natures de ces types (WF-IHM-0130).
+        schema:
+          type: array
+          items: { $ref: ../components/schemas/reference.yaml#/CostTypeKind }
+        explode: false
     responses:
       '200':
         description: Natures et leur type (WF-REF-0030).
@@ -476,6 +531,10 @@
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
+      - name: cost_type_id
+        in: query
+        description: Restreint aux catégories d'une nature de coût (WF-IHM-0130).
+        schema: { $ref: ../components/common.yaml#/Uuid }
     responses:
       '200':
         description: Catégories rattachées à leur nature (WF-REF-0040).

@@ -315,7 +315,7 @@ describe("the witness path", () => {
 
   it("asks the plan order of the whole structure when the address holds no sort the grid offers, nor a search", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
-    const search = Promise.resolve({ sort_by: "start_date", sort_order: "desc", search: "" });
+    const search = Promise.resolve({ sort_by: "start", sort_order: "desc", search: "" });
     await EstimatePage({ params, searchParams: search });
     expect(Object.keys(nodesQuery())).toEqual([]);
   });

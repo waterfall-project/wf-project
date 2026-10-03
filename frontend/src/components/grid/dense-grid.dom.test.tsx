@@ -923,12 +923,12 @@ describe("the figures and the dates of a grid, in the language of the interface"
       columns: [
         LABEL_COLUMN,
         {
-          key: "finish_date",
+          key: "finish",
           label: "finishDate",
           format: "date",
           width: 120,
-          sortBy: "finish_date",
-          value: (node) => node.task?.finish_date,
+          sortBy: "finish",
+          value: (node) => node.task?.finish?.date,
         },
       ],
     };
