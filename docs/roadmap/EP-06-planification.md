@@ -69,6 +69,8 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PLA-0110-A` | Vue en arborescence de tâches | entière | — |
 | `WF-PLA-0120-A` | Export de l’arborescence de tâches | entière | — |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02 | — |
+| `WF-PLA-0160-A` | Unités de durée | entière | — |
+| `WF-QUA-0080-A` | Corpus de plannings de référence et schéma d’échange | entière | — |
 
 ## Opérations du contrat
 

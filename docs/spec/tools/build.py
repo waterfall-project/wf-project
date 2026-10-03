@@ -3,10 +3,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Project the Word + draw.io specification into Markdown an agent can read.
 
-Word and draw.io remain the sources; this script regenerates `waterfall-spec.md`,
-which must never be edited by hand. The Markdown it produces adds two things the
-.docx does not carry and reviews cannot do without: the section number on every
-heading, and an explicit anchor — section plus identifier — on every requirement.
+Word, draw.io and the Mermaid files of figures/ remain the sources; this script
+regenerates `waterfall-spec.md`, which must never be edited by hand. The Markdown
+it produces adds two things the .docx does not carry and reviews cannot do
+without: the section number on every heading, and an explicit anchor — section
+plus identifier — on every requirement.
 
 The document is written in French; this program and its console output are in
 English, and every literal that lands in the document is kept verbatim.
@@ -44,30 +45,21 @@ REQUIREMENT_FIELDS: dict[str, str] = {
     "Vérif": "verification",
 }
 
-MERMAID_KEYWORDS = (
-    "flowchart",
-    "graph",
-    "sequenceDiagram",
-    "classDiagram",
-    "stateDiagram",
-    "stateDiagram-v2",
-    "erDiagram",
-    "journey",
-    "gantt",
-    "pie",
-    "mindmap",
-    "timeline",
-    "quadrantChart",
-    "requirementDiagram",
-    "C4Context",
+# A table-of-contents entry as pandoc renders it: the heading, then its page number as a
+# link. Word writes the entry's own hyperlink either as a w:hyperlink, which pandoc wraps
+# around the whole entry, or as a HYPERLINK field, which pandoc drops; and it escapes the
+# dot of a leading number so that the line does not read as a list item.
+RE_TOC_ENTRY = re.compile(
+    r"^\[?(?:(\d+(?:\.\d+)*)\\?\.\s+)?(.+?)\s+\[\d+\]\(#[^)]*\)(?:\]\(#[^)]*\))?$"
 )
-
-RE_TOC_ENTRY = re.compile(r"^\[(?:(\d+(?:\.\d+)*)\.\s+)?(.+?)\s+\[\d+\]\(#[^)]*\)\]\(#[^)]*\)$")
 RE_ANCHOR = re.compile(r'<span id="[^"]*" class="anchor"></span>')
 RE_CAPTION = re.compile(r"^(Figure|Tableau)\s*(\d+)?\s*[:–—-]?\s*(.*)$")
 RE_IMG = re.compile(r"^<img\s+(?P<attrs>.*?)\s*/?>$", re.DOTALL)
 RE_ATTR = re.compile(r'(\w+)="([^"]*)"')
-RE_ARROW = re.compile(r"(-{2,3}>|={2,3}>|-\.->|-{3,}|={3,}|--[ox])")
+# A revision mark of Word: an insertion, a deletion, a move, or a change of properties.
+# The word boundary keeps w:delText and w:instrText out.
+RE_TRACKED_CHANGE = re.compile(r"<w:(?:ins|del|moveFrom|moveTo|\w+Change)\b")
+RE_COMMENT_THREAD = re.compile(r"<w15:commentEx\b[^>]*>")
 PAIR = 2
 """A requirement table has two columns: the label, and the value."""
 
@@ -104,6 +96,50 @@ class BuildNotes:
 # --------------------------------------------------------------------------- #
 # Step 1: pandoc extraction
 # --------------------------------------------------------------------------- #
+
+
+def pending_review_marks(docx: Path) -> list[str]:
+    """Return what the Word document still holds under review, one message per kind.
+
+    Pandoc accepts every tracked change silently and drops the comments: a
+    projection built from a document under review would present as adopted what
+    its author has not accepted yet. Each message is a warning, so that --strict
+    refuses to publish until the changes are accepted or rejected and the comment
+    threads resolved in Word. A thread is a comment without a parent; Word marks
+    it done in commentsExtended.xml, and a document that has comments but no such
+    part has them all open.
+    """
+    with zipfile.ZipFile(docx) as archive:
+        names = set(archive.namelist())
+
+        def part(name: str) -> str:
+            return archive.read(name).decode("utf-8") if name in names else ""
+
+        document = part("word/document.xml")
+        comments = part("word/comments.xml")
+        extended = part("word/commentsExtended.xml")
+    messages: list[str] = []
+    changes = len(RE_TRACKED_CHANGE.findall(document))
+    if changes:
+        messages.append(
+            f"{changes} tracked change(s) pending in the Word document: accept or reject "
+            "them in Word before publishing — pandoc accepts them all silently"
+        )
+    if extended:
+        threads = [
+            mark.group(0)
+            for mark in RE_COMMENT_THREAD.finditer(extended)
+            if "w15:paraIdParent" not in mark.group(0)
+        ]
+        open_threads = sum('w15:done="1"' not in thread for thread in threads)
+    else:
+        open_threads = comments.count("<w:comment ")
+    if open_threads:
+        messages.append(
+            f"{open_threads} open comment thread(s) in the Word document: resolve them "
+            "in Word before publishing — pandoc drops the comments"
+        )
+    return messages
 
 
 def unwrap_simple_fields(docx: Path, target: Path) -> int:
@@ -234,167 +270,6 @@ def current_section(lines: list[str], index: int) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def _tokens(source: str) -> list[str]:
-    """Split a one-line Mermaid source on the spaces outside quotes and brackets."""
-    tokens: list[str] = []
-    current: list[str] = []
-    depth, in_quotes = 0, False
-    for character in source:
-        if character == '"':
-            in_quotes = not in_quotes
-        elif not in_quotes:
-            if character in "[{(":
-                depth += 1
-            elif character in "]})":
-                depth -= 1
-            elif character.isspace() and depth == 0:
-                if current:
-                    tokens.append("".join(current))
-                    current = []
-                continue
-        current.append(character)
-    if current:
-        tokens.append("".join(current))
-    return tokens
-
-
-FIXED_ARITY = {"classDef": 3, "class": 3, "style": 3, "linkStyle": 3, "direction": 2}
-"""Statements of a flowchart or a state diagram that take a fixed number of words."""
-
-
-def _arrow_statement(tokens: list[str], i: int) -> tuple[list[str], int]:
-    """Read a node, the arrows and nodes chained to it, and a transition label."""
-    statement = [tokens[i]]
-    i += 1
-    while i < len(tokens) and RE_ARROW.search(tokens[i]):
-        statement.append(tokens[i])
-        i += 1
-        if i < len(tokens):
-            statement.append(tokens[i])
-            i += 1
-    # Transition label in the stateDiagram manner ("A --> B : text"): it runs
-    # until the next token followed by an arrow, which opens the next statement.
-    if i < len(tokens) and tokens[i].startswith(":"):
-        while i < len(tokens):
-            next_is_arrow = i + 1 < len(tokens) and RE_ARROW.search(tokens[i + 1])
-            if tokens[i] in FIXED_ARITY or (next_is_arrow and statement[-1] != ":"):
-                break
-            statement.append(tokens[i])
-            i += 1
-    return statement, i
-
-
-def _statements(tokens: list[str]) -> list[str]:
-    """Group the tokens of a flowchart or a state diagram into statements."""
-    statements: list[str] = []
-    i = 0
-    while i < len(tokens):
-        word = tokens[i]
-        if word in FIXED_ARITY:
-            n = FIXED_ARITY[word]
-            statements.append(" ".join(tokens[i : i + n]))
-            i += n
-        elif word == "end":
-            statements.append(word)
-            i += 1
-        elif word == "subgraph":
-            statements.append(" ".join(tokens[i : i + 2]))
-            i += 2
-        else:
-            statement, i = _arrow_statement(tokens, i)
-            statements.append(" ".join(statement))
-    return statements
-
-
-def resegment_mermaid(source: str) -> str:
-    """Restore a Mermaid source written on a single line (a Word alt text).
-
-    Word stores the diagram without line breaks; Mermaid wants one statement per
-    line. We resegment while respecting quotes and brackets.
-    """
-    tokens = _tokens(source)
-    if not tokens:
-        return ""
-    header, tokens = tokens[0], tokens[1:]
-    if header in MERMAID_KEYWORDS and tokens and re.fullmatch(r"[A-Z]{2}", tokens[0]):
-        header, tokens = f"{header} {tokens[0]}", tokens[1:]
-    if header.startswith("classDiagram"):
-        return resegment_class_diagram(header, tokens)
-    return "\n".join([header] + [f"    {s}" for s in _statements(tokens)]) + "\n"
-
-
-RE_CLASS_ARROW = re.compile(
-    r"^(<\|--|--\|>|\*--|--\*|o--|--o|<--|-->|--|<\|\.\.|\.\.\|>|<\.\.|\.\.>|\.\.)$"
-)
-CLASS_ARITY = {"class": 2, "direction": 2, "style": 3, "classDef": 3, "cssClass": 3}
-"""Statements of a class diagram that take a fixed number of words."""
-RELATION = 4
-"""A relation is at most a source, a cardinality, an arrow and a cardinality before its target."""
-
-
-def resegment_class_diagram(header: str, tokens: list[str]) -> str:
-    """Resegment a classDiagram written on a single line.
-
-    A relation reads `A "1" --> "*" B : label`, with optional cardinalities in
-    quotes. Its label runs until the beginning of the next statement: an identifier
-    followed by an arrow, possibly preceded by a cardinality, or a keyword.
-    """
-
-    def arrow(j: int) -> bool:
-        return j < len(tokens) and RE_CLASS_ARROW.match(tokens[j]) is not None
-
-    def quoted(j: int) -> bool:
-        return j < len(tokens) and tokens[j].startswith('"')
-
-    def starts_a_relation(j: int) -> bool:
-        return (
-            not quoted(j)
-            and not arrow(j)
-            and tokens[j] != ":"
-            and (arrow(j + 1) or (quoted(j + 1) and arrow(j + 2)))
-        )
-
-    statements: list[str] = []
-    i = 0
-    while i < len(tokens):
-        if tokens[i] in CLASS_ARITY:
-            n = CLASS_ARITY[tokens[i]]
-            statements.append(" ".join(tokens[i : i + n]))
-            i += n
-            continue
-        statement = [tokens[i]]
-        i += 1
-        # Cardinality, arrow, cardinality, target.
-        while i < len(tokens) and (quoted(i) or arrow(i)) and len(statement) < RELATION:
-            statement.append(tokens[i])
-            i += 1
-        if len(statement) > 1 and i < len(tokens):
-            statement.append(tokens[i])
-            i += 1
-        if i < len(tokens) and tokens[i].startswith(":"):
-            while (
-                i < len(tokens)
-                and tokens[i] not in CLASS_ARITY
-                and not (statement[-1] != ":" and starts_a_relation(i))
-            ):
-                statement.append(tokens[i])
-                i += 1
-        statements.append(" ".join(statement))
-
-    return "\n".join([header] + [f"    {s}" for s in statements]) + "\n"
-
-
-def mermaid_from_alt_text(alt: str | None) -> str | None:
-    """Return the Mermaid source when the alt text is one, None otherwise."""
-    text = html.unescape(alt or "").strip()
-    if not text:
-        return None
-    first = text.split(None, 1)[0]
-    if first not in MERMAID_KEYWORDS:
-        return None
-    return resegment_mermaid(text)
-
-
 def load_figure_config(path: Path) -> list[FigureEntry]:
     """Return the entries of figures.toml: which caption takes which Mermaid source."""
     if not path.exists():
@@ -414,15 +289,16 @@ class _Figures:
 
 
 def _mermaid_of(
-    caption: str, alt: str | None, entry: FigureEntry | None, figures: _Figures
+    caption: str, entry: FigureEntry | None, figures: _Figures
 ) -> tuple[str | None, str]:
-    """Return the Mermaid source of a figure, and where it comes from."""
-    mermaid = mermaid_from_alt_text(alt)
-    if mermaid is not None:
-        return mermaid, "texte alternatif Word"
+    """Return the Mermaid source of a figure, and where it comes from.
+
+    The source is never read from the Word document: an alt text is one line of
+    text that Word rewrites at will, and a diagram does not survive it. It lives
+    in the repository, as a Mermaid file or as a page of the draw.io file, and
+    tools/figures.toml says which one a caption takes.
+    """
     if entry and entry.get("source"):
-        # Mermaid source held in the repository: no resegmentation at all, so
-        # every kind of diagram is allowed, sequences included.
         path = ROOT / entry["source"]
         if path.exists():
             return path.read_text(encoding="utf-8"), entry["source"]
@@ -437,7 +313,7 @@ def _mermaid_of(
         return converted, f"{figures.drawio.name}, page « {page} »"
     elif entry:
         figures.notes.warn(f'{caption}: draw.io page "{entry.get("page")}" not found')
-    return None, "texte alternatif Word"
+    return None, ""
 
 
 def _figure(
@@ -459,8 +335,8 @@ def _figure(
         )
     else:
         figures.notes.warn(
-            f"{caption}: no Mermaid source (neither an alt text nor a matching "
-            f"entry in tools/figures.toml) — the image is kept as it is"
+            f"{caption}: no Mermaid source (no matching entry in tools/figures.toml) "
+            "— the image is kept as it is"
         )
     return keep_image(attributes, caption, figures.images_folder)
 
@@ -491,7 +367,7 @@ def convert_figures(
                 "only be able to name this figure by its title"
             )
         entry = find_config_entry(config, caption)
-        mermaid, origin = _mermaid_of(caption, attributes.get("alt"), entry, figures)
+        mermaid, origin = _mermaid_of(caption, entry, figures)
         output.extend(_figure(mermaid, origin, caption, attributes, figures))
         if caption:
             output.append("")
@@ -713,7 +589,8 @@ def front_matter(docx: Path, drawio: Path, requirement_count: int) -> list[str]:
         "---",
         "",
         "<!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER.",
-        f"     Les sources sont {docx.name} (Word) et {drawio.name} (draw.io).",
+        f"     Les sources sont {docx.name} (Word), {drawio.name} (draw.io)",
+        "     et les fichiers Mermaid de figures/.",
         "     Toute correction se fait dans ces fichiers, puis ./build.sh. -->",
         "",
         # The logo is not in the Word document: it belongs to the repository, and the
@@ -793,6 +670,8 @@ def main() -> int:
 
     notes = BuildNotes(verbose=arguments.verbose)
     config = load_figure_config(ROOT / arguments.config)
+    for message in pending_review_marks(docx):
+        notes.warn(message)
 
     with tempfile.TemporaryDirectory() as temporary:
         readable = Path(temporary) / docx.name
