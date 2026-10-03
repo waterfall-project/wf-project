@@ -387,6 +387,28 @@ dans `docs/api` ou s'ouvrent en issue « Interface contract issue ». Déjà pre
 portée de `getRemainingIndicators`, le tri de `listActualCosts`, la liste des tâches de
 fond d'un utilisateur, la révision ouverte par défaut.
 
+**Révision de la spécification du 2026-10-03 (EP-02/L7).** La spécification revue (#207) impose
+au contrat, avant les lots restants : une durée et un décalage dans l'unité de leur saisie
+(`Duration`, `Lag`, WF-PLA-0160, WF-PLA-0030), à la place de `duration_days`, `lag` et
+`lag_unit`, et les constantes de conversion en ressource du référentiel
+(`GET`/`PUT /reference/duration-units`) ; le début et la fin d'une tâche en date et heures de
+travail écoulées (`WorkInstant`, WF-DAT-0100), `start` et `finish` à la place de `start_date`
+et `finish_date`, sur la facette, dans les champs calculés et dans le tri ; la permission
+`all_projects_read`, la qualité de contributeur (`Contributor.kind`, `ContributorsWrite`), la
+condition `is_project_manager` et le code `NOT_PROJECT_MANAGER`, et `listProjects` qui ne rend
+que les projets ouvrables (WF-PRJ-0060, WF-ADM-0100, WF-ADM-0110) ; des filtres sur toute liste
+dont l'écran présente les colonnes, et le tri de la liste du portefeuille (WF-IHM-0130) ; les
+décaissements rendus par `getCostCurve` avec `payment_delays`, `getProjectCashOut` et `CashOut`
+retirés (WF-IND-0100, WF-IND-0120 retirée) ; `getIndexHistory` (WF-IND-0130) ; le motif d'une
+transition (`StateTransition.reason`, #185) ; `inflated_amount` sur la ligne de devis
+(WF-DEV-0050), `finish_overdue` sur la tâche (WF-RAE-0040), `uses_inactive_object` sur la ligne
+(WF-REF-0010) ; la base du plan de charge (`basis`, WF-DEV-0070) ; la part de la provision sur
+les lignes fusionnées d'un risque survenu (WF-RIS-0060, exemple `risk_occurred`) ;
+`delta_to_reference` sur la ligne du portefeuille (WF-PTF-0040). Chaque forme est consignée
+dans `docs/api/DECISIONS.md`, « Révision de la spécification du 2026-10-03 ». Le front n'est
+touché que là où le client engendré ne compilait plus : la grille de planning écrit la durée
+par sa valeur et son unité, et les dates par leur date.
+
 ### Constats sur le contrat
 
 - `Computable.reason` était une phrase libre, que le front ne pouvait pas traduire, quand le

@@ -53,11 +53,6 @@ REASONS: dict[str, str] = {
     "n'est une opération d'API.",
     "IHM": "Invariants d'interface : navigation, saisie au clavier, accessibilité. Ils "
     "vivent dans le front.",
-    "IND": "WF-IND-0130, l'évolution des indices, attend la mise à jour du contrat qui suit "
-    "la revue de la spécification du 2026-10-03 : une lecture des courbes d'indices y "
-    "entrera, et la projection de décaissement (WF-IND-0120, retirée) en sortira.",
-    "PLA": "WF-PLA-0160, les unités de durée, attend la même mise à jour : les constantes "
-    "de conversion de l'installation entrent dans le référentiel du contrat.",
     "INTF": "Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par "
     "le catalogue des permissions ; la règle de traduction vit dans le front.",
     "QUA": "Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle "
