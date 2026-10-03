@@ -1,5 +1,7 @@
 # Trous de la spécification, à intégrer au document Word
 
+**Toutes les entrées sont tranchées au 2026-10-03** : chaque entrée porte une ligne « Tranché » ; le fichier s'intègre au Word en une passe.
+
 Ce fichier accumule ce que le cadrage et la construction révèlent : des décisions prises en
 route qui devraient vivre dans la spécification, et n'y sont pas. L'auteur les intègre au
 Word en une passe, lance `make build-doc`, puis efface les entrées intégrées. Chaque entrée
@@ -7,6 +9,8 @@ suit la forme des constats de revue : où, quoi, et un texte proposé — à ret
 librement dans le document.
 
 ## 1. L'écran d'accueil à la connexion
+
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel. Le filtre levé ne montre que les projets ouvrables (entrée 20).
 
 - **Où** : §3.6 (principes d'interface), nouvelle exigence — prochain identifiant libre
   `WF-IHM-0120`.
@@ -23,6 +27,8 @@ librement dans le document.
 
 ## 2. Introuvable et lecture refusée : le même écran
 
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel.
+
 - **Où** : WF-ADM-0110 (corps), ou §3.6.
 - **Quoi** : le contrat répond 404 quand la permission de consultation manque, précisément
   pour que l'existence d'un objet ne fuie pas. L'interface doit tenir la même ligne : une
@@ -33,6 +39,8 @@ librement dans le document.
 
 ## 3. L'installation neuve guide vers le référentiel
 
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel.
+
 - **Où** : WF-CYC-0120 (corps ou Vérif), ou l'exigence de l'entrée 1.
 - **Quoi** : tant que le référentiel minimal est incomplet, la création de projet est
   refusée (WF-CYC-0120). Rien ne dit ce que voit l'administrateur d'une installation
@@ -42,6 +50,8 @@ librement dans le document.
 
 ## 4. La session qui expire ramène où l'on allait
 
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel.
+
 - **Où** : WF-SEC-0020 (corps), ou §3.6.
 - **Quoi** : rien ne dit ce que vit l'utilisateur quand sa session expire en cours de
   travail.
@@ -49,6 +59,8 @@ librement dans le document.
   la connexion refaite ramène à l'écran visé. »
 
 ## 5. La saisie des nombres suit la langue
+
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel.
 
 - **Où** : WF-INTF-0180 (corps).
 - **Quoi** : l'exigence couvre l'affichage (« 1 234,56 » / « 1,234.56 ») mais pas la
@@ -59,6 +71,8 @@ librement dans le document.
 
 ## 6. Les horodatages s'affichent en heure locale
 
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel.
+
 - **Où** : WF-DAT-0100 ou WF-INTF-0180 (corps).
 - **Quoi** : les horodatages sont conservés en temps universel, les dates de planning sans
   heure ne bougent jamais de fuseau — mais rien ne dit dans quelle heure s'affiche un
@@ -68,6 +82,8 @@ librement dans le document.
   locale du poste ; une date de planning s'affiche telle quelle. »
 
 ## 7. Une tâche non démarrée se réestime à la demande
+
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel.
 
 - **Où** : WF-RAE-0030 (corps et Vérif).
 - **Quoi** : WF-RAE-0030 contredisait WF-RAE-0040 sur la saisie. WF-RAE-0030 disait
@@ -88,6 +104,8 @@ librement dans le document.
 
 
 ## 9. Le planning se calcule en heures
+
+- **Tranché (2026-10-03)** : calendrier applicable = jour par jour, le plus petit nombre d'heures des calendriers des rôles ; textes proposés retenus.
 
 - **Où** : WF-PLA-0010 (corps, motif, Vérif) ; WF-INTF-0050 (corps). À relire dans la même
   passe : WF-PLA-0100 (la marge totale s'exprime désormais en temps de travail),
@@ -141,6 +159,8 @@ librement dans le document.
 
 ## 10. La conversion des unités de durée
 
+- **Tranché (2026-10-03)** : constantes dans le référentiel, pour l'installation ; texte proposé retenu.
+
 - **Où** : nouvelle exigence WF-PLA-0160, que citent les textes proposés aux entrées 9 et
   12. Elle porte sur les unités du planning, où que vivent les constantes : leur
   emplacement ne change que « de l'installation » dans son corps.
@@ -174,6 +194,8 @@ librement dans le document.
 
 ## 11. Une tâche peut commencer et finir en cours de journée
 
+- **Tranché (2026-10-03)** : l'interface n'affiche que des dates ; texte proposé retenu.
+
 - **Où** : WF-DAT-0100 (corps, Vérif) ; §4.4.1, paragraphe « Intégrité » (« les dates du
   planning, des dates sans heure ») ; entrée 6 du présent fichier.
 - **Quoi** : avec des durées en heures, deux tâches de quatre heures liées fin à début
@@ -201,6 +223,18 @@ librement dans le document.
 
 ## 12. Les unités de MS Project que Waterfall ne connaît pas
 
+- **Tranché (2026-10-03)** : les accepter — le moteur calcule aussi en temps écoulé et en
+  pourcentage, et l'aller-retour les conserve. Le texte proposé change en conséquence :
+  - WF-PLA-0160 (entrée 10) ajoute les unités de temps écoulé — emin, eh, ej, esem, em —,
+    qui se convertissent en temps civil, sans calendrier : un jour écoulé vaut vingt-quatre
+    heures, une semaine sept jours, un mois trente jours, comme dans MS Project ;
+  - WF-PLA-0030, corps : « exprimé en temps de travail ou en temps écoulé, dans l'une des
+    unités de WF-PLA-0160, ou en pourcentage de la durée du prédécesseur » ; Vérif : « Un
+    décalage de 2 ej placé un vendredi soir fait commencer le successeur le dimanche soir ;
+    un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours de travail. » ;
+  - WF-INTF-0040 : pas d'ajout, ces unités sont transportées telles quelles ;
+  - le corpus de l'entrée 15 couvre « des décalages en temps écoulé et en pourcentage ».
+
 - **Où** : WF-PLA-0030 (corps) ; WF-INTF-0040 (corps).
 - **Quoi** : MS Project admet des durées et des décalages en temps écoulé (« ej », « esem »,
   « em » : jours civils, week-ends compris) et des décalages en pourcentage de la durée du
@@ -225,6 +259,8 @@ librement dans le document.
 
 ## 13. Étaler un montant ou une charge : sur quel temps
 
+- **Tranché (2026-10-03)** : les heures travaillées partout, chaque ligne selon le calendrier qui répartit déjà sa charge ; les Vérif prennent des mois égaux.
+
 - **Où** : WF-DEV-0040, WF-DEV-0070, WF-DEV-0080, WF-IND-0120 (corps et Vérif) ;
   WF-PLA-0010 (dernière phrase) ; §3.5.1.
 - **Quoi** : ces exigences étalent un montant ou une charge « par interpolation linéaire
@@ -248,6 +284,8 @@ librement dans le document.
   le dire, ou prendre des mois égaux.
 
 ## 14. Les versions de MS Project exigées pour le MVP
+
+- **Tranché (2026-10-03)** : le corps nomme le format des versions 2010 et suivantes, le Vérif un fichier de MS Project 2013 ; textes proposés retenus.
 
 - **Où** : WF-INTF-0040 (corps, Vérif) ; WF-INTF-0050 et WF-INTF-0060 suivent, puisque leur
   Vérif renvoie aux « versions de MS Project visées par WF-INTF-0040 ».
@@ -283,6 +321,8 @@ librement dans le document.
   exigerait de déclarer. L'entrée 15 dit comment les tests s'en servent.
 
 ## 15. Un corpus de plannings calculés par MS Project
+
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel, en ajoutant au corps les décalages en temps écoulé et en pourcentage (entrée 12).
 
 - **Où** : §4.7, nouvelle exigence WF-QUA-0080, à côté de WF-QUA-0020.
 - **Quoi** : l'égalité des dates entre Waterfall et MS Project ne se vérifie pas dans la
@@ -331,6 +371,16 @@ librement dans le document.
 
 ## 16. Les formats Excel de l'annexe B
 
+- **Tranché (2026-10-03)** : l'annexe B reste à deux phrases dans cette passe ; les trois
+  formats seront décrits au cadrage d'EP-09 (coûts réels) et d'EP-12 (devis, reste à
+  engager), avec ce qui est déjà décidé : une ligne désigne sa tâche par son identifiant de
+  lignée, écrit par l'export, et à défaut par le libellé de la tâche, un libellé ambigu
+  étant signalé au compte rendu ; synthèse puis un onglet par lot pour le devis, un onglet
+  par sous-projet pour le reste à engager. Dans cette passe, seuls les trois passages qui
+  contredisent la décision sont repris : §3.4.5.2.1 (« Il ne conditionne rien » → il
+  conditionne la structure du fichier de devis), §3.2.3 (« sa seule valeur est pratique »)
+  et WF-INTF-0120 (le sous-projet est celui de l'onglet).
+
 - **Où** : annexe B ; WF-INTF-0070 ; annexe D (PO-01).
 - **Quoi** : l'annexe B ne porte que deux phrases. Les formats « Devis », « Reste à
   engager » et « Coûts réels » n'y sont pas décrits : ni colonnes, ni types, ni caractère
@@ -366,6 +416,8 @@ librement dans le document.
 
 ## 17. Le document reste en révision A jusqu'au tag
 
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel.
+
 - **Où** : historique des modifications ; indice de chaque exigence modifiée ; §1.3.1.
 - **Quoi** : les entrées 5 à 7, 9 à 14 et 18 modifient le corps ou le Vérif d'exigences
   existantes, et le §1.3.1 veut que l'indice d'une exigence modifiée change. **Tranché
@@ -385,6 +437,8 @@ librement dans le document.
   d'EP-02 et de cette passe.
 
 ## 18. L'authentification déléguée à un fournisseur d'identité
+
+- **Tranché (2026-10-03)** : Keycloak ; Waterfall lit les comptes par l'API d'administration du fournisseur (compte de service, à la demande et à intervalle régulier) ; les comptes de service des agents attendent l'après-MVP, le catalogue des permissions ne supposant rien d'humain. Le texte proposé pour WF-ARC-0030 est retenu.
 
 - **Où** : §3.4.2.1 (WF-ADM-0050, WF-ADM-0060, WF-ADM-0070, WF-ADM-0140, WF-ADM-0180) ;
   WF-ADM-0120 ; WF-ADM-0150 et WF-ADM-0160 ; §4.2 (troisième décision, PBS-2.5, un
@@ -488,6 +542,8 @@ librement dans le document.
 
 ## 19. Le fonctionnement sur réseau isolé
 
+- **Tranché (2026-10-03)** : texte proposé retenu tel quel.
+
 - **Où** : §4.6.5, nouvelle exigence WF-CMP-0030 ; WF-CMP-0020 (un serveur de temps, un
   registre d'images) ; §4.5.1.
 - **Quoi** : décidé le 2026-09-30 — le fonctionnement sur un réseau sans accès à Internet
@@ -521,6 +577,8 @@ librement dans le document.
     plateforme dont les certificats sont émis par une autorité interne fonctionne. »
 
 ## 20. La consultation d'un projet restreinte à ses contributeurs
+
+- **Tranché (2026-10-03)** : règle proposée retenue — consultation réservée aux contributeurs, permission « consulter tous les projets » qui lève la restriction, portée par le rôle prédéfini manager ; le portefeuille agrège tout le périmètre ; la liste des projets, filtre levé, ne montre que les projets ouvrables.
 
 - **Où** : WF-PRJ-0060 (corps, Vérif) ; WF-ADM-0110 (corps, Vérif) ; §3.2.3 « Les
   contributeurs » ; §3.4.2.2, paragraphe « Les permissions ne portent que sur ce qu'on peut
@@ -560,6 +618,8 @@ librement dans le document.
 
 ## 21. La qualité d'un contributeur dépend du projet
 
+- **Tranché (2026-10-03)** : première lecture retenue — la liste des contributeurs qualifie chacun, chef de projet ou contributeur. Un contributeur fait tout ce que ses rôles permettent, moins les actions structurantes du catalogue et le paramétrage du projet (FBS-4.2), réservés aux chefs de projet du projet.
+
 - **Où** : WF-ADM-0090 (corps) ; WF-PRJ-0060 ; §3.4.2.2.
 - **Quoi** : revue du 2026-10-03 : « un utilisateur peut très bien être chef de projet sur un
   projet, simple contributeur sur un autre ». Aujourd'hui les rôles d'habilitation sont
@@ -582,6 +642,8 @@ librement dans le document.
 - **Texte proposé** : attend la décision ; touche WF-PRJ-0060, WF-ADM-0110 et le §3.2.3.
 
 ## 22. Les lignes d'un risque survenu portent un montant budgété
+
+- **Tranché (2026-10-03)** : les trois points comme proposé — arrondi au centime avec le reste sur la dernière ligne ; les provisions des risques écartés n'entrent au budget que lorsque plus aucun risque n'est identifié (règle actuelle) ; la ligne de provision est retirée à la survenance, remplacée par les lignes fusionnées. Textes proposés retenus.
 
 - **Où** : WF-RIS-0050 (corps, Vérif) ; WF-RIS-0060 (corps, Vérif) ; WF-IND-0030 (corps) ;
   WF-RAE-0040 (dernière phrase) ; §3.2.5 « Montants d'une ligne » ; §3.2.6.
@@ -627,6 +689,8 @@ librement dans le document.
 
 ## 23. Le devis n'affiche pas de montant réestimé
 
+- **Tranché (2026-10-03)** : texte proposé retenu ; issue de front à ouvrir sur US-0130.
+
 - **Où** : WF-DEV-0050 (corps, Vérif) ; WF-DEV-0020 (corps) ; §3.2.5 « Montants d'une
   ligne » ; maquette d'EP-02 (US-0130, grille de devis).
 - **Quoi** : revue du 2026-10-03, deux commentaires. La maquette montre les deux montants —
@@ -648,6 +712,8 @@ librement dans le document.
 
 ## 24. Les bases de calcul du plan de charge
 
+- **Tranché (2026-10-03)** : texte proposé retenu.
+
 - **Où** : WF-DEV-0070 (corps, Vérif).
 - **Quoi** : revue du 2026-10-03 : le plan de charge se calcule « soit sur le devis d'une
   révision, soit sur le reste à engager courant » ; l'auteur veut trois bases — le devis de
@@ -659,6 +725,8 @@ librement dans le document.
   révision de référence, seule la révision en cours l'est. »
 
 ## 25. La réestimation du reste à engager et les dates du planning
+
+- **Tranché (2026-10-03)** : la seconde voie, complétée — filtre « tâches démarrées » dans la grille de planning, date de fin en lecture et signal de dépassement dans la grille de reste à engager ; textes proposés retenus.
 
 - **Où** : WF-RAE-0040 (corps, Vérif) ; WF-PLA-0080 ; §3.4.5.5.
 - **Quoi** : revue du 2026-10-03. Réestimer le reste à engager d'une tâche démarrée décale
@@ -682,6 +750,8 @@ librement dans le document.
 
 ## 26. L'état d'une tâche : trois valeurs, montrées par une marque
 
+- **Tranché (2026-10-03)** : textes proposés retenus ; « état » remplace « état d'avancement » partout.
+
 - **Où** : WF-PLA-0130 (corps) ; WF-PLA-0080 (corps, Vérif) ; §3.4.5.3.
 - **Quoi** : revue du 2026-10-03, deux commentaires. « État d'avancement » se lit comme un
   pourcentage, alors que c'est l'état du cycle d'une tâche — non démarrée, démarrée,
@@ -698,6 +768,8 @@ librement dans le document.
 
 ## 27. Le Gantt suit le pliage de la grille
 
+- **Tranché (2026-10-03)** : texte proposé retenu.
+
 - **Où** : WF-PLA-0090 (corps, Vérif) ; annexe C (rendu propre du Gantt).
 - **Quoi** : revue du 2026-10-03 : « comment gère-t-on les pliages/dépliages sur la grille ?
   Un nouveau SVG à chaque fois ? ». La spécification ne dit pas que le Gantt et la grille
@@ -712,6 +784,8 @@ librement dans le document.
 
 ## 28. Les objets désactivés sont signalés sur les lignes qui les emploient
 
+- **Tranché (2026-10-03)** : texte proposé retenu.
+
 - **Où** : WF-REF-0010 (corps, Vérif) ; WF-DEV-0050 ; WF-RAE-0040.
 - **Quoi** : revue du 2026-10-03. Un objet désactivé reste lisible partout où il est employé ;
   l'auteur veut qu'il soit signalé sur les lignes de devis d'un projet en chiffrage — où le
@@ -724,6 +798,8 @@ librement dans le document.
 
 ## 29. La colonne de taux d'une nouvelle année : le texte contredit WF-REF-0060
 
+- **Tranché (2026-10-03)** : texte proposé retenu (l'exigence fait foi).
+
 - **Où** : §3.4.4.1.2, paragraphe « Un taux est une valeur constatée ».
 - **Quoi** : revue du 2026-10-03. Le texte dit « Au changement d'année, une colonne vide
   apparaît », WF-REF-0060 dit « Aucune colonne n'est créée automatiquement ». L'exigence fait
@@ -734,6 +810,8 @@ librement dans le document.
   d'elle-même. »
 
 ## 30. Le dépassement potentiel au portefeuille
+
+- **Tranché (2026-10-03)** : sur la liste des projets (WF-PTF-0040) ; pas de nouvelle valeur du portefeuille.
 
 - **Où** : WF-PTF-0050 (corps, Vérif) ; WF-PTF-0060.
 - **Quoi** : revue du 2026-10-03 : ajouter au portefeuille la somme des coûts réels et des
@@ -747,6 +825,8 @@ librement dans le document.
   projet en cours ».
 
 ## 31. Le diagramme temps/temps et les décaissements se calculent pour le seul projet
+
+- **Tranché (2026-10-03)** : le temps/temps reste au seul projet, les décaissements se calculent aussi par sous-projet ; texte proposé retenu.
 
 - **Où** : WF-IND-0020 (corps).
 - **Quoi** : revue du 2026-10-03 : l'auteur ne se souvient plus de la raison. Elle est que les
@@ -763,6 +843,8 @@ librement dans le document.
 
 ## 32. L'exemple des dix tâches
 
+- **Tranché (2026-10-03)** : texte proposé retenu.
+
 - **Où** : §3.4.5.8.3, paragraphe « L'avancement physique dit quelle part du travail promis
   est faite ».
 - **Quoi** : revue du 2026-10-03 : « un projet découpé en dix tâches aura un avancement
@@ -772,6 +854,8 @@ librement dans le document.
   du planning ».
 
 ## 33. L'évolution des indices de coût et de délai
+
+- **Tranché (2026-10-03)** : nouvelle exigence retenue, en F1.
 
 - **Où** : §3.4.5.8.4 et §3.4.5.8.5 ; nouvelle exigence, prochain identifiant libre
   `WF-IND-0130` ; WF-PTF-0060 (« l'évolution de l'ensemble dans le temps » existe déjà pour le
@@ -793,6 +877,8 @@ librement dans le document.
 
 ## 34. Les projections de décaissement et la courbe en S
 
+- **Tranché (2026-10-03)** : fusion — WF-IND-0100 gagne l'option décalée des délais de paiement ; WF-IND-0120 et FBS-4.8.9 disparaissent ; roadmap (EP-10) et contrat à suivre.
+
 - **Où** : WF-IND-0100, WF-IND-0120 ; §3.4.5.8.7 et §3.4.5.8.9 ; FBS-4.8.9.
 - **Quoi** : revue du 2026-10-03 : les deux indicateurs semblent dire la même chose. La courbe
   en S cumule les montants aux dates des tâches — le budget, le réel aux dates de pièce, la
@@ -812,6 +898,8 @@ librement dans le document.
   la courbe de référence translatée de 60 jours. »
 
 ## 35. Tables filtrables, graphiques exportables en PNG
+
+- **Tranché (2026-10-03)** : nouvelle exigence retenue, en F0 ; portée début en EP-02 pour le filtrage, close par les EPIC qui livrent chaque graphique.
 
 - **Où** : §3.6, nouvelle exigence — après celle de l'entrée 1, prochain identifiant libre
   `WF-IHM-0130` ; WF-DEV-0070 (le commentaire y demande l'export du plan de charge).
