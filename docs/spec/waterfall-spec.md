@@ -26,274 +26,6 @@ Historique des modifications
 | A        | 17/09/2026 |       |        |
 |          |            |       |        |
 
-1\. Généralités 11
-
-1.1. Objet 11
-
-1.2. Sigles et terminologie 11
-
-1.3. Identification des exigences 12
-
-1.3.1. Forme des exigences 12
-
-1.3.2. Codes de domaines 12
-
-2\. Présentation générale 14
-
-2.1. Périmètre inclus 15
-
-2.2. Périmètre exclu 16
-
-3\. Architecture fonctionnelle 18
-
-3.1. Contexte et interactions externes 18
-
-3.1.1. Diagramme de contexte 19
-
-3.1.2. Flux de données 19
-
-3.1.3. Interactions avec les utilisateurs 21
-
-3.1.4. Interactions avec les systèmes externes 23
-
-3.1.5. Langue de l'interface 27
-
-3.2. Modèle conceptuel 29
-
-3.2.1. Conventions 30
-
-3.2.2. Référentiel de l’entreprise 30
-
-3.2.3. Structure d’un projet 32
-
-3.2.4. Planning 35
-
-3.2.5. Chiffrage et coûts 36
-
-3.2.6. Risques 38
-
-3.3. Modes de fonctionnements 39
-
-3.3.1. Cycle de vie de la plateforme 40
-
-3.3.2. Cycle de vie d’un projet 40
-
-3.4. Découpage fonctionnel 44
-
-3.4.1. Arborescence fonctionnelle 44
-
-3.4.2. FBS-1 : Administration 45
-
-3.4.2.1. FBS-1.1 : Gestion des utilisateurs 45
-
-3.4.2.2. FBS-1.2 : Gestion des rôles d’habilitation 49
-
-3.4.2.3. FBS-1.3 : Surveillance de l’état du système 52
-
-3.4.2.4. FBS-1.4 : Sauvegarde et restauration 52
-
-3.4.3. FBS-2 : Portefeuille 53
-
-3.4.3.1. FBS-2.1 : Portefeuille de projets 55
-
-3.4.3.2. FBS-2.2 : Plan de charge agrégé 56
-
-3.4.3.3. FBS-2.3 : Performance du portefeuille 57
-
-3.4.3.4. FBS-2.4 : Structure des coûts du portefeuille 57
-
-3.4.3.5. FBS-2.5 : Risques du portefeuille 58
-
-3.4.3.6. FBS-2.6 : Décaissements du portefeuille 58
-
-3.4.3.7. FBS-2.7 : Santé du pilotage 59
-
-3.4.4. FBS-3 : Paramètres applicatifs 59
-
-3.4.4.1. FBS-3.1 : Paramètres de coûts 61
-
-3.4.4.1.1. FBS-3.1.1 : Nature et catégories de coûts 61
-
-3.4.4.1.2. FBS-3.1.2 : Taux horaires 62
-
-3.4.4.2. FBS-3.2 : Paramètres de ressources 63
-
-3.4.4.2.1. FBS-3.2.1 : Arbre d’organisation 63
-
-3.4.4.2.2. FBS-3.2.2 : Rôles de ressources 64
-
-3.4.4.2.3. FBS-3.2.3 : Calendriers 65
-
-3.4.4.3. FBS-3.3 : Paramètres de risques 66
-
-3.4.4.4. FBS-3.4 : Paramètres d’indicateurs 66
-
-3.4.5. FBS-4 : Projets 67
-
-3.4.5.1. FBS-4.1 : Gestion des révisions 67
-
-3.4.5.2. FBS-4.2 : Paramètres de projets 72
-
-3.4.5.2.1. FBS-4.2.1 : Lotissement du projet 73
-
-3.4.5.2.2. FBS-4.2.2 : Taux d’inflation 74
-
-3.4.5.2.3. FBS-4.2.3 : Sous-projets 75
-
-3.4.5.2.4. FBS-4.2.4 : Contributeurs 75
-
-3.4.5.2.5. FBS-4.2.5 : Probabilité de gain 76
-
-3.4.5.3. FBS-4.3 : Planification 77
-
-3.4.5.3.1. FBS-4.3.1 : Chronologie 81
-
-3.4.5.3.2. FBS-4.3.2 : Grille de planning 81
-
-3.4.5.3.3. FBS-4.3.3 : Diagramme de GANTT 82
-
-3.4.5.3.4. FBS-4.3.4 : Imports / Exports 83
-
-3.4.5.3.5. FBS-4.3.5 : Arborescence de taches (WBS) 83
-
-3.4.5.4. FBS-4.4 : Chiffrage et devis 84
-
-3.4.5.4.1. FBS-4.4.1 : Indicateurs de devis 86
-
-3.4.5.4.2. FBS-4.4.2 : Grille de devis 87
-
-3.4.5.4.3. FBS-4.4.3 : Gestion des coûts 87
-
-3.4.5.4.4. FBS-4.4.4 : Plan de charge du projet 89
-
-3.4.5.5. FBS-4.5 : Estimation du reste à engager 89
-
-3.4.5.5.1. FBS-4.5.1 : Indicateurs de reste à engager 90
-
-3.4.5.5.2. FBS-4.5.3 : Kanban – Démarrage des tâches 91
-
-3.4.5.5.3. FBS-4.5.2 : Grille de reste à engager 91
-
-3.4.5.6. FBS-4.6 : Gestion des risques 92
-
-3.4.5.6.1. FBS-4.6.1 : Grille de suivi des risques 94
-
-3.4.5.6.2. FBS-4.6.2 : Gestion des provisions pour risques 95
-
-3.4.5.7. FBS-4.7 : Coûts réels 96
-
-3.4.5.8. FBS-4.8 : Indicateurs projets 98
-
-3.4.5.8.1. FBS-4.8.1 : Avancement financier 100
-
-3.4.5.8.2. FBS-4.8.2 : Projection à terminaison 101
-
-3.4.5.8.3. FBS-4.8.3 : Avancement physique 102
-
-3.4.5.8.4. FBS-4.8.4 : Indicateur de coûts (CPI) 102
-
-3.4.5.8.5. FBS-4.8.5 : Indicateur de délais (SPI) 103
-
-3.4.5.8.6. FBS-4.8.6 : Diagramme temps/temps 103
-
-3.4.5.8.7. FBS-4.8.7 : Coûts cumulés (courbe en S) 104
-
-3.4.5.8.8. FBS-4.8.8 : Courbes valeur acquise 104
-
-3.4.5.8.9. FBS-4.8.9 : Projections cash-out 105
-
-3.5. Interactions entre fonctions 105
-
-3.5.1. Arbre commun 105
-
-3.5.2. Flux de travail principal 106
-
-3.6. Principes d'interface 106
-
-4\. Architecture technique 113
-
-4.1. Principes d’architecture 113
-
-4.1.1. Le contrat fait foi 113
-
-4.1.2. Le serveur est l’autorité 113
-
-4.1.3. Les services sont sans état 114
-
-4.2. Découpage technique 115
-
-4.2.1. Arborescence produit 117
-
-4.2.1.1. PBS-1 : Frontend 118
-
-4.2.1.2. PBS-2 : Services backend 118
-
-4.2.1.3. PBS-3 : Données 118
-
-4.2.1.4. PBS-4 : Observabilité 119
-
-4.2.1.5. PBS-5 : Plateforme 119
-
-4.2.2. Allocation des fonctions 119
-
-4.3. Interactions techniques 123
-
-4.3.1. Diagramme de déploiement 123
-
-4.3.2. Tableau des flux techniques 124
-
-4.3.3. Réalisation des flux fonctionnels 124
-
-4.3.4. Diagrammes de séquence 125
-
-4.4. Données 128
-
-4.4.1. Modèle de données et conventions 128
-
-4.4.2. Historisation et immuabilité des révisions 133
-
-4.4.3. Idempotence des imports 136
-
-4.4.4. Stockage des fichiers 137
-
-4.4.5. Cache 137
-
-4.4.6. Evolution du schéma 138
-
-4.5. Modes de fonctionnement techniques 139
-
-4.5.1. Environnement 139
-
-4.5.2. Installation initiale 140
-
-4.5.3. Déploiement et mise à jour 141
-
-4.5.4. Modes dégradés 141
-
-4.6. Exigences transverses 143
-
-4.6.1. Sécurité 143
-
-4.6.2. Performance et volumétrie 144
-
-4.6.3. Observabilité 147
-
-4.6.4. Sauvegarde et reprise 148
-
-4.6.5. Compatibilité 149
-
-4.7. Qualité et vérification 150
-
-Index des exigences 154
-
-ANNEXE A: Glossaire 157
-
-ANNEXE B: Formats d’échanges Excel 164
-
-ANNEXE C: Outillage retenu 165
-
-ANNEXE D: Points ouverts 167
-
 # 1. Généralités
 
 ## 1.1. Objet
@@ -2615,8 +2347,6 @@ motif: "Le WBS est fait pour être imprimé ou inséré dans un document. Une ar
 verification: "L’export d’un planning de trois niveaux produit un fichier PNG dont le premier niveau est disposé horizontalement et les suivants verticalement. Le contenu ne dépend que du niveau demandé."
 ```
 
-##### 3.4.5.3.6.
-
 #### 3.4.5.4. FBS-4.4 : Chiffrage et devis
 
 Le devis est la vue financière d’une structure de coûts : ses lignes sont portées par les tâches du planning, et en héritent leurs dates. Chiffrer consiste donc à accrocher des lignes aux tâches, non à construire un second arbre.
@@ -4592,7 +4322,7 @@ motif: "Une traduction se dégrade par omission, une clé à la fois, et le déf
 verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîne. Un texte destiné à l'utilisateur écrit en dur dans le code fait échouer la chaîne. Le parcours de bout en bout s'exécute et aboutit en français comme en anglais."
 ```
 
-# 5. Index des exigences
+# Index des exigences
 
 | Exigence | Section | Titre | Flex |
 |---|---|---|---|
@@ -4800,7 +4530,7 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 | WF-SEC-0020-A | 4.6.1 | Session et révocation | F0 |
 | WF-SEC-0030-A | 4.6.1 | Journal d'audit des actions irréversibles ou structurantes | F0 |
 
-# 6. ANNEXE A: Glossaire
+# ANNEXE A: Glossaire
 
 | Terme                               | Définition                                                                                                                                                                                                                                                                                                                                                                                                                        |
 |-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -4897,13 +4627,13 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 
 Tableau 15 Définitions
 
-# 7. ANNEXE B: Formats d’échanges Excel
+# ANNEXE B: Formats d’échanges Excel
 
 Les formats « Devis » et « Reste à engager » comportent une colonne de désignation de tâche, obligatoire, et une colonne de sous-projet, facultative.
 
 Les en-têtes de colonnes ci-dessous sont ceux des fichiers, dans tous les cas : ils ne suivent pas la langue de l'interface, de sorte qu'un fichier exporté par un utilisateur soit importable par un autre (WF-INTF-0180).
 
-# 8. ANNEXE C: Outillage retenu
+# ANNEXE C: Outillage retenu
 
 Cette annexe est informative. Elle dit avec quoi les propriétés du §4.7 sont obtenues aujourd'hui ; un outil peut être remplacé sans qu'aucune exigence change, pourvu que la propriété reste garantie. Les versions ne sont pas fixées ici : elles vivent dans les fichiers de dépendances du dépôt.
 
@@ -4932,7 +4662,7 @@ Cette annexe est informative. Elle dit avec quoi les propriétés du §4.7 sont 
 | Conteneurs et empaquetage           | Docker, Compose v2, Helm                           | WF-ARC-0050                                     |
 | Chaîne d'intégration                | GitHub Actions                                     | PBS-5.2                                         |
 
-# 9. ANNEXE D: Points ouverts
+# ANNEXE D: Points ouverts
 
 | ID    | Sujet                                                                                                                                                                                                                                                                                                                                                      |
 |-------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

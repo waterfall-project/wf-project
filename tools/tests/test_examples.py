@@ -56,7 +56,7 @@ def test_only_the_numeric_sentences_of_product_requirements_are_listed() -> None
     found = examples.examples(
         requirements(
             WF_PTF_0020_A="Le pipeline est pondéré. Une offre à 40 % pèse 40 000.",
-            WF_EXAMP_0010_A="Un écran liste 10 utilisateurs.",
+            WF_EXA_0010_A="Un écran liste 10 utilisateurs.",
         )
     )
     assert found == [Example("WF-PTF-0020-A", "Une offre à 40 % pèse 40 000.")]

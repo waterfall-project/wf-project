@@ -45,7 +45,13 @@ REQUIREMENT_FIELDS: dict[str, str] = {
     "Vérif": "verification",
 }
 
-RE_TOC_ENTRY = re.compile(r"^\[(?:(\d+(?:\.\d+)*)\.\s+)?(.+?)\s+\[\d+\]\(#[^)]*\)\]\(#[^)]*\)$")
+# A table-of-contents entry as pandoc renders it: the heading, then its page number as a
+# link. Word writes the entry's own hyperlink either as a w:hyperlink, which pandoc wraps
+# around the whole entry, or as a HYPERLINK field, which pandoc drops; and it escapes the
+# dot of a leading number so that the line does not read as a list item.
+RE_TOC_ENTRY = re.compile(
+    r"^\[?(?:(\d+(?:\.\d+)*)\\?\.\s+)?(.+?)\s+\[\d+\]\(#[^)]*\)(?:\]\(#[^)]*\))?$"
+)
 RE_ANCHOR = re.compile(r'<span id="[^"]*" class="anchor"></span>')
 RE_CAPTION = re.compile(r"^(Figure|Tableau)\s*(\d+)?\s*[:–—-]?\s*(.*)$")
 RE_IMG = re.compile(r"^<img\s+(?P<attrs>.*?)\s*/?>$", re.DOTALL)
