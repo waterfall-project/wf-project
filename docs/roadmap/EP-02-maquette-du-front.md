@@ -984,7 +984,7 @@ porte le cycle d'une revue mensuelle de bout en bout.
 - **statut** : à faire
 - **exigences** : aucune en propre — EP-10 et EP-11
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
-  `getProjectCashOut`, `getMilestoneTracking`, `getProjectWorkload`, `getPortfolioProjects`,
+  `getMilestoneTracking`, `getProjectWorkload`, `getPortfolioProjects`,
   `getPortfolioValue`, `getPortfolioPerformance`, `getPortfolioWorkload`,
   `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCashOut`,
   `getPortfolioPilotHealth`

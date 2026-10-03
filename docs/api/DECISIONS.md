@@ -260,8 +260,10 @@ ou `contributor` (`ContributorKind`), en lecture comme en écriture : `Contribut
 désormais des `{ user_id, kind }`, et non des identifiants nus. La condition
 `is_project_manager` et le code `NOT_PROJECT_MANAGER` nomment le refus d'une action structurante
 ou du paramétrage à qui n'est que contributeur, comme `is_contributor` et `NOT_CONTRIBUTOR` le
-font pour la saisie. `listProjects`, filtre levé, ne rend que les projets que l'appelant peut
-ouvrir ; le refus d'une consultation reste un 404.
+font pour la saisie ; `LAST_PROJECT_MANAGER` (409) refuse une liste de contributeurs qui ne
+garderait aucun chef de projet, sur le modèle de `LAST_ADMINISTRATOR`, et un compte inconnu ou
+désactivé est refusé par 422. `listProjects`, filtre levé, ne rend que les projets que
+l'appelant peut ouvrir ; le refus d'une consultation reste un 404.
 
 **Toute liste se filtre sur ce que son écran présente** (WF-IHM-0130). Les listes qui n'avaient
 que la recherche gagnent les filtres que la spécification nomme pour leur grille : l'état des

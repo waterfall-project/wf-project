@@ -52,7 +52,7 @@
     summary: Créer un projet
     description: >-
       Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque
-      prérequis manquant (WF-CYC-0120). Le créateur est inscrit contributeur
+      prérequis manquant (WF-CYC-0120). Le créateur est inscrit chef de projet
       (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
     requestBody:
       required: true
@@ -370,7 +370,9 @@
     summary: Inscrire ou retirer des contributeurs
     description: >-
       La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le
-      projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110).
+      projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne
+      garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte
+      inconnu ou désactivé l'est par 422, `fields` le nommant.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -388,7 +390,13 @@
               items: { $ref: ../components/schemas/projects.yaml#/Contributor }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
 /projects/{project_id}/contributors/suggestions:
   get:

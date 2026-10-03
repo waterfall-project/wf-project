@@ -110,20 +110,20 @@ def money(value: Decimal) -> str:
 
 
 def inflated(amount: Decimal, year: int) -> Decimal:
-    """Return an amount projected on a year, at the inflation rate of the witness project."""
+    """Return an amount projected on a year, at the inflation rate of the witness project.
+
+    A simplification of WF-DEV-0040: the whole line is projected on the year its task starts,
+    not split across the years the task spans in proportion to its hours of work.
+    """
     return (amount * (1 + INFLATION_RATE) ** (year - REFERENCE_YEAR)).quantize(CENT)
 
 
-def work_instant(offset: int, *, end: bool) -> JsonObject:
-    """Return the start or the finish of a task on a working day.
+def work_instant(offset: int, hours: Decimal) -> JsonObject:
+    """Return an instant of work on a working day.
 
-    Its date, and the hours of work elapsed that day: none at a start, the whole day at a
-    finish (WF-DAT-0100).
+    Its date, and the hours of work elapsed that day (WF-DAT-0100).
     """
-    return {
-        "date": working_day(offset).isoformat(),
-        "hours": decimal(HOURS_PER_DAY if end else Decimal(0)),
-    }
+    return {"date": working_day(offset).isoformat(), "hours": decimal(hours)}
 
 
 def decimal(value: Decimal) -> str:
@@ -444,8 +444,7 @@ def _task_facet(task: Task) -> JsonObject:
         "label": task.label,
         "scheduling_mode": "automatic",
         "duration": {"value": str(task.duration), "unit": "d"},
-        "start": work_instant(task.start, end=False),
-        "finish": work_instant(task.end, end=True),
+        **_span(task),
         "progress": state,
         # A started task finishes after the day the examples are read: none is overdue.
         "finish_overdue": False,
@@ -462,6 +461,20 @@ def _task_facet(task: Task) -> JsonObject:
         facet["total_float_days"] = task.late_end - task.end
         facet["is_critical"] = task.late_end == task.end
     return facet
+
+
+def _span(task: Task) -> JsonObject:
+    """Return the start and the finish of a task.
+
+    The first hour of its first day and the last of its last. A milestone, of no duration,
+    sits at one instant: where its predecessors finish, or the first hour of its day when it
+    has none (WF-PLA-0050).
+    """
+    if task.is_milestone:
+        at = work_instant(task.end, HOURS_PER_DAY if task.predecessors else Decimal(0))
+        return {"start": at, "finish": at}
+    start = work_instant(task.start, Decimal(0))
+    return {"start": start, "finish": work_instant(task.end, HOURS_PER_DAY)}
 
 
 def _task_computed(task: Task) -> list[JsonValue]:

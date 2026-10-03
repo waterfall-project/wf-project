@@ -340,11 +340,19 @@ DurationUnits:
 DurationUnitsWrite:
   type: object
   required: [hours_per_day, hours_per_week, days_per_month, lock_version]
-  description: Les trois constantes, strictement positives, et le compteur lu (WF-PLA-0160).
+  description: >-
+    Les trois constantes, strictement positives, et le compteur lu (WF-PLA-0160) : le
+    motif refuse un signe, et une constante nulle est refusée par 422, `fields` la nommant.
   properties:
-    hours_per_day: { $ref: ../common.yaml#/Decimal }
-    hours_per_week: { $ref: ../common.yaml#/Decimal }
-    days_per_month: { $ref: ../common.yaml#/Decimal }
+    hours_per_day:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      pattern: '^\d+(\.\d+)?$'
+    hours_per_week:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      pattern: '^\d+(\.\d+)?$'
+    days_per_month:
+      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      pattern: '^\d+(\.\d+)?$'
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 AlertZone:

@@ -24,7 +24,7 @@
           },
           "finish": {
             "date": "2026-09-30",
-            "hours": "8"
+            "hours": "0"
           },
           "progress": "not_started",
           "finish_overdue": false,
@@ -62,7 +62,7 @@
           },
           "finish": {
             "date": "2026-09-30",
-            "hours": "8"
+            "hours": "0"
           },
           "progress": "not_started",
           "finish_overdue": false,

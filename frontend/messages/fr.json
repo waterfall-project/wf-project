@@ -477,6 +477,7 @@
     "REFERENCE_NOT_CORRECTABLE": "La révision de référence ne peut plus être corrigée.",
     "UNDO_CONFLICT": "Impossible d’annuler : la donnée a été modifiée depuis.",
     "LAST_ADMINISTRATOR": "Au moins un compte actif doit garder les permissions d’administration.",
+    "LAST_PROJECT_MANAGER": "Un projet garde au moins un chef de projet.",
     "ACCESS_ROLE_IN_USE": "Ce rôle d’habilitation est encore attribué à des comptes.",
     "DEFAULT_CALENDAR_REQUIRED": "Un calendrier par défaut est requis.",
     "HAS_ACTUAL_COSTS": "Des coûts réels y sont imputés.",

@@ -477,6 +477,7 @@
     "REFERENCE_NOT_CORRECTABLE": "The reference revision can no longer be corrected.",
     "UNDO_CONFLICT": "Cannot undo: the data has changed since.",
     "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
+    "LAST_PROJECT_MANAGER": "A project keeps at least one project manager.",
     "ACCESS_ROLE_IN_USE": "This access role is still assigned to accounts.",
     "DEFAULT_CALENDAR_REQUIRED": "A default calendar is required.",
     "HAS_ACTUAL_COSTS": "Actual costs are booked against it.",
@@ -768,7 +769,7 @@
     },
     "CommandCondition": {
       "is_contributor": "being a contributor to the project",
-      "is_project_manager": "be a project manager of the project",
+      "is_project_manager": "being a project manager of the project",
       "project_not_terminal": "project not closed",
       "project_in_progress": "project in progress",
       "project_in_pricing": "project in pricing",

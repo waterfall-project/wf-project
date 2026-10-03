@@ -1,5 +1,5 @@
 {
-  "summary": "L'évolution des indices du projet et de ses mailles : un point par révision marquée — l'offre et la référence, marquées avant tout coût réel, n'ont pas d'indice calculable — et le dernier au jour courant, où le projet n'a toujours aucun coût réel et une valeur acquise nulle ; les seuils du référentiel, 0,9 et 0,8 (WF-IND-0130, WF-REF-0170).",
+  "summary": "L'évolution des indices du projet et de ses mailles : un point par révision marquée — l'offre et la référence, marquées avant tout coût réel, n'ont pas d'indice calculable — et le dernier au jour courant, où le projet n'a toujours aucun coût réel et une valeur acquise nulle ; seule la ligne hors sous-projet porte de la valeur planifiée, et les sous-projets n'ont pas d'indice de délai ; les seuils du référentiel, 0,9 et 0,8 (WF-IND-0130, WF-REF-0170).",
   "value": {
     "context": {
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
@@ -144,11 +144,11 @@
             },
             "schedule_index": {
               "value": {
-                "is_computable": true,
-                "value": "0",
-                "reason": null
+                "is_computable": false,
+                "value": null,
+                "reason": "no_planned_value"
               },
-              "zone": "alert"
+              "zone": null
             }
           }
         ]
@@ -282,11 +282,11 @@
             },
             "schedule_index": {
               "value": {
-                "is_computable": false,
-                "value": null,
-                "reason": "no_planned_value"
+                "is_computable": true,
+                "value": "0",
+                "reason": null
               },
-              "zone": null
+              "zone": "alert"
             }
           }
         ]

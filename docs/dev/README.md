@@ -833,7 +833,7 @@ langue se choisit.
   - un `const` n'a pas de clé : le contrat ne s'en sert que pour l'accord qu'une requête
     donne (`confirmed: true`), qui ne s'affiche pas ;
   - une valeur qui porte un point se lit comme un niveau, next-intl réservant le point au
-    chemin : `permissions.users.write`, `enums.ComputedField.task.start_date`.
+    chemin : `permissions.users.write`, `enums.ComputedField.task.start`.
 - **Une valeur est un message ICU** — `{max_columns, plural, one {…} other {…}}` —, avec les
   mêmes arguments dans les deux catalogues, ce que `make catalogs` vérifie ; le libellé d'une valeur d'énumération ou d'une
   permission est du texte sans argument. Le français suit sa typographie : espace insécable

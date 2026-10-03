@@ -254,7 +254,7 @@ MilestoneTracking:
 
 CurveSeries:
   type: object
-  required: [context, series]
+  required: [context, payment_delays, series, cash_out_by_month]
   description: >-
     Séries temporelles cumulées. Les changements du budget de référence y
     apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec
@@ -267,7 +267,7 @@ CurveSeries:
       description: >-
         Vrai quand les séries sont celles des décaissements : chaque montant décalé du
         délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la
-        date de la tâche qui les porte (WF-IND-0100). Absent ou faux sinon.
+        date de la tâche qui les porte (WF-IND-0100). Faux sinon.
     series:
       type: array
       items:

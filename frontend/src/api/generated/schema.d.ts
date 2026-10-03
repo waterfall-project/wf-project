@@ -1171,7 +1171,7 @@ export interface paths {
         put?: never;
         /**
          * Créer un projet
-         * @description Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque prérequis manquant (WF-CYC-0120). Le créateur est inscrit contributeur (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
+         * @description Refusée tant que le référentiel minimal est incomplet, et le refus nomme chaque prérequis manquant (WF-CYC-0120). Le créateur est inscrit chef de projet (WF-PRJ-0060). Le projet naît à l'état Créé (WF-CYC-0010).
          */
         post: operations["createProject"];
         delete?: never;
@@ -1350,7 +1350,7 @@ export interface paths {
         get: operations["listContributors"];
         /**
          * Inscrire ou retirer des contributeurs
-         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110).
+         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant.
          */
         put: operations["setContributors"];
         post?: never;
@@ -2555,7 +2555,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         FieldProblem: {
             /** @description Pointeur JSON vers le champ en défaut. */
             pointer: string;
@@ -2973,7 +2973,7 @@ export interface components {
             days_per_month: components["schemas"]["Decimal"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Les trois constantes, strictement positives, et le compteur lu (WF-PLA-0160). */
+        /** @description Les trois constantes, strictement positives, et le compteur lu (WF-PLA-0160) : le motif refuse un signe, et une constante nulle est refusée par 422, `fields` la nommant. */
         DurationUnitsWrite: {
             hours_per_day: components["schemas"]["Decimal"];
             hours_per_week: components["schemas"]["Decimal"];
@@ -3761,8 +3761,8 @@ export interface components {
         /** @description Séries temporelles cumulées. Les changements du budget de référence y apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses séries sont décalées, et `cash_out_by_month` les détaille par mois. */
         CurveSeries: {
             context: components["schemas"]["CalculationContext"];
-            /** @description Vrai quand les séries sont celles des décaissements : chaque montant décalé du délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la date de la tâche qui les porte (WF-IND-0100). Absent ou faux sinon. */
-            payment_delays?: boolean;
+            /** @description Vrai quand les séries sont celles des décaissements : chaque montant décalé du délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la date de la tâche qui les porte (WF-IND-0100). Faux sinon. */
+            payment_delays: boolean;
             series: {
                 /** @enum {string} */
                 name: "reference_budget" | "planned_value" | "earned_value" | "actual_cost" | "project_manager_projection";
@@ -3779,7 +3779,7 @@ export interface components {
                 cause: "amendment" | "risk_occurred" | "last_risk_dismissed";
             }[];
             /** @description Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce décalée, l'avenir en étalant le reste à engager et les provisions des risques identifiés, chaque part décalée de son délai de paiement (WF-IND-0100). Nul sinon. */
-            cash_out_by_month?: components["schemas"]["CashOutMonth"][] | null;
+            cash_out_by_month: components["schemas"]["CashOutMonth"][] | null;
         };
         /** @description Les deux indices d'une révision : à sa date de marquage, tels que le marquage les a conservés (WF-DAT-0040) ; au jour courant pour la révision en cours, dont `version_name` est nul (WF-IND-0130). */
         IndexHistoryPoint: {
@@ -5730,7 +5730,15 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Une constante nulle, que `fields` nomme (WF-PLA-0160). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listCalendars: {
@@ -6600,7 +6608,17 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             412: components["responses"]["PreconditionFailed"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     listContributorSuggestions: {

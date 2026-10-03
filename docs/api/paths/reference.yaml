@@ -301,7 +301,11 @@
             schema: { $ref: ../components/schemas/reference.yaml#/DurationUnits }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: Une constante nulle, que `fields` nomme (WF-PLA-0160).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /reference/calendars:
   get:
