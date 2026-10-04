@@ -59,10 +59,10 @@ export type BasisRefused = (typeof BASIS_REFUSED)[number];
 export type WorkloadRead = ReadOrRefused<WorkloadPlan, BasisRefused>;
 
 /** The parameters of `getProjectWorkload` a refusal may name, and the key of its reason. */
-const REFUSED_PARAMETERS: Readonly<Record<string, RefusalReason>> = {
-  revision_id: "markedRevision",
-  org_node_id: "orgNode",
-};
+const REFUSED_PARAMETERS: ReadonlyMap<string, RefusalReason> = new Map([
+  ["revision_id", "markedRevision"],
+  ["org_node_id", "orgNode"],
+]);
 
 /** Why the screen says the workload unavailable: the key of its sentence in the catalogue. */
 export type RefusalReason = "noReference" | "markedRevision" | "orgNode" | "invalid";
@@ -79,7 +79,9 @@ export function refusalReason(refused: Extract<WorkloadRead, { kind: "refused" }
   }
   const named = new Set(
     (refused.problem.fields ?? []).flatMap((field) => {
-      const reason = REFUSED_PARAMETERS[field.pointer.slice(field.pointer.lastIndexOf("/") + 1)];
+      const reason = REFUSED_PARAMETERS.get(
+        field.pointer.slice(field.pointer.lastIndexOf("/") + 1),
+      );
       return reason === undefined ? [] : [reason];
     }),
   );
@@ -258,7 +260,7 @@ function ComputedWorkload({
   return (
     <>
       <Said>{t("workload.reading", { basis, revision })}</Said>
-      {workload.roles.length === 0 ? (
+      {workload.roles.every((role) => role.months.length === 0) ? (
         <Said>{node === undefined ? t("workload.none") : t("workload.noneInNode", { node })}</Said>
       ) : (
         <WorkloadChart workload={workload} provenance={provenance} />

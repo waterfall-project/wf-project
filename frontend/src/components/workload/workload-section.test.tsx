@@ -22,6 +22,11 @@ const ORG_NODE = "01926f3a-7c00-7000-8000-000000000471";
 
 /** The workload of the witness project, its roles left out: an answer without a role to show. */
 const EMPTY: WorkloadRead = { kind: "read", data: { ...WORKLOAD, roles: [] } };
+/** The workload of the witness project, each role kept without a month: no load either. */
+const MONTHLESS: WorkloadRead = {
+  kind: "read",
+  data: { ...WORKLOAD, roles: WORKLOAD.roles.map((role) => ({ ...role, months: [] })) },
+};
 
 /** What a section says, its tags left out, one space apart. */
 function text(markup: string): string {
@@ -91,6 +96,13 @@ describe("the workload section", () => {
       "No role of the node “Bureau d&#x27;études électricité” has a load on this basis.",
     );
     expect(filtered).not.toContain("Load by role and by month");
+  });
+
+  it("says no load when its roles have no month, rather than an empty chart", () => {
+    expect(WORKLOAD.roles.length).toBeGreaterThan(0);
+    const said = text(section({ workload: MONTHLESS }));
+    expect(said).toContain("No role has a load on this basis.");
+    expect(said).not.toContain("Load by role and by month");
   });
 
   it("says a node it does not know unknown rather than its identifier", () => {

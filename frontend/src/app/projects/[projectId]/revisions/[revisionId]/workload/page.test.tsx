@@ -200,6 +200,10 @@ describe("the screen of the workload of a project", () => {
     ],
     [[], "The workload is not available: the API refuses what is asked."],
     [
+      [{ pointer: "/constructor", code: "VALIDATION_FAILED" }],
+      "The workload is not available: the API refuses what is asked.",
+    ],
+    [
       [
         { pointer: "/revision_id", code: "VALIDATION_FAILED" },
         { pointer: "/org_node_id", code: "VALIDATION_FAILED" },
