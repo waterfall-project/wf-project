@@ -682,11 +682,14 @@ se lit pas.
 
 **Exemples**, dans l'univers des autres : `file_upload` (le devis du Poste de commande déposé le
 1er juin 2026 à 8 h 40), `import_analysing` (son import ouvert, l'analyse en cours),
-`import_analysed` (le même analysé à 8 h 41 : vingt-quatre lignes lues, deux rejetées — une tâche
-et un rôle inconnus —, une ligne ajoutée, « Raccordement des borniers » modifiée, « Borniers »
-retirée, lignes de `nodes_estimate`), `import_planning_mismatch` (un planning MS Project analysé
-le 20 mai, dont la durée des « Études de détail » diffère de celle que Waterfall recalcule, qui
-demande une confirmation explicite), `imports` (au 1er juin : le devis qui attend sa
+`import_analysed` (le même analysé à 8 h 41 : cinq lignes lues — deux rejetées, une tâche et un
+rôle inconnus, « Essais de continuité » ajoutée, « Raccordement des borniers » modifiée, la
+provision inchangée —, et « Borniers », que le fichier ne porte plus, retirée ; il est de l'univers
+du devis de `nodes_estimate`, de la scission des univers témoins, #287), `import_planning_mismatch`
+(un planning MS Project tel qu'il se lisait le 20 mai à 10 h 16, analysé et pas encore abandonné,
+dont la durée des « Études de détail » diffère de celle que Waterfall recalcule, qui demande une
+confirmation explicite ; il est de l'univers des indicateurs et du planning, sa tâche étant
+0602 de `nodes.json`, #287), `imports` (au 1er juin : le devis qui attend sa
 confirmation, le planning abandonné, et les quatre extractions de coûts réels de
 `cost_imports_periods` antérieures au 1er juin, appliquées) et `imports_empty` ;
 `task_export_queued` et `task_export_succeeded` (l'export du devis demandé à 9 h 10, abouti, son

@@ -1,5 +1,5 @@
 {
-  "summary": "L'import du devis du Poste de commande, analysé le 1er juin 2026 à 8 h 41 et applicable vingt-quatre heures : vingt-quatre lignes lues, deux rejetées — une tâche et un rôle inconnus —, une ligne ajoutée, une modifiée, une retirée (WF-INTF-0080, WF-INTF-0100).",
+  "summary": "L'import du devis du Poste de commande, analysé le 1er juin 2026 à 8 h 41 et applicable vingt-quatre heures : cinq lignes lues, dont deux rejetées — une tâche et un rôle inconnus —, une ajoutée, une modifiée et une inchangée, et une ligne du devis que le fichier ne porte plus, retirée ; lignes de nodes_estimate (WF-INTF-0080, WF-INTF-0100).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000a11",
     "kind": "estimate",
@@ -9,15 +9,15 @@
     "expires_at": "2026-06-02T08:41:00Z",
     "report": {
       "format_version": "1",
-      "read_count": 24,
+      "read_count": 5,
       "rejected": [
         {
-          "row": 7,
+          "row": 3,
           "code": "UNKNOWN_TASK",
           "params": {}
         },
         {
-          "row": 12,
+          "row": 5,
           "code": "UNKNOWN_RESOURCE_ROLE",
           "params": {}
         }

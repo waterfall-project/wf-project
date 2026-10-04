@@ -1,5 +1,5 @@
 {
-  "summary": "L'import d'un planning MS Project analysé le 20 mai 2026 : la durée d'une tâche du fichier diffère de celle que Waterfall recalcule, ce qui demande une confirmation explicite ; l'import a ensuite été abandonné (WF-INTF-0040).",
+  "summary": "L'import d'un planning MS Project tel qu'il se lisait le 20 mai 2026 à 10 h 16, analysé et pas encore abandonné : la durée des « Études de détail » de nodes.json diffère de celle que Waterfall recalcule, ce qui demande une confirmation explicite ; imports, au 1er juin, le dit abandonné depuis (WF-INTF-0040).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000a10",
     "kind": "ms_project_schedule",
