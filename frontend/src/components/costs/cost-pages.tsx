@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The way through the pages of a list the server pages — the actual costs, the journal of their
- * imports, the projects of the portfolio —: the links to the page before and the page after the one shown, when there are, by the
- * pagination of shadcn/ui. A list never shows one of its pages as if it were the whole; a page
- * asked beyond its end says so, and leads back to its last page. A page turned only changes the
- * address (`offset`, `imports_offset`), from the address last asked: a sort or a filter under way
- * is kept, and the costs then start from their first page.
+ * imports, the projects of the portfolio —: the links to the page before and the page after the
+ * one shown, when there are, by the pagination of shadcn/ui. A list never shows one of its pages
+ * as if it were the whole; a page asked beyond its end says so, and leads back to its last page. A
+ * page turned only changes the address (`offset`, `imports_offset`), from the address last asked:
+ * a sort or a filter under way is kept, and the list then starts from its first page.
  */
 "use client";
 
@@ -14,6 +14,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { usePendingLink } from "@/components/grid/pending-address";
+import { OFFSET } from "@/components/grid/query";
 import {
   Pagination,
   PaginationContent,
@@ -32,13 +33,13 @@ import type { ListPage } from "./cost-grid";
 const PAGES = {
   costs: { name: COSTS_PAGE, texts: "actualCosts.pages.costs" },
   imports: { name: IMPORTS_PAGE, texts: "actualCosts.pages.imports" },
-  projects: { name: COSTS_PAGE, texts: "portfolio.pages" },
+  projects: { name: OFFSET, texts: "portfolio.pages" },
 } as const;
 
 /**
  * A link to another page of a list: the same screen, its query kept, the page changed — or, when
- * the address last asked reads the costs otherwise than the one shown, their first page. The
- * journal reads nothing of the address but its page.
+ * the address last asked reads the list otherwise than the one shown, its first page. The journal
+ * of the imports reads nothing of the address but its page.
  */
 function PageLink({
   list,

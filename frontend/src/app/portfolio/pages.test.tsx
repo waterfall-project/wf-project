@@ -148,4 +148,22 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain("Completed · no project · calculated on 16 Mar 2026");
     expect(grids.projects[0]?.projects).toEqual([]);
   });
+
+  it("stands without a node to choose when the API does not find the nodes of organisation", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const markup = await render(ProjectsPage);
+    expect(text(markup)).toMatch(/Order book .*2,597,289,500\.00/);
+    expect(grids.projects[0]?.projects).toHaveLength(300);
+    expect(markup).not.toContain("Organisation node");
+  });
+
+  it("says the period of the statistics of the value, as the server retained it", async () => {
+    const page = text(await render(ProjectsPage));
+    expect(page).toContain(
+      "Delivered and conversion rate over the period from 17 Mar 2025 to 16 Mar 2026",
+    );
+  });
 });

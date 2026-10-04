@@ -3,13 +3,13 @@
 /**
  * The perimeter of a view of the portfolio, as the user chooses it (WF-PTF-0010): the states it
  * retains — the projects in progress, to which the offers in pricing may be added, and the projects
- * completed —, the period and the date of calculation, the node of organisation whose roles the
- * labour lines are restricted to, named with its parent as the server gives them — for the views
- * that take them. A choice only changes the address, under
- * the names of the contract, and the page reads anew what the server computes on it. A state shows
- * pressed as the address asks it, or, when the address asks none, as the server retained it by
- * default (`scope.states`): the front assumes no default of its own. A change goes on from the
- * address last asked (`usePendingAddress`).
+ * completed —, the period and the date of calculation, and the node of organisation whose roles the
+ * labour lines are restricted to, named with its parent as the server gives them, for the views
+ * that take them. A choice only changes the address, under the names of the contract, and the page
+ * reads anew what the server computes on it. A state shows pressed as the address asks it, or, when
+ * the address asks none, as the server retained it by default (`scope.states`): the front assumes
+ * no default of its own; the last state pressed cannot be released, a perimeter retaining at least
+ * one. A change goes on from the address last asked (`usePendingAddress`).
  */
 "use client";
 
@@ -68,6 +68,8 @@ function StatesFilter({
     >
       {PORTFOLIO_STATES.map((state) => {
         const pressed = shown.includes(state);
+        // The last state retained stays: releasing it would leave a perimeter of nothing.
+        const kept = pressed && shown.length === 1;
         const Icon = pressed ? CircleCheck : Circle;
         return (
           <Button
@@ -75,7 +77,11 @@ function StatesFilter({
             size="sm"
             variant={pressed ? "default" : "outline"}
             aria-pressed={pressed}
+            aria-disabled={kept ? true : undefined}
             onClick={() => {
+              if (kept) {
+                return;
+              }
               change((query) => {
                 const last = readStates(query);
                 const from = last.length === 0 ? retained : last;
@@ -229,7 +235,8 @@ export function PerimeterBar({
         perimeter={perimeter}
         fields={takes.period ? DATES.period : DATES.date}
       />
-      {takes.node ? (
+      {/* No node to choose — none in the reference, none the API lets one read —: none offered. */}
+      {takes.node && nodes.length > 0 ? (
         <ViewChoice
           name={ORG_NODE}
           label={t("orgNode")}

@@ -4,10 +4,11 @@
  * The portfolio of projects (FBS-2.1), at the route of its function (`functions.json`): the value
  * of the portfolio (WF-PTF-0050) and the list of its projects (WF-PTF-0040), on the perimeter the
  * address asks (WF-PTF-0010) — the states, the period, the date of calculation, the node of
- * organisation, under the names of the contract, the nodes offered as the reference gives them —, the list a page of the projects the server retained, sorted, searched and paged
- * as the address asks (`sort_by`, `sort_order`, `search`, `offset`). Every figure as the API gives
- * it: the front computes, sorts, filters and pages nothing. A read the API refuses, or cannot
- * answer, is thrown for the pages of the shell to say.
+ * organisation, under the names of the contract, the nodes offered as the reference gives them —;
+ * the list is a page of the projects the server retained, sorted, searched and paged as the
+ * address asks (`sort_by`, `sort_order`, `search`, `offset`). Every figure as the API gives it: the
+ * front computes, sorts, filters and pages nothing. A read the API refuses, or cannot answer, is
+ * thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 
@@ -28,6 +29,7 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
+import { readNodes } from "../nodes";
 
 /** Title the tab with the function. */
 export function generateMetadata(): Promise<Metadata> {
@@ -39,16 +41,6 @@ function readValue(perimeter: Perimeter) {
   return readOrFail("getPortfolioValue", () =>
     serverClient().GET("/portfolio/value", { params: { query: perimeterQuery(perimeter) } }),
   );
-}
-
-/** The nodes of organisation the labour may be restricted to, each named with its parent. */
-async function readNodes() {
-  const nodes = await readOrFail("listOrgNodes", () => serverClient().GET("/reference/org-nodes"));
-  return nodes.map((node) => ({
-    id: node.org_node_id,
-    label: node.label,
-    parent: node.parent_label,
-  }));
 }
 
 /** Render the value of the portfolio and the list of its projects. */

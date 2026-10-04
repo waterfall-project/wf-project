@@ -338,7 +338,8 @@
       "until": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period up to {to} · calculated on {asOf}"
     },
     "projects": {
-      "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}"
+      "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
+      "reason": " — {reason}"
     },
     "pages": {
       "label": "Pages of the projects",
@@ -352,7 +353,11 @@
       "pipelineGross": "Gross pipeline",
       "pipelineWeighted": "Weighted pipeline",
       "delivered": "Delivered",
-      "conversionRate": "Conversion rate"
+      "conversionRate": "Conversion rate",
+      "period": "Delivered and conversion rate over the period from {from} to {to}",
+      "since": "Delivered and conversion rate over the period from {from}",
+      "until": "Delivered and conversion rate over the period up to {to}",
+      "noPeriod": "Delivered and conversion rate without a period"
     }
   },
   "computedValue": {

@@ -338,7 +338,8 @@
       "until": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période jusqu’au {to} · calculé au {asOf}"
     },
     "projects": {
-      "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}"
+      "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
+      "reason": " — {reason}"
     },
     "pages": {
       "label": "Pages des projets",
@@ -352,7 +353,11 @@
       "pipelineGross": "Pipeline brut",
       "pipelineWeighted": "Pipeline pondéré",
       "delivered": "Réalisé",
-      "conversionRate": "Taux de transformation"
+      "conversionRate": "Taux de transformation",
+      "period": "Réalisé et taux de transformation sur la période du {from} au {to}",
+      "since": "Réalisé et taux de transformation sur la période à partir du {from}",
+      "until": "Réalisé et taux de transformation sur la période jusqu’au {to}",
+      "noPeriod": "Réalisé et taux de transformation sans période"
     }
   },
   "computedValue": {

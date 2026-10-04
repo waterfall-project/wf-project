@@ -61,6 +61,14 @@ export function IndexCell({ index }: { readonly index: IndexValue | null | undef
           title={reason === null ? undefined : t(`enums.NotComputableReason.${reason}`)}
         >
           {t("indicator.notComputable")}
+          {/* Its reason, read with the cell; the pointer finds it in the title too. */}
+          {reason === null ? null : (
+            <span className="sr-only">
+              {t("portfolio.projects.reason", {
+                reason: t(`enums.NotComputableReason.${reason}`),
+              })}
+            </span>
+          )}
         </span>
       ) : (
         formatDecimal(computed, locale)
