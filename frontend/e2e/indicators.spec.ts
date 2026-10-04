@@ -19,11 +19,16 @@ test("draws the evolution of an index in SVG, an image described in a sentence, 
   await expect(page.getByRole("heading", { level: 1, name: "Indicateurs projets" })).toBeVisible();
   const cost = page.getByRole("img", { name: /^Courbes de l’indice de coût du projet/ });
   await expect(cost.locator("svg")).toBeVisible();
+  // The thresholds of the reference, drawn by a series of their own.
+  await expect(cost.locator("svg text", { hasText: "Seuil de vigilance" })).toBeAttached();
+  await expect(cost.locator("svg text", { hasText: "Seuil d’alerte" })).toBeAttached();
   const figure = page.getByRole("figure", { name: "Évolution de l’indice de coût" });
   await figure.getByText("Valeurs du graphique").click();
-  await expect(
-    figure.getByRole("row", { name: /^Projet entier Révision en cours/ }),
-  ).toBeInViewport();
+  const row = figure.getByRole("row", { name: /^Projet entier Révision en cours/ });
+  await row.scrollIntoViewIfNeeded();
+  await expect(row).toBeInViewport();
+  // The date of the evolution, under the caption of its figure.
+  await expect(figure.getByText(/^Calculé le/)).toBeVisible();
 });
 
 test("paints its series with the tokens of the charter, drawn again when the account forces the dark mode", async ({

@@ -8,7 +8,9 @@
  * alert of the reference drawn across (WF-REF-0170). A point the API could not compute is a gap
  * in its curve, and a row of the table that says why — never a zero.
  *
- * The table of the values is the text alternative of the chart: each point, its revision, its
+ * The chart carries the date the evolution is computed at (WF-IHM-0020), which is not that of the
+ * indicators beside it when the address asks a date (`as_of`): the evolution always runs to the
+ * current day. The table of the values is the text alternative of the chart: each point, its revision, its
  * date in local time, its value or why it has none, and its zone by `Signal` (WF-IHM-0070). The
  * chart draws the values as the API wrote them, the strings themselves: ECharts reads a position
  * from them, and the figures shown are formatted from the same strings (`formatDecimal`).
@@ -26,6 +28,7 @@ import {
   seriesLook,
   timeAxis,
 } from "@/components/chart/chart";
+import { CalculationDate } from "@/components/context/indicator";
 import { LocalTime } from "@/components/local-time";
 import { Signal } from "@/components/signal/signal";
 import { formatDecimal, formatLocale } from "@/i18n/format";
@@ -99,9 +102,22 @@ export function IndexChart({ kind, history }: IndexChartProps) {
         { name: t("watch"), value: watch, type: "dashed" as const },
         { name: t("alert"), value: alert, type: "dotted" as const },
       ];
+      const curves = history.scopes.map((scope, index) => ({
+        type: "line" as const,
+        name: scopeName(scope),
+        ...seriesLook(palette, index),
+        data: scope.points.map((point) => {
+          const { value } = point[fields.point];
+          return [point.at, value.is_computable ? (value.value ?? "-") : "-"];
+        }),
+      }));
       return {
         textStyle: { fontFamily: palette.font, color: palette.text },
-        legend: { top: 0, textStyle: { color: palette.text } },
+        legend: {
+          top: 0,
+          data: curves.map((curve) => curve.name),
+          textStyle: { color: palette.text },
+        },
         grid: { left: 48, right: 24, top: 40, bottom: 32 },
         xAxis: timeAxis(palette, formatLocale(locale)),
         yAxis: {
@@ -112,30 +128,27 @@ export function IndexChart({ kind, history }: IndexChartProps) {
           axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
           splitLine: { lineStyle: { color: palette.grid } },
         },
-        series: history.scopes.map((scope, index) => ({
-          type: "line" as const,
-          name: scopeName(scope),
-          ...seriesLook(palette, index),
-          data: scope.points.map((point) => {
-            const { value } = point[fields.point];
-            return [point.at, value.is_computable ? (value.value ?? "-") : "-"];
-          }),
-          ...(index === 0
-            ? {
-                markLine: {
-                  symbol: "none",
-                  silent: true,
-                  label: { color: palette.mark, position: "insideEndTop" as const },
-                  data: thresholds.map((threshold) => ({
-                    yAxis: threshold.value,
-                    name: threshold.name,
-                    label: { formatter: threshold.name },
-                    lineStyle: { color: palette.mark, type: threshold.type },
-                  })),
-                },
-              }
-            : {}),
-        })),
+        series: [
+          ...curves,
+          // The thresholds are a series of their own, without a point and out of the legend:
+          // no curve shown or not carries them.
+          {
+            type: "line" as const,
+            name: t("thresholds"),
+            data: [],
+            markLine: {
+              symbol: "none",
+              silent: true,
+              label: { color: palette.mark, position: "insideEndTop" as const },
+              data: thresholds.map((threshold) => ({
+                yAxis: threshold.value,
+                name: threshold.name,
+                label: { formatter: threshold.name },
+                lineStyle: { color: palette.mark, type: threshold.type },
+              })),
+            },
+          },
+        ],
       };
     },
     [history.scopes, fields.point, watch, alert, locale, t, scopeName],
@@ -143,7 +156,12 @@ export function IndexChart({ kind, history }: IndexChartProps) {
 
   const values = { watch: formatDecimal(watch, locale), alert: formatDecimal(alert, locale) };
   return (
-    <Chart title={t(`${kind}Title`)} description={t(`${kind}Description`, values)} option={option}>
+    <Chart
+      title={t(`${kind}Title`)}
+      description={t(`${kind}Description`, values)}
+      note={<CalculationDate context={history.context} />}
+      option={option}
+    >
       <table className="w-full text-left">
         <thead className="text-muted-foreground">
           <tr>

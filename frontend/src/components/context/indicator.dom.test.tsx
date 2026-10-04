@@ -64,6 +64,20 @@ describe("an indicator", () => {
     await expectAccessible(container);
   });
 
+  it("leaves its date to what holds it and shows the date of the same context, once for all", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        <ComputedIndicator
+          indicator="indicator.names.physicalProgress"
+          value={PHYSICAL_PROGRESS}
+          context={INDICATORS.context}
+          date="held"
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["0%"]);
+  });
+
   it("shows a cost index without actual cost as not computable, with its reason and its date", async () => {
     const { container } = render(
       page("indicator.names.costIndex", INDICATORS.cost_index.value, "en"),

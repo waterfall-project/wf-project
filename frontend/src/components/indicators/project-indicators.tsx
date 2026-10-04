@@ -133,6 +133,7 @@ function Projections({ indicators }: { readonly indicators: ProjectIndicators })
         indicator="indicator.names.projectionAtObservedRate"
         value={projections.at_observed_rate}
         context={context}
+        date="held"
       />
       {projections.variance_at_observed_rate === null ||
       projections.variance_at_observed_rate === undefined ? null : (
@@ -179,6 +180,7 @@ function IndexCard({
           }
           value={index.value}
           context={indicators.context}
+          date="held"
         />
         {index.zone === null ? null : <Signal zone={index.zone} />}
       </div>
@@ -206,11 +208,13 @@ export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorC
             indicator="indicator.names.financialProgress"
             value={indicators.financial_progress ?? NOT_GIVEN}
             context={context}
+            date="held"
           />
           <ComputedIndicator
             indicator="indicator.names.budgetConsumption"
             value={indicators.budget_consumption ?? NOT_GIVEN}
             context={context}
+            date="held"
           />
         </div>
         <Figures
@@ -229,6 +233,7 @@ export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorC
           indicator="indicator.names.physicalProgress"
           value={indicators.physical_progress ?? NOT_GIVEN}
           context={context}
+          date="held"
         />
         <Figures
           figures={[

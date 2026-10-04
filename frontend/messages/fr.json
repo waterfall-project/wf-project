@@ -287,25 +287,13 @@
       "scheduleDescription": "Courbes de l’indice de délai du projet et de chacune de ses mailles, un point par révision marquée et le dernier au jour courant, avec le seuil de vigilance à {watch} et le seuil d’alerte à {alert}.",
       "watch": "Seuil de vigilance",
       "alert": "Seuil d’alerte",
+      "thresholds": "Seuils",
       "scope": "Maille",
       "revision": "Révision",
       "date": "Date",
       "value": "Indice",
       "zone": "Zone",
       "currentRevision": "Révision en cours"
-    },
-    "milestones": {
-      "title": "Suivi des jalons",
-      "chartTitle": "Diagramme temps/temps",
-      "description": "Pour chaque jalon inscrit au suivi, la date que prévoyait chaque révision marquée, en fonction de sa date de marquage, et le dernier point au jour courant, avec la diagonale des dates égales.",
-      "milestone": "Jalon",
-      "markedAt": "Révision du",
-      "forecast": "Date prévue",
-      "completedOn": "Terminé le",
-      "notCompleted": "Non terminé",
-      "diagonal": "Dates égales",
-      "none": "Aucun jalon n’est inscrit au suivi.",
-      "unavailable": "Le suivi des jalons est indisponible."
     }
   },
   "commands": {

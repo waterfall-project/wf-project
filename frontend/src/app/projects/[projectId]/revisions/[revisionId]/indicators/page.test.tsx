@@ -5,8 +5,10 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SignedOut, UnexpectedAnswer } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import type { components } from "@/api/generated/schema";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import IndicatorsPage, { generateMetadata } from "./page";
 
@@ -29,6 +31,8 @@ vi.mock("next/headers", () => ({
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
+type Indicators = components["schemas"]["ProjectIndicators"];
+type History = components["schemas"]["IndexHistory"];
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
@@ -71,8 +75,6 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/indicators": "project_indicators",
     "GET /projects/{project_id}/indicators/index-history": "index_history",
-    // The contract cites no example of the tracking of the milestones yet.
-    "GET /projects/{project_id}/indicators/milestone-tracking": NOT_FOUND,
   };
 });
 
@@ -97,18 +99,19 @@ describe("the screen of the indicators of a project", () => {
       "Physical progress",
       "Cost performance index (CPI)",
       "Schedule performance index (SPI)",
-      "Milestone tracking",
     ]);
   });
 
   it("gives each indicator the date it is computed at [WF-IHM-0020-A]", async () => {
     const page = text(html(await IndicatorsPage(at())));
-    // One date in the header of each of the five cards, and one under each of the six values
-    // under `Computable`: three progresses, a projection, two indices.
-    expect(page.match(/Computed on/g)).toHaveLength(5 + 6);
+    // One date under the title of each of the five cards, which holds the date of the values in
+    // it, and one under the caption of each evolution of an index.
+    expect(page.match(/Computed on/g)).toHaveLength(5 + 2);
     expect(page).toContain(
-      "Financial progress Computed on Financial progress 0% Computed on Budget consumption 0% Computed on",
+      "Financial progress Computed on Financial progress 0% Budget consumption 0% Actual cost",
     );
+    expect(page).toContain("Evolution of the cost index Computed on");
+    expect(page).toContain("Evolution of the schedule index Computed on");
   });
 
   it("shows the amounts as the API gives them, nothing summed nor divided", async () => {
@@ -140,19 +143,32 @@ describe("the screen of the indicators of a project", () => {
       page.indexOf("Schedule performance index"),
       page.indexOf("Evolution of the schedule index"),
     );
-    expect(text(schedule)).toContain("Schedule index 0 Computed on");
+    expect(text(schedule)).toContain("Schedule index 0 Alert Schedule variance");
     expect(schedule).toMatch(
       /class="[^"]*text-signal-alert[^"]*"><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg><span>Alert<\/span>/,
     );
     expect(cost.slice(0, cost.indexOf("Evolution"))).not.toContain("text-signal-");
   });
 
-  it("asks the indicators for the sub-project and the date the address filters", async () => {
-    await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-02-01" }));
+  it("asks the indicators for the sub-project and the date the address filters, the evolution of the indices dated by its own calculation [WF-IHM-0020-A]", async () => {
+    const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-02-01" })));
     expect(queryOf("GET /projects/{project_id}/indicators")).toEqual({
       scope: SUBPROJECT,
       as_of: "2026-02-01",
     });
+    // The evolution runs to the current day whatever the address asks: it takes no date, and
+    // says its own date of calculation beside that of the indicators.
+    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toEqual({});
+    const dated = (heading: string) => {
+      const from = page.indexOf(heading);
+      return /Computed on <time dateTime="([^"]+)">/.exec(page.slice(from))?.[1];
+    };
+    expect(dated("Cost performance index")).toBe(
+      (example("project_indicators") as Indicators).context.computed_at,
+    );
+    expect(dated("Evolution of the cost index")).toBe(
+      (example("index_history") as History).context.computed_at,
+    );
     server.clients = [];
     await IndicatorsPage(at());
     expect(queryOf("GET /projects/{project_id}/indicators")).toEqual({});
@@ -177,12 +193,18 @@ describe("the screen of the indicators of a project", () => {
       "Indicators unavailable The indicators of a project are computed from the In progress state",
     );
     expect(page).not.toContain("Financial progress");
-    expect(page).toContain("Milestone tracking");
+    // Nor is the evolution of the indices asked: there is none before the state In progress.
+    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toBeUndefined();
   });
 
-  it("says the tracking of the milestones unavailable when the API does not find it", async () => {
-    const page = text(html(await IndicatorsPage(at())));
-    expect(page).toContain("Milestone tracking The milestone tracking is unavailable.");
+  it("does not take a refusal of the same status for another reason as the state of the project", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators": {
+        problem: { code: "ALREADY_EXISTS", status: 409 },
+      },
+    };
+    await expect(IndicatorsPage(at())).rejects.toBeInstanceOf(UnexpectedAnswer);
   });
 
   it("is not found when the API does not find the indicators of the project", async () => {
@@ -195,13 +217,13 @@ describe("the screen of the indicators of a project", () => {
     await expect(IndicatorsPage(at())).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
   });
 
-  it("leads to the sign-in when the session is lost while the indicators are read", async () => {
+  it("leads to the sign-in when the session is lost while the evolution of the indices is read", async () => {
     server.answers = {
       ...server.answers,
-      "GET /projects/{project_id}/indicators/milestone-tracking": {
+      "GET /projects/{project_id}/indicators/index-history": {
         problem: { code: "SESSION_REQUIRED", status: 401 },
       },
     };
-    await expect(IndicatorsPage(at())).rejects.toThrow();
+    await expect(IndicatorsPage(at())).rejects.toBeInstanceOf(SignedOut);
   });
 });

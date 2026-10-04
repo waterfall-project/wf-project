@@ -62,10 +62,21 @@ export interface ComputedIndicatorProps {
   readonly indicator: IndicatorLabel;
   readonly value: Computable;
   readonly context: CalculationContext;
+  /**
+   * Where the date of its context shows: under the value (`own`, the default), or above it, by
+   * the card or the section that holds the indicator and shows the date of the same context
+   * (`held`) — once for all its indicators, never left out.
+   */
+  readonly date?: "own" | "held";
 }
 
 /** Render an indicator, its value or why it has none, and the date it is computed at. */
-export function ComputedIndicator({ indicator, value, context }: ComputedIndicatorProps) {
+export function ComputedIndicator({
+  indicator,
+  value,
+  context,
+  date = "own",
+}: ComputedIndicatorProps) {
   const t = useTranslations();
   const locale = useLocale();
   // A value the API calls computable yet leaves out is not made up either: it is said missing.
@@ -82,9 +93,11 @@ export function ComputedIndicator({ indicator, value, context }: ComputedIndicat
           {t(`enums.NotComputableReason.${reason}`)}
         </dd>
       )}
-      <dd>
-        <CalculationDate context={context} />
-      </dd>
+      {date === "own" ? (
+        <dd>
+          <CalculationDate context={context} />
+        </dd>
+      ) : null}
     </dl>
   );
 }

@@ -120,12 +120,11 @@ function readPalette(probes: HTMLElement): ChartPalette {
 const MONTH: Intl.DateTimeFormatOptions = { month: "short", year: "numeric" };
 
 /**
- * An axis of time, its ticks written in the language of the interface by month — in UTC for an
- * axis of dates of planning, which have no time zone (`utc`), in the local time of the
- * workstation otherwise —, a tick that would overlap another left out.
+ * An axis of time, its ticks written in the language of the interface by month, in the local time
+ * of the workstation, a tick that would overlap another left out.
  */
-export function timeAxis(palette: ChartPalette, locale: string, utc = false) {
-  const format = new Intl.DateTimeFormat(locale, utc ? { ...MONTH, timeZone: "UTC" } : MONTH);
+export function timeAxis(palette: ChartPalette, locale: string) {
+  const format = new Intl.DateTimeFormat(locale, MONTH);
   return {
     type: "time" as const,
     axisLine: { show: true, lineStyle: { color: palette.axis } },
@@ -153,12 +152,27 @@ function Probes() {
   );
 }
 
+/**
+ * The legend of an option, its entries made inert: a click on one would hide its series with the
+ * pointer alone, out of reach of the keyboard (WF-IHM-0100), and a reader would no longer see
+ * what the API gave.
+ */
+function inertLegend(legend: ChartOption["legend"]): Pick<ChartOption, "legend"> {
+  if (legend === undefined) {
+    return {};
+  }
+  const inert = (each: LegendComponentOption) => ({ ...each, selectedMode: false });
+  return { legend: Array.isArray(legend) ? legend.map(inert) : inert(legend) };
+}
+
 /** A chart: its name, what it shows in a sentence, how it is drawn, and its values. */
 export interface ChartProps {
   /** The name of the chart, the caption of its figure. */
   readonly title: string;
   /** What the chart shows, in a sentence: the name of its image (text alternative). */
   readonly description: string;
+  /** What the figure says under its caption: the date its values are computed at. */
+  readonly note?: ReactNode;
   /**
    * The option of the chart in a palette — memoised by the caller: a new function draws the
    * chart anew.
@@ -169,7 +183,7 @@ export interface ChartProps {
 }
 
 /** Render a chart: a figure, its caption, its drawing named by a sentence, its values. */
-export function Chart({ title, description, option, children }: ChartProps) {
+export function Chart({ title, description, note, option, children }: ChartProps) {
   const t = useTranslations("chart");
   const drawing = useRef<HTMLDivElement>(null);
   const probes = useRef<HTMLSpanElement>(null);
@@ -183,8 +197,13 @@ export function Chart({ title, description, option, children }: ChartProps) {
     }
     const chart = init(element, null, { renderer: "svg" });
     const draw = () => {
+      const chosen = option(readPalette(tokens));
       chart.setOption(
-        { ...option(readPalette(tokens)), aria: { enabled: true, label: { description } } },
+        {
+          ...chosen,
+          ...inertLegend(chosen.legend),
+          aria: { enabled: true, label: { description } },
+        },
         true,
       );
     };
@@ -210,6 +229,7 @@ export function Chart({ title, description, option, children }: ChartProps) {
       <figcaption id={caption} className="font-medium">
         {title}
       </figcaption>
+      {note}
       <span ref={probes} hidden>
         <Probes />
       </span>

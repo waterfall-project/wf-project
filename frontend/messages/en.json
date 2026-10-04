@@ -287,25 +287,13 @@
       "scheduleDescription": "Curves of the schedule index of the project and of each of its scopes, one point per marked revision and the last at the current day, with the watch threshold at {watch} and the alert threshold at {alert}.",
       "watch": "Watch threshold",
       "alert": "Alert threshold",
+      "thresholds": "Thresholds",
       "scope": "Scope",
       "revision": "Revision",
       "date": "Date",
       "value": "Index",
       "zone": "Zone",
       "currentRevision": "Current revision"
-    },
-    "milestones": {
-      "title": "Milestone tracking",
-      "chartTitle": "Time/time diagram",
-      "description": "For each tracked milestone, the date each marked revision forecast, by the date of its marking, and the last point at the current day, with the diagonal of equal dates.",
-      "milestone": "Milestone",
-      "markedAt": "Revision of",
-      "forecast": "Forecast date",
-      "completedOn": "Completed on",
-      "notCompleted": "Not completed",
-      "diagonal": "Equal dates",
-      "none": "No milestone is tracked.",
-      "unavailable": "The milestone tracking is unavailable."
     }
   },
   "commands": {

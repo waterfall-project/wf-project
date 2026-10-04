@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { getInstanceByDom } from "echarts/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -10,10 +11,10 @@ import { expectAccessible } from "@/test/axe";
 import { Chart, type ChartOption, type ChartPalette, seriesLook } from "./chart";
 
 /** A chart of one series of two points, its option recorded with each palette it is drawn in. */
-function drawn(option: (palette: ChartPalette) => ChartOption) {
+function drawn(option: (palette: ChartPalette) => ChartOption, note?: string) {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <Chart title="Indice" description="Une courbe de deux points." option={option}>
+      <Chart title="Indice" description="Une courbe de deux points." note={note} option={option}>
         <table>
           <tbody>
             <tr>
@@ -58,6 +59,26 @@ describe("the envelope of the charts", () => {
     });
     expect(option).toHaveBeenCalledOnce();
     expect(image).toHaveAttribute("aria-label", "Une courbe de deux points.");
+  });
+
+  it("makes the entries of its legend inert: no series is hidden by a click the keyboard cannot give [WF-IHM-0100-A]", async () => {
+    const legended = (palette: ChartPalette): ChartOption => ({
+      ...line(palette),
+      legend: { data: ["Projet"], selectedMode: "multiple" },
+    });
+    drawn(legended);
+    const image = screen.getByRole("img", { name: "Une courbe de deux points." });
+    await waitFor(() => {
+      expect(image.querySelector("svg")).not.toBeNull();
+    });
+    const { legend } = getInstanceByDom(image)?.getOption() ?? {};
+    expect(legend).toMatchObject([{ data: ["Projet"], selectedMode: false }]);
+  });
+
+  it("says under its caption what it is handed to say: the date of its values", () => {
+    drawn(line, "Calculé le 16 mars 2026");
+    const figure = screen.getByRole("figure", { name: "Indice" });
+    expect(figure).toHaveTextContent(/^IndiceCalculé le 16 mars 2026/);
   });
 
   it("reads its colours from the tokens of the charter, and draws again in the mode the account forces", async () => {
