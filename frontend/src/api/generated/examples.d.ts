@@ -54,7 +54,7 @@ export interface Examples {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
   };
   "GET /projects/{project_id}/revisions": {
-    200: "revisions" | "revisions_empty" | "revisions_marked";
+    200: "revisions" | "revisions_empty";
   };
   "GET /projects/{project_id}/revisions/comparison": {
     200: "comparison" | "comparison_identical";
@@ -80,9 +80,6 @@ export interface Examples {
   "GET /projects/{project_id}/subprojects": {
     200: "subprojects";
   };
-  "GET /projects/{project_id}/workload": {
-    200: "workload" | "workload_marked_remaining" | "workload_reference_budget";
-  };
   "GET /reference/cost-categories": {
     200: "volume/cost_categories";
   };
@@ -94,9 +91,6 @@ export interface Examples {
   };
   "GET /reference/hourly-rates": {
     200: "volume/hourly_rate_grid";
-  };
-  "GET /reference/org-nodes": {
-    200: "org_nodes";
   };
   "GET /reference/readiness": {
     200: "reference_readiness" | "reference_readiness_incomplete";

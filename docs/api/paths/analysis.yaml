@@ -90,10 +90,6 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/WorkloadPlan }
-            examples:
-              witness: { $ref: ../../../fixtures/api/workload.json }
-              reference_budget: { $ref: ../../../fixtures/api/workload_reference_budget.json }
-              marked_remaining: { $ref: ../../../fixtures/api/workload_marked_remaining.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':

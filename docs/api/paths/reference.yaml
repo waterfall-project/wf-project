@@ -76,8 +76,6 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/reference.yaml#/OrgNode }
-            examples:
-              witness: { $ref: ../../../fixtures/api/org_nodes.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:

@@ -1,5 +1,5 @@
 {
-  "summary": "La courbe de coûts cumulés du projet au 16 mars 2026, décalée des délais de paiement — trente jours sur la ligne d'ingénierie de détail, aucune provision de risque identifié — : ce sont les décaissements, chaque série translatée de trente jours ; aucun décaissement passé, et ceux à venir, 60 000 en avril et 40 000 en mai, égalent le reste à engager (WF-IND-0100).",
+  "summary": "La courbe de coûts cumulés du projet au 16 mars 2026, décalée des délais de paiement — trente jours sur la ligne d'ingénierie de détail, aucune provision de risque identifié — : ce sont les décaissements. Le budget de référence et la projection du chef de projet sont translatés de trente jours ; le coût réel, nul, ne l'est pas et s'arrête à la date de calcul. Aucun décaissement passé, et ceux à venir, 60 000 en avril et 40 000 en mai, égalent le reste à engager (WF-IND-0100).",
   "value": {
     "context": {
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
@@ -16,6 +16,10 @@
           {
             "date": "2026-03-31",
             "amount": "0.00"
+          },
+          {
+            "date": "2026-04-15",
+            "amount": "33333.33"
           },
           {
             "date": "2026-04-30",

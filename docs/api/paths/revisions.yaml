@@ -37,7 +37,6 @@
             examples:
               witness: { $ref: ../../../fixtures/api/revisions.json }
               empty: { $ref: ../../../fixtures/api/revisions_empty.json }
-              marked: { $ref: ../../../fixtures/api/revisions_marked.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
