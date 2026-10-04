@@ -131,14 +131,22 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("lists the contributors of the project, an account deactivated since said so in words", async () => {
+  it("lists the contributors of the project, the project manager told from a contributor in words and by an icon, an account deactivated since said so", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/contributors"]).toBe(
       `/projects/${PROJECT}/contributors`,
     );
     expect(text(page)).toContain(
-      "Contributors Name Account Camille Martin Active Alix Moreau Deactivated",
+      "Contributors Name Capacity Account " +
+        "Camille Martin Project manager Active Alix Moreau Contributor Deactivated",
     );
+    // The project manager alone bears the icon, beside the words that say it.
+    const capacities = [...page.matchAll(/<td[^>]*>(.*?)<\/td>/g)]
+      .map((match) => match[1] ?? "")
+      .filter((cell) => /Project manager|^Contributor$/.test(text(cell)));
+    expect(capacities).toHaveLength(2);
+    expect(capacities[0]).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>.*<\/svg>Project manager/);
+    expect(capacities[1]).toBe("Contributor");
   });
 
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
@@ -208,7 +216,7 @@ describe("the lifecycle of a project", () => {
     );
     expect(text(page)).toMatch(/^.*Project lifecycle State In progress/);
     expect(text(page)).toContain(
-      "History of states Date Transition By " +
+      "History of states Date Transition By Reason " +
         "Creation Created Camille Martin Created Pricing Camille Martin Pricing In progress Camille Martin",
     );
     // Each instant, in the local time of the workstation, which the browser writes.
@@ -273,6 +281,35 @@ describe("the lists of a project", () => {
       />,
     );
     expect(text(page)).toContain("Creation Created Automatic process");
+  });
+
+  it("show the motive of an exit to Lost as the user gave it, and none for a transition without one [WF-CYC-0130-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/state-transitions": "state_transitions_exited",
+    };
+    const page = html(await LifecyclePage(at()));
+    const rows = [...page.matchAll(/<tr[^>]*>(.*?)<\/tr>/g)].map((match) => match[1] ?? "");
+    const reasons = rows
+      .filter((row) => row.includes("<td"))
+      .map((row) => [...row.matchAll(/<td[^>]*>(.*?)<\/td>/g)].at(-1)?.[1]);
+    expect(reasons).toEqual([
+      "",
+      "",
+      "Offre non retenue : le client a préféré une solution sur étagère.",
+    ]);
+    expect(text(page)).toContain(
+      "Pricing Lost Camille Martin Offre non retenue : le client a préféré une solution sur étagère.",
+    );
+
+    // An automatic transition bears none.
+    const [created] = example("state_transitions_exited") as StateTransition[];
+    const automatic = html(
+      <TransitionList
+        transitions={created === undefined ? [] : [{ ...created, actor: { kind: "platform" } }]}
+      />,
+    );
+    expect(automatic).toMatch(/Automatic process<\/span><\/td><td[^>]*><\/td><\/tr>/);
   });
 
   it("say actual costs charged to a sub-project", () => {

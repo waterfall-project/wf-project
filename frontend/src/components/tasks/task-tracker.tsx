@@ -39,9 +39,9 @@ import {
   useEffect,
   useId,
   useMemo,
-  useReducer,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import type { BackgroundTask } from "@/api/problem";
@@ -63,15 +63,83 @@ import {
 /** Hand a task over to the tracker, with what started it. */
 export type TrackTask = (task: BackgroundTask, launch?: Launch) => void;
 
-/** What the panel and its button read of the tracker: the tasks followed and the log of their ends. */
-interface TrackerState {
-  readonly tasks: Tracking["tasks"];
-  readonly log: Tracking["log"];
+/** What the tracker holds: what it follows, and whether the user showed or hid the panel. */
+interface Held {
+  readonly tracking: Tracking;
+  /** `undefined` while the panel follows the tasks: shown while there are some. */
+  readonly shown: boolean | undefined;
+}
+
+/** What the tracker holds before the browser has read anything, the server's too. */
+const NOTHING_HELD: Held = { tracking: NOTHING_TRACKED, shown: undefined };
+
+/**
+ * What the tracker holds, outside React: the panel and its button read it by subscribing to it,
+ * and nothing else is rendered again when it changes. A context above the page that changed
+ * instead — tasks restored, streamed, read again while a page streamed by the server is not
+ * revealed yet — would make React render that page anew in the browser, beside the one the
+ * server sent (#173, #180).
+ */
+interface TrackerStore {
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly read: () => Held;
   readonly dispatch: Dispatch<TrackingEvent>;
-  /** Whether the panel shows the tasks followed, and the identifier the button controls. */
-  readonly open: boolean;
-  readonly setOpen: (open: boolean) => void;
+  readonly show: (shown: boolean | undefined) => void;
+}
+
+/** A store of the tracker, holding nothing yet; a change that changes nothing tells no one. */
+function trackerStore(): TrackerStore {
+  let held = NOTHING_HELD;
+  const listeners = new Set<() => void>();
+  const hold = (next: Held) => {
+    if (next.tracking === held.tracking && next.shown === held.shown) {
+      return;
+    }
+    held = next;
+    for (const listener of listeners) {
+      listener();
+    }
+  };
+  return {
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    read: () => held,
+    dispatch: (event) => {
+      hold({ ...held, tracking: tracking(held.tracking, event) });
+    },
+    show: (shown) => {
+      hold({ ...held, shown });
+    },
+  };
+}
+
+/** What the panel and its button share: the store, and the identifier the button controls. */
+interface TrackerState {
+  readonly store: TrackerStore;
   readonly panelId: string;
+}
+
+/** What the server renders of the tracker, and what hydration starts from. */
+function nothingHeld(): Held {
+  return NOTHING_HELD;
+}
+
+/** What the panel and its button read of the tracker, rendered again only when it changes. */
+function useTracker() {
+  const { store, panelId } = inTracker(useContext(StateContext));
+  const { tracking: state, shown } = useSyncExternalStore(store.subscribe, store.read, nothingHeld);
+  return {
+    tasks: state.tasks,
+    log: state.log,
+    dispatch: store.dispatch,
+    open: shown ?? state.tasks.length > 0,
+    setOpen: store.show,
+    panelId,
+  };
 }
 
 /** What the screens and the shell ask of the tracker: to follow a task, to forget them all. */
@@ -80,8 +148,8 @@ interface TrackerCommands {
   readonly forget: () => void;
 }
 
-// Two contexts: the screens that hand a task over read functions that never change, and are
-// not rendered again at each read of a task; the panel alone reads what changes.
+// Two contexts, neither of which changes: the screens that hand a task over read functions, the
+// panel and its button the store they subscribe to.
 const TrackContext = createContext<TrackerCommands | undefined>(undefined);
 const StateContext = createContext<TrackerState | undefined>(undefined);
 
@@ -139,23 +207,26 @@ function StreamedTasks({
 
 /** Follow the background tasks the screens within it start, and those of its user that run. */
 export function TaskTracker({ signedIn = false, running, children }: TaskTrackerProps) {
-  const [state, dispatch] = useReducer(tracking, NOTHING_TRACKED);
-  // Whether the user showed or hid the panel; `undefined` while it follows the tasks.
-  const [shown, setShown] = useState<boolean>();
-  const open = shown ?? state.tasks.length > 0;
+  const [store] = useState(trackerStore);
+  const { dispatch } = store;
+  const restored = useSyncExternalStore(
+    store.subscribe,
+    () => store.read().tracking.restored,
+    () => false,
+  );
   const panelId = useId();
   // The storage of the tab is the browser's: read once mounted, never while rendering on the
   // server, and written only once read, lest an empty list erase it.
   useEffect(() => {
     dispatch({ type: "restore", tasks: restoreTasks() });
-  }, []);
+  }, [dispatch]);
   // The tasks of the user that still run, followed once those the tab kept are back, as the
   // server streams them (`StreamedTasks`) — a data of the page, read on the server, rather than a
   // server action as the shell mounts —; and again, read by a server action, each time the tab
   // shows once more — the user may have started one from another tab meanwhile: what the API
   // does not give, refused or out of reach, the tracker does without.
   const streamed =
-    state.restored && running !== undefined ? (
+    restored && running !== undefined ? (
       <Suspense fallback={null}>
         <StreamedTasks running={running} dispatch={dispatch} />
       </Suspense>
@@ -183,34 +254,34 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
       live = false;
       document.removeEventListener("visibilitychange", shown);
     };
-  }, [signedIn]);
+  }, [signedIn, dispatch]);
+  // The tasks followed, kept in the tab each time they change, once those it kept are back.
   useEffect(() => {
-    if (state.restored) {
-      saveTasks(state.tasks);
-    }
-  }, [state.restored, state.tasks]);
+    let saved: Tracking["tasks"] | undefined;
+    const save = () => {
+      const { tasks, restored: back } = store.read().tracking;
+      if (back && tasks !== saved) {
+        saved = tasks;
+        saveTasks(tasks);
+      }
+    };
+    save();
+    return store.subscribe(save);
+  }, [store]);
   const commands = useMemo<TrackerCommands>(
     () => ({
       track: (task, launch = {}) => {
         dispatch({ type: "track", task, launch });
-        setShown(undefined);
+        store.show(undefined);
       },
       forget: () => {
         dispatch({ type: "forget" });
         forgetTasks();
       },
     }),
-    [],
+    [store, dispatch],
   );
-  // Built anew only when what the panel shows changes: not when the tab has nothing to restore,
-  // nor when the API lists no task it did not follow. The shell sits above every page, and a
-  // context that changes while a page streamed by the server is not revealed yet makes React
-  // render that page anew in the browser, beside the one the server sent (#173).
-  const { tasks, log } = state;
-  const value = useMemo(
-    () => ({ tasks, log, dispatch, open, setOpen: setShown, panelId }),
-    [tasks, log, open, panelId],
-  );
+  const value = useMemo(() => ({ store, panelId }), [store, panelId]);
   return (
     <TrackContext value={commands}>
       <StateContext value={value}>
@@ -229,7 +300,7 @@ const PANEL = "border-b bg-card px-4 py-2 text-card-foreground";
  */
 export function TasksButton() {
   const t = useTranslations("tasks");
-  const { tasks, open, setOpen, panelId } = inTracker(useContext(StateContext));
+  const { tasks, open, setOpen, panelId } = useTracker();
   const count = tasks.length;
   return (
     <Button
@@ -271,7 +342,7 @@ function mainContent(): HTMLElement | null {
  */
 export function TaskPanel() {
   const t = useTranslations("tasks");
-  const { tasks, log, dispatch, open, panelId } = inTracker(useContext(StateContext));
+  const { tasks, log, dispatch, open, panelId } = useTracker();
   const region = useRef<HTMLElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const dismissRef = useCallback((key: string, button: HTMLButtonElement | null) => {

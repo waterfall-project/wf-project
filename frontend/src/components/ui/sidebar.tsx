@@ -61,15 +61,23 @@ export interface SidebarState {
   readonly toggleSidebar: () => void;
 }
 
-const SidebarContext = createContext<SidebarState | null>(null);
+/**
+ * What the provider shares, the width of the window left out: each piece reads it for itself
+ * (`useIsMobile`). On a narrow screen, the window is known to be narrow only once in the browser,
+ * after the server rendered the wide one; a context that changed then, above every page, would
+ * make React render anew in the browser a page streamed by the server and not revealed yet,
+ * beside the one the server sent (#173, #180).
+ */
+const SidebarContext = createContext<Omit<SidebarState, "isMobile"> | null>(null);
 
 /** The state of the bar, within its provider; a piece of the bar outside it is a defect. */
 export function useSidebar(): SidebarState {
   const context = useContext(SidebarContext);
+  const isMobile = useIsMobile();
   if (context === null) {
     throw new Error("a piece of the side bar is rendered within a SidebarProvider only");
   }
-  return context;
+  return { ...context, isMobile };
 }
 
 /** Listen to the width of the window crossing the width of a narrow screen. */
@@ -81,13 +89,14 @@ function subscribe(onChange: () => void): () => void {
   };
 }
 
+/** Whether the window is a narrow screen, now. */
+function isNarrow(): boolean {
+  return window.matchMedia(MOBILE).matches;
+}
+
 /** Whether the window is a narrow screen; not on the server, which renders the wide one. */
 function useIsMobile(): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(MOBILE).matches,
-    () => false,
-  );
+  return useSyncExternalStore(subscribe, isNarrow, () => false);
 }
 
 /**
@@ -133,7 +142,6 @@ export function SidebarProvider({
   children,
   ...props
 }: SidebarProviderProps) {
-  const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = useState(false);
   // The sheet over the page closes once the user goes to another page: open, it would keep
   // the page hidden from a screen reader and hold the focus. Adjusted while rendering.
@@ -151,24 +159,24 @@ export function SidebarProvider({
     setOpenState(value);
     document.cookie = sidebarCookie(value);
   }, []);
+  // The width of the window is read as the bar is toggled, not held by the provider.
   const toggleSidebar = useCallback(() => {
-    if (isMobile) {
+    if (isNarrow()) {
       setOpenMobile((shown) => !shown);
     } else {
       setOpen(!open);
     }
-  }, [isMobile, open, setOpen]);
-  const value = useMemo<SidebarState>(
+  }, [open, setOpen]);
+  const value = useMemo(
     () => ({
-      state: open ? "expanded" : "collapsed",
+      state: open ? ("expanded" as const) : ("collapsed" as const),
       open,
       setOpen,
-      isMobile,
       openMobile,
       setOpenMobile,
       toggleSidebar,
     }),
-    [open, setOpen, isMobile, openMobile, toggleSidebar],
+    [open, setOpen, openMobile, toggleSidebar],
   );
   return (
     <SidebarContext value={value}>
