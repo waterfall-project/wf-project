@@ -38,14 +38,23 @@ export interface Examples {
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators";
   };
+  "GET /projects/{project_id}/indicators/cost-curve": {
+    200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays";
+  };
+  "GET /projects/{project_id}/indicators/earned-value-curves": {
+    200: "earned_value_curves";
+  };
   "GET /projects/{project_id}/indicators/index-history": {
     200: "index_history";
+  };
+  "GET /projects/{project_id}/indicators/milestone-tracking": {
+    200: "milestone_tracking" | "milestone_tracking_none";
   };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
   };
   "GET /projects/{project_id}/revisions": {
-    200: "revisions" | "revisions_empty";
+    200: "revisions" | "revisions_empty" | "revisions_marked";
   };
   "GET /projects/{project_id}/revisions/comparison": {
     200: "comparison" | "comparison_identical";
@@ -71,6 +80,9 @@ export interface Examples {
   "GET /projects/{project_id}/subprojects": {
     200: "subprojects";
   };
+  "GET /projects/{project_id}/workload": {
+    200: "workload" | "workload_marked_remaining" | "workload_reference_budget";
+  };
   "GET /reference/cost-categories": {
     200: "volume/cost_categories";
   };
@@ -82,6 +94,9 @@ export interface Examples {
   };
   "GET /reference/hourly-rates": {
     200: "volume/hourly_rate_grid";
+  };
+  "GET /reference/org-nodes": {
+    200: "org_nodes";
   };
   "GET /reference/readiness": {
     200: "reference_readiness" | "reference_readiness_incomplete";

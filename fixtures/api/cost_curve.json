@@ -1,0 +1,72 @@
+{
+  "summary": "La courbe de coûts cumulés du projet au 16 mars 2026 : le budget de référence, porté par les études de détail du 2 mars au 10 avril, atteint ses 100 000 le 10 avril et reste à ce niveau jusqu'à la fin de la référence, le 30 juin ; le coût réel, nul, s'arrête à la date de calcul ; la projection du chef de projet en part et étale le reste à engager sur les dates de la révision courante jusqu'au 30 septembre. Aucune marche : le budget de référence n'a pas changé depuis sa désignation (WF-IND-0100).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "revision_status": "draft",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "payment_delays": false,
+    "series": [
+      {
+        "name": "reference_budget",
+        "points": [
+          {
+            "date": "2026-03-01",
+            "amount": "0.00"
+          },
+          {
+            "date": "2026-03-31",
+            "amount": "73333.33"
+          },
+          {
+            "date": "2026-04-10",
+            "amount": "100000.00"
+          },
+          {
+            "date": "2026-06-30",
+            "amount": "100000.00"
+          }
+        ]
+      },
+      {
+        "name": "actual_cost",
+        "points": [
+          {
+            "date": "2026-03-01",
+            "amount": "0.00"
+          },
+          {
+            "date": "2026-03-16",
+            "amount": "0.00"
+          }
+        ]
+      },
+      {
+        "name": "project_manager_projection",
+        "points": [
+          {
+            "date": "2026-03-16",
+            "amount": "0.00"
+          },
+          {
+            "date": "2026-03-31",
+            "amount": "60000.00"
+          },
+          {
+            "date": "2026-04-10",
+            "amount": "100000.00"
+          },
+          {
+            "date": "2026-09-30",
+            "amount": "100000.00"
+          }
+        ]
+      }
+    ],
+    "steps": [],
+    "cash_out_by_month": null
+  }
+}

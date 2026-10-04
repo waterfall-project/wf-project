@@ -1,0 +1,52 @@
+{
+  "summary": "Le diagramme temps/temps du projet au 16 mars 2026 : deux jalons inscrits au suivi, un point par révision marquée — l'offre et la référence — et le dernier au jour courant pour la révision en cours. La réception des études, repoussée de deux semaines par la référence, n'a plus bougé ; la réception en usine, tenue jusqu'à la référence, glisse de trois mois dans la révision en cours. Aucun n'est terminé (WF-IND-0090).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "revision_status": "draft",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "milestones": [
+      {
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000625",
+        "label": "Réception des études",
+        "completed_on": null,
+        "points": [
+          {
+            "marked_at": "2025-12-15T16:00:00Z",
+            "forecast_date": "2026-04-10"
+          },
+          {
+            "marked_at": "2026-02-01T09:00:00Z",
+            "forecast_date": "2026-04-24"
+          },
+          {
+            "marked_at": "2026-03-16T14:05:00Z",
+            "forecast_date": "2026-04-24"
+          }
+        ]
+      },
+      {
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000612",
+        "label": "Réception usine",
+        "completed_on": null,
+        "points": [
+          {
+            "marked_at": "2025-12-15T16:00:00Z",
+            "forecast_date": "2026-06-30"
+          },
+          {
+            "marked_at": "2026-02-01T09:00:00Z",
+            "forecast_date": "2026-06-30"
+          },
+          {
+            "marked_at": "2026-03-16T14:05:00Z",
+            "forecast_date": "2026-09-30"
+          }
+        ]
+      }
+    ]
+  }
+}

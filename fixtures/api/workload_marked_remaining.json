@@ -1,0 +1,50 @@
+{
+  "summary": "Le même plan de charge sur les montants réestimés de la révision marquée « Référence », nommée par revision_id : à son marquage, les 12,5 heures du raccordement des borniers, portées par le câblage des armoires du 4 mai au 30 juin, réparties au prorata des heures travaillées de chaque mois — 5,95 en mai, 6,55 en juin (WF-DEV-0070).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+      "revision_status": "marked",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "basis": "marked_remaining",
+    "roles": [
+      {
+        "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+        "label": "Ingénieur électricien",
+        "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+        "capacity_monthly_hours": "910.02",
+        "months": [
+          {
+            "month": "2026-05",
+            "hours": "5.95",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.0065",
+              "reason": null
+            },
+            "zone": "nominal"
+          },
+          {
+            "month": "2026-06",
+            "hours": "6.55",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.0072",
+              "reason": null
+            },
+            "zone": "nominal"
+          }
+        ]
+      },
+      {
+        "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+        "label": "Technicien de mise en service",
+        "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+        "capacity_monthly_hours": "606.68",
+        "months": []
+      }
+    ]
+  }
+}

@@ -518,6 +518,28 @@ tâche en mode manuel. La colonne et le champ calculé suivent (`NodeColumn.tota
 `ComputedValueField` `task.total_float`), et la grille de planning l'écrit comme une durée, par
 sa valeur et son unité.
 
+## Les exemples des courbes et du plan de charge (US-0240/L2)
+
+**Les lectures des courbes et du plan de charge ont leurs exemples** (#246, autorisation de
+l'utilisateur du 2026-10-04 : un lot d'écran ajoute les exemples des opérations qu'il consomme).
+Sans eux, le faux back tirait de leurs schémas des valeurs sans rapport avec l'univers témoin, et
+les tests du front n'avaient rien du contrat à lire. Tous sont au 16 mars 2026, sur la révision
+courante du projet témoin, et tiennent les chiffres de `project_indicators` — budget de référence
+de 100 000 porté par les études de détail du 2 mars au 10 avril, valeur planifiée de 33 333,33,
+aucun coût réel ni valeur acquise. `milestone_tracking` (`getMilestoneTracking`) suit deux jalons,
+la réception des études et la réception usine, par l'offre v1.0, la référence et la révision en
+cours ; `milestone_tracking_none`, un projet sans jalon inscrit. `cost_curve` (`getCostCurve`) est la courbe sans délais de paiement, sans marche ;
+`cost_curve_payment_delays`, les décaissements, chaque série translatée de trente jours et les
+mois à venir égaux au reste à engager ; `cost_curve_amendment`, la marche d'un avenant de 15 000
+contractualisé le 10 mars — `steps[].amount` y est le montant de la marche. `earned_value_curves`
+(`getEarnedValueCurves`) prolonge la valeur planifiée jusqu'à la fin de la référence. Le plan de
+charge (`getProjectWorkload`) a un exemple par base — `workload` sur le reste de la révision en
+cours, `workload_reference_budget`, `workload_marked_remaining` sur la référence — : les 12,5 heures
+de main-d'œuvre du devis témoin réparties sur mai et juin, la capacité de chaque rôle en regard,
+un rôle sans charge compris. L'écran du plan de charge lit aussi `org_nodes` (`listOrgNodes`),
+pour offrir le filtre par nœud d'organisation, et `revisions_marked` (`listRevisions` filtrée sur
+`status=marked`), pour offrir les révisions marquées comme base.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
