@@ -70,7 +70,9 @@ export function Figure({
   );
 }
 
-/** Render the value of the portfolio: order book, pipeline raw and weighted, delivered, conversion. */
+/**
+ * Render the value of the portfolio: order book, pipeline raw and weighted, delivered, conversion.
+ */
 export function PortfolioValueView({ value }: { readonly value: Schemas["PortfolioValue"] }) {
   const t = useTranslations("portfolio.value");
   const locale = useLocale();

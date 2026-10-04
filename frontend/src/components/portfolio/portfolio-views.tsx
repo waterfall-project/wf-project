@@ -1,17 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The figures and the tables of the views of the portfolio (FBS-2.2 to FBS-2.7), each as the
- * server computes it on the perimeter retained: its performance (WF-PTF-0070), the structure of its costs (WF-PTF-0080), its risks (WF-PTF-0090), its
- * aggregated workload (WF-PTF-0060) and the health of its steering (WF-PTF-0110). Nothing is summed,
- * averaged, divided, sorted nor filtered here (WF-ARC-0020): a sum is marked computed, Σ
- * (WF-IHM-0030), a value the server could not compute is said so with its reason, never zero, and
- * a zone is the one the server classes, shown by the one signal (WF-IHM-0070). Every figure carries
- * the date of calculation of its view, under its title (`PortfolioHeader`). Each project named opens
- * (WF-PTF-0030). Nothing is entered: the views consolidate, they do not modify.
+ * The figures and the tables of the views of the portfolio (FBS-2.2 to FBS-2.7), each as the server
+ * computes it on the perimeter retained: its performance (WF-PTF-0070), the structure of its costs
+ * (WF-PTF-0080), its risks (WF-PTF-0090), its aggregated workload (WF-PTF-0060) and the health of
+ * its steering (WF-PTF-0110). Nothing is summed, averaged, divided, sorted nor filtered here
+ * (WF-ARC-0020): a sum is marked computed, Σ (WF-IHM-0030), a value the server could not compute is
+ * said so with its reason, never zero, and a zone is the one the server classes, shown by the one
+ * signal (WF-IHM-0070). Every figure carries the date of calculation of its view, under its title
+ * (`PortfolioHeader`). Each project named opens (WF-PTF-0030). Nothing is entered: the views
+ * consolidate, they do not modify.
  */
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
@@ -61,6 +62,7 @@ export function PerformanceView({
   readonly performance: Schemas["PortfolioPerformance"];
 }) {
   const t = useTranslations();
+  const format = useFormatter();
   const { projections } = performance;
   const rows = [
     [
@@ -140,7 +142,9 @@ export function PerformanceView({
               <TableCell className={CELL}>
                 <Signal zone={entry.zone} />
               </TableCell>
-              <TableCell className={`${CELL} tabular-nums`}>{entry.project_count}</TableCell>
+              <TableCell className={`${CELL} tabular-nums`}>
+                {format.number(entry.project_count)}
+              </TableCell>
             </TableRow>
           ))}
         </ListTable>
@@ -245,6 +249,8 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
 export function WorkloadView({ workload }: { readonly workload: Schemas["PortfolioWorkload"] }) {
   const t = useTranslations("portfolio.workload");
   const locale = useLocale();
+  // The months of the first role head the columns: the contract does not say that every role has
+  // the same months (#326).
   const months = workload.roles[0]?.months.map((month) => month.month) ?? [];
   if (workload.roles.length === 0) {
     return <p className="text-sm text-muted-foreground">{t("none")}</p>;
@@ -300,7 +306,8 @@ export function PilotHealthView({ health }: { readonly health: Schemas["PilotHea
       ]}
     >
       {health.signals.map((signal, rank) => (
-        // A project may give the same signal twice — two milestones overdue —: its rank tells them apart.
+        // A project may give the same signal twice — two milestones overdue —: its rank tells them
+        // apart.
         <TableRow key={`${signal.project_id}-${signal.code}-${rank.toString()}`}>
           <TableCell className={CELL}>
             <ProjectLink id={signal.project_id} label={signal.project_label} />

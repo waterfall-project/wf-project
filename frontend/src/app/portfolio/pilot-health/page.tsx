@@ -3,8 +3,8 @@
 /**
  * The health of the steering of the portfolio (FBS-2.7, WF-PTF-0110), at the route of its function:
  * the signals of the projects in progress whose review is overdue, whose risks were not reviewed,
- * whose actual costs were not imported, or whose contractual milestone is passed, each with the zone
- * the server classes it in (WF-IHM-0070) and its project, which it opens.
+ * whose actual costs were not imported, or whose contractual milestone is passed, each with the
+ * zone the server classes it in (WF-IHM-0070) and its project, which it opens.
  */
 import type { Metadata } from "next";
 

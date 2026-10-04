@@ -5,8 +5,8 @@
  * is computed on, under the names of the contract — the states retained, `states`, its values
  * separated by commas (`explode: false`); the period of the projects completed and of the
  * statistics of a period, `from` and `to`; the date of calculation, `as_of`; the node of
- * organisation whose roles the labour lines are restricted to, `org_node_id` — and the parameters of
- * a view: its horizon, `horizon_months`, and the threshold of under-load the user chooses at the
+ * organisation whose roles the labour lines are restricted to, `org_node_id` — and the parameters
+ * of a view: its horizon, `horizon_months`, and the threshold of under-load the user chooses at the
  * consultation, `under_load_threshold` (WF-PTF-0060), neither kept from one consultation to the
  * next. A choice only changes the address, and the page reads anew: the server computes, sorts and
  * filters, the front nothing (WF-ARC-0020).
@@ -40,11 +40,23 @@ export const THRESHOLD = "under_load_threshold";
  */
 export const PORTFOLIO_STATES: readonly ProjectState[] = ["in_progress", "pricing", "completed"];
 
-/** The horizons a view offers, in months: half a year, a year, two years. */
+/**
+ * The horizons a view proposes, in months: half a year, a year, two years. Proposals only: any
+ * horizon the contract takes, from 1 to 240 months, is asked when the address names it.
+ */
 export const HORIZONS = ["6", "12", "24"] as const;
 
-/** The thresholds of under-load the aggregated workload offers, as the contract writes them. */
+/** The longest horizon the contract takes, in months. */
+const LONGEST_HORIZON = 240;
+
+/**
+ * The thresholds of under-load the aggregated workload proposes, as the contract writes them.
+ * Proposals only: any threshold the contract takes is asked when the address names it.
+ */
 export const THRESHOLDS = ["0.3", "0.5", "0.7"] as const;
+
+/** A decimal as the contract writes a `Percent`. */
+const DECIMAL = /^-?\d+(\.\d+)?$/;
 
 /** The perimeter the address asks; what it does not name, the server chooses. */
 export interface Perimeter {
@@ -90,14 +102,18 @@ export function readPerimeter(search: SearchParameters): Perimeter {
   };
 }
 
-/** One of the values a parameter of a view offers, as the address names it; none otherwise. */
-export function readChoice<Value extends string>(
-  search: SearchParameters,
-  name: string,
-  offered: readonly Value[],
-): Value | undefined {
-  const value = search.get(name);
-  return offered.find((each) => each === value);
+/** The horizon the address asks, a whole number of months the contract takes; none otherwise. */
+export function readHorizon(search: SearchParameters): string | undefined {
+  const value = search.get(HORIZON);
+  return value !== null && /^[1-9]\d{0,2}$/.test(value) && Number(value) <= LONGEST_HORIZON
+    ? value
+    : undefined;
+}
+
+/** The threshold of under-load the address asks, a `Percent` of the contract; none otherwise. */
+export function readThreshold(search: SearchParameters): string | undefined {
+  const value = search.get(THRESHOLD);
+  return value !== null && DECIMAL.test(value) ? value : undefined;
 }
 
 /**

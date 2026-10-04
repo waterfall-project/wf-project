@@ -3,12 +3,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  HORIZON,
-  HORIZONS,
   parametersHref,
   perimeterQuery,
-  readChoice,
+  readHorizon,
   readPerimeter,
+  readThreshold,
   statesValue,
 } from "./address";
 
@@ -65,8 +64,13 @@ describe("the address of a view of the portfolio", () => {
     expect(statesValue([])).toBeUndefined();
   });
 
-  it("reads a parameter of a view among the values it offers alone", () => {
-    expect(readChoice(new URLSearchParams("horizon_months=12"), HORIZON, HORIZONS)).toBe("12");
-    expect(readChoice(new URLSearchParams("horizon_months=7"), HORIZON, HORIZONS)).toBeUndefined();
+  it("reads any horizon and any threshold the contract takes, and those alone", () => {
+    expect(readHorizon(new URLSearchParams("horizon_months=36"))).toBe("36");
+    expect(readHorizon(new URLSearchParams("horizon_months=240"))).toBe("240");
+    for (const refused of ["0", "241", "012", "1.5", "six"]) {
+      expect(readHorizon(new URLSearchParams(`horizon_months=${refused}`))).toBeUndefined();
+    }
+    expect(readThreshold(new URLSearchParams("under_load_threshold=0.45"))).toBe("0.45");
+    expect(readThreshold(new URLSearchParams("under_load_threshold=50%"))).toBeUndefined();
   });
 });

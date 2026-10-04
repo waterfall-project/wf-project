@@ -177,9 +177,12 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain("In progress · 269 projects · calculated on 16 Mar 2026");
     expect(page).toMatch(/Cost index 0\.94 Nominal Schedule index 0\.91 Nominal/);
     expect(page).toMatch(/At the observed rate .*2,757,435,807\.65 .*160,146,307\.65/);
-    expect(page).toContain("Cost index Alert 53");
-    expect(markup.match(/text-signal-alert/g)).toHaveLength(2);
-    expect(page).toContain("Q1 2026");
+    expect(page).toContain(
+      "Cost index Nominal 168 Cost index Watch 47 Cost index Alert 53 Schedule index Nominal 152",
+    );
+    expect(page).toContain(
+      "Q2 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date.",
+    );
   });
 
   it("presents the structure of the costs by nature and the labour by node, and no breakdown of the actual cost", async () => {
@@ -194,10 +197,13 @@ describe("the screens of the portfolio", () => {
     const markup = await render(RisksPage);
     const page = text(markup);
     expect(page).toMatch(/Provisions of the identified risks .*174,007,479\.90/);
+    expect(markup.match(/href="\/projects\/[\w-]+"/g)).toHaveLength(10);
     expect(markup).toContain(
       'href="/projects/01926f3a-7c00-7000-8000-000300000182">Automatisation de l&#x27;atelier de montage — Dunkerque</a>',
     );
     expect(page).toContain("Risk matrix");
+    // The cell of the highest probability and severity, by its signal and its count.
+    expect(markup).toMatch(/aria-label="Alert"(?:(?!<\/td>)[\s\S])*?<\/span>32<\/span>/);
   });
 
   it("signals a month of a role over its capacity, and sends the horizon and the threshold chosen [WF-PTF-0060-A]", async () => {
@@ -214,6 +220,28 @@ describe("the screens of the portfolio", () => {
     expect(text(markup)).toContain("Ingénieur électricien 910.02 h");
   });
 
+  it("shows the threshold of under-load the server retained when the address names none", async () => {
+    const markup = await render(WorkloadPage);
+    expect(queryOf("GET /portfolio/workload")).toEqual({});
+    expect(markup).toContain('<option value="0.5" selected="">50%</option>');
+  });
+
+  it("asks any horizon the contract takes, and shows it chosen", async () => {
+    const markup = await render(CashOutPage, { horizon_months: "36" });
+    expect(queryOf("GET /portfolio/cash-out")).toEqual({ horizon_months: "36" });
+    expect(markup).toContain('<option value="36" selected="">36 months</option>');
+  });
+
+  it("stands without a node to choose when the API does not find the nodes of organisation", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const markup = await render(PerformancePage);
+    expect(text(markup)).toMatch(/Cost index 0\.94 Nominal/);
+    expect(markup).not.toContain("Organisation node");
+  });
+
   it("sends the horizon of the cash-out, and lists its months", async () => {
     const page = text(await render(CashOutPage, { horizon_months: "24" }));
     expect(queryOf("GET /portfolio/cash-out")).toEqual({ horizon_months: "24" });
@@ -227,13 +255,36 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain("Periodic review overdue Watch");
     expect(page).toContain("Contractual milestone overdue Alert");
   });
-  it("sends a node of organisation to the views that take one, and to those alone", async () => {
-    const asked = { org_node_id: DESIGN_OFFICE, from: "2025-01-01" };
-    await render(PerformancePage, asked);
-    await render(CostStructurePage, asked);
-    await render(RisksPage, asked);
-    expect(queryOf("GET /portfolio/performance")).toEqual(asked);
-    expect(queryOf("GET /portfolio/cost-structure")).toEqual({ org_node_id: DESIGN_OFFICE });
-    expect(queryOf("GET /portfolio/risks")).toEqual({ from: "2025-01-01" });
-  });
+  // The whole perimeter asked, and what each view sends of it, as its operation takes it.
+  const ASKED = {
+    states: "in_progress,pricing",
+    from: "2025-01-01",
+    to: "2025-12-31",
+    as_of: "2026-03-16",
+    org_node_id: DESIGN_OFFICE,
+    horizon_months: "12",
+    under_load_threshold: "0.4",
+  };
+  const DATE = { states: ASKED.states, as_of: ASKED.as_of };
+  const PERIOD = { from: ASKED.from, to: ASKED.to };
+  const NODE = { org_node_id: DESIGN_OFFICE };
+  it.each([
+    ["performance", PerformancePage, "GET /portfolio/performance", { ...DATE, ...PERIOD, ...NODE }],
+    ["cost structure", CostStructurePage, "GET /portfolio/cost-structure", { ...DATE, ...NODE }],
+    ["risks", RisksPage, "GET /portfolio/risks", { ...DATE, ...PERIOD }],
+    [
+      "workload",
+      WorkloadPage,
+      "GET /portfolio/workload",
+      { ...DATE, ...NODE, horizon_months: "12", under_load_threshold: "0.4" },
+    ],
+    ["cash-out", CashOutPage, "GET /portfolio/cash-out", { ...DATE, horizon_months: "12" }],
+    ["health of the steering", PilotHealthPage, "GET /portfolio/pilot-health", DATE],
+  ] as const)(
+    "sends of the perimeter what the %s takes, and that alone",
+    async (_view, page: PortfolioPage, route, expected) => {
+      await render(page, ASKED);
+      expect(queryOf(route)).toEqual(expected);
+    },
+  );
 });

@@ -4,12 +4,12 @@
  * The perimeter of a view of the portfolio, as the user chooses it (WF-PTF-0010): the states it
  * retains — the projects in progress, to which the offers in pricing may be added, and the projects
  * completed —, the period and the date of calculation, the node of organisation whose roles the
- * labour lines are restricted to, named with its parent as the server gives them —, and the
- * horizon and the threshold of under-load (WF-PTF-0060), for the views that take them. A choice only changes the address, under
- * the names of the contract, and the page reads anew what the server computes on it. A state shows
- * pressed as the address asks it, or, when the address asks none, as the server retained it by
- * default (`scope.states`): the front assumes no default of its own. A change goes on from the
- * address last asked (`usePendingAddress`).
+ * labour lines are restricted to, named with its parent as the server gives them —, and the horizon
+ * and the threshold of under-load (WF-PTF-0060), for the views that take them. A choice only
+ * changes the address, under the names of the contract, and the page reads anew what the server
+ * computes on it. A state shows pressed as the address asks it, or, when the address asks none, as
+ * the server retained it by default (`scope.states`): the front assumes no default of its own. A
+ * change goes on from the address last asked (`usePendingAddress`).
  */
 "use client";
 
@@ -199,6 +199,14 @@ function ViewChoice({
   );
 }
 
+/**
+ * The values a parameter of a view proposes, and the one chosen when it is none of them: a value
+ * the address asks, or the one the server retained, shows chosen under its own name.
+ */
+function withChosen(proposed: readonly string[], chosen: string | undefined): readonly string[] {
+  return chosen === undefined || proposed.includes(chosen) ? proposed : [...proposed, chosen];
+}
+
 /** A node of organisation the labour may be restricted to, named with its parent by the server. */
 export interface NodeChoice {
   readonly id: string;
@@ -206,13 +214,18 @@ export interface NodeChoice {
   readonly parent: string | null;
 }
 
-/** The parameters of a view the address asks: its horizon, its threshold; none, not offered. */
+/**
+ * The parameters of a view: its horizon, its threshold — as the address asks them, or, for the
+ * threshold the address does not name, as the server retained it —; a key absent, not offered.
+ */
 export interface ViewParameters {
   readonly horizon?: string | undefined;
   readonly threshold?: string | undefined;
 }
 
-/** What the perimeter shows: what the address asks, what the server retained, what the view takes. */
+/**
+ * What the perimeter shows: what the address asks, what the server retained, what the view takes.
+ */
 export interface PerimeterBarProps {
   readonly perimeter: Perimeter;
   readonly retained: readonly ProjectState[];
@@ -244,7 +257,8 @@ export function PerimeterBar({
         perimeter={perimeter}
         fields={takes.period ? DATES.period : DATES.date}
       />
-      {takes.node ? (
+      {/* No node to choose — none in the reference, none the API lets one read —: none offered. */}
+      {takes.node && nodes.length > 0 ? (
         <ViewChoice
           name={ORG_NODE}
           label={t("orgNode")}
@@ -268,7 +282,10 @@ export function PerimeterBar({
           label={t("horizon")}
           none={t("byDefault")}
           value={view.horizon}
-          offered={HORIZONS.map((months) => ({ value: months, label: t("months", { months }) }))}
+          offered={withChosen(HORIZONS, view.horizon).map((months) => ({
+            value: months,
+            label: t("months", { months }),
+          }))}
           write={(value) => {
             change(() => ({ [HORIZON]: value }));
           }}
@@ -280,7 +297,10 @@ export function PerimeterBar({
           label={t("threshold")}
           none={t("byDefault")}
           value={view.threshold}
-          offered={THRESHOLDS.map((value) => ({ value, label: formatPercent(value, locale) }))}
+          offered={withChosen(THRESHOLDS, view.threshold).map((value) => ({
+            value,
+            label: formatPercent(value, locale),
+          }))}
           write={(value) => {
             change(() => ({ [THRESHOLD]: value }));
           }}

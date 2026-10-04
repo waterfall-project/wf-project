@@ -11,13 +11,7 @@ import type { Metadata } from "next";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { PendingAddress } from "@/components/grid/pending-address";
-import {
-  HORIZON,
-  HORIZONS,
-  perimeterQuery,
-  readChoice,
-  readPerimeter,
-} from "@/components/portfolio/address";
+import { perimeterQuery, readHorizon, readPerimeter } from "@/components/portfolio/address";
 import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { CashOutChart } from "@/components/portfolio/portfolio-charts";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
@@ -43,7 +37,7 @@ export default async function PortfolioCashOutPage({
 }) {
   const search = pageSearch(await searchParams);
   const perimeter = readPerimeter(search);
-  const horizon = readChoice(search, HORIZON, HORIZONS);
+  const horizon = readHorizon(search);
   const answer = await readOrFail("getPortfolioCashOut", () =>
     serverClient().GET("/portfolio/cash-out", {
       params: {

@@ -35,7 +35,9 @@ export function portfolioLabel(fn: PortfolioFunction) {
   return LABELS[fn];
 }
 
-/** The perimeter the server retained, in a sentence: states, projects, period, date of calculation. */
+/**
+ * The perimeter the server retained, in a sentence: states, projects, period, date of calculation.
+ */
 function ScopeLine({ scope }: { readonly scope: PortfolioScope }) {
   const t = useTranslations();
   const format = useFormatter();

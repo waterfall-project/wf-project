@@ -16,11 +16,12 @@ import { example, fakeClient } from "@/test/fixtures";
 import { type Perimeter, readPerimeter, type Takes } from "./address";
 
 import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter";
-import { CashOutChart, QuarterlyChart } from "./portfolio-charts";
+import { CashOutChart, monthAfter, QuarterlyChart } from "./portfolio-charts";
 import type { ProjectPage, ProjectRow } from "./portfolio-grid";
 import { ProjectsGrid } from "./projects-grid";
 
-// The server of Next, as far as the screen needs it: the preferences it writes, the address it reads.
+// The server of Next, as far as the screen needs it: the preferences it writes, the address it
+// reads.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 const page = vi.hoisted(() => ({ search: "" }));
@@ -234,7 +235,7 @@ describe("the perimeter of a view of the portfolio", () => {
     expect(await lastAddress()).toBe(`${PATHNAME}?org_node_id=node-471`);
   });
 
-  it("offers the horizon and the threshold of a view [WF-PTF-0060-A]", async () => {
+  it("offers the horizon and the threshold of a view", async () => {
     render(
       perimeterBar("", { period: false, node: false }, { horizon: undefined, threshold: "0.5" }),
     );
@@ -252,7 +253,7 @@ describe("the charts of the portfolio", () => {
     const rows = within(figure).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
       "QuarterCost indexSchedule index",
-      "Q2 20250.970.98",
+      "Q2 2025Not computable — No actual cost at the calculation date.Not computable — No planned value at the calculation date.",
       "Q3 20250.950.96",
       expect.stringMatching(/^Q4 2025/),
       "Q1 20260.940.91",
@@ -266,5 +267,10 @@ describe("the charts of the portfolio", () => {
     expect(within(figure).getByRole("row", { name: /mars 2026/ })).toHaveTextContent(
       `mars 202631${NARROW}864${NARROW}205,1038${NARROW}215${NARROW}760,00`,
     );
+  });
+
+  it("ends the step of the last month at the first of the next", () => {
+    expect(monthAfter("2026-09")).toBe("2026-10");
+    expect(monthAfter("2026-12")).toBe("2027-01");
   });
 });

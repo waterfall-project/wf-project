@@ -26,6 +26,8 @@ import {
 } from "@/components/chart/chart";
 import { formatDecimal, formatLocale, formatMoney, formatMonth } from "@/i18n/format";
 
+import { ComputableValue } from "./portfolio-value";
+
 type Quarter = components["schemas"]["PortfolioPerformance"]["quarterly"][number];
 type CashOutMonth = components["schemas"]["CashOutMonth"];
 type Computable = components["schemas"]["Computable"];
@@ -92,10 +94,9 @@ export function QuarterlyChart({ quarters }: { readonly quarters: readonly Quart
     }),
     [quarters, locale, t, name],
   );
-  const value = (computable: Computable) =>
-    computable.is_computable && computable.value !== null && computable.value !== undefined
-      ? formatDecimal(computable.value, locale)
-      : t("indicator.notComputable");
+  const value = (computable: Computable) => (
+    <ComputableValue value={computable} format={(index) => formatDecimal(index, locale)} />
+  );
   return (
     <Chart
       title={t("portfolio.performance.quarterly")}
@@ -129,10 +130,26 @@ export function QuarterlyChart({ quarters }: { readonly quarters: readonly Quart
 /** The two parts of a month of cash-out, as the contract names them. */
 const PARTS = ["past", "forecast"] as const;
 
-/** Render the cash-out of the portfolio month by month, the past and the forecast, and its table. */
+/**
+ * The month after a month of the contract (`2026-09` → `2026-10`): where the last month of a
+ * cash-out ends on its axis. A position of the drawing, never a figure the screen shows.
+ */
+export function monthAfter(month: string): string {
+  const [year = 0, number = 0] = month.split("-").map(Number);
+  return number === 12
+    ? `${String(year + 1)}-01`
+    : `${String(year)}-${String(number + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Render the cash-out of the portfolio month by month, the past and the forecast, and its table.
+ */
 export function CashOutChart({ months }: { readonly months: readonly CashOutMonth[] }) {
   const t = useTranslations("portfolio.cashOut");
   const locale = useLocale();
+  const last = months.at(-1);
+  // The last month holds until the first of the next, as every other: its step ends there.
+  const end = last === undefined ? undefined : planningInstant(monthAfter(last.month));
   const option = useCallback(
     (palette: ChartPalette): ChartOption => ({
       // Its axis of time is in UTC, a month having no time zone: its ticks too (`timeAxis`).
@@ -142,23 +159,33 @@ export function CashOutChart({ months }: { readonly months: readonly CashOutMont
       xAxis: timeAxis(
         palette,
         formatLocale(locale),
-        months.map((month) => planningInstant(month.month)),
+        [
+          ...months.map((month) => planningInstant(month.month)),
+          ...(end === undefined ? [] : [end]),
+        ],
         true,
       ),
       yAxis: valueAxis(palette, formatLocale(locale)),
-      series: PARTS.map((part, rank) => ({
-        name: t(part),
-        // An amount of a month holds over the month, from its first day: a step at the next, never
-        // a slope between them.
-        step: "end" as const,
-        ...curve(
+      series: PARTS.map((part, rank) => {
+        const drawn = curve(
           palette,
           rank,
           months.map((month) => [planningInstant(month.month), month[part]] as const),
-        ),
-      })),
+        );
+        return {
+          name: t(part),
+          // An amount of a month holds over the month, from its first day: a step at the next,
+          // never a slope between them — the last one too, to the end of its month, unmarked.
+          step: "end" as const,
+          ...drawn,
+          data:
+            last === undefined || end === undefined
+              ? drawn.data
+              : [...drawn.data, { value: [end, last[part]], symbol: "none" }],
+        };
+      }),
     }),
-    [months, locale, t],
+    [months, last, end, locale, t],
   );
   return (
     <Chart title={t("chartTitle")} description={t("description")} option={option}>

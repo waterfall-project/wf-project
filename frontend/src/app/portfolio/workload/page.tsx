@@ -6,7 +6,8 @@
  * rate of load, each month with the zone the server classes it in — overload and under-load alike
  * (WF-IHM-0070). The horizon and the threshold of under-load are parameters of the view, in the
  * address (`horizon_months`, `under_load_threshold`), never preferences kept from one consultation
- * to the next; the server reads them, the front computes nothing.
+ * to the next; the server reads them, the front computes nothing. A threshold the address does not
+ * name shows as the server retained it.
  */
 import type { Metadata } from "next";
 
@@ -14,13 +15,10 @@ import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { PendingAddress } from "@/components/grid/pending-address";
 import {
-  HORIZON,
-  HORIZONS,
   perimeterQuery,
-  readChoice,
+  readHorizon,
   readPerimeter,
-  THRESHOLD,
-  THRESHOLDS,
+  readThreshold,
 } from "@/components/portfolio/address";
 import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
@@ -48,20 +46,22 @@ export default async function PortfolioWorkloadPage({
 }) {
   const search = pageSearch(await searchParams);
   const perimeter = readPerimeter(search);
-  const horizon = readChoice(search, HORIZON, HORIZONS);
-  const threshold = readChoice(search, THRESHOLD, THRESHOLDS);
-  const nodes = readNodes();
-  const answer = await readOrFail("getPortfolioWorkload", () =>
-    serverClient().GET("/portfolio/workload", {
-      params: {
-        query: {
-          ...perimeterQuery(perimeter, TAKES),
-          ...(horizon === undefined ? {} : { horizon_months: Number(horizon) }),
-          ...(threshold === undefined ? {} : { under_load_threshold: threshold }),
+  const horizon = readHorizon(search);
+  const threshold = readThreshold(search);
+  const [answer, nodes] = await Promise.all([
+    readOrFail("getPortfolioWorkload", () =>
+      serverClient().GET("/portfolio/workload", {
+        params: {
+          query: {
+            ...perimeterQuery(perimeter, TAKES),
+            ...(horizon === undefined ? {} : { horizon_months: Number(horizon) }),
+            ...(threshold === undefined ? {} : { under_load_threshold: threshold }),
+          },
         },
-      },
-    }),
-  );
+      }),
+    ),
+    readNodes(),
+  ]);
   return (
     <PendingAddress>
       <Screen density={FUNCTION_DENSITY.portfolio_workload}>
@@ -70,8 +70,8 @@ export default async function PortfolioWorkloadPage({
           perimeter={perimeter}
           retained={answer.scope.states}
           takes={TAKES}
-          nodes={await nodes}
-          view={{ horizon, threshold }}
+          nodes={nodes}
+          view={{ horizon, threshold: threshold ?? answer.under_load_threshold }}
         />
         <WorkloadView workload={answer} />
       </Screen>
