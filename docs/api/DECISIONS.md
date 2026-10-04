@@ -558,6 +558,29 @@ retirée), `risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de
 `risk_matrix` (les seize cases, les bornes, les trois risques placés), dans l'univers des autres
 exemples.
 
+## Les coûts réels d'un projet (US-0230/L3)
+
+Ajouts de lecture que l'écran des coûts réels exige, faits par son lot sur la même autorisation
+de l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »).
+
+**Une ligne de coût nomme son sous-projet** (`ActualCostLine.subproject_code`,
+`subproject_label`). La consultation présente l'imputation de chaque ligne (WF-CRE-0010,
+WF-CRE-0020) ; la ligne ne la portait que par `subproject_id`, que l'écran ne pouvait nommer
+qu'en rapprochant `listSubprojects` de chaque page, dans le front (WF-ARC-0020). Le code ERP et
+le libellé, résolus à la lecture, exigés, nuls pour une ligne imputée au seul projet — « hors
+sous-projet » —, comme le libellé d'un écart l'est pour la clé `unassigned` de
+`RevisionComparison`. Écarté : un objet `subproject` imbriqué, qui redirait l'identifiant.
+
+**Exemples** : `actual_costs` (au 4 mai 2026, quatre lignes hors sous-projet — les codes de
+sous-projet de l'ERP ne sont pas ceux du projet —, dont un avoir de -200 et la réception du
+client exclue du périmètre suivi ; 3 000 suivis, le coût réel de `remaining_indicators_over_budget`,
+650 exclus, 3 650 en tout ; le dernier import du 4 mai), `actual_costs_page` (la même
+consultation lue une ligne par page, la deuxième ; les totaux de toutes les lignes retenues),
+`actual_costs_subproject` (filtrée sur le Poste de commande, après l'import du 3 juin : une
+facture imputée au sous-projet, nommé), `actual_costs_empty` (aucun import) ; `cost_imports`
+(les imports de mars et d'avril, une ligne d'un autre projet ignorée) et `cost_imports_empty`.
+Ils restent dans l'univers des indicateurs, sans coût réel au 16 mars (`project_indicators`).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

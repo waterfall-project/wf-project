@@ -26,8 +26,14 @@ export interface Examples {
   "GET /projects/{project_id}": {
     200: "project" | "project_pricing";
   };
+  "GET /projects/{project_id}/actual-costs": {
+    200: "actual_costs" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
+  };
   "GET /projects/{project_id}/contributors": {
     200: "contributors";
+  };
+  "GET /projects/{project_id}/cost-imports": {
+    200: "cost_imports" | "cost_imports_empty";
   };
   "GET /projects/{project_id}/estimate-indicators": {
     200: "estimate_indicators" | "estimate_indicators_breakdown" | "estimate_indicators_missing_rates" | "volume/estimate_indicators";

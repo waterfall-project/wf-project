@@ -1,0 +1,49 @@
+{
+  "summary": "La consultation filtrée sur le sous-projet Poste de commande (subproject_id), après l'import de mai du 3 juin 2026 : une facture imputée au sous-projet, nommé par son code et son libellé (WF-CRE-0020, WF-CRE-0040).",
+  "value": {
+    "items": [
+      {
+        "cost_line_id": "01926f3a-7c00-7000-8000-000000000c05",
+        "document_number": "FA-2026-0521",
+        "document_date": "2026-05-18",
+        "amount": "2400.00",
+        "project_id": "01926f3a-7c00-7000-8000-000000000001",
+        "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+        "subproject_code": "SP-CMD",
+        "subproject_label": "Poste de commande",
+        "is_in_tracked_scope": true,
+        "excluded_reason": null,
+        "passthrough": {
+          "Fournisseur": "Automatismes Durand",
+          "Texte de commande": "Écrans du poste de commande",
+          "Élément d'OTP": "WF.PRJ-001/SP-CMD"
+        },
+        "audit": {
+          "created_at": "2026-06-03T08:30:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2026-06-03T08:30:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        }
+      }
+    ],
+    "totals": {
+      "tracked": "2400.00",
+      "excluded": "0.00",
+      "overall": "2400.00"
+    },
+    "last_import_at": "2026-06-03T08:30:00Z",
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 1
+    }
+  }
+}
