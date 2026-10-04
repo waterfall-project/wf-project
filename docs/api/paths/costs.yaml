@@ -111,6 +111,8 @@
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
             examples:
               witness: { $ref: ../../../fixtures/api/cost_imports.json }
+              periods: { $ref: ../../../fixtures/api/cost_imports_periods.json }
+              beyond: { $ref: ../../../fixtures/api/cost_imports_beyond.json }
               empty: { $ref: ../../../fixtures/api/cost_imports_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

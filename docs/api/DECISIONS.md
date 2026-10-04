@@ -578,7 +578,10 @@ client exclue du périmètre suivi ; 3 000 suivis, le coût réel de `remaining_
 consultation lue une ligne par page, la deuxième ; les totaux de toutes les lignes retenues),
 `actual_costs_subproject` (filtrée sur le Poste de commande, après l'import du 3 juin : une
 facture imputée au sous-projet, nommé), `actual_costs_empty` (aucun import) ; `cost_imports`
-(les imports de mars et d'avril, une ligne d'un autre projet ignorée) et `cost_imports_empty`.
+(les imports de mars et d'avril, une ligne d'un autre projet ignorée), `cost_imports_periods`
+(trois extractions à la période incomplète, dont une réextraction qui ignore 12 345 lignes
+d'autres projets), `cost_imports_beyond` (une page demandée au-delà de la fin) et
+`cost_imports_empty`.
 Ils restent dans l'univers des indicateurs, sans coût réel au 16 mars (`project_indicators`).
 
 ## Collage et annulation

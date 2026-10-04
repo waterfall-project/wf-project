@@ -1,0 +1,54 @@
+{
+  "summary": "Le journal au 3 juin 2026, où trois extractions n'ont pas déclaré toute leur période : celle de mai, à partir du 1er mai, qui crée la facture du Poste de commande de actual_costs_subproject ; une réextraction jusqu'au 30 avril, sans début, qui met à jour les quatre lignes déjà importées — l'exclusion de la réception conservée — et ignore 12 345 lignes d'autres projets ; un fichier sans période, dont aucune ligne ne relevait du projet (WF-CRE-0020, WF-CRE-0030, WF-CRE-0050).",
+  "value": {
+    "items": [
+      {
+        "cost_import_id": "01926f3a-7c00-7000-8000-000000000c15",
+        "imported_at": "2026-06-03T08:30:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "period_from": "2026-05-01",
+        "period_to": null,
+        "created_count": 1,
+        "updated_count": 0,
+        "ignored_count": 0
+      },
+      {
+        "cost_import_id": "01926f3a-7c00-7000-8000-000000000c14",
+        "imported_at": "2026-05-11T09:00:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "period_from": null,
+        "period_to": "2026-04-30",
+        "created_count": 0,
+        "updated_count": 4,
+        "ignored_count": 12345
+      },
+      {
+        "cost_import_id": "01926f3a-7c00-7000-8000-000000000c13",
+        "imported_at": "2026-05-06T14:00:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "period_from": null,
+        "period_to": null,
+        "created_count": 0,
+        "updated_count": 0,
+        "ignored_count": 37
+      }
+    ],
+    "meta": {
+      "limit": 12,
+      "offset": 0,
+      "total": 3
+    }
+  }
+}

@@ -33,7 +33,7 @@ export interface Examples {
     200: "contributors";
   };
   "GET /projects/{project_id}/cost-imports": {
-    200: "cost_imports" | "cost_imports_empty";
+    200: "cost_imports" | "cost_imports_beyond" | "cost_imports_empty" | "cost_imports_periods";
   };
   "GET /projects/{project_id}/estimate-indicators": {
     200: "estimate_indicators" | "estimate_indicators_breakdown" | "estimate_indicators_missing_rates" | "volume/estimate_indicators";
