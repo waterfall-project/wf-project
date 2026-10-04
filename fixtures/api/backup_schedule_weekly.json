@@ -1,0 +1,11 @@
+{
+  "summary": "Une planification hebdomadaire, le dimanche à deux heures et demie, quatre sauvegardes conservées (WF-ADM-0170).",
+  "value": {
+    "is_enabled": true,
+    "frequency": "weekly",
+    "at_time": "02:30",
+    "weekday": 7,
+    "retained_count": 4,
+    "lock_version": 3
+  }
+}
