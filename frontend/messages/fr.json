@@ -248,6 +248,11 @@
       "title": "Indicateurs indisponibles",
       "explanation": "Les indicateurs du projet se calculent à partir de l’état En cours ; avant, seuls les indicateurs du devis existent."
     },
+    "elsewhere": {
+      "title": "Indicateurs d’une autre révision",
+      "explanation": "Ces indicateurs sont calculés sur la révision « {revision} », et non sur celle que nomme le bandeau.",
+      "unknown": "sans nom"
+    },
     "financial": {
       "title": "Avancement financier"
     },

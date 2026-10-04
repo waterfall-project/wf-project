@@ -12,11 +12,12 @@
  * down, the evolution of the indices left unasked. Any other answer follows the rule of the reads
  * (`readOrFail`): the screen never shows a figure it did not read, and computes none.
  */
-import { TriangleAlert } from "lucide-react";
+import { Info, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import type { components } from "@/api/generated/schema";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
@@ -70,6 +71,9 @@ async function readIndicators({ revision, context }: GridAddress) {
   return { indicators, history };
 }
 
+/** The figures of the screen: the indicators and the evolution of the indices. */
+type Figures = NonNullable<Awaited<ReturnType<typeof readIndicators>>>;
+
 /** What the screen says when the API does not compute the indicators of the project yet. */
 function NotInProgress() {
   const t = useTranslations("projectIndicators.notInProgress");
@@ -78,6 +82,69 @@ function NotInProgress() {
       <TriangleAlert aria-hidden="true" />
       <AlertTitle>{t("title")}</AlertTitle>
       <AlertDescription>{t("explanation")}</AlertDescription>
+    </Alert>
+  );
+}
+
+/** A revision of the project, as the API lists it. */
+type Revision = components["schemas"]["Revision"];
+
+/**
+ * The revisions the figures are computed on, when it is not the revision of the address: the
+ * contract does not let the screen ask the indicators of a given revision (#247) — it gives those
+ * of the revision under way, or of the last marked revision before the date `as_of` asks. Each is
+ * named by its version name, read in the list of the revisions of the project, which is asked only
+ * then; a revision the list does not hold is said unnamed, never left out.
+ */
+async function readElsewhere(
+  projectId: string,
+  shown: string | undefined,
+  figures: Figures | undefined,
+): Promise<readonly (Revision | undefined)[]> {
+  if (figures === undefined) {
+    return [];
+  }
+  const ids = [figures.indicators.context.revision_id, figures.history.context.revision_id];
+  const elsewhere = [...new Set(ids)].filter((id) => id !== shown);
+  if (elsewhere.length === 0) {
+    return [];
+  }
+  const revisions = await readOrFail("listRevisions", () =>
+    serverClient().GET("/projects/{project_id}/revisions", {
+      params: { path: { project_id: projectId } },
+    }),
+  );
+  return elsewhere.map((id) => revisions.items.find((each) => each.revision_id === id));
+}
+
+/**
+ * What the screen says, at its head, when its figures are computed on another revision than the
+ * one its banner names: never in silence (WF-IHM-0020).
+ */
+function ComputedElsewhere({
+  revisions,
+}: {
+  readonly revisions: readonly (Revision | undefined)[];
+}) {
+  const t = useTranslations();
+  if (revisions.length === 0) {
+    return null;
+  }
+  const name = (revision: Revision | undefined) =>
+    revision === undefined
+      ? t("projectIndicators.elsewhere.unknown")
+      : (revision.version_name ?? t("contextBanner.currentRevision"));
+  return (
+    <Alert>
+      <Info aria-hidden="true" />
+      <AlertTitle>{t("projectIndicators.elsewhere.title")}</AlertTitle>
+      <AlertDescription>
+        {revisions.map((revision, index) => (
+          <p key={revision?.revision_id ?? index}>
+            {t("projectIndicators.elsewhere.explanation", { revision: name(revision) })}
+          </p>
+        ))}
+      </AlertDescription>
     </Alert>
   );
 }
@@ -111,11 +178,13 @@ export default async function IndicatorsPage({
   if (reading === "not_found") {
     notFound();
   }
+  const elsewhere = await readElsewhere(revision.projectId, at.context.revisionId, figures);
   return (
     <>
       <ContextBanner reading={reading} />
       <Screen density={FUNCTION_DENSITY.project_indicators}>
         <IndicatorsHeader />
+        <ComputedElsewhere revisions={elsewhere} />
         {figures === undefined ? <NotInProgress /> : <ProjectIndicatorCards {...figures} />}
       </Screen>
     </>

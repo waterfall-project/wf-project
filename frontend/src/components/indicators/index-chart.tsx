@@ -25,7 +25,9 @@ import {
   Chart,
   type ChartOption,
   type ChartPalette,
-  seriesLook,
+  END_LABEL_WIDTH,
+  GAP,
+  curve,
   timeAxis,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
@@ -103,22 +105,21 @@ export function IndexChart({ kind, history }: IndexChartProps) {
         { name: t("alert"), value: alert, type: "dotted" as const },
       ];
       const curves = history.scopes.map((scope, index) => ({
-        type: "line" as const,
         name: scopeName(scope),
-        ...seriesLook(palette, index),
-        data: scope.points.map((point) => {
-          const { value } = point[fields.point];
-          return [point.at, value.is_computable ? (value.value ?? "-") : "-"];
-        }),
+        ...curve(
+          palette,
+          index,
+          scope.points.map((point) => {
+            const { value } = point[fields.point];
+            return [point.at, value.is_computable ? (value.value ?? GAP) : GAP] as const;
+          }),
+        ),
       }));
       return {
         textStyle: { fontFamily: palette.font, color: palette.text },
-        legend: {
-          top: 0,
-          data: curves.map((curve) => curve.name),
-          textStyle: { color: palette.text },
-        },
-        grid: { left: 48, right: 24, top: 40, bottom: 32 },
+        // No legend: each curve is named at its end (`curve`), whatever their number — a
+        // legend of one entry per sub-project would overflow onto the plot.
+        grid: { left: 48, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
         xAxis: timeAxis(palette, formatLocale(locale)),
         yAxis: {
           type: "value",

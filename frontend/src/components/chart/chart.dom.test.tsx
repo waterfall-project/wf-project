@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 
-import { Chart, type ChartOption, type ChartPalette, seriesLook } from "./chart";
+import { Chart, type ChartOption, type ChartPalette, curve, GAP } from "./chart";
 
 /** A chart of one series of two points, its option recorded with each palette it is drawn in. */
 function drawn(option: (palette: ChartPalette) => ChartOption, note?: string) {
@@ -32,12 +32,18 @@ function line(palette: ChartPalette): ChartOption {
   return {
     xAxis: { type: "category", data: ["a", "b"] },
     yAxis: { type: "value" },
-    series: [{ type: "line", ...seriesLook(palette, 0), data: ["0.8", "0.9"] }],
+    series: [
+      curve(palette, 0, [
+        ["a", "0.8"],
+        ["b", "0.9"],
+      ]),
+    ],
   };
 }
 
 afterEach(() => {
   document.documentElement.removeAttribute("data-theme");
+  vi.restoreAllMocks();
 });
 
 describe("the envelope of the charts", () => {
@@ -73,6 +79,35 @@ describe("the envelope of the charts", () => {
     });
     const { legend } = getInstanceByDom(image)?.getOption() ?? {};
     expect(legend).toMatchObject([{ data: ["Projet"], selectedMode: false }]);
+  });
+
+  it("draws at once, without animation, and names each of twenty curves at its end [WF-IHM-0100-A]", async () => {
+    const names = Array.from({ length: 20 }, (_, rank) => `Courbe ${(rank + 1).toString()}`);
+    const many = (palette: ChartPalette): ChartOption => ({
+      xAxis: { type: "category", data: ["a", "b"] },
+      yAxis: { type: "value" },
+      series: names.map((name, rank) => ({
+        name,
+        ...curve(palette, rank, [
+          ["a", "1"],
+          ["b", (rank + 1).toString()],
+        ]),
+      })),
+    });
+    // happy-dom lays nothing out: the drawing is given the size a page would give it, without
+    // which ECharts has no room to write a name in.
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(600);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(300);
+    drawn(many);
+    const image = screen.getByRole("img", { name: "Une courbe de deux points." });
+    await waitFor(() => {
+      expect(image.querySelector("svg")).not.toBeNull();
+    });
+    expect(getInstanceByDom(image)?.getOption()).toMatchObject({ animation: false });
+    const labels = [...image.querySelectorAll("svg text")].map((text) => text.textContent);
+    for (const name of names) {
+      expect(labels).toContain(name);
+    }
   });
 
   it("says under its caption what it is handed to say: the date of its values", () => {
@@ -121,7 +156,7 @@ describe("the envelope of the charts", () => {
   });
 });
 
-describe("the look of a series", () => {
+describe("the look of a curve", () => {
   const palette: ChartPalette = {
     series: ["one", "two", "three", "four"],
     text: "text",
@@ -130,13 +165,39 @@ describe("the look of a series", () => {
     grid: "grid",
     font: "font",
   };
+  const points = [
+    ["a", "0.9"],
+    ["b", GAP],
+  ] as const;
 
-  it("tells twelve series apart without their colour, by their symbol and their stroke", () => {
-    const looks = Array.from({ length: 12 }, (_, rank) => {
-      const look = seriesLook(palette, rank);
-      return `${look.symbol}/${look.lineStyle.type}`;
-    });
-    expect(new Set(looks).size).toBe(12);
-    expect(seriesLook(palette, 4).color).toBe("one");
+  it("names each of twenty curves at its end, its colour, symbol and stroke in turn", () => {
+    const looks = Array.from({ length: 20 }, (_, rank) => curve(palette, rank, points));
+    // The name of its own series (`{a}`) is what never repeats; names that would overlap move
+    // apart.
+    for (const look of looks) {
+      expect(look.endLabel).toEqual({
+        show: true,
+        formatter: "{a}",
+        width: 128,
+        overflow: "truncate",
+        lineHeight: 16,
+      });
+      expect(look.labelLayout).toEqual({ moveOverlap: "shiftY" });
+    }
+    const firstTwelve = looks.slice(0, 12).map((look) => `${look.symbol}/${look.lineStyle.type}`);
+    expect(new Set(firstTwelve).size).toBe(12);
+    expect(looks[4]?.color).toBe("one");
+    expect(looks[0]?.data).toEqual([
+      ["a", "0.9"],
+      ["b", GAP],
+    ]);
+  });
+
+  it("names no curve that has no drawn point: ECharts would stop moving the other names apart", () => {
+    const look = curve(palette, 0, [
+      ["a", GAP],
+      ["b", GAP],
+    ]);
+    expect(look.endLabel.show).toBe(false);
   });
 });

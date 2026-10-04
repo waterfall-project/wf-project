@@ -14,7 +14,7 @@
  * from the document as it shows them — each token is the colour of a hidden probe, which the
  * browser resolves in the mode the page is in. A change of mode — the workstation's, or the
  * one the account forces (`data-theme`) — draws the chart again in the colours of the new one.
- * The series are told apart without their colour too, by their symbol and their stroke.
+ * The curves are told apart without their colour too: each is named at its end (`curve`).
  */
 "use client";
 
@@ -30,11 +30,13 @@ import {
   type MarkLineComponentOption,
 } from "echarts/components";
 import { type ComposeOption, init, use as register } from "echarts/core";
+import { LabelLayout } from "echarts/features";
 import { SVGRenderer } from "echarts/renderers";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
 register([
+  LabelLayout,
   LineChart,
   GridComponent,
   LegendComponent,
@@ -83,20 +85,45 @@ const SERIES_SYMBOLS = ["circle", "triangle", "rect", "diamond"] as const;
 /** The strokes of the series, once their symbols have all been taken, for the same reason. */
 const SERIES_STROKES = ["solid", "dashed", "dotted"] as const;
 
+/** The width the name at the end of a curve takes at most, beyond which it is cut short. */
+export const END_LABEL_WIDTH = 128;
+
+/** A point a curve leaves out: a value the API could not compute is a gap, never a zero. */
+export const GAP = "-";
+
+/** The points of a curve: the instant or the category, and the value as the API wrote it. */
+export type CurvePoints = readonly (readonly [string, string])[];
+
 /**
- * How the series of a rank is drawn: its colour, its symbol and its stroke — the colours and the
- * symbols in turn, the stroke changing each time the symbols come round again, so that twelve
- * series are told apart without their colour.
+ * A curve of a rank, its points and how it is drawn: named at the end of its curve — its last drawn
+ * point —, by its own name, which tells any number of series apart where a legend of one entry per
+ * series or a palette of four colours could not, the names of curves that end close moved apart;
+ * then its colour, its symbol and its stroke, in turn, which help the eye from one point to the
+ * next. A curve without a drawn point bears no name — ECharts would place it nowhere, and stop
+ * moving the others apart —: its table of values still lists it.
  */
-export function seriesLook(palette: ChartPalette, rank: number) {
+export function curve(palette: ChartPalette, rank: number, points: CurvePoints) {
   const symbols = SERIES_SYMBOLS.length;
+  const drawn = points.some(([, value]) => value !== GAP);
   return {
+    type: "line" as const,
+    data: points.map((point) => [...point]),
     color: palette.series[rank % palette.series.length] ?? palette.mark,
     symbol: SERIES_SYMBOLS[rank % symbols] ?? "circle",
     symbolSize: 8,
     lineStyle: {
       type: SERIES_STROKES[Math.floor(rank / symbols) % SERIES_STROKES.length] ?? "solid",
     },
+    endLabel: {
+      show: drawn,
+      formatter: "{a}",
+      width: END_LABEL_WIDTH,
+      overflow: "truncate" as const,
+      // The height of a line of the page's font, which ECharts would measure shorter: two names
+      // moved apart would still touch.
+      lineHeight: 16,
+    },
+    labelLayout: { moveOverlap: "shiftY" as const },
   };
 }
 
@@ -202,6 +229,8 @@ export function Chart({ title, description, note, option, children }: ChartProps
         {
           ...chosen,
           ...inertLegend(chosen.legend),
+          // The charter has no animation: a chart is drawn at once, in its final state.
+          animation: false,
           aria: { enabled: true, label: { description } },
         },
         true,

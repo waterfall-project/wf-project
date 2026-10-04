@@ -87,10 +87,15 @@ describe("the evolution of an index", () => {
       "No subproject",
       "Thresholds",
     ]);
-    // The legend names the curves alone, not the series of the thresholds.
-    expect(lastOption()?.legend).toMatchObject({
-      data: ["Whole project", "Poste de commande", "Essais et mise en service", "No subproject"],
-    });
+    // No legend, which would overflow onto the plot: each curve is named at its end.
+    expect(lastOption()?.legend).toBeUndefined();
+    // The sub-projects have no schedule index the API could compute: no point, no name drawn.
+    expect(series.slice(0, -1).map((curve) => curve.endLabel?.show)).toEqual([
+      true,
+      false,
+      false,
+      true,
+    ]);
     expect(series[0]?.data).toEqual([
       ["2025-12-15T16:00:00Z", "-"],
       ["2026-02-01T09:00:00Z", "-"],

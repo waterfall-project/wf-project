@@ -248,6 +248,11 @@
       "title": "Indicators unavailable",
       "explanation": "The indicators of a project are computed from the In progress state; before, only the indicators of the estimate exist."
     },
+    "elsewhere": {
+      "title": "Indicators of another revision",
+      "explanation": "These indicators are computed on the revision “{revision}”, not on the one the banner names.",
+      "unknown": "unnamed"
+    },
     "financial": {
       "title": "Financial progress"
     },

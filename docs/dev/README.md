@@ -168,9 +168,13 @@ lui, l'alternative textuelle (WF-IHM-0100). Le composant client propre à la cou
 ECharts écrit ses couleurs dans les attributs de son SVG, où une variable CSS n'atteint pas, et
 les jetons `--chart-1` à `--chart-4`, `--muted-foreground`, `--foreground`, `--input` et
 `--border` y arrivent par des sondes cachées que le navigateur peint dans le mode affiché ; un
-changement de mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe.
-`seriesLook` distingue les séries sans la couleur, par leur symbole et leur trait ; `timeAxis`
-écrit un axe de temps dans la langue, en UTC pour des dates de planning. Une courbe trace les
+changement de mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe. Elle se
+dessine d'un coup, sans animation, et une légende y est inerte : un clic, à la souris seule, ne
+cache aucune série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur
+nombre — pas de légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms
+qui se chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ;
+une courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; `timeAxis` écrit un axe de temps par
+mois, dans la langue et le fuseau du poste. Une courbe trace les
 chaînes de l'API telles quelles — ECharts en tire une position —, une valeur non calculable
 étant un trou, et le tableau les écrit par `src/i18n/format.ts`, les zones par `Signal`.
 

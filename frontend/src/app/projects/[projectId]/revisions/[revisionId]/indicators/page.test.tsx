@@ -30,6 +30,7 @@ vi.mock("next/headers", () => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+const MARKED = "01926f3a-7c00-7000-8000-000000000101";
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 type Indicators = components["schemas"]["ProjectIndicators"];
 type History = components["schemas"]["IndexHistory"];
@@ -52,10 +53,10 @@ function html(page: ReactNode): string {
   );
 }
 
-/** What Next hands the screen of the indicators, at the query given. */
-function at(search: Record<string, string> = {}) {
+/** What Next hands the screen of the indicators, at the query given, in the revision given. */
+function at(search: Record<string, string> = {}, revisionId = REVISION) {
   return {
-    params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
+    params: Promise.resolve({ projectId: PROJECT, revisionId }),
     searchParams: Promise.resolve(search),
   };
 }
@@ -179,6 +180,26 @@ describe("the screen of the indicators of a project", () => {
     expect(page).toContain("Evolution of the cost index");
     expect(page).toContain("Evolution of the schedule index");
     expect(page).toContain("Whole project Current revision");
+  });
+
+  it("says at its head that its figures are computed on another revision than the one its banner names, and which [WF-IHM-0020-A]", async () => {
+    // The reference, marked, is read; the API computes on the revision under way (#247).
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
+      "GET /projects/{project_id}/revisions": "revisions",
+    };
+    const page = text(html(await IndicatorsPage(at({}, MARKED))));
+    expect(page).toContain(
+      "Project indicators Indicators of another revision These indicators are computed on the revision “Current revision”, not on the one the banner names. Financial progress",
+    );
+    expect(page).toMatch(/Revision Référence/);
+  });
+
+  it("says nothing of another revision when its figures are computed on its own, nor reads the revisions", async () => {
+    const page = text(html(await IndicatorsPage(at())));
+    expect(page).not.toContain("Indicators of another revision");
+    expect(queryOf("GET /projects/{project_id}/revisions")).toBeUndefined();
   });
 
   it("says the indicators unavailable before the state In progress, the rest of the screen shown [WF-IND-0010-A]", async () => {

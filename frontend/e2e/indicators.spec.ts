@@ -44,3 +44,27 @@ test("paints its series with the tokens of the charter, drawn again when the acc
   await expect(cost.locator(`path[stroke="${SERIES_DARK}"]`).first()).toBeAttached();
   await expect(cost.locator(`path[stroke="${SERIES_LIGHT}"]`)).toHaveCount(0);
 });
+
+test("names each curve at its end, two names ending on the same point moved apart", async ({
+  page,
+}) => {
+  await page.goto(SCREEN);
+  const schedule = page.getByRole("img", { name: /^Courbes de l’indice de délai du projet/ });
+  // The whole project and what belongs to no sub-project both end at 0 on the current day.
+  const project = schedule.locator("svg text", { hasText: /^Projet entier$/ });
+  const unassigned = schedule.locator("svg text", { hasText: /^Hors sous-projet$/ });
+  await expect(project).toBeAttached();
+  await expect(unassigned).toBeAttached();
+  // The baselines of the two names are at least the size of their font apart: their letters
+  // do not overlap. ECharts writes where it places a name in its transform.
+  const placed = async (name: typeof project) => {
+    const [transform, size] = await name.evaluate((text) => [
+      text.getAttribute("transform") ?? "",
+      getComputedStyle(text).fontSize,
+    ]);
+    const baseline = /translate\([\d.]+ ([\d.]+)\)/.exec(transform)?.[1];
+    return { baseline: Number(baseline), size: Number.parseFloat(size) };
+  };
+  const [a, b] = await Promise.all([placed(project), placed(unassigned)]);
+  expect(Math.abs(a.baseline - b.baseline)).toBeGreaterThanOrEqual(Math.max(a.size, b.size));
+});
