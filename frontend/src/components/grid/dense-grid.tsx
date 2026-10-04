@@ -91,7 +91,7 @@ import {
   recordedPreferences,
   useSettingsWriter,
 } from "./settings";
-import { UndoAnnouncer, useUndoShortcut } from "./undo-commands";
+import { CellMenu, UndoAnnouncer, useUndoShortcut } from "./undo-commands";
 
 /**
  * The height of a row, in `rem` — `h-7`, a dense grid —: in pixels, as many times the size of
@@ -637,7 +637,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
           headingOf(column, (key) => t(`columns.${key}`)),
         )}
       />
-      <UndoAnnouncer told={undo.told} />
+      <UndoAnnouncer offered={undoable} told={undo.told} />
       <OutcomeNotice
         outcome={writer.outcome}
         onClear={writer.clear}
@@ -722,33 +722,35 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
             })}
           </TableRow>
         </TableHeader>
-        <TableBody {...keyboard.body}>
-          {items.map((item, position) => {
-            const row = model[item.index];
-            return row === undefined ? null : (
-              <Fragment key={row.id}>
-                <Spacer height={gaps[position] ?? 0} span={columns.length} />
-                <BodyRow
-                  table={table}
-                  config={config}
-                  dependencies={dependencies}
-                  cells={cells}
-                  row={row}
-                  index={item.index}
-                  locale={locale}
-                />
-              </Fragment>
-            );
-          })}
-          <Spacer height={after} span={columns.length} />
-          {model.length === 0 ? (
-            <TableRow aria-rowindex={2} className="h-7">
-              <TableCell colSpan={columns.length} className="text-muted-foreground">
-                {t("empty")}
-              </TableCell>
-            </TableRow>
-          ) : null}
-        </TableBody>
+        <CellMenu offered={undoable}>
+          <TableBody {...keyboard.body}>
+            {items.map((item, position) => {
+              const row = model[item.index];
+              return row === undefined ? null : (
+                <Fragment key={row.id}>
+                  <Spacer height={gaps[position] ?? 0} span={columns.length} />
+                  <BodyRow
+                    table={table}
+                    config={config}
+                    dependencies={dependencies}
+                    cells={cells}
+                    row={row}
+                    index={item.index}
+                    locale={locale}
+                  />
+                </Fragment>
+              );
+            })}
+            <Spacer height={after} span={columns.length} />
+            {model.length === 0 ? (
+              <TableRow aria-rowindex={2} className="h-7">
+                <TableCell colSpan={columns.length} className="text-muted-foreground">
+                  {t("empty")}
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </CellMenu>
         <TableFooter>
           <TotalsRow
             table={table}

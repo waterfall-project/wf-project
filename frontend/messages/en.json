@@ -177,7 +177,7 @@
     "undo": {
       "undo": "Undo",
       "redo": "Redo",
-      "menu": "Edit",
+      "menu": "Cell menu",
       "shortcut": {
         "undo": "Ctrl+Z",
         "redo": "Ctrl+Shift+Z"

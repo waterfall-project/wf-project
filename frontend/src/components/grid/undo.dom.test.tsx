@@ -92,8 +92,20 @@ function press(element: Element, shift = false): boolean {
 
 /** What the grid announced of the shortcut, if anything. */
 function told(): string | null {
-  const found = screen.getAllByRole("status").find((region) => region.textContent !== "");
-  return found?.textContent ?? null;
+  return toldNode()?.textContent ?? null;
+}
+
+/** The node the grid last announced the shortcut in, if any. */
+function toldNode(): Element | undefined {
+  return screen
+    .queryAllByRole("status")
+    .map((region) => region.firstElementChild)
+    .find((node) => node !== null);
+}
+
+/** The menu of the cells, open. */
+function cellMenu(): HTMLElement {
+  return screen.getByRole("menu", { name: "Menu de la cellule" });
 }
 
 let client: FakeClient;
@@ -113,8 +125,8 @@ describe("undo and redo, placed in the grids", () => {
   it("places Undo and Redo in the bar of a grid that enters a revision in progress, unavailable, saying why, and doing nothing", async () => {
     render(estimateGrid());
     for (const [name, keys] of [
-      ["Annuler", "Control+Z"],
-      ["Rétablir", "Control+Shift+Z"],
+      ["Annuler", "Control+Z Meta+Z"],
+      ["Rétablir", "Control+Shift+Z Meta+Shift+Z"],
     ] as const) {
       const button = screen.getByRole("button", { name });
       expect(button).toHaveAttribute("aria-disabled", "true");
@@ -128,10 +140,11 @@ describe("undo and redo, placed in the grids", () => {
     await expectAccessible(document.body);
   });
 
-  it("places them in the menu of edition with their shortcuts, unavailable and saying why", async () => {
+  it("places them in the menu of a cell, opened by Shift+F10, with their shortcuts, unavailable and saying why", async () => {
     render(estimateGrid());
-    await userEvent.click(screen.getByRole("button", { name: "Édition" }));
-    const menu = screen.getByRole("menu");
+    const cell = focusLabel();
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    const menu = cellMenu();
     const undo = within(menu).getByRole("menuitem", { name: /^Annuler/ });
     const redo = within(menu).getByRole("menuitem", { name: /^Rétablir/ });
     expect(undo).toHaveTextContent("Ctrl+Z");
@@ -140,10 +153,26 @@ describe("undo and redo, placed in the grids", () => {
       expect(item).toHaveAttribute("aria-disabled", "true");
       expect(item).toHaveAccessibleDescription(REASON);
     }
+    // The menu open, the page beside it is hidden from a screen reader: the menu is what is read.
+    await expectAccessible(menu);
     // Pressed, an entry does nothing: the menu stays open on the reason.
     await userEvent.click(undo);
-    expect(screen.getByRole("menu")).toHaveTextContent(REASON);
+    expect(cellMenu()).toHaveTextContent(REASON);
+    // Escape closes it, and gives the focus back to the cell; nothing was asked of the server.
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(cell).toHaveFocus();
     expect(client.calls).toEqual([]);
+  });
+
+  it("opens the menu of a cell by a right click, and adds no stop to the order of tabulation", async () => {
+    render(estimateGrid());
+    const cell = focusLabel();
+    await userEvent.pointer({ keys: "[MouseRight]", target: cell });
+    expect(within(cellMenu()).getAllByRole("menuitem")).toHaveLength(2);
+    await userEvent.keyboard("{Escape}");
+    // The grid stays one stop: its active cell, the only one in the order of tabulation.
+    expect(screen.getByRole("grid").querySelectorAll('[tabindex="0"]')).toHaveLength(1);
   });
 
   it("takes Ctrl+Z and Ctrl+Shift+Z on the grid, and tells each unavailable", () => {
@@ -155,8 +184,11 @@ describe("undo and redo, placed in the grids", () => {
     expect(press(cell, true)).toBe(false);
     expect(told()).toBe(TOLD_REDO);
     // The same command again is told again, in a new node of the region.
+    const before = toldNode();
     expect(press(cell, true)).toBe(false);
-    expect(told()).toBe(TOLD_REDO);
+    const after = toldNode();
+    expect(after).not.toBe(before);
+    expect(after?.textContent).toBe(TOLD_REDO);
     // Neither opens the entry of the cell, nor asks anything of the server.
     expect(cell).toHaveFocus();
     expect(screen.queryByRole("textbox", { name: "Libellé" })).toBeNull();
@@ -177,6 +209,14 @@ describe("undo and redo, placed in the grids", () => {
     const search = screen.getByRole("searchbox");
     expect(press(search)).toBe(true);
     expect(told()).toBeNull();
+  });
+
+  it("takes the shortcut in the bar of the grid too, on the button Undo itself", () => {
+    render(estimateGrid());
+    const button = screen.getByRole("button", { name: "Annuler" });
+    button.focus();
+    expect(press(button)).toBe(false);
+    expect(told()).toBe(TOLD_UNDO);
   });
 
   it("places them in the grid of the planning of a revision that may be planned", () => {
@@ -204,10 +244,12 @@ describe("undo and redo, placed in the grids", () => {
     expect(screen.getByRole("button", { name: "Undo" })).toHaveAccessibleDescription(
       "Unavailable until the server keeps the history of the entries.",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
-    expect(screen.getByRole("menuitem", { name: /^Redo/ })).toHaveTextContent("Ctrl+Shift+Z");
+    const cell = focusLabel();
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    const menu = screen.getByRole("menu", { name: "Cell menu" });
+    expect(within(menu).getByRole("menuitem", { name: /^Redo/ })).toHaveTextContent("Ctrl+Shift+Z");
     await userEvent.keyboard("{Escape}");
-    press(focusLabel(), true);
+    press(cell, true);
     expect(told()).toBe(
       "Redo is unavailable: the server does not keep the history of the entries yet.",
     );
@@ -215,16 +257,19 @@ describe("undo and redo, placed in the grids", () => {
 });
 
 describe("what no command undoes", () => {
-  it("offers no undo of a marking: the grid of a marked revision, which takes no entry, places neither command nor takes the shortcut [WF-IHM-0110-A]", () => {
+  it("offers no undo of a marking: the grid of a marked revision, which takes no entry, places neither command nor takes the shortcut [WF-IHM-0110-A]", async () => {
     render(estimateGrid(false));
     expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Rétablir" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Édition" })).toBeNull();
-    expect(press(focusLabel())).toBe(true);
-    expect(told()).toBeNull();
+    const cell = focusLabel();
+    expect(press(cell)).toBe(true);
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    await userEvent.pointer({ keys: "[MouseRight]", target: cell });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("offers no undo of an import applied nor of the exclusion of a line of actual cost: their grid places neither command nor takes the shortcut [WF-IHM-0110-A]", () => {
+  it("offers no undo of the exclusion of a line of actual cost: its grid places neither command nor takes the shortcut [WF-IHM-0110-A]", async () => {
     const list = example("actual_costs") as {
       readonly items: components["schemas"]["ActualCostLine"][];
       readonly totals: Parameters<typeof CostsGrid>[0]["costs"]["totals"];
@@ -240,12 +285,13 @@ describe("what no command undoes", () => {
     );
     const grid = screen.getByRole("grid", { name: "Coûts réels" });
     expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Édition" })).toBeNull();
     const cell = grid.querySelector("td");
     if (cell === null) {
       throw new Error("no cell in the grid of the actual costs");
     }
     expect(press(cell)).toBe(true);
-    expect(told()).toBeNull();
+    await userEvent.pointer({ keys: "[MouseRight]", target: cell });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });

@@ -288,7 +288,10 @@ verrou.
     après confirmation ; le front ne juge rien du contenu.
   - **Annuler et Rétablir sont posées, pas branchées** : leur place — grille, menu,
     Ctrl+Z/Ctrl+Maj+Z —, leur état, et rien d'autre ; EP-06 les branchera sur
-    `undoLastChange` et `redoLastUndo`.
+    `undoLastChange` et `redoLastUndo`. Le menu est le menu contextuel de la cellule (clic
+    droit, Maj+F10, touche Menu), à côté des boutons de la barre de la grille (US-0140/L1,
+    décision provisoire, en attente de confirmation de l'utilisateur). Écarté : un menu
+    « Édition » dans la barre, qui ne faisait que doubler les deux boutons.
 - **Valeur calculée** : un seul style, une marque non colorée, un nom accessible.
 - **Signalement** : `Signal` reçoit une `AlertZone` du contrat — icône Lucide, libellé du
   catalogue, jeton de couleur ; la table zone → jeton est unique, aucune zone ne se déduit
@@ -707,7 +710,7 @@ avec #200.
 
 ## US-0140 — Annulation et rétablissement des saisies
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : aucune en propre — `undoLastChange` et `redoLastUndo` attendent EP-06
 - **issue** : #78
@@ -728,6 +731,14 @@ qu'elle a défait.
 par une pile dans le navigateur : c'est ce qui permet le refus en cas de conflit, et ce que
 WF-ARC-0070 impose. EP-06 branchera ces commandes ; les poser au bon endroit dès la maquette
 évite de redessiner les grilles à ce moment-là.
+
+Toute grille dont la révision en cours se saisit par sa commande `edit_*` les pose — le devis
+par `edit_estimate`, le planning par `edit_planning`, le reste à engager par `edit_remaining`
+(#115, qui fermera le critère propre à l'US) ; aucune grille hors d'une révision en cours ne les
+pose : ni le marquage, ni un import appliqué, ni l'exclusion d'une ligne de coût ne s'annulent.
+Le menu est le menu contextuel de la cellule (clic droit, Maj+F10, touche Menu), à côté des
+boutons de la barre (US-0140/L1) — décision provisoire, en attente de confirmation de
+l'utilisateur.
 
 - écart : `WF-IHM-0110-A` — « La suppression d'une tâche puis son annulation restituent la
   tâche, ses lignes et ses liaisons. », « Cinquante modifications successives s'annulent une

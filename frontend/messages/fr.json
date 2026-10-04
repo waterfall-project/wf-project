@@ -177,7 +177,7 @@
     "undo": {
       "undo": "Annuler",
       "redo": "Rétablir",
-      "menu": "Édition",
+      "menu": "Menu de la cellule",
       "shortcut": {
         "undo": "Ctrl+Z",
         "redo": "Ctrl+Maj+Z"

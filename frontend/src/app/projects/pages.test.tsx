@@ -425,6 +425,18 @@ describe("the witness path", () => {
     expect(html).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
   });
 
+  it("places undo and redo in the estimate of a revision in progress, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {
+    const open = await estimateWith();
+    expect(open.grid?.editable).toBe(true);
+    expect(open.html).toContain('aria-label="Undo"');
+
+    grids.estimate = [];
+    const marked = await estimateWith({ [REVISION_READ]: "revision_marked" });
+    expect(marked.grid?.editable).toBe(false);
+    expect(marked.html).not.toContain('aria-label="Undo"');
+    expect(marked.html).not.toContain('aria-label="Redo"');
+  });
+
   it("keeps no sort by a column the grid no longer presents, and sorts by the address otherwise", async () => {
     // The account keeps the sort by the budgeted amount, which the grid no longer presents
     // (WF-DEV-0050): the plan order, as for any column the grid does not sort.
@@ -590,6 +602,28 @@ describe("the grid of the planning", () => {
     // The totals the server gave, which `kinds` leaves as they are, are not the planning's to
     // show: it has no column of hours nor of amounts.
     expect(text(html)).not.toContain("100,000.00");
+  });
+
+  it("places undo and redo in the planning of a revision the caller may plan, and none in that of a marked one, whose marking nothing undoes [WF-IHM-0110-A]", async () => {
+    /** The planning of the witness revision, read as an example of the contract gives it. */
+    const planningOf = async (revision: "revision" | "revision_marked" | "revision_estimator") => {
+      grids.planning = [];
+      server.answers = { ...server.answers, [REVISION_READ]: revision };
+      const html = renderToStaticMarkup(
+        inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })),
+      );
+      return { html, undoable: grids.planning[0]?.undoable };
+    };
+    const open = await planningOf("revision");
+    expect(open.undoable).toBe(true);
+    expect(open.html).toContain('aria-label="Undo"');
+    const marked = await planningOf("revision_marked");
+    expect(marked.undoable).toBe(false);
+    expect(marked.html).not.toContain('aria-label="Undo"');
+    // An estimator does not plan: the planning holds no entry of theirs to undo.
+    const estimator = await planningOf("revision_estimator");
+    expect(estimator.undoable).toBe(false);
+    expect(estimator.html).not.toContain('aria-label="Undo"');
   });
 
   it("asks the server for the sort, the search and the filtered sub-project the address holds, besides the tasks", async () => {

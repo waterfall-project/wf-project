@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { rowAt } from "./scroll";
 
 // The estimate of the current revision of the witness project, which the session may enter:
-// undo and redo are placed in its bar, in its menu of edition and on its keys, unavailable until
+// undo and redo are placed in its bar, in the menu of its cells and on its keys, unavailable until
 // EP-06 wires them (US-0140). Row 4 is a line of labour, « Heures d'ingénierie »
 // (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -26,15 +26,25 @@ test("places Undo and Redo in the grid, its menu and its keys, unavailable and s
     await expect(button).toHaveAccessibleDescription(reason);
   }
 
-  await page.getByRole("button", { name: "Édition" }).click();
-  await expect(page.getByRole("menuitem", { name: /^Annuler/ })).toContainText("Ctrl+Z");
-  await expect(page.getByRole("menuitem", { name: /^Rétablir/ })).toContainText("Ctrl+Maj+Z");
-  await page.keyboard.press("Escape");
-
-  // On the grid, the shortcut tells the command unavailable.
+  // The menu of a cell, by a right click and from the keyboard, the focus back on the cell.
   const cell = rowAt(grid, 4).getByRole("gridcell").nth(1);
+  const menu = page.getByRole("menu", { name: "Menu de la cellule" });
+  await cell.click({ button: "right" });
+  await expect(menu.getByRole("menuitem", { name: /^Annuler/ })).toContainText("Ctrl+Z");
+  await expect(menu.getByRole("menuitem", { name: /^Rétablir/ })).toContainText("Ctrl+Maj+Z");
+  await expect(menu.getByRole("menuitem", { name: /^Annuler/ })).toHaveAccessibleDescription(
+    reason,
+  );
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
   await cell.click();
   await expect(cell).toBeFocused();
+  await page.keyboard.press("Shift+F10");
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(cell).toBeFocused();
+
+  // On the grid, the shortcut tells the command unavailable.
   await page.keyboard.press("Control+z");
   await expect(page.getByRole("status").filter({ hasText: TOLD_UNDO })).toHaveCount(1);
 

@@ -2,34 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Undo and redo of the entries of a revision (WF-IHM-0110), placed where they will act — in the
- * bar of a grid that enters a revision in progress, in its menu of edition, and by Ctrl+Z and
+ * bar of a grid that enters a revision in progress, in the menu of its cells, and by Ctrl+Z and
  * Ctrl+Shift+Z on the grid — but not wired: the server keeps no history of the entries yet, and
  * EP-06 wires them on `undoLastChange` and `redoLastUndo`, the undoing being the server's, never a
  * stack in the browser (WF-ARC-0070). Until then they are unavailable, and say why: the buttons and
- * the entries of the menu stay in the order of the keyboard, marked `aria-disabled` and described
- * by the reason, and the shortcut tells it in a region announced.
+ * the entries of the menu are reached by the keyboard, marked `aria-disabled` and described by the
+ * reason, and the shortcut tells it in a region announced.
  *
- * Only a grid that enters a revision in progress offers them: none undoes a marking, an import
- * applied or the exclusion of a line of actual cost, which no such grid makes.
+ * Only a grid whose revision in progress is entered by its command `edit_*` offers them: none
+ * undoes a marking, an import applied or the exclusion of a line of actual cost.
  *
- * The shortcut is the grid's alone, and never a field's being entered: Ctrl+Z in the editor of a
- * cell, or in the search, stays the browser's, which undoes what was typed in it.
+ * The shortcut is taken in the grid and its bar, never in a menu or a dialog they open, and never
+ * from a field being entered: Ctrl+Z in the editor of a cell, or in the search, stays the
+ * browser's, which undoes what was typed in it.
  */
 "use client";
 
-import { PenLine, Redo2, Undo2 } from "lucide-react";
+import { Redo2, Undo2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, useId, useState } from "react";
+import { type KeyboardEvent, type ReactElement, useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { cn } from "@/components/ui/utils";
 
 /** The two commands. */
@@ -37,10 +38,10 @@ export type UndoCommand = "undo" | "redo";
 
 const COMMANDS: readonly UndoCommand[] = ["undo", "redo"];
 
-/** The shortcut of each command, as `aria-keyshortcuts` names it. */
+/** The shortcuts of each command, as `aria-keyshortcuts` names them: Ctrl, or Cmd on a Mac. */
 const KEYS: Readonly<Record<UndoCommand, string>> = {
-  undo: "Control+Z",
-  redo: "Control+Shift+Z",
+  undo: "Control+Z Meta+Z",
+  redo: "Control+Shift+Z Meta+Shift+Z",
 };
 
 const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
@@ -98,9 +99,21 @@ export function useUndoShortcut(offered: boolean | undefined): UndoShortcut {
   return { onKeyDown, told };
 }
 
-/** Render the region that tells the shortcut pressed unavailable, present before it is. */
-export function UndoAnnouncer({ told }: { readonly told: UndoShortcut["told"] }) {
+/**
+ * Render the region that tells the shortcut pressed unavailable, present before it is, in a grid
+ * that offers the commands; none otherwise.
+ */
+export function UndoAnnouncer({
+  offered,
+  told,
+}: {
+  readonly offered: boolean | undefined;
+  readonly told: UndoShortcut["told"];
+}) {
   const t = useTranslations("grid.undo");
+  if (offered !== true) {
+    return null;
+  }
   return (
     <div role="status" aria-live="polite" className="sr-only">
       {/* A new node each time, so that the same command pressed again is heard again. */}
@@ -109,7 +122,7 @@ export function UndoAnnouncer({ told }: { readonly told: UndoShortcut["told"] })
   );
 }
 
-/** Render the commands in the bar of a grid: their buttons, their menu, and why they wait. */
+/** Render the commands in the bar of a grid: their buttons, and why they wait. */
 export function UndoCommands() {
   const t = useTranslations("grid.undo");
   const reason = useId();
@@ -133,30 +146,65 @@ export function UndoCommands() {
       <p id={reason} className="max-w-56 text-xs text-muted-foreground">
         {t("unavailable")}
       </p>
-      <UndoMenu />
     </div>
   );
 }
 
-/** Render the menu of edition, its entries unavailable and saying why. */
-function UndoMenu() {
+/** Whether a key opens the menu of a cell: Shift+F10, or the Menu key. */
+function opensMenu(event: KeyboardEvent<HTMLElement>): boolean {
+  return (event.key === "F10" && event.shiftKey) || event.key === "ContextMenu";
+}
+
+/**
+ * Open the menu of the cell that holds the focus from the keyboard, under it, as a right click
+ * would: the browser does not open it from Shift+F10 everywhere, nor in a test.
+ */
+function openFromKeyboard(event: KeyboardEvent<HTMLElement>) {
+  const cell = event.target;
+  if (!opensMenu(event) || !(cell instanceof HTMLElement) || entering(cell)) {
+    return;
+  }
+  event.preventDefault();
+  const box = cell.getBoundingClientRect();
+  cell.dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: box.left,
+      clientY: box.bottom,
+    }),
+  );
+}
+
+/**
+ * Give the cells of a grid their menu — by a right click, Shift+F10 or the Menu key —, which holds
+ * undo and redo, unavailable and saying why: on the body of a grid that offers them, nothing
+ * otherwise. The menu adds no stop to the order of tabulation.
+ */
+export function CellMenu({
+  offered,
+  children,
+}: {
+  readonly offered: boolean | undefined;
+  readonly children: ReactElement;
+}) {
   const t = useTranslations("grid.undo");
   const reason = useId();
+  if (offered !== true) {
+    return children;
+  }
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
-          <PenLine aria-hidden="true" />
-          {t("menu")}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-w-64">
-        <DropdownMenuLabel id={reason} className="text-xs font-normal text-muted-foreground">
+    <ContextMenu>
+      <ContextMenuTrigger asChild onKeyDown={openFromKeyboard}>
+        {children}
+      </ContextMenuTrigger>
+      <ContextMenuContent aria-label={t("menu")} className="max-w-64">
+        <ContextMenuLabel id={reason} className="text-xs font-normal text-muted-foreground">
           {t("unavailable")}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        </ContextMenuLabel>
+        <ContextMenuSeparator />
         {COMMANDS.map((command) => (
-          <DropdownMenuItem
+          <ContextMenuItem
             key={command}
             aria-disabled
             aria-describedby={reason}
@@ -172,9 +220,9 @@ function UndoMenu() {
             <kbd className="ml-auto pl-4 font-sans text-xs text-muted-foreground">
               {t(`shortcut.${command}`)}
             </kbd>
-          </DropdownMenuItem>
+          </ContextMenuItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
