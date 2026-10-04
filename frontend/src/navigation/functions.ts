@@ -5,7 +5,10 @@
  * function of the second level, its code, the key of its label in the catalogues, its route,
  * whether it lives outside any project or in one, and the permission that lets a user read
  * it (WF-ADM-0100). The navigation is drawn from this table, and so is the page that stands
- * for a screen still to come.
+ * for a screen still to come. A leaf of the FBS with a screen of its own — the workload of the
+ * project, FBS-4.4.4 — is a leaf of its function in the table: of the same scope and permission,
+ * reached from the screen of its function rather than from the navigation, and read in its
+ * context as its function is.
  *
  * The table is data: functions.test.ts checks it against the catalogues and the FBS.
  */
@@ -68,6 +71,8 @@ export interface NavigationFunction {
   readonly route: string;
   readonly scope: Scope;
   readonly permission: FunctionPermission;
+  /** Its leaves that have a screen of their own, which its screen leads to. */
+  readonly leaves?: readonly NavigationFunction[];
 }
 
 /** A function of the first level of the FBS, and its functions. */
@@ -107,6 +112,17 @@ export function diagnosticGroups(): FunctionGroup[] {
     ...group,
     functions: group.functions.filter((fn) => fn.permission === "system_status"),
   })).filter((group) => group.functions.length > 0);
+}
+
+/** A leaf of the table, by its code: a function the navigation does not offer. */
+export function leafOf(code: string): NavigationFunction {
+  const found = FUNCTION_GROUPS.flatMap((group) => group.functions)
+    .flatMap((fn) => fn.leaves ?? [])
+    .find((leaf) => leaf.code === code);
+  if (found === undefined) {
+    throw new Error(`no leaf of the table is ${code}`);
+  }
+  return found;
 }
 
 /** The function of the table whose permissions bear a name. */
@@ -161,9 +177,13 @@ export function functionHref(
   );
 }
 
-/** A function an address leads to, and the project and the revision it reads in, if any. */
+/**
+ * A function an address leads to, the function it is a leaf of if it is one, and the project and
+ * the revision it reads in, if any.
+ */
 export interface Screen {
   readonly fn: NavigationFunction;
+  readonly parent: NavigationFunction | undefined;
   readonly projectId: string | undefined;
   readonly revisionId: string | undefined;
 }
@@ -183,20 +203,23 @@ function follows(route: readonly string[], segments: readonly string[]): boolean
 
 /** The function the segments of an address lead to, or `undefined` when none does. */
 export function findScreen(segments: readonly string[]): Screen | undefined {
-  for (const group of FUNCTION_GROUPS) {
-    for (const fn of group.functions) {
-      const route = fn.route.split("/").slice(1);
-      if (follows(route, segments)) {
-        const segment = (name: string) => {
-          const at = route.indexOf(name);
-          return at === -1 ? undefined : segments[at];
-        };
-        return {
-          fn,
-          projectId: segment(CONTEXT_SEGMENTS.projectId),
-          revisionId: segment(CONTEXT_SEGMENTS.revisionId),
-        };
-      }
+  const screens = FUNCTION_GROUPS.flatMap((group) => group.functions).flatMap((fn) => [
+    { fn, parent: undefined },
+    ...(fn.leaves ?? []).map((leaf) => ({ fn: leaf, parent: fn })),
+  ]);
+  for (const { fn, parent } of screens) {
+    const route = fn.route.split("/").slice(1);
+    if (follows(route, segments)) {
+      const segment = (name: string) => {
+        const at = route.indexOf(name);
+        return at === -1 ? undefined : segments[at];
+      };
+      return {
+        fn,
+        parent,
+        projectId: segment(CONTEXT_SEGMENTS.projectId),
+        revisionId: segment(CONTEXT_SEGMENTS.revisionId),
+      };
     }
   }
   return undefined;
