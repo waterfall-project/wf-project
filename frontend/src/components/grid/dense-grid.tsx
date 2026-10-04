@@ -17,8 +17,9 @@
  * The columns shown and their widths are a display preference of the account (WF-ADM-0040):
  * the grid starts from those the session read, and records each change after a pause.
  *
- * It is entered from the keyboard alone (WF-IHM-0040, `useGridKeyboard`): one cell is active, which
- * the arrows move, and a computed cell tried opens its refusal; a cell validated is written alone,
+ * It is entered from the keyboard alone (WF-IHM-0040, `useGridKeyboard`): one cell is active, the
+ * one stop of the grid in the order of tabulation, which the arrows move — the header among the
+ * rows —, and a computed cell tried opens its refusal; a cell validated is written alone,
  * and what the server answers takes the place of what was read — the row, the rows the write changed
  * with it, the totals (`useCellWrites`). A block pasted
  * from a spreadsheet on the active cell is shown as the server would write and refuse it, and
@@ -68,6 +69,7 @@ import {
   type CellDraft,
   type CellPosition,
   type CellRefusal,
+  HEADER_ROW,
   refusedAt,
   samePosition,
   useCursor,
@@ -575,7 +577,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     overscan: OVERSCAN,
     initialRect: FIRST_SCREEN,
     keyOf: (index) => model[index]?.id ?? index,
-    kept: model.length === 0 ? undefined : cursor.active.row,
+    kept: cursor.active.row === HEADER_ROW ? undefined : cursor.active.row,
   });
   const shownColumns = columns.map((column) => column.id);
   const keyboard = useGridKeyboard({
@@ -633,9 +635,9 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         onSearch={search}
         columns={toggledColumns(table, config, (column) => t(`columns.${column.label}`))}
       />
-      <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} />
-      <OutcomeNotice outcome={writes.outcome} onClear={writes.clear} />
-      <OutcomeNotice outcome={paste.outcome} onClear={paste.clear} />
+      <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} dismissible />
+      <OutcomeNotice outcome={writes.outcome} onClear={writes.clear} dismissible />
+      <OutcomeNotice outcome={paste.outcome} onClear={paste.clear} dismissible />
       {paste.hidden === undefined ? null : (
         <p role="alert" className="text-sm text-destructive">
           {paste.hidden.shown === "hidden"
@@ -681,10 +683,11 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
             <col key={column.id} style={{ width: column.getSize() }} />
           ))}
         </colgroup>
-        <TableHeader>
+        <TableHeader {...keyboard.header}>
           <TableRow aria-rowindex={1}>
             {table.getHeaderGroups()[0]?.headers.map((header) => {
               const pinning = pinningOf(table, header.column.id, "z-30");
+              const position = { row: HEADER_ROW, column: header.column.id };
               return (
                 <HeaderCell
                   key={header.id}
@@ -692,6 +695,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
                   header={header}
                   column={configColumn(config, header.column.id)}
                   pinning={{ ...pinning, className: cn("sticky top-0 z-20", pinning.className) }}
+                  position={position}
+                  active={samePosition(cursor.active, position)}
                 />
               );
             })}

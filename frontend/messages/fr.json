@@ -248,7 +248,8 @@
     "unreachable": "Le service est injoignable ; réessayez dans un instant.",
     "conflictingObject": "Objet en conflit : {name}.",
     "reload": "Recharger",
-    "signIn": "Se connecter"
+    "signIn": "Se connecter",
+    "dismiss": "Fermer l’avis"
   },
   "tasks": {
     "label": "Tâches de fond",

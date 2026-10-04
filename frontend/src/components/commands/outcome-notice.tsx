@@ -8,11 +8,13 @@
  * way to the sign-in page, which comes back here; and, the API out of reach, that it is — the
  * screen stays, it never goes blank.
  *
- * Every one is an alert: it follows a command the user just gave, and is announced at once.
+ * Every one is an alert: it follows a command the user just gave, and is announced at once. A
+ * screen where the work goes on after a refusal — the cells of a grid entered one after the
+ * other — lets the user dismiss it (#189): told until then, whatever succeeds after it.
  */
 "use client";
 
-import { CircleAlert, LogIn, RefreshCw, WifiOff } from "lucide-react";
+import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
@@ -35,6 +37,8 @@ export interface OutcomeNoticeProps {
   readonly names?: ObjectNames | undefined;
   /** Forget the outcome: the screen reloads what it shows, and the notice has done its part. */
   readonly onClear: () => void;
+  /** Whether the notice offers to dismiss it, forgetting the outcome. */
+  readonly dismissible?: boolean | undefined;
 }
 
 const ALERT = "space-y-1 text-sm text-destructive";
@@ -76,20 +80,40 @@ function Reload({ onClear }: { readonly onClear: () => void }) {
   );
 }
 
+/** The offer to dismiss a notice, which forgets the outcome it tells. */
+function Dismiss({ onClear }: { readonly onClear: () => void }) {
+  const t = useTranslations("outcome");
+  return (
+    <Button type="button" variant="outline" size="sm" onClick={onClear}>
+      <X aria-hidden="true" />
+      {t("dismiss")}
+    </Button>
+  );
+}
+
 /** Tell of the outcome of an action; nothing on success. */
-export function OutcomeNotice({ outcome, names = {}, onClear }: OutcomeNoticeProps) {
+export function OutcomeNotice({
+  outcome,
+  names = {},
+  onClear,
+  dismissible = false,
+}: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
   const locale = useLocale();
   const messages = useMessages();
   if (outcome === undefined || outcome.kind === "done") {
     return null;
   }
+  const dismiss = dismissible ? <Dismiss onClear={onClear} /> : null;
   if (outcome.kind === "unreachable") {
     return (
-      <p role="alert" className={`${ALERT} ${SENTENCE}`}>
-        <WifiOff aria-hidden="true" className={ICON} />
-        {t("unreachable")}
-      </p>
+      <div role="alert" className={ALERT}>
+        <p className={SENTENCE}>
+          <WifiOff aria-hidden="true" className={ICON} />
+          {t("unreachable")}
+        </p>
+        {dismiss}
+      </div>
     );
   }
   const { kind, problem, conflictingObjectId } = outcome;
@@ -103,6 +127,7 @@ export function OutcomeNotice({ outcome, names = {}, onClear }: OutcomeNoticePro
       {name === undefined ? null : <p>{t("conflictingObject", { name })}</p>}
       {kind === "signed_out" ? <SignIn /> : null}
       {kind === "stale" ? <Reload onClear={onClear} /> : null}
+      {dismiss}
     </div>
   );
 }

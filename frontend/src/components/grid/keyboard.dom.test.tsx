@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -83,9 +83,9 @@ function scrollTo(row: number): void {
   }
 }
 
-/** Render the grid of the estimate, in French. */
-function renderGrid(nodes: NodeList = estimate) {
-  return render(
+/** The grid of the estimate on an answer, in French. */
+function gridOf(nodes: NodeList = estimate) {
+  return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
         filters={{}}
@@ -98,8 +98,28 @@ function renderGrid(nodes: NodeList = estimate) {
         query={NO_QUERY}
         preferences={undefined}
       />
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+/** Render the grid of the estimate, in French. */
+function renderGrid(nodes: NodeList = estimate) {
+  return render(gridOf(nodes));
+}
+
+/** The answer without one of its rows, by its index: read anew, the row gone. */
+function without(nodes: NodeList, index: number): NodeList {
+  return { ...nodes, items: nodes.items.filter((_, each) => each !== index) };
+}
+
+/** The elements of the grid in the order of tabulation. */
+function stops(): Element[] {
+  return [...screen.getByRole("grid").querySelectorAll('[tabindex="0"]')];
+}
+
+/** The header of a column, by its name. */
+function header(name: string | RegExp): HTMLElement {
+  return screen.getByRole("columnheader", { name });
 }
 
 /** The cell of a row, by its index among the rows of the answer, and of a column, if rendered. */
@@ -136,8 +156,7 @@ describe("the keyboard of a grid", () => {
   it("is one stop of the tabulation, the active cell, which the arrows move", async () => {
     serve();
     renderGrid();
-    const stops = screen.getByRole("grid").querySelectorAll('td[tabindex="0"]');
-    expect([...stops]).toEqual([cell(0, "label")]);
+    expect(stops()).toEqual([cell(0, "label")]);
     cell(0, "label").focus();
     await userEvent.keyboard("{ArrowDown}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}");
     expect(cell(1, "hours")).toHaveFocus();
@@ -151,15 +170,59 @@ describe("the keyboard of a grid", () => {
     expect(cell(MILESTONE, "inflated_amount")).toHaveFocus();
     await userEvent.keyboard("{Control>}{Home}{/Control}{PageDown}");
     expect(cell(MILESTONE, "row_number")).toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}{PageUp}{ArrowUp}{ArrowLeft}");
+    await userEvent.keyboard("{ArrowDown}{PageUp}{ArrowLeft}");
     expect(cell(0, "row_number")).toHaveFocus();
     // The cell clicked is the active one: the one stop of the tabulation.
     await userEvent.click(cell(DISBURSEMENT, "quantity"));
     expect(cell(DISBURSEMENT, "quantity")).toHaveAttribute("tabindex", "0");
-    expect(screen.getByRole("grid").querySelectorAll('td[tabindex="0"]')).toHaveLength(1);
-    // Tab leaves the grid.
+    expect(stops()).toEqual([cell(DISBURSEMENT, "quantity")]);
+    // Tab leaves the grid, and Shift+Tab too.
     await userEvent.tab();
     expect(screen.getByRole("grid")).not.toContainElement(document.activeElement as HTMLElement);
+    cell(DISBURSEMENT, "quantity").focus();
+    await userEvent.tab({ shift: true });
+    expect(screen.getByRole("grid")).not.toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it("reaches the header by the up arrow, sorts a column by Enter or Space, widens it by Shift and the arrows, one stop of the tabulation all along [WF-IHM-0100-A]", async () => {
+    serve();
+    renderGrid();
+    cell(0, "label").focus();
+    await userEvent.keyboard("{ArrowUp}");
+    expect(header("Libellé")).toHaveFocus();
+    // The header is the one stop now: its buttons and handles are out of the tabulation.
+    expect(stops()).toEqual([header("Libellé")]);
+    // Up, Page Up, Home and End keep to the header.
+    await userEvent.keyboard("{ArrowUp}{PageUp}{Home}");
+    expect(header("N°")).toHaveFocus();
+    await userEvent.keyboard("{End}");
+    expect(header(/inflation/)).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(router.push).toHaveBeenLastCalledWith(
+      "/projects/p/revisions/r/estimate?sort_by=inflated_amount&sort_order=asc",
+      { scroll: false },
+    );
+    await userEvent.keyboard("{ArrowLeft} ");
+    expect(router.push).toHaveBeenLastCalledWith(
+      "/projects/p/revisions/r/estimate?sort_by=reestimated_amount&sort_order=asc",
+      { scroll: false },
+    );
+    // Shift and the arrows widen the column of the header, as its handle does.
+    const handle = within(header(/année de réf/)).getByRole("separator");
+    expect(handle).toHaveAttribute("aria-valuenow", "128");
+    await userEvent.keyboard("{Shift>}{ArrowRight}{ArrowRight}{ArrowLeft}{/Shift}");
+    expect(handle).toHaveAttribute("aria-valuenow", "144");
+    expect(header(/année de réf/)).toHaveFocus();
+    // Down goes back to the rows, in the same column.
+    await userEvent.keyboard("{ArrowDown}");
+    expect(cell(0, "reestimated_amount")).toHaveFocus();
+    expect(stops()).toEqual([cell(0, "reestimated_amount")]);
+  });
+
+  it("keeps its one stop of the tabulation in the header when the answer has no row", () => {
+    serve();
+    renderGrid({ ...estimate, items: [] });
+    expect(stops()).toEqual([header("Libellé")]);
   });
 
   it("stops on the computed cells without entering them, and refuses a try", async () => {
@@ -215,18 +278,38 @@ describe("the keyboard of a grid", () => {
 
   it("closes a refusal on a click elsewhere, without scrolling back to its cell, the cell clicked active", async () => {
     serve();
-    renderGrid();
-    cell(PROVISION, "reestimated_amount").focus();
+    renderGrid(thousandRows());
+    // Scrolled down by fourteen rows: the refusal opens on a row in view, below the first.
+    scrollTo(14);
+    await vi.waitFor(() => {
+      expect(queryCell(20, "reestimated_amount")).not.toBeNull();
+    });
+    cell(20, "reestimated_amount").focus();
     await userEvent.keyboard("{Enter}");
     expect(refusal()).not.toBeNull();
     const scroller = screen.getByRole("grid").parentElement;
-    const scrolled = scroller?.scrollTop;
-    await userEvent.click(cell(LABOUR, "label"));
+    expect(scroller?.scrollTop).toBe(14 * ROW_HEIGHT);
+    await userEvent.click(cell(18, "label"));
     expect(refusal()).toBeNull();
-    expect(scroller?.scrollTop).toBe(scrolled);
-    expect(cell(LABOUR, "label")).toHaveFocus();
-    expect(cell(LABOUR, "label")).toHaveAttribute("tabindex", "0");
-    expect(cell(PROVISION, "reestimated_amount")).toHaveAttribute("aria-expanded", "false");
+    expect(scroller?.scrollTop).toBe(14 * ROW_HEIGHT);
+    expect(cell(18, "label")).toHaveFocus();
+    expect(cell(18, "label")).toHaveAttribute("tabindex", "0");
+    expect(cell(20, "reestimated_amount")).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes a refusal whose row a reading anew no longer holds, and never opens it again by itself", async () => {
+    const client = serve();
+    const { rerender } = renderGrid();
+    cell(LABOUR, "reestimated_amount").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByRole("dialog", { name: "Valeur calculée" })).toBeInTheDocument();
+    rerender(gridOf(without(estimate, LABOUR)));
+    expect(refusal()).toBeNull();
+    // A later reading brings the row back: the refusal stays closed, and asks nothing more.
+    rerender(gridOf(structuredClone(estimate)));
+    expect(refusal()).toBeNull();
+    expect(cell(LABOUR, "reestimated_amount")).toHaveAttribute("aria-expanded", "false");
+    expect(client.calls.filter((call) => call.route === DEPENDENCIES)).toHaveLength(1);
   });
 
   it("closes a refusal on a click on its own cell, rather than opening it again", async () => {
@@ -259,6 +342,23 @@ describe("the keyboard of a grid of a thousand rows", () => {
     await vi.waitFor(() => {
       expect(queryCell(DISBURSEMENT, "label")).toHaveFocus();
     });
+  });
+
+  it("keeps the row entered rendered, the active cell with it, when a reading anew sends it out of view", async () => {
+    serve();
+    const read = thousandRows();
+    const { rerender } = renderGrid(read);
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15");
+    // The same rows, read anew and sorted otherwise: the line entered last, far out of view.
+    const moved = without(read, LABOUR);
+    rerender(
+      gridOf({ ...moved, items: [...moved.items, ...read.items.slice(LABOUR, LABOUR + 1)] }),
+    );
+    const field = within(cell(999, "hours")).getByRole("textbox", { name: "Charge (h)" });
+    expect(field).toHaveValue("15");
+    expect(field).toHaveFocus();
+    expect(stops()).toEqual([cell(999, "hours")]);
   });
 
   it("closes a refusal whose row is scrolled out of view, and never opens it again by itself", async () => {

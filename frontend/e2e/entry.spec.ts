@@ -35,8 +35,9 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
 }
 
 /**
- * Open the estimate, and reach its active cell by Tab alone, as the keyboard does: some forty
- * stops, each a round trip to the browser, which the journey is given the time of (`test.slow`).
+ * Open the estimate, and reach its active cell by Tab alone, as the keyboard does: past the
+ * shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip to
+ * the browser, which the journey is given the time of (`test.slow`).
  */
 async function tabIntoGrid(page: Page): Promise<Locator> {
   test.slow();

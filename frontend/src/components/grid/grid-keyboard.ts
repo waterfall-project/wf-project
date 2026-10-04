@@ -1,13 +1,16 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The keyboard of a dense grid (WF-IHM-0040, the `grid` pattern of ARIA): one cell of the body is
+ * The keyboard of a dense grid (WF-IHM-0040, the `grid` pattern of ARIA): one cell of the grid is
  * in the order of tabulation, the active one, and the arrows move it — Page Up and Page Down by a
- * screenful, Home and End along the row, Ctrl with them to the first and the last row. The row it
- * lands on is brought into view, clear of the header and of the totals, and the cell takes the
- * focus once rendered: the rows are virtualized, and the row of the active cell stays rendered
- * however far the grid scrolls (`kept`, `useRowWindow`), so that the focus never falls to the
- * page. The cell focused, by the keyboard or the pointer, is the active one; Space scrolls nothing.
+ * screenful, Home and End along the row, Ctrl with them to the first and the last row. The header
+ * is a row of the grid, which the up arrow reaches from the first row, and whose buttons and
+ * handles are out of the order of tabulation (WF-IHM-0100): Enter or Space on a header sorts its
+ * column, Shift and the arrows widen it (`HeaderCell`). The row it lands on is brought into view,
+ * clear of the header and of the totals, and the cell takes the focus once rendered: the rows are
+ * virtualized, and the row of the active cell stays rendered however far the grid scrolls
+ * (`kept`, `useRowWindow`), so that the focus never falls to the page. The cell focused, by the
+ * keyboard or the pointer, is the active one; Space scrolls nothing.
  *
  * Enter or F2 enters a cell that takes an entry, a character typed starts its entry with it, and
  * a double click enters it. Once validated, the cursor goes on (`CellEditor`): Tab along the row,
@@ -20,6 +23,10 @@
  * identity of its row: Escape closes it and gives the focus back to the cell; a click elsewhere
  * closes it only, the focus going where the click took it; a click on the cell itself closes it;
  * scrolled out of view, it closes, the focus kept on the active cell where it is.
+ *
+ * The cell entered and the refusal follow their row by its identity: a reading anew that moves it
+ * takes the active cell with it, and one that no longer holds it closes them — a later reading
+ * that brings the row back does not open them again by itself.
  */
 "use client";
 
@@ -44,7 +51,13 @@ import type { CellWrites } from "./cell-writes";
 import type { CellEntry, GridConfig } from "./columns";
 import { configColumn } from "./grid-table";
 
-/** A cell of the body: its row, by its index among the rows of the answer, and its column. */
+/** The row of the header, before the first row of the answer. */
+export const HEADER_ROW = -1;
+
+/**
+ * A cell of the grid: its row, by its index among the rows of the answer — `HEADER_ROW` for the
+ * header —, and its column.
+ */
 export interface CellPosition {
   readonly row: number;
   readonly column: string;
@@ -85,7 +98,7 @@ export function samePosition(a: CellPosition | undefined, b: CellPosition): bool
   return a?.row === b.row && a.column === b.column;
 }
 
-/** The position a cell of the body carries, if the element is one. */
+/** The position a cell of the grid carries, if the element is one — a header or a cell of the body. */
 export function positionOf(element: EventTarget | null): CellPosition | undefined {
   if (!(element instanceof HTMLElement) || element.dataset.column === undefined) {
     return undefined;
@@ -112,8 +125,10 @@ function stepOf(key: string, page: number): { readonly rows: number; readonly co
 }
 
 /**
- * Where a key moves the cursor, among `rows` rows and the columns shown; `undefined` for a key
- * that moves nothing.
+ * Where a key moves the cursor, among the header, `rows` rows and the columns shown; `undefined`
+ * for a key that moves nothing. The header is reached by the up arrow from the first row, and kept
+ * along by the keys that move within a row or up; Ctrl with Home or End, Page Down and the down
+ * arrow go to the rows.
  */
 export function moved(
   key: string,
@@ -122,8 +137,12 @@ export function moved(
   bounds: { readonly rows: number; readonly columns: readonly string[]; readonly page: number },
 ): CellPosition | undefined {
   const last = bounds.columns.length - 1;
+  const header =
+    key === "ArrowUp" ||
+    bounds.rows === 0 ||
+    (at.row === HEADER_ROW && !ctrl && key !== "PageDown");
   const to = (row: number, column: number): CellPosition => ({
-    row: clamp(row, 0, bounds.rows - 1),
+    row: clamp(row, header ? HEADER_ROW : 0, bounds.rows - 1),
     column: bounds.columns[clamp(column, 0, last)] ?? at.column,
   });
   if (key === "Home" || key === "End") {
@@ -156,13 +175,10 @@ export function triesEntry(event: {
   return /^.$/u.test(event.key) && !shortcut;
 }
 
-/** The body cell at a position, once rendered. */
+/** The cell at a position — a header or a cell of the body —, once rendered. */
 function renderedCell(scroller: HTMLElement | null, at: CellPosition): HTMLElement | null {
-  return (
-    scroller?.querySelector<HTMLElement>(
-      `td[data-row="${at.row.toString()}"][data-column="${at.column}"]`,
-    ) ?? null
-  );
+  const attributes = `[data-row="${at.row.toString()}"][data-column="${at.column}"]`;
+  return scroller?.querySelector<HTMLElement>(`td${attributes}, th${attributes}`) ?? null;
 }
 
 /** The body cell a click landed in, if any — never one of a popover over it. */
@@ -179,7 +195,8 @@ export interface Cursor {
 
 /**
  * The active cell of a grid, first on the first row, at its first column; it stays within the
- * answer and among the columns shown, whatever they became.
+ * answer — in the header when the answer has no row — and among the columns shown, whatever they
+ * became.
  */
 export function useCursor<Row extends RowData, Sort extends string, Totals>(
   config: GridConfig<Row, Sort, Totals>,
@@ -193,7 +210,7 @@ export function useCursor<Row extends RowData, Sort extends string, Totals>(
   const shown = columns.some((column) => column.id === cursor.column);
   return {
     active: {
-      row: clamp(cursor.row, 0, Math.max(rows - 1, 0)),
+      row: rows === 0 ? HEADER_ROW : clamp(cursor.row, HEADER_ROW, rows - 1),
       column: shown ? cursor.column : (columns[0]?.id ?? cursor.column),
     },
     set,
@@ -245,24 +262,43 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
   const follow = useRef<CellPosition>(undefined);
   const origin = useRef<CellPosition>(undefined);
   const { active } = cursor;
+  // The rows the cell entered and the refusal were last found among, which a reading anew changes
+  // in the very render that brings it: the cell entered goes with its row, the active cell with
+  // it, and neither the entry nor the refusal outlives its row.
+  const [seen, setSeen] = useState(rows);
+  if (seen !== rows) {
+    setSeen(rows);
+    const indexOf = (key: string) => rows.findIndex((row) => config.rowKey(row) === key);
+    const entered = draft === undefined ? -1 : indexOf(draft.key);
+    if (draft !== undefined && entered < 0) {
+      setDraft(undefined);
+    } else if (draft !== undefined && entered !== active.row) {
+      cursor.set({ row: entered, column: draft.column });
+    }
+    if (refusal.at !== undefined && indexOf(refusal.at.key) < 0) {
+      setRefusal((before) => ({ ...before, at: undefined }));
+    }
+  }
 
   useLayoutEffect(() => {
     const target = follow.current;
     const cell = target === undefined ? null : renderedCell(scroller.current, target);
     if (cell !== null) {
       follow.current = undefined;
-      focusRendered(cell);
+      focusRendered(cell, scroller.current);
     }
   });
 
   /** Focus a cell: now if it is rendered, once it is otherwise, brought into view. */
   const focusCell = (at: CellPosition) => {
     follow.current = at;
-    scrollToIndex(at.row);
+    if (at.row !== HEADER_ROW) {
+      scrollToIndex(at.row);
+    }
     const cell = renderedCell(scroller.current, at);
     if (cell !== null) {
       follow.current = undefined;
-      focusRendered(cell);
+      focusRendered(cell, scroller.current);
     }
   };
   const moveTo = (at: CellPosition) => {
@@ -370,30 +406,34 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
   const dismiss = () => {
     setRefusal((before) => ({ ...before, at: undefined }));
   };
+  // The keys of the header and of the body, but those a header took for itself — the sort, the
+  // width of its column.
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const at = positionOf(event.target);
+    if (at === undefined || event.defaultPrevented) {
+      return;
+    }
+    const bounds = { rows: rows.length, columns, page: page() };
+    const target = moved(event.key, event.ctrlKey || event.metaKey, at, bounds);
+    const typed = /^(Enter|F2)$/.test(event.key) ? undefined : event.key;
+    if (target !== undefined) {
+      origin.current = undefined;
+      moveTo(target);
+    } else if (!(triesEntry(event) && start(at, typed)) && event.key !== " ") {
+      return;
+    }
+    // A key the grid took: its default — the page scrolled by Space — is not done.
+    event.preventDefault();
+  };
+  const onFocus = (event: FocusEvent<HTMLElement>) => {
+    const at = positionOf(event.target);
+    if (at !== undefined && !samePosition(at, active)) {
+      cursor.set(at);
+    }
+  };
   const body = {
-    onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-      const at = positionOf(event.target);
-      if (at === undefined) {
-        return;
-      }
-      const bounds = { rows: rows.length, columns, page: page() };
-      const target = moved(event.key, event.ctrlKey || event.metaKey, at, bounds);
-      const typed = /^(Enter|F2)$/.test(event.key) ? undefined : event.key;
-      if (target !== undefined) {
-        origin.current = undefined;
-        moveTo(target);
-      } else if (!(triesEntry(event) && start(at, typed)) && event.key !== " ") {
-        return;
-      }
-      // A key the grid took: its default — the page scrolled by Space — is not done.
-      event.preventDefault();
-    },
-    onFocus: (event: FocusEvent<HTMLElement>) => {
-      const at = positionOf(event.target);
-      if (at !== undefined && !samePosition(at, active)) {
-        cursor.set(at);
-      }
-    },
+    onKeyDown,
+    onFocus,
     // A click starts a row afresh, and tries a computed cell or closes the refusal it has open;
     // a double click enters a cell.
     onClick: (event: MouseEvent<HTMLElement>) => {
@@ -420,6 +460,8 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     draft,
     refusal,
     body,
+    /** The keyboard of the header: its cells moved along and left by the arrows. */
+    header: { onKeyDown, onFocus },
     validate,
     /** Abandon the entry: from the keyboard, the focus back on its cell; on a blur, where it went. */
     abandon: (refocus: boolean) => {
@@ -460,13 +502,37 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
 
 /**
  * Focus a cell, and bring it into view as little as it takes. A cell of a column pinned at the
- * start is where it sticks, and no scroll brings it into view sideways; the others come out from
- * under the pinned columns, the header and the totals (`scroll-padding` of the element that
- * scrolls), which the scroll of a focus does not always heed.
+ * start is where it sticks, and no scroll brings it into view sideways: its row is brought into
+ * the window, which the grid may overflow (#183). The others come out from under the pinned
+ * columns, the header and the totals (`scroll-padding` of the element that scrolls), which the
+ * scroll of a focus does not always heed. A header sticks to the top of the grid, within the
+ * padding its rows come out of: it is brought into view sideways alone, the rows left where they
+ * are.
  */
-function focusRendered(cell: HTMLElement): void {
+function focusRendered(cell: HTMLElement, scroller: HTMLElement | null): void {
   cell.focus({ preventScroll: true });
-  if (cell.style.left === "") {
+  const pinned = cell.style.left !== "";
+  if (positionOf(cell)?.row === HEADER_ROW) {
+    if (!pinned && scroller !== null) {
+      revealSideways(cell, scroller);
+    }
+  } else if (pinned) {
+    cell.closest("tr")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  } else {
     cell.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
+
+/** Scroll the grid sideways as little as it takes for a cell to come out from under the pinned. */
+function revealSideways(cell: HTMLElement, scroller: HTMLElement): void {
+  const box = cell.getBoundingClientRect();
+  const view = scroller.getBoundingClientRect();
+  const padding = Number.parseFloat(scroller.style.scrollPaddingInlineStart);
+  const start = view.left + scroller.clientLeft + (Number.isNaN(padding) ? 0 : padding);
+  const end = view.left + scroller.clientLeft + scroller.clientWidth;
+  if (box.left < start) {
+    scroller.scrollLeft -= start - box.left;
+  } else if (box.right > end) {
+    scroller.scrollLeft += Math.min(box.right - end, box.left - start);
   }
 }

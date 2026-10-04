@@ -286,20 +286,16 @@ function bearsLine(node: GridNode): boolean {
 }
 
 /**
- * The name of a choice, by its identifier: `unknown` for one the list does not know; nothing for
- * a list the API refused.
+ * The name of a choice, by its identifier: `unknown` for one the list does not know, or that a
+ * list the API refused leaves unread — never an empty cell for a reference the grid could not
+ * read (#198); nothing for no identifier.
  */
 function namer(
   choices: readonly Choice[] | undefined,
   unknown: string,
 ): (id: CellValue) => CellValue {
   const names = new Map(choices?.map((choice) => [choice.id, choice.label]));
-  return (id) => {
-    if (choices === undefined || id === null || id === undefined) {
-      return choices === undefined ? undefined : id;
-    }
-    return names.get(id) ?? unknown;
-  };
+  return (id) => (id === null || id === undefined ? id : (names.get(id) ?? unknown));
 }
 
 /**

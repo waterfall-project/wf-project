@@ -19,6 +19,7 @@ import {
 } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
+import type { EstimateReference } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeFilters, NodeList, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
@@ -73,7 +74,10 @@ function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
   return client;
 }
 
-/** The grid of the estimate on an answer, in a language, open to entry or not, as the address asked. */
+/**
+ * The grid of the estimate on an answer, in a language, open to entry or not, as the address
+ * asked, its categories and roles named by the reference data the page read.
+ */
 function grid(
   locale: Locale = "fr",
   nodes: NodeList = estimate,
@@ -81,6 +85,7 @@ function grid(
   tasksEditable = true,
   query: GridQuery<NodeSortColumn> = NO_QUERY,
   filters: NodeFilters = {},
+  reference: EstimateReference = estimateReference(),
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
@@ -88,7 +93,7 @@ function grid(
         nodes={nodes}
         structure={STRUCTURE}
         structureVersion={1}
-        reference={estimateReference()}
+        reference={reference}
         editable={editable}
         tasksEditable={tasksEditable}
         query={query}
@@ -317,6 +322,35 @@ describe("the keyboard of a grid", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
+  it("shows a role it could not read as unknown, never as an empty cell, and offers no entry for it", async () => {
+    serve();
+    // The API refused the list of the roles (#195, #198): the line of labour bears one all the same.
+    render(
+      grid("fr", estimate, true, true, NO_QUERY, {}, { ...estimateReference(), roles: undefined }),
+    );
+    expect(cell(LABOUR, "resource_role")).toHaveTextContent("Référence inconnue");
+    expect(cell(LABOUR, "resource_role")).toHaveAttribute("aria-readonly", "true");
+    // A line that bears no role shows none.
+    expect(cell(DISBURSEMENT, "resource_role")).toHaveTextContent(/^$/);
+    cell(LABOUR, "resource_role").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
+  it("lets Space open a list, as the browser does, unless it goes on a search", async () => {
+    serve();
+    render(grid());
+    cell(LABOUR, "resource_role").focus();
+    await userEvent.keyboard("{Enter}");
+    const list = screen.getByRole("combobox", { name: "Rôle" });
+    // Not prevented: the browser opens the list.
+    expect(fireEvent.keyDown(list, { key: " " })).toBe(true);
+    // A search under way takes it, as a character of the name searched.
+    expect(fireEvent.keyDown(list, { key: "T" })).toBe(false);
+    expect(list).toHaveValue(COMMISSIONING_TECHNICIAN);
+    expect(fireEvent.keyDown(list, { key: " " })).toBe(false);
+  });
+
   it("leaves a cell at its value before when its entry under way is abandoned [WF-IHM-0040-A]", async () => {
     const client = serve();
     render(grid());
@@ -495,6 +529,36 @@ describe("a write the server refuses", () => {
     expect(cell(LABOUR, "quantity")).toHaveTextContent(/^1$/);
   });
 
+  it("lets a refusal told be dismissed, the entry going on", async () => {
+    serve({
+      [LINE]: [{ problem: { code: "REVISION_MARKED", status: 409 } }, "estimate_line_updated"],
+    });
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/marquée/);
+    await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    cell(LABOUR, "quantity").focus();
+    await userEvent.keyboard("3{Enter}");
+    await vi.waitFor(() => {
+      expect(cell(LABOUR, "hours")).toHaveTextContent(/^14$/);
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("lets the API out of reach be dismissed too", async () => {
+    server.client = unreachable();
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Le service est injoignable");
+    await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("drops an answer that comes once the page has been read anew", async () => {
     let answer: (value?: unknown) => void = () => undefined;
     serve(
@@ -573,6 +637,21 @@ describe("an entry refused before it leaves", () => {
     expect(within(cell(last, "hours")).getByRole("textbox", { name: "Charge (h)" })).toHaveValue(
       "15",
     );
+  });
+
+  it("closes the entry of a row a reading anew no longer holds, and never opens it again by itself", async () => {
+    const client = serve();
+    const { rerender } = render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15");
+    const read = structuredClone(estimate);
+    rerender(grid("fr", { ...read, items: read.items.filter((_, index) => index !== LABOUR) }));
+    expect(screen.queryByRole("textbox")).toBeNull();
+    // A later reading brings the row back: its cell shows its value, and nothing is entered.
+    rerender(grid("fr", structuredClone(estimate)));
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+    expect(written(client)).toEqual([]);
   });
 });
 
@@ -658,6 +737,39 @@ describe("what a write answers besides the row written", () => {
       { search: "borniers", fields: "node_id" },
     ]);
     expect(client.calls.map((call) => call.route)).toEqual([LINE, NODES_ROUTE]);
+  });
+
+  it("takes the totals read anew after the last write alone, dropping a reading under way when another write left", async () => {
+    // The first reading anew is held until the second has answered, which answers other totals.
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const client = fakeClient(
+      { [LINE]: "estimate_line_updated", [NODES_ROUTE]: ["nodes", "nodes_risk_occurred"] },
+      { hold: (route, index) => (route === NODES_ROUTE && index === 0 ? held : undefined) },
+    );
+    server.client = client;
+    const search = { sort: undefined, search: "borniers" };
+    render(grid("fr", estimate, true, true, search, { search: "borniers" }));
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    await vi.waitFor(() => {
+      expect(client.calls.filter((call) => call.route === NODES_ROUTE)).toHaveLength(1);
+    });
+    // Another write leaves while the totals are read anew: its own reading anew answers.
+    cell(LABOUR, "quantity").focus();
+    await userEvent.keyboard("3{Enter}");
+    await vi.waitFor(() => {
+      expect(totals()[1]).toBe("Total — 3 tâches, 2 lignes");
+    });
+    // The first reading answers last: dropped, the totals of the second stay.
+    await act(async () => {
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(totals()[1]).toBe("Total — 3 tâches, 2 lignes");
+    expect(client.calls.map((call) => call.route)).toEqual([LINE, NODES_ROUTE, LINE, NODES_ROUTE]);
   });
 
   it("tells a reading anew of the totals the server refuses, the totals of the reading left as they were", async () => {

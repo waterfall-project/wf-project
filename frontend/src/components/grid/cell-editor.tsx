@@ -114,9 +114,13 @@ export function CellEditor({
     if (!/^.$/u.test(event.key) || event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
-    event.preventDefault();
     const now = Date.now();
     const kept = now - search.current.at < SEARCH_PAUSE ? search.current.typed : "";
+    // Space opens the list, as the browser's does, unless it goes on a search (#198).
+    if (event.key === " " && kept === "") {
+      return;
+    }
+    event.preventDefault();
     search.current = { typed: kept + event.key, at: now };
     const found = firstChoice(choices, search.current.typed, locale);
     if (found !== undefined) {

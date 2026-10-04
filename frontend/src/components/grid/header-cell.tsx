@@ -6,6 +6,11 @@
  * computes whole (WF-IHM-0030), as each of its cells bears it; the sort, when the server sorts
  * it — a button; `aria-sort` on the column sorted, and on it alone —; and the handle that widens
  * it, by the pointer or by the arrows of the keyboard, a separator whose value is the width.
+ *
+ * The header is a row of the grid, which its arrows move along (`useGridKeyboard`): the active one
+ * is the one stop of the grid in the order of tabulation, its button and handle out of it
+ * (WF-IHM-0100, #182). Enter or Space on it sorts its column, as its button does; Shift and the
+ * left or right arrow narrow or widen it, as its handle does.
  */
 "use client";
 
@@ -18,6 +23,7 @@ import { TableHead } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 
 import { alignment, type GridColumn, MAX_WIDTH, MIN_WIDTH } from "./columns";
+import type { CellPosition } from "./grid-keyboard";
 import type { GridHeader, GridTable } from "./grid-table";
 
 /** How far an arrow of the keyboard moves the width of a column, in pixels. */
@@ -42,6 +48,10 @@ export interface HeaderCellProps<Row extends RowData> {
   readonly column: HeaderColumn | undefined;
   /** The classes that pin it, and its offset from the start. */
   readonly pinning: { readonly className: string; readonly left: number | undefined };
+  /** Its place in the grid, in the row of the header. */
+  readonly position: CellPosition;
+  /** Whether it is the active cell of the grid, the one stop of the tabulation. */
+  readonly active: boolean;
 }
 
 /** The icon of the state of the sort of a column. */
@@ -55,7 +65,28 @@ function SortIcon({ state }: { readonly state: false | "asc" | "desc" }) {
   return <ArrowUpDown aria-hidden="true" className="size-3 shrink-0 opacity-50" />;
 }
 
-/** The handle that widens a column: dragged, or moved by the arrows once it has the focus. */
+/**
+ * Narrow or widen a column by a step of the keyboard, within its bounds, for the left or the
+ * right arrow: whether the key was one of them.
+ */
+function resizeBy<Row extends RowData>(
+  table: GridTable<Row>,
+  header: GridHeader<Row>,
+  key: string,
+): boolean {
+  const step = { ArrowLeft: -RESIZE_STEP, ArrowRight: RESIZE_STEP }[key];
+  if (step === undefined) {
+    return false;
+  }
+  const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, header.getSize() + step));
+  table.setColumnSizing((sizing) => ({ ...sizing, [header.column.id]: width }));
+  return true;
+}
+
+/**
+ * The handle that widens a column: dragged, or moved by the arrows once it has the focus — which
+ * the pointer gives it; out of the order of tabulation, the header widening its column itself.
+ */
 function ResizeHandle<Row extends RowData>({
   table,
   header,
@@ -69,13 +100,9 @@ function ResizeHandle<Row extends RowData>({
   const size = header.getSize();
   const start = header.getResizeHandler();
   const resize = (event: KeyboardEvent) => {
-    const step = { ArrowLeft: -RESIZE_STEP, ArrowRight: RESIZE_STEP }[event.key];
-    if (step === undefined) {
-      return;
+    if (resizeBy(table, header, event.key)) {
+      event.preventDefault();
     }
-    event.preventDefault();
-    const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, size + step));
-    table.setColumnSizing((sizing) => ({ ...sizing, [header.column.id]: width }));
   };
   return (
     <div
@@ -85,7 +112,7 @@ function ResizeHandle<Row extends RowData>({
       aria-valuenow={size}
       aria-valuemin={MIN_WIDTH}
       aria-valuemax={MAX_WIDTH}
-      tabIndex={0}
+      tabIndex={-1}
       onMouseDown={start}
       onTouchStart={start}
       onKeyDown={resize}
@@ -137,6 +164,8 @@ export function HeaderCell<Row extends RowData>({
   header,
   column,
   pinning,
+  position,
+  active,
 }: HeaderCellProps<Row>) {
   const t = useTranslations("grid");
   const label = t(`columns.${column?.label ?? "rowNumber"}`);
@@ -147,22 +176,46 @@ export function HeaderCell<Row extends RowData>({
   // handle it holds, which would be read with every cell of the column.
   const id = useId();
   const heading = <Heading id={id} column={column} label={label} />;
+  const sorts = header.column.getCanSort();
+  const resizes = header.column.getCanResize();
+  // The keys the header itself takes, not those of its button or handle, which take their own.
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    if (sorts && (event.key === "Enter" || event.key === " ")) {
+      header.column.getToggleSortingHandler()?.(event);
+      event.preventDefault();
+    } else if (resizes && event.shiftKey && resizeBy(table, header, event.key)) {
+      event.preventDefault();
+    }
+  };
+  const shortcuts = [
+    sorts ? "Enter Space" : undefined,
+    resizes ? "Shift+ArrowLeft Shift+ArrowRight" : undefined,
+  ].filter((each) => each !== undefined);
   return (
     <TableHead
       scope="col"
       aria-labelledby={id}
       aria-sort={sorted ? ARIA_SORT[sorted] : undefined}
+      aria-keyshortcuts={shortcuts.length === 0 ? undefined : shortcuts.join(" ")}
+      data-row={position.row}
+      data-column={position.column}
+      tabIndex={active ? 0 : -1}
+      onKeyDown={onKeyDown}
       style={{ left: pinning.left }}
       className={cn(
-        "relative h-8 bg-muted",
+        "relative h-8 bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         pinning.className,
         end ? "text-right" : null,
         align === "center" ? "text-center" : null,
       )}
     >
-      {header.column.getCanSort() ? (
+      {sorts ? (
         <button
           type="button"
+          tabIndex={-1}
           onClick={header.column.getToggleSortingHandler()}
           className={cn(
             "inline-flex max-w-full items-center gap-1 rounded-sm font-medium outline-none",
@@ -176,9 +229,7 @@ export function HeaderCell<Row extends RowData>({
       ) : (
         heading
       )}
-      {header.column.getCanResize() ? (
-        <ResizeHandle table={table} header={header} label={label} />
-      ) : null}
+      {resizes ? <ResizeHandle table={table} header={header} label={label} /> : null}
     </TableHead>
   );
 }
