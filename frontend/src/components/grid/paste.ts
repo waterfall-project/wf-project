@@ -8,12 +8,12 @@
  * on is the one that holds the focus in this grid; an entry under way holds it in its field,
  * which takes what is pasted as a field does.
  *
- * The block lands from that cell, and the server ranges it in the order of its own columns,
- * without knowing which ones the grid shows (#200). Until the preview carries the columns the
- * block fills, the front refuses at once, asking nothing, what the server cannot judge: a block
- * wider than the columns of the configuration from the cell — as the server would refuse it
- * (`PASTE_TOO_WIDE`) — and a block whose span, from the column of the cell to the last one
- * filled in that order, crosses a hidden column, which would shift what is written without a
+ * The block lands from that cell, named by its column of the contract, and the server ranges it
+ * in the order of the columns of the contract (`NodeColumn`), without knowing which ones the grid
+ * shows (#200). The front therefore refuses at once, asking nothing, what the server cannot
+ * judge: a block wider than the columns of the configuration from the cell — as the server would
+ * refuse it (`PASTE_TOO_WIDE`) — and a block whose span, from the column of the cell to the last
+ * one filled in that order, crosses a hidden column, which would shift what is written without a
  * word (`hidden`). Otherwise the server says what it would write and refuse, with the reason of
  * each refusal, and writes nothing (`GridPaste.preview`); the grid shows that plan, and applies it
  * once confirmed, in one operation (`GridPaste.apply`), the rows the server wrote taking the place
