@@ -1,0 +1,30 @@
+{
+  "summary": "L'import d'un planning MS Project analysé le 20 mai 2026 : la durée d'une tâche du fichier diffère de celle que Waterfall recalcule, ce qui demande une confirmation explicite ; l'import a ensuite été abandonné (WF-INTF-0040).",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a10",
+    "kind": "ms_project_schedule",
+    "filename": "planning-poste-de-commande.xml",
+    "status": "analysed",
+    "created_at": "2026-05-20T10:15:00Z",
+    "expires_at": "2026-05-21T10:16:00Z",
+    "report": {
+      "format_version": null,
+      "read_count": 4,
+      "rejected": [],
+      "differences": [
+        {
+          "change": "updated",
+          "target": "task",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000602",
+          "label": "Études de détail",
+          "fields": [
+            "duration"
+          ]
+        }
+      ],
+      "requires_confirmation_reasons": [
+        "date_or_duration_mismatch"
+      ]
+    }
+  }
+}

@@ -649,6 +649,31 @@ qui n'en avait pas dans la grille des volumes — et `hourly_rate_corrected` —
 même catégorie corrigé, sa version avancée. La catégorie n'est employée par aucun devis des
 exemples : ni l'une ni l'autre écriture ne contredit un montant chiffré ailleurs.
 
+## L'import en deux temps (US-0260/L1)
+
+Ajouts que l'écran d'import exige, faits par son lot sur l'autorisation de l'utilisateur du
+2026-10-04 (« ajouts de lecture inclus »).
+
+**Un import nomme son fichier** (`Import.filename`, exigé). L'écran présente les imports du projet
+et le compte rendu de chacun (WF-INTF-0080) : sans le nom du fichier, deux imports de même nature
+ouverts le même jour ne se distinguent pas, et le fichier lui-même est supprimé dès l'import
+appliqué, abandonné ou expiré (WF-DAT-0120) — `FileUpload.filename` ne se relit plus. Le nom est
+celui que l'utilisateur a envoyé, gardé tel quel. Écarté : renvoyer au dépôt par `upload_id`, qui ne
+se lit pas.
+
+**Exemples**, dans l'univers des autres : `file_upload` (le devis du Poste de commande déposé le
+1er juin 2026 à 8 h 40), `import_analysing` (son import ouvert, l'analyse en cours),
+`import_analysed` (le même analysé à 8 h 41 : vingt-quatre lignes lues, deux rejetées — une tâche
+et un rôle inconnus —, une ligne ajoutée, « Raccordement des borniers » modifiée, « Borniers »
+retirée, lignes de `nodes_estimate`), `import_planning_mismatch` (un planning MS Project analysé
+le 20 mai, dont la durée des « Études de détail » diffère de celle que Waterfall recalcule, qui
+demande une confirmation explicite), `imports` (au 1er juin : le devis qui attend sa
+confirmation, le planning abandonné, et les quatre extractions de coûts réels de
+`cost_imports_periods` antérieures au 1er juin, appliquées) et `imports_empty` ;
+`task_export_queued` et `task_export_succeeded` (l'export du devis demandé à 9 h 10, abouti, son
+résultat à lire par la tâche). L'application de l'import du devis est `task_import_queued`, à
+9 h.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

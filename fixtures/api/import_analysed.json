@@ -1,0 +1,63 @@
+{
+  "summary": "L'import du devis du Poste de commande, analysé le 1er juin 2026 à 8 h 41 et applicable vingt-quatre heures : vingt-quatre lignes lues, deux rejetées — une tâche et un rôle inconnus —, une ligne ajoutée, une modifiée, une retirée (WF-INTF-0080, WF-INTF-0100).",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a11",
+    "kind": "estimate",
+    "filename": "devis-poste-de-commande.xlsx",
+    "status": "analysed",
+    "created_at": "2026-06-01T08:40:05Z",
+    "expires_at": "2026-06-02T08:41:00Z",
+    "report": {
+      "format_version": "1",
+      "read_count": 24,
+      "rejected": [
+        {
+          "row": 7,
+          "code": "UNKNOWN_TASK",
+          "params": {}
+        },
+        {
+          "row": 12,
+          "code": "UNKNOWN_RESOURCE_ROLE",
+          "params": {}
+        }
+      ],
+      "differences": [
+        {
+          "change": "added",
+          "target": "estimate_line",
+          "lineage_id": null,
+          "label": "Essais de continuité",
+          "fields": []
+        },
+        {
+          "change": "updated",
+          "target": "estimate_line",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+          "label": "Raccordement des borniers",
+          "fields": [
+            "hours"
+          ]
+        },
+        {
+          "change": "removed",
+          "target": "estimate_line",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000624",
+          "label": "Borniers",
+          "fields": []
+        }
+      ],
+      "requires_confirmation_reasons": []
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000904",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-01T08:40:05Z",
+      "finished_at": "2026-06-01T08:41:00Z",
+      "problem": null,
+      "result_url": null
+    }
+  }
+}

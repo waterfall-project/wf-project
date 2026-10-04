@@ -48,10 +48,15 @@ ImportRequest:
 
 Import:
   type: object
-  required: [import_id, kind, status, created_at, expires_at]
+  required: [import_id, kind, filename, status, created_at, expires_at]
   properties:
     import_id: { $ref: ../common.yaml#/Uuid }
     kind: { $ref: '#/ExchangeKind' }
+    filename:
+      type: string
+      description: >-
+        Nom du fichier déposé, tel que l'utilisateur l'a envoyé ; il reste au compte rendu
+        et à la liste des imports quand le fichier lui-même est supprimé (WF-DAT-0120).
     status:
       type: string
       enum: [analysing, analysed, applying, applied, abandoned, expired, failed]
