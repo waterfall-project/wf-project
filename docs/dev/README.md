@@ -303,6 +303,21 @@ retirée à la survenance, historique des réexamens. Le libellé d'un risque es
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 
+L'écran des coûts réels, `…/revisions/[r]/actual-costs` (`frontend/src/components/costs/`), lit
+ceux du projet — ils ne sont pas versionnés, la révision de la route n'est que le contexte du
+bandeau — page par page, comme le serveur les pagine (`offset`, `listActualCosts`) : les trois
+totaux des lignes retenues et la date du dernier import, tels que le serveur les rend ; les
+filtres par périmètre, par sous-projet — celui du contexte de lecture, `subproject_id` — et par
+période des pièces, qui n'écrivent que l'adresse, sous les noms du contrat, et ramènent à la
+première page ; la grille dense en lecture (`cost-grid.tsx`), sans recherche — l'opération n'en
+a pas : une configuration la retire par `searched: false` —, chaque ligne avec son sous-projet
+nommé par le serveur, son périmètre en mots et les colonnes conservées du fichier telles
+qu'importées ; et le journal des imports, paginé à part (`imports_offset`). Un tri ou une
+recherche changés ramènent toute liste paginée à sa première page (`sortHref`, `searchHref`).
+Un lien de page, comme le libellé d'un risque, part de la dernière adresse demandée
+(`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
+en attente —, il mène à leur première page.
+
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
 vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une

@@ -14,9 +14,8 @@ import { X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type { MouseEvent } from "react";
 
-import { usePendingAddress } from "@/components/grid/pending-address";
+import { usePendingLink } from "@/components/grid/pending-address";
 
 import { Signal } from "@/components/signal/signal";
 import { buttonVariants } from "@/components/ui/button";
@@ -30,18 +29,7 @@ import type { RiskRow } from "./risk-grid";
  */
 function useRiskNavigation(risk: string | undefined) {
   const pathname = usePathname();
-  const query = useSearchParams();
-  const { request } = usePendingAddress();
-  return {
-    href: riskHref(pathname, new URLSearchParams(query), risk),
-    onClick: (event: MouseEvent<HTMLAnchorElement>) => {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
-      event.preventDefault();
-      request((asked) => riskHref(pathname, asked, risk));
-    },
-  };
+  return usePendingLink((query) => riskHref(pathname, query, risk));
 }
 
 /** Render the label of a risk, as a link to its detail; the risk shown says so. */

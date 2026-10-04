@@ -14,11 +14,11 @@ import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
+import { ComputedAmount } from "@/components/computed-amount";
 import { Actor, CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatPercent, formatPlanningDate } from "@/i18n/format";
 
-import { ComputedAmount } from "./provision-totals";
 import { CloseRiskDetail } from "./risk-cells";
 
 /** A risk, as the contract gives it. */

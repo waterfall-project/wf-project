@@ -80,6 +80,7 @@ const COMPUTED_IN_EVERY_RISK: ComputedCells<RiskRow> = {
 /** The grid of the risks. */
 export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
   key: "risks",
+  searched: true,
   name: "risks",
   rowKey: (risk) => risk.risk_id,
   columns: [
