@@ -33,7 +33,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import type { Outcome } from "@/api/problem";
 
 import type { CellWrites } from "./cell-writes";
-import type { ColumnLabel, GridColumn, GridConfig, PastedBlock, PastePlan } from "./columns";
+import type { ColumnName, GridColumn, GridConfig, PastedBlock, PastePlan } from "./columns";
 import { type CellPosition, positionOf } from "./grid-keyboard";
 
 /** The API out of reach: the server action itself did not answer. */
@@ -82,7 +82,7 @@ export function widest(block: PastedBlock): number {
 /** Where a block is pasted from, as the dialog names it: the number of its row, its column. */
 export interface PasteTarget {
   readonly row: number;
-  readonly column: ColumnLabel;
+  readonly column: ColumnName;
 }
 
 /**
@@ -149,7 +149,7 @@ function landedAt<Row extends RowData, Sort extends string, Totals>(
  * the grid does not present, named by the contract (`GridPaste.name`).
  */
 export type UnshownColumn =
-  | { readonly shown: "hidden"; readonly label: ColumnLabel }
+  | { readonly shown: "hidden"; readonly column: ColumnName }
   | { readonly shown: "absent"; readonly name: string };
 
 /** The refusal the front opposes itself, before asking anything (#200, #223). */
@@ -186,7 +186,7 @@ function localRefusal<Row extends RowData, Sort extends string, Totals>(
       return { outcome: undefined, hidden: { shown: "absent", name: paste.name(filled) } };
     }
     if (!set.has(column.key)) {
-      return { outcome: undefined, hidden: { shown: "hidden", label: column.label } };
+      return { outcome: undefined, hidden: { shown: "hidden", column } };
     }
   }
   return undefined;
@@ -238,7 +238,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   ) => {
     current.current += 1;
     const asked = current.current;
-    const target = { row: config.rowNumber?.(row) ?? at.row + 1, column: column.label };
+    const target = { row: config.rowNumber?.(row) ?? at.row + 1, column };
     refuse(undefined, undefined);
     setPasting({ block, width: widest(block), target, plan: undefined, applying: false });
     void asking

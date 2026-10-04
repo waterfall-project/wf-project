@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { problemMessage } from "@/i18n/problem";
 
-import type { PastedBlock, PastePlan } from "./columns";
+import { headingOf, type PastedBlock, type PastePlan } from "./columns";
 import type { Pasting } from "./paste";
 
 /** The rows refused, each with its place in the block, its cells as copied and its reason. */
@@ -119,7 +119,7 @@ export function PasteDialog({ pasting, onApply, onAbandon, onClosed }: PasteDial
               rows: block.length,
               columns: pasting.width,
               row: target.row,
-              column: t(`columns.${target.column}`),
+              column: headingOf(target.column, (key) => t(`columns.${key}`)),
             })}
           </DialogDescription>
         </DialogHeader>

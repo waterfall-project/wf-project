@@ -48,6 +48,11 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   /** The key of the column: stable, for it names the column in the settings of the account. */
   readonly key: string;
   readonly label: ColumnLabel;
+  /**
+   * A heading the answer gives — the year of a column of rates —, shown as it is in place of the
+   * heading of its label, which then says what the column holds.
+   */
+  readonly heading?: string;
   readonly format: CellFormat;
   /** Where the column aligns; by default, as its format does. */
   readonly align?: CellAlign;
@@ -282,6 +287,17 @@ export const MIN_WIDTH = 40;
 
 /** The widest a column gets. */
 export const MAX_WIDTH = 800;
+
+/** What names a column: its label in the catalogue, and the heading the answer gives it, if any. */
+export interface ColumnName {
+  readonly label: ColumnLabel;
+  readonly heading?: string;
+}
+
+/** The heading of a column: the one the answer gives it, or that of its label in the catalogue. */
+export function headingOf(column: ColumnName, translate: (label: ColumnLabel) => string): string {
+  return column.heading ?? translate(column.label);
+}
 
 /** Where a column aligns. */
 export function alignment(column: { readonly format: CellFormat; readonly align?: CellAlign }) {

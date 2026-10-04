@@ -30,12 +30,13 @@ import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
-import type {
-  ComputedCells,
-  ComputedDependencies,
-  ComputedValueField,
-  DependencyReader,
-  GridColumn,
+import {
+  type ComputedCells,
+  type ComputedDependencies,
+  type ComputedValueField,
+  type DependencyReader,
+  type GridColumn,
+  headingOf,
 } from "./columns";
 
 /** A column some of whose cells the server computes. */
@@ -189,7 +190,7 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
         <Sigma aria-hidden="true" className="size-3.5 shrink-0" />
         {t("title")}
       </p>
-      <p>{t("refused", { column: columns(column.label) })}</p>
+      <p>{t("refused", { column: headingOf(column, (key) => columns(key)) })}</p>
       {/* One region, in place as the refusal opens: what it reads, then what the server said. */}
       <div role="status" aria-live="polite" aria-busy={reading} className="space-y-1.5">
         {reading ? <p className="text-muted-foreground">{t("pending")}</p> : null}
