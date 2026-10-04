@@ -118,18 +118,18 @@ Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 l'écran « introuvable » unique (`not-found.tsx`), qu'une adresse inexistante et une lecture
 refusée atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Unreachable`, et
 toute autre réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe passe par
-`readUnlessRefused`, à côté : elle ne rend rien sur les refus qu'il attend — un statut, et le
-`code` de l'enveloppe quand le statut ne dit pas lequel —, et suit la même règle pour le reste.
-L'écran de panne (`error.tsx` dans la coquille,
-`global-error.tsx` quand le layout racine échoue) ne reçoit en production que le `digest` de
-l'erreur levée côté serveur : `Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme
-tel, `SignedOut` (un 401) `SESSION_REQUIRED_DIGEST`, qui mène à la connexion
-(`loginHref`), `UnexpectedAnswer` l'identifiant de corrélation de l'enveloppe, préfixé de
-`WATERFALL_CORRELATION;` pour qu'aucune valeur de l'API ne prenne un sens pour Next
-(`NEXT_REDIRECT;…`), et qu'il affiche en référence sans le préfixe (`failure.ts`). Sans
-enveloppe, ou sans `correlation_id`, la référence affichée est le digest que Next calcule,
-celui de ses propres journaux. Un écran ne dit jamais « vide » sur une réponse qu'il n'a pas
-lue. Quand la session est illisible, la navigation garde l'écran d'état (WF-ADM-0130).
+`readUnlessRefused`, à côté : elle ne rend rien sur les refus qu'il attend — un statut, et
+le `code` de l'enveloppe quand le statut ne dit pas lequel —, et suit la même règle pour le
+reste. L'écran de panne (`error.tsx` dans la coquille, `global-error.tsx` quand le layout
+racine échoue) ne reçoit en production que le `digest` de l'erreur levée côté serveur :
+`Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme tel, `SignedOut` (un 401)
+`SESSION_REQUIRED_DIGEST`, qui mène à la connexion (`loginHref`), `UnexpectedAnswer`
+l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour
+qu'aucune valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affiche
+en référence sans le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la
+référence affichée est le digest que Next calcule, celui de ses propres journaux. Un écran
+ne dit jamais « vide » sur une réponse qu'il n'a pas lue. Quand la session est illisible, la
+navigation garde l'écran d'état (WF-ADM-0130).
 Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, qui
 porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujours ; la réponse est alors diffusée, et « introuvable » répond
 200 et non 404 — un 404 doux, que Next marque `noindex` : le statut part avec le squelette,
@@ -167,19 +167,32 @@ Une courbe est une figure de `Chart` (`frontend/src/components/chart/`, US-0240)
 ECharts, importé pièce à pièce et dessiné en SVG, son option `aria` active ; sa légende la
 nomme, le dessin est une image que décrit une phrase du catalogue, et ses valeurs sont un
 tableau sous lui, l'alternative textuelle (WF-IHM-0100). Le composant client propre à la courbe
-(`index-chart.tsx`) lui remet son option, construite dans une palette : ECharts écrit ses
-couleurs dans les attributs de son SVG, où une variable CSS n'atteint pas, et les jetons
-`--chart-1` à `--chart-4`, `--muted-foreground`, `--foreground`, `--input` et `--border` y
-arrivent par des sondes cachées que le navigateur peint dans le mode affiché ; un changement de
+(`index-chart.tsx`, `milestone-chart.tsx`, `curve-series-chart.tsx`) lui
+remet son option, construite dans une palette : ECharts écrit ses couleurs dans les attributs de
+son SVG, où une variable CSS n'atteint pas, et les jetons `--chart-1` à `--chart-4`,
+`--muted-foreground`, `--foreground`, `--input`, `--border` et `--background` y arrivent par
+des sondes cachées que le navigateur peint dans le mode affiché ; un changement de
 mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe. Elle se dessine d'un
 coup, sans animation, et une légende y est inerte : un clic, à la souris seule, ne cache aucune
 série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur nombre — pas de
 légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms qui se
 chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; une
-courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; `timeAxis` écrit un
-axe de temps par mois, dans la langue et le fuseau du poste. Une courbe trace les chaînes de
-l'API telles quelles — ECharts en tire une position —, une valeur non calculable étant un trou,
-et le tableau les écrit par `src/i18n/format.ts`, les zones par `Signal`.
+courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; `timeAxis` gradue
+un axe de temps au premier de chaque mois que `monthTicks` tire des instants qu'il montre — tous
+les deux, trois, six mois ou chaque année sur une longue plage, l'année seule alors —, écrits
+dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de planning, que
+`planningInstant` place à leur minuit UTC, l'option de la figure disant alors `useUTC`. Une
+courbe trace les chaînes de l'API telles quelles — ECharts en tire une position —, une valeur
+non calculable étant un trou, un cumul d'événements datés — valeur acquise, coût réel — en
+escalier (`step`), une marche verticale par deux points à la même date, et le tableau les écrit
+par `src/i18n/format.ts`, les zones par `Signal`. Une figure qui reçoit `exported` offre la
+commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une instance hors
+écran, en rendu canvas, à la taille d'une image, son titre et sa provenance (`useProvenance`) —
+projet, révision du calcul, date de calcul, écrite dans l'heure du poste au moment de l'export —
+en tête, repliés à la largeur de l'image (`wrapLines`), la figure descendue de la hauteur de
+leurs lignes, sur le fond de la charte, puis libère l'instance. Un choix qui change ce qu'une
+courbe lit — les délais de paiement — est un paramètre de l'adresse, que le serveur envoie à
+l'API : le front ne filtre ni ne décale rien.
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes

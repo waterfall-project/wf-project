@@ -91,6 +91,9 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/indicators": "project_indicators",
     "GET /projects/{project_id}/indicators/index-history": "index_history",
+    "GET /projects/{project_id}/indicators/milestone-tracking": "milestone_tracking",
+    "GET /projects/{project_id}/indicators/cost-curve": "cost_curve",
+    "GET /projects/{project_id}/indicators/earned-value-curves": "earned_value_curves",
   };
 });
 
@@ -115,14 +118,18 @@ describe("the screen of the indicators of a project", () => {
       "Physical progress",
       "Cost performance index (CPI)",
       "Schedule performance index (SPI)",
+      "Milestone tracking",
+      "Cumulative costs",
+      "Earned value curves",
     ]);
   });
 
   it("gives each indicator the date it is computed at [WF-IHM-0020-A]", async () => {
     const page = text(html(await IndicatorsPage(at())));
     // One date under the title of each of the five cards, which holds the date of the values in
-    // it, and one under the caption of each evolution of an index.
-    expect(page.match(/Computed on/g)).toHaveLength(5 + 2);
+    // it, one under the caption of each evolution of an index, and one under the caption of each
+    // chart below: the milestones, the cumulative costs, the earned value.
+    expect(page.match(/Computed on/g)).toHaveLength(5 + 2 + 3);
     expect(page).toContain(
       "Financial progress Computed on Financial progress 0% Budget consumption 0% Actual cost",
     );
@@ -245,8 +252,13 @@ describe("the screen of the indicators of a project", () => {
       "Indicators unavailable The indicators of a project are computed from the In progress state",
     );
     expect(page).not.toContain("Financial progress");
-    // Nor is the evolution of the indices asked: there is none before the state In progress.
+    // Nor is the evolution of the indices asked, nor the cumulative curves: there are none before
+    // the state In progress. The milestones are.
     expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toBeUndefined();
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toBeUndefined();
+    expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toBeUndefined();
+    expect(page).not.toContain("Cumulative costs");
+    expect(page).toContain("Milestone tracking Time/time diagram");
   });
 
   it("does not take a refusal of the same status for another reason as the state of the project", async () => {
@@ -277,5 +289,77 @@ describe("the screen of the indicators of a project", () => {
       },
     };
     await expect(IndicatorsPage(at())).rejects.toBeInstanceOf(SignedOut);
+  });
+});
+
+describe("the curves and the milestones of the screen", () => {
+  it("draws the tracking of the milestones the API gives [WF-IND-0090-A]", async () => {
+    const page = text(html(await IndicatorsPage(at())));
+    expect(page).toContain("Milestone tracking Time/time diagram Export as PNG Computed on");
+    expect(page).toContain("Réception usine");
+  });
+
+  it("says that no milestone is tracked when the API gives none, its date of calculation left with the chart", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/milestone-tracking": "milestone_tracking_none",
+    };
+    const page = text(html(await IndicatorsPage(at())));
+    expect(page).toContain("Milestone tracking No milestone is tracked. Cumulative costs");
+  });
+
+  it("asks the cumulative costs at the date the address filters and the earned value for its sub-project too [WF-IND-0100-A] [WF-IND-0110-A]", async () => {
+    await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-02-01" }));
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      as_of: "2026-02-01",
+    });
+    expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toEqual({
+      scope: SUBPROJECT,
+      as_of: "2026-02-01",
+    });
+  });
+
+  it("shifts the cumulative costs by the payment delays when the address asks it, and names them as the API says [WF-IND-0100-A]", async () => {
+    let page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({});
+    // The command keeps the other parameters of the address.
+    expect(page).toContain(
+      `href="/projects/${PROJECT}/revisions/${REVISION}/indicators?subproject_id=${SUBPROJECT}&amp;payment_delays=true"`,
+    );
+    expect(text(page)).toContain("Shift by the payment delays S-curve");
+
+    server.clients = [];
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/cost-curve": "cost_curve_payment_delays",
+    };
+    page = html(await IndicatorsPage(at({ payment_delays: "true" })));
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      payment_delays: "true",
+    });
+    expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/indicators"`);
+    expect(text(page)).toContain(
+      "Remove the shift by the payment delays Cash out Export as PNG Computed on",
+    );
+    expect(text(page)).toContain("Cash out by month");
+  });
+});
+
+describe("the provenance of the charts the screen exports", () => {
+  it("offers each chart below the cards for export, under its caption [WF-IHM-0130-A]", async () => {
+    const page = text(html(await IndicatorsPage(at())));
+    expect(page.match(/Export as PNG/g)).toHaveLength(3);
+    expect(page).toContain("Time/time diagram Export as PNG Computed on");
+    expect(page).toContain("S-curve Export as PNG Computed on");
+  });
+
+  it("reads the revision a chart is computed on when it is not the one of the address, once [WF-IHM-0020-A]", async () => {
+    server.answers = { ...server.answers, [REVISION_ROUTE]: ["revision_marked", "revision"] };
+    await IndicatorsPage(at({}, MARKED));
+    // The indicators, the evolution and the three charts are all computed on the revision under way.
+    expect(pathsOf(REVISION_ROUTE)).toEqual([
+      `/projects/${PROJECT}/revisions/${MARKED}`,
+      `/projects/${PROJECT}/revisions/${REVISION}`,
+    ]);
   });
 });

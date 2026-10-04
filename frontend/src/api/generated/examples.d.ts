@@ -38,8 +38,17 @@ export interface Examples {
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators";
   };
+  "GET /projects/{project_id}/indicators/cost-curve": {
+    200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays";
+  };
+  "GET /projects/{project_id}/indicators/earned-value-curves": {
+    200: "earned_value_curves";
+  };
   "GET /projects/{project_id}/indicators/index-history": {
     200: "index_history";
+  };
+  "GET /projects/{project_id}/indicators/milestone-tracking": {
+    200: "milestone_tracking" | "milestone_tracking_none";
   };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
