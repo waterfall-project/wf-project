@@ -668,6 +668,34 @@ qui n'en avait pas dans la grille des volumes — et `hourly_rate_corrected` —
 même catégorie corrigé, sa version avancée. La catégorie n'est employée par aucun devis des
 exemples : ni l'une ni l'autre écriture ne contredit un montant chiffré ailleurs.
 
+## L'administration (US-0250/L2)
+
+Ajouts que les écrans de l'administration exigent, faits par leur lot sur l'autorisation de
+l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »).
+
+**Un compte nomme ses rôles et son nœud** (`User.access_role_labels`, `User.org_node_label`).
+L'écran des comptes présente chacun avec ses rôles d'habilitation et son rattachement
+(WF-ADM-0050) ; sans les libellés, le front rapprochait `listAccessRoles` et `listOrgNodes` des
+comptes (WF-ARC-0020), et disait inconnu un nœud désactivé auquel un compte reste rattaché
+(WF-REF-0150). Libellés résolus à la lecture, exigés : les rôles dans l'ordre de
+`access_role_ids`, le nœud nul sans rattachement. Ils valent pour `UserSelf`, que la session
+rend. Écarté : des objets `{access_role_id, label}` à la place des identifiants, qui auraient
+changé la forme que `setUserAccessRoles` écrit.
+
+**Exemples**, dans l'univers des autres, au 16 mars 2026 : `users` et `users_page` (les comptes
+de l'installation, par nom — Dominique Bernard de `me_directory`, Camille Martin de la session,
+Alix Moreau, désactivée, de `contributors`, et un compte venu du fournisseur d'identité, sans
+rôle —, puis leur seconde page lue deux par deux) ; `permissions` (le catalogue, dans l'ordre de
+`PermissionCode`) ; `access_roles` (les trois rôles prédéfinis tels que livrés, et celui, composé
+de tout le catalogue, que porte la session) ; `system_status` et `system_status_backup_failed`
+(l'installation saine, puis la même au stockage des fichiers indisponible, la sauvegarde planifiée
+échouée et signalée) ; `backups` et `backups_empty` (les sept sauvegardes de la rétention et une
+manuelle marquée à conserver ; aucune ; une page demandée au-delà de leur fin, `backups_beyond`) ;
+`backup_schedule`, `backup_schedule_weekly` et `backup_schedule_disabled` (suspendue). Les sessions
+d'un chiffreur et sans administration, qui n'ont pas tout le catalogue, portent chacune un rôle
+propre (`Chiffreur`, `Pilotage de projet`), que `access_roles` ne liste pas : ce sont d'autres
+installations que celle de l'exemple.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

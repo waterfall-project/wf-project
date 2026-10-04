@@ -1,0 +1,11 @@
+{
+  "summary": "Une page demandée au-delà de la fin de la liste des sauvegardes, qui en porte huit, lues cinquante par cinquante : la page ne tient rien.",
+  "value": {
+    "items": [],
+    "meta": {
+      "limit": 50,
+      "offset": 50,
+      "total": 8
+    }
+  }
+}

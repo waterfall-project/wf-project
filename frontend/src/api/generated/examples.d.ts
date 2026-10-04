@@ -8,11 +8,23 @@ export interface Examples {
   "DELETE /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}": {
     200: "node_deleted";
   };
+  "GET /access-roles": {
+    200: "access_roles";
+  };
+  "GET /backup-schedule": {
+    200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
+  };
+  "GET /backups": {
+    200: "backups" | "backups_beyond" | "backups_empty";
+  };
   "GET /installation": {
     200: "installation" | "installation_english";
   };
   "GET /me": {
     200: "me" | "me_directory" | "me_english" | "me_with_avatar" | "me_without_preferences";
+  };
+  "GET /permissions": {
+    200: "permissions";
   };
   "GET /portfolio/pilot-health": {
     200: "pilot_health";
@@ -137,11 +149,17 @@ export interface Examples {
   "GET /session/providers": {
     200: "auth_providers" | "auth_providers_local";
   };
+  "GET /system/status": {
+    200: "system_status" | "system_status_backup_failed";
+  };
   "GET /tasks": {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
     200: "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_running" | "task_succeeded";
+  };
+  "GET /users": {
+    200: "users" | "users_page";
   };
   "PATCH /me/preferences": {
     200: "preferences" | "preferences_dark";

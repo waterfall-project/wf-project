@@ -9,8 +9,12 @@
       "is_active": true,
       "origin": "local",
       "org_node_id": null,
+      "org_node_label": null,
       "access_role_ids": [
-        "01926f3a-7c00-7000-8000-000000000701"
+        "01926f3a-7c00-7000-8000-000000000706"
+      ],
+      "access_role_labels": [
+        "Pilotage de projet"
       ],
       "has_avatar": false,
       "audit": {
