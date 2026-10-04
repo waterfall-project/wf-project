@@ -1125,7 +1125,7 @@ export interface paths {
         };
         /**
          * Grille des taux horaires
-         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100).
+         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100). `search` retient les catégories dont le code ou le libellé contient le texte cherché (WF-IHM-0130), les années restant celles de toute la grille.
          */
         get: operations["getHourlyRateGrid"];
         put?: never;
@@ -2943,6 +2943,8 @@ export interface components {
             org_node_id: components["schemas"]["Uuid"];
             label: string;
             parent_id: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé du nœud parent, résolu à la lecture, qu'il soit actif ou désactivé (WF-REF-0150) ; nul pour une racine. */
+            parent_label: string | null;
             is_active: boolean;
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
@@ -2967,8 +2969,14 @@ export interface components {
             resource_role_id: components["schemas"]["Uuid"];
             label: string;
             org_node_id: components["schemas"]["Uuid"];
+            /** @description Le libellé du nœud, résolu à la lecture, actif ou désactivé (WF-REF-0150). */
+            org_node_label: string;
             cost_category_id: components["schemas"]["Uuid"];
+            /** @description Le libellé de la catégorie, résolu à la lecture, active ou désactivée (WF-REF-0150). */
+            cost_category_label: string;
             calendar_id: components["schemas"]["Uuid"];
+            /** @description Le libellé du calendrier, résolu à la lecture, actif ou désactivé (WF-REF-0150). */
+            calendar_label: string;
             capacity: components["schemas"]["RoleCapacity"];
             is_active: boolean;
             audit: components["schemas"]["Audit"];
@@ -3059,6 +3067,8 @@ export interface components {
             code: string;
             label: string;
             cost_type_id: components["schemas"]["Uuid"];
+            /** @description Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150). */
+            cost_type_label: string;
             /** @description Code comptable, documentaire (WF-REF-0040). */
             accounting_code?: string | null;
             is_active: boolean;
@@ -4370,7 +4380,7 @@ export interface components {
         Limit: number;
         Offset: number;
         TaskId: components["schemas"]["Uuid"];
-        /** @description Recherche sur le libellé. */
+        /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
         Search: string;
         /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
         IncludeInactive: boolean;
@@ -4926,7 +4936,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
@@ -5223,7 +5233,7 @@ export interface operations {
     listAccessRoles: {
         parameters: {
             query?: {
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
             };
             header?: never;
@@ -5651,7 +5661,7 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
             };
             header?: never;
@@ -5770,7 +5780,7 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 org_node_id?: components["schemas"]["Uuid"];
             };
@@ -5937,7 +5947,7 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
             };
             header?: never;
@@ -6080,7 +6090,7 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux natures de ces types (WF-IHM-0130). */
                 kinds?: components["schemas"]["CostTypeKind"][];
@@ -6200,7 +6210,7 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux catégories d'une nature de coût (WF-IHM-0130). */
                 cost_type_id?: components["schemas"]["Uuid"];
@@ -6320,6 +6330,8 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
+                search?: components["parameters"]["Search"];
             };
             header?: never;
             path?: never;
@@ -6402,7 +6414,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
@@ -7345,7 +7357,7 @@ export interface operations {
             query?: {
                 /** @description Restreint aux tâches ou aux lignes, selon la grille affichée. */
                 kinds?: components["schemas"]["NodeKind"][];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint au sous-arbre d'une tâche récapitulative, elle comprise (WF-PLA-0080, WF-DEV-0050). */
                 subtree_of?: components["schemas"]["Uuid"];
@@ -8220,7 +8232,7 @@ export interface operations {
                 states?: components["schemas"]["RiskState"][];
                 /** @description Restreint aux risques dont la case de matrice est dans l'une de ces zones. */
                 zones?: components["schemas"]["AlertZone"][];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description Colonne du tri ; absente, l'ordre de déclaration. */
                 sort_by?: "label" | "probability" | "severity" | "provision_amount" | "state" | "last_review_on";
@@ -8807,7 +8819,7 @@ export interface operations {
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Recherche sur le libellé. */
+                /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux projets dont l'indice de coût ou l'indice de délai est dans l'une de ces zones : les projets en alerte, d'abord (WF-PTF-0040, WF-IHM-0130). */
                 zones?: components["schemas"]["AlertZone"][];

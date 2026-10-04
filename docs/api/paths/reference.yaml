@@ -33,6 +33,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettings }
+            examples:
+              witness: { $ref: ../../../fixtures/api/reference_settings.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
@@ -336,6 +338,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/reference.yaml#/Calendar }
+            examples:
+              witness: { $ref: ../../../fixtures/api/calendars.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -461,6 +465,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/reference.yaml#/CostType }
+            examples:
+              witness: { $ref: ../../../fixtures/api/cost_types.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -663,9 +669,12 @@
       n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit
       (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive`
       (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive`
-      est refusé par 403 (WF-ADM-0100).
+      est refusé par 403 (WF-ADM-0100). `search` retient les catégories dont le code ou le
+      libellé contient le texte cherché (WF-IHM-0130), les années restant celles de toute la
+      grille.
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
+      - $ref: ../components/parameters.yaml#/Search
     responses:
       '200':
         description: La grille, catégories en lignes et années en colonnes.
@@ -721,6 +730,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/HourlyRate }
+            examples:
+              entered: { $ref: ../../../fixtures/api/hourly_rate_entered.json }
+              corrected: { $ref: ../../../fixtures/api/hourly_rate_corrected.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

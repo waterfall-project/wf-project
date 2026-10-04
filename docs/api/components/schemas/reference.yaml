@@ -13,7 +13,7 @@ ActiveFlag:
 
 OrgNode:
   type: object
-  required: [org_node_id, label, parent_id, is_active, audit, lock_version]
+  required: [org_node_id, label, parent_id, parent_label, is_active, audit, lock_version]
   description: Nœud de l'arbre d'organisation. Il ne porte aucune habilitation (WF-REF-0070).
   properties:
     org_node_id: { $ref: ../common.yaml#/Uuid }
@@ -22,6 +22,13 @@ OrgNode:
       anyOf:
         - $ref: ../common.yaml#/Uuid
         - type: 'null'
+    parent_label:
+      anyOf:
+        - { type: string, minLength: 1, maxLength: 200 }
+        - type: 'null'
+      description: >-
+        Le libellé du nœud parent, résolu à la lecture, qu'il soit actif ou désactivé
+        (WF-REF-0150) ; nul pour une racine.
     is_active: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -49,7 +56,19 @@ OrgNodeUpdate:
 
 ResourceRole:
   type: object
-  required: [resource_role_id, label, org_node_id, cost_category_id, calendar_id, capacity, is_active, audit, lock_version]
+  required:
+    - resource_role_id
+    - label
+    - org_node_id
+    - org_node_label
+    - cost_category_id
+    - cost_category_label
+    - calendar_id
+    - calendar_label
+    - capacity
+    - is_active
+    - audit
+    - lock_version
   description: >-
     Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût
     et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100).
@@ -57,8 +76,23 @@ ResourceRole:
     resource_role_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 200 }
     org_node_id: { $ref: ../common.yaml#/Uuid }
+    org_node_label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Le libellé du nœud, résolu à la lecture, actif ou désactivé (WF-REF-0150).
     cost_category_id: { $ref: ../common.yaml#/Uuid }
+    cost_category_label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Le libellé de la catégorie, résolu à la lecture, active ou désactivée (WF-REF-0150).
     calendar_id: { $ref: ../common.yaml#/Uuid }
+    calendar_label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Le libellé du calendrier, résolu à la lecture, actif ou désactivé (WF-REF-0150).
     capacity: { $ref: '#/RoleCapacity' }
     is_active: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
@@ -180,13 +214,18 @@ CostTypeUpdate:
 
 CostCategory:
   type: object
-  required: [cost_category_id, code, label, cost_type_id, is_active, audit, lock_version]
+  required: [cost_category_id, code, label, cost_type_id, cost_type_label, is_active, audit, lock_version]
   description: Catégorie de coût, rattachée à une nature (WF-REF-0040).
   properties:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     code: { type: string, minLength: 1, maxLength: 20 }
     label: { type: string, minLength: 1, maxLength: 200 }
     cost_type_id: { $ref: ../common.yaml#/Uuid }
+    cost_type_label:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Le libellé de la nature, résolu à la lecture, active ou désactivée (WF-REF-0150).
     accounting_code:
       anyOf:
         - type: string
