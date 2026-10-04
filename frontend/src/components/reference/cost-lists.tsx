@@ -13,7 +13,7 @@ import type { components } from "@/api/generated/schema";
 import { CELL, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 
-import { ActiveState, namesOf, ReferenceSection } from "./section";
+import { ActiveState, ReferenceSection } from "./section";
 
 type CostType = components["schemas"]["CostType"];
 type CostCategory = components["schemas"]["CostCategory"];
@@ -49,24 +49,13 @@ export function CostTypeList({ types }: { readonly types: readonly CostType[] })
 }
 
 /**
- * The categories of cost, each by its code, its name, the nature it is attached to — named by the
- * natures the page read —, its accounting code, documentary, and its state.
+ * The categories of cost, each by its code, its name, the nature it is attached to — named as the
+ * server resolves it, active or not (WF-REF-0150) —, its accounting code, documentary, and its
+ * state.
  */
-export function CostCategoryList({
-  categories,
-  types,
-}: {
-  readonly categories: readonly CostCategory[];
-  readonly types: readonly CostType[];
-}) {
+export function CostCategoryList({ categories }: { readonly categories: readonly CostCategory[] }) {
   const t = useTranslations("reference.costCategories");
   const columns = useTranslations("reference.columns");
-  const nature = namesOf(
-    types,
-    (type) => type.cost_type_id,
-    (type) => type.label,
-    useTranslations("grid")("unknown"),
-  );
   return (
     <ReferenceSection
       title={t("title")}
@@ -87,7 +76,7 @@ export function CostCategoryList({
           <TableRow key={category.cost_category_id}>
             <TableCell className={CELL}>{category.code}</TableCell>
             <TableCell className={CELL}>{category.label}</TableCell>
-            <TableCell className={CELL}>{nature(category.cost_type_id)}</TableCell>
+            <TableCell className={CELL}>{category.cost_type_label}</TableCell>
             <TableCell className={CELL}>{category.accounting_code}</TableCell>
             <TableCell className={CELL}>
               <ActiveState active={category.is_active} />

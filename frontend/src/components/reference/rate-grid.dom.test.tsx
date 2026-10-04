@@ -32,8 +32,8 @@ const MECHANICAL = 2;
 const MECHANICAL_ID = "01926f3a-7c00-7000-8000-000400000000";
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers = {}): FakeClient {
-  const client = fakeClient({ [RATE]: "hourly_rate_entered", ...answers });
+function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
+  const client = fakeClient({ [RATE]: "hourly_rate_entered", ...answers }, { hold: () => hold });
   server.client = client;
   return client;
 }
@@ -64,6 +64,13 @@ function cell(row: number, year: number): HTMLElement {
     throw new Error(`no cell of ${year.toString()} in the row ${row.toString()}`);
   }
   return found;
+}
+
+/** Wait until a cell no longer shows a write under way: the server answered it. */
+async function answered(row: number, year: number) {
+  await vi.waitFor(() => {
+    expect(cell(row, year)).not.toHaveAttribute("aria-busy");
+  });
 }
 
 /** The writes the grid sent: the rate, and what was written. */
@@ -103,18 +110,28 @@ describe("the grid of the hourly rates", () => {
   });
 
   it("enters the first rate of a year without a version, shows the rate the server answered, and the cursor goes to the next row [WF-IHM-0040-A]", async () => {
-    const client = serve();
+    let answer: (value?: unknown) => void = () => undefined;
+    const client = serve(
+      {},
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
     render(rates());
     cell(MECHANICAL, 2015).focus();
-    await userEvent.keyboard("85,48{Enter}");
+    // What is typed differs from what the server answers: shown under way, then the answer.
+    await userEvent.keyboard("85{Enter}");
     expect(cell(MECHANICAL + 1, 2015)).toHaveFocus();
-    await vi.waitFor(() => {
-      expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^85,48$/);
-    });
+    expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^85,00$/);
+    expect(cell(MECHANICAL, 2015)).toHaveAttribute("aria-busy", "true");
+    answer();
+    await answered(MECHANICAL, 2015);
+    expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^85,48$/);
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(written(client)).toEqual([
       {
         path: `/reference/cost-categories/${MECHANICAL_ID}/hourly-rates/2015`,
-        body: { amount: "85.48" },
+        body: { amount: "85" },
       },
     ]);
   });
@@ -127,16 +144,46 @@ describe("the grid of the hourly rates", () => {
     const field = screen.getByRole("textbox", { name: "2016" });
     expect(field).toHaveValue("86,98");
     await userEvent.clear(field);
-    await userEvent.keyboard("87,2{Enter}");
-    await vi.waitFor(() => {
-      expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^87,20$/);
-    });
+    await userEvent.keyboard("87{Enter}");
+    await answered(MECHANICAL, 2016);
+    expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^87,20$/);
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(written(client)).toEqual([
       {
         path: `/reference/cost-categories/${MECHANICAL_ID}/hourly-rates/2016`,
-        body: { amount: "87.2", lock_version: 1 },
+        body: { amount: "87", lock_version: 1 },
       },
     ]);
+  });
+
+  it("corrects a rate twice, the second time with the version the first answer gave", async () => {
+    const client = serve({ [RATE]: ["hourly_rate_corrected", "hourly_rate_corrected"] });
+    render(rates());
+    cell(MECHANICAL, 2016).focus();
+    await userEvent.keyboard("87{Enter}{ArrowUp}");
+    await answered(MECHANICAL, 2016);
+    await userEvent.keyboard("88{Enter}");
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(2);
+    });
+    await answered(MECHANICAL, 2016);
+    expect(written(client).map(({ body }) => body)).toEqual([
+      { amount: "87", lock_version: 1 },
+      { amount: "88", lock_version: 2 },
+    ]);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("takes no rate the server answered for another year, says the failure of the service, and leaves the cell as it was", async () => {
+    // The rate of 2016 answered to a write of 2015.
+    serve({ [RATE]: "hourly_rate_corrected" });
+    render(rates());
+    cell(MECHANICAL, 2015).focus();
+    await userEvent.keyboard("85{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Erreur inattendue du service.");
+    await answered(MECHANICAL, 2015);
+    expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^$/);
+    expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
   });
 
   it("leaves a cell at its rate when its entry is abandoned [WF-IHM-0040-A]", async () => {

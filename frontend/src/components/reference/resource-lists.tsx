@@ -6,7 +6,7 @@
  * resource roles, with their node, their category and their calendar, and their single capacity
  * (WF-REF-0090, WF-REF-0100); the calendars, seven values of hours, the default one marked
  * (WF-REF-0110, WF-REF-0120); the constants the units of duration convert by (WF-PLA-0160). An
- * object attached is named by the list the page read. Every figure as the API gives it. Read
+ * object attached is named as the server resolves it. Every figure as the API gives it. Read
  * only: the forms belong to the epic of the reference data.
  */
 import { CalendarDays, CalendarCheck, Network, Timer, Users } from "lucide-react";
@@ -17,12 +17,11 @@ import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal } from "@/i18n/format";
 
-import { ActiveState, namesOf, ReferenceSection } from "./section";
+import { ActiveState, ReferenceSection } from "./section";
 
 type OrgNode = components["schemas"]["OrgNode"];
 type ResourceRole = components["schemas"]["ResourceRole"];
 type Calendar = components["schemas"]["Calendar"];
-type CostCategory = components["schemas"]["CostCategory"];
 type DurationUnits = components["schemas"]["DurationUnits"];
 
 /** The seven days of a calendar, from Monday, as the contract names them. */
@@ -40,12 +39,6 @@ const DAYS = [
 export function OrgNodeList({ nodes }: { readonly nodes: readonly OrgNode[] }) {
   const t = useTranslations("reference.orgNodes");
   const columns = useTranslations("reference.columns");
-  const parent = namesOf(
-    nodes,
-    (node) => node.org_node_id,
-    (node) => node.label,
-    useTranslations("grid")("unknown"),
-  );
   return (
     <ReferenceSection
       title={t("title")}
@@ -56,9 +49,7 @@ export function OrgNodeList({ nodes }: { readonly nodes: readonly OrgNode[] }) {
         {nodes.map((node) => (
           <TableRow key={node.org_node_id}>
             <TableCell className={CELL}>{node.label}</TableCell>
-            <TableCell className={CELL}>
-              {node.parent_id === null ? t("root") : parent(node.parent_id)}
-            </TableCell>
+            <TableCell className={CELL}>{node.parent_label ?? t("root")}</TableCell>
             <TableCell className={CELL}>
               <ActiveState active={node.is_active} />
             </TableCell>
@@ -70,42 +61,14 @@ export function OrgNodeList({ nodes }: { readonly nodes: readonly OrgNode[] }) {
 }
 
 /**
- * The resource roles, each with its node, its category and its calendar — named by the lists the
- * page read —, its capacity in hours a month and the headcount they stand for, and its state.
+ * The resource roles, each with its node, its category and its calendar — named as the server
+ * resolves them, active or not (WF-REF-0150) —, its capacity in hours a month and the headcount
+ * they stand for, and its state.
  */
-export function ResourceRoleList({
-  roles,
-  nodes,
-  categories,
-  calendars,
-}: {
-  readonly roles: readonly ResourceRole[];
-  readonly nodes: readonly OrgNode[];
-  readonly categories: readonly CostCategory[];
-  readonly calendars: readonly Calendar[];
-}) {
+export function ResourceRoleList({ roles }: { readonly roles: readonly ResourceRole[] }) {
   const t = useTranslations("reference.resourceRoles");
   const columns = useTranslations("reference.columns");
   const locale = useLocale();
-  const unknown = useTranslations("grid")("unknown");
-  const node = namesOf(
-    nodes,
-    (each) => each.org_node_id,
-    (each) => each.label,
-    unknown,
-  );
-  const category = namesOf(
-    categories,
-    (each) => each.cost_category_id,
-    (each) => each.label,
-    unknown,
-  );
-  const calendar = namesOf(
-    calendars,
-    (each) => each.calendar_id,
-    (each) => each.label,
-    unknown,
-  );
   return (
     <ReferenceSection
       title={t("title")}
@@ -127,9 +90,9 @@ export function ResourceRoleList({
         {roles.map((role) => (
           <TableRow key={role.resource_role_id}>
             <TableCell className={CELL}>{role.label}</TableCell>
-            <TableCell className={CELL}>{node(role.org_node_id)}</TableCell>
-            <TableCell className={CELL}>{category(role.cost_category_id)}</TableCell>
-            <TableCell className={CELL}>{calendar(role.calendar_id)}</TableCell>
+            <TableCell className={CELL}>{role.org_node_label}</TableCell>
+            <TableCell className={CELL}>{role.cost_category_label}</TableCell>
+            <TableCell className={CELL}>{role.calendar_label}</TableCell>
             <TableCell className={`${CELL} text-right tabular-nums`}>
               {formatDecimal(role.capacity.monthly_hours, locale)}
             </TableCell>

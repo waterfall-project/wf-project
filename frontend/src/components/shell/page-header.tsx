@@ -36,16 +36,23 @@ const TITLE: Readonly<Record<Density, string>> = {
 export function Screen({
   density = "dense",
   fill = false,
+  fillWide = false,
   children,
 }: {
   readonly density?: Density;
   readonly fill?: boolean;
+  /**
+   * Whether the screen fills the window from the large breakpoint only: a screen that sets its
+   * grid beside other content there, and stacks them in a narrow window, where the page scrolls.
+   */
+  readonly fillWide?: boolean;
   readonly children: ReactNode;
 }) {
   return (
     <main
       data-fill={fill ? "" : undefined}
-      className={cn(SCREEN[density], fill ? "min-h-0" : null)}
+      data-fill-lg={fillWide ? "" : undefined}
+      className={cn(SCREEN[density], fill ? "min-h-0" : null, fillWide ? "lg:min-h-0" : null)}
     >
       {children}
     </main>

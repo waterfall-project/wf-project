@@ -319,10 +319,13 @@ la réponse, dont l'en-tête est l'année elle-même (`GridColumn.heading`) —,
 (`search`) et sans tri ; une cellule saisie part seule par `setHourlyRate`, sans version au premier
 taux d'une année, avec celle du taux lu pour une correction, et le taux répondu prend sa place. La
 saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`). À côté,
-les natures et les catégories de coût ; les paramètres de ressources présentent l'organisation,
+les natures et les catégories de coût — l'écran ne remplit la fenêtre qu'à partir de la grande
+largeur (`Screen`, `fillWide`) : en fenêtre étroite, la grille et les listes s'empilent et la page
+défile ; les paramètres de ressources présentent l'organisation,
 les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice, ceux
 des indicateurs les seuils des indices et le délai entre deux revues. Un objet rattaché se nomme
-par la liste que la page a lue, ou se dit inconnu ; une section se nomme par `aria-label` (#251).
+par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
+listes dans le front ; une section se nomme par `aria-label` (#251).
 
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le

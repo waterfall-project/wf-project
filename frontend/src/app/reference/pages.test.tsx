@@ -167,18 +167,21 @@ describe("the settings of the resources", () => {
       "Direction technique Racine de l’arbre Actif",
       "Bureau d'études électricité Direction technique Actif",
       "Atelier de câblage Bureau d'études électricité Actif",
-      "Service de mise en service Direction technique Actif",
+      "Service des achats Direction technique Actif",
     ]);
   });
 
-  it("present each role with its node, its category, its calendar and its capacity, a deactivated one said so", async () => {
+  it("present each role with its node, its category, its calendar and its capacity, named as the server resolves them — a calendar deactivated, which the list of the calendars does not hold, included", async () => {
     const page = rendered(await ResourceSettingsPage());
     expect(rows(page, "Rôles de ressources")).toEqual([
       "Libellé Nœud d’organisation Catégorie de coût Calendrier Heures par mois Effectif État",
       "Ingénieur électricien Bureau d'études électricité Ingénierie électrique Semaine standard 151,67 6 Actif",
       "Technicien de mise en service Bureau d'études électricité Mise en service Semaine standard 151,67 4 Actif",
-      "Automaticien Bureau d'études électricité Ingénierie électrique Semaine standard 151,67 2 Désactivé",
+      "Automaticien Bureau d'études électricité Ingénierie électrique Semaine de trente-neuf heures 151,67 2 Désactivé",
     ]);
+    // The calendar of the deactivated role is not among those the page read: its name is the
+    // answer's, never one the front would draw from another list.
+    expect(rows(page, "Calendriers").join(" ")).not.toContain("trente-neuf");
   });
 
   it("present each calendar by its seven values of hours, the default one marked, and the units of duration", async () => {

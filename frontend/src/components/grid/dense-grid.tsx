@@ -648,7 +648,9 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       {paste.hidden === undefined ? null : (
         <p role="alert" className="text-sm text-destructive">
           {paste.hidden.shown === "hidden"
-            ? t("paste.hiddenColumn", { column: t(`columns.${paste.hidden.label}`) })
+            ? t("paste.hiddenColumn", {
+                column: headingOf(paste.hidden.column, (key) => t(`columns.${key}`)),
+              })
             : t("paste.absentColumn", { column: paste.hidden.name })}
         </p>
       )}

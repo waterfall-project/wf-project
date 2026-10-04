@@ -76,10 +76,10 @@ export default async function CostSettingsPage({
     requestSession(),
   ]);
   return (
-    <Screen density={FUNCTION_DENSITY.cost_settings} fill>
+    <Screen density={FUNCTION_DENSITY.cost_settings} fillWide>
       <CostsHeader currency={settings.currency_code} />
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:flex-row">
+        <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
           <RateGrid
             grid={rates}
             currency={settings.currency_code}
@@ -90,7 +90,7 @@ export default async function CostSettingsPage({
         </div>
         <aside className="flex shrink-0 flex-col gap-4 lg:w-[28rem] lg:overflow-y-auto">
           <CostTypeList types={types} />
-          <CostCategoryList categories={categories} types={types} />
+          <CostCategoryList categories={categories} />
         </aside>
       </div>
     </Screen>

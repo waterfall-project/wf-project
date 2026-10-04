@@ -288,11 +288,14 @@ export const MIN_WIDTH = 40;
 /** The widest a column gets. */
 export const MAX_WIDTH = 800;
 
+/** What names a column: its label in the catalogue, and the heading the answer gives it, if any. */
+export interface ColumnName {
+  readonly label: ColumnLabel;
+  readonly heading?: string;
+}
+
 /** The heading of a column: the one the answer gives it, or that of its label in the catalogue. */
-export function headingOf(
-  column: { readonly label: ColumnLabel; readonly heading?: string },
-  translate: (label: ColumnLabel) => string,
-): string {
+export function headingOf(column: ColumnName, translate: (label: ColumnLabel) => string): string {
   return column.heading ?? translate(column.label);
 }
 

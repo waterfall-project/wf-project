@@ -4,8 +4,7 @@
  * The pieces the screens of the reference data share (US-0250): a section under its title, named
  * by it — by `aria-label`, never by an identifier of `useId`, which a server component may share
  * with a client one of the shell (#251) —; the state of an object, active or deactivated — a
- * deactivated one stays readable (WF-REF-0150) —; and the name of an object another one is
- * attached to, by the list the page read, or said unknown — never its identifier.
+ * deactivated one stays readable (WF-REF-0150).
  */
 import { CircleOff, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -49,18 +48,4 @@ export function ActiveState({ active }: { readonly active: boolean }) {
       {t("inactive")}
     </Badge>
   );
-}
-
-/**
- * The names of the objects of a list by their identifier, and the name of one: the label the list
- * gives it, or « unknown » for one it does not hold — never the identifier.
- */
-export function namesOf<T>(
-  items: readonly T[],
-  id: (item: T) => string,
-  label: (item: T) => string,
-  unknown: string,
-): (id: string) => string {
-  const names = new Map(items.map((item) => [id(item), label(item)]));
-  return (key) => names.get(key) ?? unknown;
 }

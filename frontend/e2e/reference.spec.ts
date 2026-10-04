@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
-import { rowAt, withinBox } from "./scroll";
+import { rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the reference data — the grid of the
 // volumes, a hundred and fifty categories of labour over fifteen years, the natures, the
@@ -38,9 +38,12 @@ test("reads the settings of the reference data outside any project, and enters a
   const rate = mechanical.getByRole("gridcell").nth(5);
   await expect(rate).toBeFocused();
   await expect(rate).toHaveText("");
-  await page.keyboard.type("85,48");
+  // What is typed differs from what the fake back answers: the cell shows the answer.
+  await page.keyboard.type("85");
   await page.keyboard.press("Enter");
+  await expect(rate).not.toHaveAttribute("aria-busy", "true");
   await expect(rate).toHaveText("85,48");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(rowAt(grid, 4).getByRole("gridcell").nth(5)).toBeFocused();
 
   // Beside it, the natures and the categories of cost.
@@ -74,4 +77,28 @@ test("reads the settings of the reference data outside any project, and enters a
       .getByRole("row", { name: "Indice de coût 0,9 0,8" }),
   ).toHaveCount(1);
   await expect(page.getByText("8 semaines")).toBeVisible();
+});
+
+test("stacks the grid of the rates and the natures of cost in a narrow window, neither over the other (US-0250)", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 720 });
+  await page.goto("/reference/costs");
+  const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
+  const totals = grid.getByRole("gridcell", { name: "Taux horaires en EUR" });
+  // The page scrolls, not the screen: the foot of the box of the grid brought into the window
+  // brings its totals.
+  await scroller(grid).evaluate((element) => {
+    element.scrollIntoView({ block: "end" });
+  });
+  await expect(totals).toBeInViewport();
+  const natures = page.getByRole("table", { name: "Natures de coût" });
+  await natures.scrollIntoViewIfNeeded();
+  await expect(natures).toBeInViewport();
+  // The natures come below the box the grid scrolls in, never over it.
+  const box = await scroller(grid).boundingBox();
+  const below = await natures.boundingBox();
+  expect(box).not.toBeNull();
+  expect(below).not.toBeNull();
+  expect((below?.y ?? 0) >= (box?.y ?? 0) + (box?.height ?? 0)).toBe(true);
 });

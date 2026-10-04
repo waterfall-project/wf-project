@@ -17,7 +17,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { setHourlyRate } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
@@ -92,9 +92,13 @@ function yearColumn(
           in: () => true,
           value: rate,
           write: async (row, value): Promise<Outcome<RowsWritten<RateRow, null>>> => {
+            if (value === null) {
+              // The entry of an amount required never validates an empty cell (`cell-values.ts`).
+              throw new Error("an hourly rate is never emptied");
+            }
             const read = row.cells[index];
             const outcome = await setHourlyRate(row.cost_category_id, year, {
-              amount: value ?? "",
+              amount: value,
               ...(read === null || read === undefined ? {} : { lock_version: read.lock_version }),
             });
             return outcome.kind === "done"
@@ -107,8 +111,8 @@ function yearColumn(
 }
 
 /**
- * The place of each answer among the writes of a reading: the cells of a row leave one after the
- * other, and each answer counts one more than the one before it.
+ * The place of each answer among the writes of a grid: the cells of a row leave one after the
+ * other, and each answer counts one more than the one before it, whatever reading it belongs to.
  */
 function counter(): () => number {
   let answered = 0;
@@ -165,8 +169,13 @@ export interface RateGridProps {
 /** Render the grid of the hourly rates, its totals row the currency they are expressed in. */
 export function RateGrid({ grid, currency, editable, query, preferences }: RateGridProps) {
   const t = useTranslations("reference.rates");
-  // A new count of the answers for each configuration, which a new reading brings.
-  const config = useMemo(() => rateGrid(grid.years, editable, counter()), [grid.years, editable]);
+  // One count of the answers for the life of the grid, never taken back by a new configuration:
+  // kept by the state, which a configuration remade reads as it is.
+  const [answered] = useState(counter);
+  const config = useMemo(
+    () => rateGrid(grid.years, editable, answered),
+    [grid.years, editable, answered],
+  );
   return (
     <DenseGrid
       config={config}
