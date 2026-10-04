@@ -10,7 +10,7 @@
  *
  * The page is read again once the API has answered the exit or refused it for the state of the
  * project (409): the offers it shows are the server's again, and a confirmation whose exit is no
- * longer available closes. What the API answered stays said under the command — the new state,
+ * longer available closes, the focus back on its command. What the API answered stays said under the command — the new state,
  * or the refusal (`OutcomeNotice`) —, whether the confirmation is still open or not.
  */
 "use client";
@@ -169,10 +169,22 @@ function ExitCommand({
   const button = useRef<HTMLButtonElement>(null);
   // The page read again may no longer offer the exit: its confirmation closes.
   const shown = open && offer.is_available;
+  const withdrawn = open && !offer.is_available;
   const close = () => {
     onClose();
     button.current?.focus();
   };
+  // Withdrawn, the confirmation took the focus away with it: the focus comes back to the
+  // command, unless the user has put it elsewhere meanwhile.
+  useEffect(() => {
+    if (!withdrawn) {
+      return;
+    }
+    onClose();
+    if (document.activeElement === null || document.activeElement === document.body) {
+      button.current?.focus();
+    }
+  }, [withdrawn, onClose]);
   return (
     <div className="space-y-2">
       <Command

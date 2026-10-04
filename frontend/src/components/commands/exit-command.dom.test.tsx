@@ -198,7 +198,7 @@ describe("the exits of the lifecycle of a project", () => {
     expect(exit("Abandonner le projet")).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("reads the page again on a refusal for the state of the project, and no longer offers what the server refused [WF-IHM-0090-A]", async () => {
+  it("reads the page again on a refusal for the state of the project, and no longer offers what the server refused, the focus back on the command", async () => {
     const client = serve({ [EXIT]: CONFLICT });
     const view = open();
     await confirm("Terminer le projet");
@@ -214,7 +214,9 @@ describe("the exits of the lifecycle of a project", () => {
     expect(screen.queryByRole("form")).toBeNull();
     expect(screen.getByRole("alert")).toHaveTextContent("Modernisation du poste de commande");
     const complete = exit("Terminer le projet");
+    expect(complete).toHaveFocus();
     expect(complete).toHaveAttribute("aria-disabled", "true");
+    expect(complete).toHaveAttribute("aria-expanded", "false");
     expect(complete).toHaveAccessibleDescription("Condition non remplie\u00A0: projet en cours.");
   });
 
