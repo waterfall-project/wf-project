@@ -11,6 +11,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { components } from "@/api/generated/schema";
 import type { ChartOption } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
@@ -18,6 +19,7 @@ import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
 import { WorkloadChart, type WorkloadPlan } from "./workload-chart";
+import { WorkloadSection } from "./workload-section";
 
 /** What the instance out of the screen was handed, and what became of it. */
 const canvas = vi.hoisted(() => ({
@@ -54,6 +56,9 @@ vi.mock("echarts/core", async (actual) => {
     },
   };
 });
+
+type Revision = components["schemas"]["Revision"];
+type OrgNode = components["schemas"]["OrgNode"];
 
 /** The background of the charter in the light mode, as `globals.css` declares its token. */
 const BACKGROUND = (() => {
@@ -209,5 +214,37 @@ describe("the workload of a project", () => {
     // The instance out of the screen is released, and its host gone.
     expect(canvas.disposed).toBe(1);
     expect(canvas.hosts[0]?.isConnected).toBe(false);
+  });
+});
+
+describe("the export of the workload from its section", () => {
+  it("names in its image the basis the API read and the label of the node the address filters, as the section composes them [WF-IHM-0130-A]", async () => {
+    const user = userEvent.setup();
+    const marked = example("workload_marked_remaining") as WorkloadPlan;
+    english(
+      <WorkloadSection
+        workload={{ kind: "read", data: marked }}
+        asked={{
+          basis: "marked_remaining",
+          revision: undefined,
+          orgNode: "01926f3a-7c00-7000-8000-000000000471",
+        }}
+        bases={["reference_budget", "marked_remaining", "current_remaining"]}
+        marked={(example("revisions_marked") as { items: Revision[] }).items}
+        orgNodes={example("org_nodes") as OrgNode[]}
+        address={{ pathname: "/workload", parameters: [] }}
+        project={{ label: PROJECT, code: "PRJ-001" }}
+        shown={undefined}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Export as PNG" }));
+    const option = canvas.options[0] as ChartOption;
+    expect(option.title).toMatchObject({
+      text: `Project workload — ${PROJECT}`,
+      subtext: `Revision: Référence · Basis: Remaining of a marked revision · Organisation node: Bureau d'études électriques · Computed on ${formatTimestamp(marked.context.computed_at, "en")}`,
+    });
+    expect(saved).toEqual([
+      { href: "data:image/png;base64,iVBORw0KGgo=", download: "workload-PRJ-001.png" },
+    ]);
   });
 });
