@@ -295,7 +295,8 @@ def volumes() -> dict[str, JsonObject]:
             "La performance des projets en cours du portefeuille du §4.6.2 au 16 mars 2026 : "
             "chaque indice est le rapport des sommes de leurs valeurs acquises, coûts réels et "
             "valeurs planifiées, la répartition compte chaque projet dans la zone de chacun de "
-            "ses indices, et l'évolution court sur quatre trimestres (WF-PTF-0070).",
+            "ses indices, et l'évolution court sur quatre trimestres, le premier non calculable, "
+            "rien n'ayant encore été dépensé ni planifié (WF-PTF-0070).",
             portfolio_performance(rows),
         ),
         "portfolio_cost_structure.json": _example(

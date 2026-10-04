@@ -3,19 +3,20 @@
 /**
  * The perimeter of a view of the portfolio, as the user chooses it (WF-PTF-0010): the states it
  * retains — the projects in progress, to which the offers in pricing may be added, and the projects
- * completed —, the period and the date of calculation, and the node of organisation whose roles the
- * labour lines are restricted to, named with its parent as the server gives them, for the views
- * that take them. A choice only changes the address, under the names of the contract, and the page
- * reads anew what the server computes on it. A state shows pressed as the address asks it, or, when
- * the address asks none, as the server retained it by default (`scope.states`): the front assumes
- * no default of its own; the last state pressed cannot be released, a perimeter retaining at least
- * one. A change goes on from the address last asked (`usePendingAddress`).
+ * completed —, the period and the date of calculation, the node of organisation whose roles the
+ * labour lines are restricted to, named with its parent as the server gives them —, and the horizon
+ * and the threshold of under-load (WF-PTF-0060), for the views that take them. A choice only
+ * changes the address, under the names of the contract, and the page reads anew what the server
+ * computes on it. A state shows pressed as the address asks it, or, when the address asks none, as
+ * the server retained it by default (`scope.states`): the front assumes no default of its own; the
+ * last state pressed cannot be released, a perimeter retaining at least one. A change goes on from
+ * the address last asked (`usePendingAddress`).
  */
 "use client";
 
 import { CalendarRange, Circle, CircleCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { type SubmitEvent, useId, useState } from "react";
 
 import { usePendingAddress } from "@/components/grid/pending-address";
@@ -23,10 +24,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { formatPercent } from "@/i18n/format";
 
 import {
   AS_OF,
   FROM,
+  HORIZON,
+  HORIZONS,
   ORG_NODE,
   type Perimeter,
   PORTFOLIO_STATES,
@@ -36,6 +40,8 @@ import {
   STATES,
   statesValue,
   type Takes,
+  THRESHOLD,
+  THRESHOLDS,
   TO,
   WHOLE,
 } from "./address";
@@ -203,6 +209,14 @@ function ViewChoice({
   );
 }
 
+/**
+ * The values a parameter of a view proposes, and the one chosen when it is none of them: a value
+ * the address asks, or the one the server retained, shows chosen under its own name.
+ */
+function withChosen(proposed: readonly string[], chosen: string | undefined): readonly string[] {
+  return chosen === undefined || proposed.includes(chosen) ? proposed : [...proposed, chosen];
+}
+
 /** A node of organisation the labour may be restricted to, named with its parent by the server. */
 export interface NodeChoice {
   readonly id: string;
@@ -210,7 +224,18 @@ export interface NodeChoice {
   readonly parent: string | null;
 }
 
-/** What the perimeter shows: what the address asks, what the server retained, what the view takes. */
+/**
+ * The parameters of a view: its horizon, its threshold — as the address asks them, or, for the
+ * threshold the address does not name, as the server retained it —; a key absent, not offered.
+ */
+export interface ViewParameters {
+  readonly horizon?: string | undefined;
+  readonly threshold?: string | undefined;
+}
+
+/**
+ * What the perimeter shows: what the address asks, what the server retained, what the view takes.
+ */
 export interface PerimeterBarProps {
   readonly perimeter: Perimeter;
   readonly retained: readonly ProjectState[];
@@ -218,6 +243,8 @@ export interface PerimeterBarProps {
   readonly takes?: Takes;
   /** The nodes of organisation, when the view takes one. */
   readonly nodes?: readonly NodeChoice[];
+  /** The parameters the view takes, and their value; none, and none is offered. */
+  readonly view?: ViewParameters;
 }
 
 /** Render the perimeter of a view of the portfolio, as the address asks it. */
@@ -226,8 +253,10 @@ export function PerimeterBar({
   retained,
   takes = WHOLE,
   nodes = [],
+  view,
 }: PerimeterBarProps) {
   const t = useTranslations("portfolio.perimeter");
+  const locale = useLocale();
   const change = useParameters();
   return (
     <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -255,6 +284,36 @@ export function PerimeterBar({
           }))}
           write={(value) => {
             change(() => ({ [ORG_NODE]: value }));
+          }}
+        />
+      ) : null}
+      {view !== undefined && "horizon" in view ? (
+        <ViewChoice
+          name={HORIZON}
+          label={t("horizon")}
+          none={t("byDefault")}
+          value={view.horizon}
+          offered={withChosen(HORIZONS, view.horizon).map((months) => ({
+            value: months,
+            label: t("months", { months }),
+          }))}
+          write={(value) => {
+            change(() => ({ [HORIZON]: value }));
+          }}
+        />
+      ) : null}
+      {view !== undefined && "threshold" in view ? (
+        <ViewChoice
+          name={THRESHOLD}
+          label={t("threshold")}
+          none={t("byDefault")}
+          value={view.threshold}
+          offered={withChosen(THRESHOLDS, view.threshold).map((value) => ({
+            value,
+            label: formatPercent(value, locale),
+          }))}
+          write={(value) => {
+            change(() => ({ [THRESHOLD]: value }));
           }}
         />
       ) : null}

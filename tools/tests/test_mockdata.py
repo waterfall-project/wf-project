@@ -281,6 +281,10 @@ def test_the_performance_is_a_ratio_of_sums_and_counts_each_project_once(
             if entry["index"] == index
         } == {zone: counted[zone] for zone in ("nominal", "watch", "alert")}
     assert performance["quarterly"][-1]["cost_index"]["value"] == cost["value"]["value"]
+    first = performance["quarterly"][0]
+    assert first["cost_index"]["is_computable"] is False
+    assert first["cost_index"]["reason"] == "no_actual_cost"
+    assert first["schedule_index"]["reason"] == "no_planned_value"
 
 
 def test_the_parts_of_the_cost_structure_sum_to_their_totals(volumes: dict[str, Any]) -> None:
@@ -350,6 +354,22 @@ def test_the_marks_the_portfolio_journey_reads(volumes: dict[str, Any]) -> None:
     assert witness["label"] == "Modernisation du poste de commande"
     assert witness["schedule_index"]["zone"] == "alert"
     assert volumes["portfolio_value.json"]["value"]["conversion_rate"]["value"] == "0.4"
+
+
+def test_the_marks_the_zone_journey_reads(volumes: dict[str, Any]) -> None:
+    # The end-to-end path of the colours of the zones (portfolio.spec.ts) reads three indices of
+    # the list and the distribution of the projects by zone of the cost index: a change of the
+    # generator that moves them fails here.
+    rows = {row["code"]: row for row in volumes["portfolio_projects.json"]["value"]["items"]}
+    assert rows["PRJ-003"]["cost_index"]["zone"] == "watch"
+    assert rows["PRJ-004"]["cost_index"]["zone"] == "nominal"
+    performance = volumes["portfolio_performance.json"]["value"]
+    counts = {
+        entry["zone"]: entry["project_count"]
+        for entry in performance["zone_distribution"]
+        if entry["index"] == "cost"
+    }
+    assert counts == {"nominal": 168, "watch": 47, "alert": 53}
 
 
 def test_the_second_page_holds_the_projects_fifty_to_a_hundred(volumes: dict[str, Any]) -> None:

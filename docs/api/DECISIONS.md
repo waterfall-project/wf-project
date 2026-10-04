@@ -739,7 +739,7 @@ chiffrage dans l'année) ; la performance (`portfolio_performance`, `getPortfoli
 chaque indice en rapport des sommes, la valeur acquise, le coût réel et la valeur planifiée de
 chaque projet tirés de son budget et de ses indices — ceux du projet témoin, de
 `project_indicators` —, la répartition par zone comptant chaque projet une fois par indice, le
-projet témoin sans zone de coût, et quatre trimestres d'évolution) ; la structure des coûts
+projet témoin sans zone de coût, et quatre trimestres d'évolution, le premier non calculable, faute de coût réel et de valeur planifiée) ; la structure des coûts
 (`portfolio_cost_structure`, `getPortfolioCostStructure` : le budget et le reste à engager par
 nature, dont les parts somment à un, et la main-d'œuvre du bureau d'études électricité, le nœud
 dont relèvent tous les rôles de l'univers) ; les risques (`portfolio_risks`,
@@ -763,6 +763,18 @@ les provisions survenues et écartées des risques (WF-PTF-0090) — se calculen
 de calcul, et les rend dans `scope.from` et `scope.to`, que l'écran affiche avec la vue
 (WF-IHM-0020). La liste des projets, qui ne retient de projet terminé que sur une période demandée,
 rend alors une période nulle.
+
+## Le seuil de sous-charge retenu (US-0240/L5)
+
+**Le plan de charge agrégé rend toujours son seuil de sous-charge**
+(`PortfolioWorkload.under_load_threshold`, exigé), resserrement de lecture que l'écran exige, sur
+l'autorisation de l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »). Facultatif, une réponse conforme pouvait l'omettre, et
+l'écran, qui montre le seuil retenu par le serveur quand l'adresse n'en nomme aucun, aurait dit
+« Par défaut » sans dire lequel (relevé par Copilot sur la PR #338), comme `last_import_at` des
+coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cash_out_credit`, calculé au
+31 décembre 2025, montre un mois de décaissements net négatif — les avoirs de décembre importés
+avant ses factures, que l'import de janvier apporte au 16 mars — : un décaissement est un `Money`
+signé, comme le coût réel dont il vient.
 
 ## Collage et annulation
 

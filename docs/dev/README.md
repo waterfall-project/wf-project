@@ -385,7 +385,16 @@ pressé comme l'adresse le demande, ou, quand elle n'en nomme aucun, comme le se
 retenu et la date de calcul de la vue, `scope.as_of` (`PortfolioHeader`), que portent tous ses
 chiffres. La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
 cherchée et paginée par le serveur, sa ligne de totaux le nombre de projets retenus
-(`meta.total`), sous la valeur du portefeuille ; le libellé d'un projet l'ouvre (WF-PTF-0030).
+(`meta.total`), sous la valeur du portefeuille. Les six autres vues (FBS-2.2 à FBS-2.7) montrent ce
+que le serveur calcule : le plan de charge agrégé et les décaissements prennent en outre l'horizon
+(`horizon_months`) et, pour le premier, le seuil de sous-charge (`under_load_threshold`),
+paramètres de la vue et non préférences (WF-PTF-0060) : le menu propose quelques valeurs, mais toute
+valeur de l'adresse que le contrat prend — un horizon de 1 à 240 mois, un seuil en `Percent` — est
+envoyée et se montre choisie ; sans seuil dans l'adresse, le menu montre celui que le serveur a
+retenu (`under_load_threshold` de la réponse), comme les états. Chaque projet nommé — libellé de la liste, risque le plus lourd, signal de santé —
+ouvre le projet (WF-PTF-0030). Les zones d'indice, de charge et de santé sont celles du serveur,
+par `Signal` ; l'évolution trimestrielle des indices et les décaissements sont des figures de
+`Chart`, sans export (#312).
 
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le

@@ -71,14 +71,18 @@ PortfolioValue:
 
 PortfolioWorkload:
   type: object
-  required: [scope, roles]
+  required: [scope, under_load_threshold, roles]
   description: >-
     Charges sommées par rôle et par mois : sur le reste à engager pour les projets
     en cours, sur le devis pondéré pour les projets en chiffrage inclus
     (WF-PTF-0060).
   properties:
     scope: { $ref: '#/PortfolioScope' }
-    under_load_threshold: { $ref: ../common.yaml#/Percent }
+    under_load_threshold:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: >-
+        Le seuil de sous-charge retenu, toujours rendu : celui que la requête a demandé, ou,
+        sans demande, celui que le serveur a choisi, que l'écran montre (WF-PTF-0060).
     roles:
       type: array
       items:

@@ -336,12 +336,17 @@ def _progressing(rows: list[JsonObject]) -> list[Earned]:
     return [earned(row) for row in rows if row["state"] == "in_progress"]
 
 
+_QUARTERS = ("2025-Q2", "2025-Q3", "2025-Q4", "2026-Q1")
+"""The quarters of the evolution: the first before any cost was spent, the last the day's."""
+
+
 def portfolio_performance(rows: list[JsonObject]) -> JsonObject:
     """Return the answer of getPortfolioPerformance over the projects in progress (WF-PTF-0070).
 
     Each index is the ratio of the sums (WF-PTF-0020); the distribution counts each project
     once in the zone of each of its indices, none when its index has no zone; the evolution runs
-    over the four quarters up to the day of the examples, the last one that day's.
+    over the four quarters up to the day of the examples, the last one that day's, the first not
+    computable, nothing having been spent nor planned yet.
     """
     sums = _progressing(rows)
     budget = sum((each.budget for each in sums), Decimal(0))
@@ -376,10 +381,12 @@ def portfolio_performance(rows: list[JsonObject]) -> JsonObject:
         "quarterly": [
             {
                 "quarter": quarter,
-                "cost_index": _drift(quarter, "cost", cost, last=quarter == "2026-Q1"),
-                "schedule_index": _drift(quarter, "schedule", schedule, last=quarter == "2026-Q1"),
+                "cost_index": _drift(quarter, "cost", cost, last=quarter == _QUARTERS[-1]),
+                "schedule_index": _drift(
+                    quarter, "schedule", schedule, last=quarter == _QUARTERS[-1]
+                ),
             }
-            for quarter in ("2025-Q2", "2025-Q3", "2025-Q4", "2026-Q1")
+            for quarter in _QUARTERS
         ],
     }
 
@@ -393,7 +400,13 @@ def _zones(rows: list[JsonObject], name: str) -> dict[str, int]:
     return {zone: counted[zone] for zone in ("nominal", "watch", "alert")}
 
 
+_UNCOMPUTED = {"cost": "no_actual_cost", "schedule": "no_planned_value"}
+"""Why the indices of the first quarter are not computable: nothing was spent nor planned yet."""
+
+
 def _drift(quarter: str, index: str, today: Decimal, *, last: bool) -> JsonObject:
+    if quarter == _QUARTERS[0]:
+        return {"is_computable": False, "value": None, "reason": _UNCOMPUTED[index]}
     value = today if last else today + Decimal(draw(f"quarter/{index}/{quarter}", -8, 8)) / 100
     return {"is_computable": True, "value": decimal(value), "reason": None}
 

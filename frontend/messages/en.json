@@ -349,7 +349,11 @@
       "apply": "Apply",
       "orgNode": "Organisation node",
       "everyNode": "All nodes",
-      "nodeChoice": "{label} ({parent})"
+      "nodeChoice": "{label} ({parent})",
+      "byDefault": "Default",
+      "horizon": "Horizon",
+      "months": "{months} months",
+      "threshold": "Under-load threshold"
     },
     "scope": {
       "noPeriod": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · calculated on {asOf}",
@@ -378,6 +382,64 @@
       "since": "Delivered and conversion rate over the period from {from}",
       "until": "Delivered and conversion rate over the period up to {to}",
       "noPeriod": "Delivered and conversion rate without a period"
+    },
+    "performance": {
+      "indices": "Aggregated indices",
+      "projections": "Projections at completion",
+      "atBudget": "At budget",
+      "projectManager": "Project manager’s",
+      "atObservedRate": "At the observed rate",
+      "distribution": "Projects by zone",
+      "index": "Index",
+      "zone": "Zone",
+      "projects": "Projects",
+      "quarterly": "Quarterly evolution of the indices",
+      "quarterlyDescription": "Curves of the aggregated cost index and schedule index of the portfolio, one point per quarter, calculated at past dates.",
+      "quarterColumn": "Quarter",
+      "quarter": "Q{number} {year}",
+      "cost_index": "Cost index",
+      "schedule_index": "Schedule index"
+    },
+    "costStructure": {
+      "noActualCost": "The actual cost is not broken down by nature: the ERP does not provide it.",
+      "budget": "Reference budget by nature",
+      "remaining": "Remaining to commit by nature",
+      "labor": "Labour by organisation node",
+      "nature": "Cost nature",
+      "orgNode": "Organisation node",
+      "amount": "Amount",
+      "share": "Share",
+      "unnamed": "Unnamed"
+    },
+    "risks": {
+      "identifiedTotal": "Provisions of the identified risks",
+      "occurred": "Provisions occurred over the period",
+      "dismissed": "Provisions dismissed over the period",
+      "heaviest": "Heaviest risks",
+      "risk": "Risk",
+      "project": "Project",
+      "provision": "Provision"
+    },
+    "workload": {
+      "title": "Load by role and by month",
+      "none": "No load on the perimeter and horizon chosen.",
+      "role": "Role",
+      "capacity": "Monthly capacity",
+      "hours": "{hours} h"
+    },
+    "pilotHealth": {
+      "none": "No signal: the control of the projects of the perimeter is kept up.",
+      "signals": "Project control health signals",
+      "project": "Project",
+      "signal": "Signal",
+      "zone": "Zone"
+    },
+    "cashOut": {
+      "chartTitle": "Cash-out by month",
+      "description": "Curves of the past cash-out, sums of the actual costs by month of document date, and of the cash-out to come, sums of the projections of the projects, month by month.",
+      "month": "Month",
+      "past": "Paid out",
+      "forecast": "To be paid out"
     }
   },
   "computedValue": {

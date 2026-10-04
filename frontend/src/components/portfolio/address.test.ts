@@ -5,7 +5,14 @@ import { describe, expect, it } from "vitest";
 import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
 
-import { parametersHref, perimeterQuery, readPerimeter, statesValue } from "./address";
+import {
+  parametersHref,
+  perimeterQuery,
+  readHorizon,
+  readPerimeter,
+  readThreshold,
+  statesValue,
+} from "./address";
 
 /** A node of organisation of the reference, as the contract identifies it. */
 const [, NODE] = example("org_nodes") as components["schemas"]["OrgNode"][];
@@ -62,5 +69,15 @@ describe("the address of a view of the portfolio", () => {
   it("writes the states in the order of the portfolio, none for none", () => {
     expect(statesValue(["completed", "in_progress"])).toBe("in_progress,completed");
     expect(statesValue([])).toBeUndefined();
+  });
+
+  it("reads any horizon and any threshold the contract takes, and those alone", () => {
+    expect(readHorizon(new URLSearchParams("horizon_months=36"))).toBe("36");
+    expect(readHorizon(new URLSearchParams("horizon_months=240"))).toBe("240");
+    for (const refused of ["0", "241", "012", "1.5", "six"]) {
+      expect(readHorizon(new URLSearchParams(`horizon_months=${refused}`))).toBeUndefined();
+    }
+    expect(readThreshold(new URLSearchParams("under_load_threshold=0.45"))).toBe("0.45");
+    expect(readThreshold(new URLSearchParams("under_load_threshold=50%"))).toBeUndefined();
   });
 });
