@@ -41,7 +41,7 @@ Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
 | `lock_version` sur les écritures concurrentes, refus par 412 | WF-IHM-0110 |
 | Un seul préfixe de version, `/api/v1` | — |
 | Une liste de la requête en un seul paramètre, ses valeurs séparées par des virgules (`explode: false`) : `kinds=task,estimate_line` ; `make lint-openapi` le vérifie (`rule/array-parameter-*` de `redocly.yaml`) | — |
-| Toute écriture de grille — cellule, collage, déplacement, création, liaison, avancement, réestimation, inscription — rend `NodesWritten` : nœuds écrits, ancêtres recalculés, totaux de la structure, compteur de la structure | WF-IHM-0040, WF-DEV-0050, WF-ARC-0020 |
+| Toute écriture de grille — cellule, collage, déplacement, création, liaison, avancement, réestimation, inscription, suppression — rend `NodesWritten` : nœuds écrits, ancêtres recalculés, totaux de la structure, compteur de la structure | WF-IHM-0040, WF-DEV-0050, WF-ARC-0020 |
 | Toute opération gardée par la session déclare le `401` ; une opération publique le dit par `security: []` ; `make lint-openapi` le vérifie (`rule/session-operation-declares-401` de `redocly.yaml`) | WF-SEC-0020, WF-ARC-0060 |
 | Une opération longue renvoie une tâche de fond, jamais un résultat | WF-ARC-0090 |
 | L'API ne localise rien ; seuls les documents qu'elle engendre suivent la langue du destinataire | WF-ARC-0110, WF-INTF-0180 |
