@@ -280,6 +280,10 @@ def test_the_performance_is_a_ratio_of_sums_and_counts_each_project_once(
             if entry["index"] == index
         } == {zone: counted[zone] for zone in ("nominal", "watch", "alert")}
     assert performance["quarterly"][-1]["cost_index"]["value"] == cost["value"]["value"]
+    first = performance["quarterly"][0]
+    assert first["cost_index"]["is_computable"] is False
+    assert first["cost_index"]["reason"] == "no_actual_cost"
+    assert first["schedule_index"]["reason"] == "no_planned_value"
 
 
 def test_the_parts_of_the_cost_structure_sum_to_their_totals(volumes: dict[str, Any]) -> None:

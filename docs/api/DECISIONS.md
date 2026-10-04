@@ -663,7 +663,7 @@ chiffrage dans l'année) ; la performance (`portfolio_performance`, `getPortfoli
 chaque indice en rapport des sommes, la valeur acquise, le coût réel et la valeur planifiée de
 chaque projet tirés de son budget et de ses indices — ceux du projet témoin, de
 `project_indicators` —, la répartition par zone comptant chaque projet une fois par indice, le
-projet témoin sans zone de coût, et quatre trimestres d'évolution) ; la structure des coûts
+projet témoin sans zone de coût, et quatre trimestres d'évolution, le premier non calculable, faute de coût réel et de valeur planifiée) ; la structure des coûts
 (`portfolio_cost_structure`, `getPortfolioCostStructure` : le budget et le reste à engager par
 nature, dont les parts somment à un, et la main-d'œuvre du bureau d'études électricité, le nœud
 dont relèvent tous les rôles de l'univers) ; les risques (`portfolio_risks`,
