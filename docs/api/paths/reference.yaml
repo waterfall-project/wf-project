@@ -54,6 +54,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettings }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -94,6 +95,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -118,6 +120,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -157,6 +160,7 @@
                 resource_roles:
                   type: array
                   items: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -208,6 +212,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -231,6 +236,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -261,6 +267,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -304,6 +311,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/DurationUnits }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -345,6 +353,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -368,6 +377,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -388,6 +398,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -418,6 +429,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -466,6 +478,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -491,6 +504,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -522,6 +536,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -574,6 +589,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -598,6 +614,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -628,6 +645,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -699,6 +717,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/HourlyRate }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }

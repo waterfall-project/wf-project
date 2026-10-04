@@ -65,6 +65,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
         description: Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010).
@@ -116,6 +117,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -145,6 +147,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/state_transitions.json }
               exited: { $ref: ../../../fixtures/api/state_transitions_exited.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/next-state:
@@ -164,6 +167,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/NextState }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/exit:
@@ -193,6 +197,7 @@
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
             examples:
               completed: { $ref: ../../../fixtures/api/project_completed.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -217,6 +222,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:
     operationId: setWorkBreakdown
@@ -237,6 +243,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -264,6 +271,7 @@
               items: { $ref: ../components/schemas/projects.yaml#/Subproject }
             examples:
               witness: { $ref: ../../../fixtures/api/subprojects.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createSubproject
@@ -284,6 +292,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
         description: Code déjà employé dans ce projet (WF-PRJ-0050).
@@ -312,6 +321,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Subproject }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -328,6 +338,7 @@
     responses:
       '204':
         description: Sous-projet supprimé.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -362,6 +373,7 @@
             schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
             examples:
               witness: { $ref: ../../../fixtures/api/contributors.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:
     operationId: setContributors
@@ -386,6 +398,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -414,6 +427,7 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/projects.yaml#/ContributorSuggestion }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/timelines:
@@ -432,6 +446,7 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createTimeline
@@ -457,6 +472,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Timeline }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -473,5 +489,6 @@
     responses:
       '204':
         description: Chronologie supprimée ; les inscriptions le sont avec elle.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -442,10 +442,15 @@ par sa valeur et son unité, et les dates par leur date.
   #120) les rendront par `Signal`.
 - Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
   US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
-  tests ne peuvent pas le simuler sur ces opérations.
+  tests ne peuvent pas le simuler sur ces opérations. Corrigé par EP-02/L8 : cent neuf
+  opérations déclarent leur 401, et une règle d'assertion de `docs/api/redocly.yaml`
+  (`rule/session-operation-declares-401`) l'exige de toute opération qui ne déclare pas
+  `security: []` ; le cas de la session perdue pendant une saisie se simule désormais sur
+  `updateEstimateLine` et `updateTaskFacet`.
 - `correlation_id` n'a pas de motif, ni de longueur minimale — US-0090/L2, ouvert en #144.
   D'ici là, le front le préfixe dans le digest de Next et traite une valeur vide comme
-  absente.
+  absente. Corrigé par EP-02/L8 : `Problem.correlation_id` porte le motif
+  `^[A-Za-z0-9._-]{1,64}$`, jamais vide ; le front garde son préfixe dans le digest.
 - `CommandCondition` n'avait pas de condition « traitement en cours » : pendant un marquage,
   une révision relue listait toujours `mark` disponible — US-0180/L1, ouvert en #147
   (décision de l'utilisateur). Corrigé par EP-02/L4 : le serveur nomme
@@ -459,7 +464,9 @@ par sa valeur et son unité, et les dates par leur date.
   d'identité par un lien vers `start_url`, et ne l'offre pas sans lui.
 - La taille admise d'un avatar n'est pas au contrat, quand Next borne le corps d'une action
   serveur à 1 Mo — US-0320/L1, ouvert en #153. D'ici là, une image plus lourde échoue avant
-  l'API, sur l'écran de panne.
+  l'API, sur l'écran de panne. Corrigé par EP-02/L8 : `Installation.avatar_max_bytes`, lisible
+  sans session, dit la borne, que `putMyAvatar` cite ; le front la lira et réglera son corps
+  dans #221.
 - L'adresse du front que vise le lien de réinitialisation du mot de passe, écrit par l'API dans le courriel, n'est pas au contrat — US-0320/L1, ouvert en #154. D'ici là, le front attend `/login/reset?token=…`.
 - Aucun code d'erreur ne nomme une règle du mot de passe, et le front ne rend pas encore `Problem.fields` — US-0320/L1, ouvert en #155. D'ici là, un mot de passe refusé l'est par « Les données saisies ne sont pas valides. ».
 - La connexion par le fournisseur d'identité ne peut pas ramener à l'écran visé : `start_url` ne transmet pas `next`, et `completeOidcSession` répond 303 « vers l'application » — US-0320/L1, #152. D'ici là, elle mène à l'accueil.

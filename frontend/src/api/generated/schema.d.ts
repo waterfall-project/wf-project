@@ -362,7 +362,7 @@ export interface paths {
         get?: never;
         /**
          * Déposer ou remplacer mon avatar
-         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1).
+         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE`.
          */
         put: operations["putMyAvatar"];
         post?: never;
@@ -2594,7 +2594,7 @@ export interface components {
             };
             /** @description Erreurs par champ, pour une entité refusée à la validation. */
             fields?: components["schemas"]["FieldProblem"][];
-            /** @description Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020). */
+            /** @description Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020) : engendré par la plateforme, jamais vide, et de ces seuls caractères — un identifiant repris d'un en-tête d'entrée qui ne les respecte pas est remplacé, pas transmis. Le front l'affiche comme référence d'une erreur inattendue, et peut le mettre tel quel dans un chemin ou un digest. */
             correlation_id?: string;
         };
         /**
@@ -2650,9 +2650,11 @@ export interface components {
          * @enum {string}
          */
         Language: "fr" | "en";
-        /** @description Paramètres de l'installation lisibles sans session. */
+        /** @description Paramètres de l'installation lisibles sans session : ce que le front doit savoir avant d'ouvrir une session, ou pour régler ce qu'il laisse passer. */
         Installation: {
             default_language: components["schemas"]["Language"];
+            /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi et régler la taille de corps qu'il accepte un peu au-dessus, pour que le refus vienne de l'API et se dise par son code. */
+            avatar_max_bytes: number;
         };
         /**
          * @description Où en est une tâche de fond : en file, en cours, aboutie ou échouée (WF-ARC-0090, WF-IHM-0080). Nommée pour filtrer la liste des tâches de l'appelant.
@@ -4935,6 +4937,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050). */
             409: {
@@ -4995,6 +4998,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -5028,6 +5032,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Dernier compte portant les permissions d'administration (WF-ADM-0120). */
@@ -5065,6 +5070,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -5092,6 +5098,7 @@ export interface operations {
                     "image/jpeg": string;
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5113,6 +5120,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Aucun annuaire activé (WF-ADM-0180). */
             409: {
@@ -5144,6 +5152,7 @@ export interface operations {
                     "application/json": components["schemas"]["DirectorySyncResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5216,6 +5225,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5240,6 +5250,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccessRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5261,6 +5272,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Rôle encore porté par un compte (WF-ADM-0090). */
@@ -5298,6 +5310,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccessRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Le rôle est le dernier à porter les permissions d'administration (WF-ADM-0120). */
@@ -5336,6 +5349,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5358,6 +5372,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -5382,6 +5397,7 @@ export interface operations {
                     "application/json": components["schemas"]["Backup"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5409,6 +5425,7 @@ export interface operations {
                     "application/json": components["schemas"]["Backup"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5433,6 +5450,7 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5455,6 +5473,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupSchedule"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5480,6 +5499,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupSchedule"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
         };
@@ -5507,6 +5527,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
@@ -5576,6 +5597,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReferenceSettings"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
@@ -5630,6 +5652,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrgNode"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5658,6 +5681,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrgNode"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -5693,6 +5717,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5748,6 +5773,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5776,6 +5802,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -5808,6 +5835,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5855,6 +5883,7 @@ export interface operations {
                     "application/json": components["schemas"]["DurationUnits"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
@@ -5909,6 +5938,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5937,6 +5967,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -5962,6 +5993,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -5994,6 +6026,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6050,6 +6083,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
@@ -6079,6 +6113,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6112,6 +6147,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6168,6 +6204,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
@@ -6197,6 +6234,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -6229,6 +6267,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6307,6 +6346,7 @@ export interface operations {
                     "application/json": components["schemas"]["HourlyRate"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6373,6 +6413,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010). */
             409: {
@@ -6434,6 +6475,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6461,6 +6503,7 @@ export interface operations {
                     "application/json": components["schemas"]["StateTransition"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6484,6 +6527,7 @@ export interface operations {
                     "application/json": components["schemas"]["NextState"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6511,6 +6555,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Sortie non permise depuis l'état courant (WF-CYC-0060, WF-CYC-0080). */
@@ -6545,6 +6590,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkBreakdown"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6572,6 +6618,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkBreakdown"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -6600,6 +6647,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6627,6 +6675,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Code déjà employé dans ce projet (WF-PRJ-0050). */
             409: {
@@ -6658,6 +6707,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Sous-projet portant des coûts réels ou cité par une révision marquée. */
@@ -6696,6 +6746,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -6724,6 +6775,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContributorList"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6751,6 +6803,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContributorList"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060). */
@@ -6786,6 +6839,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContributorSuggestion"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6809,6 +6863,7 @@ export interface operations {
                     "application/json": components["schemas"]["Timeline"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6838,6 +6893,7 @@ export interface operations {
                     "application/json": components["schemas"]["Timeline"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6861,6 +6917,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6923,6 +6980,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Une révision en cours existe déjà (WF-REV-0010). */
@@ -6957,6 +7015,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6979,6 +7038,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7009,6 +7069,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Nom de version déjà employé, ou révision déjà marquée (WF-REV-0020). */
@@ -7047,6 +7108,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Désignation manuelle plus permise, ou révision non marquée (WF-REV-0040). */
@@ -7081,6 +7143,7 @@ export interface operations {
                     "application/json": components["schemas"]["RateUpdateProposal"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7112,6 +7175,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -7140,6 +7204,7 @@ export interface operations {
                     "application/json": components["schemas"]["RevisionComparison"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7164,6 +7229,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostStructure"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7192,6 +7258,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostStructure"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7223,6 +7290,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7306,6 +7374,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7333,6 +7402,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7405,6 +7475,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7439,6 +7510,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7481,6 +7553,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Cycle de liaisons, ou liaison interdite (WF-PLA-0030, WF-PLA-0040). */
@@ -7522,6 +7595,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7555,6 +7629,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7591,6 +7666,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -7621,6 +7697,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7653,6 +7730,7 @@ export interface operations {
                     "application/json": components["schemas"]["PastePlan"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["PayloadTooLarge"];
@@ -7693,6 +7771,7 @@ export interface operations {
                     "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7720,6 +7799,7 @@ export interface operations {
                     "application/json": components["schemas"]["UndoResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Une modification postérieure porte sur le même objet, ou l'historique de la session est vide (WF-IHM-0110). */
@@ -7754,6 +7834,7 @@ export interface operations {
                     "application/json": components["schemas"]["UndoResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7780,6 +7861,7 @@ export interface operations {
                     "application/json": components["schemas"]["Node"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description La structure comporte déjà une tâche (WF-PRJ-0030). */
@@ -7843,6 +7925,7 @@ export interface operations {
                     "application/json": components["schemas"]["MissingRate"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7872,6 +7955,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkloadPlan"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             /** @description Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070). */
             409: {
@@ -7907,6 +7991,7 @@ export interface operations {
                     "application/json": components["schemas"]["RemainingIndicators"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7933,6 +8018,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7994,6 +8080,7 @@ export interface operations {
                     "application/json": components["schemas"]["MilestoneTracking"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8022,6 +8109,7 @@ export interface operations {
                     "application/json": components["schemas"]["CurveSeries"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8050,6 +8138,7 @@ export interface operations {
                     "application/json": components["schemas"]["CurveSeries"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8138,6 +8227,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
@@ -8164,6 +8254,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8192,6 +8283,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -8219,6 +8311,7 @@ export interface operations {
                     "application/json": components["schemas"]["RiskReview"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8247,6 +8340,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Le risque est survenu : aucune transition n'en part (WF-RIS-0020). */
@@ -8286,6 +8380,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -8311,6 +8406,7 @@ export interface operations {
                     "application/json": components["schemas"]["RiskMatrix"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8380,6 +8476,7 @@ export interface operations {
                     "application/json": components["schemas"]["ActualCostLine"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -8410,6 +8507,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8469,6 +8567,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8496,6 +8595,7 @@ export interface operations {
                     "application/json": components["schemas"]["Import"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Projet terminal, ou fichier déjà consommé (WF-CYC-0100). */
@@ -8539,6 +8639,7 @@ export interface operations {
                     "application/json": components["schemas"]["Import"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8561,6 +8662,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -8590,6 +8692,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Compte rendu expiré, déjà appliqué, ou condition de droits ou d'état qui a cessé d'être vraie depuis l'analyse (WF-ARC-0100). */
@@ -8627,6 +8730,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -8706,6 +8810,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioValue"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8737,6 +8842,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioWorkload"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8768,6 +8874,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioPerformance"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8796,6 +8903,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioCostStructure"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8825,6 +8933,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioRisks"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8852,6 +8961,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioCashOut"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8878,6 +8988,7 @@ export interface operations {
                     "application/json": components["schemas"]["PilotHealth"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };

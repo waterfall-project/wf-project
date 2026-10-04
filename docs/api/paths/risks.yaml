@@ -67,6 +67,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -87,6 +88,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
     operationId: updateRisk
@@ -110,6 +112,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -134,6 +137,7 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/risks.yaml#/RiskReview }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: reviewRisk
@@ -158,6 +162,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -196,6 +201,7 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -217,4 +223,5 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/RiskMatrix }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

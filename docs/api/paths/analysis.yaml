@@ -58,6 +58,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/missing_rates_none.json }
               missing: { $ref: ../../../fixtures/api/missing_rates.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/workload:
@@ -89,6 +90,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/WorkloadPlan }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: 'Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070).'
@@ -120,6 +122,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/remaining_indicators.json }
               over_budget: { $ref: ../../../fixtures/api/remaining_indicators_over_budget.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/remaining-indicators/startable-tasks:
@@ -147,6 +150,7 @@
                 started:
                   type: array
                   items: { $ref: ../components/schemas/revisions.yaml#/Node }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/indicators:
@@ -196,6 +200,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/MilestoneTracking }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/indicators/cost-curve:
@@ -227,6 +232,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/CurveSeries }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/indicators/earned-value-curves:
@@ -247,6 +253,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/CurveSeries }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/indicators/index-history:

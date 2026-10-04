@@ -58,6 +58,7 @@
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
         description: Adresse électronique déjà portée par un autre compte (WF-ADM-0050).
@@ -103,6 +104,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -136,6 +138,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -166,6 +169,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/User }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -188,6 +192,7 @@
             schema: { type: string, format: binary }
           image/jpeg:
             schema: { type: string, format: binary }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /directory-syncs:
@@ -206,6 +211,7 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
         description: Aucun annuaire activé (WF-ADM-0180).
@@ -228,6 +234,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/DirectorySyncResult }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /permissions:
@@ -288,6 +295,7 @@
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -307,6 +315,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
     operationId: updateAccessRole
@@ -326,6 +335,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -346,6 +356,7 @@
     responses:
       '204':
         description: Rôle supprimé.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':

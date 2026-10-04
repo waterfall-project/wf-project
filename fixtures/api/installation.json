@@ -1,6 +1,7 @@
 {
-  "summary": "Une installation dont la langue par défaut est le français.",
+  "summary": "Une installation dont la langue par défaut est le français, et qui borne un avatar à deux mégaoctets.",
   "value": {
-    "default_language": "fr"
+    "default_language": "fr",
+    "avatar_max_bytes": 2097152
   }
 }

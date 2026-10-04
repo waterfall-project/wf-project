@@ -443,6 +443,29 @@ révision de référence, `by_order_item` nul sans lotissement saisi — absents
 le Vérif le veut —, et chaque poste est nommé par son libellé (WF-PRJ-0020).
 `delta_to_previous_revision` reste : la revue périodique le lit.
 
+**Toute opération gardée par la session déclare le 401, et une règle du contrat l'exige**
+(`rule/session-operation-declares-401` de `redocly.yaml`, #141). Le contrat ne le déclarait que sur
+une minorité d'opérations, quand toute opération gardée par la session peut répondre 401 — session
+absente, expirée ou révoquée (WF-SEC-0020) — et que le contrat déclare toute erreur qu'un client
+peut rencontrer (WF-ARC-0060) ; le client factice des tests du front, typé sur les statuts
+déclarés, ne pouvait pas simuler une session perdue sur ces lectures. Cent neuf opérations
+gagnent leur 401, et une règle d'assertion de Redocly — une règle maison n'a pas été nécessaire —
+exige `401` dans les réponses de toute opération qui ne déclare pas `security: []` : une
+opération nouvelle ne peut plus l'oublier, et une opération publique le dit par `security: []`.
+
+**`correlation_id` a un motif** (`^[A-Za-z0-9._-]{1,64}$`, #144). Une chaîne libre, qui pouvait
+être vide, et qu'un identifiant repris d'un en-tête d'entrée sans contrôle aurait pu remplir de
+n'importe quoi ; le front l'affiche comme référence d'une erreur inattendue et le met dans un
+digest. Le back n'émet que des identifiants conformes, et remplace ce qu'un en-tête lui apporte
+d'autre.
+
+**La borne de taille d'un avatar est un réglage de l'installation** (`Installation.avatar_max_bytes`,
+#153). Le contrat déclarait le 413 sans la borne, et le front ne pouvait ni la dire avant l'envoi
+ni régler sur elle le corps qu'il laisse passer. Elle est lisible sans session avec les autres
+paramètres publics, et `putMyAvatar` la cite : un réglage, pas une constante du contrat, parce que
+la taille admise relève de l'installation (§4.4.1, WF-CMP-0020). Écarté : un `maxLength` sur le
+corps binaire, qui aurait figé la borne dans le contrat.
+
 **Mineur** : `setDurationUnits` renvoie `responses.yaml#/UnprocessableEntity`, comme
 `createCalendar`, au lieu d'une 422 écrite en ligne ; ce que `fields` nomme est dit par
 `DurationUnitsWrite`.

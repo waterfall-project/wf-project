@@ -282,10 +282,20 @@ HourlyRateWrite:
 
 Installation:
   type: object
-  required: [default_language]
-  description: Paramètres de l'installation lisibles sans session.
+  required: [default_language, avatar_max_bytes]
+  description: >-
+    Paramètres de l'installation lisibles sans session : ce que le front doit savoir avant
+    d'ouvrir une session, ou pour régler ce qu'il laisse passer.
   properties:
     default_language: { $ref: ../common.yaml#/Language }
+    avatar_max_bytes:
+      type: integer
+      minimum: 1
+      description: >-
+        La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) :
+        un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et
+        que le front lit pour dire la borne avant l'envoi et régler la taille de corps qu'il
+        accepte un peu au-dessus, pour que le refus vienne de l'API et se dise par son code.
 
 ReferenceSettings:
   type: object

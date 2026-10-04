@@ -125,7 +125,13 @@ Problem:
       items: { $ref: '#/FieldProblem' }
     correlation_id:
       type: string
-      description: Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020).
+      pattern: '^[A-Za-z0-9._-]{1,64}$'
+      description: >-
+        Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020) :
+        engendré par la plateforme, jamais vide, et de ces seuls caractères — un identifiant
+        repris d'un en-tête d'entrée qui ne les respecte pas est remplacé, pas transmis. Le
+        front l'affiche comme référence d'une erreur inattendue, et peut le mettre tel quel
+        dans un chemin ou un digest.
 
 ErrorCode:
   type: string

@@ -39,3 +39,18 @@ rules:
       const: false
     message: 'Un paramètre déclare `explode: false`, jamais `explode: true`.'
 
+  # Toute opération gardée par la session peut répondre 401 — session absente, expirée ou
+  # révoquée (WF-SEC-0020) —, et le contrat déclare toute erreur qu'un client peut rencontrer
+  # (WF-ARC-0060) : une opération qui ne déclare pas `security: []` déclare sa 401.
+  rule/session-operation-declares-401:
+    subject:
+      type: Responses
+    where:
+      - subject:
+          type: Operation
+          property: security
+        assertions:
+          defined: false
+    assertions:
+      required: ['401']
+    message: 'Une opération gardée par la session déclare `401`.'

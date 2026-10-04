@@ -53,6 +53,7 @@
                   type: array
                   items: { $ref: ../components/schemas/exchanges.yaml#/Import }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: openImport
@@ -78,6 +79,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -109,6 +111,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
     operationId: abandonImport
@@ -122,6 +125,7 @@
     responses:
       '204':
         description: Import abandonné.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -152,6 +156,7 @@
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
             examples:
               queued: { $ref: ../../../fixtures/api/task_import_queued.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -186,6 +191,7 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }

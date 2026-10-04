@@ -75,6 +75,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/costs.yaml#/ActualCostLine }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -103,4 +104,5 @@
                   type: array
                   items: { $ref: ../components/schemas/costs.yaml#/CostImport }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
