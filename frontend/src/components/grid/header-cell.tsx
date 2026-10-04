@@ -22,7 +22,7 @@ import { type KeyboardEvent, useId } from "react";
 import { TableHead } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
 
-import { alignment, type GridColumn, MAX_WIDTH, MIN_WIDTH } from "./columns";
+import { alignment, type GridColumn, headingOf, MAX_WIDTH, MIN_WIDTH } from "./columns";
 import type { CellPosition } from "./grid-keyboard";
 import type { GridHeader, GridTable } from "./grid-table";
 
@@ -168,7 +168,8 @@ export function HeaderCell<Row extends RowData>({
   active,
 }: HeaderCellProps<Row>) {
   const t = useTranslations("grid");
-  const label = t(`columns.${column?.label ?? "rowNumber"}`);
+  const label =
+    column === undefined ? t("columns.rowNumber") : headingOf(column, (key) => t(`columns.${key}`));
   const sorted = header.column.getIsSorted();
   const align = column === undefined ? "end" : alignment(column);
   const end = align === "end";

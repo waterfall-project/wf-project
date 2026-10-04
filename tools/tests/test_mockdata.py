@@ -442,6 +442,33 @@ def test_two_hundred_categories_a_hundred_and_fifty_of_them_labour(
         assert labels[missing["cost_category_id"]] == missing["label"]
     used = {kind.category for kind in mockstructure.LINE_KINDS}
     assert used <= labels.keys()
+    # Each category names its nature as the natures of the universe do (WF-ARC-0020).
+    natures = {nature["cost_type_id"]: nature["label"] for nature in mockdata.fixture("cost_types")}
+    assert all(
+        category["cost_type_label"] == natures[category["cost_type_id"]] for category in categories
+    )
+
+
+def test_the_marks_the_reference_journeys_read(volumes: dict[str, Any]) -> None:
+    # The journey of the reference data (reference.spec.ts), the tests of the grid of the rates
+    # (rate-grid.dom.test.tsx) and the two examples of setHourlyRate read the third row of the
+    # grid: a change of the generator that moves it fails here.
+    grid = volumes["hourly_rate_grid.json"]["value"]
+    mechanical = grid["rows"][2]
+    assert mechanical["code"] == "MO-003"
+    assert mechanical["label"] == "Ingénierie mécanique — niveau 1"
+    years = grid["years"]
+    rates = dict(zip(years, mechanical["cells"], strict=True))
+    assert all(rates[year] is None for year in range(2012, 2016))
+    assert (rates[2016]["amount"], rates[2016]["lock_version"]) == ("86.98", 1)
+    assert grid["rows"][0]["cells"][-1]["amount"] == "80.00"
+    for name, year in (("hourly_rate_entered", 2015), ("hourly_rate_corrected", 2016)):
+        written = mockdata.fixture(name)
+        assert (written["cost_category_id"], written["year"]) == (
+            mechanical["cost_category_id"],
+            year,
+        )
+    assert mockdata.fixture("hourly_rate_corrected")["lock_version"] == 2
 
 
 def test_the_missing_rates_are_those_the_estimate_indicators_name() -> None:

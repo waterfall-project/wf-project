@@ -124,6 +124,7 @@
       "planning": "Planning grid",
       "risks": "Risk register",
       "actualCosts": "Actual costs",
+      "hourlyRates": "Hourly rate grid",
       "portfolioProjects": "Portfolio projects"
     },
     "columns": {
@@ -156,7 +157,8 @@
       "trackedScope": "Tracked scope",
       "excludedReason": "Reason for exclusion",
       "passthrough": "Columns kept from the file",
-      "projectCode": "Code",
+      "code": "Code",
+      "hourlyRate": "Hourly rate",
       "referenceBudget": "Reference budget",
       "currentEstimate": "Current estimate",
       "winProbability": "Win probability",
@@ -763,6 +765,89 @@
   "referenceReadiness": {
     "title": "Incomplete reference data",
     "explanation": "No project can be created until the common reference data has:"
+  },
+  "reference": {
+    "currency": "Amounts in {currency}, the single currency of the installation.",
+    "state": {
+      "active": "Active",
+      "inactive": "Deactivated"
+    },
+    "columns": {
+      "code": "Code",
+      "label": "Label",
+      "state": "State"
+    },
+    "rates": {
+      "caption": "Hourly rates in {currency}"
+    },
+    "costTypes": {
+      "title": "Cost types",
+      "kind": "Kind",
+      "none": "No cost type."
+    },
+    "costCategories": {
+      "title": "Cost categories",
+      "costType": "Cost type",
+      "accountingCode": "Accounting code",
+      "none": "No cost category."
+    },
+    "orgNodes": {
+      "title": "Organisation tree",
+      "parent": "Attached to",
+      "root": "Root of the tree",
+      "none": "No organisation node."
+    },
+    "resourceRoles": {
+      "title": "Resource roles",
+      "orgNode": "Organisation node",
+      "costCategory": "Cost category",
+      "calendar": "Calendar",
+      "monthlyHours": "Hours a month",
+      "headcount": "Headcount",
+      "none": "No resource role."
+    },
+    "calendars": {
+      "title": "Calendars",
+      "days": {
+        "monday": "Mon",
+        "tuesday": "Tue",
+        "wednesday": "Wed",
+        "thursday": "Thu",
+        "friday": "Fri",
+        "saturday": "Sat",
+        "sunday": "Sun"
+      },
+      "default": "Default",
+      "isDefault": "Default calendar",
+      "none": "No calendar."
+    },
+    "durationUnits": {
+      "title": "Units of duration",
+      "hoursPerDay": "Hours a day",
+      "hoursPerWeek": "Hours a week",
+      "daysPerMonth": "Days a month"
+    },
+    "riskMatrix": {
+      "title": "Bounds of the risk matrix",
+      "axis": "Axis",
+      "first": "First bound",
+      "second": "Second bound",
+      "third": "Third bound",
+      "probability": "Probability",
+      "severity": "Severity, as a percentage of the reference budget"
+    },
+    "indices": {
+      "title": "Alert thresholds of the indices",
+      "index": "Index",
+      "watch": "Watch threshold",
+      "alert": "Alert threshold",
+      "cost": "Cost index",
+      "schedule": "Schedule index"
+    },
+    "reviews": {
+      "title": "Pace of the reviews",
+      "maxWeeks": "Longest delay between two marked revisions of a project in progress: {weeks, plural, one {# week} other {# weeks}}."
+    }
   },
   "functionGroups": {
     "administration": "Administration",

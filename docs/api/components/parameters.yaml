@@ -13,7 +13,9 @@ Offset:
 Search:
   name: search
   in: query
-  description: Recherche sur le libellé.
+  description: >-
+    Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code
+    par exemple, le dit dans sa description.
   schema: { type: string, minLength: 1, maxLength: 200 }
 
 SortOrder:

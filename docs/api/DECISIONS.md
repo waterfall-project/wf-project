@@ -613,6 +613,42 @@ ignore 12 345 lignes d'autres projets, puis les imports de mars et d'avril de `c
 `cost_imports_empty`.
 Ils restent dans l'univers des indicateurs, sans coût réel au 16 mars (`project_indicators`).
 
+## Le référentiel (US-0250/L1)
+
+Ajouts que les écrans du référentiel exigent, faits par leur lot sur l'autorisation de
+l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »).
+
+**La grille des taux horaires se cherche** (`search` sur `getHourlyRateGrid`). L'écran la
+présente sur la grille dense, dont la recherche est celle de toute grille, et WF-IHM-0130 veut
+toute table filtrable : la recherche retient les catégories dont le code ou le libellé contient
+le texte cherché, et les années restent celles de toute la grille, pour qu'une colonne ne
+disparaisse pas d'une recherche à l'autre. Écarté : une grille sans recherche, seule de son
+espèce ; filtrer les cent cinquante lignes dans le front.
+
+**Un objet du référentiel nomme ceux auxquels il est rattaché** (`ResourceRole.org_node_label`,
+`cost_category_label`, `calendar_label`, `CostCategory.cost_type_label`, `OrgNode.parent_label`).
+Les écrans présentent un rôle avec son nœud, sa catégorie et son calendrier, une catégorie avec sa
+nature, un nœud avec son parent ; sans les libellés, le front rapprochait les listes qu'il lit
+(WF-ARC-0020), comme `RevisionComparison` avant #204, et disait inconnu un objet désactivé mais
+employé, que ces listes ne rendent pas sans `include_inactive` — lui-même refusé sans la
+permission du référentiel —, quand il doit rester lisible (WF-REF-0150). Libellés résolus à la
+lecture, actifs ou désactivés, exigés ; nul pour le parent d'une racine seul. Écarté : lire les
+listes avec `include_inactive`, refusé à qui n'a que la lecture des projets.
+
+**La recherche partagée** (`Search`) cherche sur le libellé ; une opération qui cherche aussi sur
+un autre champ le dit dans sa description, comme la grille des taux sur le code.
+
+**Exemples**, dans l'univers des autres : `reference_settings` (l'euro, le français, les bornes
+de la matrice et les zones de `risk_matrix`, les seuils 0,9 et 0,8 d'`index_history`, huit
+semaines entre deux revues, que dépasse le projet témoin de `pilot_health`), `cost_types` (les
+trois natures que ventilent les indicateurs de devis), `org_nodes` (trois niveaux, le nœud des
+rôles de `resource_roles` au deuxième, un service sans rôle), `calendars` (le calendrier par
+défaut de ces rôles, et un second ; l'automaticien désactivé de `resource_roles` est rattaché à un
+troisième, désactivé, que la liste ne rend pas et que son libellé nomme), et, pour `setHourlyRate`, `hourly_rate_entered` — le premier taux 2015 d'une catégorie
+qui n'en avait pas dans la grille des volumes — et `hourly_rate_corrected` — le taux 2016 de la
+même catégorie corrigé, sa version avancée. La catégorie n'est employée par aucun devis des
+exemples : ni l'une ni l'autre écriture ne contredit un montant chiffré ailleurs.
+
 ## Les exemples du portefeuille (US-0240/L3)
 
 **Les vues du portefeuille ont leurs exemples**, faits par le lot de leurs écrans sur

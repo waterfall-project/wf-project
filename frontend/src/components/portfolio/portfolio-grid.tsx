@@ -45,7 +45,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     },
     {
       key: "code",
-      label: "projectCode",
+      label: "code",
       format: "text",
       width: 96,
       sortBy: "code",

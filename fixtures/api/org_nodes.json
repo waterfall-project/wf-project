@@ -1,0 +1,93 @@
+{
+  "summary": "L'arbre d'organisation de l'installation sur trois niveaux : la direction technique ; sous elle, le bureau d'études électricité, où relèvent les rôles des exemples, et le service des achats, qui n'en porte aucun ; sous le bureau d'études, l'atelier de câblage. Chaque nœud nomme son parent, nul pour la racine (WF-REF-0070).",
+  "value": [
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000470",
+      "label": "Direction technique",
+      "parent_id": null,
+      "parent_label": null,
+      "is_active": true,
+      "audit": {
+        "created_at": "2026-01-05T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+      "label": "Bureau d'études électricité",
+      "parent_id": "01926f3a-7c00-7000-8000-000000000470",
+      "parent_label": "Direction technique",
+      "is_active": true,
+      "audit": {
+        "created_at": "2026-01-05T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+      "label": "Atelier de câblage",
+      "parent_id": "01926f3a-7c00-7000-8000-000000000471",
+      "parent_label": "Bureau d'études électricité",
+      "is_active": true,
+      "audit": {
+        "created_at": "2026-01-05T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000473",
+      "label": "Service des achats",
+      "parent_id": "01926f3a-7c00-7000-8000-000000000470",
+      "parent_label": "Direction technique",
+      "is_active": true,
+      "audit": {
+        "created_at": "2026-01-05T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    }
+  ]
+}

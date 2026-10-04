@@ -19,11 +19,12 @@ import { SidebarInset } from "@/components/ui/sidebar";
 import { isOutsideShell } from "@/navigation/login";
 
 /**
- * The page bounded to the height of the window when its screen fills it (`Screen`, `fill`): the
- * bar, the banner and the screen share that height, and the grid of the screen takes what is
- * left. Any other page grows with its content, and the document scrolls.
+ * The page bounded to the height of the window when its screen fills it (`Screen`, `fill`) —
+ * from the large breakpoint only for a screen that fills it there alone: the bar, the banner and
+ * the screen share that height, and the grid of the screen takes what is left. Any other page
+ * grows with its content, and the document scrolls.
  */
-const FILLED = "has-[main[data-fill]]:h-svh";
+const FILLED = "has-[main[data-fill]]:h-svh lg:has-[main[data-fill-lg]]:h-svh";
 
 /** The side bar — none without a session —, the bar above the page, and the page. */
 export interface ShellFrameProps {

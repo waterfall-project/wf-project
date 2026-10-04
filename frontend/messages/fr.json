@@ -124,6 +124,7 @@
       "planning": "Grille de planning",
       "risks": "Registre des risques",
       "actualCosts": "Coûts réels",
+      "hourlyRates": "Grille des taux horaires",
       "portfolioProjects": "Projets du portefeuille"
     },
     "columns": {
@@ -156,7 +157,8 @@
       "trackedScope": "Périmètre suivi",
       "excludedReason": "Motif de l’exclusion",
       "passthrough": "Colonnes conservées du fichier",
-      "projectCode": "Code",
+      "code": "Code",
+      "hourlyRate": "Taux horaire",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
@@ -763,6 +765,89 @@
   "referenceReadiness": {
     "title": "Référentiel incomplet",
     "explanation": "Aucun projet ne peut être créé tant que le référentiel commun n’a pas :"
+  },
+  "reference": {
+    "currency": "Montants exprimés en {currency}, devise unique de l’installation.",
+    "state": {
+      "active": "Actif",
+      "inactive": "Désactivé"
+    },
+    "columns": {
+      "code": "Code",
+      "label": "Libellé",
+      "state": "État"
+    },
+    "rates": {
+      "caption": "Taux horaires en {currency}"
+    },
+    "costTypes": {
+      "title": "Natures de coût",
+      "kind": "Type",
+      "none": "Aucune nature de coût."
+    },
+    "costCategories": {
+      "title": "Catégories de coût",
+      "costType": "Nature",
+      "accountingCode": "Code comptable",
+      "none": "Aucune catégorie de coût."
+    },
+    "orgNodes": {
+      "title": "Arbre d’organisation",
+      "parent": "Rattaché à",
+      "root": "Racine de l’arbre",
+      "none": "Aucun nœud d’organisation."
+    },
+    "resourceRoles": {
+      "title": "Rôles de ressources",
+      "orgNode": "Nœud d’organisation",
+      "costCategory": "Catégorie de coût",
+      "calendar": "Calendrier",
+      "monthlyHours": "Heures par mois",
+      "headcount": "Effectif",
+      "none": "Aucun rôle de ressource."
+    },
+    "calendars": {
+      "title": "Calendriers",
+      "days": {
+        "monday": "Lun.",
+        "tuesday": "Mar.",
+        "wednesday": "Mer.",
+        "thursday": "Jeu.",
+        "friday": "Ven.",
+        "saturday": "Sam.",
+        "sunday": "Dim."
+      },
+      "default": "Par défaut",
+      "isDefault": "Calendrier par défaut",
+      "none": "Aucun calendrier."
+    },
+    "durationUnits": {
+      "title": "Unités de durée",
+      "hoursPerDay": "Heures par jour",
+      "hoursPerWeek": "Heures par semaine",
+      "daysPerMonth": "Jours par mois"
+    },
+    "riskMatrix": {
+      "title": "Bornes de la matrice de risques",
+      "axis": "Axe",
+      "first": "Première borne",
+      "second": "Deuxième borne",
+      "third": "Troisième borne",
+      "probability": "Probabilité",
+      "severity": "Gravité, en pourcentage du budget de référence"
+    },
+    "indices": {
+      "title": "Seuils d’alerte des indices",
+      "index": "Indice",
+      "watch": "Seuil de vigilance",
+      "alert": "Seuil d’alerte",
+      "cost": "Indice de coût",
+      "schedule": "Indice de délai"
+    },
+    "reviews": {
+      "title": "Rythme des revues",
+      "maxWeeks": "Délai maximal entre deux révisions marquées d’un projet en cours : {weeks, plural, one {# semaine} other {# semaines}}."
+    }
   },
   "functionGroups": {
     "administration": "Administration",
