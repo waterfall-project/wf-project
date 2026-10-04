@@ -41,57 +41,54 @@ export function RiskMatrixView({ matrix }: { readonly matrix: RiskMatrix }) {
       (cell) => cell.probability_level === probability && cell.severity_level === severity,
     );
   return (
-    <section aria-label={t("title")} className="space-y-2">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        <Grid2x2 aria-hidden="true" className={ICON} />
-        {t("title")}
-      </h2>
-      <table aria-label={t("title")} className="w-full table-fixed border-collapse text-xs">
-        <thead>
-          <tr>
-            <th scope="col" className="w-24 p-1 text-left align-bottom font-medium">
-              {t("probability")}
+    // One name, the caption's: the table is named by the title it bears.
+    <table className="w-full table-fixed border-collapse text-xs">
+      <caption className="pb-2 text-left">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <Grid2x2 aria-hidden="true" className={ICON} />
+          {t("title")}
+        </h2>
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col" className="w-24 p-1 text-left align-bottom font-medium">
+            {t("probability")}
+          </th>
+          <th scope="colgroup" colSpan={matrix.severity_levels.length} className="p-1 font-medium">
+            {t("severity")}
+          </th>
+        </tr>
+        <tr>
+          <td />
+          {matrix.severity_levels.map((level) => (
+            <th key={level.level} scope="col" className="p-1 font-normal text-muted-foreground">
+              {name(level)}
             </th>
-            <th
-              scope="colgroup"
-              colSpan={matrix.severity_levels.length}
-              className="p-1 font-medium"
-            >
-              {t("severity")}
-            </th>
-          </tr>
-          <tr>
-            <td />
-            {matrix.severity_levels.map((level) => (
-              <th key={level.level} scope="col" className="p-1 font-normal text-muted-foreground">
-                {name(level)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {[...matrix.probability_levels].reverse().map((probability) => (
-            <tr key={probability.level}>
-              <th scope="row" className="p-1 text-left font-normal text-muted-foreground">
-                {name(probability)}
-              </th>
-              {matrix.severity_levels.map((severity) => {
-                const cell = cellAt(probability.level, severity.level);
-                return (
-                  <td key={severity.level} className="border p-1 text-center">
-                    {cell === undefined ? null : (
-                      <span className="inline-flex items-center gap-1 tabular-nums">
-                        <Signal zone={cell.zone} variant="icon" />
-                        {cell.count}
-                      </span>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
           ))}
-        </tbody>
-      </table>
-    </section>
+        </tr>
+      </thead>
+      <tbody>
+        {[...matrix.probability_levels].reverse().map((probability) => (
+          <tr key={probability.level}>
+            <th scope="row" className="p-1 text-left font-normal text-muted-foreground">
+              {name(probability)}
+            </th>
+            {matrix.severity_levels.map((severity) => {
+              const cell = cellAt(probability.level, severity.level);
+              return (
+                <td key={severity.level} className="border p-1 text-center">
+                  {cell === undefined ? null : (
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <Signal zone={cell.zone} variant="icon" />
+                      {cell.count}
+                    </span>
+                  )}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

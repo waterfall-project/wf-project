@@ -34,7 +34,7 @@ test("reads the risks of a revision: the register and its totals, the matrix, th
   const total = grid.getByRole("row").last();
   await expect(total).toHaveText(/^Total général\s*1\s160,00$/);
   expect(await withinBox(grid, total)).toBe(true);
-  await expect(page.getByLabel("Provisions des risques retenus")).toHaveText(
+  await expect(page.getByRole("region", { name: "Provisions des risques retenus" })).toHaveText(
     /Risques identifiés\s*500,00\s*Risques survenus\s*60,00\s*Risques écartés\s*600,00\s*Total général\s*1\s160,00/,
   );
 
@@ -70,12 +70,16 @@ test("reads the risks of a revision: the register and its totals, the matrix, th
   ).toHaveAttribute("aria-pressed", "true");
 });
 
-test("leads from the label of a risk to its detail from the keyboard alone", async ({ page }) => {
+test("leads from the label of a risk to its detail from the keyboard alone [WF-IHM-0100-A]", async ({
+  page,
+}) => {
   await page.goto(RISKS);
   const grid = page.getByRole("grid", { name: "Registre des risques" });
   await grid.getByRole("gridcell", { name: "Risque de reprise du câblage" }).click({
     position: { x: 2, y: 2 },
   });
+  // The click made the cell the active one, and did not follow the link it holds.
+  await expect(page).toHaveURL(RISKS);
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(`${RISKS}?risk=${CABLING}`);
   await expect(page.getByRole("region", { name: "Risque de reprise du câblage" })).toBeVisible();

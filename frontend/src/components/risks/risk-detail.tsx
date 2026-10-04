@@ -14,7 +14,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
-import { Actor, CELL, ICON, ListSection, ListTable } from "@/components/projects/project-tables";
+import { Actor, CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatPercent, formatPlanningDate } from "@/i18n/format";
 
@@ -62,7 +62,7 @@ function ProvisionLine({ risk }: { readonly risk: Risk }) {
   const Icon = present ? FileText : FileMinus;
   const said = present ? "present" : risk.state === "occurred" ? "withdrawn" : "absent";
   return (
-    <section className="space-y-0.5">
+    <section aria-label={t("title")} className="space-y-0.5">
       <h3 className="text-xs text-muted-foreground">{t("title")}</h3>
       <p className="flex items-start gap-1.5 text-sm">
         <Icon aria-hidden="true" className={`${ICON} mt-0.5`} />
@@ -72,40 +72,48 @@ function ProvisionLine({ risk }: { readonly risk: Risk }) {
   );
 }
 
-/** The history of the reviews of a risk, from the latest, as the API orders them. */
+/**
+ * The history of the reviews of a risk, from the latest, as the API orders them: a section of the
+ * detail, its title one level under the risk's. Two reviews may share a day: a row is keyed by its
+ * place in the answer.
+ */
 function Reviews({ reviews }: { readonly reviews: readonly RiskReview[] }) {
   const t = useTranslations("risks.detail.reviews");
   const states = useTranslations("enums.RiskState");
   const locale = useLocale();
   return (
-    <ListSection
-      title={t("title")}
-      icon={History}
-      empty={reviews.length === 0 ? t("none") : undefined}
-    >
-      <ListTable
-        label={t("title")}
-        columns={[t("reviewedOn"), t("probability"), t("severity"), t("state"), t("actor")]}
-      >
-        {reviews.map((review) => (
-          <TableRow key={review.reviewed_on}>
-            <TableCell className={CELL}>
-              {formatPlanningDate(review.reviewed_on, locale, "short")}
-            </TableCell>
-            <TableCell className={`${CELL} tabular-nums`}>
-              {formatPercent(review.probability, locale)}
-            </TableCell>
-            <TableCell className={CELL}>
-              <ComputedAmount amount={review.severity} />
-            </TableCell>
-            <TableCell className={CELL}>{states(review.state)}</TableCell>
-            <TableCell className={CELL}>
-              {review.actor === undefined ? null : <Actor actor={review.actor} />}
-            </TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
-    </ListSection>
+    <section className="space-y-2">
+      <h3 className="flex items-center gap-2 text-sm font-semibold">
+        <History aria-hidden="true" className={ICON} />
+        {t("title")}
+      </h3>
+      {reviews.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("none")}</p>
+      ) : (
+        <ListTable
+          label={t("title")}
+          columns={[t("reviewedOn"), t("probability"), t("severity"), t("state"), t("actor")]}
+        >
+          {reviews.map((review, place) => (
+            <TableRow key={place}>
+              <TableCell className={CELL}>
+                {formatPlanningDate(review.reviewed_on, locale, "short")}
+              </TableCell>
+              <TableCell className={`${CELL} tabular-nums`}>
+                {formatPercent(review.probability, locale)}
+              </TableCell>
+              <TableCell className={CELL}>
+                <ComputedAmount amount={review.severity} />
+              </TableCell>
+              <TableCell className={CELL}>{states(review.state)}</TableCell>
+              <TableCell className={CELL}>
+                {review.actor === undefined ? null : <Actor actor={review.actor} />}
+              </TableCell>
+            </TableRow>
+          ))}
+        </ListTable>
+      )}
+    </section>
   );
 }
 

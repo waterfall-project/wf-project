@@ -45,11 +45,13 @@ function Total({ name, amount }: { readonly name: string; readonly amount: strin
 export function ProvisionSummary({ totals }: { readonly totals: ProvisionTotals }) {
   const t = useTranslations("risks.provisions");
   return (
-    <dl aria-label={t("title")} className="flex flex-wrap gap-x-8 gap-y-2">
-      {RISK_STATES.map((state) => (
-        <Total key={state} name={t(state)} amount={totals[state]} />
-      ))}
-      <Total name={t("total")} amount={totals.total} />
-    </dl>
+    <section aria-label={t("title")}>
+      <dl className="flex flex-wrap gap-x-8 gap-y-2">
+        {RISK_STATES.map((state) => (
+          <Total key={state} name={t(state)} amount={totals[state]} />
+        ))}
+        <Total name={t("total")} amount={totals.total} />
+      </dl>
+    </section>
   );
 }

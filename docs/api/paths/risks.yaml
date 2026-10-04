@@ -96,7 +96,7 @@
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
             examples:
               witness: { $ref: ../../../fixtures/api/risk.json }
-              occurred: { $ref: ../../../fixtures/api/risk_occurred.json }
+              occurred: { $ref: ../../../fixtures/api/risk_occurred_detail.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
@@ -135,7 +135,8 @@
     description: >-
       Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus
       (WF-RIS-0010). Pour une révision marquée (`revision_id`), les réexamens faits
-      jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige.
+      jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige
+      (WF-RIS-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -198,7 +199,7 @@
       soit la provision ; pour montant réestimé, son montant dans le devis propre. La
       ligne de provision est retirée de la structure principale, et la révision marquée
       qui en résulte devient la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple
-      `risk_occurred` de `listNodes` montre la structure obtenue. Définitif, confié au
+      `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Définitif, confié au
       worker, inscrit au journal d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -227,7 +228,7 @@
     description: >-
       Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel
       (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue
-      (`revision_id`) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du
+      (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du
       budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à
       l'affichage (WF-IHM-0070).
     parameters:

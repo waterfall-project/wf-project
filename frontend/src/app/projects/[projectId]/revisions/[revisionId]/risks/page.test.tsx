@@ -187,12 +187,13 @@ describe("the screen of the risks", () => {
     expect(text(page)).toContain(
       "Identified risks 500.00 Occurred risks 60.00 Dismissed risks 600.00 General total 1,160.00",
     );
-    expect(page).toContain('<dl aria-label="Provisions of the risks retained"');
+    expect(page).toContain('<section aria-label="Provisions of the risks retained"><dl');
   });
 
   it("names the axes of the matrix by their bounds, and each cell by its signal and its count [WF-IHM-0070-A]", async () => {
     const page = await risksAt();
-    const start = page.indexOf("<table", page.indexOf("Risk matrix"));
+    // The table of the matrix, named by its caption.
+    const start = page.lastIndexOf("<table", page.indexOf("Risk matrix</h2></caption>"));
     const matrix = page.slice(start, page.indexOf("</table>", start));
     expect(text(matrix)).toContain(
       "Probability Severity, as a share of the reference budget " +
@@ -257,7 +258,10 @@ describe("the screen of the risks", () => {
   });
 
   it("says the provision line of a risk occurred withdrawn at its occurrence [WF-RIS-0060-A]", async () => {
-    server.answers = { ...server.answers, [RISK]: { example: "risk_occurred", status: 200 } };
+    server.answers = {
+      ...server.answers,
+      [RISK]: { example: "risk_occurred_detail", status: 200 },
+    };
     const page = await risksAt({ risk: DELIVERY });
     expect(text(page)).toContain(
       "Provision line Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear the provision.",

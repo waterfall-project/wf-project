@@ -40,7 +40,9 @@ Risk:
     state: { $ref: '#/RiskState' }
     structure_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
-      description: Structure de coûts propre du risque, dans la révision en cours (WF-RIS-0030).
+      description: >-
+        Structure de coûts propre du risque, dans la révision lue (`revision_id`), qui en
+        fige une version (WF-RIS-0030).
     provision_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Ligne de provision portée par la structure principale (WF-RIS-0010).
@@ -139,9 +141,10 @@ RiskMatrix:
   type: object
   required: [probability_levels, severity_levels, cells, totals]
   description: >-
-    Matrice remplie par les risques du projet dans la révision lue (WF-RIS-0040,
-    WF-REF-0160), avec les bornes de ses niveaux, pour que ses axes se nomment sans
-    lire le référentiel.
+    Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes
+    se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans
+    la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des
+    projets retenus pour celle du portefeuille.
   properties:
     probability_levels:
       type: array

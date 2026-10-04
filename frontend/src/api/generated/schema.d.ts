@@ -2184,7 +2184,7 @@ export interface paths {
         };
         /**
          * Historique des réexamens
-         * @description Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus (WF-RIS-0010). Pour une révision marquée (`revision_id`), les réexamens faits jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige.
+         * @description Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus (WF-RIS-0010). Pour une révision marquée (`revision_id`), les réexamens faits jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige (WF-RIS-0030).
          */
         get: operations["listRiskReviews"];
         put?: never;
@@ -2210,7 +2210,7 @@ export interface paths {
         put?: never;
         /**
          * Déclarer un risque survenu
-         * @description Fusionne les tâches et les lignes du devis propre dans la structure principale. Chaque ligne fusionnée porte, pour montant budgété, son montant dans le devis propre multiplié par la probabilité du risque dans la révision de référence, arrondi au centime, la dernière ligne portant le reste de sorte que leur somme soit la provision ; pour montant réestimé, son montant dans le devis propre. La ligne de provision est retirée de la structure principale, et la révision marquée qui en résulte devient la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple `risk_occurred` de `listNodes` montre la structure obtenue. Définitif, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
+         * @description Fusionne les tâches et les lignes du devis propre dans la structure principale. Chaque ligne fusionnée porte, pour montant budgété, son montant dans le devis propre multiplié par la probabilité du risque dans la révision de référence, arrondi au centime, la dernière ligne portant le reste de sorte que leur somme soit la provision ; pour montant réestimé, son montant dans le devis propre. La ligne de provision est retirée de la structure principale, et la révision marquée qui en résulte devient la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Définitif, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
          */
         post: operations["declareRiskOccurrence"];
         delete?: never;
@@ -2228,7 +2228,7 @@ export interface paths {
         };
         /**
          * Matrice de risques du projet
-         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue (`revision_id`) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070).
+         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070).
          */
         get: operations["getProjectRiskMatrix"];
         put?: never;
@@ -3981,7 +3981,7 @@ export interface components {
             /** @description Calculée ; celle retenue au budget est figée à la révision de référence (WF-RIS-0050). */
             provision_amount: components["schemas"]["Money"];
             state: components["schemas"]["RiskState"];
-            /** @description Structure de coûts propre du risque, dans la révision en cours (WF-RIS-0030). */
+            /** @description Structure de coûts propre du risque, dans la révision lue (`revision_id`), qui en fige une version (WF-RIS-0030). */
             structure_id: components["schemas"]["Uuid"];
             /** @description Ligne de provision portée par la structure principale (WF-RIS-0010). */
             provision_node_id?: components["schemas"]["Uuid"] | null;
@@ -4034,7 +4034,7 @@ export interface components {
             lower: components["schemas"]["Percent"];
             upper: components["schemas"]["Percent"] | null;
         };
-        /** @description Matrice remplie par les risques du projet dans la révision lue (WF-RIS-0040, WF-REF-0160), avec les bornes de ses niveaux, pour que ses axes se nomment sans lire le référentiel. */
+        /** @description Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des projets retenus pour celle du portefeuille. */
         RiskMatrix: {
             /** @description Les quatre niveaux de probabilité, du plus bas au plus haut, en pourcentage. */
             probability_levels: components["schemas"]["RiskMatrixLevel"][];

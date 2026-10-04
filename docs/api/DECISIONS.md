@@ -313,8 +313,8 @@ référentiel.
 
 **La survenance d'un risque répartit la provision** (WF-RIS-0060) : les descriptions de
 `declareRiskOccurrence` et de `RiskOccurrence` disent la part de chaque ligne fusionnée, et
-l'exemple `risk_occurred` de `listNodes` montre la structure obtenue — 36 et 24 pour 120 et 80 à
-30 %, la ligne de provision retirée.
+l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue — 36 et 24 pour 120
+et 80 à 30 %, la ligne de provision retirée.
 
 **La liste des projets du portefeuille porte l'écart à la référence** (`delta_to_reference`,
 WF-PTF-0040), nul hors d'un projet en cours. La projection du chef de projet que la même
@@ -531,10 +531,11 @@ version du devis propre d'un risque (WF-RIS-0030), donc de sa gravité, de sa pr
 case de matrice ; l'écran est sous `…/revisions/[r]/risks`, et sans le paramètre il montrerait,
 pour une révision marquée, les chiffres de la révision en cours. Absent, la révision en cours,
 ou la dernière marquée quand aucune n'est en cours ; c'est le nom que les indicateurs de devis
-donnent déjà au même paramètre (`getEstimateIndicators`). L'historique des réexamens lu pour une révision marquée s'arrête à son
-marquage. Un paramètre de requête et non un chemin sous la révision : le risque est un objet du
-projet, que les révisions versionnent, et les chemins d'écriture restent ceux du projet. Écarté :
-lire la révision de l'adresse dans le front pour filtrer — le front ne saurait rien en tirer.
+donnent déjà au même paramètre (`getEstimateIndicators`). L'historique des réexamens lu pour une
+révision marquée s'arrête à son marquage. Un paramètre de requête et non un chemin sous la
+révision : le risque est un objet du projet, que les révisions versionnent, et les chemins
+d'écriture restent ceux du projet. Écarté : lire la révision de l'adresse dans le front pour
+filtrer — le front ne saurait rien en tirer.
 
 **La matrice dit les bornes de ses niveaux** (`RiskMatrix.probability_levels`,
 `severity_levels`, `RiskMatrixLevel`). L'écran nomme les axes de la matrice par leurs bornes,
@@ -551,10 +552,11 @@ trois totaux distincts et leur somme égale au total général : le front ne som
 autres.
 
 **Exemples** : `risks` (trois risques, un par état — le survenu est celui de
-`nodes_risk_occurred`, gravité 200 à 30 %, sa ligne de provision retirée — et les quatre totaux),
-`risks_empty`, `risk`, `risk_occurred` (le risque survenu, sa ligne de provision retirée), `risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de 1 000 à
-1 250) et `risk_matrix` (les seize cases, les bornes, les trois risques placés), dans l'univers
-des autres exemples.
+`nodes_risk_occurred`, gravité 200 à 30 %, sa ligne de provision retirée — et les quatre
+totaux), `risks_empty`, `risk`, `risk_occurred_detail` (le risque survenu, sa ligne de provision
+retirée), `risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de 1 000 à 1 250) et
+`risk_matrix` (les seize cases, les bornes, les trois risques placés), dans l'univers des autres
+exemples.
 
 ## Collage et annulation
 

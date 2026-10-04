@@ -72,7 +72,7 @@ export interface Examples {
     200: "risk_matrix";
   };
   "GET /projects/{project_id}/risks/{risk_id}": {
-    200: "risk" | "risk_occurred";
+    200: "risk" | "risk_occurred_detail";
   };
   "GET /projects/{project_id}/risks/{risk_id}/reviews": {
     200: "risk_reviews";

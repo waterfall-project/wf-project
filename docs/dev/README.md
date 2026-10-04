@@ -255,11 +255,12 @@ risques retenus, par état et le total général, tels que le serveur les rend ;
 contrat) ; la grille dense, une configuration de plus (`risk-grid.tsx`), en lecture, où la
 gravité et la provision sont des colonnes calculées entières — le contrat ne leur nomme aucun
 champ de nœud, et leur refus dit seulement que la valeur est calculée (`field` rend `undefined`,
-constat de l'EPIC) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés par les bornes
-que rend le serveur, chaque case par son signal et son nombre de risques ; et, quand l'adresse
-nomme un risque (`risk`), son détail : notes, ligne de provision présente ou retirée à la
-survenance, historique des réexamens. Le libellé d'un risque est un lien hors de la tabulation :
-la grille suit le lien d'une cellule qui n'est pas saisie à Entrée (`grid-keyboard.ts`).
+constat de l'EPIC) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés
+par les bornes que rend le serveur, chaque case par son signal et son nombre de risques ; et,
+quand l'adresse nomme un risque (`risk`), son détail : notes, ligne de provision présente ou
+retirée à la survenance, historique des réexamens. Le libellé d'un risque est un lien hors de la
+tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
+(`grid-keyboard.ts`).
 
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
