@@ -510,6 +510,10 @@ par sa valeur et son unité, et les dates par leur date.
 - `RiskMatrixSettings.zones` ne dit pas dans quel ordre ses seize zones se rangent — US-0250/L1, ouvert en #298. D'ici là, l'écran des paramètres de risques présente les bornes de la matrice, pas ses zones, que l'écran des risques d'une révision montre case par case.
 - Un rôle de ressource ne nommait son nœud, sa catégorie et son calendrier, une catégorie sa nature, un nœud son parent que par leur identifiant : l'écran les rapprochait des listes qu'il lit (WF-ARC-0020), et aurait dit inconnu un objet désactivé mais employé, que ces listes ne rendent pas sans `include_inactive` (WF-REF-0150) — revue d'US-0250/L1. Corrigé par US-0250/L1 : `ResourceRole.org_node_label`, `cost_category_label`, `calendar_label`, `CostCategory.cost_type_label` et `OrgNode.parent_label`, résolus à la lecture, exigés, nul pour le parent d'une racine seul ; les exemples et le volume des catégories les portent.
 - `uploadFile`, `openImport`, `getImport`, `listImports` et `requestExport` n'avaient aucun exemple, et un import ne nommait pas son fichier, que l'écran ne pouvait rappeler ni au compte rendu ni dans la liste des imports une fois le fichier supprimé (WF-DAT-0120) — US-0260/L1. Corrigé par ce lot, sur l'autorisation de l'utilisateur du 2026-10-04 : `Import.filename`, exigé ; les exemples `file_upload`, `import_analysing`, `import_analysed`, `import_planning_mismatch`, `imports`, `imports_empty`, `task_export_queued` et `task_export_succeeded`, dans l'univers des autres.
+- Le contrat ne nomme une commande d'import que pour les coûts réels (`import_actual_costs`, sur le projet) : rien ne dit quand un import de planning, de devis ou de reste à engager est disponible, ni s'il l'est sans révision en cours, que l'import crée au besoin (WF-INTF-0090) ; aucune commande ne dit non plus qu'un export est disponible — US-0260/L1, issue à ouvrir. D'ici là, l'écran des échanges offre l'import d'un planning, d'un devis, d'un reste à engager comme la révision en cours offre `edit_planning`, `edit_estimate`, `edit_remaining`, et aucun sans révision en cours ; il offre l'export à qui lit l'écran, un refus dit par `OutcomeNotice`.
+- `ImportDifference.fields` nomme les champs d'un écart par des chaînes libres, qu'aucun catalogue ne rend (WF-ARC-0110) — US-0260/L1, issue à ouvrir. D'ici là, le compte rendu présente chaque écart par son changement, son objet et son libellé, sans ses champs.
+- `listImports` ne dit pas dans quel ordre il rend les imports — US-0260/L1, issue à ouvrir. D'ici là, l'écran les présente dans l'ordre de la réponse.
+- Le refus d'un fichier au format ou à la version non reconnus (`openImport`, 422) dit nommer le format attendu (WF-INTF-0070), mais `FILE_FORMAT_UNREADABLE` ne déclare aucun paramètre qui le porte — US-0260/L1, issue à ouvrir. D'ici là, le refus se dit par la phrase de son code.
 
 ### Ordre de construction
 
@@ -1078,7 +1082,7 @@ colonnes (WF-IHM-0130), #301.
 
 ## US-0260 — Écran d'import en deux temps
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — EP-09 et EP-12
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
   `listImports`, `requestExport`, `getBackgroundTaskResult`

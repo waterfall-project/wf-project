@@ -42,6 +42,15 @@ describe("the reading context", () => {
     );
   });
 
+  it("reads the exchanges of a project as a screen of the project itself", () => {
+    const exchanges = `/projects/${PROJECT}/exchanges`;
+    const context = readContext(exchanges, new URLSearchParams({ revision_id: REVISION }));
+    expect(context?.revisionId).toBe(REVISION);
+    expect(context?.revisionInPath).toBe(false);
+    const under = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
+    expect(readContext(under, new URLSearchParams())).toBeUndefined();
+  });
+
   it("reads a project without a revision, and without filters", () => {
     const context = readContext(`/projects/${PROJECT}`, new URLSearchParams("subproject_id="));
     expect(context).toEqual({

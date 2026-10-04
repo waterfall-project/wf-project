@@ -11,6 +11,7 @@
  * Pure: the navigation reads the address, the root layout the cookie; neither keeps a copy
  * of the context elsewhere.
  */
+import { EXCHANGES_SCREEN } from "./exchanges";
 import table from "./functions.json";
 
 /** The parameters of the address that filter what a screen reads, as the contract names them. */
@@ -39,7 +40,8 @@ function screens(scope: string): ReadonlySet<string> {
   return new Set(routes.map((route) => route.slice(route.lastIndexOf("/") + 1)));
 }
 
-const PROJECT_SCREENS = screens("project");
+// The screens of the project itself: its functions, and the exchanges by file.
+const PROJECT_SCREENS = new Set([...screens("project"), EXCHANGES_SCREEN]);
 const REVISION_SCREENS = screens("revision");
 
 /** What a screen of a project reads in: its project and revision, and its filters. */

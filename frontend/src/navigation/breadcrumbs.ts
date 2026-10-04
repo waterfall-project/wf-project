@@ -10,6 +10,7 @@
  */
 import { findAccountPage } from "./account";
 import { contextQuery, type ProjectContext } from "./context";
+import { EXCHANGES_SCREEN } from "./exchanges";
 import {
   findScreen,
   FUNCTION_GROUPS,
@@ -23,7 +24,8 @@ export type CrumbLabel =
   | NavigationFunction["label"]
   | FunctionGroup["label"]
   | `accountMenu.${"account" | "password" | "avatar"}`
-  | "breadcrumbs.revision";
+  | "breadcrumbs.revision"
+  | "exchanges.title";
 
 /** A step of the breadcrumb: a label of the catalogue, or a project; a link when it has one. */
 export type Crumb =
@@ -64,8 +66,11 @@ function functionSteps(fn: NavigationFunction, context: ProjectContext | undefin
   return block === undefined ? [label(fn.label)] : [label(block.label), label(fn.label)];
 }
 
-/** The steps of the page of a project, or of a revision of it, which are no function. */
-function projectSteps(context: ProjectContext): Crumb[] {
+/** The steps of the page of a project, of a revision of it, or of its exchanges: no function. */
+function projectSteps(pathname: string, context: ProjectContext): Crumb[] {
+  if (pathname.endsWith(`/${EXCHANGES_SCREEN}`)) {
+    return [PROJECTS_STEP, projectStep(context), label("exchanges.title")];
+  }
   if (context.revisionInPath) {
     return [PROJECTS_STEP, projectStep(context), label("breadcrumbs.revision")];
   }
@@ -87,5 +92,5 @@ export function crumbsOf(pathname: string, context: ProjectContext | undefined):
   if (screen !== undefined) {
     return functionSteps(screen.fn, context);
   }
-  return context === undefined ? [] : projectSteps(context);
+  return context === undefined ? [] : projectSteps(pathname, context);
 }

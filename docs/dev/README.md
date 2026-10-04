@@ -327,6 +327,24 @@ des indicateurs les seuils des indices et le délai entre deux revues. Un objet 
 par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
 listes dans le front ; une section se nomme par `aria-label` (#251).
 
+L'écran des échanges, `/projects/[projectId]/exchanges` (`frontend/src/components/exchanges/`,
+US-0260), est un écran du projet lui-même — un import s'applique à la révision en cours, créée au
+besoin (WF-INTF-0090) — hors de la table des fonctions, qu'aucune fonction de second niveau de la
+FBS ne porte : le contexte et le fil d'Ariane le connaissent (`src/navigation/exchanges.ts`), la
+barre latérale l'offrira avec les feuilles de la FBS (EP-02/L3). Un import se fait en deux temps
+(WF-ARC-0100) : la commande de sa nature ouvre dans la page le choix du fichier, qu'une action
+serveur dépose (`uploadFile`) puis analyse (`openImport`) ; la tâche de l'analyse va au suivi de la
+coquille, et l'adresse nomme l'import (`import`), dont la page lit le compte rendu (`getImport`) —
+lignes lues, motifs de confirmation, lignes rejetées par leur place et leur motif, rendu comme un
+refus depuis son code et ses paramètres (`problemMessage`), écarts —, dans l'ordre reçu.
+L'application n'est offerte qu'à un import analysé, et ne part qu'une fois confirmée dans la page ;
+sa tâche va au suivi. L'abandon ramène à l'adresse de départ. Les imports sont offerts comme le
+serveur offre leur commande (`importOffers`) : les coûts réels par `import_actual_costs` du projet,
+les autres par la commande `edit_*` de la révision en cours (constat de l'EPIC). La liste des
+imports mène au compte rendu de chacun ; la demande d'export part pour la révision lue, et le suivi
+offre de télécharger le résultat d'une tâche qui en a un : le serveur de Next le lit
+(`getBackgroundTaskResult`) et le transmet tel quel, à la route `/tasks/[taskId]/result`.
+
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
 vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une

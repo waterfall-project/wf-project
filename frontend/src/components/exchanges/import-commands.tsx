@@ -1,0 +1,202 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The first step of an import (WF-ARC-0100): a command for each kind of file the server offers
+ * to import (WF-IHM-0090), which opens, in the page, the choice of the file. Sent, the file is
+ * deposited and its analysis opened by a server action, which gives the import back at once: the
+ * task that analyses it goes to the tracker of the shell (WF-ARC-0090), and the screen shows the
+ * report of the import — its analysis under way, until the tracker offers to read the screen anew.
+ * Nothing is judged of the file here: its format and its version are the analysis' to check
+ * (WF-INTF-0070), and a refusal is told under the form (`OutcomeNotice`).
+ */
+"use client";
+
+import {
+  Calculator,
+  CalendarRange,
+  FileSearch,
+  FileUp,
+  Hourglass,
+  type LucideIcon,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
+
+import { type ExchangeKind, openFileImport } from "@/api/actions/exchanges";
+import type { Outcome } from "@/api/problem";
+import { Command } from "@/components/commands/command";
+import { commandIcon } from "@/components/commands/icons";
+import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { useTrackTask } from "@/components/tasks/task-tracker";
+import { Button } from "@/components/ui/button";
+
+import { EXCHANGE_KINDS, importHref, type ImportOffers, shownScreen } from "./offers";
+
+/** The icon of the import of each kind: that of the command which modifies the same content. */
+const KIND_ICONS: Readonly<Record<ExchangeKind, LucideIcon>> = {
+  ms_project_schedule: CalendarRange,
+  estimate: Calculator,
+  remaining: Hourglass,
+  actual_costs: FileUp,
+};
+
+/** The imports the server offers, the project, and the address of the screen in its context. */
+export interface ImportCommandsProps {
+  readonly projectId: string;
+  readonly offers: ImportOffers;
+  /** The address of the screen, its context kept, from which the report of an import is shown. */
+  readonly start: string;
+}
+
+/** The form of the file of an import: the kind chosen, and what closes the form. */
+interface FileFormProps extends Omit<ImportCommandsProps, "offers"> {
+  readonly id: string;
+  readonly kind: ExchangeKind;
+  readonly onClose: () => void;
+}
+
+/** Ask the file to import, deposit it, open its analysis, and show the report of the import. */
+function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
+  const t = useTranslations("exchanges.import");
+  const track = useTrackTask();
+  const router = useRouter();
+  const field = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const [missing, setMissing] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  const [pending, startTransition] = useTransition();
+  useEffect(() => {
+    input.current?.focus();
+  }, []);
+
+  // The form is checked here, not by the browser: the missing file is said in the page, in the
+  // language of the interface, and the field keeps the focus.
+  const submit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pending) {
+      return;
+    }
+    const file = input.current?.files?.[0];
+    if (file === undefined) {
+      setMissing(true);
+      input.current?.focus();
+      return;
+    }
+    const form = new FormData();
+    form.set("file", file);
+    startTransition(async () => {
+      const result = await openFileImport(projectId, kind, form);
+      if (result.kind !== "done") {
+        setOutcome(result);
+        return;
+      }
+      const opened = result.data;
+      if (opened.task !== undefined) {
+        track(opened.task, { subject: opened.filename });
+      }
+      // The report is shown only if the screen is still the one the file was sent from.
+      if (shownScreen() === start.split("?")[0]) {
+        router.push(importHref(start, opened.import_id));
+      }
+      onClose();
+    });
+  };
+
+  return (
+    <form
+      id={id}
+      aria-label={t(`kinds.${kind}`)}
+      aria-busy={pending}
+      noValidate
+      onSubmit={submit}
+      className="space-y-2 rounded-md border p-3"
+    >
+      <label htmlFor={field} className="block text-sm font-medium">
+        {t("file")}
+      </label>
+      <input
+        id={field}
+        ref={input}
+        type="file"
+        required
+        aria-invalid={missing ? true : undefined}
+        aria-describedby={missing ? `${field}-missing` : undefined}
+        onChange={() => {
+          setMissing(false);
+        }}
+        className="block w-full max-w-sm text-sm"
+      />
+      {missing ? (
+        <p id={`${field}-missing`} role="alert" className="text-sm text-destructive">
+          {t("fileRequired")}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm">
+          <FileSearch aria-hidden="true" />
+          {t("analyse")}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          <X aria-hidden="true" />
+          {t("cancel")}
+        </Button>
+      </div>
+      <OutcomeNotice
+        outcome={outcome}
+        onClear={() => {
+          setOutcome(undefined);
+        }}
+      />
+    </form>
+  );
+}
+
+/** Offer the import of each kind of file, and open the choice of its file when pressed. */
+export function ImportCommands({ projectId, offers, start }: ImportCommandsProps) {
+  const t = useTranslations("exchanges.import.kinds");
+  const form = useId();
+  const [open, setOpen] = useState<ExchangeKind>();
+  const buttons = useRef<Partial<Record<ExchangeKind, HTMLButtonElement | null>>>({});
+  const close = () => {
+    setOpen(undefined);
+    if (open !== undefined) {
+      buttons.current[open]?.focus();
+    }
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-start gap-2">
+        {EXCHANGE_KINDS.map((kind) => (
+          <Command
+            key={kind}
+            offer={offers[kind]}
+            label={t(kind)}
+            icon={commandIcon(KIND_ICONS[kind])}
+            disclosure={{
+              expanded: open === kind,
+              controls: form,
+              toggle: () => {
+                setOpen(open === kind ? undefined : kind);
+              },
+              ref: (button) => {
+                buttons.current[kind] = button;
+              },
+            }}
+          />
+        ))}
+      </div>
+      {open === undefined ? null : (
+        <FileForm
+          key={open}
+          id={form}
+          kind={open}
+          projectId={projectId}
+          start={start}
+          onClose={close}
+        />
+      )}
+    </div>
+  );
+}

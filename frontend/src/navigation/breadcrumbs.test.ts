@@ -65,6 +65,18 @@ describe("the breadcrumb", () => {
     ]);
   });
 
+  it("sits the exchanges of a project, which are no function, in the project, whose page keeps the context", () => {
+    expect(steps(`/projects/${PROJECT}/exchanges?revision_id=${REVISION}&import=i`)).toEqual([
+      { kind: "label", label: "functionGroups.projects", href: "/" },
+      {
+        kind: "project",
+        projectId: PROJECT,
+        href: `/projects/${PROJECT}?revision_id=${REVISION}`,
+      },
+      { kind: "label", label: "exchanges.title" },
+    ]);
+  });
+
   it("sits a function of a project whose address names none in its block alone", () => {
     expect(steps("/projects/a.b/lifecycle")).toEqual([
       { kind: "label", label: "functionGroups.projects" },

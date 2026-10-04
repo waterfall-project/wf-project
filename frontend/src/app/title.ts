@@ -24,7 +24,8 @@ export type ScreenLabel =
   | "functionGroups.projects"
   | AccountEntry["label"]
   | "signIn.title"
-  | "passwordReset.title";
+  | "passwordReset.title"
+  | "exchanges.title";
 
 /**
  * The label of a project, or `undefined` when it cannot be read — read once for the request,
