@@ -137,6 +137,9 @@ export function moved(
   bounds: { readonly rows: number; readonly columns: readonly string[]; readonly page: number },
 ): CellPosition | undefined {
   const last = bounds.columns.length - 1;
+  // Ctrl+Home and Page Up stop at the first row, as in a spreadsheet: only the up arrow reaches the
+  // header — a choice, short of the pattern of ARIA, where Ctrl+Home goes to the first cell of
+  // the grid, the header's.
   const header =
     key === "ArrowUp" ||
     bounds.rows === 0 ||
@@ -264,14 +267,17 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
   const { active } = cursor;
   // The rows the cell entered and the refusal were last found among, which a reading anew changes
   // in the very render that brings it: the cell entered goes with its row, the active cell with
-  // it, and neither the entry nor the refusal outlives its row.
+  // it, and neither the entry nor the refusal outlives its row — an entry closed so gives the focus
+  // it held to the active cell.
   const [seen, setSeen] = useState(rows);
+  const [orphaned, setOrphaned] = useState(0);
   if (seen !== rows) {
     setSeen(rows);
     const indexOf = (key: string) => rows.findIndex((row) => config.rowKey(row) === key);
     const entered = draft === undefined ? -1 : indexOf(draft.key);
     if (draft !== undefined && entered < 0) {
       setDraft(undefined);
+      setOrphaned((before) => before + 1);
     } else if (draft !== undefined && entered !== active.row) {
       cursor.set({ row: entered, column: draft.column });
     }
@@ -279,6 +285,20 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
       setRefusal((before) => ({ ...before, at: undefined }));
     }
   }
+
+  // The focus of an entry closed by a reading anew, fallen to the page with its field: once for
+  // each entry closed so.
+  const refocused = useRef(0);
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    if (orphaned === refocused.current || element === null) {
+      return;
+    }
+    refocused.current = orphaned;
+    if (element.ownerDocument.activeElement === element.ownerDocument.body) {
+      renderedCell(element, active)?.focus({ preventScroll: true });
+    }
+  });
 
   useLayoutEffect(() => {
     const target = follow.current;
@@ -482,6 +502,10 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     },
     /** Close the refusal, a click having taken the focus elsewhere. */
     dismissRefusal: dismiss,
+    /** Give the focus back to the active cell, where it is — a notice dismissed took it with it. */
+    refocus: () => {
+      renderedCell(scroller.current, active)?.focus({ preventScroll: true });
+    },
     /**
      * Close the refusal once its row is scrolled out of view — it would stand beside nothing —, the
      * focus kept on the active cell, where it is.
@@ -527,7 +551,7 @@ function focusRendered(cell: HTMLElement, scroller: HTMLElement | null): void {
 function revealSideways(cell: HTMLElement, scroller: HTMLElement): void {
   const box = cell.getBoundingClientRect();
   const view = scroller.getBoundingClientRect();
-  const padding = Number.parseFloat(scroller.style.scrollPaddingInlineStart);
+  const padding = Number.parseFloat(getComputedStyle(scroller).scrollPaddingInlineStart);
   const start = view.left + scroller.clientLeft + (Number.isNaN(padding) ? 0 : padding);
   const end = view.left + scroller.clientLeft + scroller.clientWidth;
   if (box.left < start) {

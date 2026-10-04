@@ -204,8 +204,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     navigue doit écrire part une fois la page montrée (`recordShown` de `useSettingsWriter`), ou
     avant la navigation : une action lancée avant, au montage d'un écran, ne la retient pas —
     retenue huit secondes, la lecture des tâches de fond que la coquille lançait alors laissait
-    paraître l'adresse du tri à son heure. Aucun outil ne le tient : la revue le cherche, et une action
-    retenue dans un parcours le prouve (`grid.spec.ts`).
+    paraître l'adresse du tri à son heure ; de même la relecture des totaux d'une grille cherchée,
+    partie après une écriture et avant le clic du tri (EP-02/L12). Aucun outil ne le tient : la
+    revue le cherche, et une action retenue dans un parcours le prouve (`grid.spec.ts`, le tri
+    qui n'attend ni ses préférences ni la relecture des totaux).
 16. **Horloge de la page figée à travers une navigation.** Un parcours fige l'horloge
     (`page.clock.pauseAt`) pour que la lecture d'une tâche attende, puis clique vers un autre
     écran : quand le serveur tarde, la navigation montre le squelette de `loading.tsx`, et

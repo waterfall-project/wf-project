@@ -112,9 +112,18 @@ function without(nodes: NodeList, index: number): NodeList {
   return { ...nodes, items: nodes.items.filter((_, each) => each !== index) };
 }
 
-/** The elements of the grid in the order of tabulation. */
+/**
+ * The elements of the grid in the order of tabulation: those it puts there, and the buttons and
+ * links that are there unless taken out.
+ */
 function stops(): Element[] {
-  return [...screen.getByRole("grid").querySelectorAll('[tabindex="0"]')];
+  return [
+    ...screen
+      .getByRole("grid")
+      .querySelectorAll(
+        '[tabindex="0"], button:not([tabindex="-1"]), a[href]:not([tabindex="-1"])',
+      ),
+  ];
 }
 
 /** The header of a column, by its name. */

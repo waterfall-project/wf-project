@@ -635,9 +635,24 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         onSearch={search}
         columns={toggledColumns(table, config, (column) => t(`columns.${column.label}`))}
       />
-      <OutcomeNotice outcome={writer.outcome} onClear={writer.clear} dismissible />
-      <OutcomeNotice outcome={writes.outcome} onClear={writes.clear} dismissible />
-      <OutcomeNotice outcome={paste.outcome} onClear={paste.clear} dismissible />
+      <OutcomeNotice
+        outcome={writer.outcome}
+        onClear={writer.clear}
+        onDismissed={keyboard.refocus}
+        dismissible
+      />
+      <OutcomeNotice
+        outcome={writes.outcome}
+        onClear={writes.clear}
+        onDismissed={keyboard.refocus}
+        dismissible
+      />
+      <OutcomeNotice
+        outcome={paste.outcome}
+        onClear={paste.clear}
+        onDismissed={keyboard.refocus}
+        dismissible
+      />
       {paste.hidden === undefined ? null : (
         <p role="alert" className="text-sm text-destructive">
           {paste.hidden.shown === "hidden"

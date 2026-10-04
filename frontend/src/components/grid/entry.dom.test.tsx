@@ -337,7 +337,29 @@ describe("the keyboard of a grid", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
-  it("lets Space open a list, as the browser does, unless it goes on a search", async () => {
+  it("shows a category it could not read as unknown, never as an empty cell, and offers no entry for it", async () => {
+    serve();
+    render(
+      grid(
+        "fr",
+        estimate,
+        true,
+        true,
+        NO_QUERY,
+        {},
+        { ...estimateReference(), categories: undefined },
+      ),
+    );
+    expect(cell(LABOUR, "cost_category")).toHaveTextContent("Référence inconnue");
+    expect(cell(LABOUR, "cost_category")).toHaveAttribute("aria-readonly", "true");
+    // A task bears no category: it shows none.
+    expect(cell(TASK_ROW, "cost_category")).toHaveTextContent(/^$/);
+    cell(LABOUR, "cost_category").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
+  it("lets Space open a list, as the browser does, unless it goes on a search [WF-IHM-0040-A]", async () => {
     serve();
     render(grid());
     cell(LABOUR, "resource_role").focus();
@@ -529,7 +551,7 @@ describe("a write the server refuses", () => {
     expect(cell(LABOUR, "quantity")).toHaveTextContent(/^1$/);
   });
 
-  it("lets a refusal told be dismissed, the entry going on", async () => {
+  it("lets a refusal told be dismissed from the keyboard, the focus back on the active cell and the entry going on [WF-IHM-0040-A]", async () => {
     serve({
       [LINE]: [{ problem: { code: "REVISION_MARKED", status: 409 } }, "estimate_line_updated"],
     });
@@ -538,10 +560,14 @@ describe("a write the server refuses", () => {
     await userEvent.keyboard("15{Enter}");
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/marquée/);
-    await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
+    // The cursor went down a row; Shift+Tab leaves the grid backwards, to the notice above it.
+    expect(cell(DISBURSEMENT, "hours")).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(within(alert).getByRole("button", { name: "Fermer l’avis" })).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
     expect(screen.queryByRole("alert")).toBeNull();
-    cell(LABOUR, "quantity").focus();
-    await userEvent.keyboard("3{Enter}");
+    expect(cell(DISBURSEMENT, "hours")).toHaveFocus();
+    await userEvent.keyboard("{ArrowUp}{ArrowLeft}3{Enter}");
     await vi.waitFor(() => {
       expect(cell(LABOUR, "hours")).toHaveTextContent(/^14$/);
     });
@@ -557,6 +583,7 @@ describe("a write the server refuses", () => {
     expect(alert).toHaveTextContent("Le service est injoignable");
     await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(cell(DISBURSEMENT, "hours")).toHaveFocus();
   });
 
   it("drops an answer that comes once the page has been read anew", async () => {
@@ -647,6 +674,8 @@ describe("an entry refused before it leaves", () => {
     const read = structuredClone(estimate);
     rerender(grid("fr", { ...read, items: read.items.filter((_, index) => index !== LABOUR) }));
     expect(screen.queryByRole("textbox")).toBeNull();
+    // The focus the field held goes to the active cell, never to the page.
+    expect(cell(LABOUR, "hours")).toHaveFocus();
     // A later reading brings the row back: its cell shows its value, and nothing is entered.
     rerender(grid("fr", structuredClone(estimate)));
     expect(screen.queryByRole("textbox")).toBeNull();

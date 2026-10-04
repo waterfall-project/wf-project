@@ -337,7 +337,7 @@ function entered(
 
 /**
  * The grid of the estimate: its categories and roles named by the reference data — `unknown` for
- * an identifier the list does not know —, its cells entered and a block pasted through `writes`;
+ * an identifier the list does not know, or that a list the API refused leaves unread —, its cells entered and a block pasted through `writes`;
  * none, and the grid is read only, taking neither entry nor paste. A line takes its label,
  * category, role, quantity, effort and unit disbursement, where its node accepts the field and the
  * server does not compute it; a task, its label, where its node accepts it and the planning is

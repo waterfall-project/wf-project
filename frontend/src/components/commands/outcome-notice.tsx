@@ -39,6 +39,11 @@ export interface OutcomeNoticeProps {
   readonly onClear: () => void;
   /** Whether the notice offers to dismiss it, forgetting the outcome. */
   readonly dismissible?: boolean | undefined;
+  /**
+   * Once dismissed: where the screen gives the focus back, which the notice took away with its
+   * button — never left to fall to the page.
+   */
+  readonly onDismissed?: (() => void) | undefined;
 }
 
 const ALERT = "space-y-1 text-sm text-destructive";
@@ -97,6 +102,7 @@ export function OutcomeNotice({
   names = {},
   onClear,
   dismissible = false,
+  onDismissed,
 }: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
   const locale = useLocale();
@@ -104,7 +110,11 @@ export function OutcomeNotice({
   if (outcome === undefined || outcome.kind === "done") {
     return null;
   }
-  const dismiss = dismissible ? <Dismiss onClear={onClear} /> : null;
+  const dismissed = () => {
+    onClear();
+    onDismissed?.();
+  };
+  const dismiss = dismissible ? <Dismiss onClear={dismissed} /> : null;
   if (outcome.kind === "unreachable") {
     return (
       <div role="alert" className={ALERT}>

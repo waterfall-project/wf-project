@@ -232,6 +232,7 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
   // clicked, and Next shows a navigation without waiting for the actions dispatched before it.
   const isRetotal = (request: Request) =>
     request.headers()["next-action"] !== undefined &&
+    (request.postData() ?? "").includes("revue") &&
     !(request.postData() ?? "").includes("lock_version");
   await page.route(`**${GRID}*`, async (route) => {
     if (isRetotal(route.request())) {
