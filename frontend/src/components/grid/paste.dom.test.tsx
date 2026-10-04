@@ -395,29 +395,28 @@ describe("a block pasted from a spreadsheet", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("keeps quiet the refusal of a cell written before a paste of its row, and tells that of another row (#202)", async () => {
+  /**
+   * Write the label of rows, each refused in turn, the server answering none until a block pasted
+   * on the row 4 is applied; then let them answer.
+   */
+  async function refusedAroundPaste(
+    rows: readonly number[],
+    refusals: NonNullable<FakeAnswers[typeof LINE]>,
+  ): Promise<FakeClient> {
     let release: () => void = () => undefined;
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
     const client = fakeClient(
-      {
-        [PREVIEW]: "paste_plan",
-        [APPLY]: "paste_applied",
-        [LINE]: [
-          { problem: { code: "STALE_LOCK_VERSION", status: 412 } },
-          { problem: { code: "REVISION_MARKED", status: 409 } },
-        ],
-      },
+      { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: refusals },
       { hold: (route) => (route === LINE ? held : undefined) },
     );
     server.client = client;
     renderGrid();
-    // A row the paste writes, then one it does not: both writes leave, the server yet to answer.
-    cell(FIRST, "label").focus();
-    await userEvent.keyboard("X{Enter}");
-    cell(FIRST + 4, "label").focus();
-    await userEvent.keyboard("Y{Enter}");
+    for (const row of rows) {
+      cell(row, "label").focus();
+      await userEvent.keyboard("X{Enter}");
+    }
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
     const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await userEvent.click(
@@ -430,9 +429,28 @@ describe("a block pasted from a spreadsheet", () => {
       release();
       await held;
     });
-    // The refusal of the row the paste wrote says nothing of what it shows; the other is told.
-    expect(await screen.findByRole("alert")).toHaveTextContent(/marquée/);
-    expect(screen.getByRole("alert")).not.toHaveTextContent(/modifié cette donnée/);
+    // Each write answered: no cell shows what was validated any more.
+    await vi.waitFor(() => {
+      expect(screen.getByRole("grid").querySelector('[aria-busy="true"]')).toBeNull();
+    });
+    return client;
+  }
+
+  const STALE = { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const;
+  const MARKED = { problem: { code: "REVISION_MARKED", status: 409 } } as const;
+
+  it("keeps quiet the refusal of a cell written before a paste of its row (#202)", async () => {
+    await refusedAroundPaste([FIRST], [STALE]);
+    expect(labels()[0]).toBe("Heures de câblage et repérage");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("tells the refusal of a row the paste did not write, whatever the quiet refusal answered after it (#202)", async () => {
+    // The row 8, out of the block, is refused first; the row 4, which the paste wrote, last.
+    const client = await refusedAroundPaste([FIRST + 4, FIRST], [MARKED, STALE]);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/marquée/);
+    expect(alert).not.toHaveTextContent(/modifié cette donnée/);
     expect(labels()[0]).toBe("Heures de câblage et repérage");
     expect(bodies(client, LINE)).toHaveLength(2);
   });

@@ -238,8 +238,10 @@ export function useCellWrites<Row, Totals>(
         ...(data === undefined ? {} : shown(memory, rowKey)),
         pending: changed(before.pending, cell, undefined),
         // A refusal stays told until the notice clears it: a later write done says nothing of
-        // it. A refusal a paste of its row overtook says nothing at all: it belongs to the row
-        // before the paste.
+        // it. A refusal a paste of its row overtook says nothing at all — any refusal, the API
+        // out of reach and a session lost included: it belongs to the row before the paste,
+        // which the paste wrote since, and the paste itself, answered, proved the API reachable
+        // and the session open; a session lost meanwhile is told by the next write.
         outcome:
           stale || (answer.kind === "done" && before.outcome !== undefined)
             ? before.outcome
