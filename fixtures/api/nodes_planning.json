@@ -79,7 +79,10 @@
           "is_milestone": false,
           "budgeted_amount": "100000.00",
           "reestimated_amount": "100000.00",
-          "total_float_days": 0,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
           "is_critical": true,
           "started_on": "2026-03-02",
           "completed_on": "2026-04-10"
@@ -126,7 +129,7 @@
           "is_milestone": false,
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
-          "total_float_days": null,
+          "total_float": null,
           "is_critical": false
         },
         "computed_fields": [],
@@ -170,7 +173,10 @@
           "is_milestone": false,
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
-          "total_float_days": 0,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
           "is_critical": true,
           "started_on": "2026-04-13"
         },
@@ -227,7 +233,10 @@
           "is_milestone": true,
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
-          "total_float_days": 0,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
           "is_critical": true
         },
         "predecessors": [
@@ -291,7 +300,10 @@
           "is_milestone": false,
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
-          "total_float_days": 7,
+          "total_float": {
+            "value": "7",
+            "unit": "d"
+          },
           "is_critical": false
         },
         "predecessors": [

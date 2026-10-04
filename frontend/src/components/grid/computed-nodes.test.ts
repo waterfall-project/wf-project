@@ -45,9 +45,7 @@ describe("the cells of a structure the server computes", () => {
       "estimate_line.reestimated_amount",
       "task.reestimated_amount",
     ]);
-    expect(summary === undefined ? null : COMPUTED_FLOAT.field(summary)).toBe(
-      "task.total_float_days",
-    );
+    expect(summary === undefined ? null : COMPUTED_FLOAT.field(summary)).toBe("task.total_float");
   });
 
   it("are the amounts in every row, and the float in every task", () => {

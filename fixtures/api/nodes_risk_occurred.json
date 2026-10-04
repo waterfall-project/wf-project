@@ -74,7 +74,10 @@
           "is_milestone": false,
           "budgeted_amount": "36.00",
           "reestimated_amount": "120.00",
-          "total_float_days": 0,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
           "is_critical": true
         },
         "computed_fields": [
@@ -158,7 +161,10 @@
           "is_milestone": false,
           "budgeted_amount": "24.00",
           "reestimated_amount": "80.00",
-          "total_float_days": 0,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
           "is_critical": true
         },
         "computed_fields": [

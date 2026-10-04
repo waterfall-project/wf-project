@@ -51,5 +51,5 @@ export function computedAmount(amount: Amount): ComputedCells<GridNode> {
 export const COMPUTED_FLOAT: ComputedCells<GridNode> = {
   whole: true,
   in: (node) => node.task !== undefined && node.task !== null,
-  field: () => "task.total_float_days",
+  field: () => "task.total_float",
 };

@@ -180,7 +180,6 @@
   "planningGrid": {
     "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
     "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
-    "days": "{days, number} j",
     "duration": "{value} {unit}",
     "critical": "Chemin critique",
     "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
@@ -941,7 +940,7 @@
       "finish": "Fin",
       "progress": "Avancement",
       "physical_progress": "Avancement physique",
-      "total_float_days": "Marge totale",
+      "total_float": "Marge totale",
       "is_critical": "Chemin critique",
       "predecessors": "Prédécesseurs",
       "cost_category": "Catégorie de coût",
@@ -964,7 +963,7 @@
         "finish": "Fin de la tâche",
         "progress": "Avancement de la tâche",
         "physical_progress": "Avancement physique de la tâche",
-        "total_float_days": "Marge totale de la tâche",
+        "total_float": "Marge totale de la tâche",
         "budgeted_amount": "Montant budgété de la tâche",
         "reestimated_amount": "Montant réestimé de la tâche"
       },
