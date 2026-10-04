@@ -5,8 +5,9 @@
  * in the tracking, the date each marked revision forecast for it, as a function of the date of its
  * marking, and the last point at the current day for the revision under way — a milestone that
  * holds draws a horizontal line, one that slips climbs. The diagonal of equal dates is drawn
- * from the first marking the API gives to the date of calculation; the curve of a milestone stops
- * where the API stops it, at its completion.
+ * from the earliest marking the API gives, of any milestone, to the date of calculation; the
+ * curve of a milestone stops where the API stops it, at its completion. The chart is offered for
+ * export as a PNG image that names its project, its revision and its date (WF-IHM-0130).
  *
  * The forecast is a date of planning, without a time zone: it is placed at midnight in UTC and
  * its axis written in UTC, so that no zone moves it a day (`planningInstant`). ECharts places the
@@ -24,10 +25,12 @@ import {
   Chart,
   type ChartOption,
   type ChartPalette,
+  type ChartProvenance,
   curve,
   END_LABEL_WIDTH,
   planningInstant,
   timeAxis,
+  useProvenance,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
 import { LocalTime } from "@/components/local-time";
@@ -36,17 +39,32 @@ import { formatLocale, formatPlanningDate } from "@/i18n/format";
 /** The tracking of the milestones, as the API reads it. */
 export type MilestoneTracking = components["schemas"]["MilestoneTracking"];
 
-/** The tracking of the milestones of a project. */
+/** The tracking of the milestones of a project, and where it comes from. */
 export interface MilestoneChartProps {
   readonly tracking: MilestoneTracking;
+  readonly provenance: ChartProvenance;
+}
+
+/** The earliest of the markings the API gives, of any milestone: where the diagonal starts. */
+function earliestMarking(tracking: MilestoneTracking): string | undefined {
+  let earliest: string | undefined;
+  for (const milestone of tracking.milestones) {
+    for (const { marked_at: marked } of milestone.points) {
+      if (earliest === undefined || Date.parse(marked) < Date.parse(earliest)) {
+        earliest = marked;
+      }
+    }
+  }
+  return earliest;
 }
 
 /** Render the time/time diagram of the milestones, and the table of its values. */
-export function MilestoneChart({ tracking }: MilestoneChartProps) {
+export function MilestoneChart({ tracking, provenance }: MilestoneChartProps) {
   const t = useTranslations("projectIndicators.milestones");
   const locale = useLocale();
   const { milestones, context } = tracking;
-  const first = milestones[0]?.points[0]?.marked_at;
+  const first = earliestMarking(tracking);
+  const exported = useProvenance(provenance, t("chartTitle"), context.computed_at, t("file"));
 
   const option = useCallback(
     (palette: ChartPalette): ChartOption => {
@@ -100,6 +118,7 @@ export function MilestoneChart({ tracking }: MilestoneChartProps) {
       description={t("description")}
       note={<CalculationDate context={context} />}
       option={option}
+      exported={exported}
     >
       <table className="w-full text-left">
         <thead className="text-muted-foreground">

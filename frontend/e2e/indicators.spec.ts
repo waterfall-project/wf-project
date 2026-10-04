@@ -69,11 +69,11 @@ test("names each curve at its end, two names ending on the same point moved apar
   expect(Math.abs(a.baseline - b.baseline)).toBeGreaterThanOrEqual(Math.max(a.size, b.size));
 });
 
-test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, named after the project [WF-IHM-0130-A]", async ({
+test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named after the project [WF-IHM-0130-A]", async ({
   page,
 }) => {
   await page.goto(SCREEN);
-  const figure = page.getByRole("figure", { name: "Charge par rôle et par mois" });
+  const figure = page.getByRole("figure", { name: "Diagramme temps/temps" });
   const command = figure.getByRole("button", { name: "Exporter en PNG" });
   await command.focus();
   await expect(command).toBeFocused();
@@ -81,7 +81,7 @@ test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, n
     page.waitForEvent("download"),
     page.keyboard.press("Enter"),
   ]);
-  expect(download.suggestedFilename()).toBe("plan-de-charge-PRJ-001.png");
+  expect(download.suggestedFilename()).toBe("suivi-des-jalons-PRJ-001.png");
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {

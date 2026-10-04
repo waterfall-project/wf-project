@@ -22,7 +22,7 @@
  */
 "use client";
 
-import { BarChart, type BarSeriesOption, LineChart, type LineSeriesOption } from "echarts/charts";
+import { LineChart, type LineSeriesOption } from "echarts/charts";
 import {
   AriaComponent,
   type AriaComponentOption,
@@ -39,15 +39,15 @@ import { type ComposeOption, init, use as register } from "echarts/core";
 import { LabelLayout } from "echarts/features";
 import { CanvasRenderer, SVGRenderer } from "echarts/renderers";
 import { ImageDown } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
+import { formatTimestamp } from "@/i18n/format";
 
 register([
   LabelLayout,
   LineChart,
-  BarChart,
   GridComponent,
   LegendComponent,
   MarkLineComponent,
@@ -57,10 +57,9 @@ register([
   CanvasRenderer,
 ]);
 
-/** What a chart of the application may draw: lines and bars on a grid, a legend, marked lines. */
+/** What a chart of the application may draw: lines on a grid, a legend, marked lines, a title. */
 export type ChartOption = ComposeOption<
   | LineSeriesOption
-  | BarSeriesOption
   | GridComponentOption
   | LegendComponentOption
   | MarkLineComponentOption
@@ -141,24 +140,6 @@ export function curve(palette: ChartPalette, rank: number, points: CurvePoints) 
       lineHeight: 16,
     },
     labelLayout: { moveOverlap: "shiftY" as const },
-  };
-}
-
-/**
- * The bars of a series of a rank, told apart without their colour too: its colour, and a pattern
- * of the symbol of its rank drawn on them in the background of the page — the legend shows both.
- */
-export function bars(palette: ChartPalette, rank: number) {
-  return {
-    type: "bar" as const,
-    color: palette.series[rank % palette.series.length] ?? palette.mark,
-    itemStyle: {
-      decal: {
-        symbol: SERIES_SYMBOLS[rank % SERIES_SYMBOLS.length] ?? "circle",
-        symbolSize: 0.6,
-        color: palette.background,
-      },
-    },
   };
 }
 
@@ -255,6 +236,39 @@ export interface ChartExport {
   readonly subtitle: string;
   /** The name of the file, its extension `.png` included. */
   readonly fileName: string;
+}
+
+/** Where a chart comes from, which its exported image names (WF-IHM-0130). */
+export interface ChartProvenance {
+  /** The name of the project. */
+  readonly project: string;
+  /** The code of the project, which names the file; its identifier when it has none. */
+  readonly code: string;
+  /** The name of the revision the chart is computed on. */
+  readonly revision: string;
+}
+
+/**
+ * What the exported image of a chart says of itself: its title and the project, then the
+ * revision and the date of calculation — written in the local time of the workstation, at the
+ * moment of the export —, and the name of its file, `file` followed by the code of the project.
+ */
+export function useProvenance(
+  provenance: ChartProvenance,
+  title: string,
+  computedAt: string,
+  file: string,
+): () => ChartExport {
+  const t = useTranslations("chart");
+  const locale = useLocale();
+  return () => ({
+    title: t("exportTitle", { title, project: provenance.project }),
+    subtitle: t("exportSubtitle", {
+      revision: provenance.revision,
+      date: formatTimestamp(computedAt, locale),
+    }),
+    fileName: t("fileName", { file, code: provenance.code }),
+  });
 }
 
 /** The size of an exported image, whatever the size of the screen. */

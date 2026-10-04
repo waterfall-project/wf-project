@@ -242,7 +242,10 @@
   },
   "chart": {
     "values": "Valeurs du graphique",
-    "exportPng": "Exporter en PNG"
+    "exportPng": "Exporter en PNG",
+    "exportTitle": "{title} — {project}",
+    "exportSubtitle": "Révision : {revision} · Calculé le {date}",
+    "fileName": "{file}-{code}.png"
   },
   "projectIndicators": {
     "notInProgress": {
@@ -311,7 +314,8 @@
       "completedOn": "Terminé le",
       "notCompleted": "Non terminé",
       "diagonal": "Dates égales",
-      "none": "Aucun jalon n’est inscrit au suivi."
+      "none": "Aucun jalon n’est inscrit au suivi.",
+      "file": "suivi-des-jalons"
     },
     "costCurve": {
       "title": "Coûts cumulés",
@@ -320,12 +324,15 @@
       "description": "Courbes cumulées du budget de référence selon les dates de la référence, du coût réel selon les dates de pièce jusqu’à la date de calcul, puis de la projection du chef de projet, avec les marches datées du budget de référence.",
       "descriptionDelayed": "Les mêmes courbes décalées du délai de paiement de chaque ligne, les provisions des risques identifiés ajoutées à la date de leur tâche : les décaissements, passés et à venir.",
       "delay": "Décaler des délais de paiement",
-      "undelay": "Retirer le décalage des délais de paiement"
+      "undelay": "Retirer le décalage des délais de paiement",
+      "file": "courbe-en-s",
+      "fileDelayed": "decaissements"
     },
     "earnedValue": {
       "title": "Courbes de valeur acquise",
       "chartTitle": "Valeur planifiée, valeur acquise et coût réel",
-      "description": "Courbes cumulées de la valeur planifiée, prolongée jusqu’à la fin de la référence, de la valeur acquise selon les dates de terminaison et du coût réel selon les dates de pièce, jusqu’à la date de calcul."
+      "description": "Courbes cumulées de la valeur planifiée, prolongée jusqu’à la fin de la référence, de la valeur acquise selon les dates de terminaison et du coût réel selon les dates de pièce, jusqu’à la date de calcul.",
+      "file": "valeur-acquise"
     },
     "curves": {
       "series": "Courbe",
@@ -338,30 +345,6 @@
       "past": "Décaissé",
       "forecast": "À décaisser"
     }
-  },
-  "workload": {
-    "title": "Plan de charge du projet",
-    "chartTitle": "Charge par rôle et par mois",
-    "description": "Barres de la charge de chaque rôle de ressource par mois, en heures, et sa capacité mensuelle en regard, en tirets.",
-    "basis": "Base",
-    "markedRevision": "Révision marquée",
-    "orgNode": "Nœud d’organisation",
-    "allOrgNodes": "Tous les nœuds",
-    "show": "Afficher",
-    "reading": "Base : {basis} — révision « {revision} »",
-    "role": "Rôle",
-    "month": "Mois",
-    "hours": "Charge (h)",
-    "capacity": "Capacité (h par mois)",
-    "loadRatio": "Charge rapportée à la capacité",
-    "zone": "Zone",
-    "capacityOf": "Capacité — {role}",
-    "noLoad": "Aucune charge",
-    "none": "Aucun rôle n’a de charge sur cette base.",
-    "unavailable": "Le plan de charge n’est pas disponible sur cette base.",
-    "exportTitle": "Plan de charge — {project}",
-    "exportSubtitle": "Révision : {revision} · {basis} · Calculé le {date}",
-    "fileName": "plan-de-charge-{project}.png"
   },
   "commands": {
     "label": "Commandes",

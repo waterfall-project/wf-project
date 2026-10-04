@@ -8,17 +8,14 @@
  * (`getIndexHistory`, WF-IND-0130); the tracking of the milestones (`getMilestoneTracking`,
  * WF-IND-0090); the cumulative costs at the same date, shifted by the payment delays when the
  * address asks it (`getCostCurve`, `payment_delays`, WF-IND-0100), and the curves of earned value
- * for the same sub-project (`getEarnedValueCurves`, WF-IND-0110); and the workload of the project
- * (FBS-4.4.4, `getProjectWorkload`, WF-DEV-0070) on the basis, the marked revision and the node
- * of organisation the address asks, exported as a PNG image (WF-IHM-0130).
+ * for the same sub-project (`getEarnedValueCurves`, WF-IND-0110) — each of the three exported as
+ * a PNG image that names the project, the revision of its calculation and its date (WF-IHM-0130).
  *
  * The indicators of a project are computed from the state In progress only (WF-IND-0010): before,
  * the API refuses them (409, `STATE_FORBIDS_OPERATION`), and the screen says so rather than coming
- * down, the evolution of the indices and the cumulative curves left unasked. A basis of the
- * workload the API refuses — a project without a reference revision (409), a marked revision
- * missing or not marked (422) — is said unavailable, the rest of the screen shown. Any other
- * answer follows the rule of the reads (`readOrFail`): the screen never shows a figure it did not
- * read, and computes none.
+ * down, the evolution of the indices and the cumulative curves left unasked. Any other answer
+ * follows the rule of the reads (`readOrFail`): the screen never shows a figure it did not read,
+ * and computes none.
  */
 import { Info, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
@@ -36,15 +33,13 @@ import {
   MilestoneSection,
   PAYMENT_DELAYS,
   type ScreenAddress,
-  type WorkloadAsked,
-  type WorkloadBasis,
-  WorkloadSection,
 } from "@/components/indicators/indicator-sections";
+import type { MilestoneTracking } from "@/components/indicators/milestone-chart";
 import { ProjectIndicatorCards } from "@/components/indicators/project-indicators";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { PageSearchParams, SearchParameters } from "@/navigation/context";
+import type { PageSearchParams } from "@/navigation/context";
 
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
@@ -101,68 +96,13 @@ async function readIndicators({ revision, context, address }: GridAddress) {
   return { indicators, history, costs, earnedValue };
 }
 
-/** The bases of a workload, as the contract names them. */
-const BASES: readonly WorkloadBasis[] = [
-  "reference_budget",
-  "marked_remaining",
-  "current_remaining",
-];
-
-/** A parameter of the address, `undefined` when it is absent or empty. */
-function given(address: SearchParameters, name: string): string | undefined {
-  const value = address.get(name);
-  return value === null || value === "" ? undefined : value;
-}
-
-/**
- * What the address asks of the workload: its basis — the remaining of the revision under way
- * unless it names another —, the marked revision of that basis, the node of organisation.
- */
-function workloadAsked(address: SearchParameters): WorkloadAsked {
-  const named = address.get("basis");
-  return {
-    basis: BASES.find((basis) => basis === named) ?? "current_remaining",
-    revision: given(address, "workload_revision"),
-    orgNode: given(address, "org_node_id"),
-  };
-}
-
-/** The refusals of a basis of the workload, which the screen says unavailable (WF-DEV-0070). */
-const BASIS_REFUSED = [
-  { status: 409, code: "STATE_FORBIDS_OPERATION" },
-  { status: 422, code: "VALIDATION_FAILED" },
-] as const;
-
-/**
- * The tracking of the milestones; the workload on what the address asks, the marked revision
- * sent only with the basis that takes it, the node of organisation the server filters on; the
- * nodes of organisation and the marked revisions of the project, which the choice offers.
- */
-async function readTracking({ revision }: GridAddress, asked: WorkloadAsked) {
-  const client = serverClient();
-  const path = { project_id: revision.projectId };
-  const query = {
-    basis: asked.basis,
-    ...(asked.basis === "marked_remaining" && asked.revision !== undefined
-      ? { revision_id: asked.revision }
-      : {}),
-    ...(asked.orgNode === undefined ? {} : { org_node_id: asked.orgNode }),
-  };
-  const [milestones, workload, orgNodes, marked] = await Promise.all([
-    readOrFail("getMilestoneTracking", () =>
-      client.GET("/projects/{project_id}/indicators/milestone-tracking", { params: { path } }),
-    ),
-    readUnlessRefused("getProjectWorkload", BASIS_REFUSED, () =>
-      client.GET("/projects/{project_id}/workload", { params: { path, query } }),
-    ),
-    readOrFail("listOrgNodes", () => client.GET("/reference/org-nodes")),
-    readOrFail("listRevisions", () =>
-      client.GET("/projects/{project_id}/revisions", {
-        params: { path, query: { status: ["marked"] } },
-      }),
-    ),
-  ]);
-  return { milestones, workload, orgNodes, marked: marked.items };
+/** The tracking of the milestones, which the API gives whatever the state of the project. */
+async function readMilestones({ revision }: GridAddress) {
+  return readOrFail("getMilestoneTracking", () =>
+    serverClient().GET("/projects/{project_id}/indicators/milestone-tracking", {
+      params: { path: { project_id: revision.projectId } },
+    }),
+  );
 }
 
 /** The figures of the screen: the indicators, the evolution of the indices, the curves. */
@@ -184,10 +124,10 @@ function NotInProgress() {
 type Revision = components["schemas"]["Revision"];
 
 /**
- * The revisions the figures and the workload are computed on, when it is not the revision of the
+ * The revisions the figures and the charts are computed on, when it is not the revision of the
  * address: the contract does not let the screen ask the indicators of a given revision (#247) — it
  * gives those of the revision under way, or of the last marked revision before the date `as_of`
- * asks —, and the workload reads the revision of its basis. Each is read once by its identifier
+ * asks —, and an exported chart names its revision. Each is read once by its identifier
  * (`getRevision`), only then, for its version name; one the API does not find is said unnamed,
  * never left out, and the screen stays. Any other answer follows the rule of the reads.
  */
@@ -259,53 +199,49 @@ function parametersOf(search: PageSearchParams): ScreenAddress["parameters"] {
   });
 }
 
-/** The bases the project offers (WF-DEV-0070): see `WorkloadSectionProps.bases`. */
-function offeredBases(reading: ProjectReading, marked: readonly unknown[]): WorkloadBasis[] {
-  if (reading.project.reference_revision_id === null) {
-    return ["current_remaining"];
-  }
-  return marked.length === 0
-    ? ["reference_budget", "current_remaining"]
-    : ["reference_budget", "marked_remaining", "current_remaining"];
-}
+/** The version name of a revision: `null` for the one under way, `undefined` when unnamed. */
+type RevisionName = (revisionId: string) => string | null | undefined;
 
-/** What the screen shows below the cards of the indicators. */
+/** What the screen shows below the cards of the indicators, each chart with its provenance. */
 function Sections({
   reading,
   figures,
-  tracking,
-  asked,
+  milestones,
   address,
-  workloadRevision,
+  nameOf,
 }: {
   readonly reading: ProjectReading;
   readonly figures: Figures | undefined;
-  readonly tracking: Awaited<ReturnType<typeof readTracking>>;
-  readonly asked: WorkloadAsked;
+  readonly milestones: MilestoneTracking;
   readonly address: ScreenAddress;
-  readonly workloadRevision: string | null | undefined;
+  readonly nameOf: RevisionName;
 }) {
   const label = useRevisionLabel();
   const { project } = reading;
+  const provenance = (revisionId: string) => ({
+    project: project.label,
+    code: project.code ?? project.project_id,
+    revision: label(nameOf(revisionId)),
+  });
   return (
     <>
-      <MilestoneSection tracking={tracking.milestones} />
+      <MilestoneSection
+        tracking={milestones}
+        provenance={provenance(milestones.context.revision_id)}
+      />
       {figures === undefined ? null : (
         <>
-          <CostCurveSection curves={figures.costs} address={address} />
-          <EarnedValueSection curves={figures.earnedValue} />
+          <CostCurveSection
+            curves={figures.costs}
+            address={address}
+            provenance={provenance(figures.costs.context.revision_id)}
+          />
+          <EarnedValueSection
+            curves={figures.earnedValue}
+            provenance={provenance(figures.earnedValue.context.revision_id)}
+          />
         </>
       )}
-      <WorkloadSection
-        workload={tracking.workload}
-        asked={asked}
-        bases={offeredBases(reading, tracking.marked)}
-        marked={tracking.marked}
-        orgNodes={tracking.orgNodes}
-        address={address}
-        project={{ label: project.label, code: project.code ?? project.project_id }}
-        revision={label(workloadRevision)}
-      />
     </>
   );
 }
@@ -322,7 +258,7 @@ function IndicatorsHeader() {
   );
 }
 
-/** Render the indicators of a project, its curves, its milestones and its workload. */
+/** Render the indicators of a project, its curves and its milestones. */
 export default async function IndicatorsPage({
   params,
   searchParams,
@@ -332,11 +268,10 @@ export default async function IndicatorsPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "indicators");
-  const asked = workloadAsked(at.address);
-  const [reading, figures, tracking] = await Promise.all([
+  const [reading, figures, milestones] = await Promise.all([
     readProjectContext(at.pathname, at.context),
     readIndicators(at),
-    readTracking(at, asked),
+    readMilestones(at),
   ]);
   if (reading === "not_found") {
     notFound();
@@ -346,17 +281,19 @@ export default async function IndicatorsPage({
     figures === undefined
       ? []
       : [...new Set([figures.indicators.context.revision_id, figures.history.context.revision_id])];
-  const workloadOn = tracking.workload?.context.revision_id;
+  const charted = [
+    milestones.context.revision_id,
+    ...(figures === undefined
+      ? []
+      : [figures.costs.context.revision_id, figures.earnedValue.context.revision_id]),
+  ];
   const named = await readRevisionsOf(revision.projectId, shown?.revision_id, [
     ...computedOn,
-    ...(workloadOn === undefined ? [] : [workloadOn]),
+    ...charted,
   ]);
   const elsewhere = computedOn.filter((id) => id !== shown?.revision_id).map((id) => named.get(id));
-  // The version name of the revision of the workload: `null` under way, `undefined` unnamed.
-  const workloadRevision =
-    workloadOn === shown?.revision_id
-      ? shown?.version_name
-      : named.get(workloadOn ?? "")?.version_name;
+  const nameOf: RevisionName = (id) =>
+    id === shown?.revision_id ? shown.version_name : named.get(id)?.version_name;
   return (
     <>
       <ContextBanner reading={reading} />
@@ -371,10 +308,9 @@ export default async function IndicatorsPage({
         <Sections
           reading={reading}
           figures={figures}
-          tracking={tracking}
-          asked={asked}
+          milestones={milestones}
           address={{ pathname: at.pathname, parameters: parametersOf(search) }}
-          workloadRevision={workloadRevision}
+          nameOf={nameOf}
         />
       </Screen>
     </>

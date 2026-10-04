@@ -5,8 +5,6 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LineSeriesOption } from "echarts/charts";
-
 import type { ChartOption, ChartPalette } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
@@ -71,10 +69,10 @@ function lastOption() {
   return drawn.options.at(-1)?.(PALETTE);
 }
 
-/** The series of the last option a chart was handed: curves, each of the charts here. */
+/** The series of the last option a chart was handed. */
 function lastSeries() {
   const series = lastOption()?.series;
-  return (Array.isArray(series) ? series : []) as LineSeriesOption[];
+  return Array.isArray(series) ? series : [];
 }
 
 beforeEach(() => {
@@ -164,9 +162,16 @@ describe("the evolution of an index", () => {
 
 const TRACKING = example("milestone_tracking") as MilestoneTracking;
 
+/** Where the charts of the witness project come from. */
+const PROVENANCE = {
+  project: "Modernisation du poste de commande",
+  code: "PRJ-001",
+  revision: "Current revision",
+};
+
 describe("the tracking of the milestones", () => {
   it("draws each milestone by the dates its revisions forecast, at midnight in UTC, and the diagonal of equal dates up to the date of calculation [WF-IND-0090-A]", () => {
-    english(<MilestoneChart tracking={TRACKING} />);
+    english(<MilestoneChart tracking={TRACKING} provenance={PROVENANCE} />);
     const series = lastSeries();
     expect(series.map((each) => each.name)).toEqual([
       "Réception des études",
@@ -187,7 +192,7 @@ describe("the tracking of the milestones", () => {
   });
 
   it("lists each forecast as a date of planning, and whether its milestone is completed [WF-IND-0090-A]", async () => {
-    const { container } = english(<MilestoneChart tracking={TRACKING} />);
+    const { container } = english(<MilestoneChart tracking={TRACKING} provenance={PROVENANCE} />);
     const rows = screen.getAllByRole("row").slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringMatching(/^Réception des études.*10 Apr 2026Not completed$/),
@@ -203,7 +208,7 @@ describe("the tracking of the milestones", () => {
   });
 
   it("places and writes the ticks of its axes in UTC, whatever the zone of the workstation", () => {
-    english(<MilestoneChart tracking={TRACKING} />);
+    english(<MilestoneChart tracking={TRACKING} provenance={PROVENANCE} />);
     const option = lastOption();
     expect(option?.useUTC).toBe(true);
     const yAxis = option?.yAxis as { axisLabel: { formatter: (value: number) => string } };
@@ -216,7 +221,15 @@ function curves(name: string) {
   const data = example(name) as CurveSeries;
   return {
     data,
-    ...english(<CurveSeriesChart curves={data} title="Curves" description="Drawn." />),
+    ...english(
+      <CurveSeriesChart
+        curves={data}
+        title="Curves"
+        description="Drawn."
+        file="curves"
+        provenance={PROVENANCE}
+      />,
+    ),
   };
 }
 

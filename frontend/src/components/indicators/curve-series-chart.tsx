@@ -12,7 +12,9 @@
  * Each point is a date of planning and an amount, the strings of the API: the date at midnight in
  * UTC on an axis written in UTC (`planningInstant`), the amount as written, which ECharts reads a
  * position from — nothing is summed, shifted nor ordered here: the payment delays are shifted by
- * the server. The chart carries its date of calculation, and its tables are its text alternative.
+ * the server. The chart carries its date of calculation, and its tables are its text alternative;
+ * it is offered for export as a PNG image that names its project, its revision and its date
+ * (WF-IHM-0130).
  */
 "use client";
 
@@ -24,10 +26,12 @@ import {
   Chart,
   type ChartOption,
   type ChartPalette,
+  type ChartProvenance,
   curve,
   END_LABEL_WIDTH,
   planningInstant,
   timeAxis,
+  useProvenance,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
 import { formatLocale, formatMoney, formatMonth, formatPlanningDate } from "@/i18n/format";
@@ -35,11 +39,16 @@ import { formatLocale, formatMoney, formatMonth, formatPlanningDate } from "@/i1
 /** Cumulative curves, as the API computes them. */
 export type CurveSeries = components["schemas"]["CurveSeries"];
 
-/** What a chart of cumulative curves is named: its caption and the sentence of its image. */
+/**
+ * What a chart of cumulative curves is named — its caption, the sentence of its image, the name
+ * of the file of its exported image before the code of the project —, and where it comes from.
+ */
 export interface CurveSeriesChartProps {
   readonly curves: CurveSeries;
   readonly title: string;
   readonly description: string;
+  readonly file: string;
+  readonly provenance: ChartProvenance;
 }
 
 /** The tables of the values of the curves: each point, each step, each month of cash out. */
@@ -124,9 +133,16 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
 }
 
 /** Render cumulative curves, their steps, and the tables of their values. */
-export function CurveSeriesChart({ curves, title, description }: CurveSeriesChartProps) {
+export function CurveSeriesChart({
+  curves,
+  title,
+  description,
+  file,
+  provenance,
+}: CurveSeriesChartProps) {
   const t = useTranslations();
   const locale = useLocale();
+  const exported = useProvenance(provenance, title, curves.context.computed_at, file);
 
   const option = useCallback(
     (palette: ChartPalette): ChartOption => {
@@ -193,6 +209,7 @@ export function CurveSeriesChart({ curves, title, description }: CurveSeriesChar
       description={description}
       note={<CalculationDate context={curves.context} />}
       option={option}
+      exported={exported}
     >
       <CurveValues curves={curves} />
     </Chart>
