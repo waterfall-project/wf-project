@@ -402,9 +402,7 @@ def volumes() -> dict[str, JsonObject]:
         for entry in fixture("estimate_indicators_breakdown")["by_cost_type"]
     }
     labels.update((entry["subproject_id"], entry["label"]) for entry in fixture("subprojects"))
-    indicators = estimate_indicators(
-        built.totals, witness["context"], witness["delta_to_previous_revision"], labels
-    )
+    indicators = estimate_indicators(built.totals, witness, labels)
     return {
         "nodes_thousand.json": _example(_structure_summary(built.nodes), built.nodes),
         "summary_dependencies.json": _example(

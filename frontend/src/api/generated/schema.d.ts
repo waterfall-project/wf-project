@@ -1936,7 +1936,7 @@ export interface paths {
         };
         /**
          * Indicateurs de devis
-         * @description Total, ventilations par nature et par sous-projet, provisions, et écart avec la révision marquée précédente (WF-DEV-0060). Disponibles dès le chiffrage (WF-IND-0010).
+         * @description Total, ventilations par nature de coût, par sous-projet et par poste du lotissement, provisions, écart avec la révision de référence et avec la révision marquée précédente (WF-DEV-0060). Disponibles dès le chiffrage (WF-IND-0010). Un taux horaire manquant pour l'année de référence ne rend pas un budget faux : les montants concernés ne se calculent pas, et disent quelles catégories et quelles années manquent (`hourly_rate_missing`, WF-DEV-0010).
          */
         get: operations["getEstimateIndicators"];
         put?: never;
@@ -3444,16 +3444,26 @@ export interface components {
             hours: components["schemas"]["Hours"];
         };
         /**
-         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage (WF-PTF-0050).
+         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage (WF-PTF-0050). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et `params.missing_rates` nomme les catégories et les années (WF-DEV-0010).
          * @enum {string}
          */
-        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing";
-        /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010). */
+        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing" | "hourly_rate_missing";
+        /** @description Une catégorie de main-d'œuvre employée par un chiffrage, sans taux horaire pour une année (WF-DEV-0010) : ce que `getMissingRates` liste, et ce qu'un montant non calculable nomme (`Computable.params.missing_rates`). */
+        MissingRate: {
+            cost_category_id: components["schemas"]["Uuid"];
+            label?: string;
+            year: components["schemas"]["Year"];
+        };
+        /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010) : un indicateur, un montant qu'un taux horaire manquant empêche de calculer (WF-DEV-0010). */
         Computable: {
             is_computable: boolean;
             value?: components["schemas"]["Decimal"] | null;
             /** @description Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue du lecteur (WF-ARC-0110) ; nul pour une valeur calculable. */
             reason?: components["schemas"]["NotComputableReason"] | null;
+            /** @description Ce que le motif nomme, quand il nomme quelque chose : `missing_rates`, les catégories et les années sans taux horaire (`hourly_rate_missing`, WF-DEV-0010). Absent sinon. */
+            params?: {
+                missing_rates?: components["schemas"]["MissingRate"][];
+            };
         };
         TrackingEntry: {
             /** @enum {string} */
@@ -3752,20 +3762,26 @@ export interface components {
             /** @description Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040). */
             is_stored?: boolean;
         };
-        AmountByKey: {
+        /** @description Un montant par clé — nature de coût, sous-projet, poste —, qui peut ne pas se calculer (`hourly_rate_missing`), et sa part du total, qui ne se calcule pas sans lui. */
+        ComputableAmountByKey: {
             key: string;
             label?: string;
-            amount: components["schemas"]["Money"];
-            share?: components["schemas"]["Percent"];
+            amount: components["schemas"]["Computable"];
+            share?: components["schemas"]["Computable"];
         };
-        /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). */
+        /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque montant est un `Computable` : tant qu'une catégorie de main-d'œuvre employée n'a pas de taux horaire pour l'année de référence, les montants qui en dépendent — le total, la nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à zéro. Les montants que ces lignes ne touchent pas se calculent. */
         EstimateIndicators: {
             context: components["schemas"]["CalculationContext"];
-            total: components["schemas"]["Money"];
-            by_cost_type: components["schemas"]["AmountByKey"][];
-            by_subproject: components["schemas"]["AmountByKey"][];
+            total: components["schemas"]["Computable"];
+            by_cost_type: components["schemas"]["ComputableAmountByKey"][];
+            by_subproject: components["schemas"]["ComputableAmountByKey"][];
+            /** @description Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche récapitulative qui porte chacun ; nul quand le planning n'est pas structuré en postes — absents plutôt que nuls (WF-DEV-0060). */
+            by_order_item: components["schemas"]["ComputableAmountByKey"][] | null;
             provisions_identified?: components["schemas"]["Money"];
-            delta_to_previous_revision?: components["schemas"]["Money"] | null;
+            /** @description L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) ; nul quand le projet n'a pas de révision de référence. */
+            delta_to_reference: components["schemas"]["Computable"] | null;
+            /** @description L'écart avec la révision marquée précédente ; nul sans elle. */
+            delta_to_previous_revision?: components["schemas"]["Computable"] | null;
         };
         /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
         WorkloadPlan: {
@@ -3787,6 +3803,12 @@ export interface components {
                     zone?: components["schemas"]["AlertZone"];
                 }[];
             }[];
+        };
+        AmountByKey: {
+            key: string;
+            label?: string;
+            amount: components["schemas"]["Money"];
+            share?: components["schemas"]["Percent"];
         };
         /** @description Écart entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone. */
         SubprojectBalance: {
@@ -7818,11 +7840,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        cost_category_id: components["schemas"]["Uuid"];
-                        label?: string;
-                        year: components["schemas"]["Year"];
-                    }[];
+                    "application/json": components["schemas"]["MissingRate"][];
                 };
             };
             404: components["responses"]["NotFound"];

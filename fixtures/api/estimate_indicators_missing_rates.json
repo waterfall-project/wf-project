@@ -1,0 +1,249 @@
+{
+  "summary": "Le même devis quand l'ingénierie électrique et la mise en service n'ont pas de taux horaire pour 2026, son année de référence : la main-d'œuvre, le sous-projet qui porte sa ligne, le poste et le total ne se calculent pas, et nomment les catégories et l'année qui manquent ; le débours, la provision et l'ensemble hors sous-projet se calculent, mais leur part du total non ; le calcul est refusé plutôt que fait avec un taux à zéro (WF-DEV-0010, WF-DEV-0060).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "revision_status": "draft",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "total": {
+      "is_computable": false,
+      "value": null,
+      "reason": "hourly_rate_missing",
+      "params": {
+        "missing_rates": [
+          {
+            "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+            "label": "Ingénierie électrique",
+            "year": 2026
+          },
+          {
+            "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+            "label": "Mise en service",
+            "year": 2026
+          }
+        ]
+      }
+    },
+    "by_cost_type": [
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000461",
+        "label": "Main-d'œuvre",
+        "amount": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        },
+        "share": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        }
+      },
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000462",
+        "label": "Débours",
+        "amount": {
+          "is_computable": true,
+          "value": "1234.56",
+          "reason": null
+        },
+        "share": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        }
+      },
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000463",
+        "label": "Provision",
+        "amount": {
+          "is_computable": true,
+          "value": "500.00",
+          "reason": null
+        },
+        "share": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "by_subproject": [
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000801",
+        "label": "Poste de commande",
+        "amount": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        },
+        "share": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        }
+      },
+      {
+        "key": "unassigned",
+        "amount": {
+          "is_computable": true,
+          "value": "500.00",
+          "reason": null
+        },
+        "share": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "by_order_item": [
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000701",
+        "label": "Fourniture et montage des armoires",
+        "amount": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        },
+        "share": {
+          "is_computable": false,
+          "value": null,
+          "reason": "hourly_rate_missing",
+          "params": {
+            "missing_rates": [
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+                "label": "Ingénierie électrique",
+                "year": 2026
+              },
+              {
+                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+                "label": "Mise en service",
+                "year": 2026
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "provisions_identified": "500.00",
+    "delta_to_reference": null,
+    "delta_to_previous_revision": null
+  }
+}

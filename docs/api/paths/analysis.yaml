@@ -8,9 +8,12 @@
     tags: [estimate]
     summary: Indicateurs de devis
     description: >-
-      Total, ventilations par nature et par sous-projet, provisions, et écart avec la
-      révision marquée précédente (WF-DEV-0060). Disponibles dès le chiffrage
-      (WF-IND-0010).
+      Total, ventilations par nature de coût, par sous-projet et par poste du lotissement,
+      provisions, écart avec la révision de référence et avec la révision marquée précédente
+      (WF-DEV-0060). Disponibles dès le chiffrage (WF-IND-0010). Un taux horaire manquant
+      pour l'année de référence ne rend pas un budget faux : les montants concernés ne se
+      calculent pas, et disent quelles catégories et quelles années manquent
+      (`hourly_rate_missing`, WF-DEV-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: revision_id
@@ -27,6 +30,7 @@
               volume: { $ref: ../../../fixtures/api/volume/estimate_indicators.json }
               witness: { $ref: ../../../fixtures/api/estimate_indicators.json }
               breakdown: { $ref: ../../../fixtures/api/estimate_indicators_breakdown.json }
+              missing_rates: { $ref: ../../../fixtures/api/estimate_indicators_missing_rates.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -50,13 +54,7 @@
           application/json:
             schema:
               type: array
-              items:
-                type: object
-                required: [cost_category_id, year]
-                properties:
-                  cost_category_id: { $ref: ../components/common.yaml#/Uuid }
-                  label: { type: string }
-                  year: { $ref: ../components/common.yaml#/Year }
+              items: { $ref: ../components/schemas/indicators.yaml#/MissingRate }
             examples:
               witness: { $ref: ../../../fixtures/api/missing_rates_none.json }
               missing: { $ref: ../../../fixtures/api/missing_rates.json }

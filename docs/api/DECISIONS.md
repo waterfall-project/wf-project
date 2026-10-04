@@ -419,6 +419,30 @@ joindre le référentiel. Le serveur résout le libellé à la lecture, comme `A
 réponse de `getMissingRates` ; il est absent pour `unassigned`, que le front sait nommer, et exigé
 sur une catégorie.
 
+**Un taux horaire manquant rend un montant non calculable** (`EstimateIndicators`,
+`ComputableAmountByKey`, `hourly_rate_missing`, #159). WF-DEV-0010 refuse le calcul d'un devis
+tant qu'une catégorie employée n'a pas de taux pour l'année de référence, parce qu'un taux à zéro
+« produit un budget faux sans rien signaler » ; le contrat ne disait pas ce que rend
+`getEstimateIndicators` dans ce cas, et l'écran montrait l'avis des taux manquants au-dessus d'un
+total chiffré. Chaque montant du devis est un `Computable`, et les montants qui dépendent des
+lignes sans taux — le total, la nature, le sous-projet et le poste qui les portent, les écarts, et
+toute part du total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les
+années nommées par `params.missing_rates` (`MissingRate`, le schéma que `getMissingRates` rend
+aussi) ; les montants que ces lignes ne touchent pas se calculent. Le motif suit la casse de son
+énumération (`no_actual_cost`), non celle du code d'erreur `HOURLY_RATE_MISSING` qui dit le même
+refus sur une écriture : les deux catalogues ont chacun leur convention. `Computable` gagne
+`params`, parce qu'un motif peut nommer quelque chose — jusqu'ici, une grandeur nulle ne nommait
+rien. Écarté : refuser la lecture par 409 ou 422, qui aurait privé l'écran des montants que les
+taux manquants ne touchent pas, et des provisions.
+
+**Le devis dit son écart à la référence et ses totaux par poste** (`delta_to_reference`,
+`by_order_item`, #160). WF-DEV-0060 demande « l'écart entre le devis en cours et celui de la
+référence » et « les totaux par poste » ; le contrat ne rendait que l'écart à la révision marquée
+précédente, qui n'est l'écart à la référence que par hasard. `delta_to_reference` est nul sans
+révision de référence, `by_order_item` nul sans lotissement saisi — absents plutôt que nuls, comme
+le Vérif le veut —, et chaque poste est nommé par son libellé (WF-PRJ-0020).
+`delta_to_previous_revision` reste : la revue périodique le lit.
+
 **Mineur** : `setDurationUnits` renvoie `responses.yaml#/UnprocessableEntity`, comme
 `createCalendar`, au lieu d'une 422 écrite en ligne ; ce que `fields` nomme est dit par
 `DurationUnitsWrite`.

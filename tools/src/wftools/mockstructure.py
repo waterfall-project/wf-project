@@ -568,13 +568,19 @@ def _subproject(task: Task, kind: LineKind) -> str | None:
 # --- The indicators of its estimate -------------------------------------------------------
 
 
+def computable(value: str) -> JsonObject:
+    """Return a value under the envelope of what may not be computable, computed (WF-IND-0010)."""
+    return {"is_computable": True, "value": value, "reason": None}
+
+
 def estimate_indicators(
-    totals: Totals, context: JsonValue, delta: JsonValue, labels: Mapping[str, str]
+    totals: Totals, witness: Mapping[str, JsonValue], labels: Mapping[str, str]
 ) -> JsonObject:
     """Return the answer of getEstimateIndicators for the lines of the structure.
 
-    The calculation context and the gap to the previous revision are the witness's, the
-    labels of the natures and subprojects those of the universe.
+    Every rate is set: each amount is computable. The calculation context and the gaps to the
+    reference and to the previous revision are the witness's, the labels of the natures and
+    subprojects those of the universe; the structure is phased, not cut in order items.
     """
     natures = [(nature, totals.by_cost_type[nature]) for nature in (LABOR, NON_LABOR, PROVISION)]
     subprojects = [
@@ -582,12 +588,14 @@ def estimate_indicators(
         for subproject in (SUBPROJECT_CONTROL, SUBPROJECT_TESTS, None)
     ]
     return {
-        "context": context,
-        "total": money(totals.amount),
+        "context": witness["context"],
+        "total": computable(money(totals.amount)),
         "by_cost_type": breakdown(natures, totals.amount, labels),
         "by_subproject": breakdown(subprojects, totals.amount, labels),
+        "by_order_item": None,
         "provisions_identified": money(totals.by_cost_type[PROVISION]),
-        "delta_to_previous_revision": delta,
+        "delta_to_reference": witness["delta_to_reference"],
+        "delta_to_previous_revision": witness["delta_to_previous_revision"],
     }
 
 
@@ -597,7 +605,8 @@ def breakdown(
     """Return the parts of a total, each with its share; the shares sum to one exactly.
 
     A share is rounded to four decimals, and what the rounding leaves goes to the largest
-    part. A part without a key is the set outside the subprojects, `unassigned`.
+    part. A part without a key is the set outside the subprojects, `unassigned`. Every amount
+    and every share is computable: the rates of the universe are all set.
     """
     shares = [(amount / total).quantize(SHARE) for _, amount in entries]
     largest = max(range(len(entries)), key=lambda index: entries[index][1])
@@ -607,7 +616,7 @@ def breakdown(
         part: JsonObject = (
             {"key": "unassigned"} if key is None else {"key": key, "label": labels[key]}
         )
-        part["amount"] = money(amount)
-        part["share"] = decimal(share)
+        part["amount"] = computable(money(amount))
+        part["share"] = computable(decimal(share))
         parts.append(part)
     return parts

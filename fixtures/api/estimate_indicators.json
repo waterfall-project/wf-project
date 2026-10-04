@@ -1,5 +1,5 @@
 {
-  "summary": "Les indicateurs du devis de la révision courante au 16 mars 2026 : sa ligne de débours de 100 000, hors sous-projet, sans provision, et aucun écart avec la référence, dont elle reprend le devis (WF-DEV-0060).",
+  "summary": "Les indicateurs du devis de la révision courante au 16 mars 2026 : sa ligne de débours de 100 000, hors sous-projet, sans provision ni poste du lotissement, et aucun écart avec la référence, dont elle reprend le devis, ni avec la révision marquée précédente, qui est la référence (WF-DEV-0060).",
   "value": {
     "context": {
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
@@ -8,23 +8,53 @@
       "scope": "project",
       "is_stored": false
     },
-    "total": "100000.00",
+    "total": {
+      "is_computable": true,
+      "value": "100000.00",
+      "reason": null
+    },
     "by_cost_type": [
       {
         "key": "01926f3a-7c00-7000-8000-000000000462",
         "label": "Débours",
-        "amount": "100000.00",
-        "share": "1"
+        "amount": {
+          "is_computable": true,
+          "value": "100000.00",
+          "reason": null
+        },
+        "share": {
+          "is_computable": true,
+          "value": "1",
+          "reason": null
+        }
       }
     ],
     "by_subproject": [
       {
         "key": "unassigned",
-        "amount": "100000.00",
-        "share": "1"
+        "amount": {
+          "is_computable": true,
+          "value": "100000.00",
+          "reason": null
+        },
+        "share": {
+          "is_computable": true,
+          "value": "1",
+          "reason": null
+        }
       }
     ],
+    "by_order_item": null,
     "provisions_identified": "0.00",
-    "delta_to_previous_revision": "0.00"
+    "delta_to_reference": {
+      "is_computable": true,
+      "value": "0.00",
+      "reason": null
+    },
+    "delta_to_previous_revision": {
+      "is_computable": true,
+      "value": "0.00",
+      "reason": null
+    }
   }
 }

@@ -359,10 +359,11 @@ def test_a_breakdown_gives_what_rounding_leaves_to_the_largest_part() -> None:
         Decimal(3),
         {"a": "A", "b": "B"},
     )
+    computable = mockstructure.computable
     assert parts == [
-        {"key": "a", "label": "A", "amount": "1.00", "share": "0.3334"},
-        {"key": "b", "label": "B", "amount": "1.00", "share": "0.3333"},
-        {"key": "unassigned", "amount": "1.00", "share": "0.3333"},
+        {"key": "a", "label": "A", "amount": computable("1.00"), "share": computable("0.3334")},
+        {"key": "b", "label": "B", "amount": computable("1.00"), "share": computable("0.3333")},
+        {"key": "unassigned", "amount": computable("1.00"), "share": computable("0.3333")},
     ]
 
 

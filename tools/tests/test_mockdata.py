@@ -55,7 +55,7 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "5 000 lignes de devis" in nodes
     assert "provision de plus sur 350" in nodes
     total = volumes["estimate_indicators.json"]["value"]["total"]
-    assert total == "60553621.36"
+    assert total == mockstructure.computable("60553621.36")
     assert "60 553 621,36 au total" in volumes["estimate_indicators.json"]["summary"]
     assert "Les 300 projets" in volumes["portfolio_projects.json"]["summary"]
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
@@ -110,20 +110,24 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
     indicators = volumes["estimate_indicators.json"]["value"]
     nodes = volumes["nodes_thousand.json"]["value"]
     lines = [node["estimate_line"] for node in nodes["items"] if node["kind"] == "estimate_line"]
-    assert indicators["total"] == nodes["totals"]["budgeted_amount"]
+    # Every rate of the universe is set: every amount is computable (WF-DEV-0010).
+    total = indicators["total"]
+    assert total == mockstructure.computable(nodes["totals"]["budgeted_amount"])
     provisions = sum(Decimal(line["budgeted_amount"]) for line in lines if line["is_computed"])
     assert Decimal(indicators["provisions_identified"]) == provisions
     for name in ("by_cost_type", "by_subproject"):
         parts = indicators[name]
-        assert sum(Decimal(part["amount"]) for part in parts) == Decimal(indicators["total"])
-        assert sum(Decimal(part["share"]) for part in parts) == 1
+        assert all(part["amount"]["is_computable"] for part in parts)
+        assert sum(Decimal(part["amount"]["value"]) for part in parts) == Decimal(total["value"])
+        assert sum(Decimal(part["share"]["value"]) for part in parts) == 1
+    assert indicators["by_order_item"] is None
     unassigned = sum(
         (Decimal(line["budgeted_amount"]) for line in lines if not line["subproject_id"]),
         Decimal(0),
     )
     assert indicators["by_subproject"][-1] == {
         "key": "unassigned",
-        "amount": mockstructure.money(unassigned),
+        "amount": mockstructure.computable(mockstructure.money(unassigned)),
         "share": indicators["by_subproject"][-1]["share"],
     }
 
@@ -134,6 +138,7 @@ def test_the_indicators_keep_the_context_and_labels_of_the_universe(
     indicators = volumes["estimate_indicators.json"]["value"]
     witness = mockdata.fixture("estimate_indicators")
     assert indicators["context"] == witness["context"]
+    assert indicators["delta_to_reference"] == witness["delta_to_reference"]
     assert indicators["delta_to_previous_revision"] == witness["delta_to_previous_revision"]
     natures = mockdata.fixture("estimate_indicators_breakdown")["by_cost_type"]
     assert [(part["key"], part["label"]) for part in indicators["by_cost_type"]] == [

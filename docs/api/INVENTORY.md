@@ -184,7 +184,7 @@ Le contrat cite **182 des 208 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects/{project_id}/estimate-indicators` | Indicateurs de devis | WF-DEV-0060, WF-IND-0010 |
+| GET | `/projects/{project_id}/estimate-indicators` | Indicateurs de devis | WF-DEV-0010, WF-DEV-0060, WF-IND-0010 |
 | GET | `/projects/{project_id}/estimate-indicators/missing-rates` | Taux horaires manquants pour le calcul | WF-CYC-0120, WF-DEV-0010 |
 | GET | `/projects/{project_id}/workload` | Plan de charge du projet | WF-DEV-0070 |
 | GET | `/projects/{project_id}/remaining-indicators` | Indicateurs de reste à engager | WF-IND-0020, WF-RAE-0020 |

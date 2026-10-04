@@ -27,7 +27,7 @@ export interface Examples {
     200: "contributors";
   };
   "GET /projects/{project_id}/estimate-indicators": {
-    200: "estimate_indicators" | "estimate_indicators_breakdown" | "volume/estimate_indicators";
+    200: "estimate_indicators" | "estimate_indicators_breakdown" | "estimate_indicators_missing_rates" | "volume/estimate_indicators";
   };
   "GET /projects/{project_id}/estimate-indicators/missing-rates": {
     200: "missing_rates" | "missing_rates_none";

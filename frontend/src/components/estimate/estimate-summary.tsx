@@ -11,8 +11,9 @@
  *
  * Every figure is the API's, formatted in the language of the interface from its exact string:
  * nothing is summed, nor divided, nor hidden by a rule of the front (WF-ARC-0020). A deviation
- * the API does not give is not shown as zero: it is left out. A name the API leaves out is said
- * missing, never replaced by an identifier.
+ * the API does not give is not shown as zero: it is left out. An amount the API cannot compute —
+ * an hourly rate missing (WF-DEV-0010) — is said so, with its reason, never made up. A name the
+ * API leaves out is said missing, never replaced by an identifier.
  */
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
@@ -37,8 +38,11 @@ export type MissingRates =
 /** A permission of the catalogue (WF-ADM-0100). */
 type Permission = components["schemas"]["PermissionCode"];
 
-/** An amount by key: a nature of cost, a sub-project. */
-type AmountByKey = components["schemas"]["AmountByKey"];
+/** An amount by key — a nature of cost, a sub-project —, which may not be computable. */
+type AmountByKey = components["schemas"]["ComputableAmountByKey"];
+
+/** A value that may not be computable (WF-IND-0010). */
+type Computable = components["schemas"]["Computable"];
 
 /** The key the API gives the whole of what belongs to no sub-project (WF-IND-0020). */
 const UNASSIGNED = "unassigned";
@@ -99,12 +103,38 @@ function MissingRatesNotice({
   );
 }
 
-/** A figure of the estimate: its name, and its amount. */
-function Figure({ name, amount }: { readonly name: string; readonly amount: string }) {
+/**
+ * A value the API may not have computed, written by `format` when it has — or said not
+ * computable, with the reason the API codes, in the sentence of the catalogue.
+ */
+function Figured({
+  value,
+  format,
+}: {
+  readonly value: Computable;
+  readonly format: (value: string) => string;
+}) {
+  const t = useTranslations();
+  // A value the API calls computable yet leaves out is not made up either: it is said missing.
+  const computed = value.is_computable ? (value.value ?? null) : null;
+  if (computed !== null) {
+    return format(computed);
+  }
+  const reason = value.reason ?? null;
+  return reason === null
+    ? t("indicator.notComputable")
+    : t("estimateSummary.notComputable", { reason: t(`enums.NotComputableReason.${reason}`) });
+}
+
+/** A figure of the estimate: its name, and its amount, when the API computed it. */
+function Figure({ name, amount }: { readonly name: string; readonly amount: Computable }) {
+  const locale = useLocale();
   return (
     <div className="space-y-0.5">
       <dt className="text-xs text-muted-foreground">{name}</dt>
-      <dd className="font-semibold tabular-nums">{amount}</dd>
+      <dd className="font-semibold tabular-nums">
+        <Figured value={amount} format={(value) => formatMoney(value, locale)} />
+      </dd>
     </div>
   );
 }
@@ -128,22 +158,22 @@ function Breakdown({
       <dd>
         <ul className="flex flex-wrap gap-x-4 gap-y-0.5">
           {items.map((item) => {
-            const amount = formatMoney(item.amount, locale);
             const label =
               item.label ??
               (item.key === UNASSIGNED
                 ? t("enums.Scope.unassigned")
                 : t("estimateSummary.unnamed"));
+            const share = item.share;
             return (
               <li key={item.key} className="flex gap-1">
                 <span>{label}</span>
                 <span className="tabular-nums">
-                  {item.share === undefined
-                    ? amount
-                    : t("estimateSummary.share", {
-                        amount,
-                        share: formatPercent(item.share, locale),
-                      })}
+                  <Figured value={item.amount} format={(value) => formatMoney(value, locale)} />
+                  {share?.is_computable === true &&
+                  share.value !== null &&
+                  share.value !== undefined
+                    ? t("estimateSummary.shareOf", { share: formatPercent(share.value, locale) })
+                    : null}
                 </span>
               </li>
             );
@@ -162,13 +192,14 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
   const provisions = indicators.provisions_identified;
   return (
     <dl className="flex flex-wrap gap-x-8 gap-y-2">
-      <Figure name={t("total")} amount={formatMoney(indicators.total, locale)} />
+      <Figure name={t("total")} amount={indicators.total} />
       {provisions === undefined ? null : (
-        <Figure name={t("provisions")} amount={formatMoney(provisions, locale)} />
+        <div className="space-y-0.5">
+          <dt className="text-xs text-muted-foreground">{t("provisions")}</dt>
+          <dd className="font-semibold tabular-nums">{formatMoney(provisions, locale)}</dd>
+        </div>
       )}
-      {delta === null || delta === undefined ? null : (
-        <Figure name={t("delta")} amount={formatMoney(delta, locale)} />
-      )}
+      {delta === null || delta === undefined ? null : <Figure name={t("delta")} amount={delta} />}
       <Breakdown name={t("byCostType")} items={indicators.by_cost_type} />
       <Breakdown name={t("bySubproject")} items={indicators.by_subproject} />
     </dl>

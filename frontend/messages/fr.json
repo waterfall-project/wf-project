@@ -199,7 +199,8 @@
     "delta": "Écart avec la révision marquée précédente",
     "byCostType": "Par nature de coût",
     "bySubproject": "Par sous-projet",
-    "share": "{amount} ({share})",
+    "shareOf": " ({share})",
+    "notComputable": "Non calculable — {reason}",
     "unavailable": "Les indicateurs du devis sont indisponibles.",
     "unnamed": "Sans libellé",
     "missingRates": {
@@ -1011,7 +1012,8 @@
       "no_budgeted_amount": "Aucun montant budgété dans le sous-arbre de la tâche.",
       "no_actual_or_remaining": "Ni coût réel ni reste à engager.",
       "no_capacity": "Aucune capacité pour ce rôle sur la période.",
-      "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période."
+      "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période.",
+      "hourly_rate_missing": "Taux horaire manquant pour l’année de référence."
     },
     "CurveSeries": {
       "series": {

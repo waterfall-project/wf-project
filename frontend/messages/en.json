@@ -199,7 +199,8 @@
     "delta": "Deviation from the previous marked revision",
     "byCostType": "By nature of cost",
     "bySubproject": "By subproject",
-    "share": "{amount} ({share})",
+    "shareOf": " ({share})",
+    "notComputable": "Not computable — {reason}",
     "unavailable": "The estimate indicators are unavailable.",
     "unnamed": "No label",
     "missingRates": {
@@ -1011,7 +1012,8 @@
       "no_budgeted_amount": "No budgeted amount in the subtree of the task.",
       "no_actual_or_remaining": "Neither actual cost nor estimate to complete.",
       "no_capacity": "No capacity for this role over the period.",
-      "no_offer_out_of_pricing": "No offer left the Pricing state over the period."
+      "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
+      "hourly_rate_missing": "Hourly rate missing for the reference year."
     },
     "CurveSeries": {
       "series": {
