@@ -1,0 +1,11 @@
+{
+  "summary": "La planification des sauvegardes : chaque nuit à une heure, sept conservées (WF-ADM-0170).",
+  "value": {
+    "is_enabled": true,
+    "frequency": "daily",
+    "at_time": "01:00",
+    "weekday": null,
+    "retained_count": 7,
+    "lock_version": 2
+  }
+}

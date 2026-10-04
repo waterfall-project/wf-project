@@ -86,7 +86,9 @@ User:
     - email
     - is_active
     - origin
+    - org_node_label
     - access_role_ids
+    - access_role_labels
     - audit
     - lock_version
   properties:
@@ -102,10 +104,22 @@ User:
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Rattachement facultatif, qui n'accorde aucune permission (WF-ADM-0030).
+    org_node_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Libellé du nœud de rattachement, résolu à la lecture, actif ou désactivé
+        (WF-REF-0150) ; nul sans rattachement. Le front ne rapproche pas l'organisation
+        des comptes (WF-ARC-0020).
     access_role_ids:
       type: array
       description: Un ou plusieurs rôles ; l'utilisateur dispose de l'union de leurs permissions (WF-ADM-0090).
       items: { $ref: ../common.yaml#/Uuid }
+    access_role_labels:
+      type: array
+      description: >-
+        Libellés des rôles de `access_role_ids`, résolus à la lecture, dans le même
+        ordre. Le front ne rapproche pas les rôles des comptes (WF-ARC-0020).
+      items: { type: string }
     has_avatar: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }

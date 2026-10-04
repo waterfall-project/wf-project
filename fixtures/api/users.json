@@ -1,0 +1,126 @@
+{
+  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180).",
+  "value": {
+    "items": [
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000302",
+        "last_name": "Bernard",
+        "first_name": "Dominique",
+        "email": "dominique.bernard@example.com",
+        "is_active": true,
+        "origin": "directory",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000702"
+        ],
+        "access_role_labels": [
+          "Manager"
+        ],
+        "has_avatar": false,
+        "audit": {
+          "created_at": "2026-01-05T09:00:00Z",
+          "created_by": {
+            "kind": "platform"
+          },
+          "updated_at": "2026-01-05T09:00:00Z",
+          "updated_by": {
+            "kind": "platform"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000304",
+        "last_name": "Lefèvre",
+        "first_name": "Sacha",
+        "email": "sacha.lefevre@example.com",
+        "is_active": true,
+        "origin": "identity_provider",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [],
+        "access_role_labels": [],
+        "has_avatar": false,
+        "audit": {
+          "created_at": "2026-03-12T08:30:00Z",
+          "created_by": {
+            "kind": "platform"
+          },
+          "updated_at": "2026-03-12T08:30:00Z",
+          "updated_by": {
+            "kind": "platform"
+          }
+        },
+        "lock_version": 1
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "last_name": "Martin",
+        "first_name": "Camille",
+        "email": "camille.martin@example.com",
+        "is_active": true,
+        "origin": "local",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000701"
+        ],
+        "access_role_labels": [
+          "Direction de projet"
+        ],
+        "has_avatar": false,
+        "audit": {
+          "created_at": "2026-01-05T09:00:00Z",
+          "created_by": {
+            "kind": "platform"
+          },
+          "updated_at": "2026-03-16T14:05:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 3
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000303",
+        "last_name": "Moreau",
+        "first_name": "Alix",
+        "email": "alix.moreau@example.com",
+        "is_active": false,
+        "origin": "local",
+        "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
+        "org_node_label": "Bureau d'études électricité",
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000703"
+        ],
+        "access_role_labels": [
+          "Chef de projet"
+        ],
+        "has_avatar": false,
+        "audit": {
+          "created_at": "2026-01-12T10:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2026-03-02T16:20:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 4
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 4
+    }
+  }
+}

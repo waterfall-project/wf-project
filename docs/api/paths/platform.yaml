@@ -20,6 +20,9 @@
                   type: array
                   items: { $ref: ../components/schemas/platform.yaml#/Backup }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/backups.json }
+              empty: { $ref: ../../../fixtures/api/backups_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -110,6 +113,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
+            examples:
+              witness: { $ref: ../../../fixtures/api/backup_schedule.json }
+              weekly: { $ref: ../../../fixtures/api/backup_schedule_weekly.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:
