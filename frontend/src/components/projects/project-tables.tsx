@@ -174,7 +174,7 @@ export function ContributorList({
 }
 
 /** Who made a transition: the name of their account, or an automatic process of the platform. */
-function Actor({ actor }: { readonly actor: StateTransition["actor"] }) {
+export function Actor({ actor }: { readonly actor: StateTransition["actor"] }) {
   const t = useTranslations("enums.ActorRef.kind");
   const Icon = actor.kind === "platform" ? Bot : User;
   return (

@@ -61,7 +61,7 @@ const UNREACHABLE: Outcome<ComputedDependencies> = { kind: "unreachable" };
 function useDependencies<Row>(
   dependencies: DependencyReader<Row> | undefined,
   row: Row,
-  field: ComputedValueField,
+  field: ComputedValueField | undefined,
   opening: number,
   open: boolean,
 ) {
@@ -70,7 +70,7 @@ function useDependencies<Row>(
   const [answer, setAnswer] = useState<{
     readonly reading: () => readonly Row[];
     readonly id: string;
-    readonly field: ComputedValueField;
+    readonly field: ComputedValueField | undefined;
     readonly opening: number;
     readonly outcome: Outcome<ComputedDependencies>;
   }>();
@@ -81,10 +81,11 @@ function useDependencies<Row>(
     answer.field === field &&
     (answer.outcome.kind === "done" || answer.opening === opening);
   const shown = kept ? answer.outcome : undefined;
-  const asking = open && dependencies !== undefined && shown === undefined;
+  // A value the contract names no field for is not asked about: the refusal says it is computed.
+  const asking = open && dependencies !== undefined && field !== undefined && shown === undefined;
   const reader = asking ? dependencies : undefined;
   useEffect(() => {
-    if (reader === undefined || id === undefined) {
+    if (reader === undefined || id === undefined || field === undefined) {
       return undefined;
     }
     let live = true;

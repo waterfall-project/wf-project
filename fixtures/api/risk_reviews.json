@@ -1,0 +1,38 @@
+{
+  "summary": "L'historique des réexamens du risque de reprise du câblage, du plus récent au plus ancien : la probabilité passée de 25 % à 40 %, la gravité de 1 000 à 1 250 avec son devis propre (WF-RIS-0010, WF-RIS-0040).",
+  "value": [
+    {
+      "reviewed_on": "2026-03-02",
+      "probability": "0.4",
+      "severity": "1250.00",
+      "state": "identified",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    {
+      "reviewed_on": "2026-02-02",
+      "probability": "0.25",
+      "severity": "1250.00",
+      "state": "identified",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    {
+      "reviewed_on": "2026-01-12",
+      "probability": "0.25",
+      "severity": "1000.00",
+      "state": "identified",
+      "actor": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    }
+  ]
+}

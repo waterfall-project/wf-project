@@ -74,6 +74,18 @@ export interface Examples {
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
+  "GET /projects/{project_id}/risks": {
+    200: "risks" | "risks_empty";
+  };
+  "GET /projects/{project_id}/risks/matrix": {
+    200: "risk_matrix";
+  };
+  "GET /projects/{project_id}/risks/{risk_id}": {
+    200: "risk" | "risk_occurred_detail";
+  };
+  "GET /projects/{project_id}/risks/{risk_id}/reviews": {
+    200: "risk_reviews";
+  };
   "GET /projects/{project_id}/state-transitions": {
     200: "state_transitions" | "state_transitions_exited";
   };
