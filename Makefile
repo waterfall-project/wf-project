@@ -181,7 +181,7 @@ coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US
 	@cd $(BACK) && uv run --frozen pytest --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
-check-front: client-up-to-date lint-front typecheck-front catalogs build-front $(call full-else,coverage-front e2e-browsers e2e,test-front) ## The front: client, lint, types, catalogues, production build, tests; coverage and end-to-end replace the plain tests in the full tier
+check-front: client-up-to-date lint-front typecheck-front catalogs $(call full-else,coverage-front e2e-browsers e2e,build-front test-front) ## The front: client, lint, types, catalogues, production build, tests; coverage and end-to-end, which build the front, replace the build and the plain tests in the full tier
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -212,7 +212,7 @@ test-front: install-front ## Unit tests of the front
 	@$(PNPM) test
 
 build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
-build-front: install-front ## Build the front for production with no API to reach: no page may read it while built (#131)
+build-front: install-front ## Build the front for production with no API to reach, no page reading it while built (#131); in the fast tier, the full one builds it for the end-to-end paths
 	@$(PNPM) build
 
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060)

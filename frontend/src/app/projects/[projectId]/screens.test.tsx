@@ -131,7 +131,7 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("lists the contributors of the project, the project manager told from a contributor in words and by an icon, an account deactivated since said so [WF-PRJ-0060-A]", async () => {
+  it("lists the contributors of the project, the project manager told from a contributor in words and by an icon, an account deactivated since said so", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/contributors"]).toBe(
       `/projects/${PROJECT}/contributors`,

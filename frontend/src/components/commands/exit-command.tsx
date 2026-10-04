@@ -10,8 +10,9 @@
  *
  * The page is read again once the API has answered the exit or refused it for the state of the
  * project (409): the offers it shows are the server's again, and a confirmation whose exit is no
- * longer available closes, the focus back on its command. What the API answered stays said under the command — the new state,
- * or the refusal (`OutcomeNotice`) —, whether the confirmation is still open or not.
+ * longer available closes, the focus back on its command. What the API answered stays said under
+ * the command — the new state, or the refusal (`OutcomeNotice`) —, whether the confirmation is
+ * still open or not.
  */
 "use client";
 

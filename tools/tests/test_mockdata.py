@@ -318,6 +318,13 @@ def test_two_hundred_categories_a_hundred_and_fifty_of_them_labour(
     assert used <= labels.keys()
 
 
+def test_the_missing_rates_are_those_the_estimate_indicators_name() -> None:
+    # The same estimate, the same rates missing: the list and the amount that cannot be
+    # calculated name the same categories, for the same year (#205).
+    indicators = mockdata.fixture("estimate_indicators_missing_rates")
+    assert mockdata.fixture("missing_rates") == indicators["total"]["params"]["missing_rates"]
+
+
 def test_two_runs_write_the_same_bytes() -> None:
     first = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}
     second = {name: mockdata.render(example) for name, example in mockdata.volumes().items()}

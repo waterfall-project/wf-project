@@ -14,10 +14,10 @@ const config: NextConfig = {
     serverActions: {
       // An avatar goes from the browser to the server of Next by a server action, whose body Next
       // bounds to 1 MB by default: past it, the action fails before the API is asked, and the
-      // screen of failure shows instead of the refusal of the API. The bound is a setting of the
-      // installation (`Installation.avatar_max_bytes`, §4.4.1) that the contract leaves open;
-      // ten megabytes stand above any bound an avatar may reasonably have, the form around the
-      // image included, so that an image the screen lets through is judged by the API (#221).
+      // screen of failure shows instead of the refusal of the API (#221). The bound is a setting
+      // of the installation (`Installation.avatar_max_bytes`, §4.4.1), which the contract does
+      // not bound yet (#233): ten megabytes, the form around the image included, hold only as
+      // long as it does not, and follow the maximum the contract will declare.
       bodySizeLimit: "10mb",
     },
   },
