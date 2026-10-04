@@ -342,9 +342,10 @@ hors de `src/api/client.ts` les moyens connus d'atteindre le réseau — `fetch`
 la liste des dépendances de `package.json`, pour qu'une nouvelle soit examinée pour la
 garde avant d'entrer. Le cas transitif — un module sans directive qui importe
 `@/api/server`, et qu'un composant client importe — échappe à ESLint : `client.ts` et
-`server.ts` importent `server-only`, le filet de `next build`, que la chaîne ne lance qu'au
-palier complet, pour la mesure de la seconde (`make e2e`, `playwright.config.ts`), et une fois
-le faux back démarré (#131). `make typecheck-front`, `make test-front` ;
+`server.ts` importent `server-only`, le filet de `next build`, que `make build-front` lance à
+chaque palier, sans API joignable : une page qui lirait l'API à la construction, pré-rendue
+au lieu d'être rendue à la requête, le fait échouer (#131). `make typecheck-front`,
+`make test-front` ;
 `make lint-docker` (hadolint).
 
 ## Le faux back

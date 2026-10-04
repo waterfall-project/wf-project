@@ -39,8 +39,8 @@ et des types ; un module de `src/api/actions/` s'ouvre sur `"use server"`. C'est
 de la chaîne, éprouvé par `src/api/network-guard.test.ts`, et il voit l'import direct : le
 cas transitif — un module sans directive qui importe `@/api/server`, et qu'un composant
 client importe — reste à `server-only`, qu'importent `client.ts` et `server.ts`, le filet
-de `next build`, que la chaîne ne lance qu'au palier complet, pour la mesure de la seconde
-(`make e2e`), et une fois le faux back démarré (#131). `make client-up-to-date`.
+de `next build`, que `make build-front` lance à chaque palier, sans API joignable (#131).
+`make client-up-to-date`.
 
 ### Le front affiche, il ne calcule pas
 

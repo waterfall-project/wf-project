@@ -24,6 +24,8 @@ TOOLS   := tools
 DOC_TOOLS := ../docs/api/tools ../docs/spec/tools
 BACK    := backend
 FRONT   := frontend
+# An address where no API answers: the front builds without reaching one (#131).
+NOWHERE := http://127.0.0.1:9
 PNPM    := cd $(FRONT) && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1 pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
@@ -40,7 +42,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
-	install-front lint-front typecheck-front test-front generate-client client-up-to-date catalogs \
+	install-front lint-front typecheck-front test-front build-front generate-client client-up-to-date catalogs \
 	coverage-back coverage-front roadmap check-roadmap e2e e2e-browsers lot-size \
 	lint-docker changes gate \
 	check-tools clean
@@ -179,7 +181,7 @@ coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US
 	@cd $(BACK) && uv run --frozen pytest --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
-check-front: client-up-to-date lint-front typecheck-front catalogs $(call full-else,coverage-front e2e-browsers e2e,test-front) ## The front: client, lint, types, catalogues, tests; coverage and end-to-end replace the plain tests in the full tier
+check-front: client-up-to-date lint-front typecheck-front catalogs build-front $(call full-else,coverage-front e2e-browsers e2e,test-front) ## The front: client, lint, types, catalogues, production build, tests; coverage and end-to-end replace the plain tests in the full tier
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -208,6 +210,10 @@ catalogs: ## The catalogues of the front are twins, with a key for each value th
 
 test-front: install-front ## Unit tests of the front
 	@$(PNPM) test
+
+build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
+build-front: install-front ## Build the front for production with no API to reach: no page may read it while built (#131)
+	@$(PNPM) build
 
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060)
 	@$(PNPM) exec vitest run --coverage --silent
