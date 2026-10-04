@@ -65,7 +65,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
         <SettingsHeader />
         <SettingsFacts project={read.project} />
         <SubprojectList subprojects={subprojects} />
-        <ContributorList contributors={contributors} />
+        <ContributorList contributors={contributors.items} />
       </Screen>
     </>
   );

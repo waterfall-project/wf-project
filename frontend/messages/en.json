@@ -382,8 +382,7 @@
       "category": "Category",
       "previous": "Previous rate",
       "proposed": "Proposed rate",
-      "source": "Source",
-      "unnamed": "Unnamed category"
+      "source": "Source"
     }
   },
   "exitProject": {

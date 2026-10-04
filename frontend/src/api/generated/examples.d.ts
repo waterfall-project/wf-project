@@ -77,6 +77,9 @@ export interface Examples {
   "GET /reference/duration-units": {
     200: "duration_units";
   };
+  "GET /reference/hourly-rates": {
+    200: "volume/hourly_rate_grid";
+  };
   "GET /reference/readiness": {
     200: "reference_readiness" | "reference_readiness_incomplete";
   };

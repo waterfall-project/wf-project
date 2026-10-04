@@ -382,6 +382,47 @@ colonne non saisissable, qui déplacerait une valeur dans la colonne voisine —
 WF-IHM-0050 veut éviter. Le front garde sa garde locale sur une colonne masquée, qui ne contredit
 pas le contrat.
 
+**La liste des contributeurs a son compteur** (`ContributorList`, #186). `setContributors` exigeait
+un `lock_version` sans dire de quel objet, et `listContributors` rendait un tableau nu : le
+formulaire n'aurait rien eu à renvoyer. Le compteur est celui de la liste, rendu par la lecture
+dans une enveloppe `{ items, lock_version }` et par l'écriture avec le suivant, exigé par
+`ContributorsWrite`, périmé par 412. Écarté : le compteur du projet, qui aurait fait de chaque
+changement du libellé ou du taux d'inflation un conflit pour une liste ouverte avant lui, et
+l'inverse. `Contributor.is_active` est exigé : une valeur absente ne disait ni actif ni désactivé,
+et l'écran ne devine rien (WF-ADM-0060).
+
+**Les rôles et les catégories actifs se lisent avec le projet** (`listResourceRoles`,
+`listCostCategories`, #195). La grille du devis nomme et offre au choix le rôle et la catégorie de
+chaque ligne (WF-DEV-0020) ; un chiffreur sans `resource_settings.read` lisait un devis dont il ne
+pouvait ni nommer ni choisir les rôles. Les objets actifs sont lisibles par quiconque consulte un
+projet ; les objets désactivés (`include_inactive`) et toute écriture restent sous la permission du
+référentiel (WF-ADM-0100), et `include_inactive` sans elle est refusé par 403. Écarté : rendre avec
+`listNodes` les rôles et catégories que la structure emploie, qui alourdirait chaque lecture de
+six mille nœuds de ce qui change une fois par an.
+
+**La grille des taux horaires se lit en une fois** (`GET /reference/hourly-rates`,
+`getHourlyRateGrid`, `HourlyRateGrid`, #162). Le §3.4.4.1.2 présente les taux « comme une grille :
+une ligne par catégorie de main-d'œuvre, une colonne par année », et le contrat ne les servait
+qu'une catégorie à la fois : cent cinquante appels pour ouvrir l'écran (§4.6.2). La réponse porte
+les années en colonnes (`years`) et les catégories en lignes (`rows`), chaque ligne nommée — code,
+libellé, activité — pour que la grille ne joigne rien, avec une cellule par année à la même place,
+nulle pour une année sans taux (WF-REF-0060) : des tableaux alignés plutôt qu'une liste creuse de
+taux portant leur année, que la grille aurait dû placer. `listHourlyRates` reste, pour une
+catégorie seule. Le volume `hourly_rate_grid.json` — cent cinquante catégories, quinze ans — est
+engendré avec les autres (`make mock-data`), et la ligne de l'ingénierie électrique y est celle de
+`hourly_rates.json`.
+
+**Un écart, une catégorie proposée portent leur libellé** (`RevisionComparison.amount_deltas[].label`,
+`RateUpdateProposal.categories[].label`, #204). Un écart n'était nommé que par sa `key`, une
+catégorie que par son identifiant, et l'écran disait « Sans nom », WF-ARC-0020 lui interdisant de
+joindre le référentiel. Le serveur résout le libellé à la lecture, comme `AmountByKey.label` et la
+réponse de `getMissingRates` ; il est absent pour `unassigned`, que le front sait nommer, et exigé
+sur une catégorie.
+
+**Mineur** : `setDurationUnits` renvoie `responses.yaml#/UnprocessableEntity`, comme
+`createCalendar`, au lieu d'une 422 écrite en ligne ; ce que `fields` nomme est dit par
+`DurationUnitsWrite`.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

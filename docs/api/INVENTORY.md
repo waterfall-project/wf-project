@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**155 opérations sur 120 chemins, dans 12 familles.**
+**156 opérations sur 121 chemins, dans 12 familles.**
 Le contrat cite **182 des 208 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -83,7 +83,7 @@ Le contrat cite **182 des 208 exigences** de la spécification.
 
 ## Référentiel commun
 
-`paths/reference.yaml` — 28 opérations
+`paths/reference.yaml` — 29 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -94,7 +94,7 @@ Le contrat cite **182 des 208 exigences** de la spécification.
 | POST | `/reference/org-nodes` | Créer un nœud d'organisation | WF-REF-0070 |
 | PATCH | `/reference/org-nodes/{org_node_id}` | Modifier un nœud d'organisation | WF-REF-0070, WF-REF-0130 |
 | PUT | `/reference/org-nodes/{org_node_id}/activation` | Désactiver ou réactiver un nœud | WF-REF-0010, WF-REF-0080 |
-| GET | `/reference/resource-roles` | Rôles de ressources | WF-REF-0090, WF-REF-0100, WF-REF-0150 |
+| GET | `/reference/resource-roles` | Rôles de ressources | WF-ADM-0100, WF-DEV-0020, WF-REF-0090, WF-REF-0100, WF-REF-0150 |
 | POST | `/reference/resource-roles` | Créer un rôle de ressource | WF-REF-0090, WF-REF-0100 |
 | PATCH | `/reference/resource-roles/{resource_role_id}` | Modifier un rôle de ressource | WF-REF-0090, WF-REF-0130 |
 | PUT | `/reference/resource-roles/{resource_role_id}/activation` | Désactiver ou réactiver un rôle de ressource | WF-REF-0010, WF-REF-0020 |
@@ -109,10 +109,11 @@ Le contrat cite **182 des 208 exigences** de la spécification.
 | POST | `/reference/cost-types` | Créer une nature de coût | WF-REF-0030 |
 | PATCH | `/reference/cost-types/{cost_type_id}` | Modifier une nature de coût | WF-REF-0030 |
 | PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-REF-0010, WF-REF-0020 |
-| GET | `/reference/cost-categories` | Catégories de coût | WF-REF-0040, WF-REF-0150 |
+| GET | `/reference/cost-categories` | Catégories de coût | WF-ADM-0100, WF-DEV-0020, WF-REF-0040, WF-REF-0150 |
 | POST | `/reference/cost-categories` | Créer une catégorie de coût | WF-REF-0040 |
 | PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0040, WF-REF-0130 |
 | PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-REF-0010, WF-REF-0020 |
+| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-REF-0050, WF-REF-0060, WF-REF-0150 |
 | GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0050, WF-REF-0130 |
 
@@ -135,8 +136,8 @@ Le contrat cite **182 des 208 exigences** de la spécification.
 | POST | `/projects/{project_id}/subprojects` | Créer un sous-projet | WF-PRJ-0050 |
 | PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Modifier un sous-projet | WF-PRJ-0050 |
 | DELETE | `/projects/{project_id}/subprojects/{subproject_id}` | Supprimer un sous-projet | WF-DAT-0080, WF-PRJ-0050 |
-| GET | `/projects/{project_id}/contributors` | Contributeurs du projet | WF-PRJ-0060 |
-| PUT | `/projects/{project_id}/contributors` | Inscrire ou retirer des contributeurs | WF-ADM-0110, WF-PRJ-0060 |
+| GET | `/projects/{project_id}/contributors` | Contributeurs du projet | WF-IHM-0110, WF-PRJ-0060 |
+| PUT | `/projects/{project_id}/contributors` | Inscrire ou retirer des contributeurs | WF-ADM-0110, WF-IHM-0110, WF-PRJ-0060 |
 | GET | `/projects/{project_id}/contributors/suggestions` | Contributeurs proposés | WF-PRJ-0070 |
 | GET | `/projects/{project_id}/timelines` | Chronologies du projet | WF-PLA-0140 |
 | POST | `/projects/{project_id}/timelines` | Créer une chronologie | WF-PLA-0140 |

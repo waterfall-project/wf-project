@@ -105,7 +105,7 @@ export function RateUpdate({ proposal }: { readonly proposal: RateUpdateProposal
       >
         {categories.map((category) => (
           <TableRow key={category.cost_category_id}>
-            <TableCell className={CELL}>{t("unnamed")}</TableCell>
+            <TableCell className={CELL}>{category.label}</TableCell>
             <TableCell className={AMOUNT}>
               {formatMoney(category.previous_amount, locale)}
             </TableCell>

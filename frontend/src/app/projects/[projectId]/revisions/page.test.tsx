@@ -46,6 +46,7 @@ const REVISIONS = `/projects/${PROJECT}/revisions`;
 function text(markup: string): string {
   return markup
     .replace(/<[^>]*>/g, " ")
+    .replace(/&#x27;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -246,12 +247,12 @@ describe("the comparison of two revisions", () => {
       "Libellé Nature Ce qui change Câblage des armoires Tâche Dates Durée " +
         "Raccordement des borniers Ligne de devis Montant budgété Montant réestimé",
     );
-    // The deviations as the API gives them, in its order: no total the front would add up. A
-    // name the API leaves out is said missing (#204), never replaced by an identifier.
+    // The deviations as the API gives them, in its order, each named by the label it resolves
+    // (#204): no total the front would add up, no identifier shown.
     expect(table(page, "Écarts de montants")).toBe(
       "Axe Poste Écart " +
-        "Nature de coût Sans nom 1 200,00 Nature de coût Sans nom -350,00 " +
-        "Nature de coût Sans nom 500,00 Sous-projet Sans nom 850,00 " +
+        "Nature de coût Main-d'œuvre 1 200,00 Nature de coût Débours -350,00 " +
+        "Nature de coût Provision 500,00 Sous-projet Poste de commande 850,00 " +
         "Sous-projet Hors sous-projet 500,00",
     );
     expect(page).not.toContain("01926f3a-7c00-7000-8000-000000000461");
@@ -329,8 +330,8 @@ describe("the parts of the revision the screen reads in", () => {
     );
     expect(table(page, "Mise à jour des taux proposée")).toBe(
       "Catégorie Taux précédent Taux proposé Origine " +
-        "Catégorie sans nom 78,50 80,86 Taux précédent, projeté par l’inflation " +
-        "Catégorie sans nom 80,00 82,40 Taux précédent, projeté par l’inflation",
+        "Ingénierie électrique 78,50 80,86 Taux précédent, projeté par l’inflation " +
+        "Mise en service 80,00 82,40 Taux précédent, projeté par l’inflation",
     );
   });
 

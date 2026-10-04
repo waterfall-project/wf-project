@@ -382,8 +382,7 @@
       "category": "Catégorie",
       "previous": "Taux précédent",
       "proposed": "Taux proposé",
-      "source": "Origine",
-      "unnamed": "Catégorie sans nom"
+      "source": "Origine"
     }
   },
   "exitProject": {

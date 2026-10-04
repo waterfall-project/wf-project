@@ -182,6 +182,8 @@ paths:
     $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}
   /reference/cost-categories/{cost_category_id}/activation:
     $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}~1activation
+  /reference/hourly-rates:
+    $ref: ./paths/reference.yaml#/~1reference~1hourly-rates
   /reference/cost-categories/{cost_category_id}/hourly-rates:
     $ref: ./paths/reference.yaml#/~1reference~1cost-categories~1{cost_category_id}~1hourly-rates
   /reference/cost-categories/{cost_category_id}/hourly-rates/{year}:

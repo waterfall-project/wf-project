@@ -343,7 +343,8 @@
     summary: Contributeurs du projet
     description: >-
       Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet
-      nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060).
+      nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte
+      son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: kinds
@@ -355,12 +356,10 @@
         explode: false
     responses:
       '200':
-        description: Contributeurs.
+        description: Contributeurs, et le compteur de la liste.
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/projects.yaml#/Contributor }
+            schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
             examples:
               witness: { $ref: ../../../fixtures/api/contributors.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -372,7 +371,8 @@
       La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le
       projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne
       garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte
-      inconnu ou désactivé l'est par 422, `fields` le nommant.
+      inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste
+      lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -382,12 +382,10 @@
           schema: { $ref: ../components/schemas/projects.yaml#/ContributorsWrite }
     responses:
       '200':
-        description: Liste enregistrée.
+        description: Liste enregistrée, avec le compteur suivant.
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/projects.yaml#/Contributor }
+            schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':

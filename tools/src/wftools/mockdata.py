@@ -17,8 +17,9 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   witness project and the offer of the other examples first;
 - ``cost_categories.json``, ``listCostCategories``: the categories of §4.6.2, most of them
   labour — the rows of the grid of hourly rates;
-- ``hourly_rates.json``, ``listHourlyRates``: fifteen years of rates of one labour category,
-  the contract serving the rates one category at a time (#162).
+- ``hourly_rates.json``, ``listHourlyRates``: fifteen years of rates of one labour category;
+- ``hourly_rate_grid.json``, ``getHourlyRateGrid``: the grid of hourly rates, the labour
+  categories in rows and the fifteen years in columns, read in one call (#162).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -334,17 +335,59 @@ _RATE_STEP = Decimal("1.50")
 
 def hourly_rates() -> list[JsonValue]:
     """Return the answer of listHourlyRates: the years of rates of the electrical engineering."""
-    last = RATE_YEARS[-1]
-    return [
-        {
-            "cost_category_id": ELECTRICAL_ENGINEERING,
-            "year": year,
-            "amount": money(ELECTRICAL_RATE - _RATE_STEP * (last - year)),
-            "audit": _AUDIT,
-            "lock_version": 1,
-        }
-        for year in RATE_YEARS
-    ]
+    return [_rate(ELECTRICAL_ENGINEERING, ELECTRICAL_RATE, year) for year in RATE_YEARS]
+
+
+def _rate(category: str, last_amount: Decimal, year: int) -> JsonObject:
+    """Return the rate of a category for a year, grown by the step each year up to the last."""
+    return {
+        "cost_category_id": category,
+        "year": year,
+        "amount": money(last_amount - _RATE_STEP * (RATE_YEARS[-1] - year)),
+        "audit": _AUDIT,
+        "lock_version": 1,
+    }
+
+
+COMMISSIONING_RATE = Decimal("75.00")
+"""The hourly rate of the commissioning in the reference year, the one the structure's lines pay."""
+
+_EMPTY_YEARS = 4
+"""How many of the first years a category may leave without a rate: an empty cell of the grid."""
+
+
+def hourly_rate_grid() -> JsonObject:
+    """Return the answer of getHourlyRateGrid: the labour categories in rows, the years in columns.
+
+    The two categories the estimate employs carry their fifteen years — the electrical
+    engineering those of ``listHourlyRates`` —; each other category draws its rate of the
+    reference year, and the first years it left without a rate (WF-REF-0060).
+    """
+    known = {ELECTRICAL_ENGINEERING: ELECTRICAL_RATE, COMMISSIONING: COMMISSIONING_RATE}
+    rows: list[JsonValue] = []
+    for entry in categories():
+        category = cast("JsonObject", entry)
+        if category["cost_type_id"] != LABOR:
+            continue
+        identifier_ = str(category["cost_category_id"])
+        last = known.get(identifier_)
+        if last is None:
+            last = Decimal(draw(f"rate/{identifier_}", 4_000, 12_000)) / 100
+        first = RATE_YEARS[0] + (
+            0 if identifier_ in known else draw(f"first-year/{identifier_}", 0, _EMPTY_YEARS)
+        )
+        rows.append(
+            {
+                "cost_category_id": identifier_,
+                "code": category["code"],
+                "label": category["label"],
+                "is_active": True,
+                "cells": [
+                    _rate(identifier_, last, year) if year >= first else None for year in RATE_YEARS
+                ],
+            }
+        )
+    return {"years": list(RATE_YEARS), "rows": rows}
 
 
 # --- Writing and checking ------------------------------------------------------------------
@@ -394,6 +437,13 @@ def volumes() -> dict[str, JsonObject]:
             f"{RATE_YEARS[0]} à {RATE_YEARS[-1]}, l'année de référence du devis, où il vaut "
             f"{_amount(ELECTRICAL_RATE)} de l'heure.",
             hourly_rates(),
+        ),
+        "hourly_rate_grid.json": _example(
+            f"La grille des taux horaires du §4.6.2 : les {_count(LABOR_CATEGORY_COUNT)} "
+            f"catégories de main-d'œuvre en lignes, les {_count(len(RATE_YEARS))} ans de "
+            f"{RATE_YEARS[0]} à {RATE_YEARS[-1]} en colonnes ; une catégorie sans taux pour une "
+            f"année y a une cellule vide (WF-REF-0050, WF-REF-0060).",
+            hourly_rate_grid(),
         ),
     }
 

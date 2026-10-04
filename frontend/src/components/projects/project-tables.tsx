@@ -140,14 +140,13 @@ export function ContributorList({
               </span>
             </TableCell>
             <TableCell className={CELL}>
-              {/* The contract leaves the activity optional: only an account said inactive is. */}
-              {contributor.is_active === false ? (
+              {contributor.is_active ? (
+                t("active")
+              ) : (
                 <Badge variant="outline">
                   <UserX aria-hidden="true" />
                   {t("inactive")}
                 </Badge>
-              ) : (
-                t("active")
               )}
             </TableCell>
           </TableRow>

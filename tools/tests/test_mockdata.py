@@ -38,6 +38,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
     assert sorted(volumes) == [
         "cost_categories.json",
         "estimate_indicators.json",
+        "hourly_rate_grid.json",
         "hourly_rates.json",
         "nodes_thousand.json",
         "portfolio_projects.json",
@@ -60,6 +61,7 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
     assert "80,00 de l'heure" in volumes["hourly_rates.json"]["summary"]
+    assert "150 catégories de main-d'œuvre en lignes" in volumes["hourly_rate_grid.json"]["summary"]
 
 
 def test_the_dependencies_written_are_those_of_the_structure_written(
@@ -242,6 +244,55 @@ def test_the_rates_span_fifteen_years_up_to_the_reference_year(volumes: dict[str
     assert all(MONEY.match(rate["amount"]) for rate in rates)
 
 
+def test_the_grid_of_rates_has_the_labour_categories_in_rows_and_the_years_in_columns(
+    volumes: dict[str, Any],
+) -> None:
+    grid = volumes["hourly_rate_grid.json"]["value"]
+    assert grid["years"] == list(range(2012, 2027))
+    rows = grid["rows"]
+    assert len(rows) == 150
+    labour = [
+        category
+        for category in volumes["cost_categories.json"]["value"]
+        if category["cost_type_id"] == mockstructure.LABOR
+    ]
+    assert [row["cost_category_id"] for row in rows] == [c["cost_category_id"] for c in labour]
+    assert [(row["code"], row["label"]) for row in rows] == [
+        (c["code"], c["label"]) for c in labour
+    ]
+    for row in rows:
+        assert len(row["cells"]) == 15
+        for year, cell in zip(grid["years"], row["cells"], strict=True):
+            if cell is not None:
+                assert (cell["cost_category_id"], cell["year"]) == (row["cost_category_id"], year)
+                assert MONEY.match(cell["amount"])
+
+
+def test_the_grid_of_rates_agrees_with_the_rates_of_one_category_and_leaves_cells_empty(
+    volumes: dict[str, Any],
+) -> None:
+    grid = volumes["hourly_rate_grid.json"]["value"]
+    electrical = next(
+        row
+        for row in grid["rows"]
+        if row["cost_category_id"] == mockstructure.ELECTRICAL_ENGINEERING
+    )
+    assert electrical["cells"] == volumes["hourly_rates.json"]["value"]
+    commissioning = next(
+        row for row in grid["rows"] if row["cost_category_id"] == mockstructure.COMMISSIONING
+    )
+    assert commissioning["cells"][-1]["amount"] == "75.00"
+    assert all(cell is not None for cell in commissioning["cells"])
+    # A category without a rate for its first years has empty cells there, never a column less.
+    empties = [sum(cell is None for cell in row["cells"]) for row in grid["rows"]]
+    assert max(empties) <= 4
+    assert any(empties)
+    for row in grid["rows"]:
+        filled = [cell is not None for cell in row["cells"]]
+        assert filled == sorted(filled)
+        assert filled[-1]
+
+
 def test_two_hundred_categories_a_hundred_and_fifty_of_them_labour(
     volumes: dict[str, Any],
 ) -> None:
@@ -361,6 +412,9 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
     )
     assert first_example("revisions.yaml", "getComputedValueDependencies") == (
         "volume: { $ref: ../../../fixtures/api/volume/summary_dependencies.json }"
+    )
+    assert first_example("reference.yaml", "getHourlyRateGrid") == (
+        "volume: { $ref: ../../../fixtures/api/volume/hourly_rate_grid.json }"
     )
 
 

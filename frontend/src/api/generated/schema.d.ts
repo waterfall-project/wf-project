@@ -825,7 +825,7 @@ export interface paths {
         };
         /**
          * Rôles de ressources
-         * @description Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris (WF-REF-0090, WF-REF-0100, WF-REF-0150).
+         * @description Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris (WF-REF-0090, WF-REF-0100, WF-REF-0150). Les rôles actifs se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit le rôle d'une ligne de devis (WF-DEV-0020). Les rôles désactivés (`include_inactive`) et toute écriture restent sous la permission des paramètres de ressources (WF-ADM-0100) : sans elle, `include_inactive` est refusé par 403.
          */
         get: operations["listResourceRoles"];
         put?: never;
@@ -1061,7 +1061,7 @@ export interface paths {
         };
         /**
          * Catégories de coût
-         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150).
+         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` est refusé par 403.
          */
         get: operations["listCostCategories"];
         put?: never;
@@ -1109,6 +1109,26 @@ export interface paths {
          * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020).
          */
         put: operations["setCostCategoryActivation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reference/hourly-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Grille des taux horaires
+         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150).
+         */
+        get: operations["getHourlyRateGrid"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1345,12 +1365,12 @@ export interface paths {
         };
         /**
          * Contributeurs du projet
-         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060).
+         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110).
          */
         get: operations["listContributors"];
         /**
          * Inscrire ou retirer des contributeurs
-         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant.
+         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant.
          */
         put: operations["setContributors"];
         post?: never;
@@ -3064,6 +3084,22 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Une ligne de la grille : la catégorie, nommée pour que la grille n'ait rien à joindre, et une cellule par année de `years`, dans le même ordre. */
+        HourlyRateRow: {
+            cost_category_id: components["schemas"]["Uuid"];
+            code: string;
+            label: string;
+            is_active: boolean;
+            /** @description Le taux de chaque année de `years`, à la même place ; nul pour une année sans taux (WF-REF-0060). */
+            cells: (components["schemas"]["HourlyRate"] | null)[];
+        };
+        /** @description La grille des taux horaires en une lecture : une ligne par catégorie de main-d'œuvre, une colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour une catégorie est une cellule vide, et aucune colonne n'est créée d'elle-même : une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Cent cinquante catégories et quinze ans (§4.6.2) tiennent en une réponse. */
+        HourlyRateGrid: {
+            /** @description Les années de la grille, croissantes ; les colonnes. */
+            years: components["schemas"]["Year"][];
+            /** @description Les catégories de main-d'œuvre, dans l'ordre de `listCostCategories`. */
+            rows: components["schemas"]["HourlyRateRow"][];
+        };
         /** @description Le compteur est absent à la première saisie de l'année, où le taux n'existe pas encore, et obligatoire pour corriger un taux déjà saisi. */
         HourlyRateWrite: {
             amount: components["schemas"]["Money"];
@@ -3207,7 +3243,14 @@ export interface components {
             user_id: components["schemas"]["Uuid"];
             display_name: string;
             kind: components["schemas"]["ContributorKind"];
-            is_active?: boolean;
+            /** @description Faux pour un compte désactivé depuis son inscription, que la liste garde et signale (WF-ADM-0060). Toujours rendu : l'écran ne devine rien d'une valeur absente. */
+            is_active: boolean;
+        };
+        /** @description La liste des contributeurs d'un projet et son compteur d'écriture, propre à la liste : la modifier ne touche pas au projet, et modifier le projet — son libellé, son taux d'inflation — ne la périme pas (WF-PRJ-0060, WF-IHM-0110). */
+        ContributorList: {
+            items: components["schemas"]["Contributor"][];
+            /** @description Le compteur de la liste, que `setContributors` exige tel qu'il a été lu. */
+            lock_version: components["schemas"]["LockVersion"];
         };
         ContributorWrite: {
             user_id: components["schemas"]["Uuid"];
@@ -3216,6 +3259,7 @@ export interface components {
         /** @description La liste entière, chacun avec sa qualité ; un projet garde au moins un chef de projet (WF-PRJ-0060). */
         ContributorsWrite: {
             contributors: components["schemas"]["ContributorWrite"][];
+            /** @description Le compteur de la liste lue (`ContributorList.lock_version`) ; périmé, la liste est refusée par 412 (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Proposition fondée sur les nœuds d'organisation des rôles employés par le planning ; jamais appliquée sans confirmation (WF-PRJ-0070). */
@@ -3301,6 +3345,8 @@ export interface components {
             target_year?: components["schemas"]["Year"];
             categories: {
                 cost_category_id: components["schemas"]["Uuid"];
+                /** @description Le libellé de la catégorie, résolu à la lecture, pour que l'écran ne joigne rien. */
+                label: string;
                 previous_amount: components["schemas"]["Money"];
                 proposed_amount: components["schemas"]["Money"];
                 /** @enum {string} */
@@ -3325,10 +3371,14 @@ export interface components {
             added: components["schemas"]["ComparedNode"][];
             removed: components["schemas"]["ComparedNode"][];
             changed: components["schemas"]["ComparedNode"][];
+            /** @description Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). */
             amount_deltas: {
                 /** @enum {string} */
                 dimension: "cost_type" | "subproject";
+                /** @description L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020). */
                 key: string;
+                /** @description Le libellé de la nature ou du sous-projet ; absent pour `unassigned`, que le front nomme. */
+                label?: string;
                 delta: components["schemas"]["Money"];
             }[];
         };
@@ -5650,6 +5700,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5784,15 +5835,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Une constante nulle, que `fields` nomme (WF-PLA-0160). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     listCalendars: {
@@ -6077,6 +6120,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6164,6 +6208,31 @@ export interface operations {
                 };
             };
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getHourlyRateGrid: {
+        parameters: {
+            query?: {
+                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                include_inactive?: components["parameters"]["IncludeInactive"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La grille, catégories en lignes et années en colonnes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HourlyRateGrid"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6624,13 +6693,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Contributeurs. */
+            /** @description Contributeurs, et le compteur de la liste. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Contributor"][];
+                    "application/json": components["schemas"]["ContributorList"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -6651,13 +6720,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liste enregistrée. */
+            /** @description Liste enregistrée, avec le compteur suivant. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Contributor"][];
+                    "application/json": components["schemas"]["ContributorList"];
                 };
             };
             403: components["responses"]["Forbidden"];

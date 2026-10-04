@@ -8,8 +8,9 @@
  * named, and the deviations of amounts by nature of cost and by sub-project.
  *
  * The server pairs the two revisions by the lineage of their objects (WF-DAT-0030): the front
- * pairs nothing, sums nothing and orders nothing (WF-ARC-0020). A name the API leaves out is
- * said missing, never replaced by an identifier (#204, « Constats sur le contrat »).
+ * pairs nothing, sums nothing and orders nothing (WF-ARC-0020). Each deviation is named by the
+ * label the API resolves (#204); one it leaves out is said missing, never replaced by an
+ * identifier.
  */
 import { Calculator, ClipboardList, GitCompareArrows, type LucideIcon } from "lucide-react";
 import Form from "next/form";
@@ -233,7 +234,7 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
           <TableRow key={`${delta.dimension}:${delta.key}`}>
             <TableCell className={CELL}>{dimension(delta.dimension)}</TableCell>
             <TableCell className={CELL}>
-              {delta.key === UNASSIGNED ? unassigned : t("unnamed")}
+              {delta.key === UNASSIGNED ? unassigned : (delta.label ?? t("unnamed"))}
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
               {formatMoney(delta.delta, locale)}

@@ -155,9 +155,15 @@ RateUpdateProposal:
       type: array
       items:
         type: object
-        required: [cost_category_id, previous_amount, proposed_amount, source]
+        required: [cost_category_id, label, previous_amount, proposed_amount, source]
         properties:
           cost_category_id: { $ref: ../common.yaml#/Uuid }
+          label:
+            type: string
+            minLength: 1
+            maxLength: 200
+            description: >-
+              Le libellé de la catégorie, résolu à la lecture, pour que l'écran ne joigne rien.
           previous_amount: { $ref: ../common.yaml#/Money }
           proposed_amount: { $ref: ../common.yaml#/Money }
           source:
@@ -1038,6 +1044,10 @@ RevisionComparison:
       items: { $ref: '#/ComparedNode' }
     amount_deltas:
       type: array
+      description: >-
+        Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun
+        nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne
+        joint rien (WF-ARC-0020).
       items:
         type: object
         required: [dimension, key, delta]
@@ -1045,7 +1055,12 @@ RevisionComparison:
           dimension:
             type: string
             enum: [cost_type, subproject]
-          key: { type: string }
+          key:
+            type: string
+            description: L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020).
+          label:
+            type: string
+            description: Le libellé de la nature ou du sous-projet ; absent pour `unassigned`, que le front nomme.
           delta: { $ref: ../common.yaml#/Money }
 
 ComparedNode:
