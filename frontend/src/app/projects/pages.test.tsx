@@ -610,6 +610,13 @@ describe("the grid of the planning", () => {
       subproject_id: "unassigned",
     });
     expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Float/);
+    // Its head leads to the imports and exports of the project, a leaf of the planning, in the
+    // same context.
+    expect(html).toMatch(
+      new RegExp(
+        `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/exchanges\\?subproject_id=unassigned"[^>]*>.*?Imports and exports</a>`,
+      ),
+    );
   });
 
   it("asks no sort the planning does not offer, such as an amount of the estimate", async () => {

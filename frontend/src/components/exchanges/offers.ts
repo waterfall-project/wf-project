@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What the screen of the exchanges offers, which both its server and its client parts read: the
+ * What the screen of the imports and exports offers, which both its server and its client parts read: the
  * import of each kind of file, as the server offers its command (WF-IHM-0090); what an import
  * still lets the user do, by its status; and the address of the report of an import.
  *
@@ -9,13 +9,14 @@
  * (`import_actual_costs`). A planning, an estimate, a remaining are imported into the current
  * revision (WF-INTF-0090): their import is offered as the command that modifies the same content
  * of that revision — `edit_planning`, `edit_estimate`, `edit_remaining` —, and not without a
- * current revision, until the contract says it (a finding on the contract, EP-02). The front
- * deduces nothing from a permission.
+ * current revision, until the contract says it (#318). The front deduces nothing from a
+ * permission.
  */
 import type { components } from "@/api/generated/schema";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
 import type { Revision } from "@/components/context/read-only";
+import { OFFSET } from "@/components/grid/query";
 
 type ExchangeKind = components["schemas"]["ExchangeKind"];
 type ImportStatus = components["schemas"]["Import"]["status"];
@@ -72,6 +73,19 @@ export const IMPORT_STEPS: Readonly<
   expired: { apply: false, abandon: false },
   failed: { apply: false, abandon: false },
 };
+
+/** A mebibyte, in bytes. */
+export const MEBIBYTE = 1024 * 1024;
+
+/**
+ * The largest file an import takes: that of an MS Project file, the largest the volumes of
+ * §4.6.2 name, ten megabytes. The contract does not bound a file deposited yet (#324); the bound
+ * of the server actions of Next (`next.config.ts`) is set a little above it.
+ */
+export const IMPORT_MAX_BYTES = 10 * MEBIBYTE;
+
+/** The parameter of the address that names the page of the imports of the project. */
+export const EXCHANGES_PAGE = OFFSET;
 
 /** The parameter of the address that names the import whose report the screen shows. */
 export const IMPORT_PARAMETER = "import";

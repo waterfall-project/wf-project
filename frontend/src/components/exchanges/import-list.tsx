@@ -3,13 +3,14 @@
 /**
  * The imports of the project, in progress and past, as `listImports` gives them (WF-INTF-0080,
  * WF-ARC-0100): of each, its file — a link to its report —, its kind, the status where it stopped
- * and when it was opened, in the local time of the workstation; in the order received. The list
- * says when it shows only the first of its imports, and that it is empty when no import was ever
- * opened. A section named by its label, as a server component has no identifier to give.
+ * and when it was opened, in the local time of the workstation; in the order received, a page of
+ * them, the way through the others under it. The list says that it is empty when no import was
+ * ever opened. A section named by its label, as a server component has no identifier to give.
  */
 import { History } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
@@ -20,7 +21,7 @@ import { importHref } from "./offers";
 
 type Import = components["schemas"]["Import"];
 
-/** The imports of a page of the list, how many the project holds, and the one shown. */
+/** The imports of a page of the list, how many the project holds, the one shown, the pages. */
 export interface ImportListProps {
   readonly imports: readonly Import[];
   readonly total: number;
@@ -28,10 +29,12 @@ export interface ImportListProps {
   readonly current: string | undefined;
   /** The address of the screen, its context kept. */
   readonly start: string;
+  /** The way through the pages of the list. */
+  readonly children?: ReactNode;
 }
 
 /** Render the imports of the project, each leading to its report. */
-export function ImportList({ imports, total, current, start }: ImportListProps) {
+export function ImportList({ imports, total, current, start, children }: ImportListProps) {
   const t = useTranslations();
   const title = t("exchanges.list.title");
   return (
@@ -72,11 +75,7 @@ export function ImportList({ imports, total, current, start }: ImportListProps) 
           ))}
         </ListTable>
       )}
-      {imports.length < total ? (
-        <p className="text-sm text-muted-foreground">
-          {t("exchanges.list.partial", { shown: imports.length, total })}
-        </p>
-      ) : null}
+      {children}
     </section>
   );
 }

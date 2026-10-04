@@ -42,7 +42,7 @@ describe("the server actions of the exchanges", () => {
       [UPLOAD]: { example: "file_upload", status: 201 },
       [OPEN]: { example: "import_analysing", status: 202 },
     });
-    expect(await openFileImport(PROJECT, "estimate", formWith())).toEqual({
+    expect(await openFileImport(PROJECT, { kind: "estimate" }, formWith())).toEqual({
       kind: "done",
       data: example("import_analysing"),
     });
@@ -62,12 +62,14 @@ describe("the server actions of the exchanges", () => {
   it("open nothing when the deposit is refused, and send no form without a file", async () => {
     const tooLarge = { code: "FILE_TOO_LARGE", status: 413 } as const;
     const client = serve({ [UPLOAD]: { problem: tooLarge } });
-    expect(await openFileImport(PROJECT, "actual_costs", formWith())).toMatchObject({
+    expect(await openFileImport(PROJECT, { kind: "actual_costs" }, formWith())).toMatchObject({
       kind: "refused",
       problem: tooLarge,
     });
     expect(client.calls.map((call) => call.route)).toEqual([UPLOAD]);
-    await expect(openFileImport(PROJECT, "estimate", new FormData())).rejects.toThrow(TypeError);
+    await expect(openFileImport(PROJECT, { kind: "estimate" }, new FormData())).rejects.toThrow(
+      TypeError,
+    );
     expect(client.calls).toHaveLength(1);
   });
 

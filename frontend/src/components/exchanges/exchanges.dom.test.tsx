@@ -31,7 +31,7 @@ const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
-  usePathname: () => `/projects/${PROJECT}/exchanges`,
+  usePathname: () => `/projects/${PROJECT}/revisions/${REVISION}/exchanges`,
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -40,7 +40,7 @@ type Import = components["schemas"]["Import"];
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IMPORT = "01926f3a-7c00-7000-8000-000000000a11";
-const START = `/projects/${PROJECT}/exchanges?revision_id=${REVISION}`;
+const START = `/projects/${PROJECT}/revisions/${REVISION}/exchanges?as_of=2026-05-31`;
 const UPLOAD = "POST /file-uploads";
 const OPEN = "POST /projects/{project_id}/imports";
 const APPLY = "POST /projects/{project_id}/imports/{import_id}/apply";
@@ -60,16 +60,21 @@ function routes(client: FakeClient): string[] {
   return client.calls.map((call) => call.route);
 }
 
-/** Render a part of the screen within the shell that follows the tasks, in a language. */
-function open(part: ReactNode, locale: "fr" | "en" = "fr") {
-  return render(
+/** A part of the screen within the shell that follows the tasks, in a language. */
+function shell(part: ReactNode, locale: "fr" | "en" = "fr") {
+  return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
       <TaskTracker>
         <TaskPanel />
         <main>{part}</main>
       </TaskTracker>
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+/** Render a part of the screen within the shell, in a language. */
+function open(part: ReactNode, locale: "fr" | "en" = "fr") {
+  return render(shell(part, locale));
 }
 
 /** The commands of import the witness project and its current revision offer. */
@@ -206,6 +211,50 @@ describe("the first step of an import", () => {
     ).toBeVisible();
   });
 
+  it("refuses at once a file larger than an import takes, and sends nothing", async () => {
+    const client = serve({});
+    open(importCommands());
+    await userEvent.click(screen.getByRole("button", { name: "Importer un planning MS Project" }));
+    const form = screen.getByRole("form", { name: "Importer un planning MS Project" });
+    const field = within(form).getByLabelText("Fichier à importer");
+    const large = new File(["x"], "planning.xml");
+    Object.defineProperty(large, "size", { value: 10 * 1024 * 1024 + 1 });
+    await userEvent.upload(field, large);
+    await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "Le fichier dépasse 10 Mio, la plus grande taille qu’un import admet.",
+    );
+    expect(field).toHaveFocus();
+    expect(client.calls).toEqual([]);
+  });
+
+  it("sends the period an extraction of actual costs declares, and none it leaves out", async () => {
+    const client = serve({
+      [UPLOAD]: { example: "file_upload", status: 201 },
+      [OPEN]: { example: "import_analysing", status: 202 },
+      [TASK]: "task_running",
+    });
+    open(importCommands());
+    await userEvent.click(screen.getByRole("button", { name: "Importer des coûts réels" }));
+    const form = screen.getByRole("form", { name: "Importer des coûts réels" });
+    const period = within(form).getByRole("group", { name: "Période extraite" });
+    await userEvent.type(within(period).getByLabelText("Du"), "2026-05-01");
+    await userEvent.upload(
+      within(form).getByLabelText("Fichier à importer"),
+      new File(["x"], "couts-reels-2026-05.xlsx"),
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
+    await waitFor(() => {
+      expect(routes(client).slice(0, 2)).toEqual([UPLOAD, OPEN]);
+    });
+    expect(client.calls[1]?.body).toEqual({
+      kind: "actual_costs",
+      period_from: "2026-05-01",
+      period_to: null,
+      upload_id: "01926f3a-7c00-7000-8000-000000000a01",
+    });
+  });
+
   it("tells a deposit refused under the form, and opens no import", async () => {
     const client = serve({ [UPLOAD]: { problem: { code: "FILE_TOO_LARGE", status: 413 } } });
     open(importCommands());
@@ -238,7 +287,7 @@ describe("the report of an import", () => {
       within(rejected)
         .getAllByRole("row")
         .map((row) => row.textContent),
-    ).toEqual(["LigneMotif", "7Tâche inconnue.", "12Rôle de ressource inconnu."]);
+    ).toEqual(["LigneMotif", "3Tâche inconnue.", "5Rôle de ressource inconnu."]);
 
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
@@ -321,6 +370,43 @@ describe("the report of an import", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
+  it("closes the confirmation when the screen shows another import, which no longer awaits it", async () => {
+    serve({});
+    const { items } = example("imports") as { items: Import[] };
+    const applied = items.find((entry) => entry.status === "applied");
+    if (applied === undefined) {
+      throw new Error("the example of the imports holds one applied");
+    }
+    const { rerender } = open(report(example("import_analysed") as Import));
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
+    expect(screen.getByRole("form", { name: "Confirmation de l’application" })).toBeVisible();
+    rerender(shell(report(applied)));
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Appliquer l’import" })).toBeNull();
+  });
+
+  it("tells the refusal of an abandonment under the import it was asked for, not the next one", async () => {
+    let answer!: () => void;
+    const held = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    server.client = fakeClient(
+      { [ABANDON]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
+      { hold: () => held },
+    );
+    const { rerender } = open(report(example("import_analysed") as Import));
+    await userEvent.click(screen.getByRole("button", { name: "Abandonner l’import" }));
+    rerender(shell(report(example("import_planning_mismatch") as Import)));
+    answer();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Abandonner l’import" })).toHaveAttribute(
+        "aria-busy",
+        "false",
+      );
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("offers neither application nor abandonment of an import that no longer awaits a decision", () => {
     serve({});
     const { items } = example("imports") as { items: Import[] };
@@ -365,6 +451,22 @@ describe("the request of an export", () => {
     });
     expect(download).toHaveAttribute("href", "/tasks/01926f3a-7c00-7000-8000-000000000905/result");
     expect(download).toHaveAttribute("download");
+  });
+
+  it("asks the image of the tree of tasks at the level given", async () => {
+    const client = serve({ [EXPORT]: { example: "task_export_queued", status: 202 } });
+    open(<ExportForm projectId={PROJECT} revisionId={REVISION} />);
+    const form = screen.getByRole("form", { name: "Demander un export" });
+    await userEvent.selectOptions(
+      within(form).getByLabelText("Fichier à exporter"),
+      "Image de l’arborescence de tâches",
+    );
+    await userEvent.type(within(form).getByLabelText("Niveau de l’arborescence"), "2");
+    await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
+    await settled(form);
+    expect(client.calls.map((call) => call.body)).toEqual([
+      { kind: "task_tree_image", revision_id: REVISION, depth: 2 },
+    ]);
   });
 
   it("asks without a revision when the screen reads in none, and tells a refusal", async () => {

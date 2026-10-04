@@ -82,15 +82,20 @@ describe("the breadcrumb", () => {
     ]);
   });
 
-  it("sits the exchanges of a project, which are no function, in the project, whose page keeps the context", () => {
-    expect(steps(`/projects/${PROJECT}/exchanges?revision_id=${REVISION}&import=i`)).toEqual([
+  it("sits the imports and exports after the planning, whose leaf they are", () => {
+    expect(steps(`/projects/${PROJECT}/revisions/${REVISION}/exchanges?import=i`)).toEqual([
       { kind: "label", label: "functionGroups.projects", href: "/" },
       {
         kind: "project",
         projectId: PROJECT,
         href: `/projects/${PROJECT}?revision_id=${REVISION}`,
       },
-      { kind: "label", label: "exchanges.title" },
+      {
+        kind: "label",
+        label: "functions.planning",
+        href: `/projects/${PROJECT}/revisions/${REVISION}/planning`,
+      },
+      { kind: "label", label: "functions.exchanges" },
     ]);
   });
 

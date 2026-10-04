@@ -31,15 +31,20 @@ export type ExchangeKind = components["schemas"]["ExchangeKind"];
 /** What an export asks for. */
 export type ExportRequest = components["schemas"]["ExportRequest"];
 
+/** What an import asks besides its file: its kind, and the period an extraction covers. */
+export type ImportAsked = Pick<ImportRequest, "kind" | "period_from" | "period_to">;
+
+type ImportRequest = components["schemas"]["ImportRequest"];
+
 /**
- * Deposit the file of a form, then open its import as the kind chosen: the analysis is queued,
- * and the import comes back at once with the task that analyses it. A refusal of the deposit —
- * a file too large — stops there. A form without a file is no request of this front — its field
+ * Deposit the file of a form, then open its import as asked: the analysis is queued, and the
+ * import comes back at once with the task that analyses it. A refusal of the deposit — a file
+ * too large — stops there. A form without a file is no request of this front — its field
  * requires one —, and is not sent.
  */
 export async function openFileImport(
   projectId: string,
-  kind: ExchangeKind,
+  asked: ImportAsked,
   form: FormData,
 ): Promise<Outcome<Import>> {
   const file = form.get("file");
@@ -60,7 +65,7 @@ export async function openFileImport(
   return decode(() =>
     serverClient().POST("/projects/{project_id}/imports", {
       params: { path: { project_id: projectId } },
-      body: { kind, upload_id: deposited.data.upload_id },
+      body: { ...asked, upload_id: deposited.data.upload_id },
     }),
   );
 }

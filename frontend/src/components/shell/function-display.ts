@@ -14,6 +14,7 @@
  */
 import {
   Activity,
+  ArrowLeftRight,
   BookOpen,
   Briefcase,
   BriefcaseBusiness,
@@ -81,8 +82,12 @@ export const FUNCTION_ICONS: Readonly<Record<FunctionPermission, LucideIcon>> = 
   lifecycle: RefreshCcw,
 };
 
-/** The icon of each leaf with a screen of its own, by its code: the workload of the project. */
+/**
+ * The icon of each leaf with a screen of its own, by its code: the imports and exports of the
+ * planning, the workload of the project.
+ */
 export const LEAF_ICONS = {
+  "FBS-4.3.4": ArrowLeftRight,
   "FBS-4.4.4": ChartColumnStacked,
 } as const satisfies Readonly<Record<string, LucideIcon>>;
 

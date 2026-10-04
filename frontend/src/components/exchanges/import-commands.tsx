@@ -6,8 +6,10 @@
  * deposited and its analysis opened by a server action, which gives the import back at once: the
  * task that analyses it goes to the tracker of the shell (WF-ARC-0090), and the screen shows the
  * report of the import — its analysis under way, until the tracker offers to read the screen anew.
- * Nothing is judged of the file here: its format and its version are the analysis' to check
- * (WF-INTF-0070), and a refusal is told under the form (`OutcomeNotice`).
+ * Nothing is judged of the content of the file here: its format and its version are the
+ * analysis' to check (WF-INTF-0070), and a refusal is told under the form (`OutcomeNotice`); its
+ * size only, past the largest an import takes (§4.6.2), is refused at once. An extraction of
+ * actual costs declares the period it covers, if the user gives it.
  */
 "use client";
 
@@ -32,7 +34,17 @@ import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
-import { EXCHANGE_KINDS, importHref, type ImportOffers, shownScreen } from "./offers";
+import {
+  EXCHANGE_KINDS,
+  IMPORT_MAX_BYTES,
+  importHref,
+  type ImportOffers,
+  MEBIBYTE,
+  shownScreen,
+} from "./offers";
+
+/** The field of a date. */
+const DATE = "h-8 rounded-md border border-input bg-background px-2 text-foreground";
 
 /** The icon of the import of each kind: that of the command which modifies the same content. */
 const KIND_ICONS: Readonly<Record<ExchangeKind, LucideIcon>> = {
@@ -57,6 +69,54 @@ interface FileFormProps extends Omit<ImportCommandsProps, "offers"> {
   readonly onClose: () => void;
 }
 
+/** The extraction of actual costs declares the period it covers (WF-INTF-0140, WF-CRE-0050). */
+function PeriodFields({
+  from,
+  to,
+  onFrom,
+  onTo,
+}: {
+  readonly from: string;
+  readonly to: string;
+  readonly onFrom: (value: string) => void;
+  readonly onTo: (value: string) => void;
+}) {
+  const t = useTranslations("exchanges.import");
+  return (
+    <fieldset className="flex flex-wrap gap-3">
+      <legend className="mb-1 text-sm font-medium">{t("period")}</legend>
+      <label className="flex items-center gap-2 text-sm">
+        {t("periodFrom")}
+        <input
+          type="date"
+          value={from}
+          onChange={(event) => {
+            onFrom(event.target.value);
+          }}
+          className={DATE}
+        />
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        {t("periodTo")}
+        <input
+          type="date"
+          value={to}
+          onChange={(event) => {
+            onTo(event.target.value);
+          }}
+          className={DATE}
+        />
+      </label>
+    </fieldset>
+  );
+}
+
+/** What the form says of the file chosen: none, or one past the largest size an import takes. */
+type FileProblem = "missing" | "tooLarge";
+
+/** The API out of reach: the server action itself did not answer. */
+const UNREACHABLE: Outcome<never> = { kind: "unreachable" };
+
 /** Ask the file to import, deposit it, open its analysis, and show the report of the import. */
 function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   const t = useTranslations("exchanges.import");
@@ -64,30 +124,37 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   const router = useRouter();
   const field = useId();
   const input = useRef<HTMLInputElement>(null);
-  const [missing, setMissing] = useState(false);
+  const [problem, setProblem] = useState<FileProblem>();
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
   useEffect(() => {
     input.current?.focus();
   }, []);
 
-  // The form is checked here, not by the browser: the missing file is said in the page, in the
-  // language of the interface, and the field keeps the focus.
+  // The form is checked here, not by the browser: a file missing, or larger than an import
+  // takes — which the server of Next would refuse before the API is asked —, is said in the page,
+  // in the language of the interface, and the field keeps the focus.
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (pending) {
       return;
     }
     const file = input.current?.files?.[0];
-    if (file === undefined) {
-      setMissing(true);
+    if (file === undefined || file.size > IMPORT_MAX_BYTES) {
+      setProblem(file === undefined ? "missing" : "tooLarge");
       input.current?.focus();
       return;
     }
     const form = new FormData();
     form.set("file", file);
+    const asked =
+      kind === "actual_costs"
+        ? { kind, period_from: from === "" ? null : from, period_to: to === "" ? null : to }
+        : { kind };
     startTransition(async () => {
-      const result = await openFileImport(projectId, kind, form);
+      const result = await openFileImport(projectId, asked, form).catch(() => UNREACHABLE);
       if (result.kind !== "done") {
         setOutcome(result);
         return;
@@ -121,17 +188,22 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
         ref={input}
         type="file"
         required
-        aria-invalid={missing ? true : undefined}
-        aria-describedby={missing ? `${field}-missing` : undefined}
+        aria-invalid={problem === undefined ? undefined : true}
+        aria-describedby={problem === undefined ? undefined : `${field}-problem`}
         onChange={() => {
-          setMissing(false);
+          setProblem(undefined);
         }}
         className="block w-full max-w-sm text-sm"
       />
-      {missing ? (
-        <p id={`${field}-missing`} role="alert" className="text-sm text-destructive">
-          {t("fileRequired")}
+      {problem === undefined ? null : (
+        <p id={`${field}-problem`} role="alert" className="text-sm text-destructive">
+          {problem === "missing"
+            ? t("fileRequired")
+            : t("fileTooLarge", { max: IMPORT_MAX_BYTES / MEBIBYTE })}
         </p>
+      )}
+      {kind === "actual_costs" ? (
+        <PeriodFields from={from} to={to} onFrom={setFrom} onTo={setTo} />
       ) : null}
       <div className="flex gap-2">
         <Button type="submit" size="sm">

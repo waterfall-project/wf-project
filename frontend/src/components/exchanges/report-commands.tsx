@@ -154,7 +154,7 @@ export function ReportCommands({
           action={abandon}
         />
       </div>
-      {open ? (
+      {open && steps.apply && offer?.is_available === true ? (
         <ConfirmForm
           id={form}
           projectId={projectId}

@@ -160,7 +160,9 @@ export function ImportReport({ projectId, entry, offer, start }: ImportReportPro
       ) : (
         <Findings report={entry.report} />
       )}
+      {/* Its own commands for each import: an outcome, a confirmation open, stay with theirs. */}
       <ReportCommands
+        key={entry.import_id}
         projectId={projectId}
         importId={entry.import_id}
         filename={entry.filename}

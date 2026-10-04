@@ -12,13 +12,15 @@ const config: NextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
-      // An avatar goes from the browser to the server of Next by a server action, whose body Next
-      // bounds to 1 MB by default: past it, the action fails before the API is asked, and the
-      // screen of failure shows instead of the refusal of the API (#221). The bound is a setting
-      // of the installation (`Installation.avatar_max_bytes`, §4.4.1), which the contract does
-      // not bound yet (#233): ten megabytes, the form around the image included, hold only as
-      // long as it does not, and follow the maximum the contract will declare.
-      bodySizeLimit: "10mb",
+      // An avatar and the file of an import go from the browser to the server of Next by a server
+      // action, whose body Next bounds to 1 MB by default: past it, the action fails before the
+      // API is asked, and the screen of failure shows instead of the refusal of the API (#221).
+      // Neither size is bounded by the contract yet (#233 for the avatar, #324 for a file
+      // deposited). The largest import of the volumes of §4.6.2 is an MS Project file of ten
+      // megabytes, which the screen of the imports refuses past 10 MiB (`IMPORT_MAX_BYTES`):
+      // twelve megabytes hold such a file and the multipart form around it, and follow the
+      // maximum the contract will declare.
+      bodySizeLimit: "12mb",
     },
   },
 };

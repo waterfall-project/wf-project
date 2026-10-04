@@ -27,7 +27,7 @@ vi.mock("@/api/server", () => ({
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
-  usePathname: () => `/projects/${PROJECT}/exchanges`,
+  usePathname: () => PATHNAME,
   useSearchParams: () => new URLSearchParams(),
 }));
 // The tracker of the shell, which a screen hands its tasks over to, is above the page.
@@ -38,6 +38,8 @@ vi.mock("next/headers", () => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+const MARKED = "01926f3a-7c00-7000-8000-000000000101";
+const PATHNAME = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
 const IMPORT = "01926f3a-7c00-7000-8000-000000000a11";
 const GET_IMPORT = "GET /projects/{project_id}/imports/{import_id}";
 const GET_REVISION = "GET /projects/{project_id}/revisions/{revision_id}";
@@ -58,10 +60,19 @@ function buttons(markup: string): string[] {
   return [...markup.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((match) => text(match[1] ?? ""));
 }
 
-/** Render the screen of the exchanges in a language, at the query given. */
-async function exchangesAt(search: PageSearchParams = {}, locale: Locale = "en") {
+/** The addresses the links of a page lead to. */
+function links(markup: string): string[] {
+  return [...markup.matchAll(/<a [^>]*href="([^"]*)"/g)].map((match) => match[1] ?? "");
+}
+
+/** Render the screen of the imports and exports in a language, at the query given. */
+async function exchangesAt(
+  search: PageSearchParams = {},
+  locale: Locale = "en",
+  revisionId = REVISION,
+) {
   const page = await ExchangesPage({
-    params: Promise.resolve({ projectId: PROJECT }),
+    params: Promise.resolve({ projectId: PROJECT, revisionId }),
     searchParams: Promise.resolve(search),
   });
   return renderToStaticMarkup(
@@ -71,7 +82,7 @@ async function exchangesAt(search: PageSearchParams = {}, locale: Locale = "en")
   );
 }
 
-/** The calls the page made, by route and path. */
+/** The calls the page made to a route, by path and query. */
 function calls(route: string): string[] {
   return server.clients
     .flatMap((client) => client.calls)
@@ -92,13 +103,14 @@ beforeEach(() => {
   };
 });
 
-describe("the screen of the exchanges", () => {
-  it("titles the tab with the exchanges and the project", async () => {
+describe("the screen of the imports and exports", () => {
+  it("titles the tab with the leaf and the project", async () => {
     const metadata = await generateMetadata({
-      params: Promise.resolve({ projectId: PROJECT }),
-      searchParams: Promise.resolve({}),
+      params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
     });
-    expect(metadata.title).toBe("File exchanges · Modernisation du poste de commande — Waterfall");
+    expect(metadata.title).toBe(
+      "Imports and exports · Modernisation du poste de commande — Waterfall",
+    );
   });
 
   it("starts with the imports the server offers, the imports of the project and the export, and reads no report", async () => {
@@ -112,27 +124,34 @@ describe("the screen of the exchanges", () => {
       "Request the export",
     ]);
     expect(calls(GET_IMPORT)).toEqual([]);
-    // The current revision says which imports into it are offered.
+    // The revision read is the current one: it says which imports into it are offered, read once.
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}?`]);
     expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=20`]);
     expect(text(page)).toContain(
       "Imports of the project File Kind Status Opened on devis-poste-de-commande.xlsx Estimate Analysed",
     );
-    expect(page).toContain(`href="/projects/${PROJECT}/exchanges?import=${IMPORT}"`);
+    expect(links(page)).toContain(`${PATHNAME}?import=${IMPORT}`);
     expect(text(page)).toContain("planning-poste-de-commande.xml MS Project schedule Abandoned");
   });
 
+  it("reads the current revision, which an import writes into, when the screen reads another", async () => {
+    server.answers = { ...server.answers, [GET_REVISION]: "revision_marked" };
+    await exchangesAt({}, "en", MARKED);
+    expect(calls(GET_REVISION)).toEqual([
+      `/projects/${PROJECT}/revisions/${MARKED}?`,
+      `/projects/${PROJECT}/revisions/${REVISION}?`,
+    ]);
+  });
+
   it("shows the report of the import the address names, its context kept, the import marked in the list", async () => {
-    const page = await exchangesAt({ revision_id: REVISION, import: IMPORT });
+    const page = await exchangesAt({ import: IMPORT, as_of: "2026-05-31" });
     expect(calls(GET_IMPORT)).toEqual([`/projects/${PROJECT}/imports/${IMPORT}?`]);
-    // The revision the screen reads in is the current one: it is not read twice.
-    expect(calls(GET_REVISION)).toHaveLength(1);
     expect(page).toContain(
       '<section aria-label="Report of the import “devis-poste-de-commande.xlsx”"',
     );
-    expect(text(page)).toContain("24 lines read.");
+    expect(text(page)).toContain("5 lines read.");
     expect(text(page)).toContain(
-      "2 lines rejected Line Reason 7 Unknown task. 12 Unknown resource role.",
+      "2 lines rejected Line Reason 3 Unknown task. 5 Unknown resource role.",
     );
     expect(text(page)).toContain(
       "3 differences with the existing data Change Object Label Added Estimate line Essais de continuité Updated Estimate line Raccordement des borniers Removed Estimate line Borniers",
@@ -140,18 +159,24 @@ describe("the screen of the exchanges", () => {
     expect(buttons(page).slice(0, 2)).toEqual(["Apply the import", "Abandon the import"]);
     const current = [...page.matchAll(/<a aria-current="page"[^>]*href="([^"]*)"/g)];
     expect(current.map((match) => match[1])).toEqual([
-      `/projects/${PROJECT}/exchanges?revision_id=${REVISION}&amp;import=${IMPORT}`,
+      `${PATHNAME}?as_of=2026-05-31&amp;import=${IMPORT}`,
     ]);
+  });
+
+  it("asks nothing of an import the address names by what no identifier can be", async () => {
+    const page = await exchangesAt({ import: ".." });
+    expect(calls(GET_IMPORT)).toEqual([]);
+    expect(page).not.toContain("Report of the import");
   });
 
   it("renders the report from its codes in the language of its reader, whoever made the import [WF-ARC-0110-A]", async () => {
     const french = text(await exchangesAt({ import: IMPORT }, "fr"));
     const english = text(await exchangesAt({ import: IMPORT }, "en"));
     expect(french).toContain(
-      "2 lignes rejetées Ligne Motif 7 Tâche inconnue. 12 Rôle de ressource inconnu.",
+      "2 lignes rejetées Ligne Motif 3 Tâche inconnue. 5 Rôle de ressource inconnu.",
     );
     expect(english).toContain(
-      "2 lines rejected Line Reason 7 Unknown task. 12 Unknown resource role.",
+      "2 lines rejected Line Reason 3 Unknown task. 5 Unknown resource role.",
     );
   });
 
@@ -177,6 +202,19 @@ describe("the screen of the exchanges", () => {
     expect(buttons(page).slice(0, 1)).toEqual(["Abandon the import"]);
   });
 
+  it("asks the page of the imports the address names, and leads to the pages around it", async () => {
+    server.answers = { ...server.answers, [IMPORTS]: { example: "imports_page", status: 200 } };
+    const page = await exchangesAt({ offset: "2", import: IMPORT });
+    expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=20&offset=2`]);
+    expect(page).toContain('aria-label="Pages of the imports of the project"');
+    // The pages turn from the address the browser shows, here without a query.
+    expect(links(page)).toEqual(expect.arrayContaining([PATHNAME, `${PATHNAME}?offset=4`]));
+    // The imports of the page lead to their report, on the same page of the list.
+    expect(links(page)).toContain(
+      `${PATHNAME}?offset=2&amp;import=01926f3a-7c00-7000-8000-000000000a09`,
+    );
+  });
+
   it("offers no import into a revision to a project without a current revision, and reads none", async () => {
     server.answers = {
       ...server.answers,
@@ -185,7 +223,7 @@ describe("the screen of the exchanges", () => {
     };
     const page = await exchangesAt();
     expect(buttons(page)).toEqual(["Import actual costs", "Request the export"]);
-    expect(calls(GET_REVISION)).toEqual([]);
+    expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}?`]);
     expect(text(page)).toContain("No import has been opened on this project yet.");
   });
 

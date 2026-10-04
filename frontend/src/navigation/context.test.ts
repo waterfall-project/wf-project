@@ -50,15 +50,6 @@ describe("the reading context", () => {
     expect(context && contextAddress(pathname, context)).toBe(`${pathname}?as_of=2026-05-31`);
   });
 
-  it("reads the exchanges of a project as a screen of the project itself", () => {
-    const exchanges = `/projects/${PROJECT}/exchanges`;
-    const context = readContext(exchanges, new URLSearchParams({ revision_id: REVISION }));
-    expect(context?.revisionId).toBe(REVISION);
-    expect(context?.revisionInPath).toBe(false);
-    const under = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
-    expect(readContext(under, new URLSearchParams())).toBeUndefined();
-  });
-
   it("reads a project without a revision, and without filters", () => {
     const context = readContext(`/projects/${PROJECT}`, new URLSearchParams("subproject_id="));
     expect(context).toEqual({
@@ -79,6 +70,7 @@ describe("the reading context", () => {
     `/projects/${PROJECT}/unknown`,
     `/projects/${PROJECT}/planning`,
     `/projects/${PROJECT}/workload`,
+    `/projects/${PROJECT}/exchanges`,
     `/projects/${PROJECT}/revisions/${REVISION}/lifecycle`,
     `/projects/${PROJECT}/revisions/${REVISION}/risks/more`,
     "/projects/../admin",

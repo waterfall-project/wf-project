@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The request of an export (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120): the kind of
- * file chosen, in the revision the screen reads in — or, without one, the revision the server
- * takes —, asked by a server action. The API gives the hand back at once with a background task
+ * file chosen — and, for the image of the tree of tasks, the level it stops at, if the user gives
+ * one —, in the revision the screen reads in — or, without one, the revision the server takes —,
+ * asked by a server action. The API gives the hand back at once with a background task
  * (WF-ARC-0090), handed to the tracker of the shell with the request itself, which runs it again
  * if it fails; its result, a file made on demand and not kept (WF-DAT-0120), is downloaded from
  * the tracker once the task has succeeded. A refusal is told under the form (`OutcomeNotice`).
@@ -49,6 +50,7 @@ export function ExportForm({
   const track = useTrackTask();
   const field = useId();
   const [kind, setKind] = useState<ExportKind>("ms_project_schedule");
+  const [depth, setDepth] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -56,7 +58,13 @@ export function ExportForm({
     if (pending) {
       return;
     }
-    const request: ExportRequest = { kind, revision_id: revisionId ?? null };
+    // The level of the image of the tree, when the user gives one; the server's otherwise.
+    const level = kind === "task_tree_image" && /^[1-9]\d{0,2}$/.test(depth) ? Number(depth) : null;
+    const request: ExportRequest = {
+      kind,
+      revision_id: revisionId ?? null,
+      ...(kind === "task_tree_image" ? { depth: level } : {}),
+    };
     const command = () => requestFileExport(projectId, request);
     startTransition(async () => {
       const result = await command();
@@ -96,6 +104,22 @@ export function ExportForm({
             ))}
           </NativeSelect>
         </div>
+        {kind === "task_tree_image" ? (
+          <label className="flex items-center gap-2 text-sm">
+            {t("exchanges.export.depth")}
+            <input
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              value={depth}
+              onChange={(event) => {
+                setDepth(event.target.value);
+              }}
+              className="h-8 w-20 rounded-md border border-input bg-background px-2 text-foreground"
+            />
+          </label>
+        ) : null}
         <Button type="submit" size="sm" variant="outline">
           <FileDown aria-hidden="true" />
           {t("exchanges.export.request")}

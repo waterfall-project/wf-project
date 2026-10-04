@@ -292,6 +292,12 @@
         "beyond": "La page demandée est au-delà de la fin du journal.",
         "previous": "Imports plus récents",
         "next": "Imports plus anciens"
+      },
+      "exchanges": {
+        "label": "Pages des imports du projet",
+        "beyond": "La page demandée est au-delà de la fin de la liste.",
+        "previous": "Imports précédents",
+        "next": "Imports suivants"
       }
     },
     "imports": {
@@ -310,7 +316,6 @@
     }
   },
   "exchanges": {
-    "title": "Échanges de fichiers",
     "subtitle": "Importer un fichier en deux temps — l’analyse, puis l’application confirmée — ou demander un export.",
     "import": {
       "title": "Importer un fichier",
@@ -324,7 +329,11 @@
       "file": "Fichier à importer",
       "fileRequired": "Choisissez le fichier à importer.",
       "analyse": "Analyser le fichier",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "period": "Période extraite",
+      "periodFrom": "Du",
+      "periodTo": "Au",
+      "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
     },
     "report": {
       "title": "Compte rendu de l’import « {file} »",
@@ -350,7 +359,7 @@
       "apply": "Appliquer l’import",
       "abandon": "Abandonner l’import",
       "confirmTitle": "Confirmation de l’application",
-      "confirmQuestion": "Appliquer au projet l’import « {file} », en une seule opération ?",
+      "confirmQuestion": "Appliquer au projet l’import « {file} », en une seule opération ?",
       "confirm": "Confirmer l’application",
       "cancel": "Annuler"
     },
@@ -360,13 +369,13 @@
       "file": "Fichier",
       "kind": "Nature",
       "status": "État",
-      "openedAt": "Ouvert le",
-      "partial": "{shown, plural, one {# import affiché} other {# imports affichés}} sur {total}."
+      "openedAt": "Ouvert le"
     },
     "export": {
       "title": "Demander un export",
       "kind": "Fichier à exporter",
-      "request": "Demander l’export"
+      "request": "Demander l’export",
+      "depth": "Niveau de l’arborescence"
     }
   },
   "computedValue": {
@@ -864,6 +873,7 @@
     "revisions": "Gestion des révisions",
     "projectSettings": "Paramètres de projets",
     "planning": "Planification",
+    "exchanges": "Imports et exports",
     "estimate": "Chiffrage et devis",
     "workload": "Plan de charge",
     "remaining": "Estimation du reste à engager",

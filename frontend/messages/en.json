@@ -292,6 +292,12 @@
         "beyond": "The page asked is beyond the end of the journal.",
         "previous": "More recent imports",
         "next": "Older imports"
+      },
+      "exchanges": {
+        "label": "Pages of the imports of the project",
+        "beyond": "The page asked is beyond the end of the list.",
+        "previous": "Previous imports",
+        "next": "Next imports"
       }
     },
     "imports": {
@@ -310,7 +316,6 @@
     }
   },
   "exchanges": {
-    "title": "File exchanges",
     "subtitle": "Import a file in two steps — the analysis, then the confirmed application — or request an export.",
     "import": {
       "title": "Import a file",
@@ -324,7 +329,11 @@
       "file": "File to import",
       "fileRequired": "Choose the file to import.",
       "analyse": "Analyse the file",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "period": "Period extracted",
+      "periodFrom": "From",
+      "periodTo": "To",
+      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
     },
     "report": {
       "title": "Report of the import “{file}”",
@@ -360,13 +369,13 @@
       "file": "File",
       "kind": "Kind",
       "status": "Status",
-      "openedAt": "Opened on",
-      "partial": "{shown, plural, one {# import shown} other {# imports shown}} out of {total}."
+      "openedAt": "Opened on"
     },
     "export": {
       "title": "Request an export",
       "kind": "File to export",
-      "request": "Request the export"
+      "request": "Request the export",
+      "depth": "Level of the tree"
     }
   },
   "computedValue": {
@@ -864,6 +873,7 @@
     "revisions": "Revision management",
     "projectSettings": "Project settings",
     "planning": "Planning",
+    "exchanges": "Imports and exports",
     "estimate": "Costing and estimate",
     "workload": "Workload",
     "remaining": "Estimate to complete",
