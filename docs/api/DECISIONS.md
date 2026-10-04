@@ -671,7 +671,11 @@ rôle —, puis leur seconde page lue deux par deux) ; `permissions` (le catalog
 de tout le catalogue, que porte la session) ; `system_status` et `system_status_backup_failed`
 (l'installation saine, puis la même au stockage des fichiers indisponible, la sauvegarde planifiée
 échouée et signalée) ; `backups` et `backups_empty` (les sept sauvegardes de la rétention et une
-manuelle marquée à conserver ; aucune) ; `backup_schedule` et `backup_schedule_weekly`.
+manuelle marquée à conserver ; aucune ; une page demandée au-delà de leur fin, `backups_beyond`) ;
+`backup_schedule`, `backup_schedule_weekly` et `backup_schedule_disabled` (suspendue). Les sessions
+d'un chiffreur et sans administration, qui n'ont pas tout le catalogue, portent chacune un rôle
+propre (`Chiffreur`, `Pilotage de projet`), que `access_roles` ne liste pas : ce sont d'autres
+installations que celle de l'exemple.
 
 ## Collage et annulation
 

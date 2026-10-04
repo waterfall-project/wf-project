@@ -1,0 +1,11 @@
+{
+  "summary": "Une planification suspendue : aucune sauvegarde n'est prise d'elle-même, et la rétention de sept reste réglée (WF-ADM-0170).",
+  "value": {
+    "is_enabled": false,
+    "frequency": "daily",
+    "at_time": "01:00",
+    "weekday": null,
+    "retained_count": 7,
+    "lock_version": 3
+  }
+}

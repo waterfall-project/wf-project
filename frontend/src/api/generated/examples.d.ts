@@ -12,10 +12,10 @@ export interface Examples {
     200: "access_roles";
   };
   "GET /backup-schedule": {
-    200: "backup_schedule" | "backup_schedule_weekly";
+    200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
   };
   "GET /backups": {
-    200: "backups" | "backups_empty";
+    200: "backups" | "backups_beyond" | "backups_empty";
   };
   "GET /installation": {
     200: "installation" | "installation_english";
