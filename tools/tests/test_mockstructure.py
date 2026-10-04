@@ -176,7 +176,7 @@ def test_a_summary_spans_its_subordinates(items: list[Node]) -> None:
         assert task["start"] == min((child["start"] for child in below), key=_instant)
         assert task["finish"] == max((child["finish"] for child in below), key=_instant)
         assert "task.duration" in node["computed_fields"]
-        assert "total_float_days" not in task
+        assert "total_float" not in task
 
 
 def _instant(instant: dict[str, str]) -> tuple[str, Decimal]:
@@ -186,8 +186,9 @@ def _instant(instant: dict[str, str]) -> tuple[str, Decimal]:
 def test_the_critical_path_runs_to_the_last_finish(items: list[Node]) -> None:
     work = [node["task"] for node in tasks(items) if not node["task"]["is_summary"]]
     last = max(task["finish"]["date"] for task in work)
-    assert all(task["total_float_days"] >= 0 for task in work)
-    assert all(task["is_critical"] == (task["total_float_days"] == 0) for task in work)
+    floats = [task["total_float"] for task in work]
+    assert all(total["unit"] == "d" and Decimal(total["value"]) >= 0 for total in floats)
+    assert all(task["is_critical"] == (Decimal(task["total_float"]["value"]) == 0) for task in work)
     assert all(task["is_critical"] for task in work if task["finish"]["date"] == last)
     assert 0 < sum(task["is_critical"] for task in work) < len(work)
 

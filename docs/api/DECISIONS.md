@@ -48,7 +48,7 @@ qui se saisit. Même chose pour la ligne de devis, dont les deux montants sont e
 seule. C'est la traduction de WF-IHM-0030 dans le contrat : le front ne peut pas envoyer
 une valeur calculée, il n'a pas de champ pour le faire.
 
-**Pas d'endpoint de chemin critique.** `is_critical` et `total_float_days` sont des
+**Pas d'endpoint de chemin critique.** `is_critical` et `total_float` sont des
 attributs calculés de la tâche. Un endpoint séparé aurait imposé une seconde lecture pour
 afficher une grille.
 
@@ -482,6 +482,40 @@ corps binaire, qui aurait figé la borne dans le contrat.
 **Mineur** : `setDurationUnits` renvoie `responses.yaml#/UnprocessableEntity`, comme
 `createCalendar`, au lieu d'une 422 écrite en ligne ; ce que `fields` nomme est dit par
 `DurationUnitsWrite`.
+
+## Les tâches qu'une écriture redate (EP-02/L10)
+
+**L'enveloppe porte les tâches redatées, en projection légère** (`NodesWritten.rescheduled`,
+`NodeSchedule`, #222, décision de l'utilisateur du 2026-10-04). Une liaison écrite, ou la durée
+d'une tâche en mode automatique, redate ses successeurs (WF-PLA-0020) et peut déplacer le chemin
+critique (WF-PLA-0100) : des tâches qui ne sont ni écrites ni ancêtres, et que la grille de
+planning aurait montrées à leurs dates d'avant jusqu'à une relecture — le cas que #188 corrigeait
+pour les montants. `rescheduled` rend les tâches non récapitulatives, chacune une fois, dans
+l'ordre du plan, vide quand rien d'autre n'a bougé ; `ancestors` devient les ancêtres des nœuds
+écrits et des tâches redatées, recalculés, chacun une fois, entier — deux phases en chaîne :
+allonger une tâche de la première repousse la récapitulative de la seconde, qui n'est ni écrite
+ni ancêtre d'un nœud écrit, et dont la durée n'est pas dans la projection ; il est exigé sur toute écriture, pour que la grille n'ait pas à
+distinguer une enveloppe qui n'en parle pas d'une enveloppe où rien n'a bougé. Chacune est un
+`NodeSchedule` — le nœud, son début, sa fin, sa marge totale, nulle en mode manuel, sa
+criticité et sa fin dépassée —, pas un `Node` : une chaîne de mille tâches reste légère, et le
+recalcul tient dans la seconde du §4.6.2. Les montants qui dépendent des dates — le montant
+corrigé de l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de
+devis, écran distinct qui relit la structure à son ouverture. L'exemple `predecessor_set` lie la
+revue de conception du planning témoin au dossier de conception : la revue, écrite, et la
+réception des études qui la suit glissent au 29 avril, et le dossier, dont les dates ne bougent
+pas, passe sur le chemin critique. Écartés : des `Node` entiers, qui pourraient porter la moitié
+du plan, facettes de devis comprises ; une relecture de `listNodes` après chaque saisie de durée.
+
+**La marge totale est une durée, sur la facette comme dans la projection** (`TaskFacet.total_float`,
+`NodeSchedule.total_float`, `Duration`). La décision de #222 la donne en durée ; la facette la
+portait en entier de jours (`total_float_days`), forme antérieure au planning en heures
+(`WorkInstant`, EP-02/L7) : la même valeur serait arrivée à la grille sous deux formes selon
+qu'elle est lue ou rendue par une écriture, et une marge de quatre heures ne s'y écrivait pas. La
+marge est du temps de travail en jours ouvrés (`unit: d`), décimale, jamais négative — les tâches
+en mode manuel, traitées comme des dates imposées, l'évitent (WF-PLA-0100) —, et nulle pour une
+tâche en mode manuel. La colonne et le champ calculé suivent (`NodeColumn.total_float`,
+`ComputedValueField` `task.total_float`), et la grille de planning l'écrit comme une durée, par
+sa valeur et son unité.
 
 ## Collage et annulation
 

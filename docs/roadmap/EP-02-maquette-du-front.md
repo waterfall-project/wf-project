@@ -11,8 +11,9 @@ issue: 72
 ## Objet
 
 Construire l'application web entière contre le faux back d'EP-01 : la navigation, les
-composants d'interface de PBS-1.3, les onze exigences du §3.6, les deux langues, et chaque
-fonction adressable à l'écran. Rien n'est calculé par le front — c'est le mock qui répond.
+composants d'interface de PBS-1.3, les exigences du §3.6 qu'il réalise, les deux langues, et
+chaque fonction adressable à l'écran. Rien n'est calculé par le front — c'est le mock qui
+répond.
 Cet EPIC ne s'intéresse qu'à deux choses : l'ergonomie, qu'il constate, et le contrat, qu'il
 fige ; tout ce qui exige un serveur réel se commence ici et se clôt dans l'EPIC de son
 domaine.
@@ -85,6 +86,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0090-A` | Refus et commandes indisponibles | entière | US-0170 |
 | `WF-IHM-0100-A` | Accessibilité minimale | entière | US-0200 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | début — close en EP-06 | US-0140 |
+| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0240 |
 | `WF-INTF-0160-A` | Choix de la langue de l'interface | début — close en EP-03 | US-0190 |
 | `WF-INTF-0170-A` | Ce qui est traduit et ce qui ne l'est pas | entière | US-0190 |
 | `WF-INTF-0180-A` | Formats indépendants de la langue | début — close en EP-12 | US-0190 |
@@ -93,15 +95,19 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
 | `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
-Huit des onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface,
-et l'interface existe ici pour de bon. Huit exigences ne font que commencer, et leurs US
+Le §3.6 compte treize exigences ; cet EPIC en réalise douze, et en clôt huit : elles portent
+sur l'interface, et l'interface existe ici pour de bon. La treizième, WF-IHM-0120 (l'écran
+d'accueil), se réalise et se clôt en EP-03. Neuf exigences ne font que commencer, et leurs US
 disent quelle phrase attend quoi : WF-IHM-0060 (le tri effectif et les réglages par compte —
 EP-03), WF-IHM-0080 (le marquage de dix mille objets, sur le marquage réel — EP-04),
-WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-ADM-0040 et WF-INTF-0160 (la
+WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-IHM-0130 (des totaux que le filtre
+restreint, calculés par un serveur réel — EP-11), WF-ADM-0040 et WF-INTF-0160 (la
 conservation des préférences et de la langue dans le compte — EP-03), WF-INTF-0180 (le
 format des fichiers d'échange — EP-12), WF-CMP-0010 (la version majeure précédente et le
 Safari réel — EP-13, en recette), et WF-DAT-0100 (l'affichage des dates sans fuseau est
-ici ; les sommes exactes sont au noyau — EP-03, closes en EP-07).
+ici ; les sommes exactes sont au noyau — EP-03, closes en EP-07). WF-IHM-0130 touche aussi
+les grilles et le Gantt d'US-0110, US-0220 et US-0230, qui filtrent par le serveur, et dont
+l'export PNG se clôt en EP-11.
 
 ## Opérations du contrat
 
@@ -136,7 +142,8 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
 
 - chaque fonction feuille de l'arborescence FBS est adressable — une page, une route ou un
   onglet — depuis la navigation, et un contrôle du dépôt le vérifie ;
-- les onze exigences du §3.6 ont chacune au moins un test de bout en bout qui les cite ;
+- les exigences du §3.6 que cet EPIC réalise — de WF-IHM-0010 à WF-IHM-0110, et WF-IHM-0130
+  — ont chacune au moins un test de bout en bout qui les cite ;
 - un contrôle automatisé de contraste ne relève aucun écart au niveau AA, en clair comme
   en sombre ;
 - le parcours de bout en bout s'exécute et aboutit en français comme en anglais ;
@@ -479,7 +486,7 @@ par sa valeur et son unité, et les dates par leur date.
 - `updateEstimateLine` et `updateTaskFacet` sont des `PATCH` dont les schémas d'écriture exigent des champs que la cellule saisie ne change pas — le libellé, la catégorie et la quantité d'une ligne, le libellé d'une tâche —, quand WF-IHM-0040 veut que chaque cellule se valide seule — US-0120/L1, ouvert en #178. D'ici là, la grille du devis renvoie ces champs tels que le serveur les a rendus en dernier, avec le champ saisi et la version lue (`lock_version`). Corrigé par EP-02/L8 : `TaskFacetUpdate` et `EstimateLineUpdate` n'exigent que `lock_version`, tout autre champ est facultatif et seul ce qui est envoyé change ; la création garde ses champs exigés (`TaskFacetWrite`, `EstimateLineWrite`) ; la grille du devis n'envoie plus que la cellule saisie et la version lue.
 - Après une écriture de grille — une cellule (`updateEstimateLine`, `updateTaskFacet`), un collage (`applyPaste`) —, la réponse ne portait que les nœuds écrits : les montants des tâches parentes et les totaux de la grille restaient périmés jusqu'à une relecture de la page (WF-DEV-0050, WF-ARC-0020) — US-0120/L1 et US-0130/L1, ouvert en #188. Corrigé par EP-02/L8 : toute écriture de grille rend `NodesWritten` — les nœuds écrits, leurs ancêtres recalculés, les totaux de la structure et son compteur — ; la grille du devis en applique les nœuds et garde le compteur, et appliquera les ancêtres et les totaux (#218).
 - `listContributors`, `listProjectStateTransitions` et la réponse de `exitProject` n'avaient aucun exemple : le faux back en aurait tiré de son schéma des valeurs sans rapport avec l'univers des autres — US-0210/L1. Corrigé par ce lot : `contributors.json` (un compte actif, un désactivé), `state_transitions.json` (de la création à En cours) et `project_completed.json` (le projet terminé, ses commandes indisponibles faute d'un état non terminal).
-- Le motif d'une sortie du cycle de vie (`ProjectExit.reason`), que la confirmation doit nommer (WF-CYC-0090), s'écrit et ne se relit nulle part : `StateTransition` ne le porte pas, et l'historique des états ne peut pas dire pourquoi une offre a été perdue — US-0210/L1, ouvert en #185. D'ici là, l'écran du cycle de vie demande le motif et l'envoie, et l'historique montre la date, les états et l'auteur de chaque transition.
+- Le motif d'une sortie du cycle de vie (`ProjectExit.reason`), que la confirmation doit nommer (WF-CYC-0090), s'écrit et ne se relit nulle part : `StateTransition` ne le porte pas, et l'historique des états ne peut pas dire pourquoi une offre a été perdue — US-0210/L1, ouvert en #185. D'ici là, l'écran du cycle de vie demande le motif et l'envoie, et l'historique montre la date, les états et l'auteur de chaque transition. Corrigé par EP-02/L7 : `StateTransition.reason`, exigé, nul pour une transition automatique ou une sortie sans motif ; l'historique l'affichera (#227).
 - `setContributors` exige un `lock_version` sans dire de quel objet, et `listContributors` rend un tableau nu, sans compteur : le formulaire d'EP-04 n'aurait rien à renvoyer ; `Contributor.is_active` est facultatif, et son absence ne dit rien — US-0210/L1, ouvert en #186. D'ici là, l'écran des paramètres montre la liste en lecture, et ne dit un compte désactivé que quand l'API le dit. Corrigé par EP-02/L8 : `listContributors` rend `ContributorList`, la liste et son propre compteur, que `ContributorsWrite` exige et que `setContributors` rend avec le suivant, 412 s'il est périmé ; `Contributor.is_active` est exigé ; l'écran des paramètres lit `items`.
 - `compareRevisions` et `getRateUpdateProposal` n'avaient aucun exemple, et `listCostStructures` ne montrait que la structure principale : le faux back n'aurait rien eu de cohérent à servir à l'écran des révisions — US-0210/L2. Corrigé par ce lot : `comparison.json` et `comparison_identical.json`, `rate_update.json` et `rate_update_none.json` — dont la catégorie sans taux pour 2026, chiffrée à son taux précédent corrigé de l'inflation du projet —, `structures_amendments.json` (deux avenants qui coexistent, l'un fusionné, et le devis propre d'un risque), et une offre v1.0 marquée ajoutée à `revisions.json`, pour que deux révisions marquées se comparent.
 - Un écart de `RevisionComparison.amount_deltas` ne nomme son poste que par sa `key`, et une catégorie de `RateUpdateProposal.categories` que par `cost_category_id`, sans libellé, quand le contrat rend partout ailleurs le libellé à côté de la clé (`AmountByKey.label`) : l'écran ne peut les nommer sans joindre le référentiel dans le front (WF-ARC-0020) — US-0210/L2, ouvert en #204. D'ici là, l'écran des révisions dit « Sans nom », sans jamais montrer l'identifiant. Corrigé par EP-02/L8 : chaque écart porte son `label`, résolu à la lecture, exigé et nul pour la seule clé `unassigned`, et chaque catégorie proposée le sien, exigé ; les exemples `comparison` et `rate_update` les portent, et l'écran des révisions les affiche.
@@ -489,6 +496,7 @@ par sa valeur et son unité, et les dates par leur date.
 - `previewPaste` ne déclarait aucune réponse pour un bloc plus large que la grille, alors que le catalogue porte `PASTE_TOO_WIDE` et son paramètre `max_columns` ; ni l'un ni l'autre n'avait d'exemple — US-0130/L1. Corrigé par ce lot : un 422 `PASTE_TOO_WIDE` (`paste_too_wide.json`), et les exemples des deux temps, `paste_plan.json` (trois lignes acceptées), `paste_plan_unknown_category.json` (une ligne refusée, `UNKNOWN_COST_CATEGORY`) et `paste_applied.json` (les lignes 4 à 6 de la structure des volumes, écrites).
 - `PastePreview` ne nomme la colonne visée que par une chaîne libre (`target_column`), sans dire quels champs remplissent les colonnes suivantes : le serveur ne sait ni lesquelles la grille affiche, ni dans quel ordre — une colonne masquée (WF-IHM-0060) décalerait ainsi le bloc sans que rien ne le dise — ; et un refus ne nomme pas sa cellule — US-0130/L1, ouvert en #200. D'ici là, la grille refuse aussitôt un bloc plus large que les colonnes de sa configuration à partir de la cellule active, et un bloc dont la portée, de la colonne visée à la dernière colonne remplie dans cet ordre, enjambe une colonne masquée ; elle envoie la colonne sous son nom de `sort_by`, et signale une ligne refusée par sa place dans le bloc. Corrigé par EP-02/L8 : `target_column` est une colonne de `NodeColumn`, l'énumération nommée que le tri de `listNodes` emploie aussi, dans l'ordre des grilles ; le contrat dit que le bloc remplit, à partir de la colonne visée, les colonnes de la facette du nœud visé dans cet ordre, sans décaler aucune cellule — une cellule non vide sur une colonne que la ligne n'accepte pas est refusée, nommée par sa ligne et sa colonne (`PastePlan.rejected[].column`), une cellule vide n'écrit rien —, et `max_columns` compte les colonnes de la facette à partir de la colonne visée ; la garde locale du front sur une colonne masquée reste.
 - `PasteApply.lock_version` ne dit pas de quel objet il est, `applyPaste` ne déclare pas de 412, et sa réponse ne rend pas la version suivante — US-0130/L1, ouvert en #201. D'ici là, la confirmation porte la version de la structure principale lue avec la page ; un refus se dit par `OutcomeNotice`. Corrigé par EP-02/L8 : `PasteApply.lock_version` est le compteur de la structure, qui avance à chaque écriture dans son arbre ; `applyPaste` déclare 412 et rend, dans `NodesWritten`, le compteur suivant (`structure_lock_version`), que la grille du devis garde pour le collage suivant.
+- Une liaison écrite, ou la durée saisie d'une tâche en mode automatique, redate ses successeurs (WF-PLA-0020), qui ne sont ni les nœuds écrits ni leurs ancêtres : `NodesWritten` ne les rendait pas, et la grille de planning aurait montré les dates d'avant pour toute la chaîne qui suit, jusqu'à une relecture — EP-02/L8, ouvert en #222. Corrigé par EP-02/L10 (décision de l'utilisateur du 2026-10-04) : toute écriture de grille rend `rescheduled`, exigé, les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé sans être écrites — successeurs, et ce que le chemin critique déplace (WF-PLA-0100) —, chacune une fois, dans l'ordre du plan, vide quand rien d'autre n'a bougé ; chacune en projection légère (`NodeSchedule` : début, fin, marge, nulle en mode manuel, criticité, fin dépassée), sans les montants qui dépendent des dates, que la grille de devis relit à son ouverture ; `ancestors` porte les ancêtres des nœuds écrits et des tâches redatées, recalculés, chacun une fois, entier ; la marge totale est une durée sur la facette comme dans la projection (`TaskFacet.total_float`, à la place de `total_float_days`), que la grille de planning écrit par sa valeur et son unité ; l'exemple `predecessor_set` de `setPredecessors` en porte deux, les autres exemples une liste vide.
 
 ### Ordre de construction
 
@@ -992,9 +1000,9 @@ porte le cycle d'une revue mensuelle de bout en bout.
 ## US-0240 — Écrans des indicateurs et du portefeuille
 
 - **statut** : à faire
-- **exigences** : aucune en propre — EP-10 et EP-11
+- **exigences** : `WF-IHM-0130-A` ; les autres sont à EP-10 et EP-11
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
-  `getMilestoneTracking`, `getProjectWorkload`, `getPortfolioProjects`,
+  `getMilestoneTracking`, `getIndexHistory`, `getProjectWorkload`, `getPortfolioProjects`,
   `getPortfolioValue`, `getPortfolioPerformance`, `getPortfolioWorkload`,
   `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCashOut`,
   `getPortfolioPilotHealth`
@@ -1009,9 +1017,18 @@ sans que le front ait à sommer quoi que ce soit.
 - propre à l'US : aucune somme, aucune moyenne, aucun ratio n'est calculé dans le front ; une
   vue qui en aurait besoin est un constat sur le contrat ;
 - propre à l'US : chaque indicateur affiché porte sa date de calcul (US-0100) ;
-- propre à l'US : les zones d'indice emploient le composant de signalement de l'US-0160.
+- propre à l'US : les zones d'indice emploient le composant de signalement de l'US-0160 ;
+- `WF-IHM-0130-A` — « Le plan de charge exporté est une image PNG qui porte le nom du projet,
+  la révision et la date de calcul. »
 
 **Notes de réalisation.** Courbes en Apache ECharts (annexe C).
+
+- écart : `WF-IHM-0130-A` — « La liste des projets filtrée sur un état ne compte que les
+  projets de cet état dans ses totaux. » demande un serveur qui filtre : le faux back rend
+  l'exemple du contrat, quels que soient les filtres envoyés, et ne restreint pas les totaux.
+  Ici, la liste des projets offre les filtres que le contrat porte — l'état d'abord —, les
+  envoie à `getPortfolioProjects` et affiche le nombre de projets retenus (`meta.total`),
+  sans rien sommer ; la phrase revient à EP-11, qui clôt l'exigence sur le portefeuille réel.
 
 ## US-0250 — Écrans du référentiel et de l'administration
 
@@ -1019,7 +1036,8 @@ sans que le front ait à sommer quoi que ce soit.
 - **exigences** : aucune en propre — EP-03 et EP-05
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listCostTypes`, `listCostCategories`,
-  `listHourlyRates`, `setHourlyRate`, `listUsers`, `listAccessRoles`, `listPermissions`,
+  `listHourlyRates`, `getHourlyRateGrid`, `setHourlyRate`, `getDurationUnits`,
+  `setDurationUnits`, `listUsers`, `listAccessRoles`, `listPermissions`,
   `getSystemStatus`, `listBackups`, `getBackupSchedule`
 - **issue** : #89
 

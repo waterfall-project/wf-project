@@ -345,7 +345,7 @@ NodeColumn:
     - finish
     - progress
     - physical_progress
-    - total_float_days
+    - total_float
     - is_critical
     - predecessors
     - cost_category
@@ -373,7 +373,7 @@ ComputedValueField:
     - task.finish
     - task.progress
     - task.physical_progress
-    - task.total_float_days
+    - task.total_float
     - task.budgeted_amount
     - task.reestimated_amount
     - estimate_line.quantity
@@ -478,13 +478,15 @@ NodeTotals:
 
 NodesWritten:
   type: object
-  required: [nodes, ancestors, totals, structure_lock_version]
+  required: [nodes, ancestors, rescheduled, totals, structure_lock_version]
   description: >-
     Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un
     déplacement, une création, une suppression, une liaison, un avancement, une réestimation,
-    une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de
-    la structure, pour que la grille montre juste sans relire la structure ni rien sommer
-    (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé.
+    une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que
+    l'écriture a redatées, les récapitulatives recalculées au-dessus des uns et des autres,
+    et les totaux de la structure,
+    pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040,
+    WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé.
   properties:
     nodes:
       type: array
@@ -495,11 +497,24 @@ NodesWritten:
     ancestors:
       type: array
       description: >-
-        Les ancêtres des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs
-        anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une
-        récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de
-        premier niveau.
+        Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`) — ceux du nœud
+        supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants,
+        dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre
+        du plan ; vide quand aucun de ces nœuds n'a de parent.
       items: { $ref: '#/Node' }
+    rescheduled:
+      type: array
+      description: >-
+        Les tâches non récapitulatives dont le début, la fin, la marge totale ou la
+        criticité ont changé par l'écriture sans être écrites — les successeurs d'une
+        liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020,
+        WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre
+        n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de
+        mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans
+        `ancestors`. Les montants qui dépendent des dates — le montant corrigé de
+        l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de
+        devis, qui relit la structure à son ouverture.
+      items: { $ref: '#/NodeSchedule' }
     totals:
       allOf: [{ $ref: '#/NodeTotals' }]
       description: >-
@@ -510,6 +525,36 @@ NodesWritten:
       description: >-
         Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le
         collage suivant porte (WF-IHM-0110).
+
+NodeSchedule:
+  type: object
+  required: [node_id, start, finish, total_float, is_critical, finish_overdue]
+  description: >-
+    Le calendrier d'une tâche non récapitulative qu'une écriture a redatée sans l'écrire
+    (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque
+    modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le
+    chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la
+    facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas.
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    start: { $ref: ../common.yaml#/WorkInstant }
+    finish: { $ref: ../common.yaml#/WorkInstant }
+    total_float:
+      anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
+      description: >-
+        Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés
+        (`unit: d`), décimale, jamais négative — les tâches en mode manuel, traitées comme des
+        dates imposées, évitent les marges négatives ; nulle pour une tâche en mode manuel,
+        qui ne porte pas de marge.
+    is_critical:
+      type: boolean
+      description: >-
+        Appartenance au chemin critique (WF-PLA-0100) ; fausse pour une tâche en mode manuel.
+    finish_overdue:
+      type: boolean
+      description: >-
+        Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de
+        calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`.
 
 TaskProgress:
   type: string
@@ -538,8 +583,9 @@ Duration:
   type: object
   required: [value, unit]
   description: >-
-    Durée d'une tâche dans l'unité de sa saisie, en temps de travail ou en temps écoulé
-    (WF-PLA-0160). Nulle pour un jalon (WF-PLA-0050).
+    Durée, en temps de travail ou en temps écoulé : celle d'une tâche, dans l'unité de sa
+    saisie (WF-PLA-0160), nulle pour un jalon (WF-PLA-0050) ; ou une marge totale,
+    calculée en jours ouvrés (WF-PLA-0100).
   properties:
     value:
       allOf: [{ $ref: ../common.yaml#/Decimal }]
@@ -616,8 +662,13 @@ TaskFacet:
       description: >-
         Calendrier applicable, résolu à la lecture : intersection des calendriers
         des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010).
-    total_float_days:
-      anyOf: [{ type: integer }, { type: 'null' }]
+    total_float:
+      anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
+      description: >-
+        Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés
+        (`unit: d`), décimale, jamais négative — les tâches en mode manuel, traitées comme des
+        dates imposées, évitent les marges négatives ; nulle pour une tâche en mode manuel,
+        qui ne porte pas de marge.
     is_critical:
       type: boolean
       description: Appartenance au chemin critique, calculée (WF-PLA-0100).

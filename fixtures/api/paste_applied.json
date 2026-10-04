@@ -240,7 +240,10 @@
           "is_milestone": false,
           "budgeted_amount": "36209.25",
           "reestimated_amount": "44871.01",
-          "total_float_days": 31,
+          "total_float": {
+            "value": "31",
+            "unit": "d"
+          },
           "is_critical": false
         },
         "computed_fields": [
@@ -256,6 +259,7 @@
         ]
       }
     ],
+    "rescheduled": [],
     "totals": {
       "task_count": 1000,
       "estimate_line_count": 5000,

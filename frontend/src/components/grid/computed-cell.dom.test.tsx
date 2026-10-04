@@ -443,7 +443,7 @@ describe("a value of a grid the server computes", () => {
       "Marge ne se saisit pas : Waterfall calcule cette valeur.",
       "Une tâche en mode manuel ne porte pas de marge.",
     ]);
-    expect(asked(client).map(([, field]) => field)).toEqual(["task.total_float_days"]);
+    expect(asked(client).map(([, field]) => field)).toEqual(["task.total_float"]);
   });
 
   it("tells a refusal of the server as every screen does", async () => {

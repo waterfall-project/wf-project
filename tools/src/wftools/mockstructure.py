@@ -462,7 +462,7 @@ def _task_facet(task: Task) -> JsonObject:
     facet["budgeted_amount"] = money(Decimal(0))
     facet["reestimated_amount"] = money(Decimal(0))
     if not task.is_summary:
-        facet["total_float_days"] = task.late_end - task.end
+        facet["total_float"] = {"value": str(task.late_end - task.end), "unit": "d"}
         facet["is_critical"] = task.late_end == task.end
     return facet
 

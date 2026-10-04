@@ -180,7 +180,6 @@
   "planningGrid": {
     "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
     "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
-    "days": "{days, number} d",
     "duration": "{value} {unit}",
     "critical": "Critical path",
     "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
@@ -941,7 +940,7 @@
       "finish": "Finish",
       "progress": "Progress",
       "physical_progress": "Physical progress",
-      "total_float_days": "Total float",
+      "total_float": "Total float",
       "is_critical": "Critical path",
       "predecessors": "Predecessors",
       "cost_category": "Cost category",
@@ -964,7 +963,7 @@
         "finish": "Finish of the task",
         "progress": "Progress of the task",
         "physical_progress": "Physical progress of the task",
-        "total_float_days": "Total float of the task",
+        "total_float": "Total float of the task",
         "budgeted_amount": "Budgeted amount of the task",
         "reestimated_amount": "Re-estimated amount of the task"
       },

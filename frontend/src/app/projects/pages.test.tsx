@@ -576,7 +576,7 @@ describe("the grid of the planning", () => {
 
   it("asks the server for the sort, the search and the filtered sub-project the address holds, besides the tasks", async () => {
     const search = Promise.resolve({
-      sort_by: "total_float_days",
+      sort_by: "total_float",
       sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
@@ -586,7 +586,7 @@ describe("the grid of the planning", () => {
     );
     expect(nodesQuery()).toEqual({
       kinds: "task",
-      sort_by: "total_float_days",
+      sort_by: "total_float",
       sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",

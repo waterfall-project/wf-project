@@ -1659,7 +1659,7 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un nœud
-         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une écriture de grille comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110).
+         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une écriture de grille comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110). Les liaisons emportées peuvent redater les successeurs de la tâche et déplacer le chemin critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020, WF-PLA-0100).
          */
         delete: operations["deleteNode"];
         options?: never;
@@ -1818,7 +1818,7 @@ export interface paths {
         put?: never;
         /**
          * Déplacer des nœuds dans l'arbre
-         * @description Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de tâches et de récapitulatives (WF-PLA-0040).
+         * @description Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont rendues dans `rescheduled` (WF-PLA-0020).
          */
         post: operations["moveNodes"];
         delete?: never;
@@ -3423,7 +3423,7 @@ export interface components {
          * @description Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente : de `label` à `predecessors`, les colonnes de la tâche ; `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis. C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050).
          * @enum {string}
          */
-        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float_days" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_reestimated_amount";
+        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_reestimated_amount";
         /**
          * @description Mode de planification de la tâche : dates calculées depuis les liaisons, ou saisies (WF-PLA-0020).
          * @enum {string}
@@ -3434,7 +3434,7 @@ export interface components {
          * @enum {string}
          */
         DurationUnit: "min" | "h" | "d" | "w" | "mo" | "emin" | "eh" | "ed" | "ew" | "emo";
-        /** @description Durée d'une tâche dans l'unité de sa saisie, en temps de travail ou en temps écoulé (WF-PLA-0160). Nulle pour un jalon (WF-PLA-0050). */
+        /** @description Durée, en temps de travail ou en temps écoulé : celle d'une tâche, dans l'unité de sa saisie (WF-PLA-0160), nulle pour un jalon (WF-PLA-0050) ; ou une marge totale, calculée en jours ouvrés (WF-PLA-0100). */
         Duration: {
             /** @description Jamais négative. */
             value: components["schemas"]["Decimal"];
@@ -3492,7 +3492,8 @@ export interface components {
             is_milestone: boolean;
             /** @description Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010). */
             calendar_id?: components["schemas"]["Uuid"] | null;
-            total_float_days?: number | null;
+            /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale, jamais négative — les tâches en mode manuel, traitées comme des dates imposées, évitent les marges négatives ; nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
+            total_float?: components["schemas"]["Duration"] | null;
             /** @description Appartenance au chemin critique, calculée (WF-PLA-0100). */
             is_critical?: boolean;
             /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
@@ -3627,12 +3628,26 @@ export interface components {
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
         };
-        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
+        /** @description Le calendrier d'une tâche non récapitulative qu'une écriture a redatée sans l'écrire (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. */
+        NodeSchedule: {
+            node_id: components["schemas"]["Uuid"];
+            start: components["schemas"]["WorkInstant"];
+            finish: components["schemas"]["WorkInstant"];
+            /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale, jamais négative — les tâches en mode manuel, traitées comme des dates imposées, évitent les marges négatives ; nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
+            total_float: components["schemas"]["Duration"] | null;
+            /** @description Appartenance au chemin critique (WF-PLA-0100) ; fausse pour une tâche en mode manuel. */
+            is_critical: boolean;
+            /** @description Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`. */
+            finish_overdue: boolean;
+        };
+        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que l'écriture a redatées, les récapitulatives recalculées au-dessus des uns et des autres, et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
         NodesWritten: {
             /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre. */
             nodes: components["schemas"]["Node"][];
-            /** @description Les ancêtres des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de premier niveau. */
+            /** @description Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`) — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. */
             ancestors: components["schemas"]["Node"][];
+            /** @description Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Les montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de devis, qui relit la structure à son ouverture. */
+            rescheduled: components["schemas"]["NodeSchedule"][];
             /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
             totals: components["schemas"]["NodeTotals"];
             /** @description Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110). */
@@ -3642,7 +3657,7 @@ export interface components {
          * @description Champ d'un nœud dont le serveur calcule la valeur, pour ce nœud-ci ou pour tous : ceux que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants, la marge, l'avancement physique (WF-IHM-0030).
          * @enum {string}
          */
-        ComputedValueField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "task.physical_progress" | "task.total_float_days" | "task.budgeted_amount" | "task.reestimated_amount" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.budgeted_amount" | "estimate_line.reestimated_amount" | "estimate_line.previous_reestimated_amount" | "estimate_line.inflated_amount";
+        ComputedValueField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "task.physical_progress" | "task.total_float" | "task.budgeted_amount" | "task.reestimated_amount" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.budgeted_amount" | "estimate_line.reestimated_amount" | "estimate_line.previous_reestimated_amount" | "estimate_line.inflated_amount";
         /**
          * @description Ce dont dépend une valeur calculée, que le refus d'une saisie nomme (WF-IHM-0030) : `subordinates`, les dates, la durée et l'avancement d'une récapitulative, tirés de ses subordonnées (WF-PLA-0040) ; `lines_and_subordinates`, le montant d'une tâche, somme de ses lignes et de ses subordonnées (WF-DEV-0050) ; `scheduling`, les dates d'une tâche en mode automatique, tirées de sa durée, de ses liaisons et de son calendrier (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de sa charge et du taux horaire de sa catégorie ; `unit_disbursement`, celui d'une ligne hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ; `reference_revision`, le montant budgété, fixé par la révision de référence (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040) ; `inflation`, le montant corrigé de l'inflation, du montant de la ligne, du taux d'inflation du projet et de son année de consommation (WF-DEV-0040, WF-DEV-0050).
          * @enum {string}
@@ -7480,7 +7495,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés et les totaux de la structure (`NodesWritten`). */
+            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés, les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique déplace — et les totaux de la structure (`NodesWritten`, WF-PLA-0020). */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7558,7 +7573,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liaisons enregistrées, dates recalculées ; les ancêtres et les totaux avec (`NodesWritten`). */
+            /** @description Liaisons enregistrées, dates recalculées ; les ancêtres, les tâches que la liaison redate — les successeurs, et ce que le chemin critique déplace — et les totaux avec (`NodesWritten`, WF-PLA-0020, WF-PLA-0100). */
             200: {
                 headers: {
                     [name: string]: unknown;
