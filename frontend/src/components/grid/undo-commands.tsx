@@ -22,7 +22,7 @@ import { Redo2, Undo2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent,
-  type MouseEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactElement,
   useId,
   useRef,
@@ -183,7 +183,7 @@ function openFromKeyboard(event: KeyboardEvent<HTMLElement>): boolean {
   }
   event.preventDefault();
   const box = cell.getBoundingClientRect();
-  const opening = new MouseEvent("contextmenu", {
+  const opening = new window.MouseEvent("contextmenu", {
     bubbles: true,
     cancelable: true,
     clientX: box.left,
@@ -224,7 +224,7 @@ export function CellMenu({
       keyed.current = event.timeStamp;
     }
   };
-  const onContextMenu = (event: MouseEvent<HTMLElement>) => {
+  const onContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
     if (!KEYED.has(event.nativeEvent) && event.timeStamp - keyed.current < KEY_ECHO_MS) {
       // Prevented, it reaches neither the browser nor the menu, already open.
       event.preventDefault();
