@@ -1044,8 +1044,8 @@ tient `WF-IHM-0130-A` (US-0240/L4). Le portefeuille est livré en deux lots, cou
 autres vues et la preuve de la phrase 2 de `WF-IHM-0070-A` (US-0240/L5, #310). L'horizon et le
 seuil de sous-charge des vues du portefeuille (WF-PTF-0060) sont proposés parmi quelques valeurs ;
 toute valeur de l'adresse que le contrat prend est envoyée et montrée choisie, et, sans seuil dans
-l'adresse, le menu montre celui que le serveur a retenu — décision provisoire de la revue de #310,
-en attente de confirmation de l'utilisateur.
+l'adresse, le menu montre celui que le serveur a retenu — décision de la revue de #310, confirmée
+par l'utilisateur le 2026-10-04.
 
 - écart : `WF-IHM-0130-A` — « La liste des projets filtrée sur un état ne compte que les
   projets de cet état dans ses totaux. » demande un serveur qui filtre : le faux back rend
