@@ -471,8 +471,8 @@ Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summ
 `value`), et le contrat le cite par `$ref` ; le bundle l'embarque. Ses nombres reprennent
 ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
 
-Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`, la
-structure dans `wftools.mockstructure`) les engendre dans `fixtures/api/volume/`, qu'on ne
+Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`, le
+portefeuille dans `wftools.mockportfolio`, la structure dans `wftools.mockstructure`) les engendre dans `fixtures/api/volume/`, qu'on ne
 retouche pas — la structure de mille tâches et de cinq mille lignes, premier exemple de
 `listNodes`, et les indicateurs de son devis, premier exemple de `getEstimateIndicators`,
 sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même
@@ -493,8 +493,10 @@ ne lit ni l'horloge ni le hasard : chaque valeur tirée vient de l'empreinte d'u
 et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets. Un exemple de volume
 s'écrit une ligne par élément, pour qu'un changement se lise dans le diff. Les repères que
 lisent les parcours de bout en bout — numéros de ligne, libellés, totaux — sont fixés par
-`test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`) : un changement du
-générateur qui les déplace échoue là, avant les parcours.
+`test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`) pour la structure, et
+ceux du portefeuille par `test_the_marks_the_portfolio_journey_reads`
+(`tools/tests/test_mockdata.py`) : un changement du générateur qui les déplace échoue là, avant
+les parcours.
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde

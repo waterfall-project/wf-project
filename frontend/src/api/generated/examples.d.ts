@@ -27,7 +27,7 @@ export interface Examples {
     200: "pilot_health";
   };
   "GET /portfolio/projects": {
-    200: "portfolio_projects_empty" | "volume/portfolio_projects";
+    200: "portfolio_projects_empty" | "volume/portfolio_projects" | "volume/portfolio_projects_page";
   };
   "GET /portfolio/risks": {
     200: "volume/portfolio_risks";

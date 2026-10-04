@@ -66,6 +66,7 @@
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
             examples:
               volume: { $ref: ../../../fixtures/api/volume/portfolio_projects.json }
+              page: { $ref: ../../../fixtures/api/volume/portfolio_projects_page.json }
               empty: { $ref: ../../../fixtures/api/portfolio_projects_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
