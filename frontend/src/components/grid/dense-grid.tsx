@@ -546,7 +546,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     });
   };
   // The rows as the cells written left them: each row the server answered in place of the one read.
-  const writes = useCellWrites<Row, Totals>(rows, config.rowKey);
+  const writes = useCellWrites<Row, Totals>(rows, config.rowKey, config.retotal);
   // The totals the writes last answered, or those of the answer.
   const shownTotals = writes.totals ?? totals;
   const table = useGridTable({

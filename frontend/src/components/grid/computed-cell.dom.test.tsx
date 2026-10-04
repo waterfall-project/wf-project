@@ -89,7 +89,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       {grid === "estimate" ? (
         <EstimateGrid
-          filtered={false}
+          filters={{}}
           reference={estimateReference()}
           editable
           tasksEditable

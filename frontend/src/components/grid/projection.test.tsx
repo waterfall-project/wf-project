@@ -178,8 +178,9 @@ function holdsWhatTheGridReads<
   });
 }
 
-// The shares the projections weigh on the volume: 0.60 for the estimate, 0.52 for the planning —
-// what each node accepts (`editable_fields`, #219) counted.
+// The shares the projections weigh on the volume, as measured: 0.602 for the estimate, 0.516 for
+// the planning — what each node accepts (`editable_fields`, #219) counted, whose weight #238
+// weighs.
 /** Nothing is written by these tests: what an entry reads is all they look at. */
 function unwritten(): never {
   throw new Error("nothing is written here");

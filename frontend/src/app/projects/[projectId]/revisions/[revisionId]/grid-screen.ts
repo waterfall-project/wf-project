@@ -22,6 +22,7 @@ import {
   type NodeField,
   type NodeFields,
   nodeFieldNames,
+  type NodeFilters,
   type NodeKind,
   type NodeRow,
   type NodeRows,
@@ -97,10 +98,11 @@ export interface GridScreen<Row> {
   readonly structureVersion: number;
   readonly nodes: NodeRows<Row>;
   /**
-   * Whether the nodes were read under a search or a filter: the totals are then those of the
-   * reading alone, never those of the structure a write answers (`NodesWritten.totals`, #218).
+   * What the reading asked of the nodes besides their fields and their sort — the kinds, the
+   * search, the filters —, as it was sent: one that asks any has totals of its own, never those
+   * of the structure a write answers, and reads them anew (`NodesWritten.totals`, #218).
    */
-  readonly filtered: boolean;
+  readonly filters: NodeFilters;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
@@ -135,16 +137,19 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
   const { sort, search } = await asked;
   const subproject = context.parameters.get("subproject_id");
   const structure = { ...path, structure_id: main.structure_id };
+  const filters: NodeFilters = {
+    ...(kinds === undefined ? {} : { kinds: [...kinds] }),
+    ...(search === undefined ? {} : { search }),
+    ...(subproject === null ? {} : { subproject_id: subproject }),
+  };
   const answer = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
       params: {
         path: structure,
         query: {
           fields: nodeFieldNames(fields),
-          ...(kinds === undefined ? {} : { kinds: [...kinds] }),
           ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
-          ...(search === undefined ? {} : { search }),
-          ...(subproject === null ? {} : { subproject_id: subproject }),
+          ...filters,
         },
       },
     }),
@@ -154,7 +159,7 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
     structure,
     structureVersion: main.lock_version,
     nodes: projectNodes(answer, fields),
-    filtered: search !== undefined || subproject !== null,
+    filters,
   };
 }
 

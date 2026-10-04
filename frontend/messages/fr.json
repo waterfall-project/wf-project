@@ -519,7 +519,7 @@
     "missing_permission": "Permission requise : {permission}.",
     "missing_condition": "Condition non remplie : {condition}.",
     "missing_prerequisites": "À compléter : {prerequisites}.",
-    "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}}.",
+    "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
     "component": "Composant indisponible : {component}."
   },
   "permissions": {

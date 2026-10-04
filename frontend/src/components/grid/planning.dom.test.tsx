@@ -114,7 +114,7 @@ describe("the grids of the planning and of the estimate", () => {
           preferences={undefined}
         />
         <EstimateGrid
-          filtered={false}
+          filters={{}}
           reference={estimateReference()}
           editable
           tasksEditable

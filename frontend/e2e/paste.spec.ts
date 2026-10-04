@@ -183,7 +183,9 @@ test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async 
 
   const alert = page.getByRole("main").getByRole("alert");
   await expect(alert).toContainText("Les données collées ont plus de colonnes que la grille.");
-  await expect(alert).toContainText("La grille accepte au plus 13 colonnes.");
+  await expect(alert).toContainText(
+    "La grille accepte au plus 13 colonnes à partir de cette cellule.",
+  );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(argumentsWith(posted, "target_column")).toBeUndefined();
   expect(await labels(page)).toEqual(READ);

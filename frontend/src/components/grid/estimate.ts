@@ -175,6 +175,8 @@ export interface EstimateWrites {
   readonly task?:
     ((node: EstimateNode, label: string) => Promise<Outcome<EstimateWritten>>) | undefined;
   readonly paste: GridPaste<EstimateNode, NodeSortColumn, NodeTotals>;
+  /** Read anew the totals of a reading the writes do not answer them for; none, they do. */
+  readonly totals?: (() => Promise<Outcome<NodeTotals>>) | undefined;
 }
 
 /**
@@ -358,6 +360,7 @@ export function estimateGrid(
   return {
     ...ESTIMATE_GRID,
     paste: writes?.paste,
+    retotal: writes?.totals,
     columns: ESTIMATE_GRID.columns.map((column) => {
       const name = names[column.key];
       const named =

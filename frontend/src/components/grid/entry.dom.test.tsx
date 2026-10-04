@@ -20,7 +20,7 @@ import {
 import { estimateReference } from "@/test/reference";
 
 import { EstimateGrid } from "./estimate-grid";
-import type { NodeList, NodeSortColumn } from "./nodes";
+import type { NodeFilters, NodeList, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
@@ -46,6 +46,8 @@ const STRUCTURE = {
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
+const NODES_ROUTE =
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const NODES = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/structures/${STRUCTURE.structure_id}/nodes`;
 // The categories and the roles of the examples, by identifier.
 const COMMISSIONING = "01926f3a-7c00-7000-8000-000000000405";
@@ -78,7 +80,7 @@ function grid(
   editable = true,
   tasksEditable = true,
   query: GridQuery<NodeSortColumn> = NO_QUERY,
-  filtered = false,
+  filters: NodeFilters = {},
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
@@ -90,7 +92,7 @@ function grid(
         editable={editable}
         tasksEditable={tasksEditable}
         query={query}
-        filtered={filtered}
+        filters={filters}
         preferences={undefined}
       />
     </NextIntlClientProvider>
@@ -636,16 +638,49 @@ describe("what a write answers besides the row written", () => {
     ]);
   });
 
-  it("keeps the totals of a reading a search or a filter narrowed, which those of the structure are not", async () => {
-    serve();
-    render(grid("fr", estimate, true, true, { sort: undefined, search: "borniers" }, true));
+  it("reads anew the totals of a reading a search narrowed, by its own request, once its writes answered, never taking those of the structure [WF-ARC-0020-A]", async () => {
+    // The reading anew answers other totals than the reading: the example of another structure.
+    const client = serve({ [NODES_ROUTE]: "nodes" });
+    const search = { sort: undefined, search: "borniers" };
+    render(grid("fr", estimate, true, true, search, { search: "borniers" }));
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    // The tasks above it as the write answered them; the totals as the reading anew gave them.
+    await vi.waitFor(() => {
+      expect(totals()[1]).toBe("Total — 3 tâches, 1 ligne");
+    });
+    expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(totals()[5]).toBe("0");
+    expect(totals()[7]).toBe("100\u202f000,00");
+    // The same search, after the write, each node asked by its identifier alone.
+    const reads = client.calls.filter((call) => call.route === NODES_ROUTE);
+    expect(reads.map((call) => Object.fromEntries(call.query))).toEqual([
+      { search: "borniers", fields: "node_id" },
+    ]);
+    expect(client.calls.map((call) => call.route)).toEqual([LINE, NODES_ROUTE]);
+  });
+
+  it("tells a reading anew of the totals the server refuses, the totals of the reading left as they were", async () => {
+    const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+    serve({ [NODES_ROUTE]: lost });
+    const search = { sort: undefined, search: "borniers" };
+    render(grid("fr", estimate, true, true, search, { search: "borniers" }));
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Vous devez vous connecter.");
+    expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(totals()[5]).toBe("12,5");
+  });
+
+  it("reads nothing anew for a reading of the whole structure, whose totals the writes answer", async () => {
+    const client = serve();
+    render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     await vi.waitFor(() => {
-      expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+      expect(totals()[5]).toBe("14");
     });
-    expect(totals()[5]).toBe("12,5");
-    expect(totals()[7]).toBe("2\u202f734,56");
+    expect(client.calls.map((call) => call.route)).toEqual([LINE]);
   });
 });
 
@@ -653,7 +688,7 @@ describe("a session lost during an entry", () => {
   it("brings the cell back to its value, and leads to the sign-in page, which comes back to the screen [WF-SEC-0020-A]", async () => {
     const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
     const client = serve({ [LINE]: lost, [TASK]: lost });
-    render(grid());
+    const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
     const alert = await screen.findByRole("alert");
@@ -664,7 +699,10 @@ describe("a session lost during an entry", () => {
     );
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
     expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-busy");
-    // The label of a task, written by its own operation, likewise.
+    // The page read anew clears the notice; the label of a task, written by its own operation,
+    // is refused likewise, and tells it anew.
+    rerender(grid("fr", structuredClone(estimate)));
+    expect(screen.queryByRole("alert")).toBeNull();
     cell(TASK_ROW, "label").focus();
     await userEvent.keyboard("{F2} bis{Enter}");
     await vi.waitFor(() => {
@@ -674,7 +712,9 @@ describe("a session lost during an entry", () => {
       expect(cell(TASK_ROW, "label")).not.toHaveAttribute("aria-busy");
     });
     expect(cell(TASK_ROW, "label")).toHaveTextContent(/^Câblage des armoires$/);
-    expect(screen.getByRole("alert")).toHaveTextContent("Vous devez vous connecter.");
+    const told = await screen.findByRole("alert");
+    expect(told).toHaveTextContent("Vous devez vous connecter.");
+    expect(within(told).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
   });
 });
 

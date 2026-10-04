@@ -519,7 +519,7 @@
     "missing_permission": "Required permission: {permission}.",
     "missing_condition": "Unmet condition: {condition}.",
     "missing_prerequisites": "Still missing: {prerequisites}.",
-    "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}}.",
+    "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "component": "Unavailable component: {component}."
   },
   "permissions": {

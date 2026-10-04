@@ -9,7 +9,7 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 
-import type { GridColumn, GridTree, RowChange, RowsWritten } from "./columns";
+import type { GridColumn, GridTree, RowsWritten } from "./columns";
 import { rowNature, RowNatureIcon } from "./row-nature";
 
 /** A node of a structure, as the API reads it. */
@@ -52,6 +52,16 @@ export type NodeList = operations["listNodes"]["responses"][200]["content"]["app
 export type StructurePath = Omit<
   operations["getComputedValueDependencies"]["parameters"]["path"],
   "node_id"
+>;
+
+/**
+ * What a reading of the nodes asks besides the fields it renders and its sort: the kinds it renders,
+ * the search, the filters. A reading that asks any of them has totals of its own, which those of the
+ * structure a write answers are not (`NodesWritten.totals`).
+ */
+export type NodeFilters = Omit<
+  NonNullable<operations["listNodes"]["parameters"]["query"]>,
+  "fields" | "sort_by" | "sort_order"
 >;
 
 /** A column of the contract the server sorts the nodes by. */
@@ -224,10 +234,10 @@ function rescheduled<
 
 /**
  * What a write of a grid answered, as the grid reads it (#218): the nodes written, each ancestor
- * recalculated in place of the row shown, each task rescheduled with its new schedule, the totals
- * of the structure when the grid reads it whole — a filtered grid keeps those of its reading,
- * which the contract has it read anew by `listNodes` —, in the order of the version the structure
- * moved on to, which each write moves on.
+ * recalculated whole, each task rescheduled by the part of its schedule the grid reads — none for
+ * a grid that reads no date —, the totals of the structure when the grid reads it whole — a
+ * filtered grid reads its own anew (`GridConfig.retotal`) —, in the order of the version the
+ * structure moved on to, which each write moves on.
  */
 export function nodesWritten<
   N extends NodeField,
@@ -238,17 +248,17 @@ export function nodesWritten<
   fields: NodeFields<N, T, L>,
   whole: boolean,
 ): RowsWritten<NodeRow<N, T, L>, NodeTotals> {
-  const ancestors = written.ancestors.map((node): RowChange<NodeRow<N, T, L>> => {
-    const row = projectNode(node, fields);
-    return { key: node.node_id, change: () => row };
-  });
-  const schedules = written.rescheduled.map((schedule): RowChange<NodeRow<N, T, L>> => ({
-    key: schedule.node_id,
-    change: (row) => rescheduled(row, schedule),
-  }));
+  const schedule = new Set<string>(SCHEDULE);
+  const dated = fields.task.some((field) => schedule.has(field));
   return {
     rows: written.nodes.map((node) => projectNode(node, fields)),
-    changed: [...ancestors, ...schedules],
+    changed: written.ancestors.map((node) => projectNode(node, fields)),
+    parts: dated
+      ? written.rescheduled.map((schedule) => ({
+          key: schedule.node_id,
+          change: (row: NodeRow<N, T, L>) => rescheduled(row, schedule),
+        }))
+      : [],
     totals: whole ? written.totals : undefined,
     order: written.structure_lock_version,
   };

@@ -154,22 +154,27 @@ export type EntryKind =
       readonly nullable: boolean;
     };
 
-/** A row a write changed without writing it, by its key: how it now reads, from the row shown. */
-export interface RowChange<Row> {
+/**
+ * A part of a row a write changed without writing it nor answering it whole — the schedule of a
+ * task it rescheduled —, by the key of the row: the row with that part as it now is, from the row
+ * shown.
+ */
+export interface RowPart<Row> {
   readonly key: string;
   readonly change: (row: Row) => Row;
 }
 
 /**
  * What the server answers a write of a grid with, as the grid reads it (#218): the rows written,
- * as they now are; the other rows the write changed — the summaries above them recalculated, the
- * tasks it rescheduled —; the totals of the reading as the write left them; and the place of the
- * write among those of the rows. The grid shows each of them in place of what it showed, never a
- * sum nor a date of its own (WF-ARC-0020).
+ * as they now are; the other rows the write changed, whole — the summaries above them
+ * recalculated —, or in part — the tasks it rescheduled —; the totals of the reading as the write
+ * left them; and the place of the write among those of the rows. The grid shows each of them in
+ * place of what it showed, never a sum nor a date of its own (WF-ARC-0020).
  */
 export interface RowsWritten<Row, Totals> {
   readonly rows: readonly Row[];
-  readonly changed: readonly RowChange<Row>[];
+  readonly changed: readonly Row[];
+  readonly parts: readonly RowPart<Row>[];
   /**
    * The totals of the reading after the write; none when those the server answers are not the
    * reading's — a filtered reading keeps its own.
@@ -178,7 +183,7 @@ export interface RowsWritten<Row, Totals> {
   /**
    * The place of the write among those of the rows: a later write answers a greater one. Writes
    * of different rows leave together, and an answer may come back after a later one: a row or
-   * totals a later write answered are never taken back to an earlier one.
+   * totals a later write answered are never taken back to an earlier one (`answers.ts`).
    */
   readonly order: number;
 }
@@ -251,6 +256,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   readonly columns: readonly GridColumn<Row, Sort, Totals>[];
   /** How a block pasted from a spreadsheet is written; none, and the grid takes no paste. */
   readonly paste?: GridPaste<Row, Sort, Totals> | undefined;
+  /**
+   * How the totals of the reading are read anew once its writes answered, for a reading whose
+   * totals the writes do not answer — narrowed by a search or a filter (#218); none, and the
+   * totals are those the writes answer.
+   */
+  readonly retotal?: (() => Promise<Outcome<Totals>>) | undefined;
 }
 
 /** The key of the column of row numbers, which no configuration may take. */

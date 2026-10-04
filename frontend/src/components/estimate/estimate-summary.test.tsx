@@ -100,7 +100,7 @@ describe("the summary of the estimate", () => {
     expect(html).not.toContain("Écart");
   });
 
-  it("names the deviation from the reference apart from that from the previous marked revision", () => {
+  it("names the deviation from the reference apart from that from the previous marked revision [WF-DEV-0060-A]", () => {
     const indicators = example("estimate_indicators") as EstimateIndicators;
     const html = text(
       renderSummary(

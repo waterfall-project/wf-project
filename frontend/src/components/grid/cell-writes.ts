@@ -8,7 +8,9 @@
  * other rows the write changed — the summaries above it recalculated, the tasks it rescheduled —,
  * and the totals, when the server's are those of the reading (`RowsWritten`, #218): the grid sums
  * nothing and dates nothing. Each answer has its place among the writes, and a row or totals a
- * later write answered are never taken back to an earlier one. Until the server answers, the cell
+ * later write answered are never taken back to an earlier one (`answers.ts`). A reading narrowed
+ * by a search or a filter, whose totals the writes do not answer, reads them anew once its writes
+ * all answered (`GridConfig.retotal`). Until the server answers, the cell
  * shows what was validated, as pending; a refusal leaves the row as it was, and is told as every
  * screen tells one (`OutcomeNotice`) — a session lost among them, which leads to the sign-in
  * page and back to the screen (WF-SEC-0020).
@@ -31,6 +33,7 @@ import { useMemo, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 
+import { type Answers, answersOf, retotalled, shownRow, shownRows, take } from "./answers";
 import type { CellEntry, RowsWritten } from "./columns";
 
 /** The API out of reach: the server action itself did not answer — the network is down. */
@@ -45,61 +48,6 @@ const ANOTHER_ROW: Outcome<never> = {
   problem: { code: "INTERNAL_ERROR", status: 500 },
   conflictingObjectId: null,
 };
-
-/** A value an answer gave, and the place of that answer among the writes. */
-interface Answered<T> {
-  readonly value: T;
-  readonly order: number;
-}
-
-/**
- * What the answers in a reading hold, as the latest of them left it: each row they changed, by
- * its key, and the totals. Written as the answers come, which the next write of a row starts from.
- */
-interface Answers<Row, Totals> {
-  readonly reading: readonly Row[];
-  readonly rows: Map<string, Answered<Row>>;
-  totals: Answered<Totals> | undefined;
-  /** The rows of the reading by their key, made at the first answer that needs it. */
-  index: ReadonlyMap<string, Row> | undefined;
-}
-
-/** No answer yet in a reading. */
-function answersOf<Row, Totals>(reading: readonly Row[]): Answers<Row, Totals> {
-  return { reading, rows: new Map(), totals: undefined, index: undefined };
-}
-
-/**
- * Take what a write answered among the answers of its reading: each row written, and each row it
- * changed from the row shown, unless a later write answered it; the totals, likewise. A row the
- * reading does not show is changed from nothing: it is left out.
- */
-function take<Row, Totals>(
-  answers: Answers<Row, Totals>,
-  written: RowsWritten<Row, Totals>,
-  rowKey: (row: Row) => string,
-): void {
-  const { order } = written;
-  const earlier = (before: Answered<unknown> | undefined) =>
-    before === undefined || before.order <= order;
-  for (const row of written.rows) {
-    const key = rowKey(row);
-    if (earlier(answers.rows.get(key))) {
-      answers.rows.set(key, { value: row, order });
-    }
-  }
-  for (const { key, change } of written.changed) {
-    const before = answers.rows.get(key);
-    answers.index ??= new Map(answers.reading.map((row) => [rowKey(row), row]));
-    const shown = before?.value ?? answers.index.get(key);
-    if (earlier(before) && shown !== undefined) {
-      answers.rows.set(key, { value: change(shown), order });
-    }
-  }
-  if (written.totals !== undefined && earlier(answers.totals)) {
-    answers.totals = { value: written.totals, order };
-  }
-}
 
 /**
  * What the cells written change of a reading: the rows and the totals answered, the cells
@@ -131,11 +79,9 @@ function fresh<Row, Totals>(reading: readonly Row[]): Written<Row, Totals> {
 /** What the answers of a reading show: the rows and the totals answered. */
 function shown<Row, Totals>(
   answers: Answers<Row, Totals>,
+  rowKey: (row: Row) => string,
 ): Pick<Written<Row, Totals>, "answered" | "totals"> {
-  return {
-    answered: new Map(Array.from(answers.rows, ([key, row]) => [key, row.value])),
-    totals: answers.totals?.value,
-  };
+  return { answered: shownRows(answers, rowKey), totals: answers.totals?.value };
 }
 
 /** The key of a cell: the key of its row, and that of its column. */
@@ -182,10 +128,14 @@ export interface CellWrites<Row, Totals> {
   readonly applied: (written: RowsWritten<Row, Totals>) => void;
 }
 
-/** Write the cells of a grid, on the rows of a reading, keyed by `rowKey`. */
+/**
+ * Write the cells of a grid, on the rows of a reading, keyed by `rowKey`; the totals of a reading
+ * the writes do not answer them for read anew by `retotal`.
+ */
 export function useCellWrites<Row, Totals>(
   reading: readonly Row[],
   rowKey: (row: Row) => string,
+  retotal?: () => Promise<Outcome<Totals>>,
 ): CellWrites<Row, Totals> {
   const [state, setState] = useState(() => fresh<Row, Totals>(reading));
   // A new reading starts afresh, in the very render that brings it.
@@ -200,6 +150,11 @@ export function useCellWrites<Row, Totals>(
   const queues = useRef(new Map<string, Promise<void>>());
   // Moved on by each paste applied: a write born under an older generation answers too late.
   const generation = useRef(0);
+  // The writes under way, whether one was done since the totals were last read anew, and the
+  // reading of the totals an answer belongs to — moved on by each write that leaves.
+  const underWay = useRef(0);
+  const done = useRef(false);
+  const retotals = useRef(0);
   const { answered, totals, pending, outcome } = written;
   const rows = useMemo(
     () => (answered.size === 0 ? reading : reading.map((row) => answered.get(rowKey(row)) ?? row)),
@@ -220,26 +175,64 @@ export function useCellWrites<Row, Totals>(
     answer.kind === "done" && !answer.data.rows.some((row) => rowKey(row) === key)
       ? ANOTHER_ROW
       : answer;
+  /** Change the state of the reading, unless a new one came meanwhile. */
+  const current = (update: (before: Written<Row, Totals>) => Written<Row, Totals>) => {
+    setState((before) => (before.reading === reading ? update(before) : before));
+  };
+  /**
+   * Once every write answered, and one at least was done, read the totals anew — for a reading
+   * whose totals the writes do not answer: an answer is taken only if no write left meanwhile,
+   * whose own answer reads them again; a refusal is told unless another is.
+   */
+  const settle = (memory: Answers<Row, Totals>) => {
+    if (retotal === undefined || underWay.current > 0 || !done.current) {
+      return;
+    }
+    done.current = false;
+    retotals.current += 1;
+    const asked = retotals.current;
+    void retotal()
+      .catch(() => UNREACHABLE)
+      .then((answer) => {
+        if (asked !== retotals.current) {
+          return;
+        }
+        if (answer.kind === "done") {
+          retotalled(memory, answer.data);
+        }
+        current((before) => ({
+          ...before,
+          ...shown(memory, rowKey),
+          // A refusal told before stays; a success told says nothing of this one.
+          outcome:
+            answer.kind === "done" ||
+            (before.outcome !== undefined && before.outcome.kind !== "done")
+              ? before.outcome
+              : answer,
+        }));
+      });
+  };
   const write = ({ row, column, entry, value, shown: showing }: CellWrite<Row, Totals>) => {
     const key = rowKey(row);
     const cell = cellKey(key, column);
     const born = generation.current;
     const memory = answers();
-    const current = (update: (before: Written<Row, Totals>) => Written<Row, Totals>) => {
-      setState((before) => (before.reading === reading ? update(before) : before));
-    };
+    underWay.current += 1;
+    retotals.current += 1;
     current((before) => ({ ...before, pending: changed(before.pending, cell, showing) }));
     const queued = (queues.current.get(key) ?? Promise.resolve()).then(async () => {
-      const from = memory.rows.get(key)?.value ?? row;
+      const from = shownRow(memory, rowKey, key) ?? row;
       const answer = answering(key, await entry.write(from, value).catch(() => UNREACHABLE));
       const stale = born !== generation.current;
       const data = answer.kind === "done" && !stale ? answer.data : undefined;
       if (data !== undefined) {
         take(memory, data, rowKey);
+        done.current = true;
       }
+      underWay.current -= 1;
       current((before) => ({
         ...before,
-        ...(data === undefined ? {} : shown(memory)),
+        ...(data === undefined ? {} : shown(memory, rowKey)),
         pending: changed(before.pending, cell, undefined),
         // A refusal stays told until the notice clears it: a later write done says nothing of
         // it. A stale answer says nothing at all: it belongs to the rows before the paste.
@@ -248,6 +241,7 @@ export function useCellWrites<Row, Totals>(
             ? before.outcome
             : answer,
       }));
+      settle(memory);
     });
     queues.current.set(key, queued);
   };
@@ -255,7 +249,9 @@ export function useCellWrites<Row, Totals>(
     generation.current += 1;
     const memory = answers();
     take(memory, together, rowKey);
-    setState((before) => (before.reading === reading ? { ...before, ...shown(memory) } : before));
+    done.current = true;
+    current((before) => ({ ...before, ...shown(memory, rowKey) }));
+    settle(memory);
   };
   return {
     rows,

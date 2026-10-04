@@ -90,7 +90,7 @@ function renderGrid(editable = true, preferences?: GridPreferences) {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
-        filtered={false}
+        filters={{}}
         nodes={nodes}
         structure={STRUCTURE}
         structureVersion={STRUCTURE_VERSION}
@@ -268,7 +268,9 @@ describe("a block pasted from a spreadsheet", () => {
     fireEvent.paste(text, { clipboardData: { getData: () => copied(wide) } });
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Les données collées ont plus de colonnes que la grille.");
-    expect(alert).toHaveTextContent("La grille accepte au plus 13 colonnes.");
+    expect(alert).toHaveTextContent(
+      "La grille accepte au plus 13 colonnes à partir de cette cellule.",
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
     expect(labels()).toEqual(READ);
@@ -448,7 +450,7 @@ describe("a block pasted from a spreadsheet", () => {
     ).toEqual([1, 3]);
   });
 
-  it("whose span reaches a column of the contract the grid does not present is refused, naming it, and nothing is asked", async () => {
+  it("whose span reaches a column of the contract the grid does not present is refused, naming it, and nothing is asked [WF-IHM-0050-A]", async () => {
     const client = serve();
     renderGrid();
     // After the unit disbursement, the server fills the sub-project, which the grid of the

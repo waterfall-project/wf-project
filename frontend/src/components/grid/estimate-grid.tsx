@@ -12,14 +12,21 @@
  * pasted, by the structure and the version read of it. What a write answers — the nodes written,
  * the ancestors recalculated, the tasks rescheduled, the totals of the structure — is read as the
  * grid reads it (`nodesWritten`, #218), the totals taken only by a grid read without a search nor
- * a filter, whose totals are those of the structure.
+ * a filter, whose totals are those of the structure; a grid read with either reads its own anew by
+ * the same request, once its writes answered (`readNodeTotals`).
  */
 "use client";
 
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
-import { applyPaste, previewPaste, updateEstimateLine, updateTaskFacet } from "@/api/actions/nodes";
+import {
+  applyPaste,
+  previewPaste,
+  readNodeTotals,
+  updateEstimateLine,
+  updateTaskFacet,
+} from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 
 import { DenseGrid } from "./dense-grid";
@@ -34,6 +41,7 @@ import {
 import { nodeDependencies } from "./node-dependencies";
 import {
   type NodeColumn,
+  type NodeFilters,
   type NodeRows,
   type NodesWritten,
   type NodeSortColumn,
@@ -56,10 +64,11 @@ export interface EstimateGridProps {
    */
   readonly structureVersion: number;
   /**
-   * Whether the rows were read under a search or a filter — a sub-project —: their totals are
-   * those of the reading, which the totals of the structure a write answers are not.
+   * What the reading asked of the nodes besides their fields and their sort, as it was sent: one
+   * that asks a search or a filter — a sub-project — has totals of its own, which those of the
+   * structure a write answers are not, and which the grid reads anew by the same request.
    */
-  readonly filtered: boolean;
+  readonly filters: NodeFilters;
   /** The categories and roles the lines are named by, and chosen from. */
   readonly reference: EstimateReference;
   /**
@@ -134,7 +143,8 @@ function structurePaste(
 /**
  * How the grid writes the cells of a structure: each write carries the field entered and the
  * version of the node read (`lock_version`), nothing else (#178). The label of a task is written
- * only where the planning may be entered.
+ * only where the planning may be entered. A reading narrowed by a search or a filter reads its
+ * totals anew by its own request, which the writes do not answer.
  */
 function structureWrites(
   structure: StructurePath,
@@ -142,9 +152,11 @@ function structureWrites(
   moved: Moved,
   tasks: boolean,
   name: (column: NodeColumn) => string,
+  filters: NodeFilters,
 ): EstimateWrites {
   return {
     paste: structurePaste(structure, version, moved, name),
+    totals: moved.whole ? undefined : () => readNodeTotals(structure, filters),
     line: async (node, change) =>
       asWritten(
         await updateEstimateLine(structure, node.node_id, {
@@ -171,7 +183,7 @@ export function EstimateGrid({
   nodes,
   structure,
   structureVersion,
-  filtered,
+  filters,
   reference,
   editable,
   tasksEditable,
@@ -196,15 +208,18 @@ export function EstimateGrid({
       to: (next) => {
         setMoved((before) => Math.max(before, next));
       },
-      whole: !filtered,
+      // A reading that asks nothing but its fields and its sort is the whole structure.
+      whole: Object.keys(filters).length === 0,
     };
     const name = (column: NodeColumn) => columns(column);
     return estimateGrid(
       reference,
       unknown,
-      editable ? structureWrites(structure, version, told, tasksEditable, name) : undefined,
+      editable
+        ? structureWrites(structure, version, told, tasksEditable, name, filters)
+        : undefined,
     );
-  }, [reference, unknown, editable, tasksEditable, structure, version, filtered, columns]);
+  }, [reference, unknown, editable, tasksEditable, structure, version, filters, columns]);
   return (
     <DenseGrid
       config={config}

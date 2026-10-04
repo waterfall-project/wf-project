@@ -56,7 +56,10 @@ describe("the columns of the grid of the estimate", () => {
     expect(sortColumns(ESTIMATE_GRID)).toEqual(ESTIMATE_GRID.columns.map((column) => column.key));
   });
 
-  it("present the amount at the year of reference and the amount corrected for inflation, neither the budgeted nor the re-estimated amount by name [WF-DEV-0050-A]", () => {
+  // The part of the Vérif of WF-DEV-0050 the grid holds alone: the amount corrected above its
+  // amount by 4.04 % is the server's, which no example figures; the contract names no amount at
+  // the year of reference, read from `reestimated_amount` meanwhile (#235).
+  it("present no budgeted nor re-estimated amount by name, but the amount at the year of reference and the amount corrected for inflation — the Vérif in part [WF-DEV-0050-A]", () => {
     const amounts = ESTIMATE_GRID.columns.filter((column) => column.format === "money");
     expect(amounts.map((column) => column.label)).toEqual([
       "unitDisbursement",

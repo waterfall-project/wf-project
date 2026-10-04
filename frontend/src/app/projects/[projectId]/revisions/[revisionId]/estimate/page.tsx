@@ -234,7 +234,7 @@ export default async function EstimatePage({
           nodes={screen.nodes}
           structure={screen.structure}
           structureVersion={screen.structureVersion}
-          filtered={screen.filtered}
+          filters={screen.filters}
           reference={reference}
           editable={screen.reading.edits.has("edit_estimate")}
           tasksEditable={screen.reading.edits.has("edit_planning")}

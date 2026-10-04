@@ -102,10 +102,10 @@ describe("the sentence of a refusal", () => {
   it("says how many columns a paste may have", () => {
     const problem: ProblemText = { code: "PASTE_TOO_WIDE", params: { max_columns: 12 } };
     expect(say(problem, "en")).toBe(
-      "The pasted data has more columns than the grid. The grid accepts at most 12 columns.",
+      "The pasted data has more columns than the grid. The grid accepts at most 12 columns from this cell.",
     );
     expect(say({ code: "PASTE_TOO_WIDE", params: { max_columns: 1 } }, "fr")).toBe(
-      "Les données collées ont plus de colonnes que la grille. La grille accepte au plus 1 colonne.",
+      "Les données collées ont plus de colonnes que la grille. La grille accepte au plus 1 colonne à partir de cette cellule.",
     );
   });
 
