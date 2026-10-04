@@ -1,5 +1,5 @@
 {
-  "summary": "Le même devis quand l'ingénierie électrique et la mise en service n'ont pas de taux horaire pour 2026, son année de référence : la main-d'œuvre, le sous-projet qui porte sa ligne, le poste et le total ne se calculent pas, et nomment les catégories et l'année qui manquent ; le débours, la provision et l'ensemble hors sous-projet se calculent, mais leur part du total non ; le calcul est refusé plutôt que fait avec un taux à zéro (WF-DEV-0010, WF-DEV-0060).",
+  "summary": "Le même devis quand l'ingénierie électrique, la catégorie de sa ligne de main-d'œuvre, n'a pas de taux horaire pour 2026, son année de référence : la main-d'œuvre, le sous-projet qui porte sa ligne, le poste et le total ne se calculent pas, et nomment la catégorie et l'année qui manquent ; le débours, la provision et l'ensemble hors sous-projet se calculent, mais leur part du total non ; le calcul est refusé plutôt que fait avec un taux à zéro (WF-DEV-0010, WF-DEV-0060).",
   "value": {
     "context": {
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
@@ -17,11 +17,6 @@
           {
             "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
             "label": "Ingénierie électrique",
-            "year": 2026
-          },
-          {
-            "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-            "label": "Mise en service",
             "year": 2026
           }
         ]
@@ -41,11 +36,6 @@
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
                 "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
-                "year": 2026
               }
             ]
           }
@@ -59,11 +49,6 @@
               {
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
-                "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
                 "year": 2026
               }
             ]
@@ -88,11 +73,6 @@
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
                 "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
-                "year": 2026
               }
             ]
           }
@@ -116,11 +96,6 @@
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
                 "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
-                "year": 2026
               }
             ]
           }
@@ -141,11 +116,6 @@
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
                 "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
-                "year": 2026
               }
             ]
           }
@@ -159,11 +129,6 @@
               {
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
-                "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
                 "year": 2026
               }
             ]
@@ -187,11 +152,6 @@
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
                 "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
-                "year": 2026
               }
             ]
           }
@@ -212,11 +172,6 @@
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
                 "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
-                "year": 2026
               }
             ]
           }
@@ -230,11 +185,6 @@
               {
                 "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
                 "label": "Ingénierie électrique",
-                "year": 2026
-              },
-              {
-                "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
-                "label": "Mise en service",
                 "year": 2026
               }
             ]

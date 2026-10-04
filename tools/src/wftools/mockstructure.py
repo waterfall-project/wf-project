@@ -502,9 +502,10 @@ def _task_fields(task: Task) -> _Fields:
 def _line_fields(kind: LineKind) -> _Fields:
     """Return what a line computes and what it accepts (WF-DEV-0020).
 
-    A labour line takes its role and its hours, another its unit disbursement; a provision
-    computes its quantity and its unit disbursement from its risk, and takes neither, nor its
-    category (WF-RIS-0010).
+    A labour line takes its role and its hours, and no payment delay, nil for labour (§3.2.5);
+    another takes its unit disbursement and its payment delay; a provision computes its
+    quantity and its unit disbursement from its risk, and takes neither, nor its category
+    (WF-RIS-0010).
     """
     editable: list[JsonValue] = ["estimate_line.label"]
     if kind.is_provision:
@@ -512,12 +513,18 @@ def _line_fields(kind: LineKind) -> _Fields:
         return _Fields(["estimate_line.quantity", "estimate_line.unit_disbursement"], editable)
     editable.append("estimate_line.cost_category_id")
     if kind.rate is not None:
-        editable.append("estimate_line.resource_role_id")
-    editable.append("estimate_line.quantity")
-    editable.append(
-        "estimate_line.hours" if kind.rate is not None else "estimate_line.unit_disbursement"
-    )
-    editable.extend(["estimate_line.payment_delay_days", "estimate_line.subproject_id"])
+        editable.extend(
+            ["estimate_line.resource_role_id", "estimate_line.quantity", "estimate_line.hours"]
+        )
+    else:
+        editable.extend(
+            [
+                "estimate_line.quantity",
+                "estimate_line.unit_disbursement",
+                "estimate_line.payment_delay_days",
+            ]
+        )
+    editable.append("estimate_line.subproject_id")
     return _Fields([], editable)
 
 

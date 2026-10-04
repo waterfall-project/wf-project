@@ -340,7 +340,9 @@ partielle ne se décrit pas par `allOf` d'un schéma qui exige.
 
 **Le nœud dit quels champs il accepte** (`editable_fields`, `EditableField`, #194), symétrique de
 `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une autre le débours
-unitaire (WF-DEV-0020), une provision ni l'un ni l'autre, ni sa catégorie ni sa quantité ; une
+unitaire et le délai de paiement — nul pour la main-d'œuvre, dit le §3.2.5, et le motif de
+WF-DEV-0020 : une ligne de main-d'œuvre n'en saisit pas — (WF-DEV-0020), une provision ni l'un
+ni l'autre, ni sa catégorie ni sa quantité ; une
 tâche en mode manuel porte ses dates, un jalon n'a pas de durée, une récapitulative ni durée, ni
 dates, ni avancement (WF-PLA-0130). La grille n'offre une cellule que si son champ y figure, sans
 déduire la règle de la nature de la catégorie. La liste dit ce que la ligne accepte, pas ce que
@@ -379,8 +381,10 @@ pour qu'un bloc de lignes de main-d'œuvre et hors main-d'œuvre se colle tel qu
 `max_columns` compte les colonnes de la facette à partir de la colonne visée. Écartés : un tableau
 `columns` envoyé par la grille, qui ferait du contrat l'image des colonnes affichées ; sauter une
 colonne non saisissable, qui déplacerait une valeur dans la colonne voisine — ce que le motif de
-WF-IHM-0050 veut éviter. Le front garde sa garde locale sur une colonne masquée, qui ne contredit
-pas le contrat.
+WF-IHM-0050 veut éviter. La garde locale du front — un bloc trop large ou qui enjambe une colonne
+masquée, refusé avant de rien demander — reste à aligner sur cet ordre : elle mesure encore la
+portée d'un bloc sur les colonnes de la configuration de la grille, non sur celles de la facette
+dans l'ordre de `NodeColumn` (#223).
 
 **La liste des contributeurs a son compteur** (`ContributorList`, #186). `setContributors` exigeait
 un `lock_version` sans dire de quel objet, et `listContributors` rendait un tableau nu : le
@@ -439,8 +443,9 @@ taux manquants ne touchent pas, et des provisions.
 `by_order_item`, #160). WF-DEV-0060 demande « l'écart entre le devis en cours et celui de la
 référence » et « les totaux par poste » ; le contrat ne rendait que l'écart à la révision marquée
 précédente, qui n'est l'écart à la référence que par hasard. `delta_to_reference` est nul sans
-révision de référence, `by_order_item` nul sans lotissement saisi — absents plutôt que nuls, comme
-le Vérif le veut —, et chaque poste est nommé par son libellé (WF-PRJ-0020).
+révision de référence, `by_order_item` nul quand le planning n'est pas structuré en postes —
+absents plutôt que nuls, comme le Vérif le veut —, et chaque poste est nommé par son libellé
+(WF-PRJ-0020).
 `delta_to_previous_revision` reste : la revue périodique le lit.
 
 **Toute opération gardée par la session déclare le 401, et une règle du contrat l'exige**
@@ -448,10 +453,13 @@ le Vérif le veut —, et chaque poste est nommé par son libellé (WF-PRJ-0020)
 une minorité d'opérations, quand toute opération gardée par la session peut répondre 401 — session
 absente, expirée ou révoquée (WF-SEC-0020) — et que le contrat déclare toute erreur qu'un client
 peut rencontrer (WF-ARC-0060) ; le client factice des tests du front, typé sur les statuts
-déclarés, ne pouvait pas simuler une session perdue sur ces lectures. Cent neuf opérations
-gagnent leur 401, et une règle d'assertion de Redocly — une règle maison n'a pas été nécessaire —
-exige `401` dans les réponses de toute opération qui ne déclare pas `security: []` : une
-opération nouvelle ne peut plus l'oublier, et une opération publique le dit par `security: []`.
+déclarés, ne pouvait pas simuler une session perdue sur ces lectures. Cent dix opérations
+gagnent leur 401 — trente-huit le déclaraient, cent quarante-huit le déclarent —, et une règle
+d'assertion de Redocly — une règle maison n'a pas été nécessaire — exige `401` dans les réponses
+de toute opération dont `security` est absent, la session héritée de la racine : une opération
+nouvelle ne peut plus l'oublier. La règle ne voit pas une opération qui écrirait
+`security: [{ session: [] }]` : la convention est qu'aucune ne l'écrit, et qu'une opération
+publique le dit par `security: []`.
 
 **`correlation_id` a un motif** (`^[A-Za-z0-9._-]{1,64}$`, #144). Une chaîne libre, qui pouvait
 être vide, et qu'un identifiant repris d'un en-tête d'entrée sans contrôle aurait pu remplir de

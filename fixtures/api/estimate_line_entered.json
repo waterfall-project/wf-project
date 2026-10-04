@@ -39,7 +39,6 @@
           "estimate_line.resource_role_id",
           "estimate_line.quantity",
           "estimate_line.hours",
-          "estimate_line.payment_delay_days",
           "estimate_line.subproject_id"
         ]
       }

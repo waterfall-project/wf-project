@@ -260,6 +260,6 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | CMP | WF-CMP-0010, WF-CMP-0030 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010, WF-EXP-0020, WF-EXP-0030, WF-EXP-0050 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
-| IHM | WF-IHM-0010, WF-IHM-0100 | Invariants d'interface : navigation, saisie au clavier, accessibilité. Ils vivent dans le front. |
+| IHM | WF-IHM-0010, WF-IHM-0100 | Invariants d'interface : navigation, accessibilité. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |

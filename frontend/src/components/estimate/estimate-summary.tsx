@@ -126,14 +126,21 @@ function Figured({
     : t("estimateSummary.notComputable", { reason: t(`enums.NotComputableReason.${reason}`) });
 }
 
-/** A figure of the estimate: its name, and its amount, when the API computed it. */
-function Figure({ name, amount }: { readonly name: string; readonly amount: Computable }) {
+/**
+ * A figure of the estimate: its name, and its amount — one the API always computes, as a
+ * `Money`, or one it may not have, under `Computable`.
+ */
+function Figure({ name, amount }: { readonly name: string; readonly amount: Computable | string }) {
   const locale = useLocale();
   return (
     <div className="space-y-0.5">
       <dt className="text-xs text-muted-foreground">{name}</dt>
       <dd className="font-semibold tabular-nums">
-        <Figured value={amount} format={(value) => formatMoney(value, locale)} />
+        {typeof amount === "string" ? (
+          formatMoney(amount, locale)
+        ) : (
+          <Figured value={amount} format={(value) => formatMoney(value, locale)} />
+        )}
       </dd>
     </div>
   );
@@ -187,18 +194,12 @@ function Breakdown({
 /** The figures of the indicators: the total, the provisions, the deviation, the breakdowns. */
 function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
   const t = useTranslations("estimateSummary");
-  const locale = useLocale();
   const delta = indicators.delta_to_previous_revision;
   const provisions = indicators.provisions_identified;
   return (
     <dl className="flex flex-wrap gap-x-8 gap-y-2">
       <Figure name={t("total")} amount={indicators.total} />
-      {provisions === undefined ? null : (
-        <div className="space-y-0.5">
-          <dt className="text-xs text-muted-foreground">{t("provisions")}</dt>
-          <dd className="font-semibold tabular-nums">{formatMoney(provisions, locale)}</dd>
-        </div>
-      )}
+      {provisions === undefined ? null : <Figure name={t("provisions")} amount={provisions} />}
       {delta === null || delta === undefined ? null : <Figure name={t("delta")} amount={delta} />}
       <Breakdown name={t("byCostType")} items={indicators.by_cost_type} />
       <Breakdown name={t("bySubproject")} items={indicators.by_subproject} />

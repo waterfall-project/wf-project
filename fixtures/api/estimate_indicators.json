@@ -1,5 +1,5 @@
 {
-  "summary": "Les indicateurs du devis de la révision courante au 16 mars 2026 : sa ligne de débours de 100 000, hors sous-projet, sans provision ni poste du lotissement, et aucun écart avec la référence, dont elle reprend le devis, ni avec la révision marquée précédente, qui est la référence (WF-DEV-0060).",
+  "summary": "Les indicateurs du devis de la révision courante au 16 mars 2026 : sa ligne de débours de 100 000, hors sous-projet, sans provision, le planning n'étant pas structuré en postes, et aucun écart avec la référence, dont elle reprend le devis, ni avec la révision marquée précédente, qui est la référence (WF-DEV-0060).",
   "value": {
     "context": {
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",

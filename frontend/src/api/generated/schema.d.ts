@@ -3420,7 +3420,7 @@ export interface components {
          */
         TaskProgress: "not_started" | "started" | "completed";
         /**
-         * @description Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente. C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050).
+         * @description Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente : de `label` à `predecessors`, les colonnes de la tâche ; `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis. C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050).
          * @enum {string}
          */
         NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float_days" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_reestimated_amount";
@@ -3588,7 +3588,7 @@ export interface components {
             predecessors?: components["schemas"]["Predecessor"][];
             /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision. Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
             computed_fields: components["schemas"]["ComputedField"][];
-            /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire (WF-DEV-0020), une ligne de provision ni les uns ni l'autre ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
+            /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
             editable_fields: components["schemas"]["EditableField"][];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -3673,7 +3673,7 @@ export interface components {
             finish?: components["schemas"]["WorkInstant"] | null;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Modification d'une ligne de devis, cellule par cellule (WF-IHM-0040) : seul le compteur lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent reste ce qu'il était. Les mêmes champs qu'à la création (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours d'une ligne de main-d'œuvre, le rôle ou la charge d'une autre — est refusé par 422 (WF-DEV-0020), et le nœud dit lesquels il accepte (`editable_fields`). */
+        /** @description Modification d'une ligne de devis, cellule par cellule (WF-IHM-0040) : seul le compteur lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent reste ce qu'il était. Les mêmes champs qu'à la création (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours ou le délai de paiement d'une ligne de main-d'œuvre, le rôle ou la charge d'une autre — est refusé par 422 (WF-DEV-0020, §3.2.5), et le nœud dit lesquels il accepte (`editable_fields`). */
         EstimateLineUpdate: {
             label?: string;
             cost_category_id?: components["schemas"]["Uuid"];
