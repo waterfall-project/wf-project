@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { LEAF_ICONS } from "@/components/shell/function-display";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
@@ -14,6 +15,7 @@ import {
   functionHref,
   functionOf,
   PLATFORM_FUNCTIONS,
+  leafOf,
   readableGroups,
 } from "./functions";
 
@@ -105,6 +107,38 @@ describe("the table of the functions", () => {
         expect(fn.route, fn.code).toMatch(/^\/(admin|portfolio|reference)\/[a-z-]+$|^\/system$/);
       }
     }
+  });
+});
+
+describe("the leaves of the table", () => {
+  const leaves = FUNCTIONS.flatMap((fn) => (fn.leaves ?? []).map((leaf) => ({ fn, leaf })));
+
+  it("hold the workload of the project, a leaf of the estimate (FBS-4.4.4)", () => {
+    expect(leaves.map(({ fn, leaf }) => [fn.code, leaf.code])).toEqual([["FBS-4.4", "FBS-4.4.4"]]);
+    expect(leafOf("FBS-4.4.4").route).toBe("/projects/[projectId]/revisions/[revisionId]/workload");
+    expect(() => leafOf("FBS-4.4.9")).toThrow("no leaf of the table is FBS-4.4.9");
+  });
+
+  it("are of the scope and the permission of their function, named in both catalogues, under its code", () => {
+    const routes = new Set(FUNCTIONS.map((fn) => fn.route));
+    for (const { fn, leaf } of leaves) {
+      expect(leaf.code.startsWith(`${fn.code}.`), leaf.code).toBe(true);
+      expect([leaf.scope, leaf.permission]).toEqual([fn.scope, fn.permission]);
+      expect(text(CATALOGUES.fr, leaf.label), leaf.label).toEqual(expect.any(String));
+      expect(text(CATALOGUES.en, leaf.label), leaf.label).toEqual(expect.any(String));
+      expect(routes.has(leaf.route), leaf.route).toBe(false);
+    }
+  });
+
+  it("have each an icon of their own, and only they", () => {
+    expect(Object.keys(LEAF_ICONS)).toEqual(leaves.map(({ leaf }) => leaf.code));
+  });
+
+  it("are not offered by the navigation, which offers their function", () => {
+    const codes = readableGroups(["estimate.read"]).flatMap((group) =>
+      group.functions.map((fn) => fn.code),
+    );
+    expect(codes).toEqual(["FBS-4.4"]);
   });
 });
 
@@ -215,11 +249,20 @@ describe("the function an address leads to", () => {
     [["projects", PROJECT, "revisions", REVISION, "actual-costs"], "FBS-4.7", PROJECT, REVISION],
     [["projects", PROJECT, "lifecycle"], "FBS-4.9", PROJECT, undefined],
     [["projects", PROJECT, "revisions"], "FBS-4.1", PROJECT, undefined],
+    [["projects", PROJECT, "revisions", REVISION, "workload"], "FBS-4.4.4", PROJECT, REVISION],
   ])("is found from %j", (segments, code, projectId, revisionId?: string) => {
     const screen = findScreen(segments);
     expect(screen?.fn.code).toBe(code);
     expect(screen?.projectId).toBe(projectId);
     expect(screen?.revisionId).toBe(revisionId);
+  });
+
+  it("names the function a leaf belongs to, and none for a function", () => {
+    const leaf = findScreen(["projects", PROJECT, "revisions", REVISION, "workload"]);
+    expect(leaf?.parent?.code).toBe("FBS-4.4");
+    expect(findScreen(["projects", PROJECT, "revisions", REVISION, "estimate"])?.parent).toBe(
+      undefined,
+    );
   });
 
   it.each([[["admin"]], [["admin", "nobody"]], [["projects", PROJECT, "revisions", REVISION]]])(

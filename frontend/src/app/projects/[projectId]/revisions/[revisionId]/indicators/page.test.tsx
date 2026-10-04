@@ -346,7 +346,7 @@ describe("the curves and the milestones of the screen", () => {
 });
 
 describe("the provenance of the charts the screen exports", () => {
-  it("offers each chart below the cards for export, under its caption [WF-IHM-0130-A]", async () => {
+  it("offers each chart below the cards for export, under its caption", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page.match(/Export as PNG/g)).toHaveLength(3);
     expect(page).toContain("Time/time diagram Export as PNG Computed on");
