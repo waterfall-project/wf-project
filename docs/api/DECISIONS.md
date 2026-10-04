@@ -595,11 +595,11 @@ mois au prorata de leurs heures travaillées — 5,95 en mai, 6,55 en juin —, 
 électricien, sa capacité en regard ; le technicien de mise en service, du même nœud
 d'organisation, n'a pas de charge, et sa capacité seule. Ces exemples suivent le devis de
 `nodes_estimate`, non les montants de `project_indicators` : ils sont de l'univers du devis, que la
-scission des univers témoins (#287) nomme déjà. `org_nodes` (`listOrgNodes`) est l'arbre
-d'organisation qui classe ces rôles — la direction technique, le bureau d'études électriques et le
-service des essais —, que l'écran offre au filtre ; `revisions_marked` (`listRevisions`, filtre
-`status=marked`), les deux révisions marquées du projet, la référence et l'offre v1.0, que l'écran
-offre comme base. Aucune forme du contrat ne change : rien que des exemples.
+scission des univers témoins (#287) nomme déjà. Les deux rôles sont ceux de `resource_roles`,
+relevant du bureau d'études électricité d'`org_nodes` — l'exemple du référentiel (US-0250/L1), que
+l'écran offre au filtre, chaque nœud avec le libellé de son parent. `revisions_marked`
+(`listRevisions`, filtre `status=marked`), les deux révisions marquées du projet, la référence et
+l'offre v1.0, que l'écran offre comme base. Aucune forme du contrat ne change : rien que des exemples.
 
 ## Les coûts réels d'un projet (US-0230/L3)
 

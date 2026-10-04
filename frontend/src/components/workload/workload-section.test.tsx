@@ -88,7 +88,7 @@ describe("the workload section", () => {
       }),
     );
     expect(filtered).toContain(
-      "No role of the node “Bureau d&#x27;études électriques” has a load on this basis.",
+      "No role of the node “Bureau d&#x27;études électricité” has a load on this basis.",
     );
     expect(filtered).not.toContain("Load by role and by month");
   });
@@ -103,11 +103,14 @@ describe("the workload section", () => {
     expect(page).toContain("No role of the node “unknown node” has a load on this basis.");
   });
 
-  it("lists the nodes in the order of the API, by their label alone", () => {
+  it("lists the nodes in the order of the API, each with the label of its parent the API gives, the root alone", () => {
     const page = section({});
     const labels = [...page.matchAll(/<option value="01926f3a[^"]*47\d"[^>]*>(.*?)<\/option>/g)];
-    expect(labels.map((match) => match[1])).toEqual(
-      ORG_NODES.map((node) => node.label.replace("'", "&#x27;")),
-    );
+    expect(labels.map((match) => match[1])).toEqual([
+      "Direction technique",
+      "Bureau d&#x27;études électricité (Direction technique)",
+      "Atelier de câblage (Bureau d&#x27;études électricité)",
+      "Service des achats (Direction technique)",
+    ]);
   });
 });

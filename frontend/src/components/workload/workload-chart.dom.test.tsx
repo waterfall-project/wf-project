@@ -79,7 +79,7 @@ const PROVENANCE = {
   code: "PRJ-001",
   revision: "Current revision",
   detail:
-    "Basis: Remaining of the current revision · Organisation node: Bureau d’études électriques",
+    "Basis: Remaining of the current revision · Organisation node: Bureau d’études électricité",
 };
 
 /** Render the workload in English, as the screen hands it over. */
@@ -193,7 +193,7 @@ describe("the workload of a project", () => {
     const option = canvas.options[0] as ChartOption;
     expect(option.title).toMatchObject({
       text: `Project workload — ${PROJECT}`,
-      subtext: `Revision: Current revision · Basis: Remaining of the current revision · Organisation node: Bureau d’études électriques · Computed on ${formatTimestamp(WORKLOAD.context.computed_at, "en")}`,
+      subtext: `Revision: Current revision · Basis: Remaining of the current revision · Organisation node: Bureau d’études électricité · Computed on ${formatTimestamp(WORKLOAD.context.computed_at, "en")}`,
     });
     // The colour the probe of the token resolves to, as the simulated document writes it back.
     expect(option.backgroundColor).toBe(BACKGROUND);
@@ -241,7 +241,7 @@ describe("the export of the workload from its section", () => {
     const option = canvas.options[0] as ChartOption;
     expect(option.title).toMatchObject({
       text: `Project workload — ${PROJECT}`,
-      subtext: `Revision: Référence · Basis: Remaining of a marked revision · Organisation node: Bureau d'études électriques · Computed on ${formatTimestamp(marked.context.computed_at, "en")}`,
+      subtext: `Revision: Référence · Basis: Remaining of a marked revision · Organisation node: Bureau d'études électricité · Computed on ${formatTimestamp(marked.context.computed_at, "en")}`,
     });
     expect(saved).toEqual([
       { href: "data:image/png;base64,iVBORw0KGgo=", download: "workload-PRJ-001.png" },

@@ -477,6 +477,7 @@
     "unnamedRevision": "Révision marquée sans nom",
     "orgNode": "Nœud d’organisation",
     "allOrgNodes": "Tous les nœuds",
+    "orgNodeIn": "{node} ({parent})",
     "unknownOrgNode": "nœud inconnu",
     "show": "Afficher",
     "reading": "Base : {basis} — révision « {revision} »",

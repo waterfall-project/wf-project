@@ -143,8 +143,9 @@ describe("the screen of the workload of a project", () => {
     expect(options(page, "org_node_id")).toEqual([
       "All nodes",
       "Direction technique",
-      "Bureau d&#x27;études électriques",
-      "Service des essais",
+      "Bureau d&#x27;études électricité (Direction technique)",
+      "Atelier de câblage (Bureau d&#x27;études électricité)",
+      "Service des achats (Direction technique)",
     ]);
     expect(page).toContain('type="hidden" name="as_of" value="2026-03-16"');
     expect(page).not.toContain('type="hidden" name="basis"');

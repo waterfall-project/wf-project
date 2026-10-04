@@ -477,6 +477,7 @@
     "unnamedRevision": "Unnamed marked revision",
     "orgNode": "Organisation node",
     "allOrgNodes": "All nodes",
+    "orgNodeIn": "{node} ({parent})",
     "unknownOrgNode": "unknown node",
     "show": "Show",
     "reading": "Basis: {basis} — revision “{revision}”",

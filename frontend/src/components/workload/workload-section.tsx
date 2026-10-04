@@ -204,13 +204,15 @@ function WorkloadChoices({
           ))}
         </Choice>
       ) : null}
-      {/* The nodes in the order of the API, by their label: the tree is not drawn (constat on
-          the contract, EP-02). */}
+      {/* The nodes in the order of the API, each with the label of its parent: the tree is not
+          drawn (#297). */}
       <Choice label={t("workload.orgNode")} name="org_node_id" selected={asked.orgNode ?? ""}>
         <option value="">{t("workload.allOrgNodes")}</option>
         {orgNodes.map((node) => (
           <option key={node.org_node_id} value={node.org_node_id}>
-            {node.label}
+            {node.parent_label === null
+              ? node.label
+              : t("workload.orgNodeIn", { node: node.label, parent: node.parent_label })}
           </option>
         ))}
       </Choice>
