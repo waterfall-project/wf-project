@@ -156,9 +156,9 @@
     tags: [risks]
     summary: Déclarer un risque survenu
     description: >-
-      Fusionne les tâches et les lignes du devis propre dans la structure principale,
-      avec un montant budgété nul, et la révision marquée qui en résulte devient la
-      référence ; la provision retenue est celle de la révision de référence
+      Fusionne les tâches et les lignes du devis propre dans la structure principale de
+      la révision en cours, avec un montant budgété nul, et retire la ligne de
+      provision ; ne marque aucune révision et ne déplace pas la référence
       (WF-RIS-0060, WF-RIS-0050). Définitif, confié au worker, inscrit au journal
       d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
     parameters:
@@ -178,6 +178,25 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+
+/projects/{project_id}/risks/coverage:
+  get:
+    operationId: getProjectRiskCoverage
+    tags: [risks]
+    summary: Couverture des risques
+    description: >-
+      La réserve pour risques de la révision de référence, face aux provisions des
+      risques identifiés dans la révision courante et au coût réestimé des risques
+      survenus, et leur écart signé (WF-RIS-0050, WF-RAE-0020).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+    responses:
+      '200':
+        description: Couverture des risques du projet.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/RiskCoverage }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/risks/matrix:
   get:

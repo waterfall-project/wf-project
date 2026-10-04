@@ -98,16 +98,17 @@ RiskReviewWrite:
 
 RiskOccurrence:
   type: object
-  required: [confirmed, version_name]
+  required: [confirmed]
   description: >-
     Déclare le risque survenu : fusionne son devis propre dans la structure
-    principale, les lignes fusionnées portant un montant budgété nul, et la
-    révision marquée qui en résulte devient la référence (WF-RIS-0060). Définitif.
+    principale de la révision en cours, les lignes fusionnées portant un montant
+    budgété nul et leur montant du devis propre en réestimé ; la ligne de provision
+    est retirée. Ne marque aucune révision et ne déplace pas la référence
+    (WF-RIS-0060). Définitif.
   properties:
     confirmed:
       type: boolean
       const: true
-    version_name: { type: string, minLength: 1, maxLength: 100 }
 
 RiskMatrixCell:
   type: object
@@ -136,9 +137,28 @@ RiskMatrix:
 
 ProvisionTotals:
   type: object
-  required: [identified, occurred, dismissed]
-  description: Les trois totaux de provisions, distincts (WF-RIS-0040).
+  required: [identified, occurred, dismissed, reserve]
+  description: >-
+    Les trois totaux de provisions, distincts — les identifiés pour leur provision
+    courante, les survenus et les écartés pour celle qu'ils portaient dans la révision
+    de référence —, et la réserve pour risques en regard (WF-RIS-0040, WF-RIS-0050).
   properties:
     identified: { $ref: ../common.yaml#/Money }
     occurred: { $ref: ../common.yaml#/Money }
     dismissed: { $ref: ../common.yaml#/Money }
+    reserve: { $ref: ../common.yaml#/Money }
+
+RiskCoverage:
+  type: object
+  required: [context, reserve, remaining_provisions, occurred_cost, coverage_variance]
+  description: >-
+    Couverture des risques : la réserve pour risques de la révision de référence, face
+    aux provisions des risques identifiés dans la révision courante et au montant
+    réestimé des lignes issues des risques survenus ; l'écart, signé, est
+    reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050).
+  properties:
+    context: { $ref: indicators.yaml#/CalculationContext }
+    reserve: { $ref: ../common.yaml#/Money }
+    remaining_provisions: { $ref: ../common.yaml#/Money }
+    occurred_cost: { $ref: ../common.yaml#/Money }
+    coverage_variance: { $ref: ../common.yaml#/Money }

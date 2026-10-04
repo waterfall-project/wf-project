@@ -250,7 +250,9 @@ CurveSeries:
                 amount: { $ref: ../common.yaml#/Money }
     steps:
       type: array
-      description: Marches du budget de référence, datées et motivées (WF-IND-0100).
+      description: >-
+        Marches du budget de référence, datées et motivées : seuls les avenants le
+        déplacent (WF-IND-0100, WF-RIS-0050).
       items:
         type: object
         required: [date, amount, cause]
@@ -259,7 +261,7 @@ CurveSeries:
           amount: { $ref: ../common.yaml#/Money }
           cause:
             type: string
-            enum: [amendment, risk_occurred, last_risk_dismissed]
+            enum: [amendment]
 
 CashOut:
   type: object

@@ -52,7 +52,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PLA-0130-A` | Attributs d’une tâche | fin — amorcée en EP-06 | — |
 | `WF-PLA-0060-A` | Inscription aux suivis | fin — amorcée en EP-06 | — |
 | `WF-RAE-0050-A` | Tâches ajoutées en cours d’exécution | fin — amorcée en EP-09 | — |
-| `WF-RIS-0050-A` | Provisions et budget de référence | fin — amorcée en EP-08 | — |
+| `WF-RIS-0050-A` | Réserve pour risques et couverture | fin — amorcée en EP-08 | — |
 | `WF-RIS-0060-A` | Survenance d’un risque | fin — amorcée en EP-08 | — |
 | `WF-IND-0010-A` | Date et périmètre de calcul | entière | — |
 | `WF-IND-0020-A` | Granularité des indicateurs | entière | — |
@@ -90,7 +90,7 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (11) :
 
 ## Préalables
 
-EP-08 livré : le budget de référence dépend des provisions et des avenants.
+EP-08 livré : le budget de référence dépend des avenants, et la couverture des risques de la réserve et des provisions.
 
 ## Définition de fini
 

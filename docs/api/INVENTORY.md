@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**150 opérations sur 116 chemins, dans 12 familles.**
+**151 opérations sur 117 chemins, dans 12 familles.**
 Le contrat cite **177 des 208 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -191,7 +191,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 
 ## Risques et provisions
 
-`paths/risks.yaml` — 8 opérations
+`paths/risks.yaml` — 9 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -202,6 +202,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 | GET | `/projects/{project_id}/risks/{risk_id}/reviews` | Historique des réexamens | WF-RIS-0010 |
 | POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Réexaminer un risque | WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
 | POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Déclarer un risque survenu | WF-ARC-0090, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
+| GET | `/projects/{project_id}/risks/coverage` | Couverture des risques | WF-RAE-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/matrix` | Matrice de risques du projet | WF-IHM-0070, WF-REF-0160, WF-RIS-0040 |
 
 ## Coûts réels
