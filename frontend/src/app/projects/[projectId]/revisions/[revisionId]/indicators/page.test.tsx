@@ -17,8 +17,14 @@ const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } =>
   clients: [],
 }));
 
+// One client for the whole of a page, made at its first call: a sequence of answers to a route
+// answers the calls of the page in turn, whichever read makes them.
 vi.mock("@/api/server", () => ({
   serverClient: () => {
+    const made = server.clients.at(-1);
+    if (made !== undefined) {
+      return made;
+    }
     const client = fakeClient(server.answers);
     server.clients.push(client);
     return client;
@@ -30,6 +36,7 @@ vi.mock("next/headers", () => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+const REVISION_ROUTE = "GET /projects/{project_id}/revisions/{revision_id}";
 const MARKED = "01926f3a-7c00-7000-8000-000000000101";
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 type Indicators = components["schemas"]["ProjectIndicators"];
@@ -59,6 +66,14 @@ function at(search: Record<string, string> = {}, revisionId = REVISION) {
     params: Promise.resolve({ projectId: PROJECT, revisionId }),
     searchParams: Promise.resolve(search),
   };
+}
+
+/** The paths of the calls of a route, in their order. */
+function pathsOf(route: string): string[] {
+  return server.clients
+    .flatMap((client) => client.calls)
+    .filter((call) => call.route === route)
+    .map((call) => call.path);
 }
 
 /** The query of the call of a route, as the client serialized it. */
@@ -183,23 +198,39 @@ describe("the screen of the indicators of a project", () => {
   });
 
   it("says at its head that its figures are computed on another revision than the one its banner names, and which [WF-IHM-0020-A]", async () => {
-    // The reference, marked, is read; the API computes on the revision under way (#247).
+    // The reference, marked, is read; the API computes on the revision under way (#247), which
+    // the screen reads then by its identifier — once, though the indicators and the evolution
+    // of the indices both name it.
     server.answers = {
       ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
-      "GET /projects/{project_id}/revisions": "revisions",
+      [REVISION_ROUTE]: ["revision_marked", "revision"],
     };
     const page = text(html(await IndicatorsPage(at({}, MARKED))));
     expect(page).toContain(
       "Project indicators Indicators of another revision These indicators are computed on the revision “Current revision”, not on the one the banner names. Financial progress",
     );
     expect(page).toMatch(/Revision Référence/);
+    expect(pathsOf(REVISION_ROUTE)).toEqual([
+      `/projects/${PROJECT}/revisions/${MARKED}`,
+      `/projects/${PROJECT}/revisions/${REVISION}`,
+    ]);
+  });
+
+  it("says unnamed a revision of the calculation the API does not find, and stays [WF-IHM-0020-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [REVISION_ROUTE]: ["revision_marked", NOT_FOUND],
+    };
+    const page = text(html(await IndicatorsPage(at({}, MARKED))));
+    expect(page).toContain(
+      "These indicators are computed on the revision “unnamed”, not on the one the banner names. Financial progress",
+    );
   });
 
   it("says nothing of another revision when its figures are computed on its own, nor reads the revisions", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page).not.toContain("Indicators of another revision");
-    expect(queryOf("GET /projects/{project_id}/revisions")).toBeUndefined();
+    expect(pathsOf(REVISION_ROUTE)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}`]);
   });
 
   it("says the indicators unavailable before the state In progress, the rest of the screen shown [WF-IND-0010-A]", async () => {

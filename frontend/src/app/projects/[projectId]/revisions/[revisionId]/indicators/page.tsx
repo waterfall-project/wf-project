@@ -86,15 +86,16 @@ function NotInProgress() {
   );
 }
 
-/** A revision of the project, as the API lists it. */
+/** A revision of the project, as the API reads it. */
 type Revision = components["schemas"]["Revision"];
 
 /**
  * The revisions the figures are computed on, when it is not the revision of the address: the
  * contract does not let the screen ask the indicators of a given revision (#247) — it gives those
- * of the revision under way, or of the last marked revision before the date `as_of` asks. Each is
- * named by its version name, read in the list of the revisions of the project, which is asked only
- * then; a revision the list does not hold is said unnamed, never left out.
+ * of the revision under way, or of the last marked revision before the date `as_of` asks. Each —
+ * two at most, the indicators' and the evolution's, once each — is read by its identifier
+ * (`getRevision`), only then, for its version name; one the API does not find is said unnamed,
+ * never left out, and the screen stays. Any other answer follows the rule of the reads.
  */
 async function readElsewhere(
   projectId: string,
@@ -109,12 +110,16 @@ async function readElsewhere(
   if (elsewhere.length === 0) {
     return [];
   }
-  const revisions = await readOrFail("listRevisions", () =>
-    serverClient().GET("/projects/{project_id}/revisions", {
-      params: { path: { project_id: projectId } },
-    }),
+  const client = serverClient();
+  return Promise.all(
+    elsewhere.map((id) =>
+      readUnlessRefused("getRevision", [{ status: 404 }], () =>
+        client.GET("/projects/{project_id}/revisions/{revision_id}", {
+          params: { path: { project_id: projectId, revision_id: id } },
+        }),
+      ),
+    ),
   );
-  return elsewhere.map((id) => revisions.items.find((each) => each.revision_id === id));
 }
 
 /**

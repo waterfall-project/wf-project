@@ -117,7 +117,10 @@ Les pages système sont des pièces de la coquille (`frontend/src/app/`,
 `readOrFail` de `frontend/src/api/problem.ts`, qui rend ses données ou lève : un 404 mène à
 l'écran « introuvable » unique (`not-found.tsx`), qu'une adresse inexistante et une lecture
 refusée atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Unreachable`, et
-toute autre réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe passe par `readUnlessRefused`, à côté : elle ne rend rien sur les refus qu'il attend — un statut, et le `code` de l'enveloppe quand le statut ne dit pas lequel —, et suit la même règle pour le reste. L'écran de panne (`error.tsx` dans la coquille,
+toute autre réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe passe par
+`readUnlessRefused`, à côté : elle ne rend rien sur les refus qu'il attend — un statut, et le
+`code` de l'enveloppe quand le statut ne dit pas lequel —, et suit la même règle pour le reste.
+L'écran de panne (`error.tsx` dans la coquille,
 `global-error.tsx` quand le layout racine échoue) ne reçoit en production que le `digest` de
 l'erreur levée côté serveur : `Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme
 tel, `SignedOut` (un 401) `SESSION_REQUIRED_DIGEST`, qui mène à la connexion
@@ -161,22 +164,22 @@ enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de
 (`enums.NotComputableReason.*`, `indicator.tsx`).
 
 Une courbe est une figure de `Chart` (`frontend/src/components/chart/`, US-0240) : Apache
-ECharts, importé pièce à pièce et dessiné en SVG, son option `aria` active ; sa légende la nomme,
-le dessin est une image que décrit une phrase du catalogue, et ses valeurs sont un tableau sous
-lui, l'alternative textuelle (WF-IHM-0100). Le composant client propre à la courbe
-(`index-chart.tsx`) lui remet son option, construite dans une palette :
-ECharts écrit ses couleurs dans les attributs de son SVG, où une variable CSS n'atteint pas, et
-les jetons `--chart-1` à `--chart-4`, `--muted-foreground`, `--foreground`, `--input` et
-`--border` y arrivent par des sondes cachées que le navigateur peint dans le mode affiché ; un
-changement de mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe. Elle se
-dessine d'un coup, sans animation, et une légende y est inerte : un clic, à la souris seule, ne
-cache aucune série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur
-nombre — pas de légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms
-qui se chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ;
-une courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; `timeAxis` écrit un axe de temps par
-mois, dans la langue et le fuseau du poste. Une courbe trace les
-chaînes de l'API telles quelles — ECharts en tire une position —, une valeur non calculable
-étant un trou, et le tableau les écrit par `src/i18n/format.ts`, les zones par `Signal`.
+ECharts, importé pièce à pièce et dessiné en SVG, son option `aria` active ; sa légende la
+nomme, le dessin est une image que décrit une phrase du catalogue, et ses valeurs sont un
+tableau sous lui, l'alternative textuelle (WF-IHM-0100). Le composant client propre à la courbe
+(`index-chart.tsx`) lui remet son option, construite dans une palette : ECharts écrit ses
+couleurs dans les attributs de son SVG, où une variable CSS n'atteint pas, et les jetons
+`--chart-1` à `--chart-4`, `--muted-foreground`, `--foreground`, `--input` et `--border` y
+arrivent par des sondes cachées que le navigateur peint dans le mode affiché ; un changement de
+mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe. Elle se dessine d'un
+coup, sans animation, et une légende y est inerte : un clic, à la souris seule, ne cache aucune
+série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur nombre — pas de
+légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms qui se
+chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; une
+courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; `timeAxis` écrit un
+axe de temps par mois, dans la langue et le fuseau du poste. Une courbe trace les chaînes de
+l'API telles quelles — ECharts en tire une position —, une valeur non calculable étant un trou,
+et le tableau les écrit par `src/i18n/format.ts`, les zones par `Signal`.
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
