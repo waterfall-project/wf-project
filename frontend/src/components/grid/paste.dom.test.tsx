@@ -90,6 +90,7 @@ function renderGrid(editable = true, preferences?: GridPreferences) {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
+        filters={{}}
         nodes={nodes}
         structure={STRUCTURE}
         structureVersion={STRUCTURE_VERSION}
@@ -117,6 +118,17 @@ function cell(row: number, column: string): HTMLElement {
 /** The labels of the rows 4 to 6. */
 function labels(): string[] {
   return [0, 1, 2].map((offset) => cell(FIRST + offset, "label").textContent);
+}
+
+/** The amounts at the year of reference of rows, by their index, without the mark Σ. */
+function amounts(rows: readonly number[]): string[] {
+  return rows.map((row) => cell(row, "reestimated_amount").textContent.replace(/^Calculé/, ""));
+}
+
+/** The total amount at the year of reference, at the foot of the grid. */
+function totalAmount(): string | null | undefined {
+  const row = screen.getByRole("grid", { hidden: true }).querySelector("tfoot tr");
+  return row?.querySelectorAll("td")[7]?.textContent;
 }
 
 /** Paste a block on a cell, as the browser hands it at the event `paste`. */
@@ -183,7 +195,14 @@ describe("a block pasted from a spreadsheet", () => {
     ]);
     expect(cell(FIRST + 2, "quantity")).toHaveTextContent("24");
     expect(cell(FIRST + 2, "reestimated_amount")).toHaveTextContent(/^25\s985,28/);
-    expect(cell(FIRST + 2, "budgeted_amount")).toHaveTextContent(/^17\s323,52/);
+    expect(cell(FIRST + 2, "inflated_amount")).toHaveTextContent(/^25\s985,28/);
+    // The tasks above them, recalculated, and the totals of the structure, as the server answered.
+    expect(amounts([0, 1, 2])).toEqual([
+      "5\u202f564\u202f371,76",
+      "1\u202f969\u202f505,61",
+      "44\u202f871,01",
+    ]);
+    expect(totalAmount()).toBe("60\u202f562\u202f283,12");
     expect(screen.queryByRole("alert")).toBeNull();
     await vi.waitFor(() => {
       expect(cell(FIRST, "label")).toHaveFocus();
@@ -239,16 +258,19 @@ describe("a block pasted from a spreadsheet", () => {
   it("wider than the grid from its cell is refused, saying so, and nothing is asked [WF-IHM-0050-A]", async () => {
     const client = serve();
     renderGrid();
-    // Nine columns from the label, where the grid shows eight. The browser aims the event at the
-    // text of the cell a click left the caret in, the cell keeping the focus.
-    const wide = BLOCK.map((row) => [...row, "33", "", "", "", ""]);
+    // Fourteen columns from the label, where a line has thirteen in the contract (#223). The
+    // browser aims the event at the text of the cell a click left the caret in, the cell keeping
+    // the focus.
+    const wide = BLOCK.map((row) => [...row, ...Array.from({ length: 10 }, () => "")]);
     const label = cell(FIRST, "label");
     label.focus();
     const text = label.querySelector(".truncate") ?? label;
     fireEvent.paste(text, { clipboardData: { getData: () => copied(wide) } });
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Les données collées ont plus de colonnes que la grille.");
-    expect(alert).toHaveTextContent("La grille accepte au plus 8 colonnes.");
+    expect(alert).toHaveTextContent(
+      "La grille accepte au plus 13 colonnes à partir de cette cellule.",
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
     expect(labels()).toEqual(READ);
@@ -329,11 +351,12 @@ describe("a block pasted from a spreadsheet", () => {
     expect(bodies(client, APPLY)).toEqual([]);
   });
 
-  it("keeps the rows a paste wrote when a cell written before it answers after them", async () => {
+  it("shows what a cell written before a paste answers after it, later in the structure: its row, the tasks above it, the totals", async () => {
     let release: () => void = () => undefined;
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
+    // The paste answers the structure at its version 2, the cell written at 3.
     const client = fakeClient(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
       { hold: (route) => (route === LINE ? held : undefined) },
@@ -341,7 +364,7 @@ describe("a block pasted from a spreadsheet", () => {
     server.client = client;
     renderGrid();
     // The label of the row 4 is entered and validated: its write leaves, the server yet to
-    // answer; the block is then pasted on the same row and confirmed.
+    // answer; the block is then pasted on the same row and confirmed, and answers first.
     cell(FIRST, "label").focus();
     await userEvent.keyboard("X{Enter}");
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
@@ -352,23 +375,87 @@ describe("a block pasted from a spreadsheet", () => {
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
-    // The write answers the row as it was before the paste: dropped whole, the pasted row stays.
+    // The paste answered first: its rows shown, the cell under way showing what was validated.
+    expect(labels()).toEqual(["X", "Heures d'essais", "Matériel de câblage"]);
+    // The write answers after it, later in the structure: its row, the tasks above, the totals.
     await act(async () => {
       release();
       await held;
     });
     await vi.waitFor(() => {
-      expect(labels()).toEqual([
-        "Heures de câblage et repérage",
-        "Heures d'essais",
-        "Matériel de câblage",
-      ]);
+      expect(labels()).toEqual(["Heures de câblage", "Heures d'essais", "Matériel de câblage"]);
     });
+    expect(amounts([0, 1, 2])).toEqual([
+      "5\u202f555\u202f710,00",
+      "1\u202f960\u202f843,85",
+      "36\u202f209,25",
+    ]);
+    expect(totalAmount()).toBe("60\u202f553\u202f621,36");
     expect(bodies(client, LINE)).toEqual([{ label: "X", lock_version: 1 }]);
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("carries the highest version of the structure told, whatever the order the answers come back in", async () => {
+  /**
+   * Write the label of rows, each refused in turn, the server answering none until a block pasted
+   * on the row 4 is applied; then let them answer.
+   */
+  async function refusedAroundPaste(
+    rows: readonly number[],
+    refusals: NonNullable<FakeAnswers[typeof LINE]>,
+  ): Promise<FakeClient> {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const client = fakeClient(
+      { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: refusals },
+      { hold: (route) => (route === LINE ? held : undefined) },
+    );
+    server.client = client;
+    renderGrid();
+    for (const row of rows) {
+      cell(row, "label").focus();
+      await userEvent.keyboard("X{Enter}");
+    }
+    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(
+      await within(dialog).findByRole("button", { name: "Appliquer le collage" }),
+    );
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    await act(async () => {
+      release();
+      await held;
+    });
+    // Each write answered: no cell shows what was validated any more.
+    await vi.waitFor(() => {
+      expect(screen.getByRole("grid").querySelector('[aria-busy="true"]')).toBeNull();
+    });
+    return client;
+  }
+
+  const STALE = { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const;
+  const MARKED = { problem: { code: "REVISION_MARKED", status: 409 } } as const;
+
+  it("keeps quiet the refusal of a cell written before a paste of its row (#202)", async () => {
+    await refusedAroundPaste([FIRST], [STALE]);
+    expect(labels()[0]).toBe("Heures de câblage et repérage");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("tells the refusal of a row the paste did not write, whatever the quiet refusal answered after it (#202)", async () => {
+    // The row 8, out of the block, is refused first; the row 4, which the paste wrote, last.
+    const client = await refusedAroundPaste([FIRST + 4, FIRST], [MARKED, STALE]);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/marquée/);
+    expect(alert).not.toHaveTextContent(/modifié cette donnée/);
+    expect(labels()[0]).toBe("Heures de câblage et repérage");
+    expect(bodies(client, LINE)).toHaveLength(2);
+  });
+
+  it("carries the highest version of the structure told, and keeps what a later write answered, whatever the order the answers come back in", async () => {
     let releaseLine: () => void = () => undefined;
     const heldLine = new Promise<void>((resolve) => {
       releaseLine = resolve;
@@ -406,6 +493,15 @@ describe("a block pasted from a spreadsheet", () => {
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
+    // The paste, earlier, takes back neither the row the write answered, nor the tasks above it,
+    // nor the totals: the rows it wrote alone are its own.
+    expect(labels()).toEqual(["Heures de câblage", "Heures d'essais", "Matériel de câblage"]);
+    expect(amounts([0, 1, 2])).toEqual([
+      "5\u202f555\u202f710,00",
+      "1\u202f960\u202f843,85",
+      "36\u202f209,25",
+    ]);
+    expect(totalAmount()).toBe("60\u202f553\u202f621,36");
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
     const second = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await userEvent.click(
@@ -417,6 +513,26 @@ describe("a block pasted from a spreadsheet", () => {
     expect(
       bodies(client, APPLY).map((body) => (body as { lock_version: number }).lock_version),
     ).toEqual([1, 3]);
+  });
+
+  it("whose span reaches a column of the contract the grid does not present is refused, naming it, and nothing is asked [WF-IHM-0050-A]", async () => {
+    const client = serve();
+    renderGrid();
+    // After the unit disbursement, the server fills the sub-project, which the grid of the
+    // estimate does not present: where the user saw the amount (#223).
+    await pasteOn(cell(FIRST, "unit_disbursement"), copied([["12", "3"]]));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Le bloc collé s’étendrait sur la colonne « Sous-projet », que cette grille ne présente pas : collez un bloc plus étroit.",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(client.calls).toEqual([]);
+    // The block of one column is asked.
+    await pasteOn(cell(FIRST, "unit_disbursement"), copied([["12"]]));
+    await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    expect(bodies(client, PREVIEW)).toEqual([
+      { target_node_id: LINE_4, target_column: "unit_disbursement", rows: [["12"]] },
+    ]);
   });
 
   it("whose span crosses a hidden column is refused, naming it, and nothing is asked", async () => {

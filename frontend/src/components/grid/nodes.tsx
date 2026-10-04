@@ -9,7 +9,7 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 
-import type { GridColumn, GridTree } from "./columns";
+import type { GridColumn, GridTree, RowsWritten } from "./columns";
 import { rowNature, RowNatureIcon } from "./row-nature";
 
 /** A node of a structure, as the API reads it. */
@@ -31,10 +31,16 @@ export type LineField = keyof EstimateLineFacet;
 export type NodeTotals = components["schemas"]["NodeTotals"];
 
 /**
- * What the API answers a write of a grid with: the nodes written, their ancestors recalculated,
- * the totals of the structure and the version it moved on to.
+ * What the API answers a write of a grid with: the nodes written, the tasks it rescheduled, the
+ * ancestors of both recalculated, the totals of the structure and the version it moved on to.
  */
 export type NodesWritten = components["schemas"]["NodesWritten"];
+
+/** The schedule of a task a write rescheduled without writing it. */
+type NodeSchedule = components["schemas"]["NodeSchedule"];
+
+/** A column of a grid of a structure, as the contract names it. */
+export type NodeColumn = components["schemas"]["NodeColumn"];
 
 /** The answer of `listNodes`: the nodes, depth first, and their totals. */
 export type NodeList = operations["listNodes"]["responses"][200]["content"]["application/json"];
@@ -46,6 +52,16 @@ export type NodeList = operations["listNodes"]["responses"][200]["content"]["app
 export type StructurePath = Omit<
   operations["getComputedValueDependencies"]["parameters"]["path"],
   "node_id"
+>;
+
+/**
+ * What a reading of the nodes asks besides the fields it renders and its sort: the kinds it renders,
+ * the search, the filters. A reading that asks any of them has totals of its own, which those of the
+ * structure a write answers are not (`NodesWritten.totals`).
+ */
+export type NodeFilters = Omit<
+  NonNullable<operations["listNodes"]["parameters"]["query"]>,
+  "fields" | "sort_by" | "sort_order"
 >;
 
 /** A column of the contract the server sorts the nodes by. */
@@ -82,11 +98,19 @@ export type AnyNodeFields = NodeFields<NodeField, keyof TaskFacet, keyof Estimat
 
 /**
  * The fields every grid of a structure reads: the identity and the version of a node, which an
- * entry sends back, the fields the server computes on it, its number and its level, its kind and
- * the flags of its nature, its label.
+ * entry sends back, the fields the server computes on it and those it accepts (#219), its number
+ * and its level, its kind and the flags of its nature, its label.
  */
 export const COMMON_FIELDS = {
-  node: ["node_id", "lock_version", "computed_fields", "row_number", "level", "kind"],
+  node: [
+    "node_id",
+    "lock_version",
+    "computed_fields",
+    "editable_fields",
+    "row_number",
+    "level",
+    "kind",
+  ],
   task: ["label", "is_summary", "is_milestone"],
   line: ["label", "is_computed", "resource_role_id"],
 } as const satisfies AnyNodeFields;
@@ -183,6 +207,115 @@ export function projectNodes<
   L extends keyof EstimateLineFacet,
 >(list: NodeList, fields: NodeFields<N, T, L>): NodeRows<NodeRow<N, T, L>> {
   return { items: list.items.map((node) => projectNode(node, fields)), totals: list.totals };
+}
+
+/**
+ * The fields of the schedule of a task a write may reschedule without writing it
+ * (`NodesWritten.rescheduled`), under their names on the task.
+ */
+const SCHEDULE = ["start", "finish", "total_float", "is_critical", "finish_overdue"] as const;
+
+/**
+ * A row a write rescheduled: the fields of its schedule the grid reads, as the server answered
+ * them, the others as they were — a grid that shows no date takes nothing of it.
+ */
+function rescheduled<
+  N extends NodeField,
+  T extends keyof TaskFacet,
+  L extends keyof EstimateLineFacet,
+>(row: NodeRow<N, T, L>, schedule: NodeSchedule): NodeRow<N, T, L> {
+  const { task } = row;
+  if (task === undefined || task === null) {
+    return row;
+  }
+  const read = SCHEDULE.filter((field) => field in task);
+  return read.length === 0 ? row : { ...row, task: { ...task, ...pick(schedule, read) } };
+}
+
+/**
+ * What a write of a grid answered, as the grid reads it (#218): the nodes written, each ancestor
+ * recalculated whole, each task rescheduled by the part of its schedule the grid reads — none for
+ * a grid that reads no date —, the totals of the structure when the grid reads it whole — a
+ * filtered grid reads its own anew (`GridConfig.retotal`) —, in the order of the version the
+ * structure moved on to, which each write moves on.
+ */
+export function nodesWritten<
+  N extends NodeField,
+  T extends keyof TaskFacet,
+  L extends keyof EstimateLineFacet,
+>(
+  written: NodesWritten,
+  fields: NodeFields<N, T, L>,
+  whole: boolean,
+): RowsWritten<NodeRow<N, T, L>, NodeTotals> {
+  const schedule = new Set<string>(SCHEDULE);
+  const dated = fields.task.some((field) => schedule.has(field));
+  return {
+    rows: written.nodes.map((node) => projectNode(node, fields)),
+    changed: written.ancestors.map((node) => projectNode(node, fields)),
+    parts: dated
+      ? written.rescheduled.map((schedule) => ({
+          key: schedule.node_id,
+          change: (row: NodeRow<N, T, L>) => rescheduled(row, schedule),
+        }))
+      : [],
+    totals: whole ? written.totals : undefined,
+    order: written.structure_lock_version,
+  };
+}
+
+/**
+ * The columns of the contract, in its order (`NodeColumn`): the columns of the planning
+ * (WF-PLA-0080), then those of the estimate and of the remaining to commit (WF-DEV-0050,
+ * WF-RAE-0040), each in the order its grid presents them — the order a paste fills them in.
+ */
+export const NODE_COLUMNS = [
+  "label",
+  "description",
+  "scheduling_mode",
+  "duration",
+  "start",
+  "finish",
+  "progress",
+  "physical_progress",
+  "total_float",
+  "is_critical",
+  "predecessors",
+  "cost_category",
+  "resource_role",
+  "quantity",
+  "hours",
+  "unit_disbursement",
+  "subproject",
+  "payment_delay_days",
+  "consumption_year",
+  "budgeted_amount",
+  "reestimated_amount",
+  "inflated_amount",
+  "previous_reestimated_amount",
+] as const satisfies readonly NodeColumn[];
+
+/** The columns of a task, from `label` to `predecessors`, as the contract ranges them. */
+const TASK_COLUMNS: readonly NodeColumn[] = NODE_COLUMNS.slice(
+  0,
+  NODE_COLUMNS.indexOf("predecessors") + 1,
+);
+
+/** The columns of a line of the estimate: `label`, then from `cost_category` to the last. */
+const LINE_COLUMNS: readonly NodeColumn[] = [
+  "label",
+  ...NODE_COLUMNS.slice(NODE_COLUMNS.indexOf("cost_category")),
+];
+
+/**
+ * The columns a block pasted on a node fills, from a column (#200, #223): those of the facet of
+ * the node, in the order of the contract, from that column on — whether the grid shows them or
+ * not. None for a column out of the facet, which the contract does not range.
+ */
+export function pasteSpan(node: GridNode, column: NodeColumn): readonly NodeColumn[] | undefined {
+  const facet = node.kind === "task" ? TASK_COLUMNS : LINE_COLUMNS;
+  const from = facet.indexOf(column);
+  return from < 0 ? undefined : facet.slice(from);
 }
 
 /** How the label of a node stands out: a summary in bold, a provision muted. */

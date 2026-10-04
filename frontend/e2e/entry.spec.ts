@@ -20,13 +20,14 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 
-// Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+// Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
+// reference, amount corrected for inflation.
 const LABEL = 1;
 const CATEGORY = 2;
 const ROLE = 3;
 const QUANTITY = 4;
 const HOURS = 5;
-const BUDGETED = 7;
+const REFERENCE = 7;
 
 /** A cell of the row at a position among the rows of the answer, by the position of its column. */
 function cellAt(grid: Locator, row: number, column: number): Locator {
@@ -149,16 +150,14 @@ test("traverses the computed cells of a line entered along its row, without ente
   }
   await expect(rowAt(grid, 21)).toContainText("Provision");
   await expect(cellAt(grid, 21, LABEL)).toBeFocused();
-  // From its label, Tab goes to its category and its role, past its quantity, which the server
-  // computes, to its effort; then past its unit disbursement and its amounts, to the next row.
-  await press(page, "Enter", "Tab");
-  await expect(cellAt(grid, 21, CATEGORY)).toBeFocused();
-  await press(page, "Enter", "Tab");
-  await expect(cellAt(grid, 21, ROLE)).toBeFocused();
-  await press(page, "Enter", "Tab");
-  await expect(cellAt(grid, 21, HOURS)).toBeFocused();
+  // From its label, Tab goes past its quantity and its unit disbursement, which the server
+  // computes, past its category, its role and its effort, which its node does not accept (#219),
+  // and past its amounts, to the next row.
   await press(page, "Enter", "Tab");
   await expect(cellAt(grid, 22, LABEL)).toBeFocused();
+  for (const column of [CATEGORY, ROLE, QUANTITY, HOURS]) {
+    await expect(cellAt(grid, 21, column)).toHaveAttribute("aria-readonly", "true");
+  }
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
@@ -177,7 +176,7 @@ test("opens the entry of the effort on a digit typed, and the refusal of the amo
   await expect(hours).toHaveText("33");
   // Its amount is computed: the arrows reach it, the same digit opens no field but its refusal.
   await press(page, "ArrowRight", "ArrowRight");
-  const amount = cellAt(grid, 4, BUDGETED);
+  const amount = cellAt(grid, 4, REFERENCE);
   await expect(amount).toBeFocused();
   await expect(amount).toHaveAttribute("aria-readonly", "true");
   await page.keyboard.press("7");

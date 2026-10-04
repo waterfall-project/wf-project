@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
+import { loginHref } from "@/navigation/login";
 import { expectAccessible } from "@/test/axe";
 import {
   example,
@@ -19,7 +20,7 @@ import {
 import { estimateReference } from "@/test/reference";
 
 import { EstimateGrid } from "./estimate-grid";
-import type { NodeList, NodeSortColumn } from "./nodes";
+import type { NodeFilters, NodeList, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
@@ -45,6 +46,8 @@ const STRUCTURE = {
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
+const NODES_ROUTE =
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const NODES = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/structures/${STRUCTURE.structure_id}/nodes`;
 // The categories and the roles of the examples, by identifier.
 const COMMISSIONING = "01926f3a-7c00-7000-8000-000000000405";
@@ -70,12 +73,14 @@ function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
   return client;
 }
 
-/** The grid of the estimate on an answer, in a language, open to entry or not. */
+/** The grid of the estimate on an answer, in a language, open to entry or not, as the address asked. */
 function grid(
   locale: Locale = "fr",
   nodes: NodeList = estimate,
   editable = true,
   tasksEditable = true,
+  query: GridQuery<NodeSortColumn> = NO_QUERY,
+  filters: NodeFilters = {},
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
@@ -86,7 +91,8 @@ function grid(
         reference={estimateReference()}
         editable={editable}
         tasksEditable={tasksEditable}
-        query={NO_QUERY}
+        query={query}
+        filters={filters}
         preferences={undefined}
       />
     </NextIntlClientProvider>
@@ -102,6 +108,12 @@ function cell(row: number, column: string): HTMLElement {
     throw new Error(`no cell ${column} in the row ${row.toString()}`);
   }
   return found;
+}
+
+/** The texts of the totals row, at the foot of the grid. */
+function totals(): (string | null)[] {
+  const row = screen.getByRole("grid").querySelector("tfoot tr");
+  return [...(row?.querySelectorAll("td") ?? [])].map((cell) => cell.textContent);
 }
 
 /** The writes the grid sent: the node, and what was written. */
@@ -171,7 +183,7 @@ describe("the keyboard of a grid", () => {
     });
     expect(cell(LABOUR, "label")).toHaveTextContent("Raccordement des borniers");
     expect(cell(LABOUR, "reestimated_amount")).toHaveTextContent(/1\s120,00$/);
-    expect(cell(LABOUR, "budgeted_amount")).toHaveTextContent(/1\s000,00$/);
+    expect(cell(LABOUR, "inflated_amount")).toHaveTextContent(/1\s120,00$/);
   });
 
   it("renames a task by its own operation, and shows the label the server answered", async () => {
@@ -231,19 +243,49 @@ describe("the keyboard of a grid", () => {
     if (labour !== undefined && labour !== null) {
       labour.resource_role_id = AUTOMATION_ENGINEER;
     }
-    render(grid("fr", read));
-    expect(cell(LABOUR, "resource_role")).toHaveTextContent("Automaticien");
-    // Another line: the deactivated role is not offered.
-    cell(DISBURSEMENT, "resource_role").focus();
+    // A line that does not bear it: the deactivated role is not offered.
+    const { rerender } = render(grid());
+    cell(LABOUR, "resource_role").focus();
     await userEvent.keyboard("{Enter}");
     const offered = within(screen.getByRole("combobox", { name: "Rôle" }))
       .getAllByRole("option")
       .map((option) => option.textContent);
     expect(offered).toEqual(["Aucun", "Ingénieur électricien", "Technicien de mise en service"]);
     // The line that bears it: shown, offered, kept.
-    await userEvent.keyboard("{Escape}{ArrowUp}{Enter}");
+    await userEvent.keyboard("{Escape}");
+    rerender(grid("fr", read));
+    expect(cell(LABOUR, "resource_role")).toHaveTextContent("Automaticien");
+    cell(LABOUR, "resource_role").focus();
+    await userEvent.keyboard("{Enter}");
     expect(screen.getByRole("combobox", { name: "Rôle" })).toHaveValue(AUTOMATION_ENGINEER);
     await userEvent.keyboard("{Tab}");
+    expect(written(client)).toEqual([]);
+  });
+
+  it("offers a cell only where the node accepts its field: a line of labour no unit disbursement, another no role nor effort, a provision its label alone [WF-DEV-0020-A]", async () => {
+    const client = serve();
+    render(grid());
+    const readOnly = (row: number, columns: readonly string[]) =>
+      columns.filter((column) => cell(row, column).getAttribute("aria-readonly") === "true");
+    const figures = ["label", "cost_category", "resource_role", "quantity", "hours"] as const;
+    expect(readOnly(LABOUR, [...figures, "unit_disbursement"])).toEqual(["unit_disbursement"]);
+    expect(readOnly(DISBURSEMENT, [...figures, "unit_disbursement"])).toEqual([
+      "resource_role",
+      "hours",
+    ]);
+    expect(readOnly(PROVISION, [...figures, "unit_disbursement"])).toEqual([
+      "cost_category",
+      "resource_role",
+      "quantity",
+      "hours",
+      "unit_disbursement",
+    ]);
+    // A cell the node does not accept opens nothing, and is not refused as computed either.
+    cell(DISBURSEMENT, "hours").focus();
+    await userEvent.keyboard("{Enter}5{F2}");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(cell(DISBURSEMENT, "hours")).not.toHaveAttribute("aria-haspopup");
     expect(written(client)).toEqual([]);
   });
 
@@ -301,19 +343,20 @@ describe("the keyboard of a grid", () => {
   it("traverses the computed cells without entering them [WF-IHM-0040-A]", async () => {
     const client = serve();
     render(grid());
-    cell(PROVISION, "label").focus();
-    // Along the row of the provision: its quantity and its unit disbursement are computed. Its role
-    // and its effort are offered, the node not saying which fields its line takes (#194).
+    cell(DISBURSEMENT, "label").focus();
+    // Along the row of the disbursement: its category, its quantity and its unit disbursement are
+    // entered, its role and its effort, which it does not accept, traversed (#219).
     await userEvent.keyboard("{Enter}{Tab}");
-    expect(cell(PROVISION, "cost_category")).toHaveFocus();
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveFocus();
     await userEvent.keyboard("{Enter}{Tab}");
-    expect(cell(PROVISION, "resource_role")).toHaveFocus();
+    expect(cell(DISBURSEMENT, "quantity")).toHaveFocus();
     await userEvent.keyboard("{Enter}{Tab}");
-    expect(cell(PROVISION, "hours")).toHaveFocus();
+    expect(cell(DISBURSEMENT, "unit_disbursement")).toHaveFocus();
     await userEvent.keyboard("{Enter}{Shift>}{Tab}{/Shift}");
-    expect(cell(PROVISION, "resource_role")).toHaveFocus();
-    await userEvent.keyboard("{Enter}{Tab}");
-    expect(cell(PROVISION, "hours")).toHaveFocus();
+    expect(cell(DISBURSEMENT, "quantity")).toHaveFocus();
+    // Along the row of the provision: its quantity and its unit disbursement are computed, and it
+    // accepts neither category, nor role, nor effort: its label alone is entered.
+    cell(PROVISION, "label").focus();
     await userEvent.keyboard("{Enter}{Tab}");
     // Nothing more to enter along the row: the next row, at the cell it was started from.
     expect(cell(MILESTONE, "label")).toHaveFocus();
@@ -365,8 +408,8 @@ describe("the keyboard of a grid", () => {
       "Ce n’est pas un nombre : saisissez-le comme 1 234,5.",
     );
     await expectAccessible(document.body);
-    // An amount keeps two decimals at most.
-    await userEvent.keyboard("{Escape}{ArrowRight}");
+    // An amount keeps two decimals at most: the unit disbursement of the line below.
+    await userEvent.keyboard("{Escape}{ArrowDown}{ArrowRight}");
     await userEvent.keyboard("3,456{Enter}");
     expect(screen.getByRole("textbox", { name: "Débours unit." })).toHaveAttribute(
       "aria-invalid",
@@ -559,6 +602,119 @@ describe("a write the server answers otherwise", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/inattendue|erreur/i);
     expect(cell(DISBURSEMENT, "quantity")).toHaveTextContent(/^1$/);
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+  });
+});
+
+describe("what a write answers besides the row written", () => {
+  it("shows the amounts the server recalculated on the tasks above it, and the totals of the structure, summing nothing [WF-DEV-0050-A]", async () => {
+    serve();
+    render(grid());
+    expect(totals().slice(1)).toEqual([
+      "Total — 3 tâches, 3 lignes",
+      "",
+      "",
+      "",
+      "12,5",
+      "",
+      "2\u202f734,56",
+      "",
+    ]);
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    // The amount of each summary follows that of its subordinates, as the server answers it.
+    await vi.waitFor(() => {
+      expect(cell(0, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    });
+    expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(totals().slice(1)).toEqual([
+      "Total — 3 tâches, 3 lignes",
+      "",
+      "",
+      "",
+      "14",
+      "",
+      "2\u202f854,56",
+      "",
+    ]);
+  });
+
+  it("reads anew the totals of a reading a search narrowed, by its own request, once its writes answered, never taking those of the structure [WF-ARC-0020-A]", async () => {
+    // The reading anew answers other totals than the reading: the example of another structure.
+    const client = serve({ [NODES_ROUTE]: "nodes" });
+    const search = { sort: undefined, search: "borniers" };
+    render(grid("fr", estimate, true, true, search, { search: "borniers" }));
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    // The tasks above it as the write answered them; the totals as the reading anew gave them.
+    await vi.waitFor(() => {
+      expect(totals()[1]).toBe("Total — 3 tâches, 1 ligne");
+    });
+    expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(totals()[5]).toBe("0");
+    expect(totals()[7]).toBe("100\u202f000,00");
+    // The same search, after the write, each node asked by its identifier alone.
+    const reads = client.calls.filter((call) => call.route === NODES_ROUTE);
+    expect(reads.map((call) => Object.fromEntries(call.query))).toEqual([
+      { search: "borniers", fields: "node_id" },
+    ]);
+    expect(client.calls.map((call) => call.route)).toEqual([LINE, NODES_ROUTE]);
+  });
+
+  it("tells a reading anew of the totals the server refuses, the totals of the reading left as they were", async () => {
+    const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+    serve({ [NODES_ROUTE]: lost });
+    const search = { sort: undefined, search: "borniers" };
+    render(grid("fr", estimate, true, true, search, { search: "borniers" }));
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Vous devez vous connecter.");
+    expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(totals()[5]).toBe("12,5");
+  });
+
+  it("reads nothing anew for a reading of the whole structure, whose totals the writes answer", async () => {
+    const client = serve();
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    await vi.waitFor(() => {
+      expect(totals()[5]).toBe("14");
+    });
+    expect(client.calls.map((call) => call.route)).toEqual([LINE]);
+  });
+});
+
+describe("a session lost during an entry", () => {
+  it("brings the cell back to its value, and leads to the sign-in page, which comes back to the screen [WF-SEC-0020-A]", async () => {
+    const lost = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+    const client = serve({ [LINE]: lost, [TASK]: lost });
+    const { rerender } = render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Vous devez vous connecter.");
+    expect(within(alert).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
+      "href",
+      loginHref("/projects/p/revisions/r/estimate"),
+    );
+    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+    expect(cell(LABOUR, "hours")).not.toHaveAttribute("aria-busy");
+    // The page read anew clears the notice; the label of a task, written by its own operation,
+    // is refused likewise, and tells it anew.
+    rerender(grid("fr", structuredClone(estimate)));
+    expect(screen.queryByRole("alert")).toBeNull();
+    cell(TASK_ROW, "label").focus();
+    await userEvent.keyboard("{F2} bis{Enter}");
+    await vi.waitFor(() => {
+      expect(written(client, TASK)).toHaveLength(1);
+    });
+    await vi.waitFor(() => {
+      expect(cell(TASK_ROW, "label")).not.toHaveAttribute("aria-busy");
+    });
+    expect(cell(TASK_ROW, "label")).toHaveTextContent(/^Câblage des armoires$/);
+    const told = await screen.findByRole("alert");
+    expect(told).toHaveTextContent("Vous devez vous connecter.");
+    expect(within(told).getByRole("link", { name: "Se connecter" })).toBeInTheDocument();
   });
 });
 

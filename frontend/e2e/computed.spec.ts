@@ -37,7 +37,8 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   const grid = page.getByRole("grid", { name: "Grille de devis" });
   const labour = grid.getByRole("row", { name: /^4 .*Heures d'ingénierie/ });
   await expect(labour.getByRole("img", { name: "Ligne de main-d’œuvre" })).toBeVisible();
-  // Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+  // Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
+  // reference, amount corrected for inflation.
   const hours = cellOf(labour, 5);
   const amount = cellOf(labour, 7);
 
@@ -64,8 +65,8 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   await expect(amount).toBeFocused();
   await page.keyboard.press("7");
   await expect(refusal(page)).toBeInViewport();
-  await expect(refusal(page)).toContainText("Budgété ne se saisit pas");
-  await expect(page.getByRole("textbox", { name: "Budgété" })).toHaveCount(0);
+  await expect(refusal(page)).toContainText("Montant (année de réf.) ne se saisit pas");
+  await expect(page.getByRole("textbox", { name: "Montant (année de réf.)" })).toHaveCount(0);
   const said = refusal(page).getByRole("status");
   await expect(said).toHaveAttribute("aria-busy", "false");
   await expect(said).not.toContainText("Lecture de ce dont elle dépend");
@@ -77,7 +78,7 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   await expect(amount).toBeFocused();
   // The pointer tries it as well.
   await amount.click();
-  await expect(refusal(page)).toContainText("Budgété ne se saisit pas");
+  await expect(refusal(page)).toContainText("Montant (année de réf.) ne se saisit pas");
   await expect(amount.getByRole("textbox")).toHaveCount(0);
 });
 

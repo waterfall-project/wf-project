@@ -43,7 +43,7 @@ export function PlanningGrid({ nodes, structure, query, preferences }: PlanningG
       config={PLANNING_GRID}
       rows={nodes.items}
       totals={nodes.totals}
-      totalsCaption={t("totals", { tasks: nodes.totals.task_count })}
+      totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
       query={query}
       preferences={preferences}
       dependencies={dependencies}

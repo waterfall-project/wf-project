@@ -89,6 +89,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       {grid === "estimate" ? (
         <EstimateGrid
+          filters={{}}
           reference={estimateReference()}
           editable
           tasksEditable
@@ -162,12 +163,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+// Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
+// reference, amount corrected for inflation.
 const QUANTITY = 4;
 const HOURS = 5;
 const DISBURSEMENT = 6;
-const BUDGETED = 7;
-const REESTIMATED = 8;
+const REFERENCE = 7;
+const INFLATED = 8;
 // Number, label, mode, duration, start, finish, progress, float, predecessors.
 const DURATION = 3;
 const START = 4;
@@ -181,7 +183,7 @@ describe("a value of a grid the server computes", () => {
     renderGrid("estimate");
     const labour = "Raccordement des borniers";
     const hours = cell(labour, HOURS);
-    const amount = cell(labour, BUDGETED);
+    const amount = cell(labour, REFERENCE);
     // The effort is entered: its value alone, on the background of the page.
     expect(hours).toHaveTextContent(/^12,5$/);
     expect(hours).not.toHaveAttribute("aria-haspopup");
@@ -191,7 +193,7 @@ describe("a value of a grid the server computes", () => {
     expect(amount).toHaveClass("bg-muted");
     expect(amount).toHaveAccessibleName(/^Calculé 1\s000,00$/);
     expect(within(amount).getByRole("img", { name: "Calculé" })).toBeInTheDocument();
-    expect(cell(labour, REESTIMATED)).toHaveAccessibleName(/^Calculé 1\s000,00$/);
+    expect(cell(labour, INFLATED)).toHaveAccessibleName(/^Calculé 1\s000,00$/);
 
     // A try to enter it is refused, beside it, naming what the server says it depends on;
     // nothing opens to type.
@@ -199,7 +201,7 @@ describe("a value of a grid the server computes", () => {
     expect(await said()).toEqual({
       paragraphs: [
         "Valeur calculée",
-        "Budgété ne se saisit pas : Waterfall calcule cette valeur.",
+        "Montant (année de réf.) ne se saisit pas : Waterfall calcule cette valeur.",
         "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
         "Le montant budgété est celui que la révision de référence a fixé.",
       ],
@@ -208,7 +210,7 @@ describe("a value of a grid the server computes", () => {
     expect(asked(client)).toEqual([
       [
         `${STRUCTURE_PATH}/nodes/01926f3a-7c00-7000-8000-000000000523/dependencies`,
-        "estimate_line.budgeted_amount",
+        "estimate_line.reestimated_amount",
       ],
     ]);
     expect(screen.queryByRole("textbox")).toBeNull();
@@ -426,7 +428,7 @@ describe("a value of a grid the server computes", () => {
   it("names what the amount of a task depends on: the lines it bears", async () => {
     const client = serve({ [DEPENDENCIES]: "dependencies_task_amount" });
     renderGrid("estimate");
-    await userEvent.click(cell("Câblage des armoires", REESTIMATED));
+    await userEvent.click(cell("Câblage des armoires", REFERENCE));
     expect((await said()).rows).toEqual([
       "3Raccordement des borniers",
       "4Borniers",
@@ -495,16 +497,16 @@ describe("a value of a grid the server computes", () => {
           config={ESTIMATE_GRID}
           rows={estimate.items}
           totals={estimate.totals}
-          totalsCaption="Total"
+          totalsCaption={() => "Total"}
           query={NO_QUERY}
           preferences={undefined}
         />
       </NextIntlClientProvider>,
     );
-    await userEvent.click(cell("Borniers", BUDGETED));
+    await userEvent.click(cell("Borniers", REFERENCE));
     expect([...refusal().querySelectorAll("p")].map((p) => p.textContent)).toEqual([
       "Valeur calculée",
-      "Budgété ne se saisit pas : Waterfall calcule cette valeur.",
+      "Montant (année de réf.) ne se saisit pas : Waterfall calcule cette valeur.",
     ]);
   });
 

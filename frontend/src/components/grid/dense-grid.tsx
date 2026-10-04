@@ -19,7 +19,8 @@
  *
  * It is entered from the keyboard alone (WF-IHM-0040, `useGridKeyboard`): one cell is active, which
  * the arrows move, and a computed cell tried opens its refusal; a cell validated is written alone,
- * and the row the server answers takes the place of the one read (`useCellWrites`). A block pasted
+ * and what the server answers takes the place of what was read — the row, the rows the write changed
+ * with it, the totals (`useCellWrites`). A block pasted
  * from a spreadsheet on the active cell is shown as the server would write and refuse it, and
  * written once confirmed, in one operation (WF-IHM-0050, `useGridPaste`).
  */
@@ -117,8 +118,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly rows: readonly Row[];
   /** The totals of the answer. */
   readonly totals: Totals;
-  /** What the totals row says before its figures: what the totals count. */
-  readonly totalsCaption: string;
+  /** What the totals row says before its figures: what the totals shown count. */
+  readonly totalsCaption: (totals: Totals) => string;
   /** What the address asked of the server. */
   readonly query: GridQuery<Sort>;
   /** The settings of the grid the session read, if any. */
@@ -545,7 +546,9 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     });
   };
   // The rows as the cells written left them: each row the server answered in place of the one read.
-  const writes = useCellWrites(rows, config.rowKey);
+  const writes = useCellWrites<Row, Totals>(rows, config.rowKey, config.retotal);
+  // The totals the writes last answered, or those of the answer.
+  const shownTotals = writes.totals ?? totals;
   const table = useGridTable({
     config,
     rows: writes.rows,
@@ -635,7 +638,9 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       <OutcomeNotice outcome={paste.outcome} onClear={paste.clear} />
       {paste.hidden === undefined ? null : (
         <p role="alert" className="text-sm text-destructive">
-          {t("paste.hiddenColumn", { column: t(`columns.${paste.hidden}`) })}
+          {paste.hidden.shown === "hidden"
+            ? t("paste.hiddenColumn", { column: t(`columns.${paste.hidden.label}`) })
+            : t("paste.absentColumn", { column: paste.hidden.name })}
         </p>
       )}
       {paste.pasting === undefined ? null : (
@@ -723,8 +728,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
           <TotalsRow
             table={table}
             config={config}
-            totals={totals}
-            caption={totalsCaption}
+            totals={shownTotals}
+            caption={totalsCaption(shownTotals)}
             index={bodyRows + 2}
             locale={locale}
           />

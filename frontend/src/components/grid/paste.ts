@@ -8,16 +8,17 @@
  * on is the one that holds the focus in this grid; an entry under way holds it in its field,
  * which takes what is pasted as a field does.
  *
- * The block lands from that cell, named by its column of the contract, and the server ranges it
- * in the order of the columns of the contract (`NodeColumn`), without knowing which ones the grid
- * shows (#200). The front therefore refuses at once, asking nothing, what the server cannot
- * judge: a block wider than the columns of the configuration from the cell — as the server would
- * refuse it (`PASTE_TOO_WIDE`) — and a block whose span, from the column of the cell to the last
- * one filled in that order, crosses a hidden column, which would shift what is written without a
- * word (`hidden`). Otherwise the server says what it would write and refuse, with the reason of
+ * The block lands from that cell, named by its column of the contract, and the server fills the
+ * columns of the facet of its node in the order of the contract (`NodeColumn`), without knowing
+ * which ones the grid shows (#200). The front therefore measures the block on those columns
+ * (`GridPaste.span`, #223), and refuses at once, asking nothing, a block wider than them from the
+ * cell — as the server would refuse it (`PASTE_TOO_WIDE`) — and a block whose span, from the column
+ * of the cell to the last one filled in that order, reaches a column the grid does not show —
+ * hidden, or that the grid does not present at all —, which would write what the user cannot see
+ * (`hidden`), named. Otherwise the server says what it would write and refuse, with the reason of
  * each refusal, and writes nothing (`GridPaste.preview`); the grid shows that plan, and applies it
- * once confirmed, in one operation (`GridPaste.apply`), the rows the server wrote taking the place
- * of those read (`CellWrites.applied`). A paste abandoned asks nothing more, and an answer that
+ * once confirmed, in one operation (`GridPaste.apply`), what the server wrote taking the place of
+ * what was read (`CellWrites.applied`). A paste abandoned asks nothing more, and an answer that
  * arrives after it is dropped; a plan that refuses a row cannot be applied: the grid stays as it
  * was. The grid judges nothing of what is pasted: the server reads the cells, and says why.
  *
@@ -106,26 +107,23 @@ function tooWide(room: number): Outcome<never> {
 }
 
 /**
- * The columns a block pasted from a cell would fill: those of the configuration, in its order —
- * the order the server ranges the block in —, from the column of the cell, or from the first
- * when the cell is the number of its row.
+ * The column a block pasted from a cell lands on: that of the cell, or the first when the cell is
+ * the number of its row.
  */
 function landing<Row extends RowData, Sort extends string, Totals>(
   config: GridConfig<Row, Sort, Totals>,
   at: CellPosition,
-): readonly GridColumn<Row, Sort, Totals>[] {
-  const from = config.columns.findIndex((column) => column.key === at.column);
-  return config.columns.slice(Math.max(from, 0));
+): GridColumn<Row, Sort, Totals> | undefined {
+  return config.columns.find((column) => column.key === at.column) ?? config.columns[0];
 }
 
 /**
- * Where a block landed: the cell, its row, the columns it would fill, the first of them — named
- * as the server names it, by the column it sorts by (#200).
+ * Where a block landed: the cell, its row, the column it lands on — named as the server names it,
+ * by the column it sorts by (#200).
  */
 interface Landed<Row, Sort extends string, Totals> {
   readonly at: CellPosition;
   readonly row: Row;
-  readonly span: readonly GridColumn<Row, Sort, Totals>[];
   readonly column: GridColumn<Row, Sort, Totals>;
   readonly named: Sort;
 }
@@ -138,37 +136,60 @@ function landedAt<Row extends RowData, Sort extends string, Totals>(
 ): Landed<Row, Sort, Totals> | undefined {
   const at = positionOf(focused);
   const row = at === undefined ? undefined : rows[at.row];
-  const span = at === undefined ? [] : landing(config, at);
-  const column = span[0];
+  const column = at === undefined ? undefined : landing(config, at);
   // Every column of a grid sorts (WF-IHM-0060): one the server has no name for takes no paste.
   const named = column?.sortBy;
   return at === undefined || row === undefined || column === undefined || named === undefined
     ? undefined
-    : { at, row, span, column, named };
+    : { at, row, column, named };
 }
 
-/** The refusal the front opposes itself, before asking anything (#200). */
+/**
+ * A column a block would fill that the grid does not show: hidden, named by its heading; or one
+ * the grid does not present, named by the contract (`GridPaste.name`).
+ */
+export type UnshownColumn =
+  | { readonly shown: "hidden"; readonly label: ColumnLabel }
+  | { readonly shown: "absent"; readonly name: string };
+
+/** The refusal the front opposes itself, before asking anything (#200, #223). */
 interface LocalRefusal {
   readonly outcome: Outcome<never> | undefined;
-  readonly hidden: ColumnLabel | undefined;
+  readonly hidden: UnshownColumn | undefined;
 }
 
 /**
  * Whether a block is refused here, before the server is asked: wider than the columns of the
- * configuration from the cell, or reaching under a hidden one among those it would fill.
+ * facet of its node from the cell, in the order of the contract, or reaching one among them the
+ * grid does not show — absent from its configuration, or hidden (WF-IHM-0060). Nothing when the
+ * contract does not range the column of the cell: the server alone judges.
  */
 function localRefusal<Row extends RowData, Sort extends string, Totals>(
-  span: readonly GridColumn<Row, Sort, Totals>[],
+  config: GridConfig<Row, Sort, Totals>,
+  paste: NonNullable<GridConfig<Row, Sort, Totals>["paste"]>,
+  landed: Landed<Row, Sort, Totals>,
   block: PastedBlock,
   shown: readonly string[],
 ): LocalRefusal | undefined {
+  const span = paste.span(landed.row, landed.named);
+  if (span === undefined) {
+    return undefined;
+  }
   const width = widest(block);
   if (width > span.length) {
     return { outcome: tooWide(span.length), hidden: undefined };
   }
   const set = new Set(shown);
-  const masked = span.slice(0, width).find((filled) => !set.has(filled.key));
-  return masked === undefined ? undefined : { outcome: undefined, hidden: masked.label };
+  for (const filled of span.slice(0, width)) {
+    const column = config.columns.find((configured) => configured.sortBy === filled);
+    if (column === undefined) {
+      return { outcome: undefined, hidden: { shown: "absent", name: paste.name(filled) } };
+    }
+    if (!set.has(column.key)) {
+      return { outcome: undefined, hidden: { shown: "hidden", label: column.label } };
+    }
+  }
+  return undefined;
 }
 
 /** What a paste works on. */
@@ -178,7 +199,7 @@ export interface GridPasteOptions<Row extends RowData, Sort extends string, Tota
   readonly rows: readonly Row[];
   /** The keys of the columns shown, in their order. */
   readonly columns: readonly string[];
-  readonly writes: CellWrites<Row>;
+  readonly writes: CellWrites<Row, Totals>;
   /** The element the grid scrolls in: a paste is taken only when the focus is within it. */
   readonly scroller: RefObject<HTMLElement | null>;
 }
@@ -193,16 +214,16 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
 }: GridPasteOptions<Row, Sort, Totals>) {
   const [pasting, setPasting] = useState<Pasting>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  // The hidden column a refused block would reach under, named to the user (#200).
-  const [hidden, setHidden] = useState<ColumnLabel>();
+  // The column the grid does not show a refused block would reach, named to the user (#200).
+  const [hidden, setHidden] = useState<UnshownColumn>();
   // The paste an answer belongs to: one abandoned, or another started, drops the answer.
   const current = useRef(0);
   // The cell the block was pasted on, which has the focus back once the report closes.
   const origin = useRef<HTMLElement>(undefined);
   const { paste } = config;
 
-  /** Refuse a block here, asking nothing: too wide, or reaching under a hidden column. */
-  const refuse = (told: Outcome<never> | undefined, masked: ColumnLabel | undefined) => {
+  /** Refuse a block here, asking nothing: too wide, or reaching a column the grid does not show. */
+  const refuse = (told: Outcome<never> | undefined, masked: UnshownColumn | undefined) => {
     setOutcome(told);
     setHidden(masked);
   };
@@ -250,7 +271,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
       return;
     }
     const block = readBlock(text);
-    const refused = localRefusal(landed.span, block, columns);
+    const refused = localRefusal(config, paste, landed, block, columns);
     if (refused !== undefined) {
       refuse(refused.outcome, refused.hidden);
       return;
@@ -277,7 +298,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   }, [paste]);
 
   /**
-   * Apply the plan shown, once: the rows the server wrote take the place of those read, and a
+   * Apply the plan shown, once: what the server wrote takes the place of what was read, and a
    * refusal is told. The dialog stays until the server answers, and cannot be abandoned meanwhile:
    * what is under way is written whatever happens to it.
    */
@@ -303,7 +324,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   return {
     pasting,
     outcome,
-    /** The hidden column a refused block would reach under, if one was refused for it. */
+    /** The column the grid does not show a refused block would reach, if one was refused for it. */
     hidden,
     apply,
     /** Abandon the paste shown, before it is applied: nothing more is asked, nothing written. */

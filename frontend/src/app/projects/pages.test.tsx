@@ -296,7 +296,7 @@ describe("the witness path", () => {
   it("asks the server for the sort, the search and the filtered sub-project the address holds, by the parameters of the contract", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const search = Promise.resolve({
-      sort_by: "budgeted_amount",
+      sort_by: "inflated_amount",
       sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
@@ -305,12 +305,29 @@ describe("the witness path", () => {
       inEnglish(await EstimatePage({ params, searchParams: search })),
     );
     expect(nodesQuery()).toEqual({
-      sort_by: "budgeted_amount",
+      sort_by: "inflated_amount",
       sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
     });
-    expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Budgeted/);
+    expect(html).toMatch(
+      /<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Amount corrected for inflation/,
+    );
+    // The grid reads its totals anew by the same filters, as they were sent.
+    expect(grids.estimate[0]?.filters).toEqual({ search: "revue", subproject_id: "unassigned" });
+  });
+
+  it("hands the grid the search and the filters the reading sent, none for the whole structure", async () => {
+    const { grid } = await estimateWith();
+    expect(grid?.filters).toEqual({});
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    for (const search of [{ search: "revue" }, { subproject_id: "unassigned" }]) {
+      grids.estimate = [];
+      renderToStaticMarkup(
+        inEnglish(await EstimatePage({ params, searchParams: Promise.resolve(search) })),
+      );
+      expect(grids.estimate[0]?.filters).toEqual(search);
+    }
   });
 
   it("asks the plan order of the whole structure when the address holds no sort the grid offers, nor a search", async () => {
@@ -325,7 +342,9 @@ describe("the witness path", () => {
       "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes":
         "nodes_estimate",
     });
-    expect(text(html)).toContain("Total — 3 tasks, 3 lines 12.5 2,734.56 2,734.56");
+    // The hours and the amount at the year of reference; the contract totals no amount corrected
+    // for inflation.
+    expect(text(html)).toMatch(/Total — 3 tasks, 3 lines 12\.5 2,734\.56$/);
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
@@ -406,13 +425,12 @@ describe("the witness path", () => {
     expect(html).not.toMatch(/<td(?![^>]*aria-readonly)[^>]*data-column=/);
   });
 
-  it("sorts by the sort the account keeps for the grid when the address asks none, and by the address otherwise", async () => {
+  it("keeps no sort by a column the grid no longer presents, and sorts by the address otherwise", async () => {
+    // The account keeps the sort by the budgeted amount, which the grid no longer presents
+    // (WF-DEV-0050): the plan order, as for any column the grid does not sort.
     const { html } = await estimateWith({ "GET /session": "session_grid_settings" });
-    expect(nodesQuery()).toEqual({
-      sort_by: "budgeted_amount",
-      sort_order: "desc",
-    });
-    expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Budgeted/);
+    expect(Object.keys(nodesQuery())).toEqual([]);
+    expect(html).not.toContain("aria-sort");
 
     server.clients = [];
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });

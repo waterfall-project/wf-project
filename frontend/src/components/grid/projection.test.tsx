@@ -178,7 +178,9 @@ function holdsWhatTheGridReads<
   });
 }
 
-// The shares the projections weigh on the volume: 0.59 for the estimate, 0.44 for the planning.
+// The shares the projections weigh on the volume, as measured: 0.602 for the estimate, 0.516 for
+// the planning — what each node accepts (`editable_fields`, #219) counted, whose weight #238
+// weighs.
 /** Nothing is written by these tests: what an entry reads is all they look at. */
 function unwritten(): never {
   throw new Error("nothing is written here");
@@ -189,8 +191,8 @@ function unwritten(): never {
 const ENTERED_ESTIMATE = estimateGrid(estimateReference(), "?", {
   line: unwritten,
   task: unwritten,
-  paste: { preview: unwritten, apply: unwritten },
+  paste: { preview: unwritten, apply: unwritten, span: unwritten, name: unwritten },
 });
 
-holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.6);
-holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.47);
+holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.61);
+holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.52);

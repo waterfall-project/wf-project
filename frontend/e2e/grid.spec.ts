@@ -156,8 +156,10 @@ test.describe("on a narrow window", () => {
       element.scrollLeft = element.scrollWidth;
     });
     await expect.poll(() => box.evaluate((element) => element.scrollLeft)).toBeGreaterThan(100);
-    const reestimated = grid(page).getByRole("columnheader", { name: "Calculé Réestimé" });
-    await expect(reestimated).toBeInViewport();
+    const inflated = grid(page).getByRole("columnheader", {
+      name: "Calculé Montant corrigé de l’inflation",
+    });
+    await expect(inflated).toBeInViewport();
 
     // The label, its header and the caption of the totals stay at the start, beside the row
     // numbers, whatever is scrolled under them.
@@ -177,13 +179,13 @@ test("asks the server for the sort of a column clicked, both ways, by the parame
   page,
 }) => {
   await page.goto(GRID);
-  const header = grid(page).getByRole("columnheader", { name: "Calculé Budgété" });
+  const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
   await expect(header).not.toHaveAttribute("aria-sort");
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=budgeted_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=reestimated_amount&sort_order=asc`);
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=budgeted_amount&sort_order=desc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=reestimated_amount&sort_order=desc`);
   await expect(header).toHaveAttribute("aria-sort", "descending");
   await expect(grid(page)).toHaveAttribute("aria-busy", "false");
   // The rows are those of the answer, in its order: the fake back serves the same example
@@ -208,9 +210,9 @@ test("shows the sort asked without waiting for the server actions of the page, i
     await route.continue().catch(() => undefined);
   });
   await page.goto(GRID);
-  const header = grid(page).getByRole("columnheader", { name: "Calculé Budgété" });
+  const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=budgeted_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=reestimated_amount&sort_order=asc`);
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
 });

@@ -9,8 +9,8 @@ describe("what the address asks of a grid", () => {
   it("reads the sort by a column the grid sorts, ascending unless the address says descending", () => {
     const read = (query: string) =>
       readGridQuery(new URLSearchParams(query), ESTIMATE_SORT_COLUMNS).sort;
-    expect(read("sort_by=budgeted_amount&sort_order=desc")).toEqual({
-      column: "budgeted_amount",
+    expect(read("sort_by=inflated_amount&sort_order=desc")).toEqual({
+      column: "inflated_amount",
       order: "desc",
     });
     expect(read("sort_by=label")).toEqual({ column: "label", order: "asc" });
@@ -21,6 +21,7 @@ describe("what the address asks of a grid", () => {
     const read = (query: string) =>
       readGridQuery(new URLSearchParams(query), ESTIMATE_SORT_COLUMNS).sort;
     expect(read("sort_by=start&sort_order=desc")).toBeUndefined();
+    expect(read("sort_by=budgeted_amount")).toBeUndefined();
     expect(read("sort_by=nothing")).toBeUndefined();
     expect(read("sort_order=desc")).toBeUndefined();
   });

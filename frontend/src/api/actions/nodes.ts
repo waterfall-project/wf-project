@@ -3,7 +3,8 @@
 /**
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
- * `updateEstimateLine`), a block pasted from a spreadsheet (`previewPaste`, `applyPaste`) —:
+ * `updateEstimateLine`), a block pasted from a spreadsheet (`previewPaste`, `applyPaste`), the
+ * totals of a filtered reading read anew (`listNodes`) —:
  * the grid asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the
  * one decoder makes of its answer (`src/api/problem.ts`).
  */
@@ -30,6 +31,15 @@ type ComputedValueDependencies = components["schemas"]["ComputedValueDependencie
  * the totals of the structure and its version (#188, #201).
  */
 type NodesWritten = components["schemas"]["NodesWritten"];
+
+/** What a reading of the nodes asks besides the fields it renders and its sort. */
+type NodeFilters = Omit<
+  NonNullable<operations["listNodes"]["parameters"]["query"]>,
+  "fields" | "sort_by" | "sort_order"
+>;
+
+/** The totals of a reading of the nodes, which the server computes. */
+type NodeTotals = components["schemas"]["NodeTotals"];
 
 /** The path of a node: its structure, and the node itself. */
 function nodePath(structure: StructurePath, nodeId: string) {
@@ -130,4 +140,23 @@ export async function applyPaste(
       { ...nodesPath(structure), body: confirmation },
     ),
   );
+}
+
+/**
+ * Read anew the totals of a reading of the nodes a search or a filter narrowed, once its writes
+ * answered: the same request as the reading, its filters as they were — the totals the writes
+ * answer are those of the whole structure, which a filtered reading reads anew (`NodesWritten`)
+ * —, each node asked by its identifier alone, the totals being all the grid takes of it.
+ */
+export async function readNodeTotals(
+  structure: StructurePath,
+  filters: NodeFilters,
+): Promise<Outcome<NodeTotals>> {
+  const outcome = await decode(() =>
+    serverClient().GET(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes",
+      { params: { path: structure, query: { ...filters, fields: ["node_id"] } } },
+    ),
+  );
+  return outcome.kind === "done" ? { kind: "done", data: outcome.data.totals } : outcome;
 }

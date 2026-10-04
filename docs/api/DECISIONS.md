@@ -494,17 +494,18 @@ pour les montants. `rescheduled` rend les tâches non récapitulatives, chacune 
 l'ordre du plan, vide quand rien d'autre n'a bougé ; `ancestors` devient les ancêtres des nœuds
 écrits et des tâches redatées, recalculés, chacun une fois, entier — deux phases en chaîne :
 allonger une tâche de la première repousse la récapitulative de la seconde, qui n'est ni écrite
-ni ancêtre d'un nœud écrit, et dont la durée n'est pas dans la projection ; il est exigé sur toute écriture, pour que la grille n'ait pas à
-distinguer une enveloppe qui n'en parle pas d'une enveloppe où rien n'a bougé. Chacune est un
-`NodeSchedule` — le nœud, son début, sa fin, sa marge totale, nulle en mode manuel, sa
-criticité et sa fin dépassée —, pas un `Node` : une chaîne de mille tâches reste légère, et le
-recalcul tient dans la seconde du §4.6.2. Les montants qui dépendent des dates — le montant
-corrigé de l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de
-devis, écran distinct qui relit la structure à son ouverture. L'exemple `predecessor_set` lie la
-revue de conception du planning témoin au dossier de conception : la revue, écrite, et la
-réception des études qui la suit glissent au 29 avril, et le dossier, dont les dates ne bougent
-pas, passe sur le chemin critique. Écartés : des `Node` entiers, qui pourraient porter la moitié
-du plan, facettes de devis comprises ; une relecture de `listNodes` après chaque saisie de durée.
+ni ancêtre d'un nœud écrit, et dont la durée n'est pas dans la projection ; `rescheduled` est
+exigé sur toute écriture, pour que la grille n'ait pas à distinguer une enveloppe qui n'en parle
+pas d'une enveloppe où rien n'a bougé. Chacune est un `NodeSchedule` — le nœud, son début, sa
+fin, sa marge totale, nulle en mode manuel, sa criticité et sa fin dépassée —, pas un `Node` :
+une chaîne de mille tâches reste légère, et le recalcul tient dans la seconde du §4.6.2. Les
+montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation —
+n'y sont pas : ils se lisent dans la grille de devis, écran distinct qui relit la structure à son
+ouverture. L'exemple `predecessor_set` lie la revue de conception du planning témoin au dossier
+de conception : la revue, écrite, et la réception des études qui la suit glissent au 29 avril, et
+le dossier, dont les dates ne bougent pas, passe sur le chemin critique. Écartés : des `Node`
+entiers, qui pourraient porter la moitié du plan, facettes de devis comprises ; une relecture de
+`listNodes` après chaque saisie de durée.
 
 **La marge totale est une durée, sur la facette comme dans la projection** (`TaskFacet.total_float`,
 `NodeSchedule.total_float`, `Duration`). La décision de #222 la donne en durée ; la facette la

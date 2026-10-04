@@ -99,6 +99,7 @@ function renderGrid(
   const grid = (query: GridQuery<NodeSortColumn>) => (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <EstimateGrid
+        filters={{}}
         reference={estimateReference()}
         editable
         tasksEditable
@@ -229,8 +230,8 @@ describe("the dense grid, on a thousand rows", () => {
       "Qté",
       "Charge (h)",
       "Débours unit.",
-      "Budgété",
-      "Réestimé",
+      "Montant (année de réf.)",
+      "Montant corrigé de l’inflation",
     ]);
     // The amounts are computed by the server: their headers bear the mark Σ, named.
     expect(within(header ?? grid()).getAllByRole("img", { name: "Calculé" })).toHaveLength(2);
@@ -247,7 +248,7 @@ describe("the dense grid, on a thousand rows", () => {
       "0",
       "",
       "100\u202f000,00",
-      "100\u202f000,00",
+      "",
     ]);
     for (const cell of totals?.querySelectorAll("td") ?? []) {
       expect(cell).toHaveClass("sticky", "bottom-0");
@@ -271,29 +272,29 @@ describe("the sort, the search and the totals, asked of the server", () => {
   it("asks the server for the sort of a column clicked, both ways, by the parameters of the contract, and lifts it on a third click", async () => {
     page.search = "subproject_id=unassigned";
     const { ask } = renderGrid(witness);
-    const heading = () => screen.getByRole("columnheader", { name: /Budgété/ });
+    const heading = () => screen.getByRole("columnheader", { name: /inflation/ });
     // No column is sorted: none says so.
     expect(grid().querySelectorAll("[aria-sort]")).toHaveLength(0);
 
     await userEvent.click(within(heading()).getByRole("button"));
     await waitFor(() => {
       expect(router.push).toHaveBeenLastCalledWith(
-        "/projects/p/revisions/r?subproject_id=unassigned&sort_by=budgeted_amount&sort_order=asc",
+        "/projects/p/revisions/r?subproject_id=unassigned&sort_by=inflated_amount&sort_order=asc",
         { scroll: false },
       );
     });
-    ask({ sort: { column: "budgeted_amount", order: "asc" }, search: undefined });
+    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined });
     expect(heading()).toHaveAttribute("aria-sort", "ascending");
     expect(grid().querySelectorAll("[aria-sort]")).toHaveLength(1);
 
     await userEvent.click(within(heading()).getByRole("button"));
     await waitFor(() => {
       expect(router.push).toHaveBeenLastCalledWith(
-        "/projects/p/revisions/r?subproject_id=unassigned&sort_by=budgeted_amount&sort_order=desc",
+        "/projects/p/revisions/r?subproject_id=unassigned&sort_by=inflated_amount&sort_order=desc",
         { scroll: false },
       );
     });
-    ask({ sort: { column: "budgeted_amount", order: "desc" }, search: undefined });
+    ask({ sort: { column: "inflated_amount", order: "desc" }, search: undefined });
     expect(heading()).toHaveAttribute("aria-sort", "descending");
 
     await userEvent.click(within(heading()).getByRole("button"));
@@ -347,14 +348,14 @@ describe("the sort, the search and the totals, asked of the server", () => {
     const client = serve({ [PREFERENCES]: "preferences" }, { hold: () => held });
     const { unmount, ask } = renderGrid(witness);
     await userEvent.click(
-      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+      within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
     );
     // The address has changed before anything is written.
     expect(router.push.mock.calls).toEqual([
-      ["/projects/p/revisions/r?sort_by=budgeted_amount&sort_order=asc", { scroll: false }],
+      ["/projects/p/revisions/r?sort_by=inflated_amount&sort_order=asc", { scroll: false }],
     ]);
     expect(recorded(client)).toEqual([]);
-    ask({ sort: { column: "budgeted_amount", order: "asc" }, search: undefined });
+    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined });
     await waitFor(() => {
       expect(recorded(client)).toHaveLength(1);
     });
@@ -368,7 +369,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     const client = serve();
     const { ask } = renderGrid(witness);
     await userEvent.click(
-      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+      within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
     );
     const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
     handle.focus();
@@ -376,7 +377,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     // The pause of a width goes by: the page is not shown yet, and nothing is written.
     await new Promise((resolve) => setTimeout(resolve, WRITE_DELAY + 100));
     expect(recorded(client)).toEqual([]);
-    ask({ sort: { column: "budgeted_amount", order: "asc" }, search: undefined });
+    ask({ sort: { column: "inflated_amount", order: "asc" }, search: undefined });
     await waitFor(() => {
       expect(recorded(client)).toEqual([
         {
@@ -384,7 +385,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
             estimate: {
               hidden_columns: [],
               column_widths: { label: 336 },
-              sort: { column: "budgeted_amount", order: "asc" },
+              sort: { column: "inflated_amount", order: "asc" },
             },
           },
         },
@@ -396,7 +397,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     const client = serve();
     const { unmount } = renderGrid(witness);
     await userEvent.click(
-      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+      within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
     );
     expect(recorded(client)).toEqual([]);
     unmount();
@@ -407,7 +408,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
             estimate: {
               hidden_columns: [],
               column_widths: {},
-              sort: { column: "budgeted_amount", order: "asc" },
+              sort: { column: "inflated_amount", order: "asc" },
             },
           },
         },
@@ -442,16 +443,16 @@ describe("the sort, the search and the totals, asked of the server", () => {
     });
     renderGrid(witness);
     const button = () =>
-      within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button");
+      within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button");
     await userEvent.click(button());
     // The server has not answered: the header shows the sort asked, and goes on from it.
-    expect(screen.getByRole("columnheader", { name: /Budgété/ })).toHaveAttribute(
+    expect(screen.getByRole("columnheader", { name: /inflation/ })).toHaveAttribute(
       "aria-sort",
       "ascending",
     );
     await userEvent.click(button());
     expect(router.push.mock.calls.at(-1)).toEqual([
-      "/projects/p/revisions/r?sort_by=budgeted_amount&sort_order=desc",
+      "/projects/p/revisions/r?sort_by=inflated_amount&sort_order=desc",
       { scroll: false },
     ]);
     await act(async () => {
@@ -476,7 +477,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     );
     // The amounts of the tasks and of the line add up to 300 000; the total of the answer,
     // that of its lines alone, is 100 000.
-    expect(texts(rowAt(6)).slice(-2)).toEqual(["100\u202f000,00", "100\u202f000,00"]);
+    expect(texts(rowAt(6)).slice(-2)).toEqual(["100\u202f000,00", ""]);
   });
 
   it("asks the server for the rows a search retains, and for all of them once it is emptied", async () => {
@@ -508,7 +509,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     }
     const sortByBudget = () =>
       userEvent.click(
-        within(screen.getByRole("columnheader", { name: /Budgété/ })).getByRole("button"),
+        within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
       );
     const searchCabling = () =>
       userEvent.type(
@@ -527,7 +528,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
       await searchCabling();
       expect(lastAsked()).toEqual({
         subproject_id: "unassigned",
-        sort_by: "budgeted_amount",
+        sort_by: "inflated_amount",
         sort_order: "asc",
         search: "câblage",
       });
@@ -540,7 +541,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
       expect(lastAsked()).toEqual({
         subproject_id: "unassigned",
         search: "câblage",
-        sort_by: "budgeted_amount",
+        sort_by: "inflated_amount",
         sort_order: "asc",
       });
     });
@@ -573,11 +574,9 @@ describe("the columns and their widths, a display preference of the account", ()
         user: { display_preferences: { grids: { estimate: GridPreferences } } };
       }
     ).user.display_preferences.grids.estimate;
-    // The page sorts by the sort the account keeps when the address asks none.
-    const { container } = renderGrid(witness, {
-      preferences: settings,
-      query: { sort: { column: "budgeted_amount", order: "desc" }, search: undefined },
-    });
+    // The account keeps a sort by the budgeted amount, which the grid no longer presents
+    // (WF-DEV-0050): the page asks none.
+    const { container } = renderGrid(witness, { preferences: settings });
     await expectAccessible(container);
     // The quantity was hidden, the label widened.
     expect(screen.queryByRole("columnheader", { name: /Qté/ })).toBeNull();
@@ -614,7 +613,7 @@ describe("the columns and their widths, a display preference of the account", ()
   it("sends back the sort the session kept when a width changes, not the sort of the address", async () => {
     const client = serve();
     renderGrid(witness, {
-      preferences: { sort: { column: "budgeted_amount", order: "desc" } },
+      preferences: { sort: { column: "inflated_amount", order: "desc" } },
       query: { sort: { column: "label", order: "asc" }, search: undefined },
     });
     const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
@@ -625,7 +624,7 @@ describe("the columns and their widths, a display preference of the account", ()
         {
           grids: {
             estimate: {
-              sort: { column: "budgeted_amount", order: "desc" },
+              sort: { column: "inflated_amount", order: "desc" },
               hidden_columns: [],
               column_widths: { label: 336 },
             },
@@ -638,7 +637,9 @@ describe("the columns and their widths, a display preference of the account", ()
   it("widens a column by the arrows of the keyboard, within its bounds, and records the width", async () => {
     const client = serve();
     const { container } = renderGrid(witness);
-    const handle = screen.getByRole("separator", { name: "Largeur de la colonne Budgété" });
+    const handle = screen.getByRole("separator", {
+      name: "Largeur de la colonne Montant (année de réf.)",
+    });
     expect(handle).toHaveAttribute("aria-valuenow", "128");
     handle.focus();
     await userEvent.keyboard("{ArrowRight}{ArrowRight}{ArrowLeft}{Home}");
@@ -648,7 +649,7 @@ describe("the columns and their widths, a display preference of the account", ()
       expect(recorded(client)).toEqual([
         {
           grids: {
-            estimate: { hidden_columns: [], column_widths: { budgeted_amount: 144 } },
+            estimate: { hidden_columns: [], column_widths: { reestimated_amount: 144 } },
           },
         },
       ]);
@@ -816,7 +817,7 @@ describe("a grid configured without its options", () => {
           config={plain}
           rows={witness.items}
           totals={witness.totals}
-          totalsCaption="—"
+          totalsCaption={() => "—"}
           query={NO_QUERY}
           preferences={undefined}
         />
@@ -863,7 +864,8 @@ describe("the figures and the dates of a grid, in the language of the interface"
   it("shows the same amount « 1 234,56 » in French and « 1,234.56 » in English, and the same total of the project [WF-INTF-0180-A]", () => {
     const french = figures("fr", "Borniers");
     const english = figures("en", "Borniers");
-    // Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+    // Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
+    // reference, amount corrected for inflation.
     expect(french.row).toEqual([
       "4",
       "Borniers",
@@ -886,9 +888,10 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1,234.56",
       "1,234.56",
     ]);
-    // The total of the project is the one the server gave, 2734.56, in either language.
-    expect(french.totals.slice(-2)).toEqual(["2 734,56", "2 734,56"]);
-    expect(english.totals.slice(-2)).toEqual(["2,734.56", "2,734.56"]);
+    // The total of the project is the one the server gave, 2734.56, in either language; the
+    // contract totals no amount corrected for inflation.
+    expect(french.totals.slice(-2)).toEqual(["2 734,56", ""]);
+    expect(english.totals.slice(-2)).toEqual(["2,734.56", ""]);
     expect(english.totals[1]).toBe("Total — 3 tasks, 3 lines");
   });
 
@@ -945,7 +948,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
               config={dated}
               rows={estimate.items}
               totals={estimate.totals}
-              totalsCaption=""
+              totalsCaption={() => ""}
               query={NO_QUERY}
               preferences={undefined}
             />
