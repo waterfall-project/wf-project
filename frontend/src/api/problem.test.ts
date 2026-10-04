@@ -18,6 +18,7 @@ import {
   type ExpectedRefusal,
   reach,
   readOrFail,
+  readOrRefused,
   readUnlessRefused,
   SignedOut,
   UnexpectedAnswer,
@@ -373,5 +374,42 @@ describe("a read a screen can do without", () => {
     await expect(
       indicators({ problem: { code: "SESSION_REQUIRED", status: 401 } }),
     ).rejects.toBeInstanceOf(SignedOut);
+  });
+});
+
+describe("a read a screen can do without, and says why when it is refused", () => {
+  const ROUTE = "GET /projects/{project_id}/workload";
+  const REFUSALS = [
+    { status: 409, code: "STATE_FORBIDS_OPERATION", reason: "no_reference" },
+    { status: 422, code: "VALIDATION_FAILED", reason: "marked_revision" },
+  ] as const;
+  const workload = (answer: FakeAnswer<typeof ROUTE>) => {
+    const client = fakeClient({ [ROUTE]: answer });
+    return readOrRefused("getProjectWorkload", REFUSALS, () =>
+      client.GET("/projects/{project_id}/workload", {
+        params: { path: { project_id: PROJECT }, query: { basis: "current_remaining" } },
+      }),
+    );
+  };
+
+  it("gives the data of a success", async () => {
+    expect(await workload("workload")).toEqual({ kind: "read", data: example("workload") });
+  });
+
+  it("names the refusal it met among those it expects", async () => {
+    const invalid = { problem: { code: "VALIDATION_FAILED", status: 422 } } as const;
+    expect(await workload(invalid)).toEqual({
+      kind: "refused",
+      refusal: REFUSALS[1],
+      problem: invalid.problem,
+    });
+    const forbidden = { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } } as const;
+    expect(await workload(forbidden)).toMatchObject({ kind: "refused", refusal: REFUSALS[0] });
+  });
+
+  it("follows the rule of the reads for the rest", async () => {
+    await expect(
+      workload({ problem: { code: "ALREADY_EXISTS", status: 409 } }),
+    ).rejects.toBeInstanceOf(UnexpectedAnswer);
   });
 });

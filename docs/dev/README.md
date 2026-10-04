@@ -62,8 +62,14 @@ La coquille (`frontend/src/components/shell/`) tire sa navigation de
 son code, la clé de son libellé, sa route, sa portée et la permission qui la laisse
 consulter ; une fonction dont la session n'a pas la permission `<fonction>.read` n'y figure
 pas. La table ne porte encore que le second niveau : les feuilles adressables y entrent avec
-le contrôle de complétude des écrans, que le lot EP-02/L3 (#125) ajoute. Trois portées : hors projet ; `project`, les fonctions du
-projet lui-même — révisions, paramètres, cycle de vie —, sous `/projects/[projectId]/…`,
+le contrôle de complétude des écrans, que le lot EP-02/L3 (#125) ajoute. Une feuille qui a déjà
+son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même
+permission : le plan de charge du projet, FBS-4.4.4, sous le devis
+(`/projects/[projectId]/revisions/[revisionId]/workload`). La navigation ne l'offre pas —
+l'écran de sa fonction y mène, dans le même contexte, et son entrée est marquée courante —,
+mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle.
+Trois portées : hors projet ; `project`, les fonctions du projet lui-même — révisions,
+paramètres, cycle de vie —, sous `/projects/[projectId]/…`,
 qu'un projet sans révision offre ; `revision`, les autres, sous
 `/projects/[projectId]/revisions/[revisionId]/…`. Le contexte de lecture est dans l'adresse :
 le projet dans le chemin, la révision dans le chemin ou, sur une fonction du projet, en
@@ -167,7 +173,7 @@ Une courbe est une figure de `Chart` (`frontend/src/components/chart/`, US-0240)
 ECharts, importé pièce à pièce et dessiné en SVG, son option `aria` active ; sa légende la
 nomme, le dessin est une image que décrit une phrase du catalogue, et ses valeurs sont un
 tableau sous lui, l'alternative textuelle (WF-IHM-0100). Le composant client propre à la courbe
-(`index-chart.tsx`, `milestone-chart.tsx`, `curve-series-chart.tsx`) lui
+(`index-chart.tsx`, `milestone-chart.tsx`, `curve-series-chart.tsx`, `workload-chart.tsx`) lui
 remet son option, construite dans une palette : ECharts écrit ses couleurs dans les attributs de
 son SVG, où une variable CSS n'atteint pas, et les jetons `--chart-1` à `--chart-4`,
 `--muted-foreground`, `--foreground`, `--input`, `--border` et `--background` y arrivent par
@@ -177,8 +183,10 @@ coup, sans animation, et une légende y est inerte : un clic, à la souris seule
 série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur nombre — pas de
 légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms qui se
 chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; une
-courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; `timeAxis` gradue
-un axe de temps au premier de chaque mois que `monthTicks` tire des instants qu'il montre — tous
+courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; une série de barres
+(`bars`) se distingue aussi par le motif du symbole de son rang, que la légende montre ;
+`timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire des instants
+qu'il montre — tous
 les deux, trois, six mois ou chaque année sur une longue plage, l'année seule alors —, écrits
 dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de planning, que
 `planningInstant` place à leur minuit UTC, l'option de la figure disant alors `useUTC`. Une
@@ -188,11 +196,13 @@ escalier (`step`), une marche verticale par deux points à la même date, et le 
 par `src/i18n/format.ts`, les zones par `Signal`. Une figure qui reçoit `exported` offre la
 commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une instance hors
 écran, en rendu canvas, à la taille d'une image, son titre et sa provenance (`useProvenance`) —
-projet, révision du calcul, date de calcul, écrite dans l'heure du poste au moment de l'export —
+projet, révision du calcul, ce sur quoi la figure est calculée par ailleurs (`detail` : la base et
+le nœud d'organisation filtré du plan de charge), date de calcul, écrite dans l'heure du poste au
+moment de l'export —
 en tête, repliés à la largeur de l'image (`wrapLines`), la figure descendue de la hauteur de
 leurs lignes, sur le fond de la charte, puis libère l'instance. Un choix qui change ce qu'une
-courbe lit — les délais de paiement — est un paramètre de l'adresse, que le serveur envoie à
-l'API : le front ne filtre ni ne décale rien.
+courbe lit — les délais de paiement, la base et le nœud d'organisation du plan de charge — est un
+paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre ni ne décale rien.
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes

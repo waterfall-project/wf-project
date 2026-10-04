@@ -196,6 +196,17 @@ describe("the navigation", () => {
     await expectAccessible(container);
   });
 
+  it("marks current the function whose leaf the page shows, which the bar does not offer", async () => {
+    visit(`${IN_PROJECT}/workload`, CONTEXT);
+    render(navigation());
+    await openBlocks();
+    expect(screen.queryByRole("link", { name: "Plan de charge" })).toBeNull();
+    const estimate = screen.getByRole("link", { name: "Chiffrage et devis" });
+    expect(estimate).toHaveAttribute("aria-current", "true");
+    expect(estimate).toHaveAttribute("href", `${IN_PROJECT}/estimate${CONTEXT}`);
+    expect(screen.getByRole("link", { name: "Planification" })).not.toHaveAttribute("aria-current");
+  });
+
   it("leads back from a function outside any project to the same project context [WF-IHM-0010-A]", () => {
     visit(`${IN_PROJECT}/remaining`, CONTEXT);
     const view = render(navigation());

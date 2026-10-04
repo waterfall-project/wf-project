@@ -69,7 +69,7 @@ test("names each curve at its end, two names ending on the same point moved apar
   expect(Math.abs(a.baseline - b.baseline)).toBeGreaterThanOrEqual(Math.max(a.size, b.size));
 });
 
-test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named after the project [WF-IHM-0130-A]", async ({
+test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named after the project", async ({
   page,
 }) => {
   await page.goto(SCREEN);
