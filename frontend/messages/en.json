@@ -240,6 +240,74 @@
     "notComputable": "Not computable",
     "computedAt": "Computed on <time></time>"
   },
+  "chart": {
+    "values": "Values of the chart"
+  },
+  "projectIndicators": {
+    "notInProgress": {
+      "title": "Indicators unavailable",
+      "explanation": "The indicators of a project are computed from the In progress state; before, only the indicators of the estimate exist."
+    },
+    "financial": {
+      "title": "Financial progress"
+    },
+    "projections": {
+      "title": "Projection at completion",
+      "hypothesis": "Hypothesis",
+      "amount": "Amount",
+      "variance": "Variance from budget",
+      "atBudget": "At budget",
+      "projectManager": "Project manager’s",
+      "varianceAtObservedRate": "Variance from budget of the projection at the observed rate: {variance}"
+    },
+    "physical": {
+      "title": "Physical progress"
+    },
+    "cost": {
+      "title": "Cost performance index (CPI)"
+    },
+    "schedule": {
+      "title": "Schedule performance index (SPI)"
+    },
+    "figures": {
+      "referenceBudget": "Reference budget",
+      "plannedValue": "Planned value",
+      "earnedValue": "Earned value",
+      "actualCost": "Actual cost",
+      "remaining": "Remaining to commit",
+      "costVariance": "Cost variance",
+      "scheduleVariance": "Schedule variance"
+    },
+    "notComputable": "Not computable — {reason}",
+    "unnamedSubproject": "Unnamed subproject",
+    "history": {
+      "costTitle": "Evolution of the cost index",
+      "scheduleTitle": "Evolution of the schedule index",
+      "costDescription": "Curves of the cost index of the project and of each of its scopes, one point per marked revision and the last at the current day, with the watch threshold at {watch} and the alert threshold at {alert}.",
+      "scheduleDescription": "Curves of the schedule index of the project and of each of its scopes, one point per marked revision and the last at the current day, with the watch threshold at {watch} and the alert threshold at {alert}.",
+      "watch": "Watch threshold",
+      "alert": "Alert threshold",
+      "scope": "Scope",
+      "revision": "Revision",
+      "date": "Date",
+      "value": "Index",
+      "zone": "Zone",
+      "currentRevision": "Current revision"
+    },
+    "milestones": {
+      "title": "Milestone tracking",
+      "chartTitle": "Time/time diagram",
+      "description": "For each tracked milestone, the date each marked revision forecast, by the date of its marking, and the last point at the current day, with the diagonal of equal dates.",
+      "milestone": "Milestone",
+      "markedAt": "Revision of",
+      "forecast": "Forecast date",
+      "completedOn": "Completed on",
+      "notCompleted": "Not completed",
+      "diagonal": "Equal dates",
+      "none": "No milestone is tracked.",
+      "unavailable": "The milestone tracking is unavailable."
+    }
+  },
   "commands": {
     "label": "Commands",
     "unmet": "{count, plural, one {Unmet condition} other {Unmet conditions}}: {conditions}."

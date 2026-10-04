@@ -34,7 +34,7 @@ const PHYSICAL_PROGRESS = held(INDICATORS.physical_progress);
 function page(label: IndicatorLabel, value: Computable, locale: Locale = "fr") {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
-      <ComputedIndicator label={label} value={value} context={INDICATORS.context} />
+      <ComputedIndicator indicator={label} value={value} context={INDICATORS.context} />
     </NextIntlClientProvider>
   );
 }

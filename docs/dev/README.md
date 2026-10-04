@@ -160,6 +160,20 @@ enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de
 `CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
 (`enums.NotComputableReason.*`, `indicator.tsx`).
 
+Une courbe est une figure de `Chart` (`frontend/src/components/chart/`, US-0240) : Apache
+ECharts, importé pièce à pièce et dessiné en SVG, son option `aria` active ; sa légende la nomme,
+le dessin est une image que décrit une phrase du catalogue, et ses valeurs sont un tableau sous
+lui, l'alternative textuelle (WF-IHM-0100). Le composant client propre à la courbe
+(`index-chart.tsx`, `milestone-chart.tsx`) lui remet son option, construite dans une palette :
+ECharts écrit ses couleurs dans les attributs de son SVG, où une variable CSS n'atteint pas, et
+les jetons `--chart-1` à `--chart-4`, `--muted-foreground`, `--foreground`, `--input` et
+`--border` y arrivent par des sondes cachées que le navigateur peint dans le mode affiché ; un
+changement de mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe.
+`seriesLook` distingue les séries sans la couleur, par leur symbole et leur trait ; `timeAxis`
+écrit un axe de temps dans la langue, en UTC pour des dates de planning. Une courbe trace les
+chaînes de l'API telles quelles — ECharts en tire une position —, une valeur non calculable
+étant un trou, et le tableau les écrit par `src/i18n/format.ts`, les zones par `Signal`.
+
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
 — clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
