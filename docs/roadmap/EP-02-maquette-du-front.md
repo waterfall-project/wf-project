@@ -1046,7 +1046,7 @@ sans que le front ait à sommer quoi que ce soit.
 
 ## US-0250 — Écrans du référentiel et de l'administration
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — EP-03 et EP-05
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listCostTypes`, `listCostCategories`,
@@ -1076,6 +1076,14 @@ grille ne saisit que les années que la réponse porte : l'ajout d'une colonne d
 (WF-REF-0060) manque au front, #299. Les écrans lisent les objets actifs seuls ; présenter les
 désactivés, qui restent lisibles (WF-REF-0150), est #300, et filtrer chaque table sur ses
 colonnes (WF-IHM-0130), #301.
+US-0250/L2 réalise l'administration (FBS-1.1 à 1.4), en lecture : les comptes, désactivés
+compris, chacun avec ses rôles et son rattachement nommés par le serveur, par pages ; les rôles
+d'habilitation et la matrice des permissions — une ligne par permission dans l'ordre de
+`listPermissions`, groupée sous la fonction de second niveau qu'elle couvre, une colonne par rôle ;
+l'état du système ; les sauvegardes et leur planification, sans aucune commande. Un parcours
+atteint les huit écrans du référentiel et de l'administration depuis la navigation, sans projet
+ouvert. Les formulaires — créer un compte, composer un rôle, régler la planification, déclencher
+une sauvegarde ou une restauration — restent aux EPICs de l'administration et de l'exploitation.
 
 ## US-0260 — Écran d'import en deux temps
 

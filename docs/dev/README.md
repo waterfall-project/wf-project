@@ -327,6 +327,17 @@ des indicateurs les seuils des indices et le délai entre deux revues. Un objet 
 par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
 listes dans le front ; une section se nomme par `aria-label` (#251).
 
+Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
+`frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les
+comptes, désactivés compris (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
+serveur ; les rôles d'habilitation et la matrice des permissions — une ligne par permission dans
+l'ordre du catalogue, les permissions consécutives d'une même fonction de second niveau, ou d'une
+même nature hors fonction, groupées sous un en-tête de groupe (`scope="rowgroup"`), une colonne par
+rôle, accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification,
+sans aucune commande. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en
+porte et mène aux pages voisines par `offset` (`ListPages`), sans jamais montrer une page pour le
+tout.
+
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
 vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une

@@ -744,6 +744,102 @@
       "maxWeeks": "Longest delay between two marked revisions of a project in progress: {weeks, plural, one {# week} other {# weeks}}."
     }
   },
+  "admin": {
+    "pages": {
+      "label": "Pages of the list",
+      "previous": "Previous page",
+      "next": "Next page",
+      "beyond": "This page is beyond the end of the list."
+    },
+    "users": {
+      "title": "User accounts",
+      "lastName": "Last name",
+      "firstName": "First name",
+      "email": "Email address",
+      "origin": "Origin",
+      "roles": "Access roles",
+      "orgNode": "Attached to",
+      "noRole": "No role",
+      "noOrgNode": "None",
+      "none": "No account.",
+      "count": "{count, plural, =0 {No account} one {# account} other {# accounts}}"
+    },
+    "accessRoles": {
+      "title": "Access roles",
+      "kind": "Kind",
+      "predefined": "Predefined",
+      "composed": "Composed",
+      "holders": "Holding accounts",
+      "none": "No access role."
+    },
+    "permissions": {
+      "title": "Permissions by function",
+      "function": "Function",
+      "permission": "Permission",
+      "held": "Granted",
+      "notHeld": "Not granted"
+    },
+    "status": {
+      "version": "Installed version: {version}",
+      "components": "Components",
+      "component": "Component",
+      "availability": "Availability",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "checkedAt": "Last checked",
+      "componentVersion": "Version",
+      "storage": "Storage",
+      "used": "Used",
+      "free": "Available",
+      "operations": "Last operations",
+      "operation": "Operation",
+      "at": "Date",
+      "outcome": "Outcome",
+      "motive": "Motive",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "never": "Never run",
+      "directorySync": "Reading of the identity provider accounts",
+      "backup": "Backup",
+      "restoreTest": "Restoration test",
+      "alerts": "Current alerts",
+      "alert": "Alert",
+      "severity": "Level",
+      "since": "Since",
+      "noAlert": "No current alert."
+    },
+    "backups": {
+      "title": "Backups",
+      "takenAt": "Date",
+      "size": "Size",
+      "verification": "Verification",
+      "origin": "Started",
+      "retention": "Retention",
+      "retained": "Marked to keep",
+      "none": "No backup.",
+      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}"
+    },
+    "schedule": {
+      "title": "Schedule",
+      "state": "Schedule",
+      "enabled": "On",
+      "disabled": "Off",
+      "frequency": "Frequency",
+      "weekday": "Day",
+      "at": "Time",
+      "retained": "Retention",
+      "count": "{count, plural, one {# backup kept} other {# backups kept}}",
+      "weekdays": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    }
+  },
   "functionGroups": {
     "administration": "Administration",
     "portfolio": "Portfolio",
