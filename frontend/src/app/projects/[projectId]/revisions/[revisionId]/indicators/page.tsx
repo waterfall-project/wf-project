@@ -5,12 +5,17 @@
  * (`functions.json`): the banner of the reading context (WF-IHM-0020); the indicators FBS-4.8.1 to
  * FBS-4.8.5 as the API computes them for the sub-project and at the date the address filters
  * (`getProjectIndicators`, `scope`, `as_of`), with the evolution of the indices
- * (`getIndexHistory`, WF-IND-0130).
+ * (`getIndexHistory`, WF-IND-0130); the tracking of the milestones (`getMilestoneTracking`,
+ * WF-IND-0090); the cumulative costs at the same date, shifted by the payment delays when the
+ * address asks it (`getCostCurve`, `payment_delays`, WF-IND-0100), and the curves of earned value
+ * for the same sub-project (`getEarnedValueCurves`, WF-IND-0110) — each of the three exported as
+ * a PNG image that names the project, the revision of its calculation and its date (WF-IHM-0130).
  *
  * The indicators of a project are computed from the state In progress only (WF-IND-0010): before,
  * the API refuses them (409, `STATE_FORBIDS_OPERATION`), and the screen says so rather than coming
- * down, the evolution of the indices left unasked. Any other answer follows the rule of the reads
- * (`readOrFail`): the screen never shows a figure it did not read, and computes none.
+ * down, the evolution of the indices and the cumulative curves left unasked. Any other answer
+ * follows the rule of the reads (`readOrFail`): the screen never shows a figure it did not read,
+ * and computes none.
  */
 import { Info, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
@@ -21,7 +26,15 @@ import type { components } from "@/api/generated/schema";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
-import { readProjectContext } from "@/components/context/reading";
+import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import {
+  CostCurveSection,
+  EarnedValueSection,
+  MilestoneSection,
+  PAYMENT_DELAYS,
+  type ScreenAddress,
+} from "@/components/indicators/indicator-sections";
+import type { MilestoneTracking } from "@/components/indicators/milestone-chart";
 import { ProjectIndicatorCards } from "@/components/indicators/project-indicators";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -47,31 +60,52 @@ const NOT_IN_PROGRESS = [{ status: 409, code: "STATE_FORBIDS_OPERATION" }] as co
 
 /**
  * The indicators of the project for the sub-project and at the date the address filters, then
- * the evolution of its indices; neither when the project is not yet in progress, the evolution
- * left unasked.
+ * the evolution of its indices and its cumulative curves — the costs at the same date, shifted
+ * by the payment delays when the address asks it, the earned value for the same sub-project too
+ * —; none of them when the project is not yet in progress, the others left unasked.
  */
-async function readIndicators({ revision, context }: GridAddress) {
+async function readIndicators({ revision, context, address }: GridAddress) {
   const client = serverClient();
   const path = { project_id: revision.projectId };
   const scope = context.parameters.get("subproject_id");
   const asOf = context.parameters.get("as_of");
-  const query = {
-    ...(scope === null ? {} : { scope }),
-    ...(asOf === null ? {} : { as_of: asOf }),
-  };
+  const dated = asOf === null ? {} : { as_of: asOf };
+  const query = { ...(scope === null ? {} : { scope }), ...dated };
   const indicators = await readUnlessRefused("getProjectIndicators", NOT_IN_PROGRESS, () =>
     client.GET("/projects/{project_id}/indicators", { params: { path, query } }),
   );
   if (indicators === undefined) {
     return undefined;
   }
-  const history = await readOrFail("getIndexHistory", () =>
-    client.GET("/projects/{project_id}/indicators/index-history", { params: { path } }),
-  );
-  return { indicators, history };
+  const delays = address.get(PAYMENT_DELAYS) === "true" ? { payment_delays: true } : {};
+  const [history, costs, earnedValue] = await Promise.all([
+    readOrFail("getIndexHistory", () =>
+      client.GET("/projects/{project_id}/indicators/index-history", { params: { path } }),
+    ),
+    readOrFail("getCostCurve", () =>
+      client.GET("/projects/{project_id}/indicators/cost-curve", {
+        params: { path, query: { ...dated, ...delays } },
+      }),
+    ),
+    readOrFail("getEarnedValueCurves", () =>
+      client.GET("/projects/{project_id}/indicators/earned-value-curves", {
+        params: { path, query },
+      }),
+    ),
+  ]);
+  return { indicators, history, costs, earnedValue };
 }
 
-/** The figures of the screen: the indicators and the evolution of the indices. */
+/** The tracking of the milestones, which the API gives whatever the state of the project. */
+async function readMilestones({ revision }: GridAddress) {
+  return readOrFail("getMilestoneTracking", () =>
+    serverClient().GET("/projects/{project_id}/indicators/milestone-tracking", {
+      params: { path: { project_id: revision.projectId } },
+    }),
+  );
+}
+
+/** The figures of the screen: the indicators, the evolution of the indices, the curves. */
 type Figures = NonNullable<Awaited<ReturnType<typeof readIndicators>>>;
 
 /** What the screen says when the API does not compute the indicators of the project yet. */
@@ -90,28 +124,21 @@ function NotInProgress() {
 type Revision = components["schemas"]["Revision"];
 
 /**
- * The revisions the figures are computed on, when it is not the revision of the address: the
- * contract does not let the screen ask the indicators of a given revision (#247) — it gives those
- * of the revision under way, or of the last marked revision before the date `as_of` asks. Each —
- * two at most, the indicators' and the evolution's, once each — is read by its identifier
+ * The revisions the figures and the charts are computed on, when it is not the revision of the
+ * address: the contract does not let the screen ask the indicators of a given revision (#247) — it
+ * gives those of the revision under way, or of the last marked revision before the date `as_of`
+ * asks —, and an exported chart names its revision. Each is read once by its identifier
  * (`getRevision`), only then, for its version name; one the API does not find is said unnamed,
  * never left out, and the screen stays. Any other answer follows the rule of the reads.
  */
-async function readElsewhere(
+async function readRevisionsOf(
   projectId: string,
   shown: string | undefined,
-  figures: Figures | undefined,
-): Promise<readonly (Revision | undefined)[]> {
-  if (figures === undefined) {
-    return [];
-  }
-  const ids = [figures.indicators.context.revision_id, figures.history.context.revision_id];
+  ids: readonly string[],
+): Promise<ReadonlyMap<string, Revision | undefined>> {
   const elsewhere = [...new Set(ids)].filter((id) => id !== shown);
-  if (elsewhere.length === 0) {
-    return [];
-  }
   const client = serverClient();
-  return Promise.all(
+  const read = await Promise.all(
     elsewhere.map((id) =>
       readUnlessRefused("getRevision", [{ status: 404 }], () =>
         client.GET("/projects/{project_id}/revisions/{revision_id}", {
@@ -120,6 +147,7 @@ async function readElsewhere(
       ),
     ),
   );
+  return new Map(elsewhere.map((id, index) => [id, read[index]]));
 }
 
 /**
@@ -154,6 +182,70 @@ function ComputedElsewhere({
   );
 }
 
+/** The name of a revision: its version name, the revision under way, or unnamed. */
+function useRevisionLabel() {
+  const t = useTranslations();
+  return (name: string | null | undefined) =>
+    name === undefined
+      ? t("projectIndicators.elsewhere.unknown")
+      : (name ?? t("contextBanner.currentRevision"));
+}
+
+/** The parameters of the address as Next hands them, the first value of each. */
+function parametersOf(search: PageSearchParams): ScreenAddress["parameters"] {
+  return Object.entries(search).flatMap(([name, value]) => {
+    const first = typeof value === "string" ? value : value?.[0];
+    return first === undefined ? [] : [[name, first] as const];
+  });
+}
+
+/** The version name of a revision: `null` for the one under way, `undefined` when unnamed. */
+type RevisionName = (revisionId: string) => string | null | undefined;
+
+/** What the screen shows below the cards of the indicators, each chart with its provenance. */
+function Sections({
+  reading,
+  figures,
+  milestones,
+  address,
+  nameOf,
+}: {
+  readonly reading: ProjectReading;
+  readonly figures: Figures | undefined;
+  readonly milestones: MilestoneTracking;
+  readonly address: ScreenAddress;
+  readonly nameOf: RevisionName;
+}) {
+  const label = useRevisionLabel();
+  const { project } = reading;
+  const provenance = (revisionId: string) => ({
+    project: project.label,
+    code: project.code ?? project.project_id,
+    revision: label(nameOf(revisionId)),
+  });
+  return (
+    <>
+      <MilestoneSection
+        tracking={milestones}
+        provenance={provenance(milestones.context.revision_id)}
+      />
+      {figures === undefined ? null : (
+        <>
+          <CostCurveSection
+            curves={figures.costs}
+            address={address}
+            provenance={provenance(figures.costs.context.revision_id)}
+          />
+          <EarnedValueSection
+            curves={figures.earnedValue}
+            provenance={provenance(figures.earnedValue.context.revision_id)}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
 /** The header of the screen: the name and the icon of the function. */
 function IndicatorsHeader() {
   const t = useTranslations();
@@ -166,7 +258,7 @@ function IndicatorsHeader() {
   );
 }
 
-/** Render the indicators of a project and the evolution of its indices. */
+/** Render the indicators of a project, its curves and its milestones. */
 export default async function IndicatorsPage({
   params,
   searchParams,
@@ -176,21 +268,50 @@ export default async function IndicatorsPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "indicators");
-  const [reading, figures] = await Promise.all([
+  const [reading, figures, milestones] = await Promise.all([
     readProjectContext(at.pathname, at.context),
     readIndicators(at),
+    readMilestones(at),
   ]);
   if (reading === "not_found") {
     notFound();
   }
-  const elsewhere = await readElsewhere(revision.projectId, at.context.revisionId, figures);
+  const shown = reading.revision;
+  const computedOn =
+    figures === undefined
+      ? []
+      : [...new Set([figures.indicators.context.revision_id, figures.history.context.revision_id])];
+  const charted = [
+    milestones.context.revision_id,
+    ...(figures === undefined
+      ? []
+      : [figures.costs.context.revision_id, figures.earnedValue.context.revision_id]),
+  ];
+  const named = await readRevisionsOf(revision.projectId, shown?.revision_id, [
+    ...computedOn,
+    ...charted,
+  ]);
+  const elsewhere = computedOn.filter((id) => id !== shown?.revision_id).map((id) => named.get(id));
+  const nameOf: RevisionName = (id) =>
+    id === shown?.revision_id ? shown.version_name : named.get(id)?.version_name;
   return (
     <>
       <ContextBanner reading={reading} />
       <Screen density={FUNCTION_DENSITY.project_indicators}>
         <IndicatorsHeader />
         <ComputedElsewhere revisions={elsewhere} />
-        {figures === undefined ? <NotInProgress /> : <ProjectIndicatorCards {...figures} />}
+        {figures === undefined ? (
+          <NotInProgress />
+        ) : (
+          <ProjectIndicatorCards indicators={figures.indicators} history={figures.history} />
+        )}
+        <Sections
+          reading={reading}
+          figures={figures}
+          milestones={milestones}
+          address={{ pathname: at.pathname, parameters: parametersOf(search) }}
+          nameOf={nameOf}
+        />
       </Screen>
     </>
   );

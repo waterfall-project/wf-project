@@ -359,7 +359,11 @@
     "computedAt": "Computed on <time></time>"
   },
   "chart": {
-    "values": "Values of the chart"
+    "values": "Values of the chart",
+    "exportPng": "Export as PNG",
+    "exportTitle": "{title} — {project}",
+    "exportSubtitle": "Revision: {revision} · Computed on {date}",
+    "fileName": "{file}-{code}.png"
   },
   "projectIndicators": {
     "notInProgress": {
@@ -417,6 +421,47 @@
       "value": "Index",
       "zone": "Zone",
       "currentRevision": "Current revision"
+    },
+    "milestones": {
+      "title": "Milestone tracking",
+      "chartTitle": "Time/time diagram",
+      "description": "For each tracked milestone, the date each marked revision forecast, by the date of its marking, and the last point at the current day, with the diagonal of equal dates.",
+      "milestone": "Milestone",
+      "markedAt": "Revision of",
+      "forecast": "Forecast date",
+      "completedOn": "Completed on",
+      "notCompleted": "Not completed",
+      "diagonal": "Equal dates",
+      "none": "No milestone is tracked.",
+      "file": "milestone-tracking"
+    },
+    "costCurve": {
+      "title": "Cumulative costs",
+      "chartTitle": "S-curve",
+      "chartTitleDelayed": "Cash out",
+      "description": "Cumulative curves of the reference budget by the dates of the reference, of the actual cost by the document dates up to the calculation date, then of the project manager’s projection, with the dated steps of the reference budget.",
+      "descriptionDelayed": "The same curves shifted by the payment delay of each line, the provisions of the identified risks added at the date of their task: the cash out, past and to come.",
+      "delay": "Shift by the payment delays",
+      "undelay": "Remove the shift by the payment delays",
+      "file": "s-curve",
+      "fileDelayed": "cash-out"
+    },
+    "earnedValue": {
+      "title": "Earned value curves",
+      "chartTitle": "Planned value, earned value and actual cost",
+      "description": "Cumulative curves of the planned value, extended to the end of the reference, of the earned value by the completion dates and of the actual cost by the document dates, up to the calculation date.",
+      "file": "earned-value"
+    },
+    "curves": {
+      "series": "Curve",
+      "date": "Date",
+      "amount": "Amount",
+      "steps": "Steps of the reference budget",
+      "cause": "Cause",
+      "cashOut": "Cash out by month",
+      "month": "Month",
+      "past": "Paid out",
+      "forecast": "To pay out"
     }
   },
   "commands": {

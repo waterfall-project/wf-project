@@ -558,6 +558,30 @@ retirée), `risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de
 `risk_matrix` (les seize cases, les bornes, les trois risques placés), dans l'univers des autres
 exemples.
 
+## Les exemples des courbes (US-0240/L2)
+
+**Les lectures des courbes ont leurs exemples** (#246, autorisation de l'utilisateur du
+2026-10-04 : un lot d'écran ajoute les exemples des opérations qu'il consomme). Sans eux, le faux
+back tirait de leurs schémas des valeurs sans rapport avec l'univers témoin, et les tests du front
+n'avaient rien du contrat à lire. Tous sont au 16 mars 2026, sur la révision courante du projet
+témoin, et suivent les montants de `project_indicators` et de `remaining_indicators` — budget de
+référence et reste à engager de 100 000, portés par les études de détail du 2 mars au 10 avril,
+valeur planifiée de 33 333,33 à la date de calcul, aucun coût réel ni valeur acquise. Ils ne
+suivent pas le devis de `nodes_estimate`, d'un autre univers : la scission des univers témoins est
+#287. `milestone_tracking` (`getMilestoneTracking`) suit deux jalons, la réception des études et
+la réception usine, par l'offre v1.0, la référence et la révision en cours ;
+`milestone_tracking_none`, un projet sans jalon inscrit. `cost_curve` (`getCostCurve`) est la
+courbe sans délais de paiement, sans marche ; `cost_curve_payment_delays`, les décaissements — le
+budget de référence et la projection translatés de trente jours, le coût réel, nul, laissé à ses
+dates, les mois à venir égaux au reste à engager ; `cost_curve_amendment`, la marche d'un avenant
+de 15 000 contractualisé le 10 mars — `steps[].amount` y est le montant de la marche. **Une marche
+est verticale** (WF-IND-0100 : « la courbe du budget présente une marche à sa date ») : la série
+du budget de référence porte deux points à la date de la marche, la valeur d'avant puis celle
+d'après, dans cet ordre, et non la seule valeur d'après, que le tracé relierait au point précédent
+par une pente (relevé par la revue de la PR #289) ; le front trace les points tels quels.
+`earned_value_curves` (`getEarnedValueCurves`) prolonge la valeur planifiée jusqu'à la fin de la
+référence. Les exemples du plan de charge viendront avec son écran (#286).
+
 ## Les coûts réels d'un projet (US-0230/L3)
 
 Ajouts de lecture que l'écran des coûts réels exige, faits par son lot sur la même autorisation
