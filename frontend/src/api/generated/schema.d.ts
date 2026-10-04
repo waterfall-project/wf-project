@@ -362,7 +362,7 @@ export interface paths {
         get?: never;
         /**
          * Déposer ou remplacer mon avatar
-         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1).
+         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE`.
          */
         put: operations["putMyAvatar"];
         post?: never;
@@ -825,7 +825,7 @@ export interface paths {
         };
         /**
          * Rôles de ressources
-         * @description Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris (WF-REF-0090, WF-REF-0100, WF-REF-0150).
+         * @description Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris (WF-REF-0090, WF-REF-0100, WF-REF-0150). Les rôles actifs se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit le rôle d'une ligne de devis (WF-DEV-0020). Les rôles désactivés (`include_inactive`) et toute écriture restent sous la permission des paramètres de ressources (WF-ADM-0100) : sans elle, `include_inactive` est refusé par 403.
          */
         get: operations["listResourceRoles"];
         put?: never;
@@ -1061,7 +1061,7 @@ export interface paths {
         };
         /**
          * Catégories de coût
-         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150).
+         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` est refusé par 403.
          */
         get: operations["listCostCategories"];
         put?: never;
@@ -1109,6 +1109,26 @@ export interface paths {
          * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020).
          */
         put: operations["setCostCategoryActivation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reference/hourly-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Grille des taux horaires
+         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100).
+         */
+        get: operations["getHourlyRateGrid"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1345,12 +1365,12 @@ export interface paths {
         };
         /**
          * Contributeurs du projet
-         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060).
+         * @description Chacun avec sa qualité, chef de projet ou contributeur ; la liste d'un projet nouvellement créé comporte son créateur, chef de projet (WF-PRJ-0060). La liste porte son propre compteur d'écriture, que `setContributors` exige (WF-IHM-0110).
          */
         get: operations["listContributors"];
         /**
          * Inscrire ou retirer des contributeurs
-         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant.
+         * @description La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte inconnu ou désactivé l'est par 422, `fields` le nommant. Porte le compteur de la liste lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant.
          */
         put: operations["setContributors"];
         post?: never;
@@ -1639,7 +1659,7 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un nœud
-         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070.
+         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une écriture de grille comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110).
          */
         delete: operations["deleteNode"];
         options?: never;
@@ -1682,7 +1702,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier la facette temps d'une tâche
-         * @description Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser quinze ans (WF-PLA-0150).
+         * @description Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser quinze ans (WF-PLA-0150). Seul le compteur lu est exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
          */
         patch: operations["updateTaskFacet"];
         trace?: never;
@@ -1702,7 +1722,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier la facette argent d'une ligne de devis
-         * @description Les deux montants sont calculés et non saisissables : le budgété par la référence, le réestimé par les revues (WF-DEV-0020, WF-DEV-0030). Une ligne de provision est calculée depuis son risque (WF-RIS-0010).
+         * @description Les deux montants sont calculés et non saisissables : le budgété par la référence, le réestimé par les revues (WF-DEV-0020, WF-DEV-0030). Une ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
          */
         patch: operations["updateEstimateLine"];
         trace?: never;
@@ -1818,7 +1838,7 @@ export interface paths {
         put?: never;
         /**
          * Aperçu d'un collage depuis un tableur
-         * @description Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit à cette étape (WF-IHM-0050).
+         * @description Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit à cette étape (WF-IHM-0050). Le bloc remplit, à partir de la colonne visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn` — l'ordre des grilles (WF-PLA-0080, WF-DEV-0050) —, sans décaler aucune cellule : une cellule non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par sa ligne et sa colonne (`PastePreview`).
          */
         post: operations["previewPaste"];
         delete?: never;
@@ -1838,7 +1858,7 @@ export interface paths {
         put?: never;
         /**
          * Appliquer un collage
-         * @description Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée (WF-IHM-0050).
+         * @description Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée (WF-IHM-0050). Porte le compteur de la structure, refusé par 412 s'il est périmé, et rend le compteur suivant avec les nœuds écrits, leurs ancêtres et les totaux (`NodesWritten`, WF-IHM-0110).
          */
         post: operations["applyPaste"];
         delete?: never;
@@ -1916,7 +1936,7 @@ export interface paths {
         };
         /**
          * Indicateurs de devis
-         * @description Total, ventilations par nature et par sous-projet, provisions, et écart avec la révision marquée précédente (WF-DEV-0060). Disponibles dès le chiffrage (WF-IND-0010).
+         * @description Total, ventilations par nature de coût, par sous-projet et par poste du lotissement, provisions, écart avec la révision de référence et avec la révision marquée précédente (WF-DEV-0060). Disponibles dès le chiffrage (WF-IND-0010). Un taux horaire manquant pour l'année de référence ne rend pas un budget faux : les montants concernés ne se calculent pas, et disent quelles catégories et quelles années manquent (`hourly_rate_missing`, WF-DEV-0010).
          */
         get: operations["getEstimateIndicators"];
         put?: never;
@@ -2574,7 +2594,7 @@ export interface components {
             };
             /** @description Erreurs par champ, pour une entité refusée à la validation. */
             fields?: components["schemas"]["FieldProblem"][];
-            /** @description Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020). */
+            /** @description Identifiant de corrélation de la requête, repris dans les journaux (WF-OBS-0020) : engendré par la plateforme, jamais vide, et de ces seuls caractères — un identifiant repris d'un en-tête d'entrée qui ne les respecte pas est remplacé, pas transmis. Le front l'affiche comme référence d'une erreur inattendue, et peut le mettre tel quel dans un chemin ou un digest. */
             correlation_id?: string;
         };
         /**
@@ -2630,9 +2650,11 @@ export interface components {
          * @enum {string}
          */
         Language: "fr" | "en";
-        /** @description Paramètres de l'installation lisibles sans session. */
+        /** @description Paramètres de l'installation lisibles sans session : ce que le front doit savoir avant d'ouvrir une session, ou pour régler ce qu'il laisse passer. */
         Installation: {
             default_language: components["schemas"]["Language"];
+            /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi et régler la taille de corps qu'il accepte un peu au-dessus, pour que le refus vienne de l'API et se dise par son code. */
+            avatar_max_bytes: number;
         };
         /**
          * @description Où en est une tâche de fond : en file, en cours, aboutie ou échouée (WF-ARC-0090, WF-IHM-0080). Nommée pour filtrer la liste des tâches de l'appelant.
@@ -3064,6 +3086,22 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Une ligne de la grille : la catégorie, nommée pour que la grille n'ait rien à joindre, et une cellule par année de `years`, dans le même ordre. */
+        HourlyRateRow: {
+            cost_category_id: components["schemas"]["Uuid"];
+            code: string;
+            label: string;
+            is_active: boolean;
+            /** @description Le taux de chaque année de `years`, à la même place ; nul pour une année sans taux (WF-REF-0060). */
+            cells: (components["schemas"]["HourlyRate"] | null)[];
+        };
+        /** @description La grille des taux horaires en une lecture : une ligne par catégorie de main-d'œuvre, une colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour une catégorie est une cellule vide, et aucune colonne n'est créée d'elle-même : une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Cent cinquante catégories et quinze ans (§4.6.2) tiennent en une réponse. */
+        HourlyRateGrid: {
+            /** @description Les années de la grille, croissantes ; les colonnes. */
+            years: components["schemas"]["Year"][];
+            /** @description Les catégories de main-d'œuvre, dans l'ordre de `listCostCategories`. */
+            rows: components["schemas"]["HourlyRateRow"][];
+        };
         /** @description Le compteur est absent à la première saisie de l'année, où le taux n'existe pas encore, et obligatoire pour corriger un taux déjà saisi. */
         HourlyRateWrite: {
             amount: components["schemas"]["Money"];
@@ -3207,7 +3245,14 @@ export interface components {
             user_id: components["schemas"]["Uuid"];
             display_name: string;
             kind: components["schemas"]["ContributorKind"];
-            is_active?: boolean;
+            /** @description Faux pour un compte désactivé depuis son inscription, que la liste garde et signale (WF-ADM-0060). Toujours rendu : l'écran ne devine rien d'une valeur absente. */
+            is_active: boolean;
+        };
+        /** @description La liste des contributeurs d'un projet et son compteur d'écriture, propre à la liste : la modifier ne touche pas au projet, et modifier le projet — son libellé, son taux d'inflation — ne la périme pas (WF-PRJ-0060, WF-IHM-0110). */
+        ContributorList: {
+            items: components["schemas"]["Contributor"][];
+            /** @description Le compteur de la liste, que `setContributors` exige tel qu'il a été lu. */
+            lock_version: components["schemas"]["LockVersion"];
         };
         ContributorWrite: {
             user_id: components["schemas"]["Uuid"];
@@ -3216,6 +3261,7 @@ export interface components {
         /** @description La liste entière, chacun avec sa qualité ; un projet garde au moins un chef de projet (WF-PRJ-0060). */
         ContributorsWrite: {
             contributors: components["schemas"]["ContributorWrite"][];
+            /** @description Le compteur de la liste lue (`ContributorList.lock_version`) ; périmé, la liste est refusée par 412 (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Proposition fondée sur les nœuds d'organisation des rôles employés par le planning ; jamais appliquée sans confirmation (WF-PRJ-0070). */
@@ -3301,6 +3347,8 @@ export interface components {
             target_year?: components["schemas"]["Year"];
             categories: {
                 cost_category_id: components["schemas"]["Uuid"];
+                /** @description Le libellé de la catégorie, résolu à la lecture, pour que l'écran ne joigne rien. */
+                label: string;
                 previous_amount: components["schemas"]["Money"];
                 proposed_amount: components["schemas"]["Money"];
                 /** @enum {string} */
@@ -3325,10 +3373,14 @@ export interface components {
             added: components["schemas"]["ComparedNode"][];
             removed: components["schemas"]["ComparedNode"][];
             changed: components["schemas"]["ComparedNode"][];
+            /** @description Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). */
             amount_deltas: {
                 /** @enum {string} */
                 dimension: "cost_type" | "subproject";
+                /** @description L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020). */
                 key: string;
+                /** @description Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme. */
+                label: string | null;
                 delta: components["schemas"]["Money"];
             }[];
         };
@@ -3346,6 +3398,7 @@ export interface components {
             risk_id?: components["schemas"]["Uuid"] | null;
             /** @description Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050). */
             is_merged: boolean;
+            /** @description Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Crée un différentiel ou le devis propre d'un risque. La structure principale n'est jamais créée ici : elle existe dès la création de la révision (WF-REV-0100). */
@@ -3366,6 +3419,11 @@ export interface components {
          * @enum {string}
          */
         TaskProgress: "not_started" | "started" | "completed";
+        /**
+         * @description Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente : de `label` à `predecessors`, les colonnes de la tâche ; `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis. C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050).
+         * @enum {string}
+         */
+        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float_days" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_reestimated_amount";
         /**
          * @description Mode de planification de la tâche : dates calculées depuis les liaisons, ou saisies (WF-PLA-0020).
          * @enum {string}
@@ -3388,16 +3446,26 @@ export interface components {
             hours: components["schemas"]["Hours"];
         };
         /**
-         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage (WF-PTF-0050).
+         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage (WF-PTF-0050). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et `params.missing_rates` nomme les catégories et les années (WF-DEV-0010).
          * @enum {string}
          */
-        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing";
-        /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010). */
+        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing" | "hourly_rate_missing";
+        /** @description Une catégorie de main-d'œuvre employée par un chiffrage, sans taux horaire pour une année (WF-DEV-0010) : ce que `getMissingRates` liste, et ce qu'un montant non calculable nomme (`Computable.params.missing_rates`). */
+        MissingRate: {
+            cost_category_id: components["schemas"]["Uuid"];
+            label?: string;
+            year: components["schemas"]["Year"];
+        };
+        /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010) : un indicateur, un montant qu'un taux horaire manquant empêche de calculer (WF-DEV-0010). */
         Computable: {
             is_computable: boolean;
             value?: components["schemas"]["Decimal"] | null;
             /** @description Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue du lecteur (WF-ARC-0110) ; nul pour une valeur calculable. */
             reason?: components["schemas"]["NotComputableReason"] | null;
+            /** @description Ce que le motif nomme, quand il nomme quelque chose : `missing_rates`, les catégories et les années sans taux horaire (`hourly_rate_missing`, WF-DEV-0010). Absent sinon. */
+            params?: {
+                missing_rates?: components["schemas"]["MissingRate"][];
+            };
         };
         TrackingEntry: {
             /** @enum {string} */
@@ -3500,6 +3568,11 @@ export interface components {
         };
         /** @enum {string} */
         ComputedField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement";
+        /**
+         * @description Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il accepte (`editable_fields`, WF-IHM-0040).
+         * @enum {string}
+         */
+        EditableField: "task.label" | "task.description" | "task.scheduling_mode" | "task.duration" | "task.start" | "task.finish" | "task.progress" | "estimate_line.label" | "estimate_line.cost_category_id" | "estimate_line.resource_role_id" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.payment_delay_days" | "estimate_line.subproject_id";
         /** @description `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et les inscriptions aux suivis (WF-DAT-0030). */
         Node: {
             node_id: components["schemas"]["Uuid"];
@@ -3515,6 +3588,8 @@ export interface components {
             predecessors?: components["schemas"]["Predecessor"][];
             /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision. Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
             computed_fields: components["schemas"]["ComputedField"][];
+            /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
+            editable_fields: components["schemas"]["EditableField"][];
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. */
@@ -3525,7 +3600,7 @@ export interface components {
             budgeted_amount: components["schemas"]["Money"];
             reestimated_amount: components["schemas"]["Money"];
         };
-        /** @description Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100). */
+        /** @description Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100). */
         TaskFacetWrite: {
             label: string;
             description?: string | null;
@@ -3533,9 +3608,8 @@ export interface components {
             duration?: components["schemas"]["Duration"];
             start?: components["schemas"]["WorkInstant"] | null;
             finish?: components["schemas"]["WorkInstant"] | null;
-            lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Champs saisissables d'une ligne de devis (WF-DEV-0020). */
+        /** @description Champs saisissables d'une ligne de devis, à sa création (WF-DEV-0020) : le rôle et la charge pour une catégorie de main-d'œuvre, le débours unitaire pour une autre. */
         EstimateLineWrite: {
             label: string;
             cost_category_id: components["schemas"]["Uuid"];
@@ -3545,7 +3619,6 @@ export interface components {
             unit_disbursement?: components["schemas"]["Money"] | null;
             payment_delay_days?: number | null;
             subproject_id?: components["schemas"]["Uuid"] | null;
-            lock_version: components["schemas"]["LockVersion"];
         };
         NodeCreate: {
             kind: components["schemas"]["NodeKind"];
@@ -3553,6 +3626,17 @@ export interface components {
             position?: number | null;
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
+        };
+        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
+        NodesWritten: {
+            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre. */
+            nodes: components["schemas"]["Node"][];
+            /** @description Les ancêtres des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de premier niveau. */
+            ancestors: components["schemas"]["Node"][];
+            /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
+            totals: components["schemas"]["NodeTotals"];
+            /** @description Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110). */
+            structure_lock_version: components["schemas"]["LockVersion"];
         };
         /**
          * @description Champ d'un nœud dont le serveur calcule la valeur, pour ce nœud-ci ou pour tous : ceux que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants, la marge, l'avancement physique (WF-IHM-0030).
@@ -3578,6 +3662,28 @@ export interface components {
             depends_on: components["schemas"]["ComputedDependency"][];
             /** @description Chaque ligne une fois, dans l'ordre du plan. */
             rows: components["schemas"]["DependencyRow"][];
+        };
+        /** @description Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) ; une valeur que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030). */
+        TaskFacetUpdate: {
+            label?: string;
+            description?: string | null;
+            scheduling_mode?: components["schemas"]["SchedulingMode"];
+            duration?: components["schemas"]["Duration"];
+            start?: components["schemas"]["WorkInstant"] | null;
+            finish?: components["schemas"]["WorkInstant"] | null;
+            lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Modification d'une ligne de devis, cellule par cellule (WF-IHM-0040) : seul le compteur lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent reste ce qu'il était. Les mêmes champs qu'à la création (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours ou le délai de paiement d'une ligne de main-d'œuvre, le rôle ou la charge d'une autre — est refusé par 422 (WF-DEV-0020, §3.2.5), et le nœud dit lesquels il accepte (`editable_fields`). */
+        EstimateLineUpdate: {
+            label?: string;
+            cost_category_id?: components["schemas"]["Uuid"];
+            quantity?: components["schemas"]["Decimal"];
+            resource_role_id?: components["schemas"]["Uuid"] | null;
+            hours?: components["schemas"]["Hours"] | null;
+            unit_disbursement?: components["schemas"]["Money"] | null;
+            payment_delay_days?: number | null;
+            subproject_id?: components["schemas"]["Uuid"] | null;
+            lock_version: components["schemas"]["LockVersion"];
         };
         PredecessorsReplace: {
             predecessors: components["schemas"]["PredecessorWrite"][];
@@ -3607,27 +3713,37 @@ export interface components {
             position?: number | null;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Bloc collé depuis un tableur. L'aperçu dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit sans confirmation (WF-IHM-0050). */
+        /**
+         * @description Bloc collé depuis un tableur, sur la cellule visée : le nœud et sa colonne. L'aperçu dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit sans confirmation (WF-IHM-0050).
+         *     La première colonne du bloc remplit `target_column` ; chacune des suivantes remplit la colonne suivante de la facette du nœud visé, dans l'ordre de `NodeColumn` — pour une ligne de devis collée sur son libellé : la catégorie, le rôle, la quantité, la charge, le débours unitaire, le sous-projet, le délai de paiement ; pour une tâche : la description, le mode, la durée, le début, la fin. Chaque ligne du bloc écrit la ligne de la grille à la même distance sous le nœud visé, dans l'ordre du plan. Aucune cellule n'est décalée : une cellule qui tombe sur une colonne que sa ligne n'accepte pas — un champ calculé pour ce nœud, un champ que sa nature refuse, une colonne qu'aucune écriture ne porte comme les montants — est refusée, la ligne et la colonne nommées (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien. Un bloc plus large que les colonnes de la facette à partir de la colonne visée est refusé par 422 (`PASTE_TOO_WIDE`, `params.max_columns`).
+         */
         PastePreview: {
-            target_node_id?: components["schemas"]["Uuid"];
-            target_column?: string;
+            target_node_id: components["schemas"]["Uuid"];
+            /** @description La colonne de la cellule visée, que la première colonne du bloc remplit. */
+            target_column: components["schemas"]["NodeColumn"];
             rows: string[][];
         };
+        /** @description Ce qu'un collage écrira et ce qu'il refusera, chaque refus avec son motif et, quand il tient à une cellule, sa colonne (WF-IHM-0050). */
         PastePlan: {
             paste_id: components["schemas"]["Uuid"];
             accepted: number;
             rejected: {
+                /** @description La ligne du bloc refusée, comptée de zéro. */
                 row: number;
+                /** @description La colonne de la cellule refusée ; absente quand le refus porte sur la ligne entière. */
+                column?: components["schemas"]["NodeColumn"];
                 code: components["schemas"]["ErrorCode"];
                 params?: {
                     [key: string]: unknown;
                 };
             }[];
         };
+        /** @description Confirme un plan de collage. Le compteur est celui de la structure dans laquelle le bloc s'écrit (`CostStructure.lock_version`), lu avec la page ou rendu par la dernière écriture (`NodesWritten.structure_lock_version`) ; périmé, le collage est refusé par 412 et rien n'est écrit (WF-IHM-0050, WF-IHM-0110). */
         PasteApply: {
             paste_id: components["schemas"]["Uuid"];
             /** @constant */
             confirmed: true;
+            /** @description Le compteur de la structure lue, que le collage écrit. */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Annule ou rétablit la dernière modification de la session. Une annulation est une modification comme une autre ; elle est refusée par 409 si une modification postérieure porte sur le même objet (WF-IHM-0110). */
@@ -3648,20 +3764,37 @@ export interface components {
             /** @description Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040). */
             is_stored?: boolean;
         };
-        AmountByKey: {
+        /** @description Un montant qui peut être non calculable : la même enveloppe que `Computable`, sa valeur contrainte comme un `Money` — deux décimales au plus, dans la devise de l'installation (WF-REF-0140, WF-DAT-0100). Les ratios, les indices et les parts restent des `Computable`. */
+        ComputableMoney: {
+            is_computable: boolean;
+            value?: components["schemas"]["Money"] | null;
+            /** @description Pourquoi le montant n'est pas calculable, en code ; nul pour un montant calculable. */
+            reason?: components["schemas"]["NotComputableReason"] | null;
+            /** @description Ce que le motif nomme, comme pour `Computable` — `missing_rates` pour `hourly_rate_missing`. */
+            params?: {
+                missing_rates?: components["schemas"]["MissingRate"][];
+            };
+        };
+        /** @description Un montant par clé — nature de coût, sous-projet, poste —, qui peut ne pas se calculer (`hourly_rate_missing`), et sa part du total, qui ne se calcule pas sans lui. */
+        ComputableAmountByKey: {
             key: string;
             label?: string;
-            amount: components["schemas"]["Money"];
-            share?: components["schemas"]["Percent"];
+            amount: components["schemas"]["ComputableMoney"];
+            share?: components["schemas"]["Computable"];
         };
-        /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). */
+        /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de taux horaire pour l'année de référence, les montants qui en dépendent — le total, la nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à zéro. Les montants que ces lignes ne touchent pas se calculent. */
         EstimateIndicators: {
             context: components["schemas"]["CalculationContext"];
-            total: components["schemas"]["Money"];
-            by_cost_type: components["schemas"]["AmountByKey"][];
-            by_subproject: components["schemas"]["AmountByKey"][];
+            total: components["schemas"]["ComputableMoney"];
+            by_cost_type: components["schemas"]["ComputableAmountByKey"][];
+            by_subproject: components["schemas"]["ComputableAmountByKey"][];
+            /** @description Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche récapitulative qui porte chacun ; nul quand le planning n'est pas structuré en postes — absents plutôt que nuls (WF-DEV-0060). */
+            by_order_item: components["schemas"]["ComputableAmountByKey"][] | null;
             provisions_identified?: components["schemas"]["Money"];
-            delta_to_previous_revision?: components["schemas"]["Money"] | null;
+            /** @description L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) ; nul quand le projet n'a pas de révision de référence. */
+            delta_to_reference: components["schemas"]["ComputableMoney"] | null;
+            /** @description L'écart avec la révision marquée précédente ; nul sans elle. */
+            delta_to_previous_revision?: components["schemas"]["ComputableMoney"] | null;
         };
         /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
         WorkloadPlan: {
@@ -3683,6 +3816,12 @@ export interface components {
                     zone?: components["schemas"]["AlertZone"];
                 }[];
             }[];
+        };
+        AmountByKey: {
+            key: string;
+            label?: string;
+            amount: components["schemas"]["Money"];
+            share?: components["schemas"]["Percent"];
         };
         /** @description Écart entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone. */
         SubprojectBalance: {
@@ -3713,7 +3852,7 @@ export interface components {
         Projections: {
             at_budget: components["schemas"]["Money"];
             project_manager: components["schemas"]["Money"];
-            at_observed_rate: components["schemas"]["Computable"];
+            at_observed_rate: components["schemas"]["ComputableMoney"];
             variance_at_budget?: components["schemas"]["Money"];
             variance_project_manager?: components["schemas"]["Money"];
             variance_at_observed_rate?: components["schemas"]["Money"] | null;
@@ -4809,6 +4948,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Adresse électronique déjà portée par un autre compte (WF-ADM-0050). */
             409: {
@@ -4869,6 +5009,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -4902,6 +5043,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Dernier compte portant les permissions d'administration (WF-ADM-0120). */
@@ -4939,6 +5081,7 @@ export interface operations {
                     "application/json": components["schemas"]["User"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -4966,6 +5109,7 @@ export interface operations {
                     "image/jpeg": string;
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -4987,6 +5131,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Aucun annuaire activé (WF-ADM-0180). */
             409: {
@@ -5018,6 +5163,7 @@ export interface operations {
                     "application/json": components["schemas"]["DirectorySyncResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5090,6 +5236,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5114,6 +5261,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccessRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5135,6 +5283,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Rôle encore porté par un compte (WF-ADM-0090). */
@@ -5172,6 +5321,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccessRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Le rôle est le dernier à porter les permissions d'administration (WF-ADM-0120). */
@@ -5210,6 +5360,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5232,6 +5383,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -5256,6 +5408,7 @@ export interface operations {
                     "application/json": components["schemas"]["Backup"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5283,6 +5436,7 @@ export interface operations {
                     "application/json": components["schemas"]["Backup"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5307,6 +5461,7 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5329,6 +5484,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupSchedule"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5354,6 +5510,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackupSchedule"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
         };
@@ -5381,6 +5538,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
@@ -5450,6 +5608,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReferenceSettings"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
@@ -5504,6 +5663,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrgNode"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5532,6 +5692,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrgNode"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -5567,6 +5728,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5596,6 +5758,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -5621,6 +5784,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5649,6 +5813,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -5681,6 +5846,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceRole"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -5728,17 +5894,10 @@ export interface operations {
                     "application/json": components["schemas"]["DurationUnits"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Une constante nulle, que `fields` nomme (WF-PLA-0160). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     listCalendars: {
@@ -5790,6 +5949,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
         };
@@ -5818,6 +5978,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -5843,6 +6004,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -5875,6 +6037,7 @@ export interface operations {
                     "application/json": components["schemas"]["Calendar"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -5931,6 +6094,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
@@ -5960,6 +6124,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -5993,6 +6158,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostType"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6023,6 +6189,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6048,6 +6215,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
@@ -6077,6 +6245,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -6109,6 +6278,33 @@ export interface operations {
                     "application/json": components["schemas"]["CostCategory"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getHourlyRateGrid: {
+        parameters: {
+            query?: {
+                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                include_inactive?: components["parameters"]["IncludeInactive"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La grille, catégories en lignes et années en colonnes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HourlyRateGrid"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6162,6 +6358,7 @@ export interface operations {
                     "application/json": components["schemas"]["HourlyRate"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6228,6 +6425,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Référentiel minimal incomplet (WF-CYC-0120), ou code projet déjà employé (WF-PRJ-0010). */
             409: {
@@ -6289,6 +6487,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6316,6 +6515,7 @@ export interface operations {
                     "application/json": components["schemas"]["StateTransition"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6339,6 +6539,7 @@ export interface operations {
                     "application/json": components["schemas"]["NextState"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6366,6 +6567,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Sortie non permise depuis l'état courant (WF-CYC-0060, WF-CYC-0080). */
@@ -6400,6 +6602,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkBreakdown"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6427,6 +6630,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkBreakdown"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -6455,6 +6659,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6482,6 +6687,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description Code déjà employé dans ce projet (WF-PRJ-0050). */
             409: {
@@ -6513,6 +6719,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Sous-projet portant des coûts réels ou cité par une révision marquée. */
@@ -6551,6 +6758,7 @@ export interface operations {
                     "application/json": components["schemas"]["Subproject"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -6570,15 +6778,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Contributeurs. */
+            /** @description Contributeurs, et le compteur de la liste. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Contributor"][];
+                    "application/json": components["schemas"]["ContributorList"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6597,15 +6806,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liste enregistrée. */
+            /** @description Liste enregistrée, avec le compteur suivant. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Contributor"][];
+                    "application/json": components["schemas"]["ContributorList"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, WF-PRJ-0060). */
@@ -6641,6 +6851,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContributorSuggestion"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6664,6 +6875,7 @@ export interface operations {
                     "application/json": components["schemas"]["Timeline"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6693,6 +6905,7 @@ export interface operations {
                     "application/json": components["schemas"]["Timeline"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6716,6 +6929,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -6778,6 +6992,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Une révision en cours existe déjà (WF-REV-0010). */
@@ -6812,6 +7027,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6834,6 +7050,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -6864,6 +7081,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Nom de version déjà employé, ou révision déjà marquée (WF-REV-0020). */
@@ -6902,6 +7120,7 @@ export interface operations {
                     "application/json": components["schemas"]["Project"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Désignation manuelle plus permise, ou révision non marquée (WF-REV-0040). */
@@ -6936,6 +7155,7 @@ export interface operations {
                     "application/json": components["schemas"]["RateUpdateProposal"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -6967,6 +7187,7 @@ export interface operations {
                     "application/json": components["schemas"]["Revision"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             412: components["responses"]["PreconditionFailed"];
@@ -6995,6 +7216,7 @@ export interface operations {
                     "application/json": components["schemas"]["RevisionComparison"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7019,6 +7241,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostStructure"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7047,6 +7270,7 @@ export interface operations {
                     "application/json": components["schemas"]["CostStructure"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7078,6 +7302,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7102,7 +7327,7 @@ export interface operations {
                 progress?: components["schemas"]["TaskProgress"][];
                 is_critical?: boolean;
                 /** @description Colonne du tri ; absente, l'ordre du plan. Chaque colonne d'une grille se trie dans les deux sens (WF-IHM-0060) : une colonne de grille qui manquerait ici est un constat sur le contrat. */
-                sort_by?: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float_days" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_reestimated_amount";
+                sort_by?: components["schemas"]["NodeColumn"];
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
                 /** @description Les propriétés à rendre de chaque nœud, en plus des quatre toujours rendues ; une propriété inconnue est refusée (400). */
@@ -7152,15 +7377,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Nœud créé. */
+            /** @description Nœud créé, avec ses ancêtres recalculés et les totaux de la structure (`NodesWritten`). */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7181,13 +7407,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœud supprimé. */
-            204: {
+            /** @description Nœud supprimé ; `nodes` est vide, les ancêtres et les totaux sont recalculés sans lui. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NodesWritten"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7247,19 +7476,20 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TaskFacetWrite"];
+                "application/json": components["schemas"]["TaskFacetUpdate"];
             };
         };
         responses: {
-            /** @description Tâche modifiée, avec les dates et la criticité recalculées. */
+            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés et les totaux de la structure (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7281,19 +7511,20 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EstimateLineWrite"];
+                "application/json": components["schemas"]["EstimateLineUpdate"];
             };
         };
         responses: {
-            /** @description Ligne modifiée, avec son montant recalculé. */
+            /** @description Ligne modifiée, avec son montant recalculé, les montants de ses ancêtres et les totaux de la structure (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7327,15 +7558,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liaisons enregistrées, dates recalculées. */
+            /** @description Liaisons enregistrées, dates recalculées ; les ancêtres et les totaux avec (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Cycle de liaisons, ou liaison interdite (WF-PLA-0030, WF-PLA-0040). */
@@ -7368,15 +7600,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description État enregistré. */
+            /** @description État enregistré ; l'avancement des récapitulatives au-dessus recalculé (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7401,15 +7634,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Réestimation enregistrée. */
+            /** @description Réestimation enregistrée ; les montants réestimés des ancêtres et les totaux recalculés (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7437,15 +7671,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Inscriptions enregistrées. */
+            /** @description Inscriptions enregistrées (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -7467,15 +7702,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Nœuds déplacés. */
+            /** @description Nœuds déplacés ; leurs anciens et nouveaux ancêtres recalculés, et les totaux (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"][];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7508,10 +7744,11 @@ export interface operations {
                     "application/json": components["schemas"]["PastePlan"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["PayloadTooLarge"];
-            /** @description Bloc plus large que la grille à partir de la colonne visée : `params.max_columns` dit combien de colonnes elle y offre ; rien n'est écrit (WF-IHM-0050). */
+            /** @description Bloc plus large que les colonnes de la facette à partir de la colonne visée (`NodeColumn`) : `params.max_columns` dit combien il en reste ; rien n'est écrit (WF-IHM-0050). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7539,18 +7776,20 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Collage appliqué. */
+            /** @description Collage appliqué ; le compteur de la structure a avancé. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"][];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            412: components["responses"]["PreconditionFailed"];
         };
     };
     undoLastChange: {
@@ -7574,6 +7813,7 @@ export interface operations {
                     "application/json": components["schemas"]["UndoResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Une modification postérieure porte sur le même objet, ou l'historique de la session est vide (WF-IHM-0110). */
@@ -7608,6 +7848,7 @@ export interface operations {
                     "application/json": components["schemas"]["UndoResult"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -7634,6 +7875,7 @@ export interface operations {
                     "application/json": components["schemas"]["Node"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description La structure comporte déjà une tâche (WF-PRJ-0030). */
@@ -7694,13 +7936,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        cost_category_id: components["schemas"]["Uuid"];
-                        label?: string;
-                        year: components["schemas"]["Year"];
-                    }[];
+                    "application/json": components["schemas"]["MissingRate"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7730,6 +7969,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkloadPlan"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             /** @description Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070). */
             409: {
@@ -7765,6 +8005,7 @@ export interface operations {
                     "application/json": components["schemas"]["RemainingIndicators"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7791,6 +8032,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7852,6 +8094,7 @@ export interface operations {
                     "application/json": components["schemas"]["MilestoneTracking"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7880,6 +8123,7 @@ export interface operations {
                     "application/json": components["schemas"]["CurveSeries"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7908,6 +8152,7 @@ export interface operations {
                     "application/json": components["schemas"]["CurveSeries"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7996,6 +8241,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
@@ -8022,6 +8268,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8050,6 +8297,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -8077,6 +8325,7 @@ export interface operations {
                     "application/json": components["schemas"]["RiskReview"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8105,6 +8354,7 @@ export interface operations {
                     "application/json": components["schemas"]["Risk"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Le risque est survenu : aucune transition n'en part (WF-RIS-0020). */
@@ -8144,6 +8394,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -8169,6 +8420,7 @@ export interface operations {
                     "application/json": components["schemas"]["RiskMatrix"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8238,6 +8490,7 @@ export interface operations {
                     "application/json": components["schemas"]["ActualCostLine"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -8268,6 +8521,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8327,6 +8581,7 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8354,6 +8609,7 @@ export interface operations {
                     "application/json": components["schemas"]["Import"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Projet terminal, ou fichier déjà consommé (WF-CYC-0100). */
@@ -8397,6 +8653,7 @@ export interface operations {
                     "application/json": components["schemas"]["Import"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8419,6 +8676,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -8448,6 +8706,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Compte rendu expiré, déjà appliqué, ou condition de droits ou d'état qui a cessé d'être vraie depuis l'analyse (WF-ARC-0100). */
@@ -8485,6 +8744,7 @@ export interface operations {
                     "application/json": components["schemas"]["BackgroundTaskRef"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -8564,6 +8824,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioValue"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8595,6 +8856,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioWorkload"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8626,6 +8888,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioPerformance"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8654,6 +8917,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioCostStructure"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8683,6 +8947,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioRisks"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8710,6 +8975,7 @@ export interface operations {
                     "application/json": components["schemas"]["PortfolioCashOut"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -8736,6 +9002,7 @@ export interface operations {
                     "application/json": components["schemas"]["PilotHealth"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };

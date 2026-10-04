@@ -5,12 +5,14 @@
     "categories": [
       {
         "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+        "label": "Ingénierie électrique",
         "previous_amount": "78.50",
         "proposed_amount": "80.86",
         "source": "inflated_previous"
       },
       {
         "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+        "label": "Mise en service",
         "previous_amount": "80.00",
         "proposed_amount": "82.40",
         "source": "inflated_previous"

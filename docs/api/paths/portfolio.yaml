@@ -90,6 +90,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioValue }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/workload:
@@ -118,6 +119,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioWorkload }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/performance:
@@ -141,6 +143,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioPerformance }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/cost-structure:
@@ -162,6 +165,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostStructure }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/risks:
@@ -184,6 +188,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioRisks }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/cash-out:
@@ -206,6 +211,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCashOut }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /portfolio/pilot-health:
@@ -228,4 +234,5 @@
             schema: { $ref: ../components/schemas/portfolio.yaml#/PilotHealth }
             examples:
               witness: { $ref: ../../../fixtures/api/pilot_health.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -1,5 +1,5 @@
 {
-  "summary": "Les indicateurs d'un devis d'une ligne de chaque nature, 2 734,56 au total : la main-d'œuvre, le débours et la provision en montant et en part du total, dont la somme vaut cent pour cent ; le sous-projet du poste de commande et l'ensemble hors sous-projet ; sans révision marquée qui le précède, aucun écart (WF-DEV-0060).",
+  "summary": "Les indicateurs d'un devis d'une ligne de chaque nature, 2 734,56 au total : la main-d'œuvre, le débours et la provision en montant et en part du total, dont la somme vaut cent pour cent ; le sous-projet du poste de commande et l'ensemble hors sous-projet ; le poste unique du lotissement, qui porte tout ; sans révision de référence ni révision marquée qui le précède, aucun écart (WF-DEV-0060).",
   "value": {
     "context": {
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
@@ -8,41 +8,102 @@
       "scope": "project",
       "is_stored": false
     },
-    "total": "2734.56",
+    "total": {
+      "is_computable": true,
+      "value": "2734.56",
+      "reason": null
+    },
     "by_cost_type": [
       {
         "key": "01926f3a-7c00-7000-8000-000000000461",
         "label": "Main-d'œuvre",
-        "amount": "1000.00",
-        "share": "0.3657"
+        "amount": {
+          "is_computable": true,
+          "value": "1000.00",
+          "reason": null
+        },
+        "share": {
+          "is_computable": true,
+          "value": "0.3657",
+          "reason": null
+        }
       },
       {
         "key": "01926f3a-7c00-7000-8000-000000000462",
         "label": "Débours",
-        "amount": "1234.56",
-        "share": "0.4515"
+        "amount": {
+          "is_computable": true,
+          "value": "1234.56",
+          "reason": null
+        },
+        "share": {
+          "is_computable": true,
+          "value": "0.4515",
+          "reason": null
+        }
       },
       {
         "key": "01926f3a-7c00-7000-8000-000000000463",
         "label": "Provision",
-        "amount": "500.00",
-        "share": "0.1828"
+        "amount": {
+          "is_computable": true,
+          "value": "500.00",
+          "reason": null
+        },
+        "share": {
+          "is_computable": true,
+          "value": "0.1828",
+          "reason": null
+        }
       }
     ],
     "by_subproject": [
       {
         "key": "01926f3a-7c00-7000-8000-000000000801",
         "label": "Poste de commande",
-        "amount": "2234.56",
-        "share": "0.8172"
+        "amount": {
+          "is_computable": true,
+          "value": "2234.56",
+          "reason": null
+        },
+        "share": {
+          "is_computable": true,
+          "value": "0.8172",
+          "reason": null
+        }
       },
       {
         "key": "unassigned",
-        "amount": "500.00",
-        "share": "0.1828"
+        "amount": {
+          "is_computable": true,
+          "value": "500.00",
+          "reason": null
+        },
+        "share": {
+          "is_computable": true,
+          "value": "0.1828",
+          "reason": null
+        }
+      }
+    ],
+    "by_order_item": [
+      {
+        "key": "01926f3a-7c00-7000-8000-000000000701",
+        "label": "Fourniture et montage des armoires",
+        "amount": {
+          "is_computable": true,
+          "value": "2734.56",
+          "reason": null
+        },
+        "share": {
+          "is_computable": true,
+          "value": "1",
+          "reason": null
+        }
       }
     ],
     "provisions_identified": "500.00",
+    "delta_to_reference": null,
     "delta_to_previous_revision": null
   }
 }

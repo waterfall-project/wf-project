@@ -38,6 +38,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
     assert sorted(volumes) == [
         "cost_categories.json",
         "estimate_indicators.json",
+        "hourly_rate_grid.json",
         "hourly_rates.json",
         "nodes_thousand.json",
         "portfolio_projects.json",
@@ -54,12 +55,13 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "5 000 lignes de devis" in nodes
     assert "provision de plus sur 350" in nodes
     total = volumes["estimate_indicators.json"]["value"]["total"]
-    assert total == "60553621.36"
+    assert total == mockstructure.computable("60553621.36")
     assert "60 553 621,36 au total" in volumes["estimate_indicators.json"]["summary"]
     assert "Les 300 projets" in volumes["portfolio_projects.json"]["summary"]
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
     assert "80,00 de l'heure" in volumes["hourly_rates.json"]["summary"]
+    assert "150 catégories de main-d'œuvre en lignes" in volumes["hourly_rate_grid.json"]["summary"]
 
 
 def test_the_dependencies_written_are_those_of_the_structure_written(
@@ -108,20 +110,24 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
     indicators = volumes["estimate_indicators.json"]["value"]
     nodes = volumes["nodes_thousand.json"]["value"]
     lines = [node["estimate_line"] for node in nodes["items"] if node["kind"] == "estimate_line"]
-    assert indicators["total"] == nodes["totals"]["budgeted_amount"]
+    # Every rate of the universe is set: every amount is computable (WF-DEV-0010).
+    total = indicators["total"]
+    assert total == mockstructure.computable(nodes["totals"]["budgeted_amount"])
     provisions = sum(Decimal(line["budgeted_amount"]) for line in lines if line["is_computed"])
     assert Decimal(indicators["provisions_identified"]) == provisions
     for name in ("by_cost_type", "by_subproject"):
         parts = indicators[name]
-        assert sum(Decimal(part["amount"]) for part in parts) == Decimal(indicators["total"])
-        assert sum(Decimal(part["share"]) for part in parts) == 1
+        assert all(part["amount"]["is_computable"] for part in parts)
+        assert sum(Decimal(part["amount"]["value"]) for part in parts) == Decimal(total["value"])
+        assert sum(Decimal(part["share"]["value"]) for part in parts) == 1
+    assert indicators["by_order_item"] is None
     unassigned = sum(
         (Decimal(line["budgeted_amount"]) for line in lines if not line["subproject_id"]),
         Decimal(0),
     )
     assert indicators["by_subproject"][-1] == {
         "key": "unassigned",
-        "amount": mockstructure.money(unassigned),
+        "amount": mockstructure.computable(mockstructure.money(unassigned)),
         "share": indicators["by_subproject"][-1]["share"],
     }
 
@@ -132,6 +138,7 @@ def test_the_indicators_keep_the_context_and_labels_of_the_universe(
     indicators = volumes["estimate_indicators.json"]["value"]
     witness = mockdata.fixture("estimate_indicators")
     assert indicators["context"] == witness["context"]
+    assert indicators["delta_to_reference"] == witness["delta_to_reference"]
     assert indicators["delta_to_previous_revision"] == witness["delta_to_previous_revision"]
     natures = mockdata.fixture("estimate_indicators_breakdown")["by_cost_type"]
     assert [(part["key"], part["label"]) for part in indicators["by_cost_type"]] == [
@@ -240,6 +247,55 @@ def test_the_rates_span_fifteen_years_up_to_the_reference_year(volumes: dict[str
     assert rates[-1]["amount"] == mockstructure.money(mockstructure.ELECTRICAL_RATE)
     assert rates[0]["amount"] == "59.00"
     assert all(MONEY.match(rate["amount"]) for rate in rates)
+
+
+def test_the_grid_of_rates_has_the_labour_categories_in_rows_and_the_years_in_columns(
+    volumes: dict[str, Any],
+) -> None:
+    grid = volumes["hourly_rate_grid.json"]["value"]
+    assert grid["years"] == list(range(2012, 2027))
+    rows = grid["rows"]
+    assert len(rows) == 150
+    labour = [
+        category
+        for category in volumes["cost_categories.json"]["value"]
+        if category["cost_type_id"] == mockstructure.LABOR
+    ]
+    assert [row["cost_category_id"] for row in rows] == [c["cost_category_id"] for c in labour]
+    assert [(row["code"], row["label"]) for row in rows] == [
+        (c["code"], c["label"]) for c in labour
+    ]
+    for row in rows:
+        assert len(row["cells"]) == 15
+        for year, cell in zip(grid["years"], row["cells"], strict=True):
+            if cell is not None:
+                assert (cell["cost_category_id"], cell["year"]) == (row["cost_category_id"], year)
+                assert MONEY.match(cell["amount"])
+
+
+def test_the_grid_of_rates_agrees_with_the_rates_of_one_category_and_leaves_cells_empty(
+    volumes: dict[str, Any],
+) -> None:
+    grid = volumes["hourly_rate_grid.json"]["value"]
+    electrical = next(
+        row
+        for row in grid["rows"]
+        if row["cost_category_id"] == mockstructure.ELECTRICAL_ENGINEERING
+    )
+    assert electrical["cells"] == volumes["hourly_rates.json"]["value"]
+    commissioning = next(
+        row for row in grid["rows"] if row["cost_category_id"] == mockstructure.COMMISSIONING
+    )
+    assert commissioning["cells"][-1]["amount"] == "75.00"
+    assert all(cell is not None for cell in commissioning["cells"])
+    # A category without a rate for its first years has empty cells there, never a column less.
+    empties = [sum(cell is None for cell in row["cells"]) for row in grid["rows"]]
+    assert max(empties) <= 4
+    assert any(empties)
+    for row in grid["rows"]:
+        filled = [cell is not None for cell in row["cells"]]
+        assert filled == sorted(filled)
+        assert filled[-1]
 
 
 def test_two_hundred_categories_a_hundred_and_fifty_of_them_labour(
@@ -361,6 +417,9 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
     )
     assert first_example("revisions.yaml", "getComputedValueDependencies") == (
         "volume: { $ref: ../../../fixtures/api/volume/summary_dependencies.json }"
+    )
+    assert first_example("reference.yaml", "getHourlyRateGrid") == (
+        "volume: { $ref: ../../../fixtures/api/volume/hourly_rate_grid.json }"
     )
 
 

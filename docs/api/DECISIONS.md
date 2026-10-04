@@ -324,6 +324,165 @@ répétée.
 **Sans surface** : WF-IHM-0120, l'accueil, est le filtre `is_contributor` existant ; WF-CMP-0030
 et WF-QUA-0080 relèvent du déploiement et de la chaîne.
 
+## Constats du contrat, second passage (EP-02/L8)
+
+Les constats que les écrans d'EP-02 ont relevés après EP-02/L4, corrigés avec les décisions prises
+avec l'utilisateur le 2026-10-03 (#214), et la forme retenue pour chacun.
+
+**Un `PATCH` de cellule ne porte que ce qui change** (`TaskFacetUpdate`, `EstimateLineUpdate`,
+#178). WF-IHM-0040 veut que chaque cellule se valide seule ; les schémas d'écriture exigeaient le
+libellé, la catégorie et la quantité d'une ligne à chaque saisie, et la grille renvoyait ce qu'elle
+avait lu en dernier. Seul `lock_version` est exigé, tout autre champ est facultatif, un champ absent
+reste ce qu'il était, et `minProperties: 2` refuse un corps qui ne changerait rien. La création
+garde ses champs exigés, sans compteur (`TaskFacetWrite`, `EstimateLineWrite`, `NodeCreate`) :
+deux schémas par facette, comme `SubprojectWrite` et `SubprojectUpdate`, parce qu'une modification
+partielle ne se décrit pas par `allOf` d'un schéma qui exige.
+
+**Le nœud dit quels champs il accepte** (`editable_fields`, `EditableField`, #194), symétrique de
+`computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une autre le débours
+unitaire et le délai de paiement — nul pour la main-d'œuvre, dit le §3.2.5, et le motif de
+WF-DEV-0020 : une ligne de main-d'œuvre n'en saisit pas — (WF-DEV-0020), une provision ni l'un
+ni l'autre, ni sa catégorie ni sa quantité ; une
+tâche en mode manuel porte ses dates, un jalon n'a pas de durée, une récapitulative ni durée, ni
+dates, ni avancement (WF-PLA-0130). La grille n'offre une cellule que si son champ y figure, sans
+déduire la règle de la nature de la catégorie. La liste dit ce que la ligne accepte, pas ce que
+l'appelant a le droit d'écrire, qui reste aux commandes de la révision. Écarté : laisser le serveur
+refuser après coup, qui offre des commandes que l'API refusera (WF-IHM-0090).
+
+**Toute écriture de grille rend la même enveloppe** (`NodesWritten`, #188, #201) : les nœuds écrits,
+leurs ancêtres recalculés — montants, dates, durée, avancement d'une récapitulative, et les anciens
+ancêtres d'un déplacement —, les totaux de la structure entière et le compteur de la structure. La
+réponse ne portait que le nœud écrit, et la grille montrait des totaux et des montants de
+récapitulatives faux jusqu'à une relecture (WF-DEV-0050, WF-ARC-0020). Une seule enveloppe pour
+les dix écritures — cellule, collage, déplacement, création, suppression, liaison, avancement,
+réestimation, inscription —, un tableau `nodes` même pour une cellule, vide après une suppression,
+plutôt qu'une enveloppe par opération ; une suppression qui répondrait 204 laisserait la grille
+sans le compteur que la structure a pris, et le collage suivant en 412.
+Les totaux sont ceux de la structure sans filtre : une grille filtrée relit les siens par
+`listNodes`. Écartés : relire la structure après chaque saisie, six mille nœuds pour une cellule
+(§4.6.2) ; une relecture ciblée des ancêtres, un appel de plus par saisie.
+
+**Le compteur du collage est celui de la structure** (`PasteApply.lock_version`,
+`CostStructure.lock_version`, #201), et il avance à chaque écriture dans son arbre, pas seulement
+à la modification de la structure elle-même : sans cela, un collage confirmé après la saisie d'un
+collègue sur l'une de ses lignes l'écraserait sans refus (WF-IHM-0110). `applyPaste` déclare 412,
+et l'enveloppe rend le compteur suivant (`structure_lock_version`) à chaque écriture, pour que la
+grille porte toujours le dernier. Écarté : le plan lui-même (`paste_id`) comme objet du compteur,
+qui aurait obligé le serveur à garder un plan tant que la structure ne change pas.
+
+**La colonne visée d'un collage est une colonne de `listNodes`** (`NodeColumn`,
+`PastePreview.target_column`, #200) : une énumération nommée, celle du tri, que les deux emploient.
+Son ordre est celui des grilles — planning (WF-PLA-0080), puis devis et reste à engager
+(WF-DEV-0050, WF-RAE-0040) —, et c'est dans cet ordre que le bloc remplit les colonnes qui suivent
+la colonne visée, parmi celles de la facette du nœud visé : le serveur ne connaît ni les colonnes
+que la grille montre ni leur ordre (WF-IHM-0060), et le contrat fixe donc l'ordre de référence.
+Aucune cellule n'est décalée : une cellule non vide qui tombe sur une colonne que sa ligne n'accepte
+pas — calculée pour ce nœud, refusée par sa nature, ou qu'aucune écriture ne porte — est refusée,
+nommée par sa ligne et sa colonne (`PastePlan.rejected[].column`) ; une cellule vide n'écrit rien,
+pour qu'un bloc de lignes de main-d'œuvre et hors main-d'œuvre se colle tel qu'un tableur le copie.
+`max_columns` compte les colonnes de la facette à partir de la colonne visée. Écartés : un tableau
+`columns` envoyé par la grille, qui ferait du contrat l'image des colonnes affichées ; sauter une
+colonne non saisissable, qui déplacerait une valeur dans la colonne voisine — ce que le motif de
+WF-IHM-0050 veut éviter. La garde locale du front — un bloc trop large ou qui enjambe une colonne
+masquée, refusé avant de rien demander — reste à aligner sur cet ordre : elle mesure encore la
+portée d'un bloc sur les colonnes de la configuration de la grille, non sur celles de la facette
+dans l'ordre de `NodeColumn` (#223).
+
+**La liste des contributeurs a son compteur** (`ContributorList`, #186). `setContributors` exigeait
+un `lock_version` sans dire de quel objet, et `listContributors` rendait un tableau nu : le
+formulaire n'aurait rien eu à renvoyer. Le compteur est celui de la liste, rendu par la lecture
+dans une enveloppe `{ items, lock_version }` et par l'écriture avec le suivant, exigé par
+`ContributorsWrite`, périmé par 412. Écarté : le compteur du projet, qui aurait fait de chaque
+changement du libellé ou du taux d'inflation un conflit pour une liste ouverte avant lui, et
+l'inverse. `Contributor.is_active` est exigé : une valeur absente ne disait ni actif ni désactivé,
+et l'écran ne devine rien (WF-ADM-0060).
+
+**Les rôles et les catégories actifs se lisent avec le projet** (`listResourceRoles`,
+`listCostCategories`, #195). La grille du devis nomme et offre au choix le rôle et la catégorie de
+chaque ligne (WF-DEV-0020) ; un chiffreur sans `resource_settings.read` lisait un devis dont il ne
+pouvait ni nommer ni choisir les rôles. Les objets actifs sont lisibles par quiconque consulte un
+projet ; les objets désactivés (`include_inactive`) et toute écriture restent sous la permission du
+référentiel (WF-ADM-0100), et `include_inactive` sans elle est refusé par 403. Écarté : rendre avec
+`listNodes` les rôles et catégories que la structure emploie, qui alourdirait chaque lecture de
+six mille nœuds de ce qui change une fois par an.
+
+**La grille des taux horaires se lit en une fois** (`GET /reference/hourly-rates`,
+`getHourlyRateGrid`, `HourlyRateGrid`, #162). Le §3.4.4.1.2 présente les taux « comme une grille :
+une ligne par catégorie de main-d'œuvre, une colonne par année », et le contrat ne les servait
+qu'une catégorie à la fois : cent cinquante appels pour ouvrir l'écran (§4.6.2). La réponse porte
+les années en colonnes (`years`) et les catégories en lignes (`rows`), chaque ligne nommée — code,
+libellé, activité — pour que la grille ne joigne rien, avec une cellule par année à la même place,
+nulle pour une année sans taux (WF-REF-0060) : des tableaux alignés plutôt qu'une liste creuse de
+taux portant leur année, que la grille aurait dû placer. `listHourlyRates` reste, pour une
+catégorie seule. Le volume `hourly_rate_grid.json` — cent cinquante catégories, quinze ans — est
+engendré avec les autres (`make mock-data`), et la ligne de l'ingénierie électrique y est celle de
+`hourly_rates.json`.
+
+**Un écart, une catégorie proposée portent leur libellé** (`RevisionComparison.amount_deltas[].label`,
+`RateUpdateProposal.categories[].label`, #204). Un écart n'était nommé que par sa `key`, une
+catégorie que par son identifiant, et l'écran disait « Sans nom », WF-ARC-0020 lui interdisant de
+joindre le référentiel. Le serveur résout le libellé à la lecture, comme `AmountByKey.label` et la
+réponse de `getMissingRates` ; exigé, il est nul pour la seule clé `unassigned`, que le front sait
+nommer.
+
+**Un taux horaire manquant rend un montant non calculable** (`EstimateIndicators`,
+`ComputableAmountByKey`, `hourly_rate_missing`, #159). WF-DEV-0010 refuse le calcul d'un devis
+tant qu'une catégorie employée n'a pas de taux pour l'année de référence, parce qu'un taux à zéro
+« produit un budget faux sans rien signaler » ; le contrat ne disait pas ce que rend
+`getEstimateIndicators` dans ce cas, et l'écran montrait l'avis des taux manquants au-dessus d'un
+total chiffré. Chaque montant du devis est un `Computable`, et les montants qui dépendent des
+lignes sans taux — le total, la nature, le sous-projet et le poste qui les portent, les écarts, et
+toute part du total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les
+années nommées par `params.missing_rates` (`MissingRate`, le schéma que `getMissingRates` rend
+aussi) ; les montants que ces lignes ne touchent pas se calculent. Le motif suit la casse de son
+énumération (`no_actual_cost`), non celle du code d'erreur `HOURLY_RATE_MISSING` qui dit le même
+refus sur une écriture : les deux catalogues ont chacun leur convention. `Computable` gagne
+`params`, parce qu'un motif peut nommer quelque chose — jusqu'ici, une grandeur nulle ne nommait
+rien. Un montant calculable est un `ComputableMoney`, la même enveloppe dont la valeur garde la
+contrainte de `Money` — deux décimales au plus — qu'un `Decimal` perdrait : le total, les écarts,
+les montants par clé, et la projection au rythme constaté ; les ratios, les indices et les parts
+restent des `Computable`. Écarté : refuser la lecture par 409 ou 422, qui aurait privé l'écran des montants que les
+taux manquants ne touchent pas, et des provisions.
+
+**Le devis dit son écart à la référence et ses totaux par poste** (`delta_to_reference`,
+`by_order_item`, #160). WF-DEV-0060 demande « l'écart entre le devis en cours et celui de la
+référence » et « les totaux par poste » ; le contrat ne rendait que l'écart à la révision marquée
+précédente, qui n'est l'écart à la référence que par hasard. `delta_to_reference` est nul sans
+révision de référence, `by_order_item` nul quand le planning n'est pas structuré en postes —
+absents plutôt que nuls, comme le Vérif le veut —, et chaque poste est nommé par son libellé
+(WF-PRJ-0020).
+`delta_to_previous_revision` reste : la revue périodique le lit.
+
+**Toute opération gardée par la session déclare le 401, et une règle du contrat l'exige**
+(`rule/session-operation-declares-401` de `redocly.yaml`, #141). Le contrat ne le déclarait que sur
+une minorité d'opérations, quand toute opération gardée par la session peut répondre 401 — session
+absente, expirée ou révoquée (WF-SEC-0020) — et que le contrat déclare toute erreur qu'un client
+peut rencontrer (WF-ARC-0060) ; le client factice des tests du front, typé sur les statuts
+déclarés, ne pouvait pas simuler une session perdue sur ces lectures. Cent dix opérations
+gagnent leur 401 — trente-huit le déclaraient, cent quarante-huit le déclarent —, et une règle
+d'assertion de Redocly — une règle maison n'a pas été nécessaire — exige `401` dans les réponses
+de toute opération dont `security` est absent, la session héritée de la racine : une opération
+nouvelle ne peut plus l'oublier. La règle ne voit pas une opération qui écrirait
+`security: [{ session: [] }]` : la convention est qu'aucune ne l'écrit, et qu'une opération
+publique le dit par `security: []`.
+
+**`correlation_id` a un motif** (`^[A-Za-z0-9._-]{1,64}$`, #144). Une chaîne libre, qui pouvait
+être vide, et qu'un identifiant repris d'un en-tête d'entrée sans contrôle aurait pu remplir de
+n'importe quoi ; le front l'affiche comme référence d'une erreur inattendue et le met dans un
+digest. Le back n'émet que des identifiants conformes, et remplace ce qu'un en-tête lui apporte
+d'autre.
+
+**La borne de taille d'un avatar est un réglage de l'installation** (`Installation.avatar_max_bytes`,
+#153). Le contrat déclarait le 413 sans la borne, et le front ne pouvait ni la dire avant l'envoi
+ni régler sur elle le corps qu'il laisse passer. Elle est lisible sans session avec les autres
+paramètres publics, et `putMyAvatar` la cite : un réglage, pas une constante du contrat, parce que
+la taille admise relève de l'installation (§4.4.1, WF-CMP-0020). Écarté : un `maxLength` sur le
+corps binaire, qui aurait figé la borne dans le contrat.
+
+**Mineur** : `setDurationUnits` renvoie `responses.yaml#/UnprocessableEntity`, comme
+`createCalendar`, au lieu d'une 422 écrite en ligne ; ce que `fields` nomme est dit par
+`DurationUnitsWrite`.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
@@ -334,10 +493,10 @@ forme.
 **Un bloc plus large que la grille est refusé à l'aperçu**, par un 422 `PASTE_TOO_WIDE` dont
 `params.max_columns` dit combien de colonnes la grille offre à partir de la colonne visée
 (EP-02, US-0130). Le code et son paramètre existaient sans qu'aucune réponse de `previewPaste`
-ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit. Tant que
-l'aperçu ne transmet pas les colonnes que remplit le bloc (#200), le serveur ne connaît ni les
-colonnes affichées ni leur ordre : `max_columns` ne peut valoir que pour les colonnes du contrat
-à partir de la colonne visée, et le front garde une garde locale sur ce qu'il montre.
+ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit. Le serveur
+ne connaît ni les colonnes affichées ni leur ordre : `max_columns` compte les colonnes de la facette
+du nœud visé à partir de la colonne visée, dans l'ordre de `NodeColumn` (EP-02/L8, #200), et le
+front garde une garde locale sur ce qu'il montre.
 
 **L'annulation est une opération de la révision**, `POST .../undo` et `POST .../redo`, pas
 un état du client. C'est ce qui rend vraie la phrase de WF-IHM-0110 : une annulation est

@@ -366,7 +366,8 @@ sommés sur les mêmes lignes, pour que la grille et les indicateurs servis dise
 total ; ce dont dépend la date de fin de sa première récapitulative, ses subordonnées directes
 nommées de la même structure, premier exemple de `getComputedValueDependencies`, que le refus
 d'une saisie lit dans les parcours ; les trois cents projets de `getPortfolioProjects`, les deux cents catégories de
-`listCostCategories` et quinze ans de taux de `listHourlyRates`. Les exemples nommés
+`listCostCategories`, quinze ans de taux de `listHourlyRates` et la grille des taux horaires de
+`getHourlyRateGrid`, cent cinquante catégories sur quinze ans. Les exemples nommés
 (`witness`…) restent pour les tests de composants. Les indicateurs du projet
 (`getProjectIndicators`) et la ligne du projet témoin dans le portefeuille restent ceux du
 témoin, que l'outil lit dans leurs fixtures : ils ne sont pas tirés du volume. Les volumes

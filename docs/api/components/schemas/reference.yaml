@@ -232,6 +232,44 @@ HourlyRate:
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+HourlyRateGrid:
+  type: object
+  required: [years, rows]
+  description: >-
+    La grille des taux horaires en une lecture : une ligne par catégorie de main-d'œuvre,
+    une colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour
+    une catégorie est une cellule vide, et aucune colonne n'est créée d'elle-même : une année
+    s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Cent cinquante catégories et
+    quinze ans (§4.6.2) tiennent en une réponse.
+  properties:
+    years:
+      type: array
+      description: Les années de la grille, croissantes ; les colonnes.
+      items: { $ref: ../common.yaml#/Year }
+    rows:
+      type: array
+      description: Les catégories de main-d'œuvre, dans l'ordre de `listCostCategories`.
+      items: { $ref: '#/HourlyRateRow' }
+
+HourlyRateRow:
+  type: object
+  required: [cost_category_id, code, label, is_active, cells]
+  description: >-
+    Une ligne de la grille : la catégorie, nommée pour que la grille n'ait rien à joindre,
+    et une cellule par année de `years`, dans le même ordre.
+  properties:
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    code: { type: string, minLength: 1, maxLength: 20 }
+    label: { type: string, minLength: 1, maxLength: 200 }
+    is_active: { type: boolean }
+    cells:
+      type: array
+      description: >-
+        Le taux de chaque année de `years`, à la même place ; nul pour une année sans taux
+        (WF-REF-0060).
+      items:
+        anyOf: [{ $ref: '#/HourlyRate' }, { type: 'null' }]
+
 HourlyRateWrite:
   description: >-
     Le compteur est absent à la première saisie de l'année, où le taux n'existe
@@ -244,10 +282,20 @@ HourlyRateWrite:
 
 Installation:
   type: object
-  required: [default_language]
-  description: Paramètres de l'installation lisibles sans session.
+  required: [default_language, avatar_max_bytes]
+  description: >-
+    Paramètres de l'installation lisibles sans session : ce que le front doit savoir avant
+    d'ouvrir une session, ou pour régler ce qu'il laisse passer.
   properties:
     default_language: { $ref: ../common.yaml#/Language }
+    avatar_max_bytes:
+      type: integer
+      minimum: 1
+      description: >-
+        La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) :
+        un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et
+        que le front lit pour dire la borne avant l'envoi et régler la taille de corps qu'il
+        accepte un peu au-dessus, pour que le refus vienne de l'API et se dise par son code.
 
 ReferenceSettings:
   type: object

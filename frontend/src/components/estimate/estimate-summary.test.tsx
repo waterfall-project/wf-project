@@ -81,6 +81,19 @@ describe("the summary of the estimate", () => {
     expect(html).toContain("Estimate total 2,734.56 Identified provisions 500.00");
   });
 
+  it("says an amount the API could not compute for want of an hourly rate, with its reason, never a figure [WF-DEV-0010-A]", () => {
+    const html = text(summary("estimate_indicators_missing_rates", "missing_rates"));
+    expect(html).toContain(
+      "Total du devis Non calculable — Taux horaire manquant pour l’année de référence.",
+    );
+    // The amounts the missing rates do not touch are computed; no share without the total.
+    expect(html).toContain(
+      "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 1 234,56 Provision 500,00",
+    );
+    expect(html).not.toContain("%");
+    expect(html).not.toContain("Total du devis 0,00");
+  });
+
   it("leaves out a deviation the API does not give, rather than showing it as zero", () => {
     const html = text(summary("estimate_indicators_breakdown", "missing_rates_none"));
     expect(html).not.toContain("Écart");

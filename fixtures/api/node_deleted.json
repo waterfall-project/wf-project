@@ -1,10 +1,11 @@
 {
-  "summary": "Une tâche récapitulative et le jalon qu'elle porte : la réception en usine, tâche de durée nulle (WF-PLA-0050).",
+  "summary": "La ligne de débours « Borniers », 1 234,56, supprimée du devis témoin : rien à rendre d'elle, sa tâche et la récapitulative au-dessus recalculées à 1 500,00, les totaux de la structure passés à deux lignes et 1 500,00, et le compteur de la structure, passé à 2 (WF-DEV-0050, WF-IHM-0110).",
   "value": {
-    "items": [
+    "nodes": [],
+    "ancestors": [
       {
-        "node_id": "01926f3a-7c00-7000-8000-000000000511",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000611",
+        "node_id": "01926f3a-7c00-7000-8000-000000000521",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
         "kind": "task",
         "parent_id": null,
         "position": 0,
@@ -12,26 +13,26 @@
         "level": 1,
         "lock_version": 1,
         "task": {
-          "label": "Réalisation",
+          "label": "Poste de commande",
           "scheduling_mode": "automatic",
           "duration": {
-            "value": "0",
+            "value": "42",
             "unit": "d"
           },
           "start": {
-            "date": "2026-09-30",
+            "date": "2026-05-04",
             "hours": "0"
           },
           "finish": {
-            "date": "2026-09-30",
-            "hours": "0"
+            "date": "2026-06-30",
+            "hours": "8"
           },
           "progress": "not_started",
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
-          "budgeted_amount": "0.00",
-          "reestimated_amount": "0.00"
+          "budgeted_amount": "1500.00",
+          "reestimated_amount": "1500.00"
         },
         "computed_fields": [
           "task.duration",
@@ -45,35 +46,35 @@
         ]
       },
       {
-        "node_id": "01926f3a-7c00-7000-8000-000000000512",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000612",
+        "node_id": "01926f3a-7c00-7000-8000-000000000522",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
         "kind": "task",
-        "parent_id": "01926f3a-7c00-7000-8000-000000000511",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
         "position": 0,
         "row_number": 2,
         "level": 2,
         "lock_version": 1,
         "task": {
-          "label": "Réception usine",
+          "label": "Câblage des armoires",
           "scheduling_mode": "automatic",
           "duration": {
-            "value": "0",
+            "value": "42",
             "unit": "d"
           },
           "start": {
-            "date": "2026-09-30",
+            "date": "2026-05-04",
             "hours": "0"
           },
           "finish": {
-            "date": "2026-09-30",
-            "hours": "0"
+            "date": "2026-06-30",
+            "hours": "8"
           },
           "progress": "not_started",
           "finish_overdue": false,
           "is_summary": false,
-          "is_milestone": true,
-          "budgeted_amount": "0.00",
-          "reestimated_amount": "0.00"
+          "is_milestone": false,
+          "budgeted_amount": "1500.00",
+          "reestimated_amount": "1500.00"
         },
         "computed_fields": [
           "task.start",
@@ -83,16 +84,18 @@
           "task.label",
           "task.description",
           "task.scheduling_mode",
+          "task.duration",
           "task.progress"
         ]
       }
     ],
     "totals": {
-      "task_count": 2,
-      "estimate_line_count": 0,
-      "hours": "0",
-      "budgeted_amount": "0.00",
-      "reestimated_amount": "0.00"
-    }
+      "task_count": 3,
+      "estimate_line_count": 2,
+      "hours": "12.5",
+      "budgeted_amount": "1500.00",
+      "reestimated_amount": "1500.00"
+    },
+    "structure_lock_version": 2
   }
 }

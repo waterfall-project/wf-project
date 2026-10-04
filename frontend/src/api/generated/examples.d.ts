@@ -5,6 +5,9 @@
  * the fake client of the tests may answer to each (`src/test/fixtures.ts`).
  */
 export interface Examples {
+  "DELETE /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}": {
+    200: "node_deleted";
+  };
   "GET /installation": {
     200: "installation" | "installation_english";
   };
@@ -27,7 +30,7 @@ export interface Examples {
     200: "contributors";
   };
   "GET /projects/{project_id}/estimate-indicators": {
-    200: "estimate_indicators" | "estimate_indicators_breakdown" | "volume/estimate_indicators";
+    200: "estimate_indicators" | "estimate_indicators_breakdown" | "estimate_indicators_missing_rates" | "volume/estimate_indicators";
   };
   "GET /projects/{project_id}/estimate-indicators/missing-rates": {
     200: "missing_rates" | "missing_rates_none";
@@ -76,6 +79,9 @@ export interface Examples {
   };
   "GET /reference/duration-units": {
     200: "duration_units";
+  };
+  "GET /reference/hourly-rates": {
+    200: "volume/hourly_rate_grid";
   };
   "GET /reference/readiness": {
     200: "reference_readiness" | "reference_readiness_incomplete";

@@ -54,6 +54,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettings }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -94,6 +95,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -118,6 +120,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -157,6 +160,7 @@
                 resource_roles:
                   type: array
                   items: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -167,7 +171,11 @@
     summary: Rôles de ressources
     description: >-
       Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris
-      (WF-REF-0090, WF-REF-0100, WF-REF-0150).
+      (WF-REF-0090, WF-REF-0100, WF-REF-0150). Les rôles actifs se lisent sans la permission
+      du référentiel : quiconque consulte un projet nomme et choisit le rôle d'une ligne de
+      devis (WF-DEV-0020). Les rôles désactivés (`include_inactive`) et toute écriture
+      restent sous la permission des paramètres de ressources (WF-ADM-0100) : sans elle,
+      `include_inactive` est refusé par 403.
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
@@ -185,6 +193,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/resource_roles.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createResourceRole
@@ -203,6 +212,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -226,6 +236,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -256,6 +267,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ResourceRole }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -299,13 +311,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/DurationUnits }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422':
-        description: Une constante nulle, que `fields` nomme (WF-PLA-0160).
-        content:
-          application/problem+json:
-            schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
 /reference/calendars:
   get:
@@ -344,6 +353,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
@@ -367,6 +377,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -387,6 +398,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -417,6 +429,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/Calendar }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -465,6 +478,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -490,6 +504,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -521,6 +536,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostType }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -531,7 +547,11 @@
     summary: Catégories de coût
     description: >-
       Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040,
-      WF-REF-0150).
+      WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel :
+      quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis
+      (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture
+      restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle,
+      `include_inactive` est refusé par 403.
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
@@ -550,6 +570,7 @@
             examples:
               volume: { $ref: ../../../fixtures/api/volume/cost_categories.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: createCostCategory
@@ -568,6 +589,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -592,6 +614,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
@@ -622,6 +645,34 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/CostCategory }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/reference/hourly-rates:
+  get:
+    operationId: getHourlyRateGrid
+    tags: [reference]
+    summary: Grille des taux horaires
+    description: >-
+      Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en
+      une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories
+      une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne
+      n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit
+      (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive`
+      (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive`
+      est refusé par 403 (WF-ADM-0100).
+    parameters:
+      - $ref: ../components/parameters.yaml#/IncludeInactive
+    responses:
+      '200':
+        description: La grille, catégories en lignes et années en colonnes.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/HourlyRateGrid }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/hourly_rate_grid.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -668,6 +719,7 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/HourlyRate }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }

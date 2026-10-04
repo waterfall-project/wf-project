@@ -6,7 +6,9 @@
 Computable:
   type: object
   required: [is_computable]
-  description: Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010).
+  description: >-
+    Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010) : un indicateur, un
+    montant qu'un taux horaire manquant empêche de calculer (WF-DEV-0010).
   properties:
     is_computable: { type: boolean }
     value:
@@ -16,6 +18,53 @@ Computable:
       description: >-
         Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue
         du lecteur (WF-ARC-0110) ; nul pour une valeur calculable.
+    params:
+      type: object
+      description: >-
+        Ce que le motif nomme, quand il nomme quelque chose : `missing_rates`, les catégories
+        et les années sans taux horaire (`hourly_rate_missing`, WF-DEV-0010). Absent sinon.
+      properties:
+        missing_rates:
+          type: array
+          minItems: 1
+          items: { $ref: '#/MissingRate' }
+
+ComputableMoney:
+  type: object
+  required: [is_computable]
+  description: >-
+    Un montant qui peut être non calculable : la même enveloppe que `Computable`, sa valeur
+    contrainte comme un `Money` — deux décimales au plus, dans la devise de l'installation
+    (WF-REF-0140, WF-DAT-0100). Les ratios, les indices et les parts restent des `Computable`.
+  properties:
+    is_computable: { type: boolean }
+    value:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+    reason:
+      anyOf: [{ $ref: '#/NotComputableReason' }, { type: 'null' }]
+      description: Pourquoi le montant n'est pas calculable, en code ; nul pour un montant calculable.
+    params:
+      type: object
+      description: >-
+        Ce que le motif nomme, comme pour `Computable` — `missing_rates` pour
+        `hourly_rate_missing`.
+      properties:
+        missing_rates:
+          type: array
+          minItems: 1
+          items: { $ref: '#/MissingRate' }
+
+MissingRate:
+  type: object
+  required: [cost_category_id, year]
+  description: >-
+    Une catégorie de main-d'œuvre employée par un chiffrage, sans taux horaire pour une
+    année (WF-DEV-0010) : ce que `getMissingRates` liste, et ce qu'un montant non calculable
+    nomme (`Computable.params.missing_rates`).
+  properties:
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    label: { type: string }
+    year: { $ref: ../common.yaml#/Year }
 
 NotComputableReason:
   type: string
@@ -31,7 +80,10 @@ NotComputableReason:
     `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le
     taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le
     taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage
-    (WF-PTF-0050).
+    (WF-PTF-0050). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant
+    du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence
+    empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et
+    `params.missing_rates` nomme les catégories et les années (WF-DEV-0010).
   enum:
     - no_actual_cost
     - no_earned_value
@@ -41,6 +93,7 @@ NotComputableReason:
     - no_actual_or_remaining
     - no_capacity
     - no_offer_out_of_pricing
+    - hourly_rate_missing
 
 CalculationContext:
   type: object
@@ -62,20 +115,54 @@ CalculationContext:
 
 EstimateIndicators:
   type: object
-  required: [context, total, by_cost_type, by_subproject]
-  description: Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010).
+  required: [context, total, by_cost_type, by_subproject, by_order_item, delta_to_reference]
+  description: >-
+    Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque
+    montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de
+    taux horaire pour l'année de référence, les montants qui en dépendent — le total, la
+    nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui
+    se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories
+    et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à
+    zéro. Les montants que ces lignes ne touchent pas se calculent.
   properties:
     context: { $ref: '#/CalculationContext' }
-    total: { $ref: ../common.yaml#/Money }
+    total: { $ref: '#/ComputableMoney' }
     by_cost_type:
       type: array
-      items: { $ref: '#/AmountByKey' }
+      items: { $ref: '#/ComputableAmountByKey' }
     by_subproject:
       type: array
-      items: { $ref: '#/AmountByKey' }
+      items: { $ref: '#/ComputableAmountByKey' }
+    by_order_item:
+      anyOf:
+        - type: array
+          items: { $ref: '#/ComputableAmountByKey' }
+        - type: 'null'
+      description: >-
+        Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche
+        récapitulative qui porte chacun ; nul quand le planning n'est pas structuré en postes
+        — absents plutôt que nuls (WF-DEV-0060).
     provisions_identified: { $ref: ../common.yaml#/Money }
+    delta_to_reference:
+      anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
+      description: >-
+        L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) ;
+        nul quand le projet n'a pas de révision de référence.
     delta_to_previous_revision:
-      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
+      description: L'écart avec la révision marquée précédente ; nul sans elle.
+
+ComputableAmountByKey:
+  type: object
+  required: [key, amount]
+  description: >-
+    Un montant par clé — nature de coût, sous-projet, poste —, qui peut ne pas se calculer
+    (`hourly_rate_missing`), et sa part du total, qui ne se calcule pas sans lui.
+  properties:
+    key: { type: string }
+    label: { type: string }
+    amount: { $ref: '#/ComputableMoney' }
+    share: { $ref: '#/Computable' }
 
 RemainingIndicators:
   type: object
@@ -183,7 +270,7 @@ Projections:
   properties:
     at_budget: { $ref: ../common.yaml#/Money }
     project_manager: { $ref: ../common.yaml#/Money }
-    at_observed_rate: { $ref: '#/Computable' }
+    at_observed_rate: { $ref: '#/ComputableMoney' }
     variance_at_budget: { $ref: ../common.yaml#/Money }
     variance_project_manager: { $ref: ../common.yaml#/Money }
     variance_at_observed_rate:

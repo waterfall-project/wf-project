@@ -293,7 +293,7 @@ ContributorKind:
 
 Contributor:
   type: object
-  required: [user_id, display_name, kind]
+  required: [user_id, display_name, kind, is_active]
   description: >-
     Contributeur d'un projet, avec sa qualité. La consultation et la saisie sur un projet
     sont réservées à ses contributeurs, chacune sous sa permission ; la permission
@@ -303,7 +303,26 @@ Contributor:
     user_id: { $ref: ../common.yaml#/Uuid }
     display_name: { type: string }
     kind: { $ref: '#/ContributorKind' }
-    is_active: { type: boolean }
+    is_active:
+      type: boolean
+      description: >-
+        Faux pour un compte désactivé depuis son inscription, que la liste garde et signale
+        (WF-ADM-0060). Toujours rendu : l'écran ne devine rien d'une valeur absente.
+
+ContributorList:
+  type: object
+  required: [items, lock_version]
+  description: >-
+    La liste des contributeurs d'un projet et son compteur d'écriture, propre à la liste :
+    la modifier ne touche pas au projet, et modifier le projet — son libellé, son taux
+    d'inflation — ne la périme pas (WF-PRJ-0060, WF-IHM-0110).
+  properties:
+    items:
+      type: array
+      items: { $ref: '#/Contributor' }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: Le compteur de la liste, que `setContributors` exige tel qu'il a été lu.
 
 ContributorWrite:
   type: object
@@ -323,7 +342,11 @@ ContributorsWrite:
       type: array
       minItems: 1
       items: { $ref: '#/ContributorWrite' }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur de la liste lue (`ContributorList.lock_version`) ; périmé, la liste est
+        refusée par 412 (WF-IHM-0110).
 
 ContributorSuggestion:
   type: object

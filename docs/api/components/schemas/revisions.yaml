@@ -155,9 +155,15 @@ RateUpdateProposal:
       type: array
       items:
         type: object
-        required: [cost_category_id, previous_amount, proposed_amount, source]
+        required: [cost_category_id, label, previous_amount, proposed_amount, source]
         properties:
           cost_category_id: { $ref: ../common.yaml#/Uuid }
+          label:
+            type: string
+            minLength: 1
+            maxLength: 200
+            description: >-
+              Le libellé de la catégorie, résolu à la lecture, pour que l'écran ne joigne rien.
           previous_amount: { $ref: ../common.yaml#/Money }
           proposed_amount: { $ref: ../common.yaml#/Money }
           source:
@@ -185,7 +191,15 @@ CostStructure:
     is_merged:
       type: boolean
       description: Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050).
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule,
+        un collage, un déplacement, une création, une suppression — comme à chaque
+        modification de la structure elle-même. C'est lui qu'un collage porte
+        (`PasteApply.lock_version`), et que toute écriture de grille rend
+        (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour
+        (WF-IHM-0110).
 
 StructureCreate:
   type: object
@@ -224,7 +238,7 @@ NodeKind:
 
 Node:
   type: object
-  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, computed_fields, lock_version]
+  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, computed_fields, editable_fields, lock_version]
   description: >-
     `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable
     d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et
@@ -261,6 +275,21 @@ Node:
         comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit
         rien du mode ni de la nature du nœud.
       items: { $ref: '#/ComputedField' }
+    editable_fields:
+      type: array
+      uniqueItems: true
+      description: >-
+        Champs de la facette que ce nœud-ci accepte en écriture, symétrique de
+        `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne
+        hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la
+        main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres ;
+        une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à
+        saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ
+        calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si
+        son champ y figure, sans rien déduire de la nature de la catégorie ni du mode
+        (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la
+        révision, pas de cette liste.
+      items: { $ref: '#/EditableField' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ComputedField:
@@ -273,6 +302,64 @@ ComputedField:
     - estimate_line.quantity
     - estimate_line.hours
     - estimate_line.unit_disbursement
+
+EditableField:
+  type: string
+  description: >-
+    Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou
+    la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il
+    accepte (`editable_fields`, WF-IHM-0040).
+  enum:
+    - task.label
+    - task.description
+    - task.scheduling_mode
+    - task.duration
+    - task.start
+    - task.finish
+    - task.progress
+    - estimate_line.label
+    - estimate_line.cost_category_id
+    - estimate_line.resource_role_id
+    - estimate_line.quantity
+    - estimate_line.hours
+    - estimate_line.unit_disbursement
+    - estimate_line.payment_delay_days
+    - estimate_line.subproject_id
+
+NodeColumn:
+  type: string
+  description: >-
+    Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les
+    colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de
+    la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille
+    les présente : de `label` à `predecessors`, les colonnes de la tâche ; `label`, puis de
+    `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis. C'est dans
+    cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée
+    (`PastePreview.target_column`, WF-IHM-0050).
+  enum:
+    - label
+    - description
+    - scheduling_mode
+    - duration
+    - start
+    - finish
+    - progress
+    - physical_progress
+    - total_float_days
+    - is_critical
+    - predecessors
+    - cost_category
+    - resource_role
+    - quantity
+    - hours
+    - unit_disbursement
+    - subproject
+    - payment_delay_days
+    - consumption_year
+    - budgeted_amount
+    - reestimated_amount
+    - inflated_amount
+    - previous_reestimated_amount
 
 ComputedValueField:
   type: string
@@ -388,6 +475,41 @@ NodeTotals:
     hours: { $ref: ../common.yaml#/Hours }
     budgeted_amount: { $ref: ../common.yaml#/Money }
     reestimated_amount: { $ref: ../common.yaml#/Money }
+
+NodesWritten:
+  type: object
+  required: [nodes, ancestors, totals, structure_lock_version]
+  description: >-
+    Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un
+    déplacement, une création, une suppression, une liaison, un avancement, une réestimation,
+    une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de
+    la structure, pour que la grille montre juste sans relire la structure ni rien sommer
+    (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé.
+  properties:
+    nodes:
+      type: array
+      description: >-
+        Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une
+        suppression, qui ne laisse rien à rendre.
+      items: { $ref: '#/Node' }
+    ancestors:
+      type: array
+      description: >-
+        Les ancêtres des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs
+        anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une
+        récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de
+        premier niveau.
+      items: { $ref: '#/Node' }
+    totals:
+      allOf: [{ $ref: '#/NodeTotals' }]
+      description: >-
+        Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre
+        affiche. Une grille filtrée les relit par `listNodes`.
+    structure_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le
+        collage suivant porte (WF-IHM-0110).
 
 TaskProgress:
   type: string
@@ -675,11 +797,32 @@ NodeCreate:
 
 TaskFacetWrite:
   type: object
-  required: [label, lock_version]
+  required: [label]
   description: >-
-    Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées.
-    La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en
-    mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100).
+    Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
+    refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
+    saisissables en mode manuel, sont une date et des heures de travail écoulées
+    (WF-DAT-0100).
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    scheduling_mode: { $ref: '#/SchedulingMode' }
+    duration: { $ref: '#/Duration' }
+    start:
+      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+    finish:
+      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+
+TaskFacetUpdate:
+  type: object
+  required: [lock_version]
+  minProperties: 2
+  description: >-
+    Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est
+    exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent
+    reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) ; une valeur
+    que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
@@ -694,8 +837,36 @@ TaskFacetWrite:
 
 EstimateLineWrite:
   type: object
-  required: [label, cost_category_id, quantity, lock_version]
-  description: Champs saisissables d'une ligne de devis (WF-DEV-0020).
+  required: [label, cost_category_id, quantity]
+  description: >-
+    Champs saisissables d'une ligne de devis, à sa création (WF-DEV-0020) : le rôle et la
+    charge pour une catégorie de main-d'œuvre, le débours unitaire pour une autre.
+  properties:
+    label: { type: string, minLength: 1, maxLength: 300 }
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    quantity: { $ref: ../common.yaml#/Decimal }
+    resource_role_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    hours:
+      anyOf: [{ $ref: ../common.yaml#/Hours }, { type: 'null' }]
+    unit_disbursement:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+    payment_delay_days:
+      anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
+    subproject_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+
+EstimateLineUpdate:
+  type: object
+  required: [lock_version]
+  minProperties: 2
+  description: >-
+    Modification d'une ligne de devis, cellule par cellule (WF-IHM-0040) : seul le compteur
+    lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un
+    champ absent reste ce qu'il était. Les mêmes champs qu'à la création
+    (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours ou le délai de
+    paiement d'une ligne de main-d'œuvre, le rôle ou la charge d'une autre — est refusé par
+    422 (WF-DEV-0020, §3.2.5), et le nœud dit lesquels il accepte (`editable_fields`).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
@@ -782,16 +953,32 @@ UndoResult:
 
 PastePreview:
   type: object
-  required: [rows]
+  required: [target_node_id, target_column, rows]
   description: >-
-    Bloc collé depuis un tableur. L'aperçu dit ce qui sera écrit et ce qui sera
-    refusé, avec le motif de chaque refus ; rien n'est écrit sans confirmation
-    (WF-IHM-0050).
+    Bloc collé depuis un tableur, sur la cellule visée : le nœud et sa colonne. L'aperçu dit
+    ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit
+    sans confirmation (WF-IHM-0050).
+
+    La première colonne du bloc remplit `target_column` ; chacune des suivantes remplit la
+    colonne suivante de la facette du nœud visé, dans l'ordre de `NodeColumn` — pour une
+    ligne de devis collée sur son libellé : la catégorie, le rôle, la quantité, la charge,
+    le débours unitaire, le sous-projet, le délai de paiement ; pour une tâche : la
+    description, le mode, la durée, le début, la fin. Chaque ligne du bloc écrit la ligne de la
+    grille à la même distance sous le nœud visé, dans l'ordre du plan. Aucune cellule n'est
+    décalée : une cellule qui tombe sur une colonne que sa ligne n'accepte pas — un champ
+    calculé pour ce nœud, un champ que sa nature refuse, une colonne qu'aucune écriture ne
+    porte comme les montants — est refusée, la ligne et la colonne nommées
+    (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien. Un bloc plus large que
+    les colonnes de la facette à partir de la colonne visée est refusé par 422
+    (`PASTE_TOO_WIDE`, `params.max_columns`).
   properties:
     target_node_id: { $ref: ../common.yaml#/Uuid }
-    target_column: { type: string }
+    target_column:
+      allOf: [{ $ref: '#/NodeColumn' }]
+      description: La colonne de la cellule visée, que la première colonne du bloc remplit.
     rows:
       type: array
+      minItems: 1
       items:
         type: array
         items: { type: string }
@@ -799,6 +986,9 @@ PastePreview:
 PastePlan:
   type: object
   required: [paste_id, accepted, rejected]
+  description: >-
+    Ce qu'un collage écrira et ce qu'il refusera, chaque refus avec son motif et, quand il
+    tient à une cellule, sa colonne (WF-IHM-0050).
   properties:
     paste_id: { $ref: ../common.yaml#/Uuid }
     accepted: { type: integer, minimum: 0 }
@@ -808,7 +998,15 @@ PastePlan:
         type: object
         required: [row, code]
         properties:
-          row: { type: integer, minimum: 0 }
+          row:
+            type: integer
+            minimum: 0
+            description: La ligne du bloc refusée, comptée de zéro.
+          column:
+            allOf: [{ $ref: '#/NodeColumn' }]
+            description: >-
+              La colonne de la cellule refusée ; absente quand le refus porte sur la ligne
+              entière.
           code: { $ref: ../common.yaml#/ErrorCode }
           params:
             type: object
@@ -817,12 +1015,19 @@ PastePlan:
 PasteApply:
   type: object
   required: [paste_id, confirmed, lock_version]
+  description: >-
+    Confirme un plan de collage. Le compteur est celui de la structure dans laquelle le bloc
+    s'écrit (`CostStructure.lock_version`), lu avec la page ou rendu par la dernière écriture
+    (`NodesWritten.structure_lock_version`) ; périmé, le collage est refusé par 412 et rien
+    n'est écrit (WF-IHM-0050, WF-IHM-0110).
   properties:
     paste_id: { $ref: ../common.yaml#/Uuid }
     confirmed:
       type: boolean
       const: true
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: Le compteur de la structure lue, que le collage écrit.
 
 RevisionComparison:
   type: object
@@ -844,14 +1049,23 @@ RevisionComparison:
       items: { $ref: '#/ComparedNode' }
     amount_deltas:
       type: array
+      description: >-
+        Les écarts de montants par nature de coût et par sous-projet (WF-REV-0080), chacun
+        nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne
+        joint rien (WF-ARC-0020).
       items:
         type: object
-        required: [dimension, key, delta]
+        required: [dimension, key, label, delta]
         properties:
           dimension:
             type: string
             enum: [cost_type, subproject]
-          key: { type: string }
+          key:
+            type: string
+            description: L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020).
+          label:
+            anyOf: [{ type: string }, { type: 'null' }]
+            description: Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme.
           delta: { $ref: ../common.yaml#/Money }
 
 ComparedNode:

@@ -1,5 +1,5 @@
 {
-  "summary": "De l'offre v1.0 à la révision de référence, obtenue par la fusion de l'avenant 1 : une tâche et une ligne de provision ajoutées, une tâche retirée, une tâche et une ligne modifiées ; 1 350,00 d'écart, par nature de coût comme par sous-projet.",
+  "summary": "De l'offre v1.0 à la révision de référence, obtenue par la fusion de l'avenant 1 : une tâche et une ligne de provision ajoutées, une tâche retirée, une tâche et une ligne modifiées ; 1 350,00 d'écart, par nature de coût comme par sous-projet, chaque poste nommé par son libellé.",
   "value": {
     "from_revision_id": "01926f3a-7c00-7000-8000-000000000100",
     "to_revision_id": "01926f3a-7c00-7000-8000-000000000101",
@@ -40,26 +40,31 @@
       {
         "dimension": "cost_type",
         "key": "01926f3a-7c00-7000-8000-000000000461",
+        "label": "Main-d'œuvre",
         "delta": "1200.00"
       },
       {
         "dimension": "cost_type",
         "key": "01926f3a-7c00-7000-8000-000000000462",
+        "label": "Débours",
         "delta": "-350.00"
       },
       {
         "dimension": "cost_type",
         "key": "01926f3a-7c00-7000-8000-000000000463",
+        "label": "Provision",
         "delta": "500.00"
       },
       {
         "dimension": "subproject",
         "key": "01926f3a-7c00-7000-8000-000000000801",
+        "label": "Poste de commande",
         "delta": "850.00"
       },
       {
         "dimension": "subproject",
         "key": "unassigned",
+        "label": null,
         "delta": "500.00"
       }
     ]

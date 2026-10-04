@@ -43,6 +43,10 @@
           "task.start",
           "task.finish",
           "task.progress"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description"
         ]
       },
       {
@@ -83,6 +87,13 @@
         "computed_fields": [
           "task.start",
           "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.progress"
         ]
       },
       {
@@ -118,7 +129,16 @@
           "total_float_days": null,
           "is_critical": false
         },
-        "computed_fields": []
+        "computed_fields": [],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ]
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000524",
@@ -168,6 +188,13 @@
         "computed_fields": [
           "task.start",
           "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.progress"
         ]
       },
       {
@@ -226,6 +253,12 @@
         "computed_fields": [
           "task.start",
           "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.progress"
         ]
       },
       {
@@ -275,6 +308,13 @@
         "computed_fields": [
           "task.start",
           "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.progress"
         ]
       }
     ],

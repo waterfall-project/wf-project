@@ -1,11 +1,12 @@
 {
-  "summary": "Le même bloc, dont la deuxième ligne porte une catégorie qu'aucune du référentiel ne nomme, « Essais » : cette ligne est refusée et les deux autres seraient écrites ; un collage partiellement invalide ne s'applique pas (WF-IHM-0050).",
+  "summary": "Le même bloc, dont la deuxième ligne porte une catégorie qu'aucune du référentiel ne nomme, « Essais » : cette ligne est refusée, sa cellule nommée par sa colonne, et les deux autres seraient écrites ; un collage partiellement invalide ne s'applique pas (WF-IHM-0050).",
   "value": {
     "paste_id": "01926f3a-7c00-7000-8000-000000000912",
     "accepted": 2,
     "rejected": [
       {
         "row": 1,
+        "column": "cost_category",
         "code": "UNKNOWN_COST_CATEGORY"
       }
     ]

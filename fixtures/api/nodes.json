@@ -38,6 +38,10 @@
           "task.start",
           "task.finish",
           "task.progress"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description"
         ]
       },
       {
@@ -76,6 +80,13 @@
         "computed_fields": [
           "task.start",
           "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.progress"
         ]
       },
       {
@@ -102,7 +113,15 @@
             "missing_conditions": []
           }
         },
-        "computed_fields": []
+        "computed_fields": [],
+        "editable_fields": [
+          "estimate_line.label",
+          "estimate_line.cost_category_id",
+          "estimate_line.quantity",
+          "estimate_line.unit_disbursement",
+          "estimate_line.payment_delay_days",
+          "estimate_line.subproject_id"
+        ]
       },
       {
         "node_id": "01926f3a-7c00-7000-8000-000000000504",
@@ -140,6 +159,13 @@
         "computed_fields": [
           "task.start",
           "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.progress"
         ],
         "predecessors": [
           {

@@ -383,7 +383,7 @@ class _Emitter:
     def task(self, task: Task, place: _Place) -> Decimal:
         """Append a task, its lines and its subordinates; return the amount they carry."""
         facet = _task_facet(task)
-        node = _node(task.row, place, "task", facet, _task_computed(task))
+        node = _node(task.row, place, "task", facet, _task_fields(task))
         if task.predecessors:
             node["predecessors"] = [
                 {
@@ -410,20 +410,23 @@ class _Emitter:
     def _line(self, task: Task, index: int, level: int, *, completed: bool) -> Decimal:
         line, amount, hours = _line(task, index, completed=completed)
         kind = LINE_KINDS[index]
-        computed: list[JsonValue] = (
-            ["estimate_line.quantity", "estimate_line.unit_disbursement"]
-            if kind.is_provision
-            else []
-        )
         place = _Place(task, index, level)
-        self.items.append(_node(task.row + 1 + index, place, "estimate_line", line, computed))
+        self.items.append(
+            _node(task.row + 1 + index, place, "estimate_line", line, _line_fields(kind))
+        )
         self.totals.add(kind, _subproject(task, kind), amount, hours)
         return amount
 
 
-def _node(
-    row: int, place: _Place, kind: str, facet: JsonObject, computed: list[JsonValue]
-) -> JsonObject:
+@dataclass(frozen=True, slots=True)
+class _Fields:
+    """What a node says of the fields of its facet: those computed here, those it accepts."""
+
+    computed: list[JsonValue]
+    editable: list[JsonValue]
+
+
+def _node(row: int, place: _Place, kind: str, facet: JsonObject, fields: _Fields) -> JsonObject:
     return {
         "node_id": identifier(_NODE, row),
         "lineage_id": identifier(_LINEAGE, row),
@@ -434,7 +437,8 @@ def _node(
         "level": place.level,
         "lock_version": 1,
         kind: facet,
-        "computed_fields": computed,
+        "computed_fields": fields.computed,
+        "editable_fields": fields.editable,
     }
 
 
@@ -477,11 +481,51 @@ def _span(task: Task) -> JsonObject:
     return {"start": start, "finish": work_instant(task.end, HOURS_PER_DAY)}
 
 
-def _task_computed(task: Task) -> list[JsonValue]:
+def _task_fields(task: Task) -> _Fields:
+    """Return what a task computes and what it accepts (WF-PLA-0130).
+
+    The tasks are in automatic mode: their dates are computed, none is entered. A summary
+    computes its duration and its progress too, and accepts its label and description alone; a
+    milestone has no duration to enter.
+    """
     dates: list[JsonValue] = ["task.start", "task.finish"]
+    editable: list[JsonValue] = ["task.label", "task.description"]
     if task.is_summary:
-        return ["task.duration", *dates, "task.progress"]
-    return dates
+        return _Fields(["task.duration", *dates, "task.progress"], editable)
+    editable.append("task.scheduling_mode")
+    if not task.is_milestone:
+        editable.append("task.duration")
+    editable.append("task.progress")
+    return _Fields(dates, editable)
+
+
+def _line_fields(kind: LineKind) -> _Fields:
+    """Return what a line computes and what it accepts (WF-DEV-0020).
+
+    A labour line takes its role and its hours, and no payment delay, nil for labour (§3.2.5);
+    another takes its unit disbursement and its payment delay; a provision computes its
+    quantity and its unit disbursement from its risk, and takes neither, nor its category
+    (WF-RIS-0010).
+    """
+    editable: list[JsonValue] = ["estimate_line.label"]
+    if kind.is_provision:
+        editable.extend(["estimate_line.payment_delay_days", "estimate_line.subproject_id"])
+        return _Fields(["estimate_line.quantity", "estimate_line.unit_disbursement"], editable)
+    editable.append("estimate_line.cost_category_id")
+    if kind.rate is not None:
+        editable.extend(
+            ["estimate_line.resource_role_id", "estimate_line.quantity", "estimate_line.hours"]
+        )
+    else:
+        editable.extend(
+            [
+                "estimate_line.quantity",
+                "estimate_line.unit_disbursement",
+                "estimate_line.payment_delay_days",
+            ]
+        )
+    editable.append("estimate_line.subproject_id")
+    return _Fields([], editable)
 
 
 def _line(task: Task, index: int, *, completed: bool) -> tuple[JsonObject, Decimal, Decimal]:
@@ -531,13 +575,19 @@ def _subproject(task: Task, kind: LineKind) -> str | None:
 # --- The indicators of its estimate -------------------------------------------------------
 
 
+def computable(value: str) -> JsonObject:
+    """Return a value under the envelope of what may not be computable, computed (WF-IND-0010)."""
+    return {"is_computable": True, "value": value, "reason": None}
+
+
 def estimate_indicators(
-    totals: Totals, context: JsonValue, delta: JsonValue, labels: Mapping[str, str]
+    totals: Totals, witness: Mapping[str, JsonValue], labels: Mapping[str, str]
 ) -> JsonObject:
     """Return the answer of getEstimateIndicators for the lines of the structure.
 
-    The calculation context and the gap to the previous revision are the witness's, the
-    labels of the natures and subprojects those of the universe.
+    Every rate is set: each amount is computable. The calculation context and the gaps to the
+    reference and to the previous revision are the witness's, the labels of the natures and
+    subprojects those of the universe; the structure is phased, not cut in order items.
     """
     natures = [(nature, totals.by_cost_type[nature]) for nature in (LABOR, NON_LABOR, PROVISION)]
     subprojects = [
@@ -545,12 +595,14 @@ def estimate_indicators(
         for subproject in (SUBPROJECT_CONTROL, SUBPROJECT_TESTS, None)
     ]
     return {
-        "context": context,
-        "total": money(totals.amount),
+        "context": witness["context"],
+        "total": computable(money(totals.amount)),
         "by_cost_type": breakdown(natures, totals.amount, labels),
         "by_subproject": breakdown(subprojects, totals.amount, labels),
+        "by_order_item": None,
         "provisions_identified": money(totals.by_cost_type[PROVISION]),
-        "delta_to_previous_revision": delta,
+        "delta_to_reference": witness["delta_to_reference"],
+        "delta_to_previous_revision": witness["delta_to_previous_revision"],
     }
 
 
@@ -560,7 +612,8 @@ def breakdown(
     """Return the parts of a total, each with its share; the shares sum to one exactly.
 
     A share is rounded to four decimals, and what the rounding leaves goes to the largest
-    part. A part without a key is the set outside the subprojects, `unassigned`.
+    part. A part without a key is the set outside the subprojects, `unassigned`. Every amount
+    and every share is computable: the rates of the universe are all set.
     """
     shares = [(amount / total).quantize(SHARE) for _, amount in entries]
     largest = max(range(len(entries)), key=lambda index: entries[index][1])
@@ -570,7 +623,7 @@ def breakdown(
         part: JsonObject = (
             {"key": "unassigned"} if key is None else {"key": key, "label": labels[key]}
         )
-        part["amount"] = money(amount)
-        part["share"] = decimal(share)
+        part["amount"] = computable(money(amount))
+        part["share"] = computable(decimal(share))
         parts.append(part)
     return parts
