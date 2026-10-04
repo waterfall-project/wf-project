@@ -375,6 +375,18 @@ niveau demandé —, et le suivi offre de télécharger le résultat d'une tâch
 de Next le lit (`getBackgroundTaskResult`) et le transmet en pièce jointe, sans sa longueur, que
 `fetch` a décodée, à la route `/tasks/[taskId]/result` (#323).
 
+Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
+hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
+retenus (`states`), la période (`from`, `to`), la date de calcul (`as_of`) et le nœud d'organisation
+(`org_node_id`), offert par `listOrgNodes`, chaque nœud nommé avec son parent comme le serveur les
+rend —, de ce périmètre ce que l'opération prend (`perimeterQuery`, `Takes`). Un état se montre
+pressé comme l'adresse le demande, ou, quand elle n'en nomme aucun, comme le serveur les a retenus
+(`scope.states`) : le front ne suppose aucun défaut. Sous le titre, le périmètre que le serveur a
+retenu et la date de calcul de la vue, `scope.as_of` (`PortfolioHeader`), que portent tous ses
+chiffres. La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
+cherchée et paginée par le serveur, sa ligne de totaux le nombre de projets retenus
+(`meta.total`), sous la valeur du portefeuille ; le libellé d'un projet l'ouvre (WF-PTF-0030).
+
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
 vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une
@@ -497,14 +509,16 @@ Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summ
 `value`), et le contrat le cite par `$ref` ; le bundle l'embarque. Ses nombres reprennent
 ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
 
-Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`, la
-structure dans `wftools.mockstructure`) les engendre dans `fixtures/api/volume/`, qu'on ne
+Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`, le
+portefeuille dans `wftools.mockportfolio`, la structure dans `wftools.mockstructure`) les engendre dans `fixtures/api/volume/`, qu'on ne
 retouche pas — la structure de mille tâches et de cinq mille lignes, premier exemple de
 `listNodes`, et les indicateurs de son devis, premier exemple de `getEstimateIndicators`,
 sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même
 total ; ce dont dépend la date de fin de sa première récapitulative, ses subordonnées directes
 nommées de la même structure, premier exemple de `getComputedValueDependencies`, que le refus
-d'une saisie lit dans les parcours ; les trois cents projets de `getPortfolioProjects`, les deux cents catégories de
+d'une saisie lit dans les parcours ; les trois cents projets de `getPortfolioProjects`, et les vues
+du portefeuille qui se somment de leurs lignes — la valeur, la performance, la structure des coûts et
+les risques —, les deux cents catégories de
 `listCostCategories`, quinze ans de taux de `listHourlyRates` et la grille des taux horaires de
 `getHourlyRateGrid`, cent cinquante catégories sur quinze ans. Les exemples nommés
 (`witness`…) restent pour les tests de composants. Les indicateurs du projet
@@ -517,8 +531,10 @@ ne lit ni l'horloge ni le hasard : chaque valeur tirée vient de l'empreinte d'u
 et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets. Un exemple de volume
 s'écrit une ligne par élément, pour qu'un changement se lise dans le diff. Les repères que
 lisent les parcours de bout en bout — numéros de ligne, libellés, totaux — sont fixés par
-`test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`) : un changement du
-générateur qui les déplace échoue là, avant les parcours.
+`test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`) pour la structure, et
+ceux du portefeuille par `test_the_marks_the_portfolio_journey_reads`
+(`tools/tests/test_mockdata.py`) : un changement du générateur qui les déplace échoue là, avant
+les parcours.
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde

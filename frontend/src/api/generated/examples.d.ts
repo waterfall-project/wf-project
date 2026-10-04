@@ -26,11 +26,29 @@ export interface Examples {
   "GET /permissions": {
     200: "permissions";
   };
+  "GET /portfolio/cash-out": {
+    200: "portfolio_cash_out";
+  };
+  "GET /portfolio/cost-structure": {
+    200: "volume/portfolio_cost_structure";
+  };
+  "GET /portfolio/performance": {
+    200: "volume/portfolio_performance";
+  };
   "GET /portfolio/pilot-health": {
     200: "pilot_health";
   };
   "GET /portfolio/projects": {
-    200: "volume/portfolio_projects";
+    200: "portfolio_projects_empty" | "volume/portfolio_projects" | "volume/portfolio_projects_page";
+  };
+  "GET /portfolio/risks": {
+    200: "volume/portfolio_risks";
+  };
+  "GET /portfolio/value": {
+    200: "volume/portfolio_value";
+  };
+  "GET /portfolio/workload": {
+    200: "portfolio_workload";
   };
   "GET /projects": {
     200: "projects" | "projects_empty";

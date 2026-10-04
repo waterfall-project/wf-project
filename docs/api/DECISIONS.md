@@ -725,6 +725,45 @@ deux par deux, sa deuxième page) et `imports_empty` ;
 résultat à lire par la tâche). L'application de l'import du devis est `task_import_queued`, à
 9 h.
 
+## Les exemples du portefeuille (US-0240/L3)
+
+**Les vues du portefeuille ont leurs exemples**, faits par le lot de leurs écrans sur
+l'autorisation de l'utilisateur du 2026-10-04 (un lot d'écran ajoute les exemples des
+opérations qu'il consomme). Sans eux, le faux back tirait de leurs schémas des valeurs sans
+rapport avec les trois cents projets de `getPortfolioProjects`. **Ce qui se somme des lignes de
+la liste est engendré avec elle** (`make mock-data`, `fixtures/api/volume/`), au 16 mars 2026 :
+la valeur (`portfolio_value`, `getPortfolioValue` : le carnet des projets en cours, le pipeline
+brut et pondéré des offres, rien de réalisé — aucun projet du périmètre n'est terminé —, et le
+taux de transformation du Vérif de WF-PTF-0050, quatre offres gagnées sur dix sorties du
+chiffrage dans l'année) ; la performance (`portfolio_performance`, `getPortfolioPerformance` :
+chaque indice en rapport des sommes, la valeur acquise, le coût réel et la valeur planifiée de
+chaque projet tirés de son budget et de ses indices — ceux du projet témoin, de
+`project_indicators` —, la répartition par zone comptant chaque projet une fois par indice, le
+projet témoin sans zone de coût, et quatre trimestres d'évolution) ; la structure des coûts
+(`portfolio_cost_structure`, `getPortfolioCostStructure` : le budget et le reste à engager par
+nature, dont les parts somment à un, et la main-d'œuvre du bureau d'études électricité, le nœud
+dont relèvent tous les rôles de l'univers) ; les risques (`portfolio_risks`,
+`getPortfolioRisks` : le registre du projet témoin et jusqu'à trois risques identifiés par autre
+projet en cours, chacun tiré d'abord dans une case de la matrice, puis sa probabilité et sa gravité
+dans les bornes des niveaux de cette case (`risk_matrix`), sa provision la gravité pondérée par la
+probabilité (WF-RIS-0010) ; les dix plus lourds avec leur projet) ; et la deuxième page de cinquante
+projets de la liste (`portfolio_projects_page`).
+**Ce que la liste ne porte pas s'écrit à la main**, au même instant et sur le même périmètre :
+`portfolio_workload` (`getPortfolioWorkload` : deux rôles de `resource_roles` sur six mois, au
+seuil de 50 %, chaque mois avec sa zone) et `portfolio_cash_out` (`getPortfolioCashOut` :
+d'octobre 2025 à septembre 2026, mars portant le passé et l'avenir). `portfolio_projects_empty`
+est la liste filtrée qui ne retient aucun projet. `pilot_health` reste au 1er juin, l'exemple de
+l'US-0160. Les montants des exemples écrits à la main ne sont pas tirés des trois cents projets :
+leur échelle se suit dans #287.
+
+**La période des statistiques, par défaut, est l'année qui précède la date de calcul.** Les
+statistiques d'une période — le réalisé et le taux de transformation de la valeur (WF-PTF-0050),
+les provisions survenues et écartées des risques (WF-PTF-0090) — se calculent sur `from` et
+`to` ; quand la requête ne les nomme pas, le serveur retient les douze mois qui finissent à la date
+de calcul, et les rend dans `scope.from` et `scope.to`, que l'écran affiche avec la vue
+(WF-IHM-0020). La liste des projets, qui ne retient de projet terminé que sur une période demandée,
+rend alors une période nulle.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

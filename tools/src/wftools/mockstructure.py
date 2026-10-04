@@ -22,16 +22,28 @@ version of Python. ``wftools.mockdata`` writes it.
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from wftools import REPOSITORY
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
 type JsonValue = str | int | bool | list[JsonValue] | dict[str, JsonValue] | None
 type JsonObject = dict[str, JsonValue]
+
+FIXTURES = REPOSITORY / "fixtures" / "api"
+"""Where the examples of the contract live, those of the universe by their name."""
+
+
+def fixture(name: str) -> Any:
+    """Return the value of an example of the universe, from its fixture."""
+    return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))["value"]
+
 
 SEED = "waterfall-4.6.2"
 """The seed every drawn value is hashed with: changing it changes every volume."""

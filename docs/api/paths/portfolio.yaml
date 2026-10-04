@@ -66,6 +66,8 @@
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
             examples:
               volume: { $ref: ../../../fixtures/api/volume/portfolio_projects.json }
+              page: { $ref: ../../../fixtures/api/volume/portfolio_projects_page.json }
+              empty: { $ref: ../../../fixtures/api/portfolio_projects_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -90,6 +92,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioValue }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_value.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -119,6 +123,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioWorkload }
+            examples:
+              witness: { $ref: ../../../fixtures/api/portfolio_workload.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -143,6 +149,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioPerformance }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_performance.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -165,6 +173,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostStructure }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_cost_structure.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -188,6 +198,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioRisks }
+            examples:
+              volume: { $ref: ../../../fixtures/api/volume/portfolio_risks.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -211,6 +223,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCashOut }
+            examples:
+              witness: { $ref: ../../../fixtures/api/portfolio_cash_out.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
