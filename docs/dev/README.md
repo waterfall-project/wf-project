@@ -340,7 +340,8 @@ par le libellé que le serveur résout à la lecture, actif ou désactivé — j
 listes dans le front ; une section se nomme par `aria-label` (#251).
 
 L'écran des imports et exports, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
-US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte ; un
+US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte, comme
+celui de l'écran des coûts réels ; un
 import s'applique pourtant à la révision en cours, créée au besoin (WF-INTF-0090), quelle que soit
 la révision lue. Un import se fait en deux temps (WF-ARC-0100) : la commande de sa nature ouvre dans
 la page le choix du fichier — et, pour une extraction de coûts réels, la période qu'elle couvre —,

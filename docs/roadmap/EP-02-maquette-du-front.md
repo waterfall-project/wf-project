@@ -1109,9 +1109,19 @@ temps du contrat se tient à l'écran.
 **Notes de réalisation.** L'écran est la feuille FBS-4.3.4 (Imports / Exports) du planning,
 `…/revisions/[revisionId]/exchanges`, de la portée et de la permission du planning, sur le modèle
 du plan de charge (FBS-4.4.4) : l'en-tête de l'écran du planning, son point d'accès d'après la
-spécification, y mène dans le même contexte. Il offre aussi l'import des coûts réels, qui suit
-`import_actual_costs` du projet. Cette place est une décision provisoire de l'agent de livraison
-(revue d'US-0260/L1), réversible, qui attend la confirmation de l'utilisateur.
+spécification, y mène dans le même contexte, comme l'en-tête de l'écran des coûts réels. Il offre
+aussi l'import des coûts réels, qui suit `import_actual_costs` du projet. Cette place est une
+décision provisoire de l'agent de livraison (revue d'US-0260/L1), réversible, qui attend la
+confirmation de l'utilisateur, et elle a deux conséquences :
+
+- l'écran est de portée révision et se lit sous la permission du planning : un utilisateur qui
+  exerce `import_actual_costs` sans lire le planning y arrive par l'écran des coûts réels, mais
+  pas s'il ne lit pas non plus les coûts réels ;
+- un projet sans aucune révision ne peut plus rien importer, alors que l'import des coûts réels
+  n'a pas besoin de révision et que WF-INTF-0090 dit que l'import en crée une au besoin.
+
+L'alternative est un écran de portée projet, `/projects/[projectId]/…`, hors des feuilles de la
+FBS, que le premier passage du lot avait pris.
 
 ## US-0270 — Le front n'appelle l'API que par le client engendré
 
