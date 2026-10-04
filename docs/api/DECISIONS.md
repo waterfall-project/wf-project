@@ -580,7 +580,26 @@ du budget de référence porte deux points à la date de la marche, la valeur d'
 d'après, dans cet ordre, et non la seule valeur d'après, que le tracé relierait au point précédent
 par une pente (relevé par la revue de la PR #289) ; le front trace les points tels quels.
 `earned_value_curves` (`getEarnedValueCurves`) prolonge la valeur planifiée jusqu'à la fin de la
-référence. Les exemples du plan de charge viendront avec son écran (#286).
+référence. Les exemples du plan de charge sont venus avec son écran (US-0240/L4, ci-dessous).
+
+## Les exemples du plan de charge (US-0240/L4)
+
+**Le plan de charge et ce que son écran offre au choix ont leurs exemples** (#286, même
+autorisation de l'utilisateur du 2026-10-04). `getProjectWorkload` a un exemple par base, tous au
+16 mars 2026 comme les courbes : `workload`, sur le reste à engager de la révision en cours, le
+premier, que le faux back sert ; `workload_reference_budget`, sur les montants budgétés de la
+révision de référence ; `workload_marked_remaining`, sur les montants réestimés de la révision
+marquée « Référence », nommée par `revision_id`. Chacun répartit les 12,5 heures de main-d'œuvre
+du raccordement des borniers, portées par le câblage des armoires du 4 mai au 30 juin, sur ces deux
+mois au prorata de leurs heures travaillées — 5,95 en mai, 6,55 en juin —, pour l'ingénieur
+électricien, sa capacité en regard ; le technicien de mise en service, du même nœud
+d'organisation, n'a pas de charge, et sa capacité seule. Ces exemples suivent le devis de
+`nodes_estimate`, non les montants de `project_indicators` : ils sont de l'univers du devis, que la
+scission des univers témoins (#287) nomme déjà. `org_nodes` (`listOrgNodes`) est l'arbre
+d'organisation qui classe ces rôles — la direction technique, le bureau d'études électriques et le
+service des essais —, que l'écran offre au filtre ; `revisions_marked` (`listRevisions`, filtre
+`status=marked`), les deux révisions marquées du projet, la référence et l'offre v1.0, que l'écran
+offre comme base. Aucune forme du contrat ne change : rien que des exemples.
 
 ## Collage et annulation
 
