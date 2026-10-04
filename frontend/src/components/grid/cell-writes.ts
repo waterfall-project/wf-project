@@ -24,8 +24,10 @@
  * answer about another row than the one written is a failure of the service. A refusal stays told
  * until the notice clears it, whatever writes succeed after it. Rows a paste wrote together take
  * the place of those read the same way, the cells of each row written after them starting from
- * them; a cell write launched before the paste and answered after it is dropped whole — its row
- * and its outcome —, never put in place of a row the paste wrote (WF-IHM-0050).
+ * them (WF-IHM-0050). A cell written before a paste and answered after it is taken as any answer,
+ * its place among the writes deciding which of the two a row shows (#202); only its refusal is
+ * kept quiet when the paste wrote its row since — the row shows the paste, the refusal no longer
+ * says anything of it.
  */
 "use client";
 
@@ -148,8 +150,9 @@ export function useCellWrites<Row, Totals>(
   // each row under way, which the next waits for.
   const last = useRef(answersOf<Row, Totals>(reading));
   const queues = useRef(new Map<string, Promise<void>>());
-  // Moved on by each paste applied: a write born under an older generation answers too late.
-  const generation = useRef(0);
+  // How many pastes wrote each row: a refusal of a write the paste of its row overtook says
+  // nothing of the row shown.
+  const pasted = useRef(new Map<string, number>());
   // The writes under way, whether one was done since the totals were last read anew, and the
   // reading of the totals an answer belongs to — moved on by each write that leaves.
   const underWay = useRef(0);
@@ -215,7 +218,7 @@ export function useCellWrites<Row, Totals>(
   const write = ({ row, column, entry, value, shown: showing }: CellWrite<Row, Totals>) => {
     const key = rowKey(row);
     const cell = cellKey(key, column);
-    const born = generation.current;
+    const born = pasted.current.get(key) ?? 0;
     const memory = answers();
     underWay.current += 1;
     retotals.current += 1;
@@ -223,8 +226,8 @@ export function useCellWrites<Row, Totals>(
     const queued = (queues.current.get(key) ?? Promise.resolve()).then(async () => {
       const from = shownRow(memory, rowKey, key) ?? row;
       const answer = answering(key, await entry.write(from, value).catch(() => UNREACHABLE));
-      const stale = born !== generation.current;
-      const data = answer.kind === "done" && !stale ? answer.data : undefined;
+      const stale = answer.kind !== "done" && born !== (pasted.current.get(key) ?? 0);
+      const data = answer.kind === "done" ? answer.data : undefined;
       if (data !== undefined) {
         take(memory, data, rowKey);
         done.current = true;
@@ -235,7 +238,8 @@ export function useCellWrites<Row, Totals>(
         ...(data === undefined ? {} : shown(memory, rowKey)),
         pending: changed(before.pending, cell, undefined),
         // A refusal stays told until the notice clears it: a later write done says nothing of
-        // it. A stale answer says nothing at all: it belongs to the rows before the paste.
+        // it. A refusal a paste of its row overtook says nothing at all: it belongs to the row
+        // before the paste.
         outcome:
           stale || (answer.kind === "done" && before.outcome !== undefined)
             ? before.outcome
@@ -246,7 +250,10 @@ export function useCellWrites<Row, Totals>(
     queues.current.set(key, queued);
   };
   const applied = (together: RowsWritten<Row, Totals>) => {
-    generation.current += 1;
+    for (const row of together.rows) {
+      const key = rowKey(row);
+      pasted.current.set(key, (pasted.current.get(key) ?? 0) + 1);
+    }
     const memory = answers();
     take(memory, together, rowKey);
     done.current = true;

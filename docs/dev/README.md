@@ -261,8 +261,10 @@ montre une boîte de dialogue de shadcn (`PasteDialog`, `ui/dialog.tsx`), dans u
 annoncée — ce qui sera écrit, chaque ligne refusée par sa place dans le bloc, ses cellules
 telles que copiées et son motif ; un plan qui refuse une ligne n'annonce que des lignes valides,
 rien ne sera écrit —, et `applyPaste` l'applique sur confirmation, en une seule opération ; ce
-qu'il rend prend la place de ce qui était lu (`CellWrites.applied`), et une écriture de
-cellule partie avant le collage et répondue après est ignorée tout entière. Un plan qui refuse
+qu'il rend prend la place de ce qui était lu (`CellWrites.applied`) ; une écriture de cellule
+partie avant le collage et répondue après se prend comme toute réponse, le compteur de la
+structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et seul son refus se
+tait quand le collage a écrit sa ligne depuis. Un plan qui refuse
 une ligne ne s'applique pas : la boîte n'offre que l'abandon. Échap abandonne, une réponse
 arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien du
 contenu : la colonne visée part sous son nom de `sort_by`, et la confirmation porte la version

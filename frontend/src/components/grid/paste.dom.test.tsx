@@ -351,11 +351,12 @@ describe("a block pasted from a spreadsheet", () => {
     expect(bodies(client, APPLY)).toEqual([]);
   });
 
-  it("keeps the rows a paste wrote when a cell written before it answers after them", async () => {
+  it("shows what a cell written before a paste answers after it, later in the structure: its row, the tasks above it, the totals", async () => {
     let release: () => void = () => undefined;
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
+    // The paste answers the structure at its version 2, the cell written at 3.
     const client = fakeClient(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
       { hold: (route) => (route === LINE ? held : undefined) },
@@ -363,7 +364,7 @@ describe("a block pasted from a spreadsheet", () => {
     server.client = client;
     renderGrid();
     // The label of the row 4 is entered and validated: its write leaves, the server yet to
-    // answer; the block is then pasted on the same row and confirmed.
+    // answer; the block is then pasted on the same row and confirmed, and answers first.
     cell(FIRST, "label").focus();
     await userEvent.keyboard("X{Enter}");
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
@@ -374,20 +375,66 @@ describe("a block pasted from a spreadsheet", () => {
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
-    // The write answers the row as it was before the paste: dropped whole, the pasted row stays.
+    // The paste answered first: its rows shown, the cell under way showing what was validated.
+    expect(labels()).toEqual(["X", "Heures d'essais", "Matériel de câblage"]);
+    // The write answers after it, later in the structure: its row, the tasks above, the totals.
     await act(async () => {
       release();
       await held;
     });
     await vi.waitFor(() => {
-      expect(labels()).toEqual([
-        "Heures de câblage et repérage",
-        "Heures d'essais",
-        "Matériel de câblage",
-      ]);
+      expect(labels()).toEqual(["Heures de câblage", "Heures d'essais", "Matériel de câblage"]);
     });
+    expect(amounts([0, 1, 2])).toEqual([
+      "5\u202f555\u202f710,00",
+      "1\u202f960\u202f843,85",
+      "36\u202f209,25",
+    ]);
+    expect(totalAmount()).toBe("60\u202f553\u202f621,36");
     expect(bodies(client, LINE)).toEqual([{ label: "X", lock_version: 1 }]);
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps quiet the refusal of a cell written before a paste of its row, and tells that of another row (#202)", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const client = fakeClient(
+      {
+        [PREVIEW]: "paste_plan",
+        [APPLY]: "paste_applied",
+        [LINE]: [
+          { problem: { code: "STALE_LOCK_VERSION", status: 412 } },
+          { problem: { code: "REVISION_MARKED", status: 409 } },
+        ],
+      },
+      { hold: (route) => (route === LINE ? held : undefined) },
+    );
+    server.client = client;
+    renderGrid();
+    // A row the paste writes, then one it does not: both writes leave, the server yet to answer.
+    cell(FIRST, "label").focus();
+    await userEvent.keyboard("X{Enter}");
+    cell(FIRST + 4, "label").focus();
+    await userEvent.keyboard("Y{Enter}");
+    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(
+      await within(dialog).findByRole("button", { name: "Appliquer le collage" }),
+    );
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    await act(async () => {
+      release();
+      await held;
+    });
+    // The refusal of the row the paste wrote says nothing of what it shows; the other is told.
+    expect(await screen.findByRole("alert")).toHaveTextContent(/marquée/);
+    expect(screen.getByRole("alert")).not.toHaveTextContent(/modifié cette donnée/);
+    expect(labels()[0]).toBe("Heures de câblage et repérage");
+    expect(bodies(client, LINE)).toHaveLength(2);
   });
 
   it("carries the highest version of the structure told, and keeps what a later write answered, whatever the order the answers come back in", async () => {
