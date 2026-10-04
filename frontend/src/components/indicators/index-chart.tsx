@@ -136,6 +136,9 @@ export function IndexChart({ kind, history }: IndexChartProps) {
           {
             type: "line" as const,
             name: t("thresholds"),
+            // In the colour of the marks, not the default of ECharts, though nothing of it is drawn
+            // but its marked lines.
+            color: palette.mark,
             data: [],
             markLine: {
               symbol: "none",
