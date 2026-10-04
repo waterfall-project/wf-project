@@ -2729,8 +2729,12 @@ export interface components {
             origin: components["schemas"]["UserOrigin"];
             /** @description Rattachement facultatif, qui n'accorde aucune permission (WF-ADM-0030). */
             org_node_id?: components["schemas"]["Uuid"] | null;
+            /** @description Libellé du nœud de rattachement, résolu à la lecture, actif ou désactivé (WF-REF-0150) ; nul sans rattachement. Le front ne rapproche pas l'organisation des comptes (WF-ARC-0020). */
+            org_node_label: string | null;
             /** @description Un ou plusieurs rôles ; l'utilisateur dispose de l'union de leurs permissions (WF-ADM-0090). */
             access_role_ids: components["schemas"]["Uuid"][];
+            /** @description Libellés des rôles de `access_role_ids`, résolus à la lecture, dans le même ordre. Le front ne rapproche pas les rôles des comptes (WF-ARC-0020). */
+            access_role_labels: string[];
             has_avatar?: boolean;
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];

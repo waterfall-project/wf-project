@@ -1,0 +1,11 @@
+{
+  "summary": "Une plateforme qui n'a encore aucune sauvegarde.",
+  "value": {
+    "items": [],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 0
+    }
+  }
+}

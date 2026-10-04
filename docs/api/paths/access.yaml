@@ -35,6 +35,9 @@
                   type: array
                   items: { $ref: ../components/schemas/access.yaml#/User }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/users.json }
+              page: { $ref: ../../../fixtures/api/users_page.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -254,6 +257,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/access.yaml#/Permission }
+            examples:
+              witness: { $ref: ../../../fixtures/api/permissions.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
 
 /access-roles:
@@ -274,6 +279,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/access.yaml#/AccessRole }
+            examples:
+              witness: { $ref: ../../../fixtures/api/access_roles.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:

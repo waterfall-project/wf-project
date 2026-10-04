@@ -11,6 +11,7 @@ import { readContext } from "./context";
 import {
   diagnosticGroups,
   findScreen,
+  functionAt,
   FUNCTION_GROUPS,
   functionHref,
   functionOf,
@@ -278,4 +279,11 @@ describe("the function an address leads to", () => {
       expect(findScreen(segments)).toBeUndefined();
     },
   );
+});
+
+describe("the function of a code of the FBS", () => {
+  it("is the function of the table under that code, or none", () => {
+    expect(functionAt("FBS-1.2")?.label).toBe("functions.accessRoles");
+    expect(functionAt("FBS-9.9")).toBeUndefined();
+  });
 });

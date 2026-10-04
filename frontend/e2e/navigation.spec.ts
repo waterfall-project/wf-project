@@ -31,6 +31,8 @@ async function open(page: Page, name: string, block?: string) {
 test("a user who opened no project reaches the portfolio, the reference, the administration and the status screen [WF-IHM-0010-A]", async ({
   page,
 }) => {
+  // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/reference/costs", "/admin/users", "/system");
   await page.goto("/");
   await open(page, "Portefeuille de projets", "Portefeuille");
   await expect(page).toHaveURL("/portfolio/projects");
@@ -46,6 +48,8 @@ test("a user who opened no project reaches the portfolio, the reference, the adm
 test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A]", async ({
   page,
 }) => {
+  // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
+  await compile(page.request, `${IN_PROJECT}/risks`);
   await page.goto(`${IN_PROJECT}/remaining${CONTEXT}`);
   await open(page, "Gestion des risques");
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
