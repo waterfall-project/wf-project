@@ -60,6 +60,7 @@ import {
   formatCell,
   type GridColumn,
   type GridConfig,
+  headingOf,
 } from "./columns";
 import { CellEditor } from "./cell-editor";
 import type { EntryProblem } from "./cell-values";
@@ -605,7 +606,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       column.entry === undefined ? null : (
         <CellEditor
           kind={column.entry.kind}
-          label={t(`columns.${column.label}`)}
+          label={headingOf(column, (key) => t(`columns.${key}`))}
           text={draft.text}
           typed={draft.typed}
           invalid={draft.problem === undefined ? undefined : invalid}
@@ -622,7 +623,9 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       <GridToolbar
         search={query.search}
         onSearch={search}
-        columns={toggledColumns(table, config, (column) => t(`columns.${column.label}`))}
+        columns={toggledColumns(table, config, (column) =>
+          headingOf(column, (key) => t(`columns.${key}`)),
+        )}
       />
       <OutcomeNotice
         outcome={writer.outcome}

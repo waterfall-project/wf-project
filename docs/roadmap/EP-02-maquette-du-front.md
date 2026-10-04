@@ -1040,7 +1040,7 @@ sans que le front ait à sommer quoi que ce soit.
 
 ## US-0250 — Écrans du référentiel et de l'administration
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — EP-03 et EP-05
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listCostTypes`, `listCostCategories`,

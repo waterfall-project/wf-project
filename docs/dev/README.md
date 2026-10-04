@@ -283,6 +283,19 @@ retirée à la survenance, historique des réexamens. Le libellé d'un risque es
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 
+Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/components/reference/`,
+US-0250) sont hors projet, aux routes de leurs fonctions. Les paramètres de coûts disent la devise
+de l'installation et présentent la grille des taux horaires — une configuration de plus de la
+grille dense (`rate-grid.tsx`), une ligne par catégorie de main-d'œuvre, une colonne par année de
+la réponse, dont l'en-tête est l'année elle-même (`GridColumn.heading`) —, cherchée par le serveur
+(`search`) et sans tri ; une cellule saisie part seule par `setHourlyRate`, sans version au premier
+taux d'une année, avec celle du taux lu pour une correction, et le taux répondu prend sa place. La
+saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`). À côté,
+les natures et les catégories de coût ; les paramètres de ressources présentent l'organisation,
+les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice, ceux
+des indicateurs les seuils des indices et le délai entre deux revues. Un objet rattaché se nomme
+par la liste que la page a lue, ou se dit inconnu ; une section se nomme par `aria-label` (#251).
+
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
 vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une
