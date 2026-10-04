@@ -1,0 +1,13 @@
+{
+  "summary": "L'export du devis de la révision courante, mis en file le 1er juin 2026 à 9 h 10 : il n'a pas encore commencé.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000905",
+    "kind": "export",
+    "status": "queued",
+    "progress": 0,
+    "submitted_at": "2026-06-01T09:10:00Z",
+    "finished_at": null,
+    "problem": null,
+    "result_url": null
+  }
+}

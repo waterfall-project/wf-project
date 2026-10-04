@@ -7,12 +7,14 @@
  * import (WF-CRE-0050); the filters by scope, sub-project and period; the grid of a page of the
  * lines, sorted, filtered and paged by the server as the address asks (`sort_by`,
  * `in_tracked_scope`, `subproject_id`, `from`, `to`, `offset`, under the names of the contract);
- * and the journal of the imports, a page of it. The actual costs belong to the project, not to a
- * revision: the revision of the route is the reading context of the banner alone. Every figure as
- * the API gives it: the front computes, sorts, filters and pages nothing. A read the API refuses,
- * or cannot answer, is thrown for the pages of the shell to say.
+ * and the journal of the imports, a page of it. Its head leads to the imports and exports of the
+ * project (FBS-4.3.4), where the actual costs are imported, in the same context. The actual costs
+ * belong to the project, not to a revision: the revision of the route is the reading context of
+ * the banner alone. Every figure as the API gives it: the front computes, sorts, filters and pages
+ * nothing. A read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -41,9 +43,11 @@ import { CostsGrid } from "@/components/costs/costs-grid";
 import { ImportJournal } from "@/components/costs/import-journal";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
+import { functionHref, leafOf } from "@/navigation/functions";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
@@ -117,8 +121,26 @@ async function readSubprojects({ revision }: GridAddress) {
   return subprojects.map(({ subproject_id, code, label }) => ({ id: subproject_id, code, label }));
 }
 
-/** The title of the screen, and how many lines the filters retain. */
-function CostsHeader({ count }: { readonly count: number }) {
+/**
+ * The imports and exports of the project, a leaf of the planning with a screen of its own, where
+ * the actual costs are imported (`import_actual_costs`).
+ */
+const EXCHANGES = leafOf("FBS-4.3.4");
+
+/** The icon of the imports and exports, which their own screen shows too. */
+const ExchangesIcon = LEAF_ICONS["FBS-4.3.4"];
+
+/**
+ * The title of the screen, and how many lines the filters retain; and the link to the imports and
+ * exports of the project, in the same context.
+ */
+function CostsHeader({
+  count,
+  exchanges,
+}: {
+  readonly count: number;
+  readonly exchanges: string | undefined;
+}) {
   const t = useTranslations();
   return (
     <PageHeader
@@ -126,6 +148,14 @@ function CostsHeader({ count }: { readonly count: number }) {
       icon={FUNCTION_ICONS.actual_costs}
       density={FUNCTION_DENSITY.actual_costs}
       subtitle={t("actualCosts.summary", { count })}
+      actions={
+        exchanges === undefined ? undefined : (
+          <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <ExchangesIcon aria-hidden="true" />
+            {t(EXCHANGES.label)}
+          </Link>
+        )
+      }
     />
   );
 }
@@ -162,7 +192,7 @@ export default async function ActualCostsPage({
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
         <Screen density={FUNCTION_DENSITY.actual_costs} fill>
-          <CostsHeader count={costs.page.total} />
+          <CostsHeader count={costs.page.total} exchanges={functionHref(EXCHANGES, at.context)} />
           <CostSummary totals={costs.costs.totals} lastImport={costs.lastImport} />
           <CostFilterBar
             filters={filters}

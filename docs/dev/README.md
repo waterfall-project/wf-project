@@ -64,8 +64,9 @@ consulter ; une fonction dont la session n'a pas la permission `<fonction>.read`
 pas. La table ne porte encore que le second niveau : les feuilles adressables y entrent avec
 le contrôle de complétude des écrans, que le lot EP-02/L3 (#125) ajoute. Une feuille qui a déjà
 son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même
-permission : le plan de charge du projet, FBS-4.4.4, sous le devis
-(`/projects/[projectId]/revisions/[revisionId]/workload`). La navigation ne l'offre pas —
+permission : les imports et exports, FBS-4.3.4, sous le planning
+(`/projects/[projectId]/revisions/[revisionId]/exchanges`), et le plan de charge du projet,
+FBS-4.4.4, sous le devis (`…/workload`). La navigation ne l'offre pas —
 l'écran de sa fonction y mène, dans le même contexte, et son entrée est marquée courante —,
 mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle.
 Trois portées : hors projet ; `project`, les fonctions du projet lui-même — révisions,
@@ -76,7 +77,8 @@ le projet dans le chemin, la révision dans le chemin ou, sur une fonction du pr
 paramètre `revision_id` ; sous-projet filtré et date de calcul en paramètres, `subproject_id`
 et `as_of`, comme le contrat les nomme. Les liens entre fonctions d'un projet les reportent,
 et un témoin du front, `wf_last_project`, garde le dernier, dont la coquille tire le « retour
-au projet » (WF-IHM-0010) ; il ne ramène qu'à un écran de projet de la table. Chaque route
+au projet » (WF-IHM-0010) ; il ne ramène qu'à un écran de projet de la table, fonction ou feuille
+qui a son écran. Chaque route
 existe dès la coquille, servie par la page d'attente `frontend/src/app/[...path]/page.tsx`,
 qui répond « introuvable » quand l'API ne trouve pas le projet ou la révision ; le lot d'un
 écran écrit sa page à la même route, qui l'emporte sur elle. Les pages du compte
@@ -349,6 +351,29 @@ porte et mène aux pages voisines par `offset` (`ListPages`, `offsetOf`), sans j
 page pour le tout ; elle ne se dit vide que si elle ne tient rien (`meta.total`), et une page
 demandée au-delà de sa fin le dit et ramène à la dernière. L'heure d'une sauvegarde planifiée
 s'affiche telle quelle, « heure de la plateforme », le contrat n'en disant pas le fuseau.
+
+L'écran des imports et exports, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
+US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte, comme
+celui de l'écran des coûts réels ; un
+import s'applique pourtant à la révision en cours, créée au besoin (WF-INTF-0090), quelle que soit
+la révision lue. Un import se fait en deux temps (WF-ARC-0100) : la commande de sa nature ouvre dans
+la page le choix du fichier — et, pour une extraction de coûts réels, la période qu'elle couvre —,
+qu'une action serveur dépose (`uploadFile`) puis analyse (`openImport`) ; un fichier de plus de
+10 Mio, la plus grande taille d'import du §4.6.2, est refusé dans la page, et la borne des actions
+serveur de Next est réglée un peu au-dessus (`next.config.ts`, #324). La tâche de l'analyse va au
+suivi de la coquille, et l'adresse nomme l'import (`import`, un identifiant ou rien), dont la page lit
+le compte rendu (`getImport`) — lignes lues, motifs de confirmation, lignes rejetées par leur place
+et leur motif, rendu comme un refus depuis son code et ses paramètres (`problemMessage`), écarts —,
+dans l'ordre reçu. Les commandes d'un compte rendu sont les siennes : un autre import montré les
+remplace. L'application n'est offerte qu'à un import analysé, et ne part qu'une fois confirmée dans
+la page ; sa tâche va au suivi. L'abandon ramène à l'adresse de départ, si l'écran montre encore cet
+import. Les imports sont offerts comme le serveur offre leur commande (`importOffers`) : les coûts
+réels par `import_actual_costs` du projet, les autres par la commande `edit_*` de la révision en
+cours (#318). La liste des imports, paginée par le serveur (`offset`, `ListPages`), mène au compte
+rendu de chacun ; la demande d'export part pour la révision lue — l'image de l'arborescence au
+niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en a un : le serveur
+de Next le lit (`getBackgroundTaskResult`) et le transmet en pièce jointe, sans sa longueur, que
+`fetch` a décodée, à la route `/tasks/[taskId]/result` (#323).
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
 hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états

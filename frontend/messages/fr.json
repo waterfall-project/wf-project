@@ -301,6 +301,12 @@
         "beyond": "La page demandée est au-delà de la fin du journal.",
         "previous": "Imports plus récents",
         "next": "Imports plus anciens"
+      },
+      "exchanges": {
+        "label": "Pages des imports du projet",
+        "beyond": "La page demandée est au-delà de la fin de la liste.",
+        "previous": "Imports précédents",
+        "next": "Imports suivants"
       }
     },
     "imports": {
@@ -576,7 +582,9 @@
     "interruptedLine": "Suivi interrompu : {task}.",
     "dismiss": "Retirer du suivi : {task}",
     "toggle": "{count, plural, =0 {Tâches de fond} one {Tâches de fond : # suivie} other {Tâches de fond : # suivies}}",
-    "none": "Aucune tâche de fond suivie."
+    "none": "Aucune tâche de fond suivie.",
+    "download": "Télécharger le résultat",
+    "downloadLabel": "Télécharger le résultat : {task}"
   },
   "markRevision": {
     "versionName": "Nom de version",
@@ -956,7 +964,8 @@
     "risks": "Gestion des risques",
     "actualCosts": "Coûts réels",
     "projectIndicators": "Indicateurs projets",
-    "lifecycle": "Cycle de vie du projet"
+    "lifecycle": "Cycle de vie du projet",
+    "exchanges": "Imports et exports"
   },
   "errors": {
     "MALFORMED_REQUEST": "La requête est mal formée.",
@@ -1617,6 +1626,69 @@
       "reference_budget": "Budget de la révision de référence",
       "marked_remaining": "Reste à engager d’une révision marquée",
       "current_remaining": "Reste à engager de la révision en cours"
+    }
+  },
+  "exchanges": {
+    "subtitle": "Importer un fichier en deux temps — l’analyse, puis l’application confirmée — ou demander un export.",
+    "import": {
+      "title": "Importer un fichier",
+      "none": "Aucun import ne vous est offert sur ce projet.",
+      "kinds": {
+        "ms_project_schedule": "Importer un planning MS Project",
+        "estimate": "Importer un devis",
+        "remaining": "Importer un reste à engager",
+        "actual_costs": "Importer des coûts réels"
+      },
+      "file": "Fichier à importer",
+      "fileRequired": "Choisissez le fichier à importer.",
+      "analyse": "Analyser le fichier",
+      "cancel": "Annuler",
+      "period": "Période extraite",
+      "periodFrom": "Du",
+      "periodTo": "Au",
+      "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
+    },
+    "report": {
+      "title": "Compte rendu de l’import « {file} »",
+      "kind": "Nature",
+      "status": "État",
+      "openedAt": "Ouvert le",
+      "expiresAt": "Applicable jusqu’au",
+      "formatVersion": "Version du format",
+      "analysing": "L’analyse du fichier est en cours. Le suivi des tâches de fond vous proposera de recharger l’écran quand elle aura abouti.",
+      "none": "Cet import n’a pas de compte rendu.",
+      "read": "{count, plural, =0 {Aucune ligne lue} one {# ligne lue} other {# lignes lues}}.",
+      "reasons": "Confirmation explicite demandée",
+      "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
+      "rejectedTable": "Lignes rejetées",
+      "row": "Ligne",
+      "motive": "Motif",
+      "differences": "{count, plural, =0 {Aucun écart avec les données existantes} one {# écart avec les données existantes} other {# écarts avec les données existantes}}",
+      "differencesTable": "Écarts avec les données existantes",
+      "change": "Changement",
+      "target": "Objet",
+      "label": "Libellé",
+      "unnamed": "Sans libellé",
+      "apply": "Appliquer l’import",
+      "abandon": "Abandonner l’import",
+      "confirmTitle": "Confirmation de l’application",
+      "confirmQuestion": "Appliquer au projet l’import « {file} », en une seule opération ?",
+      "confirm": "Confirmer l’application",
+      "cancel": "Annuler"
+    },
+    "list": {
+      "title": "Imports du projet",
+      "none": "Aucun import n’a encore été ouvert sur ce projet.",
+      "file": "Fichier",
+      "kind": "Nature",
+      "status": "État",
+      "openedAt": "Ouvert le"
+    },
+    "export": {
+      "title": "Demander un export",
+      "kind": "Fichier à exporter",
+      "request": "Demander l’export",
+      "depth": "Niveau de l’arborescence"
     }
   }
 }

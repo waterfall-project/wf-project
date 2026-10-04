@@ -82,6 +82,23 @@ describe("the breadcrumb", () => {
     ]);
   });
 
+  it("sits the imports and exports after the planning, whose leaf they are", () => {
+    expect(steps(`/projects/${PROJECT}/revisions/${REVISION}/exchanges?import=i`)).toEqual([
+      { kind: "label", label: "functionGroups.projects", href: "/" },
+      {
+        kind: "project",
+        projectId: PROJECT,
+        href: `/projects/${PROJECT}?revision_id=${REVISION}`,
+      },
+      {
+        kind: "label",
+        label: "functions.planning",
+        href: `/projects/${PROJECT}/revisions/${REVISION}/planning`,
+      },
+      { kind: "label", label: "functions.exchanges" },
+    ]);
+  });
+
   it("sits a function of a project whose address names none in its block alone", () => {
     expect(steps("/projects/a.b/lifecycle")).toEqual([
       { kind: "label", label: "functionGroups.projects" },

@@ -70,6 +70,7 @@ describe("the reading context", () => {
     `/projects/${PROJECT}/unknown`,
     `/projects/${PROJECT}/planning`,
     `/projects/${PROJECT}/workload`,
+    `/projects/${PROJECT}/exchanges`,
     `/projects/${PROJECT}/revisions/${REVISION}/lifecycle`,
     `/projects/${PROJECT}/revisions/${REVISION}/risks/more`,
     "/projects/../admin",
