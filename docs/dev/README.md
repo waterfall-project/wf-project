@@ -311,6 +311,22 @@ Un lien de page, comme le libellé d'un risque, part de la dernière adresse dem
 (`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
 en attente —, il mène à leur première page.
 
+Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2.1 à
+FBS-2.7), sont hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du
+contrat — les états retenus (`states`), la période (`from`, `to`) et la date de calcul (`as_of`),
+et, pour le plan de charge agrégé et les décaissements, l'horizon (`horizon_months`) et le seuil de
+sous-charge (`under_load_threshold`), paramètres de la vue et non préférences (WF-PTF-0060), choisis
+parmi des valeurs du contrat écrites telles quelles. Un état se montre pressé comme l'adresse le
+demande, ou, quand elle n'en nomme aucun, comme le serveur les a retenus (`scope.states`) : le front
+ne suppose aucun défaut. Sous le titre, le périmètre que le serveur a retenu et la date de calcul de
+la vue, `scope.as_of` (`PortfolioHeader`), que portent tous ses chiffres. La liste des projets est
+une configuration de plus de la grille dense, triée, cherchée et paginée par le serveur, sa ligne de
+totaux le nombre de projets retenus (`meta.total`), sous la valeur du portefeuille ; chaque projet
+nommé — libellé de la liste, risque le plus lourd, signal de santé — ouvre le projet (WF-PTF-0030).
+Les zones d'indice, de charge et de santé sont celles du serveur, par `Signal` ; l'évolution
+trimestrielle des indices et les décaissements sont des figures de `Chart`, sans export : la
+provenance d'une image nomme un projet et une révision, qu'une vue du portefeuille n'a pas.
+
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
 vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une
@@ -440,7 +456,9 @@ retouche pas — la structure de mille tâches et de cinq mille lignes, premier 
 sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même
 total ; ce dont dépend la date de fin de sa première récapitulative, ses subordonnées directes
 nommées de la même structure, premier exemple de `getComputedValueDependencies`, que le refus
-d'une saisie lit dans les parcours ; les trois cents projets de `getPortfolioProjects`, les deux cents catégories de
+d'une saisie lit dans les parcours ; les trois cents projets de `getPortfolioProjects`, et les vues
+du portefeuille qui se somment de leurs lignes — la valeur, la performance, la structure des coûts et
+les risques —, les deux cents catégories de
 `listCostCategories`, quinze ans de taux de `listHourlyRates` et la grille des taux horaires de
 `getHourlyRateGrid`, cent cinquante catégories sur quinze ans. Les exemples nommés
 (`witness`…) restent pour les tests de composants. Les indicateurs du projet

@@ -123,7 +123,8 @@
       "estimate": "Grille de devis",
       "planning": "Grille de planning",
       "risks": "Registre des risques",
-      "actualCosts": "Coûts réels"
+      "actualCosts": "Coûts réels",
+      "portfolioProjects": "Projets du portefeuille"
     },
     "columns": {
       "rowNumber": "N°",
@@ -154,7 +155,16 @@
       "subproject": "Sous-projet",
       "trackedScope": "Périmètre suivi",
       "excludedReason": "Motif de l’exclusion",
-      "passthrough": "Colonnes conservées du fichier"
+      "passthrough": "Colonnes conservées du fichier",
+      "projectCode": "Code",
+      "referenceBudget": "Budget de référence",
+      "currentEstimate": "Devis courant",
+      "winProbability": "Probabilité de gain",
+      "projectManagerProjection": "Projection du chef de projet",
+      "deltaToReference": "Écart au budget",
+      "costIndex": "Indice de coût",
+      "scheduleIndex": "Indice de délai",
+      "lastMarkedAt": "Dernière révision marquée"
     },
     "computed": "Calculé",
     "unknown": "Référence inconnue",
@@ -304,6 +314,102 @@
       "periodFrom": "à partir du {from}",
       "periodTo": "jusqu’au {to}",
       "periodUnknown": "Non renseignée"
+    }
+  },
+  "portfolio": {
+    "perimeter": {
+      "label": "Périmètre du portefeuille",
+      "states": "États retenus",
+      "period": "Période et date de calcul",
+      "from": "Du",
+      "to": "Au",
+      "asOf": "Calculé au",
+      "apply": "Appliquer",
+      "byDefault": "Par défaut",
+      "horizon": "Horizon",
+      "months": "{months} mois",
+      "threshold": "Seuil de sous-charge"
+    },
+    "scope": {
+      "noPeriod": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · calculé au {asOf}",
+      "period": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période du {from} au {to} · calculé au {asOf}",
+      "since": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période à partir du {from} · calculé au {asOf}",
+      "until": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période jusqu’au {to} · calculé au {asOf}"
+    },
+    "projects": {
+      "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}"
+    },
+    "pages": {
+      "label": "Pages des projets",
+      "beyond": "La page demandée est au-delà de la fin de la liste.",
+      "previous": "Projets précédents",
+      "next": "Projets suivants"
+    },
+    "value": {
+      "title": "Valeur du portefeuille",
+      "orderBook": "Carnet",
+      "pipelineGross": "Pipeline brut",
+      "pipelineWeighted": "Pipeline pondéré",
+      "delivered": "Réalisé",
+      "conversionRate": "Taux de transformation"
+    },
+    "performance": {
+      "indices": "Indices agrégés",
+      "projections": "Projections à terminaison",
+      "atBudget": "Au budget",
+      "projectManager": "Du chef de projet",
+      "atObservedRate": "Au rythme constaté",
+      "distribution": "Répartition des projets par zone",
+      "index": "Indice",
+      "zone": "Zone",
+      "projects": "Projets",
+      "quarterly": "Évolution trimestrielle des indices",
+      "quarterlyDescription": "Courbes de l’indice de coût et de l’indice de délai agrégés du portefeuille, un point par trimestre, calculés aux dates passées.",
+      "quarterColumn": "Trimestre",
+      "quarter": "T{number} {year}",
+      "cost_index": "Indice de coût",
+      "schedule_index": "Indice de délai"
+    },
+    "costStructure": {
+      "noActualCost": "Le coût réel ne se ventile pas par nature : l’ERP ne le fournit pas.",
+      "budget": "Budget de référence par nature",
+      "remaining": "Reste à engager par nature",
+      "labor": "Main-d’œuvre par nœud d’organisation",
+      "nature": "Nature de coût",
+      "orgNode": "Nœud d’organisation",
+      "amount": "Montant",
+      "share": "Part",
+      "unnamed": "Sans nom"
+    },
+    "risks": {
+      "identifiedTotal": "Provisions des risques identifiés",
+      "occurred": "Provisions survenues sur la période",
+      "dismissed": "Provisions écartées sur la période",
+      "heaviest": "Risques les plus lourds",
+      "risk": "Risque",
+      "project": "Projet",
+      "provision": "Provision"
+    },
+    "workload": {
+      "title": "Charge par rôle et par mois",
+      "none": "Aucune charge sur le périmètre et l’horizon choisis.",
+      "role": "Rôle",
+      "capacity": "Capacité mensuelle",
+      "hours": "{hours} h"
+    },
+    "pilotHealth": {
+      "none": "Aucun signal : le pilotage des projets du périmètre est tenu.",
+      "signals": "Signaux de santé du pilotage",
+      "project": "Projet",
+      "signal": "Signal",
+      "zone": "Zone"
+    },
+    "cashOut": {
+      "chartTitle": "Décaissements par mois",
+      "description": "Courbes des décaissements passés, sommes des coûts réels par mois de date de pièce, et des décaissements à venir, sommes des projections des projets, mois par mois.",
+      "month": "Mois",
+      "past": "Décaissé",
+      "forecast": "À décaisser"
     }
   },
   "computedValue": {
