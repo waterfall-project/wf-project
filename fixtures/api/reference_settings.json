@@ -1,5 +1,5 @@
 {
-  "summary": "Les paramètres communs de l'installation : l'euro, sa devise unique ; le français, sa langue par défaut ; la matrice de risques bornée à 10, 30 et 60 % de probabilité et à 1, 5 et 10 % du budget de référence, les zones de ses seize cases dans l'ordre des probabilités puis des gravités croissantes, comme la matrice d'un projet les montre ; les seuils de vigilance et d'alerte des deux indices, 0,9 et 0,8 ; huit semaines au plus entre deux révisions marquées, que le projet témoin, revu il y a onze semaines, dépasse (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180).",
+  "summary": "Les paramètres communs de l'installation : l'euro, sa devise unique ; le français, sa langue par défaut ; la matrice de risques bornée à 10, 30 et 60 % de probabilité et à 1, 5 et 10 % du budget de référence, ses seize zones celles des cases de `risk_matrix` — l'ordre où le contrat les range n'est pas encore dit (#298), celui-ci n'est qu'un choix de l'exemple ; les seuils de vigilance et d'alerte des deux indices, 0,9 et 0,8 ; huit semaines au plus entre deux révisions marquées, que le projet témoin, revu il y a onze semaines, dépasse (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180).",
   "value": {
     "currency_code": "EUR",
     "default_language": "fr",
