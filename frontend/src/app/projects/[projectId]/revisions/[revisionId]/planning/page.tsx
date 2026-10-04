@@ -6,9 +6,11 @@
  * structure of the revision, its tasks alone — the server renders no line for it (`kinds`) —,
  * asked and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer,
  * with the totals of the answer: a header clicked or a search entered changes the address, and
- * this page reads anew (`grid-screen.ts`).
+ * this page reads anew (`grid-screen.ts`). Its head leads to the imports and exports of the
+ * project (FBS-4.3.4), in the same context.
  */
 import type { Metadata } from "next";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { ContextBanner } from "@/components/context/context-banner";
@@ -20,9 +22,11 @@ import {
   PLANNING_SORT_COLUMNS,
 } from "@/components/grid/planning";
 import { PlanningGrid } from "@/components/grid/planning-grid";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
+import { functionHref, leafOf } from "@/navigation/functions";
 
 import { screenMetadata } from "../../../../../title";
 import { gridAddress, readGridScreen } from "../grid-screen";
@@ -38,13 +42,24 @@ export async function generateMetadata({
   return screenMetadata("functions.planning", projectId);
 }
 
-/** The title of the grid, and what it holds: the structure, and its tasks retained. */
+/** The imports and exports of the project, a leaf of the planning with a screen of its own. */
+const EXCHANGES = leafOf("FBS-4.3.4");
+
+/** The icon of the imports and exports, which their own screen shows too. */
+const ExchangesIcon = LEAF_ICONS["FBS-4.3.4"];
+
+/**
+ * The title of the grid, and what it holds: the structure, and its tasks retained; and the link to
+ * the imports and exports of the project, in the same context.
+ */
 function PlanningHeader({
   label,
   totals,
+  exchanges,
 }: {
   readonly label: string;
   readonly totals: NodeTotals;
+  readonly exchanges: string | undefined;
 }) {
   const t = useTranslations();
   return (
@@ -53,6 +68,14 @@ function PlanningHeader({
       icon={FUNCTION_ICONS.planning}
       density={FUNCTION_DENSITY.planning}
       subtitle={t("planningGrid.summary", { structure: label, tasks: totals.task_count })}
+      actions={
+        exchanges === undefined ? undefined : (
+          <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <ExchangesIcon aria-hidden="true" />
+            {t(EXCHANGES.label)}
+          </Link>
+        )
+      }
     />
   );
 }
@@ -66,7 +89,8 @@ export default async function PlanningPage({
   searchParams: Promise<PageSearchParams>;
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
-  const screen = await readGridScreen(gridAddress(revision, search, "planning"), {
+  const at = gridAddress(revision, search, "planning");
+  const screen = await readGridScreen(at, {
     key: PLANNING_GRID.key,
     sortable: PLANNING_SORT_COLUMNS,
     kinds: PLANNING_KINDS,
@@ -76,7 +100,11 @@ export default async function PlanningPage({
     <>
       <ContextBanner reading={screen.reading} />
       <Screen density={FUNCTION_DENSITY.planning} fill>
-        <PlanningHeader label={screen.label} totals={screen.nodes.totals} />
+        <PlanningHeader
+          label={screen.label}
+          totals={screen.nodes.totals}
+          exchanges={functionHref(EXCHANGES, at.context)}
+        />
         <PlanningGrid
           nodes={screen.nodes}
           structure={screen.structure}

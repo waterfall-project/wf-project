@@ -147,7 +147,16 @@
           "label": "functions.planning",
           "route": "/projects/[projectId]/revisions/[revisionId]/planning",
           "scope": "revision",
-          "permission": "planning"
+          "permission": "planning",
+          "leaves": [
+            {
+              "code": "FBS-4.3.4",
+              "label": "functions.exchanges",
+              "route": "/projects/[projectId]/revisions/[revisionId]/exchanges",
+              "scope": "revision",
+              "permission": "planning"
+            }
+          ]
         },
         {
           "code": "FBS-4.4",

@@ -53,6 +53,12 @@ export interface Examples {
   "GET /projects/{project_id}/estimate-indicators/missing-rates": {
     200: "missing_rates" | "missing_rates_none";
   };
+  "GET /projects/{project_id}/imports": {
+    200: "imports" | "imports_empty" | "imports_page";
+  };
+  "GET /projects/{project_id}/imports/{import_id}": {
+    200: "import_analysed" | "import_analysing" | "import_planning_mismatch";
+  };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators";
   };
@@ -156,7 +162,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_running" | "task_succeeded";
+    200: "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_mark_relaunched" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_page";
@@ -170,8 +176,17 @@ export interface Examples {
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed";
   };
+  "POST /file-uploads": {
+    201: "file_upload";
+  };
   "POST /projects/{project_id}/exit": {
     200: "project_completed";
+  };
+  "POST /projects/{project_id}/exports": {
+    202: "task_export_queued";
+  };
+  "POST /projects/{project_id}/imports": {
+    202: "import_analysing";
   };
   "POST /projects/{project_id}/imports/{import_id}/apply": {
     202: "task_import_queued";

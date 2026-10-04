@@ -4149,6 +4149,8 @@ export interface components {
         Import: {
             import_id: components["schemas"]["Uuid"];
             kind: components["schemas"]["ExchangeKind"];
+            /** @description Nom du fichier déposé, tel que l'utilisateur l'a envoyé ; il reste au compte rendu et à la liste des imports quand le fichier lui-même est supprimé (WF-DAT-0120). */
+            filename: string;
             /** @enum {string} */
             status: "analysing" | "analysed" | "applying" | "applied" | "abandoned" | "expired" | "failed";
             created_at: components["schemas"]["Timestamp"];
