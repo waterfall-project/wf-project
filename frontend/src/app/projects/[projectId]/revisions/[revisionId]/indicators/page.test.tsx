@@ -91,6 +91,12 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/indicators": "project_indicators",
     "GET /projects/{project_id}/indicators/index-history": "index_history",
+    "GET /projects/{project_id}/indicators/milestone-tracking": "milestone_tracking",
+    "GET /projects/{project_id}/indicators/cost-curve": "cost_curve",
+    "GET /projects/{project_id}/indicators/earned-value-curves": "earned_value_curves",
+    "GET /projects/{project_id}/workload": "workload",
+    "GET /reference/org-nodes": "org_nodes",
+    "GET /projects/{project_id}/revisions": "revisions_marked",
   };
 });
 
@@ -115,14 +121,19 @@ describe("the screen of the indicators of a project", () => {
       "Physical progress",
       "Cost performance index (CPI)",
       "Schedule performance index (SPI)",
+      "Milestone tracking",
+      "Cumulative costs",
+      "Earned value curves",
+      "Project workload",
     ]);
   });
 
   it("gives each indicator the date it is computed at [WF-IHM-0020-A]", async () => {
     const page = text(html(await IndicatorsPage(at())));
     // One date under the title of each of the five cards, which holds the date of the values in
-    // it, and one under the caption of each evolution of an index.
-    expect(page.match(/Computed on/g)).toHaveLength(5 + 2);
+    // it, one under the caption of each evolution of an index, and one under the caption of each
+    // chart below: the milestones, the cumulative costs, the earned value, the workload.
+    expect(page.match(/Computed on/g)).toHaveLength(5 + 2 + 4);
     expect(page).toContain(
       "Financial progress Computed on Financial progress 0% Budget consumption 0% Actual cost",
     );
@@ -245,8 +256,14 @@ describe("the screen of the indicators of a project", () => {
       "Indicators unavailable The indicators of a project are computed from the In progress state",
     );
     expect(page).not.toContain("Financial progress");
-    // Nor is the evolution of the indices asked: there is none before the state In progress.
+    // Nor is the evolution of the indices asked, nor the cumulative curves: there are none before
+    // the state In progress. The milestones and the workload are.
     expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toBeUndefined();
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toBeUndefined();
+    expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toBeUndefined();
+    expect(page).not.toContain("Cumulative costs");
+    expect(page).toContain("Milestone tracking Time/time diagram");
+    expect(page).toContain("Project workload");
   });
 
   it("does not take a refusal of the same status for another reason as the state of the project", async () => {
@@ -277,5 +294,160 @@ describe("the screen of the indicators of a project", () => {
       },
     };
     await expect(IndicatorsPage(at())).rejects.toBeInstanceOf(SignedOut);
+  });
+});
+
+const WORKLOAD_ROUTE = "GET /projects/{project_id}/workload";
+const ORG_NODE = "01926f3a-7c00-7000-8000-000000000471";
+
+describe("the curves, the milestones and the workload of the screen", () => {
+  it("draws the tracking of the milestones the API gives [WF-IND-0090-A]", async () => {
+    const page = text(html(await IndicatorsPage(at())));
+    expect(page).toContain("Milestone tracking Time/time diagram Computed on");
+    expect(page).toContain("Réception usine");
+  });
+
+  it("says that no milestone is tracked when the API gives none, its date of calculation left with the chart", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/milestone-tracking": "milestone_tracking_none",
+    };
+    const page = text(html(await IndicatorsPage(at())));
+    expect(page).toContain("Milestone tracking No milestone is tracked. Cumulative costs");
+  });
+
+  it("asks the cumulative costs at the date the address filters and the earned value for its sub-project too [WF-IND-0100-A] [WF-IND-0110-A]", async () => {
+    await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-02-01" }));
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      as_of: "2026-02-01",
+    });
+    expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toEqual({
+      scope: SUBPROJECT,
+      as_of: "2026-02-01",
+    });
+  });
+
+  it("shifts the cumulative costs by the payment delays when the address asks it, and names them as the API says [WF-IND-0100-A]", async () => {
+    let page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({});
+    // The command keeps the other parameters of the address.
+    expect(page).toContain(
+      `href="/projects/${PROJECT}/revisions/${REVISION}/indicators?subproject_id=${SUBPROJECT}&amp;payment_delays=true"`,
+    );
+    expect(text(page)).toContain("Shift by the payment delays S-curve");
+
+    server.clients = [];
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators/cost-curve": "cost_curve_payment_delays",
+    };
+    page = html(await IndicatorsPage(at({ payment_delays: "true" })));
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      payment_delays: "true",
+    });
+    expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/indicators"`);
+    expect(text(page)).toContain("Remove the shift by the payment delays Cash out Computed on");
+    expect(text(page)).toContain("Cash out by month");
+  });
+
+  it("asks the workload on the remaining of the revision under way unless the address names another basis [WF-DEV-0070-A]", async () => {
+    const page = text(html(await IndicatorsPage(at())));
+    expect(queryOf(WORKLOAD_ROUTE)).toEqual({ basis: "current_remaining" });
+    expect(page).toContain(
+      "Basis: Remaining of the current revision — revision “Current revision”",
+    );
+    expect(page).toContain("Load by role and by month");
+  });
+
+  it("asks the workload on the marked revision and the node of organisation chosen, the server filtering [WF-DEV-0070-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [WORKLOAD_ROUTE]: "workload_marked_remaining",
+      [REVISION_ROUTE]: ["revision", "revision_marked"],
+    };
+    const page = text(
+      html(
+        await IndicatorsPage(
+          at({ basis: "marked_remaining", workload_revision: MARKED, org_node_id: ORG_NODE }),
+        ),
+      ),
+    );
+    expect(queryOf(WORKLOAD_ROUTE)).toEqual({
+      basis: "marked_remaining",
+      revision_id: MARKED,
+      org_node_id: ORG_NODE,
+    });
+    expect(queryOf("GET /projects/{project_id}/revisions")).toEqual({ status: "marked" });
+    // The revision the API says it read, by its identifier: the reference.
+    expect(pathsOf(REVISION_ROUTE)).toEqual([
+      `/projects/${PROJECT}/revisions/${REVISION}`,
+      `/projects/${PROJECT}/revisions/${MARKED}`,
+    ]);
+    expect(page).toContain("Basis: Remaining of a marked revision — revision “Référence”");
+  });
+
+  it("sends no marked revision with another basis, and offers the three bases, the marked revisions and the nodes [WF-DEV-0070-A]", async () => {
+    server.answers = { ...server.answers, [WORKLOAD_ROUTE]: "workload_reference_budget" };
+    const page = html(
+      await IndicatorsPage(at({ basis: "reference_budget", workload_revision: MARKED })),
+    );
+    expect(queryOf(WORKLOAD_ROUTE)).toEqual({ basis: "reference_budget" });
+    const options = (name: string) => {
+      const select = new RegExp(`<select[^>]*name="${name}"[^>]*>(.*?)</select>`).exec(page);
+      return [...(select?.[1] ?? "").matchAll(/<option[^>]*>(.*?)<\/option>/g)].map((m) => m[1]);
+    };
+    expect(options("basis")).toEqual([
+      "Budget of the reference revision",
+      "Remaining of a marked revision",
+      "Remaining of the current revision",
+    ]);
+    expect(options("workload_revision")).toEqual(["Référence", "Offre v1.0"]);
+    expect(options("org_node_id")).toEqual([
+      "All nodes",
+      "Direction technique",
+      "Bureau d&#x27;études électriques",
+      "Service des essais",
+    ]);
+    // The choice keeps the other parameters of the address, the workload's own left to it.
+    expect(page).not.toContain('type="hidden" name="basis"');
+  });
+
+  it("offers only the revision under way on a project without a reference revision [WF-DEV-0070-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/indicators": {
+        problem: { code: "STATE_FORBIDS_OPERATION", status: 409 },
+      },
+    };
+    const page = html(await IndicatorsPage(at()));
+    expect(page).toMatch(
+      /<select[^>]*name="basis"[^>]*><option value="current_remaining"[^>]*>[^<]*<\/option><\/select>/,
+    );
+    expect(page).not.toContain('name="workload_revision"');
+  });
+
+  it("does not offer the marked revisions as a basis when the project has none", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions": "revisions_empty",
+    };
+    const page = html(await IndicatorsPage(at()));
+    expect(page).not.toContain('value="marked_remaining"');
+  });
+
+  it("says the workload unavailable on a basis the API refuses, the rest of the screen shown [WF-DEV-0070-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [WORKLOAD_ROUTE]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } },
+    };
+    const page = text(html(await IndicatorsPage(at({ basis: "reference_budget" }))));
+    expect(page).toContain("The workload is not available on this basis.");
+    expect(page).toContain("Financial progress");
+  });
+
+  it("offers its workload for export, a command named under the caption of its chart", async () => {
+    const page = text(html(await IndicatorsPage(at())));
+    expect(page).toContain("Load by role and by month Export as PNG Computed on");
   });
 });

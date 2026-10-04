@@ -68,3 +68,39 @@ test("names each curve at its end, two names ending on the same point moved apar
   const [a, b] = await Promise.all([placed(project), placed(unassigned)]);
   expect(Math.abs(a.baseline - b.baseline)).toBeGreaterThanOrEqual(Math.max(a.size, b.size));
 });
+
+test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, named after the project [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  await page.goto(SCREEN);
+  const figure = page.getByRole("figure", { name: "Charge par rôle et par mois" });
+  const command = figure.getByRole("button", { name: "Exporter en PNG" });
+  await command.focus();
+  await expect(command).toBeFocused();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.keyboard.press("Enter"),
+  ]);
+  expect(download.suggestedFilename()).toBe("plan-de-charge-PRJ-001.png");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk as Buffer);
+  }
+  const image = Buffer.concat(chunks);
+  // The signature of a PNG, then the width and the height of its header: an image of its own
+  // size, twice as dense as the screen, whatever the size of the window.
+  expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
+  // The instance out of the screen is gone with its canvas.
+  await expect(page.locator("canvas")).toHaveCount(0);
+});
+
+test("draws the cumulative costs, and shifts them by the payment delays at the server's", async ({
+  page,
+}) => {
+  await page.goto(SCREEN);
+  await expect(page.getByRole("figure", { name: "Courbe en S" }).locator("svg")).toBeVisible();
+  await page.getByRole("link", { name: "Décaler des délais de paiement" }).click();
+  await expect(page).toHaveURL(/payment_delays=true/);
+});

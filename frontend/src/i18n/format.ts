@@ -222,6 +222,24 @@ export function formatPlanningDate(
   );
 }
 
+// A month of the contract: `2026-04`, as `WorkloadPlan` and `CashOutMonth` give it.
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * Format a month of the contract (`2026-04`) by its name and its year, in the language given: a
+ * month has no time zone, and is written as its first day at midnight in UTC.
+ */
+export function formatMonth(value: string, locale: Locale): string {
+  if (!MONTH.test(value)) {
+    throw new RangeError(`Not a month of the contract: ${JSON.stringify(value)}`);
+  }
+  return new Intl.DateTimeFormat(formatLocale(locale), {
+    month: "long",
+    year: "numeric",
+    timeZone: TIME_ZONE,
+  }).format(new Date(`${value}-01T00:00:00Z`));
+}
+
 /**
  * Format a `Timestamp` in local time: in the time zone of the workstation when none is given,
  * which is why it runs in the browser (`LocalTime`); the server knows only its own zone.

@@ -15,10 +15,14 @@
  * browser resolves in the mode the page is in. A change of mode — the workstation's, or the
  * one the account forces (`data-theme`) — draws the chart again in the colours of the new one.
  * The curves are told apart without their colour too: each is named at its end (`curve`).
+ *
+ * A chart may be exported as a PNG image (WF-IHM-0130): drawn anew by an instance out of the
+ * screen, on a canvas — an SVG is no PNG —, at a size of its own, with its title and the
+ * provenance its caller names, on the background of the charter.
  */
 "use client";
 
-import { LineChart, type LineSeriesOption } from "echarts/charts";
+import { BarChart, type BarSeriesOption, LineChart, type LineSeriesOption } from "echarts/charts";
 import {
   AriaComponent,
   type AriaComponentOption,
@@ -28,29 +32,39 @@ import {
   type LegendComponentOption,
   MarkLineComponent,
   type MarkLineComponentOption,
+  TitleComponent,
+  type TitleComponentOption,
 } from "echarts/components";
 import { type ComposeOption, init, use as register } from "echarts/core";
 import { LabelLayout } from "echarts/features";
-import { SVGRenderer } from "echarts/renderers";
+import { CanvasRenderer, SVGRenderer } from "echarts/renderers";
+import { ImageDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef } from "react";
+
+import { Button } from "@/components/ui/button";
 
 register([
   LabelLayout,
   LineChart,
+  BarChart,
   GridComponent,
   LegendComponent,
   MarkLineComponent,
+  TitleComponent,
   AriaComponent,
   SVGRenderer,
+  CanvasRenderer,
 ]);
 
-/** What a chart of the application may draw: lines on a grid, a legend, marked lines. */
+/** What a chart of the application may draw: lines and bars on a grid, a legend, marked lines. */
 export type ChartOption = ComposeOption<
   | LineSeriesOption
+  | BarSeriesOption
   | GridComponentOption
   | LegendComponentOption
   | MarkLineComponentOption
+  | TitleComponentOption
   | AriaComponentOption
 >;
 
@@ -66,6 +80,8 @@ export interface ChartPalette {
   readonly axis: string;
   /** The lines that only separate: `--border`. */
   readonly grid: string;
+  /** The background of the page, which an exported image is drawn on: `--background`. */
+  readonly background: string;
   /** The font of the page. */
   readonly font: string;
 }
@@ -77,6 +93,7 @@ const PROBES = {
   mark: "text-foreground",
   axis: "text-input",
   grid: "text-border",
+  background: "text-background",
 } as const;
 
 /** The symbols of the series, in their order: a series is told apart without its colour. */
@@ -127,6 +144,32 @@ export function curve(palette: ChartPalette, rank: number, points: CurvePoints) 
   };
 }
 
+/**
+ * The bars of a series of a rank, told apart without their colour too: its colour, and a pattern
+ * of the symbol of its rank drawn on them in the background of the page — the legend shows both.
+ */
+export function bars(palette: ChartPalette, rank: number) {
+  return {
+    type: "bar" as const,
+    color: palette.series[rank % palette.series.length] ?? palette.mark,
+    itemStyle: {
+      decal: {
+        symbol: SERIES_SYMBOLS[rank % SERIES_SYMBOLS.length] ?? "circle",
+        symbolSize: 0.6,
+        color: palette.background,
+      },
+    },
+  };
+}
+
+/**
+ * A date of planning (`2026-04-24`) or a month (`2026-04`) as an instant of an axis of time: its
+ * midnight in UTC, so that no time zone moves it a day — its axis is written in UTC (`timeAxis`).
+ */
+export function planningInstant(date: string): string {
+  return date.length === 7 ? `${date}-01T00:00:00Z` : `${date}T00:00:00Z`;
+}
+
 /** Read the palette from the probes, as the document shows them now. */
 function readPalette(probes: HTMLElement): ChartPalette {
   const colour = (name: string) => {
@@ -139,6 +182,7 @@ function readPalette(probes: HTMLElement): ChartPalette {
     mark: colour("mark"),
     axis: colour("axis"),
     grid: colour("grid"),
+    background: colour("background"),
     font: getComputedStyle(probes).fontFamily,
   };
 }
@@ -147,13 +191,24 @@ function readPalette(probes: HTMLElement): ChartPalette {
 const MONTH: Intl.DateTimeFormatOptions = { month: "short", year: "numeric" };
 
 /**
- * An axis of time, its ticks written in the language of the interface by month, in the local time
- * of the workstation, a tick that would overlap another left out.
+ * The shortest span between two ticks of an axis of time, in milliseconds: four weeks, so that two
+ * ticks never fall in the same month, which their labels would write alike.
  */
-export function timeAxis(palette: ChartPalette, locale: string) {
-  const format = new Intl.DateTimeFormat(locale, MONTH);
+const MONTH_SPAN = 28 * 24 * 60 * 60 * 1000;
+
+/**
+ * An axis of time, its ticks written in the language of the interface by month — in UTC for an
+ * axis of dates of planning, which have no time zone (`utc`), in the local time of the
+ * workstation otherwise —, a tick that would overlap another left out. ECharts places the ticks
+ * at the first of each month in the local time of the workstation, unless the option of the chart
+ * says `useUTC`: a chart with an axis in UTC says it, or its ticks, written in UTC, would name the
+ * month before east of Greenwich.
+ */
+export function timeAxis(palette: ChartPalette, locale: string, utc = false) {
+  const format = new Intl.DateTimeFormat(locale, utc ? { ...MONTH, timeZone: "UTC" } : MONTH);
   return {
     type: "time" as const,
+    minInterval: MONTH_SPAN,
     axisLine: { show: true, lineStyle: { color: palette.axis } },
     axisLabel: {
       color: palette.text,
@@ -166,7 +221,7 @@ export function timeAxis(palette: ChartPalette, locale: string) {
 
 /** The probes of the tokens, hidden: each takes the colour of one. */
 function Probes() {
-  const singles = (["text", "mark", "axis", "grid"] as const).map((name) => (
+  const singles = (["text", "mark", "axis", "grid", "background"] as const).map((name) => (
     <span key={name} data-probe={name} className={PROBES[name]} />
   ));
   return (
@@ -192,6 +247,76 @@ function inertLegend(legend: ChartOption["legend"]): Pick<ChartOption, "legend">
   return { legend: Array.isArray(legend) ? legend.map(inert) : inert(legend) };
 }
 
+/** What an exported image says of itself, and the name of its file. */
+export interface ChartExport {
+  /** The title drawn at the head of the image. */
+  readonly title: string;
+  /** What the image says under its title: where it comes from, the date it is computed at. */
+  readonly subtitle: string;
+  /** The name of the file, its extension `.png` included. */
+  readonly fileName: string;
+}
+
+/** The size of an exported image, whatever the size of the screen. */
+const EXPORT_SIZE = { width: 1280, height: 720 } as const;
+
+/** The height the title of an exported image takes above the chart, in pixels. */
+const EXPORT_HEADER = 64;
+
+/** A component of an option moved down by the height of the title, if it says where its top is. */
+function below<T>(component: T): T {
+  if (typeof component !== "object" || component === null || Array.isArray(component)) {
+    return component;
+  }
+  const top = "top" in component && typeof component.top === "number" ? component.top : 0;
+  return { ...component, top: top + EXPORT_HEADER };
+}
+
+/**
+ * Export a chart as a PNG image, whose file the browser saves: drawn by an instance out of the
+ * screen, on a canvas, at the size of an image rather than of the screen, its title and its
+ * provenance at its head, its legend and its series as on the screen, on the background of the
+ * charter; the instance is released once the image is taken.
+ */
+export function exportPng(option: ChartOption, palette: ChartPalette, image: ChartExport) {
+  const host = document.createElement("div");
+  host.style.position = "fixed";
+  host.style.left = `-${String(EXPORT_SIZE.width * 2)}px`;
+  host.style.top = "0";
+  host.style.width = `${String(EXPORT_SIZE.width)}px`;
+  host.style.height = `${String(EXPORT_SIZE.height)}px`;
+  document.body.append(host);
+  const chart = init(host, null, { renderer: "canvas", ...EXPORT_SIZE });
+  try {
+    chart.setOption({
+      ...option,
+      ...inertLegend(option.legend === undefined ? undefined : below(option.legend)),
+      grid: below(option.grid),
+      title: {
+        text: image.title,
+        subtext: image.subtitle,
+        left: 16,
+        top: 12,
+        textStyle: { color: palette.mark, fontFamily: palette.font, fontSize: 18 },
+        subtextStyle: { color: palette.text, fontFamily: palette.font },
+      },
+      backgroundColor: palette.background,
+      animation: false,
+    });
+    const link = document.createElement("a");
+    link.href = chart.getDataURL({
+      type: "png",
+      pixelRatio: 2,
+      backgroundColor: palette.background,
+    });
+    link.download = image.fileName;
+    link.click();
+  } finally {
+    chart.dispose();
+    host.remove();
+  }
+}
+
 /** A chart: its name, what it shows in a sentence, how it is drawn, and its values. */
 export interface ChartProps {
   /** The name of the chart, the caption of its figure. */
@@ -207,10 +332,16 @@ export interface ChartProps {
   readonly option: (palette: ChartPalette) => ChartOption;
   /** The values of the chart, as a table: shown on demand under the drawing. */
   readonly children: ReactNode;
+  /**
+   * What the image of the chart says of itself, read when it is exported — in the browser, so
+   * that a date is written in the local time of the workstation —; without it, the chart is not
+   * offered for export.
+   */
+  readonly exported?: () => ChartExport;
 }
 
 /** Render a chart: a figure, its caption, its drawing named by a sentence, its values. */
-export function Chart({ title, description, note, option, children }: ChartProps) {
+export function Chart({ title, description, note, option, children, exported }: ChartProps) {
   const t = useTranslations("chart");
   const drawing = useRef<HTMLDivElement>(null);
   const probes = useRef<HTMLSpanElement>(null);
@@ -253,10 +384,27 @@ export function Chart({ title, description, note, option, children }: ChartProps
     };
   }, [option, description]);
 
+  const exportImage = () => {
+    const tokens = probes.current;
+    if (exported !== undefined && tokens !== null) {
+      const palette = readPalette(tokens);
+      exportPng(option(palette), palette, exported());
+    }
+  };
+
   return (
     <figure aria-labelledby={caption} className="space-y-2">
-      <figcaption id={caption} className="font-medium">
-        {title}
+      {/* The figure is named by its title alone, not by the command beside it. */}
+      <figcaption className="flex flex-wrap items-start justify-between gap-2">
+        <span id={caption} className="font-medium">
+          {title}
+        </span>
+        {exported === undefined ? null : (
+          <Button type="button" variant="outline" size="sm" onClick={exportImage}>
+            <ImageDown aria-hidden="true" />
+            {t("exportPng")}
+          </Button>
+        )}
       </figcaption>
       {note}
       <span ref={probes} hidden>

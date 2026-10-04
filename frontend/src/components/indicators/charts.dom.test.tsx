@@ -5,12 +5,16 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { LineSeriesOption } from "echarts/charts";
+
 import type { ChartOption, ChartPalette } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
+import { type CurveSeries, CurveSeriesChart } from "./curve-series-chart";
 import { IndexChart, type IndexHistory } from "./index-chart";
+import { MilestoneChart, type MilestoneTracking } from "./milestone-chart";
 
 const drawn = vi.hoisted(() => ({ options: [] as ((palette: ChartPalette) => ChartOption)[] }));
 
@@ -47,6 +51,7 @@ const PALETTE: ChartPalette = {
   mark: "mark",
   axis: "axis",
   grid: "grid",
+  background: "background",
   font: "font",
 };
 
@@ -66,10 +71,10 @@ function lastOption() {
   return drawn.options.at(-1)?.(PALETTE);
 }
 
-/** The series of the last option a chart was handed. */
+/** The series of the last option a chart was handed: curves, each of the charts here. */
 function lastSeries() {
   const series = lastOption()?.series;
-  return Array.isArray(series) ? series : [];
+  return (Array.isArray(series) ? series : []) as LineSeriesOption[];
 }
 
 beforeEach(() => {
@@ -115,6 +120,8 @@ describe("the evolution of an index", () => {
     ]);
     const thresholds = series.at(-1);
     expect(thresholds?.data).toEqual([]);
+    // In the colour of the marks of the charter, not the default of ECharts.
+    expect(thresholds?.color).toBe("mark");
     const marks = thresholds?.markLine?.data as { yAxis: string; name: string }[] | undefined;
     expect(marks?.map(({ yAxis, name }) => [name, yAxis])).toEqual([
       ["Watch threshold", "0.9"],
@@ -152,5 +159,131 @@ describe("the evolution of an index", () => {
     ).toBeInTheDocument();
     expect(offer.queryByText(/Nominal|Watch|Alert/)).toBeNull();
     await expectAccessible(container);
+  });
+});
+
+const TRACKING = example("milestone_tracking") as MilestoneTracking;
+
+describe("the tracking of the milestones", () => {
+  it("draws each milestone by the dates its revisions forecast, at midnight in UTC, and the diagonal of equal dates up to the date of calculation [WF-IND-0090-A]", () => {
+    english(<MilestoneChart tracking={TRACKING} />);
+    const series = lastSeries();
+    expect(series.map((each) => each.name)).toEqual([
+      "Réception des études",
+      "Réception usine",
+      "Equal dates",
+    ]);
+    // A milestone that holds draws a horizontal line, one that slips climbs.
+    expect(series[1]?.data).toEqual([
+      ["2025-12-15T16:00:00Z", "2026-06-30T00:00:00Z"],
+      ["2026-02-01T09:00:00Z", "2026-06-30T00:00:00Z"],
+      ["2026-03-16T14:05:00Z", "2026-09-30T00:00:00Z"],
+    ]);
+    expect(series[2]?.data).toEqual([
+      ["2025-12-15T16:00:00Z", "2025-12-15T16:00:00Z"],
+      ["2026-03-16T14:05:00Z", "2026-03-16T14:05:00Z"],
+    ]);
+    expect(series.map((each) => each.endLabel?.show)).toEqual([true, true, true]);
+  });
+
+  it("lists each forecast as a date of planning, and whether its milestone is completed [WF-IND-0090-A]", async () => {
+    const { container } = english(<MilestoneChart tracking={TRACKING} />);
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringMatching(/^Réception des études.*10 Apr 2026Not completed$/),
+      expect.stringMatching(/^Réception des études.*24 Apr 2026Not completed$/),
+      expect.stringMatching(/^Réception des études.*24 Apr 2026Not completed$/),
+      expect.stringMatching(/^Réception usine.*30 Jun 2026Not completed$/),
+      expect.stringMatching(/^Réception usine.*30 Jun 2026Not completed$/),
+      expect.stringMatching(/^Réception usine.*30 Sept 2026Not completed$/),
+    ]);
+    const figure = screen.getByRole("figure", { name: "Time/time diagram" });
+    expect(figure.querySelector("time")).toHaveAttribute("datetime", TRACKING.context.computed_at);
+    await expectAccessible(container);
+  });
+
+  it("places and writes the ticks of its axes in UTC, whatever the zone of the workstation", () => {
+    english(<MilestoneChart tracking={TRACKING} />);
+    const option = lastOption();
+    expect(option?.useUTC).toBe(true);
+    const yAxis = option?.yAxis as { axisLabel: { formatter: (value: number) => string } };
+    expect(yAxis.axisLabel.formatter(Date.parse("2026-05-01T00:00:00Z"))).toBe("May 2026");
+  });
+});
+
+/** Render cumulative curves under a caption of the test. */
+function curves(name: string) {
+  const data = example(name) as CurveSeries;
+  return {
+    data,
+    ...english(<CurveSeriesChart curves={data} title="Curves" description="Drawn." />),
+  };
+}
+
+describe("the cumulative curves", () => {
+  it("draws the reference budget, the actual cost to the date of calculation and the projection from it, as the API gave them [WF-IND-0100-A]", () => {
+    curves("cost_curve");
+    const series = lastSeries();
+    expect(series.map((each) => each.name)).toEqual([
+      "Reference budget",
+      "Actual cost",
+      "Project manager’s projection",
+    ]);
+    expect(series[1]?.data).toEqual([
+      ["2026-03-01T00:00:00Z", "0.00"],
+      ["2026-03-16T00:00:00Z", "0.00"],
+    ]);
+    expect(series[2]?.data?.[0]).toEqual(["2026-03-16T00:00:00Z", "0.00"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2026-06-30T00:00:00Z", "100000.00"]);
+    // Dates of planning: the ticks are placed at midnight in UTC, as the points.
+    expect(lastOption()?.useUTC).toBe(true);
+  });
+
+  it("marks a step of the reference budget at its date, named by its cause, and lists it [WF-IND-0100-A]", () => {
+    curves("cost_curve_amendment");
+    const steps = lastSeries().at(-1);
+    expect(steps?.data).toEqual([]);
+    const marks = steps?.markLine?.data as { xAxis: string; name: string }[] | undefined;
+    expect(marks?.map(({ xAxis, name }) => [name, xAxis])).toEqual([
+      ["Amendment", "2026-03-10T00:00:00Z"],
+    ]);
+    const table = screen.getByRole("table", { name: "Steps of the reference budget" });
+    expect(
+      within(table).getByRole("row", { name: "10 Mar 2026 Amendment 15,000.00" }),
+    ).toBeVisible();
+  });
+
+  it("lists the cash out by month the API gives with the payment delays, the shifted points as given [WF-IND-0100-A]", async () => {
+    const { container, data } = curves("cost_curve_payment_delays");
+    expect(lastSeries()[0]?.data?.[0]).toEqual(["2026-03-31T00:00:00Z", "0.00"]);
+    const table = screen.getByRole("table", { name: "Cash out by month" });
+    expect(
+      within(table)
+        .getAllByRole("row")
+        .map((row) => row.textContent),
+    ).toEqual([
+      "MonthPaid outTo pay out",
+      "March 20260.000.00",
+      "April 20260.0060,000.00",
+      "May 20260.0040,000.00",
+    ]);
+    expect(data.cash_out_by_month).toHaveLength(3);
+    await expectAccessible(container);
+  });
+
+  it("draws the planned value to the end of the reference, the earned value and the actual cost to the date of calculation [WF-IND-0110-A]", () => {
+    curves("earned_value_curves");
+    const series = lastSeries();
+    expect(series.map((each) => each.name)).toEqual([
+      "Planned value",
+      "Earned value",
+      "Actual cost",
+    ]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2026-06-30T00:00:00Z", "100000.00"]);
+    expect(series[1]?.data?.at(-1)).toEqual(["2026-03-16T00:00:00Z", "0.00"]);
+    // No step, no cash out: neither a mark nor a table of them.
+    expect(series).toHaveLength(3);
+    expect(screen.queryByRole("table", { name: "Cash out by month" })).toBeNull();
+    expect(screen.getByText(/^Computed on/)).toBeInTheDocument();
   });
 });

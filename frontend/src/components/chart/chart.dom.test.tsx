@@ -53,6 +53,8 @@ describe("the envelope of the charts", () => {
     expect(screen.getByRole("img", { name: "Une courbe de deux points." })).toBeInTheDocument();
     expect(screen.getByText("Valeurs du graphique")).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "0,8" })).toBeInTheDocument();
+    // Offered for export only when its caller says what the image is to say of itself.
+    expect(screen.queryByRole("button", { name: "Exporter en PNG" })).toBeNull();
     await expectAccessible(container);
   });
 
@@ -124,7 +126,15 @@ describe("the envelope of the charts", () => {
     });
     const [palette] = option.mock.calls[0] ?? [];
     expect(palette?.series).toHaveLength(4);
-    expect(Object.keys(palette ?? {})).toEqual(["series", "text", "mark", "axis", "grid", "font"]);
+    expect(Object.keys(palette ?? {})).toEqual([
+      "series",
+      "text",
+      "mark",
+      "axis",
+      "grid",
+      "background",
+      "font",
+    ]);
     // Each colour is a probe painted by the class of its token, which the browser resolves.
     const probes = document.querySelectorAll("[data-probe]");
     expect([...probes].map((probe) => probe.className)).toEqual([
@@ -136,6 +146,7 @@ describe("the envelope of the charts", () => {
       "text-foreground",
       "text-input",
       "text-border",
+      "text-background",
     ]);
     document.documentElement.setAttribute("data-theme", "dark");
     await waitFor(() => {
@@ -163,6 +174,7 @@ describe("the look of a curve", () => {
     mark: "mark",
     axis: "axis",
     grid: "grid",
+    background: "background",
     font: "font",
   };
   const points = [
