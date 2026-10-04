@@ -96,11 +96,15 @@ const NODES: readonly NodeChoice[] = (example("org_nodes") as Schemas["OrgNode"]
 const DESIGN_OFFICE = "01926f3a-7c00-7000-8000-000000000471";
 
 /** The perimeter bar of a view, the address at `search`. */
-function perimeterBar(search: string, takes: Takes = { period: true, node: false }) {
+function perimeterBar(
+  search: string,
+  takes: Takes = { period: true, node: false },
+  nodes: readonly NodeChoice[] = NODES,
+) {
   page.search = search;
   const perimeter: Perimeter = readPerimeter(new URLSearchParams(search));
   return inLanguage(
-    <PerimeterBar perimeter={perimeter} retained={LIST.scope.states} takes={takes} nodes={NODES} />,
+    <PerimeterBar perimeter={perimeter} retained={LIST.scope.states} takes={takes} nodes={nodes} />,
   );
 }
 
@@ -266,6 +270,21 @@ describe("the perimeter of a view of the portfolio", () => {
     await userEvent.type(within(form).getByLabelText("Calculé au"), "2026-03-16");
     await userEvent.click(within(form).getByRole("button", { name: "Appliquer" }));
     expect(await lastAddress()).toBe(`${PATHNAME}?from=2025-01-01&as_of=2026-03-16`);
+  });
+
+  it("never lets the period start after its end", () => {
+    render(perimeterBar("from=2025-01-01&to=2025-12-31"));
+    const form = screen.getByRole("form", { name: "Période et date de calcul" });
+    expect(within(form).getByLabelText("Du")).toHaveAttribute("max", "2025-12-31");
+    expect(within(form).getByLabelText("Au")).toHaveAttribute("min", "2025-01-01");
+  });
+
+  it("keeps shown a node the address filters on when no node can be read, to be cleared", async () => {
+    render(perimeterBar(`org_node_id=${DESIGN_OFFICE}`, { period: false, node: true }, []));
+    const node = screen.getByLabelText("Nœud d’organisation");
+    expect(node).toHaveValue(DESIGN_OFFICE);
+    await userEvent.selectOptions(node, "Tous les nœuds");
+    expect(await lastAddress()).toBe(PATHNAME);
   });
 
   it("restricts the labour to a node of organisation, named with its parent; the date alone where the view takes no period", async () => {

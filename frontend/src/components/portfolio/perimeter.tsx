@@ -136,6 +136,9 @@ function DatesForm({
             id={ids[field]}
             type="date"
             value={dates[field]}
+            // A period is never asked backwards: its start no later than its end (WF-PTF-0010).
+            max={field === "from" && dates.to !== "" ? dates.to : undefined}
+            min={field === "to" && dates.from !== "" ? dates.from : undefined}
             onChange={(event) => {
               setDates({ ...dates, [field]: event.target.value });
             }}
@@ -235,8 +238,9 @@ export function PerimeterBar({
         perimeter={perimeter}
         fields={takes.period ? DATES.period : DATES.date}
       />
-      {/* No node to choose — none in the reference, none the API lets one read —: none offered. */}
-      {takes.node && nodes.length > 0 ? (
+      {/* No node to choose — none in the reference, none the API lets one read —: none offered,
+          unless the address already filters on one, which stays shown to be cleared. */}
+      {takes.node && (nodes.length > 0 || perimeter.orgNode !== undefined) ? (
         <ViewChoice
           name={ORG_NODE}
           label={t("orgNode")}
