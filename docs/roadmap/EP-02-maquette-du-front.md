@@ -11,7 +11,7 @@ issue: 72
 ## Objet
 
 Construire l'application web entière contre le faux back d'EP-01 : la navigation, les
-composants d'interface de PBS-1.3, les onze exigences du §3.6, les deux langues, et chaque
+composants d'interface de PBS-1.3, les exigences du §3.6 qu'il réalise, les deux langues, et chaque
 fonction adressable à l'écran. Rien n'est calculé par le front — c'est le mock qui répond.
 Cet EPIC ne s'intéresse qu'à deux choses : l'ergonomie, qu'il constate, et le contrat, qu'il
 fige ; tout ce qui exige un serveur réel se commence ici et se clôt dans l'EPIC de son
@@ -85,6 +85,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0090-A` | Refus et commandes indisponibles | entière | US-0170 |
 | `WF-IHM-0100-A` | Accessibilité minimale | entière | US-0200 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | début — close en EP-06 | US-0140 |
+| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0240 |
 | `WF-INTF-0160-A` | Choix de la langue de l'interface | début — close en EP-03 | US-0190 |
 | `WF-INTF-0170-A` | Ce qui est traduit et ce qui ne l'est pas | entière | US-0190 |
 | `WF-INTF-0180-A` | Formats indépendants de la langue | début — close en EP-12 | US-0190 |
@@ -93,11 +94,13 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
 | `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
-Huit des onze exigences du §3.6 sont closes par cet EPIC : elles portent sur l'interface,
-et l'interface existe ici pour de bon. Huit exigences ne font que commencer, et leurs US
+Le §3.6 compte treize exigences ; cet EPIC en réalise douze, et en clôt huit : elles portent
+sur l'interface, et l'interface existe ici pour de bon. La treizième, WF-IHM-0120 (l'écran
+d'accueil), se réalise et se clôt en EP-03. Neuf exigences ne font que commencer, et leurs US
 disent quelle phrase attend quoi : WF-IHM-0060 (le tri effectif et les réglages par compte —
 EP-03), WF-IHM-0080 (le marquage de dix mille objets, sur le marquage réel — EP-04),
-WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-ADM-0040 et WF-INTF-0160 (la
+WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-IHM-0130 (des totaux que le filtre
+restreint, calculés par un serveur réel — EP-11), WF-ADM-0040 et WF-INTF-0160 (la
 conservation des préférences et de la langue dans le compte — EP-03), WF-INTF-0180 (le
 format des fichiers d'échange — EP-12), WF-CMP-0010 (la version majeure précédente et le
 Safari réel — EP-13, en recette), et WF-DAT-0100 (l'affichage des dates sans fuseau est
@@ -136,7 +139,8 @@ EP-01 livré : le client engendré, le faux back, les fixtures et le harnais de 
 
 - chaque fonction feuille de l'arborescence FBS est adressable — une page, une route ou un
   onglet — depuis la navigation, et un contrôle du dépôt le vérifie ;
-- les onze exigences du §3.6 ont chacune au moins un test de bout en bout qui les cite ;
+- les exigences du §3.6 que cet EPIC réalise — de WF-IHM-0010 à WF-IHM-0110, et WF-IHM-0130
+  — ont chacune au moins un test de bout en bout qui les cite ;
 - un contrôle automatisé de contraste ne relève aucun écart au niveau AA, en clair comme
   en sombre ;
 - le parcours de bout en bout s'exécute et aboutit en français comme en anglais ;
@@ -992,9 +996,9 @@ porte le cycle d'une revue mensuelle de bout en bout.
 ## US-0240 — Écrans des indicateurs et du portefeuille
 
 - **statut** : à faire
-- **exigences** : aucune en propre — EP-10 et EP-11
+- **exigences** : `WF-IHM-0130-A` ; les autres sont à EP-10 et EP-11
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
-  `getMilestoneTracking`, `getProjectWorkload`, `getPortfolioProjects`,
+  `getMilestoneTracking`, `getIndexHistory`, `getProjectWorkload`, `getPortfolioProjects`,
   `getPortfolioValue`, `getPortfolioPerformance`, `getPortfolioWorkload`,
   `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCashOut`,
   `getPortfolioPilotHealth`
@@ -1009,9 +1013,18 @@ sans que le front ait à sommer quoi que ce soit.
 - propre à l'US : aucune somme, aucune moyenne, aucun ratio n'est calculé dans le front ; une
   vue qui en aurait besoin est un constat sur le contrat ;
 - propre à l'US : chaque indicateur affiché porte sa date de calcul (US-0100) ;
-- propre à l'US : les zones d'indice emploient le composant de signalement de l'US-0160.
+- propre à l'US : les zones d'indice emploient le composant de signalement de l'US-0160 ;
+- `WF-IHM-0130-A` — « Le plan de charge exporté est une image PNG qui porte le nom du projet,
+  la révision et la date de calcul. »
 
 **Notes de réalisation.** Courbes en Apache ECharts (annexe C).
+
+- écart : `WF-IHM-0130-A` — « La liste des projets filtrée sur un état ne compte que les
+  projets de cet état dans ses totaux. » demande un serveur qui filtre : le faux back rend
+  l'exemple du contrat, quels que soient les filtres envoyés, et ne restreint pas les totaux.
+  Ici, la liste des projets offre les filtres que le contrat porte — l'état d'abord —, les
+  envoie à `getPortfolioProjects` et affiche les totaux que la réponse porte, sans rien
+  sommer ; la phrase revient à EP-11, qui clôt l'exigence sur le portefeuille réel.
 
 ## US-0250 — Écrans du référentiel et de l'administration
 
@@ -1019,7 +1032,8 @@ sans que le front ait à sommer quoi que ce soit.
 - **exigences** : aucune en propre — EP-03 et EP-05
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `listOrgNodes`,
   `listResourceRoles`, `listCalendars`, `listCostTypes`, `listCostCategories`,
-  `listHourlyRates`, `setHourlyRate`, `listUsers`, `listAccessRoles`, `listPermissions`,
+  `listHourlyRates`, `getHourlyRateGrid`, `setHourlyRate`, `getDurationUnits`,
+  `setDurationUnits`, `listUsers`, `listAccessRoles`, `listPermissions`,
   `getSystemStatus`, `listBackups`, `getBackupSchedule`
 - **issue** : #89
 
