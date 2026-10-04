@@ -301,6 +301,12 @@
         "beyond": "La page demandée est au-delà de la fin du journal.",
         "previous": "Imports plus récents",
         "next": "Imports plus anciens"
+      },
+      "exchanges": {
+        "label": "Pages des imports du projet",
+        "beyond": "La page demandée est au-delà de la fin de la liste.",
+        "previous": "Imports précédents",
+        "next": "Imports suivants"
       }
     },
     "imports": {
@@ -638,7 +644,9 @@
     "interruptedLine": "Suivi interrompu : {task}.",
     "dismiss": "Retirer du suivi : {task}",
     "toggle": "{count, plural, =0 {Tâches de fond} one {Tâches de fond : # suivie} other {Tâches de fond : # suivies}}",
-    "none": "Aucune tâche de fond suivie."
+    "none": "Aucune tâche de fond suivie.",
+    "download": "Télécharger le résultat",
+    "downloadLabel": "Télécharger le résultat : {task}"
   },
   "markRevision": {
     "versionName": "Nom de version",
@@ -890,6 +898,103 @@
       "maxWeeks": "Délai maximal entre deux révisions marquées d’un projet en cours : {weeks, plural, one {# semaine} other {# semaines}}."
     }
   },
+  "admin": {
+    "pages": {
+      "label": "Pages de la liste",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "beyond": "Cette page est au-delà de la fin de la liste."
+    },
+    "users": {
+      "title": "Comptes utilisateurs",
+      "lastName": "Nom",
+      "firstName": "Prénom",
+      "email": "Adresse électronique",
+      "origin": "Origine",
+      "roles": "Rôles d’habilitation",
+      "orgNode": "Rattachement",
+      "noRole": "Aucun rôle",
+      "noOrgNode": "Aucun",
+      "none": "Aucun compte.",
+      "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}"
+    },
+    "accessRoles": {
+      "title": "Rôles d’habilitation",
+      "kind": "Nature",
+      "predefined": "Prédéfini",
+      "composed": "Composé",
+      "holders": "Comptes porteurs",
+      "none": "Aucun rôle d’habilitation."
+    },
+    "permissions": {
+      "title": "Permissions par fonction",
+      "function": "Fonction",
+      "permission": "Permission",
+      "held": "Accordée",
+      "notHeld": "Non accordée"
+    },
+    "status": {
+      "version": "Version installée : {version}",
+      "components": "Composants",
+      "component": "Composant",
+      "availability": "Disponibilité",
+      "available": "Disponible",
+      "unavailable": "Indisponible",
+      "checkedAt": "Dernière vérification",
+      "componentVersion": "Version",
+      "storage": "Espace de stockage",
+      "used": "Utilisé",
+      "free": "Disponible",
+      "operations": "Dernières opérations",
+      "operation": "Opération",
+      "at": "Date",
+      "outcome": "Résultat",
+      "motive": "Motif",
+      "succeeded": "Réussie",
+      "failed": "Échouée",
+      "never": "Jamais effectuée",
+      "directorySync": "Lecture des comptes du fournisseur d’identité",
+      "backup": "Sauvegarde",
+      "restoreTest": "Test de restauration",
+      "alerts": "Alertes en cours",
+      "alert": "Alerte",
+      "severity": "Niveau",
+      "since": "Depuis",
+      "noAlert": "Aucune alerte en cours."
+    },
+    "backups": {
+      "title": "Sauvegardes",
+      "takenAt": "Date",
+      "size": "Taille",
+      "verification": "Vérification",
+      "origin": "Déclenchement",
+      "retention": "Conservation",
+      "retained": "Marquée à conserver",
+      "none": "Aucune sauvegarde.",
+      "count": "{count, plural, =0 {Aucune sauvegarde} one {# sauvegarde} other {# sauvegardes}}"
+    },
+    "schedule": {
+      "title": "Planification",
+      "state": "État",
+      "enabled": "Active",
+      "disabled": "Désactivée",
+      "frequency": "Fréquence",
+      "weekday": "Jour",
+      "at": "Heure",
+      "platformTime": "{time}, heure de la plateforme",
+      "retained": "Rétention",
+      "count": "{count, plural, one {# sauvegarde conservée} other {# sauvegardes conservées}}",
+      "weekdays": {
+        "monday": "Lundi",
+        "tuesday": "Mardi",
+        "wednesday": "Mercredi",
+        "thursday": "Jeudi",
+        "friday": "Vendredi",
+        "saturday": "Samedi",
+        "sunday": "Dimanche"
+      }
+    }
+  },
   "functionGroups": {
     "administration": "Administration",
     "portfolio": "Portefeuille",
@@ -921,7 +1026,8 @@
     "risks": "Gestion des risques",
     "actualCosts": "Coûts réels",
     "projectIndicators": "Indicateurs projets",
-    "lifecycle": "Cycle de vie du projet"
+    "lifecycle": "Cycle de vie du projet",
+    "exchanges": "Imports et exports"
   },
   "errors": {
     "MALFORMED_REQUEST": "La requête est mal formée.",
@@ -1582,6 +1688,69 @@
       "reference_budget": "Budget de la révision de référence",
       "marked_remaining": "Reste à engager d’une révision marquée",
       "current_remaining": "Reste à engager de la révision en cours"
+    }
+  },
+  "exchanges": {
+    "subtitle": "Importer un fichier en deux temps — l’analyse, puis l’application confirmée — ou demander un export.",
+    "import": {
+      "title": "Importer un fichier",
+      "none": "Aucun import ne vous est offert sur ce projet.",
+      "kinds": {
+        "ms_project_schedule": "Importer un planning MS Project",
+        "estimate": "Importer un devis",
+        "remaining": "Importer un reste à engager",
+        "actual_costs": "Importer des coûts réels"
+      },
+      "file": "Fichier à importer",
+      "fileRequired": "Choisissez le fichier à importer.",
+      "analyse": "Analyser le fichier",
+      "cancel": "Annuler",
+      "period": "Période extraite",
+      "periodFrom": "Du",
+      "periodTo": "Au",
+      "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
+    },
+    "report": {
+      "title": "Compte rendu de l’import « {file} »",
+      "kind": "Nature",
+      "status": "État",
+      "openedAt": "Ouvert le",
+      "expiresAt": "Applicable jusqu’au",
+      "formatVersion": "Version du format",
+      "analysing": "L’analyse du fichier est en cours. Le suivi des tâches de fond vous proposera de recharger l’écran quand elle aura abouti.",
+      "none": "Cet import n’a pas de compte rendu.",
+      "read": "{count, plural, =0 {Aucune ligne lue} one {# ligne lue} other {# lignes lues}}.",
+      "reasons": "Confirmation explicite demandée",
+      "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
+      "rejectedTable": "Lignes rejetées",
+      "row": "Ligne",
+      "motive": "Motif",
+      "differences": "{count, plural, =0 {Aucun écart avec les données existantes} one {# écart avec les données existantes} other {# écarts avec les données existantes}}",
+      "differencesTable": "Écarts avec les données existantes",
+      "change": "Changement",
+      "target": "Objet",
+      "label": "Libellé",
+      "unnamed": "Sans libellé",
+      "apply": "Appliquer l’import",
+      "abandon": "Abandonner l’import",
+      "confirmTitle": "Confirmation de l’application",
+      "confirmQuestion": "Appliquer au projet l’import « {file} », en une seule opération ?",
+      "confirm": "Confirmer l’application",
+      "cancel": "Annuler"
+    },
+    "list": {
+      "title": "Imports du projet",
+      "none": "Aucun import n’a encore été ouvert sur ce projet.",
+      "file": "Fichier",
+      "kind": "Nature",
+      "status": "État",
+      "openedAt": "Ouvert le"
+    },
+    "export": {
+      "title": "Demander un export",
+      "kind": "Fichier à exporter",
+      "request": "Demander l’export",
+      "depth": "Niveau de l’arborescence"
     }
   }
 }

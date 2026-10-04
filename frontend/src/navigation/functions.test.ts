@@ -11,6 +11,7 @@ import { readContext } from "./context";
 import {
   diagnosticGroups,
   findScreen,
+  functionAt,
   FUNCTION_GROUPS,
   functionHref,
   functionOf,
@@ -113,8 +114,14 @@ describe("the table of the functions", () => {
 describe("the leaves of the table", () => {
   const leaves = FUNCTIONS.flatMap((fn) => (fn.leaves ?? []).map((leaf) => ({ fn, leaf })));
 
-  it("hold the workload of the project, a leaf of the estimate (FBS-4.4.4)", () => {
-    expect(leaves.map(({ fn, leaf }) => [fn.code, leaf.code])).toEqual([["FBS-4.4", "FBS-4.4.4"]]);
+  it("hold the imports and exports of the planning (FBS-4.3.4) and the workload of the project, a leaf of the estimate (FBS-4.4.4)", () => {
+    expect(leaves.map(({ fn, leaf }) => [fn.code, leaf.code])).toEqual([
+      ["FBS-4.3", "FBS-4.3.4"],
+      ["FBS-4.4", "FBS-4.4.4"],
+    ]);
+    expect(leafOf("FBS-4.3.4").route).toBe(
+      "/projects/[projectId]/revisions/[revisionId]/exchanges",
+    );
     expect(leafOf("FBS-4.4.4").route).toBe("/projects/[projectId]/revisions/[revisionId]/workload");
     expect(() => leafOf("FBS-4.4.9")).toThrow("no leaf of the table is FBS-4.4.9");
   });
@@ -250,6 +257,7 @@ describe("the function an address leads to", () => {
     [["projects", PROJECT, "lifecycle"], "FBS-4.9", PROJECT, undefined],
     [["projects", PROJECT, "revisions"], "FBS-4.1", PROJECT, undefined],
     [["projects", PROJECT, "revisions", REVISION, "workload"], "FBS-4.4.4", PROJECT, REVISION],
+    [["projects", PROJECT, "revisions", REVISION, "exchanges"], "FBS-4.3.4", PROJECT, REVISION],
   ])("is found from %j", (segments, code, projectId, revisionId?: string) => {
     const screen = findScreen(segments);
     expect(screen?.fn.code).toBe(code);
@@ -271,4 +279,11 @@ describe("the function an address leads to", () => {
       expect(findScreen(segments)).toBeUndefined();
     },
   );
+});
+
+describe("the function of a code of the FBS", () => {
+  it("is the function of the table under that code, or none", () => {
+    expect(functionAt("FBS-1.2")?.label).toBe("functions.accessRoles");
+    expect(functionAt("FBS-9.9")).toBeUndefined();
+  });
 });

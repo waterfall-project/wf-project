@@ -101,6 +101,7 @@ const DESIGN_OFFICE = "01926f3a-7c00-7000-8000-000000000471";
 function perimeterBar(
   search: string,
   takes: Takes = { period: true, node: false },
+  nodes: readonly NodeChoice[] = NODES,
   view?: ViewParameters,
 ) {
   page.search = search;
@@ -110,7 +111,7 @@ function perimeterBar(
       perimeter={perimeter}
       retained={LIST.scope.states}
       takes={takes}
-      nodes={NODES}
+      nodes={nodes}
       {...(view === undefined ? {} : { view })}
     />,
   );
@@ -280,6 +281,21 @@ describe("the perimeter of a view of the portfolio", () => {
     expect(await lastAddress()).toBe(`${PATHNAME}?from=2025-01-01&as_of=2026-03-16`);
   });
 
+  it("never lets the period start after its end", () => {
+    render(perimeterBar("from=2025-01-01&to=2025-12-31"));
+    const form = screen.getByRole("form", { name: "Période et date de calcul" });
+    expect(within(form).getByLabelText("Du")).toHaveAttribute("max", "2025-12-31");
+    expect(within(form).getByLabelText("Au")).toHaveAttribute("min", "2025-01-01");
+  });
+
+  it("keeps shown a node the address filters on when no node can be read, to be cleared", async () => {
+    render(perimeterBar(`org_node_id=${DESIGN_OFFICE}`, { period: false, node: true }, []));
+    const node = screen.getByLabelText("Nœud d’organisation");
+    expect(node).toHaveValue(DESIGN_OFFICE);
+    await userEvent.selectOptions(node, "Tous les nœuds");
+    expect(await lastAddress()).toBe(PATHNAME);
+  });
+
   it("restricts the labour to a node of organisation, named with its parent; the date alone where the view takes no period", async () => {
     render(perimeterBar("", { period: false, node: true }));
     expect(screen.queryByLabelText("Du")).toBeNull();
@@ -301,7 +317,10 @@ describe("the perimeter of a view of the portfolio", () => {
 
   it("offers the horizon and the threshold of a view", async () => {
     render(
-      perimeterBar("", { period: false, node: false }, { horizon: undefined, threshold: "0.5" }),
+      perimeterBar("", { period: false, node: false }, NODES, {
+        horizon: undefined,
+        threshold: "0.5",
+      }),
     );
     expect(screen.getByLabelText("Seuil de sous-charge")).toHaveValue("0.5");
     await userEvent.selectOptions(screen.getByLabelText("Horizon"), "12 mois");

@@ -137,6 +137,16 @@ export function functionOf(permission: FunctionPermission): NavigationFunction {
 }
 
 /**
+ * The function of the table of a code of the FBS — `FBS-1.1` —, as a permission of the catalogue
+ * names the function it covers (`Permission.fbs_code`); `undefined` for a code the table has not.
+ * The table holds the functions of the second level only: a leaf of the FBS — `FBS-4.3.2` — is not
+ * found, nor is a block of the first level.
+ */
+export function functionAt(code: string): NavigationFunction | undefined {
+  return FUNCTION_GROUPS.flatMap((group) => group.functions).find((fn) => fn.code === code);
+}
+
+/**
  * The address of a function: its route outside a project; in a project, its route in the
  * context given — the same revision, sub-project and calculation date, the revision as the
  * parameter `revision_id` on a function of the project itself, so that the next function of

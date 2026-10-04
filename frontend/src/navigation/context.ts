@@ -31,6 +31,11 @@ const COOKIE_AGE = 60 * 60 * 24 * 365;
 // An identifier in a path, as the contract makes them: never `.`, `..`, empty, nor encoded.
 const IDENTIFIER = /^[\w-]+$/;
 
+/** Whether a value can stand for an identifier in a path: never `.`, `..`, empty, nor encoded. */
+export function isIdentifier(value: string): boolean {
+  return IDENTIFIER.test(value);
+}
+
 /** A function of the table, as this module reads it: its scope, its route, its leaves. */
 interface Routed {
   readonly scope: string;
@@ -176,6 +181,15 @@ export function pageSearch(search: PageSearchParams): SearchParameters {
       return first ?? null;
     },
   };
+}
+
+/**
+ * The offset of a page of a list the address asks for (`offset`), or none when it asks for none a
+ * server could take.
+ */
+export function offsetOf(value: string | null): number | undefined {
+  const offset = Number(value);
+  return value !== null && Number.isSafeInteger(offset) && offset > 0 ? offset : undefined;
 }
 
 /**

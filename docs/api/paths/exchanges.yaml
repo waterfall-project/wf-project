@@ -24,6 +24,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
+            examples:
+              estimate: { $ref: ../../../fixtures/api/file_upload.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -53,6 +55,10 @@
                   type: array
                   items: { $ref: ../components/schemas/exchanges.yaml#/Import }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              imports: { $ref: ../../../fixtures/api/imports.json }
+              page: { $ref: ../../../fixtures/api/imports_page.json }
+              empty: { $ref: ../../../fixtures/api/imports_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -79,6 +85,8 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+            examples:
+              analysing: { $ref: ../../../fixtures/api/import_analysing.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -111,6 +119,10 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+            examples:
+              analysed: { $ref: ../../../fixtures/api/import_analysed.json }
+              analysing: { $ref: ../../../fixtures/api/import_analysing.json }
+              planning_mismatch: { $ref: ../../../fixtures/api/import_planning_mismatch.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
@@ -191,6 +203,8 @@
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              queued: { $ref: ../../../fixtures/api/task_export_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

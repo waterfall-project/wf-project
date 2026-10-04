@@ -668,6 +668,63 @@ qui n'en avait pas dans la grille des volumes — et `hourly_rate_corrected` —
 même catégorie corrigé, sa version avancée. La catégorie n'est employée par aucun devis des
 exemples : ni l'une ni l'autre écriture ne contredit un montant chiffré ailleurs.
 
+## L'administration (US-0250/L2)
+
+Ajouts que les écrans de l'administration exigent, faits par leur lot sur l'autorisation de
+l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »).
+
+**Un compte nomme ses rôles et son nœud** (`User.access_role_labels`, `User.org_node_label`).
+L'écran des comptes présente chacun avec ses rôles d'habilitation et son rattachement
+(WF-ADM-0050) ; sans les libellés, le front rapprochait `listAccessRoles` et `listOrgNodes` des
+comptes (WF-ARC-0020), et disait inconnu un nœud désactivé auquel un compte reste rattaché
+(WF-REF-0150). Libellés résolus à la lecture, exigés : les rôles dans l'ordre de
+`access_role_ids`, le nœud nul sans rattachement. Ils valent pour `UserSelf`, que la session
+rend. Écarté : des objets `{access_role_id, label}` à la place des identifiants, qui auraient
+changé la forme que `setUserAccessRoles` écrit.
+
+**Exemples**, dans l'univers des autres, au 16 mars 2026 : `users` et `users_page` (les comptes
+de l'installation, par nom — Dominique Bernard de `me_directory`, Camille Martin de la session,
+Alix Moreau, désactivée, de `contributors`, et un compte venu du fournisseur d'identité, sans
+rôle —, puis leur seconde page lue deux par deux) ; `permissions` (le catalogue, dans l'ordre de
+`PermissionCode`) ; `access_roles` (les trois rôles prédéfinis tels que livrés, et celui, composé
+de tout le catalogue, que porte la session) ; `system_status` et `system_status_backup_failed`
+(l'installation saine, puis la même au stockage des fichiers indisponible, la sauvegarde planifiée
+échouée et signalée) ; `backups` et `backups_empty` (les sept sauvegardes de la rétention et une
+manuelle marquée à conserver ; aucune ; une page demandée au-delà de leur fin, `backups_beyond`) ;
+`backup_schedule`, `backup_schedule_weekly` et `backup_schedule_disabled` (suspendue). Les sessions
+d'un chiffreur et sans administration, qui n'ont pas tout le catalogue, portent chacune un rôle
+propre (`Chiffreur`, `Pilotage de projet`), que `access_roles` ne liste pas : ce sont d'autres
+installations que celle de l'exemple.
+
+## L'import en deux temps (US-0260/L1)
+
+Ajouts que l'écran d'import exige, faits par son lot sur l'autorisation de l'utilisateur du
+2026-10-04 (« ajouts de lecture inclus »).
+
+**Un import nomme son fichier** (`Import.filename`, exigé). L'écran présente les imports du projet
+et le compte rendu de chacun (WF-INTF-0080) : sans le nom du fichier, deux imports de même nature
+ouverts le même jour ne se distinguent pas, et le fichier lui-même est supprimé dès l'import
+appliqué, abandonné ou expiré (WF-DAT-0120) — `FileUpload.filename` ne se relit plus. Le nom est
+celui que l'utilisateur a envoyé, gardé tel quel. Écarté : renvoyer au dépôt par `upload_id`, qui ne
+se lit pas.
+
+**Exemples**, dans l'univers des autres : `file_upload` (le devis du Poste de commande déposé le
+1er juin 2026 à 8 h 40), `import_analysing` (son import ouvert, l'analyse en cours),
+`import_analysed` (le même analysé à 8 h 41 : cinq lignes lues — deux rejetées, une tâche et un
+rôle inconnus, « Essais de continuité » ajoutée, « Raccordement des borniers » modifiée, la
+provision inchangée —, et « Borniers », que le fichier ne porte plus, retirée ; il est de l'univers
+du devis de `nodes_estimate`, de la scission des univers témoins, #287), `import_planning_mismatch`
+(un planning MS Project tel qu'il se lisait le 20 mai à 10 h 16, analysé et pas encore abandonné,
+dont la durée des « Études de détail » diffère de celle que Waterfall recalcule, qui demande une
+confirmation explicite ; il est de l'univers des indicateurs et du planning, sa tâche étant
+0602 de `nodes.json`, #287), `imports` (au 1er juin : le devis qui attend sa
+confirmation, le planning abandonné, et les quatre extractions de coûts réels de
+`cost_imports_periods` antérieures au 1er juin, appliquées), `imports_page` (la même liste lue
+deux par deux, sa deuxième page) et `imports_empty` ;
+`task_export_queued` et `task_export_succeeded` (l'export du devis demandé à 9 h 10, abouti, son
+résultat à lire par la tâche). L'application de l'import du devis est `task_import_queued`, à
+9 h.
+
 ## Les exemples du portefeuille (US-0240/L3)
 
 **Les vues du portefeuille ont leurs exemples**, faits par le lot de leurs écrans sur

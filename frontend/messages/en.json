@@ -301,6 +301,12 @@
         "beyond": "The page asked is beyond the end of the journal.",
         "previous": "More recent imports",
         "next": "Older imports"
+      },
+      "exchanges": {
+        "label": "Pages of the imports of the project",
+        "beyond": "The page asked is beyond the end of the list.",
+        "previous": "Previous imports",
+        "next": "Next imports"
       }
     },
     "imports": {
@@ -638,7 +644,9 @@
     "interruptedLine": "Follow-up interrupted: {task}.",
     "dismiss": "Stop following: {task}",
     "toggle": "{count, plural, =0 {Background tasks} one {Background tasks: # followed} other {Background tasks: # followed}}",
-    "none": "No background task followed."
+    "none": "No background task followed.",
+    "download": "Download the result",
+    "downloadLabel": "Download the result: {task}"
   },
   "markRevision": {
     "versionName": "Version name",
@@ -890,6 +898,103 @@
       "maxWeeks": "Longest delay between two marked revisions of a project in progress: {weeks, plural, one {# week} other {# weeks}}."
     }
   },
+  "admin": {
+    "pages": {
+      "label": "Pages of the list",
+      "previous": "Previous page",
+      "next": "Next page",
+      "beyond": "This page is beyond the end of the list."
+    },
+    "users": {
+      "title": "User accounts",
+      "lastName": "Last name",
+      "firstName": "First name",
+      "email": "Email address",
+      "origin": "Origin",
+      "roles": "Access roles",
+      "orgNode": "Attached to",
+      "noRole": "No role",
+      "noOrgNode": "None",
+      "none": "No account.",
+      "count": "{count, plural, =0 {No account} one {# account} other {# accounts}}"
+    },
+    "accessRoles": {
+      "title": "Access roles",
+      "kind": "Kind",
+      "predefined": "Predefined",
+      "composed": "Composed",
+      "holders": "Holding accounts",
+      "none": "No access role."
+    },
+    "permissions": {
+      "title": "Permissions by function",
+      "function": "Function",
+      "permission": "Permission",
+      "held": "Granted",
+      "notHeld": "Not granted"
+    },
+    "status": {
+      "version": "Installed version: {version}",
+      "components": "Components",
+      "component": "Component",
+      "availability": "Availability",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "checkedAt": "Last checked",
+      "componentVersion": "Version",
+      "storage": "Storage",
+      "used": "Used",
+      "free": "Available",
+      "operations": "Last operations",
+      "operation": "Operation",
+      "at": "Date",
+      "outcome": "Outcome",
+      "motive": "Motive",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "never": "Never run",
+      "directorySync": "Reading of the identity provider accounts",
+      "backup": "Backup",
+      "restoreTest": "Restoration test",
+      "alerts": "Current alerts",
+      "alert": "Alert",
+      "severity": "Level",
+      "since": "Since",
+      "noAlert": "No current alert."
+    },
+    "backups": {
+      "title": "Backups",
+      "takenAt": "Date",
+      "size": "Size",
+      "verification": "Verification",
+      "origin": "Started",
+      "retention": "Retention",
+      "retained": "Marked to keep",
+      "none": "No backup.",
+      "count": "{count, plural, =0 {No backup} one {# backup} other {# backups}}"
+    },
+    "schedule": {
+      "title": "Schedule",
+      "state": "State",
+      "enabled": "On",
+      "disabled": "Off",
+      "frequency": "Frequency",
+      "weekday": "Day",
+      "at": "Time",
+      "platformTime": "{time}, platform time",
+      "retained": "Retention",
+      "count": "{count, plural, one {# backup kept} other {# backups kept}}",
+      "weekdays": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    }
+  },
   "functionGroups": {
     "administration": "Administration",
     "portfolio": "Portfolio",
@@ -921,7 +1026,8 @@
     "risks": "Risk management",
     "actualCosts": "Actual costs",
     "projectIndicators": "Project indicators",
-    "lifecycle": "Project lifecycle"
+    "lifecycle": "Project lifecycle",
+    "exchanges": "Imports and exports"
   },
   "errors": {
     "MALFORMED_REQUEST": "The request is malformed.",
@@ -1582,6 +1688,69 @@
       "reference_budget": "Budget of the reference revision",
       "marked_remaining": "Remaining of a marked revision",
       "current_remaining": "Remaining of the current revision"
+    }
+  },
+  "exchanges": {
+    "subtitle": "Import a file in two steps — the analysis, then the confirmed application — or request an export.",
+    "import": {
+      "title": "Import a file",
+      "none": "No import is offered to you on this project.",
+      "kinds": {
+        "ms_project_schedule": "Import an MS Project schedule",
+        "estimate": "Import an estimate",
+        "remaining": "Import an estimate to complete",
+        "actual_costs": "Import actual costs"
+      },
+      "file": "File to import",
+      "fileRequired": "Choose the file to import.",
+      "analyse": "Analyse the file",
+      "cancel": "Cancel",
+      "period": "Period extracted",
+      "periodFrom": "From",
+      "periodTo": "To",
+      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
+    },
+    "report": {
+      "title": "Report of the import “{file}”",
+      "kind": "Kind",
+      "status": "Status",
+      "openedAt": "Opened on",
+      "expiresAt": "Applicable until",
+      "formatVersion": "Format version",
+      "analysing": "The file is being analysed. The background task follow-up will offer to reload the screen once it has finished.",
+      "none": "This import has no report.",
+      "read": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}.",
+      "reasons": "Explicit confirmation required",
+      "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
+      "rejectedTable": "Rejected lines",
+      "row": "Line",
+      "motive": "Reason",
+      "differences": "{count, plural, =0 {No difference with the existing data} one {# difference with the existing data} other {# differences with the existing data}}",
+      "differencesTable": "Differences with the existing data",
+      "change": "Change",
+      "target": "Object",
+      "label": "Label",
+      "unnamed": "No label",
+      "apply": "Apply the import",
+      "abandon": "Abandon the import",
+      "confirmTitle": "Confirmation of the application",
+      "confirmQuestion": "Apply the import “{file}” to the project, in a single operation?",
+      "confirm": "Confirm the application",
+      "cancel": "Cancel"
+    },
+    "list": {
+      "title": "Imports of the project",
+      "none": "No import has been opened on this project yet.",
+      "file": "File",
+      "kind": "Kind",
+      "status": "Status",
+      "openedAt": "Opened on"
+    },
+    "export": {
+      "title": "Request an export",
+      "kind": "File to export",
+      "request": "Request the export",
+      "depth": "Level of the tree"
     }
   }
 }

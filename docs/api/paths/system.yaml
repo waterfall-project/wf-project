@@ -95,6 +95,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/SystemStatus }
+            examples:
+              witness: { $ref: ../../../fixtures/api/system_status.json }
+              backup_failed: { $ref: ../../../fixtures/api/system_status_backup_failed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -168,6 +171,7 @@
               failed: { $ref: ../../../fixtures/api/task_failed.json }
               import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }
               relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
+              export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

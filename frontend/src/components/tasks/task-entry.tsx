@@ -5,7 +5,8 @@
  * user named it after —, where it stands, how far it has gone while it runs, and, failed, its
  * motive in a sentence of the catalogue and the offer to run the same command again — or,
  * without the command, the way to do it from the screen of its object —; succeeded, the offer
- * to read the screen anew. While the task runs,
+ * to read the screen anew, and to download its result when it made one — an export —, which
+ * the server of Next reads from the API (`app/tasks/[taskId]/result`). While the task runs,
  * the entry asks the server where it stands, by a server action, every so often; it stops once
  * the task has ended, once the API refuses to say — the follow-up is then interrupted, and the
  * entry says so —, and when it is dismissed or the shell goes away.
@@ -15,7 +16,7 @@
  */
 "use client";
 
-import { RefreshCw, RotateCcw, X } from "lucide-react";
+import { Download, RefreshCw, RotateCcw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { type Dispatch, useCallback, useEffect, useRef, useTransition } from "react";
@@ -23,7 +24,7 @@ import { type Dispatch, useCallback, useEffect, useRef, useTransition } from "re
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
 import { OutcomeNotice, SignIn } from "@/components/commands/outcome-notice";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
 
 import {
@@ -140,6 +141,27 @@ function ReloadScreen() {
   );
 }
 
+/** Where the front serves the result of a task, which its server reads from the API. */
+export function taskResultHref(taskId: string): string {
+  return `/tasks/${encodeURIComponent(taskId)}/result`;
+}
+
+/** The offer to download the file a task made: made on demand, it is not kept (WF-DAT-0120). */
+function DownloadResult({ task, name }: { readonly task: BackgroundTask; readonly name: string }) {
+  const t = useTranslations("tasks");
+  return (
+    <a
+      href={taskResultHref(task.task_id)}
+      download
+      aria-label={t("downloadLabel", { task: name })}
+      className={buttonVariants({ variant: "outline", size: "sm" })}
+    >
+      <Download aria-hidden="true" />
+      {t("download")}
+    </a>
+  );
+}
+
 /** Why the follow-up stopped: the refusal of the API, and the way to sign in without a session. */
 function Interruption({ refusal }: { readonly refusal: Refusal }) {
   return (
@@ -250,6 +272,9 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
       {isPolled(entry) ? <Progress name={name} progress={task.progress} /> : null}
       {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
       {task.status === "succeeded" ? <ReloadScreen /> : null}
+      {task.status === "succeeded" && task.result_url != null ? (
+        <DownloadResult task={task} name={name} />
+      ) : null}
       {failed ? <Motive problem={task.problem} /> : null}
       {failed && command !== undefined ? (
         <Button

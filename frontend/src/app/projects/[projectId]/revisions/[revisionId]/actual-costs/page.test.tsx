@@ -116,6 +116,15 @@ describe("the screen of the actual costs", () => {
     expect(text(page)).toContain("Actual costs 4 lines retained");
   });
 
+  it("leads from its head to the imports and exports of the project, where the actual costs are imported, in the same context", async () => {
+    const page = await costsAt({ subproject_id: "unassigned", as_of: "2026-05-31" });
+    expect(page).toMatch(
+      new RegExp(
+        `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/exchanges\\?subproject_id=unassigned&amp;as_of=2026-05-31"[^>]*>.*?Imports and exports</a>`,
+      ),
+    );
+  });
+
   it("presents the three totals and the date of the last import the server gives [WF-CRE-0040-A] [WF-CRE-0050-A]", async () => {
     const page = await costsAt();
     expect(text(page)).toContain(
