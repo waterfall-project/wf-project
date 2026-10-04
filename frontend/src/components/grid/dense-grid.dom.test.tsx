@@ -808,6 +808,7 @@ describe("a grid configured without its options", () => {
     const plain: GridConfig<EstimateNode, NodeSortColumn, NodeTotals> = {
       key: "plain",
       name: "estimate",
+      searched: true,
       rowKey: (node) => node.node_id,
       columns: ESTIMATE_GRID.columns.map((column) => ({ ...column, pinned: false })),
     };

@@ -39,12 +39,21 @@ export interface GridToolbarProps {
   readonly columns: readonly ToggledColumn[];
   /** The search the address holds. */
   readonly search: string | undefined;
-  /** Ask the server for the rows a search retains — all of them, for an empty one. */
-  readonly onSearch: (search: string) => void;
+  /**
+   * Ask the server for the rows a search retains — all of them, for an empty one; none for a grid
+   * the server does not search, and the bar offers no search.
+   */
+  readonly onSearch: ((search: string) => void) | undefined;
 }
 
 /** The search on the labels, sent when entered. */
-function SearchField({ search, onSearch }: Pick<GridToolbarProps, "search" | "onSearch">) {
+function SearchField({
+  search,
+  onSearch,
+}: {
+  readonly search: string | undefined;
+  readonly onSearch: (search: string) => void;
+}) {
   const t = useTranslations("grid.search");
   const [text, setText] = useState(search ?? "");
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -78,7 +87,9 @@ export function GridToolbar({ columns, search, onSearch }: GridToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* A search the address changed — back in the history — sets the field anew. */}
-      <SearchField key={search ?? ""} search={search} onSearch={onSearch} />
+      {onSearch === undefined ? null : (
+        <SearchField key={search ?? ""} search={search} onSearch={onSearch} />
+      )}
       <div className="flex-1" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

@@ -1,0 +1,17 @@
+{
+  "summary": "Un projet dont aucun coût réel n'a encore été importé : aucune ligne, des totaux nuls et aucune date de dernier import (WF-CRE-0050).",
+  "value": {
+    "items": [],
+    "totals": {
+      "tracked": "0.00",
+      "excluded": "0.00",
+      "overall": "0.00"
+    },
+    "last_import_at": null,
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 0
+    }
+  }
+}

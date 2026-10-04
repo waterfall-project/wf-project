@@ -582,6 +582,37 @@ par une pente (relevé par la revue de la PR #289) ; le front trace les points t
 `earned_value_curves` (`getEarnedValueCurves`) prolonge la valeur planifiée jusqu'à la fin de la
 référence. Les exemples du plan de charge viendront avec son écran (#286).
 
+## Les coûts réels d'un projet (US-0230/L3)
+
+Ajouts de lecture que l'écran des coûts réels exige, faits par son lot sur la même autorisation
+de l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »).
+
+**Une ligne de coût nomme son sous-projet** (`ActualCostLine.subproject_code`,
+`subproject_label`). La consultation présente l'imputation de chaque ligne (WF-CRE-0010,
+WF-CRE-0020) ; la ligne ne la portait que par `subproject_id`, que l'écran ne pouvait nommer
+qu'en rapprochant `listSubprojects` de chaque page, dans le front (WF-ARC-0020). Le code ERP et
+le libellé, résolus à la lecture, exigés, nuls pour une ligne imputée au seul projet — « hors
+sous-projet » —, comme le libellé d'un écart l'est pour la clé `unassigned` de
+`RevisionComparison`. Écarté : un objet `subproject` imbriqué, qui redirait l'identifiant.
+
+**La date du dernier import est toujours rendue** (`last_import_at`, exigé, nul tant que rien
+n'a été importé). Facultative, son absence se confondait avec « aucun import » : l'écran aurait
+dit qu'aucun import n'a eu lieu d'une réponse conforme qui l'omettait (relevé par Copilot sur la
+PR #295). Exigée et nullable, `null` dit seul qu'il n'y a pas d'import.
+
+**Exemples** : `actual_costs` (au 4 mai 2026, quatre lignes hors sous-projet — les codes de
+sous-projet de l'ERP ne sont pas ceux du projet —, dont un avoir de -200 et la réception du
+client exclue du périmètre suivi ; 3 000 suivis, le coût réel de `remaining_indicators_over_budget`,
+650 exclus, 3 650 en tout ; le dernier import du 4 mai), `actual_costs_page` (la même
+consultation lue une ligne par page, la deuxième ; les totaux de toutes les lignes retenues),
+`actual_costs_subproject` (filtrée sur le Poste de commande, après l'import du 3 juin : une
+facture imputée au sous-projet, nommé), `actual_costs_empty` (aucun import) ; `cost_imports`
+(les imports de mars et d'avril, une ligne d'un autre projet ignorée), `cost_imports_periods`
+(le journal au 3 juin : trois extractions à la période incomplète, dont une réextraction qui
+ignore 12 345 lignes d'autres projets, puis les imports de mars et d'avril de `cost_imports`), `cost_imports_beyond` (une page demandée au-delà de la fin) et
+`cost_imports_empty`.
+Ils restent dans l'univers des indicateurs, sans coût réel au 16 mars (`project_indicators`).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

@@ -1,0 +1,56 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The cells of the grid of the actual costs that show more than a value formatted: the sub-project
+ * a line is charged to, by its code and its label as the server resolves them, or that it is
+ * charged to the project alone (WF-CRE-0020); whether it is in the tracked scope, in words and by
+ * an icon, never by a colour alone (WF-CRE-0030); and the columns of the file kept for
+ * information, each by its name in the file and its value, as imported — never translated
+ * (WF-CRE-0010).
+ */
+"use client";
+
+import { CircleCheck, CircleSlash } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import type { CostRow } from "./cost-grid";
+
+/** Render the sub-project of a line: its code and its label, or « no sub-project ». */
+export function SubprojectCell({ line }: { readonly line: CostRow }) {
+  const t = useTranslations("enums.SubprojectFilter");
+  if (line.subproject_code === null) {
+    return <span className="truncate text-muted-foreground italic">{t("unassigned")}</span>;
+  }
+  return (
+    <span className="flex min-w-0 gap-1.5">
+      <span className="shrink-0 font-medium">{line.subproject_code}</span>
+      <span className="truncate">{line.subproject_label}</span>
+    </span>
+  );
+}
+
+/** Render whether a line is in the tracked scope: an icon and its word. */
+export function ScopeCell({ tracked }: { readonly tracked: boolean }) {
+  const t = useTranslations("actualCosts.scope");
+  const Icon = tracked ? CircleCheck : CircleSlash;
+  return (
+    <span className="inline-flex items-center gap-1 truncate">
+      <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+      {t(tracked ? "tracked" : "excluded")}
+    </span>
+  );
+}
+
+/** Render the columns of the file kept with a line, each by its name and its value, as imported. */
+export function PassthroughCell({ line }: { readonly line: CostRow }) {
+  return (
+    <span className="flex min-w-0 gap-3 truncate">
+      {Object.entries(line.passthrough ?? {}).map(([name, value]) => (
+        <span key={name} className="inline-flex shrink-0 gap-1">
+          <span className="text-muted-foreground">{name}</span>
+          <span>{value}</span>
+        </span>
+      ))}
+    </span>
+  );
+}

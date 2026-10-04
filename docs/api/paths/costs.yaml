@@ -37,7 +37,7 @@
           application/json:
             schema:
               type: object
-              required: [items, totals, meta]
+              required: [items, totals, last_import_at, meta]
               properties:
                 items:
                   type: array
@@ -48,6 +48,11 @@
                     - $ref: ../components/common.yaml#/Timestamp
                     - type: 'null'
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/actual_costs.json }
+              page: { $ref: ../../../fixtures/api/actual_costs_page.json }
+              subproject: { $ref: ../../../fixtures/api/actual_costs_subproject.json }
+              empty: { $ref: ../../../fixtures/api/actual_costs_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -104,5 +109,10 @@
                   type: array
                   items: { $ref: ../components/schemas/costs.yaml#/CostImport }
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/cost_imports.json }
+              periods: { $ref: ../../../fixtures/api/cost_imports_periods.json }
+              beyond: { $ref: ../../../fixtures/api/cost_imports_beyond.json }
+              empty: { $ref: ../../../fixtures/api/cost_imports_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
