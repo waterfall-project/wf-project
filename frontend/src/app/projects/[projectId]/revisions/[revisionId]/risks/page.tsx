@@ -20,6 +20,7 @@ import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
+import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import { readRisk, readStates, type RiskState } from "@/components/risks/address";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
@@ -163,22 +164,25 @@ export default async function RisksPage({
   return (
     <>
       <ContextBanner reading={reading} />
-      <Screen density={FUNCTION_DENSITY.risks} fill>
-        <RisksHeader count={risks.items.length} />
-        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-          <ProvisionSummary totals={risks.totals} />
-          <RiskStateFilter states={states} />
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <RisksGrid risks={risks} query={query} preferences={preferences} />
+      {/* The filter, the grid and the links compose the changes they make to the address. */}
+      <PendingAddress>
+        <Screen density={FUNCTION_DENSITY.risks} fill>
+          <RisksHeader count={risks.items.length} />
+          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+            <ProvisionSummary totals={risks.totals} />
+            <RiskStateFilter states={states} />
           </div>
-          <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
-            <RiskMatrixView matrix={matrix} />
-            {detail === undefined ? <DetailHint /> : <RiskDetail {...detail} />}
-          </aside>
-        </div>
-      </Screen>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <RisksGrid risks={risks} query={query} preferences={preferences} />
+            </div>
+            <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
+              <RiskMatrixView matrix={matrix} />
+              {detail === undefined ? <DetailHint /> : <RiskDetail {...detail} />}
+            </aside>
+          </div>
+        </Screen>
+      </PendingAddress>
     </>
   );
 }

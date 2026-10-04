@@ -14,6 +14,8 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import type { RiskState } from "./address";
+import { PendingAddress } from "@/components/grid/pending-address";
+
 import { riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
 import { RisksGrid } from "./risks-grid";
 import { RiskStateFilter } from "./state-filter";
@@ -303,7 +305,7 @@ describe("the filter of the risks by state", () => {
 
   it("adds a state to those filtered on, in the order of the contract, and takes one off", async () => {
     page.search = "states=occurred";
-    renderFilter(["occurred"]);
+    const { unmount } = renderFilter(["occurred"]);
     expect(within(filter()).getByRole("button", { name: "Survenu" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -312,6 +314,8 @@ describe("the filter of the risks by state", () => {
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified%2Coccurred`, {
       scroll: false,
     });
+    unmount();
+    renderFilter(["occurred"]);
     await userEvent.click(within(filter()).getByRole("button", { name: "Survenu" }));
     expect(router.push).toHaveBeenLastCalledWith(PATHNAME, { scroll: false });
   });
@@ -323,5 +327,65 @@ describe("the filter of the risks by state", () => {
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?search=automaticien`, {
       scroll: false,
     });
+  });
+});
+
+describe("the changes the screen makes to its address, before the server has answered", () => {
+  /** Render the filter and the grid of the risks, as the page shares the address they ask. */
+  function renderScreen() {
+    return render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <PendingAddress>
+          <RiskStateFilter states={[]} />
+          <RisksGrid risks={risksOf("risks")} query={NO_QUERY} preferences={undefined} />
+        </PendingAddress>
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it("compose: two states chosen in a row, then a sort, all asked of the server [WF-RIS-0040-A]", async () => {
+    renderScreen();
+    // The address of the screen stays the one before: no navigation has arrived.
+    await userEvent.click(within(filter()).getByRole("button", { name: "Identifié" }));
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified`, {
+      scroll: false,
+    });
+    await userEvent.click(within(filter()).getByRole("button", { name: "Survenu" }));
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified%2Coccurred`, {
+      scroll: false,
+    });
+    const heading = within(grid()).getByRole("columnheader", { name: /Provision/ });
+    await userEvent.click(within(heading).getByRole("button"));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith(
+        `${PATHNAME}?states=identified%2Coccurred&sort_by=provision_amount&sort_order=asc`,
+        { scroll: false },
+      );
+    });
+  });
+
+  it("keep a sort under way when a risk is opened, by a click or from the keyboard [WF-RIS-0040-A]", async () => {
+    renderScreen();
+    const heading = within(grid()).getByRole("columnheader", { name: /Provision/ });
+    await userEvent.click(within(heading).getByRole("button"));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith(
+        `${PATHNAME}?sort_by=provision_amount&sort_order=asc`,
+        { scroll: false },
+      );
+    });
+    await userEvent.click(
+      within(grid()).getByRole("link", { name: "Risque de reprise du câblage" }),
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?sort_by=provision_amount&sort_order=asc&risk=${CABLING}`,
+      { scroll: false },
+    );
+    cell("Retard de livraison des armoires", 0).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?sort_by=provision_amount&sort_order=asc&risk=01926f3a-7c00-7000-8000-000000000752`,
+      { scroll: false },
+    );
   });
 });

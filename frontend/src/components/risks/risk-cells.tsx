@@ -14,6 +14,9 @@ import { X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { MouseEvent } from "react";
+
+import { usePendingAddress } from "@/components/grid/pending-address";
 
 import { Signal } from "@/components/signal/signal";
 import { buttonVariants } from "@/components/ui/button";
@@ -21,14 +24,34 @@ import { buttonVariants } from "@/components/ui/button";
 import { readRisk, riskHref, type RiskState } from "./address";
 import type { RiskRow } from "./risk-grid";
 
-/** Render the label of a risk, as a link to its detail; the risk shown says so. */
-export function RiskLabelCell({ risk }: { readonly risk: RiskRow }) {
+/**
+ * Open the detail of a risk — or close it, `undefined` —, from the address last asked: a sort or a
+ * filter under way is kept. A click with a modifier is the browser's: a new tab, a new window.
+ */
+function useRiskNavigation(risk: string | undefined) {
   const pathname = usePathname();
   const query = useSearchParams();
-  const shown = readRisk(query) === risk.risk_id;
+  const { request } = usePendingAddress();
+  return {
+    href: riskHref(pathname, new URLSearchParams(query), risk),
+    onClick: (event: MouseEvent<HTMLAnchorElement>) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      request((asked) => riskHref(pathname, asked, risk));
+    },
+  };
+}
+
+/** Render the label of a risk, as a link to its detail; the risk shown says so. */
+export function RiskLabelCell({ risk }: { readonly risk: RiskRow }) {
+  const shown = readRisk(useSearchParams()) === risk.risk_id;
+  const { href, onClick } = useRiskNavigation(risk.risk_id);
   return (
     <Link
-      href={riskHref(pathname, new URLSearchParams(query), risk.risk_id)}
+      href={href}
+      onClick={onClick}
       tabIndex={-1}
       aria-current={shown ? "true" : undefined}
       className="block truncate underline-offset-2 hover:underline aria-[current]:font-semibold"
@@ -55,11 +78,11 @@ export function RiskZoneCell({ risk }: { readonly risk: RiskRow }) {
 /** Render the link that closes the detail of a risk: the same screen, its query kept, without it. */
 export function CloseRiskDetail() {
   const t = useTranslations("risks.detail");
-  const pathname = usePathname();
-  const query = useSearchParams();
+  const { href, onClick } = useRiskNavigation(undefined);
   return (
     <Link
-      href={riskHref(pathname, new URLSearchParams(query), undefined)}
+      href={href}
+      onClick={onClick}
       scroll={false}
       aria-label={t("close")}
       className={buttonVariants({ variant: "ghost", size: "icon" })}
