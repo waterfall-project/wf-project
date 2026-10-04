@@ -478,13 +478,14 @@ NodeTotals:
 
 NodesWritten:
   type: object
-  required: [nodes, ancestors, totals, structure_lock_version]
+  required: [nodes, ancestors, rescheduled, totals, structure_lock_version]
   description: >-
     Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un
     déplacement, une création, une suppression, une liaison, un avancement, une réestimation,
-    une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de
-    la structure, pour que la grille montre juste sans relire la structure ni rien sommer
-    (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé.
+    une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux,
+    les dates des autres tâches que l'écriture a redatées, et les totaux de la structure,
+    pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040,
+    WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé.
   properties:
     nodes:
       type: array
@@ -500,6 +501,18 @@ NodesWritten:
         récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de
         premier niveau.
       items: { $ref: '#/Node' }
+    rescheduled:
+      type: array
+      description: >-
+        Les tâches dont le début, la fin, la marge totale ou la criticité ont changé par
+        l'écriture sans être écrites ni ancêtres — les successeurs d'une liaison ou d'une
+        durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —,
+        chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une
+        projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste
+        légère. Les montants qui dépendent des dates — le montant corrigé de l'inflation,
+        l'année de consommation — n'y sont pas : ils se lisent dans la grille de devis, qui
+        relit la structure à son ouverture.
+      items: { $ref: '#/NodeSchedule' }
     totals:
       allOf: [{ $ref: '#/NodeTotals' }]
       description: >-
@@ -510,6 +523,34 @@ NodesWritten:
       description: >-
         Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le
         collage suivant porte (WF-IHM-0110).
+
+NodeSchedule:
+  type: object
+  required: [node_id, start, finish, total_float, is_critical, finish_overdue]
+  description: >-
+    Le calendrier d'une tâche qu'une écriture a redatée sans l'écrire
+    (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque
+    modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le
+    chemin critique déplace (WF-PLA-0100), telles que la facette temps du nœud les porte
+    désormais (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas.
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    start: { $ref: ../common.yaml#/WorkInstant }
+    finish: { $ref: ../common.yaml#/WorkInstant }
+    total_float:
+      anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
+      description: >-
+        Marge totale de la tâche (WF-PLA-0100), en temps de travail ; nulle pour une tâche en
+        mode manuel, dont les dates sont imposées et qui ne porte pas de marge.
+    is_critical:
+      type: boolean
+      description: >-
+        Appartenance au chemin critique (WF-PLA-0100) ; fausse pour une tâche en mode manuel.
+    finish_overdue:
+      type: boolean
+      description: >-
+        Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de
+        calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`.
 
 TaskProgress:
   type: string

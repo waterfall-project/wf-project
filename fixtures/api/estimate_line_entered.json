@@ -176,6 +176,7 @@
         ]
       }
     ],
+    "rescheduled": [],
     "totals": {
       "task_count": 1000,
       "estimate_line_count": 5000,

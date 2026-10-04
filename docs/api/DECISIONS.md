@@ -483,6 +483,29 @@ corps binaire, qui aurait figé la borne dans le contrat.
 `createCalendar`, au lieu d'une 422 écrite en ligne ; ce que `fields` nomme est dit par
 `DurationUnitsWrite`.
 
+## Les tâches qu'une écriture redate (EP-02/L10)
+
+**L'enveloppe porte les tâches redatées, en projection légère** (`NodesWritten.rescheduled`,
+`NodeSchedule`, #222, décision de l'utilisateur du 2026-10-04). Une liaison écrite, ou la durée
+d'une tâche en mode automatique, redate ses successeurs (WF-PLA-0020) et peut déplacer le chemin
+critique (WF-PLA-0100) : des tâches qui ne sont ni écrites ni ancêtres, et que la grille de
+planning aurait montrées à leurs dates d'avant jusqu'à une relecture — le cas que #188 corrigeait
+pour les montants. `rescheduled` les rend, chacune une fois, dans l'ordre du plan, vide quand
+rien d'autre n'a bougé ; il est exigé sur toute écriture, pour que la grille n'ait pas à
+distinguer une enveloppe qui n'en parle pas d'une enveloppe où rien n'a bougé. Chacune est un
+`NodeSchedule` — le nœud, son début, sa fin, sa marge totale, nulle en mode manuel, sa
+criticité et sa fin dépassée —, pas un `Node` : une chaîne de mille tâches reste légère, et le
+recalcul tient dans la seconde du §4.6.2. Les montants qui dépendent des dates — le montant
+corrigé de l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de
+devis, écran distinct qui relit la structure à son ouverture. L'exemple `predecessor_set` lie la
+revue de conception du planning témoin au dossier de conception : la revue, écrite, et la
+réception des études qui la suit glissent au 29 avril, et le dossier, dont les dates ne bougent
+pas, passe sur le chemin critique. Écartés : des `Node` entiers, qui pourraient porter la moitié
+du plan, facettes de devis comprises ; une relecture de `listNodes` après chaque saisie de durée.
+La marge de la projection est une durée (`Duration`), comme la décision la donne, quand celle de
+la facette reste un entier de jours (`TaskFacet.total_float_days`) : les deux formes sont à
+rapprocher avant la grille de planning (#114), qui affichera l'une et l'autre.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

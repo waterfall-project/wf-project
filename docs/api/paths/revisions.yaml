@@ -614,8 +614,9 @@
     responses:
       '200':
         description: >-
-          Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés
-          et les totaux de la structure (`NodesWritten`).
+          Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés,
+          les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique
+          déplace — et les totaux de la structure (`NodesWritten`, WF-PLA-0020).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -696,11 +697,14 @@
     responses:
       '200':
         description: >-
-          Liaisons enregistrées, dates recalculées ; les ancêtres et les totaux avec
-          (`NodesWritten`).
+          Liaisons enregistrées, dates recalculées ; les ancêtres, les tâches que la liaison
+          redate — les successeurs, et ce que le chemin critique déplace — et les totaux avec
+          (`NodesWritten`, WF-PLA-0020, WF-PLA-0100).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              set: { $ref: ../../../fixtures/api/predecessor_set.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

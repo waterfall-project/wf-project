@@ -3627,12 +3627,26 @@ export interface components {
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
         };
-        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
+        /** @description Le calendrier d'une tâche qu'une écriture a redatée sans l'écrire (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le chemin critique déplace (WF-PLA-0100), telles que la facette temps du nœud les porte désormais (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. */
+        NodeSchedule: {
+            node_id: components["schemas"]["Uuid"];
+            start: components["schemas"]["WorkInstant"];
+            finish: components["schemas"]["WorkInstant"];
+            /** @description Marge totale de la tâche (WF-PLA-0100), en temps de travail ; nulle pour une tâche en mode manuel, dont les dates sont imposées et qui ne porte pas de marge. */
+            total_float: components["schemas"]["Duration"] | null;
+            /** @description Appartenance au chemin critique (WF-PLA-0100) ; fausse pour une tâche en mode manuel. */
+            is_critical: boolean;
+            /** @description Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`. */
+            finish_overdue: boolean;
+        };
+        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux, les dates des autres tâches que l'écriture a redatées, et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
         NodesWritten: {
             /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre. */
             nodes: components["schemas"]["Node"][];
             /** @description Les ancêtres des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de premier niveau. */
             ancestors: components["schemas"]["Node"][];
+            /** @description Les tâches dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites ni ancêtres — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de devis, qui relit la structure à son ouverture. */
+            rescheduled: components["schemas"]["NodeSchedule"][];
             /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
             totals: components["schemas"]["NodeTotals"];
             /** @description Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110). */
@@ -7480,7 +7494,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés et les totaux de la structure (`NodesWritten`). */
+            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés, les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique déplace — et les totaux de la structure (`NodesWritten`, WF-PLA-0020). */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7558,7 +7572,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liaisons enregistrées, dates recalculées ; les ancêtres et les totaux avec (`NodesWritten`). */
+            /** @description Liaisons enregistrées, dates recalculées ; les ancêtres, les tâches que la liaison redate — les successeurs, et ce que le chemin critique déplace — et les totaux avec (`NodesWritten`, WF-PLA-0020, WF-PLA-0100). */
             200: {
                 headers: {
                     [name: string]: unknown;

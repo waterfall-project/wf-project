@@ -1,0 +1,166 @@
+{
+  "summary": "Le planning témoin, où la revue de conception est liée aussi, en fin à début, au dossier de conception, qui finit le 15 avril : la liaison redate ses deux successeurs. La revue, écrite, part le 16 avril et finit le 29 ; une version de plus. Avec elle, sa récapitulative, qui finit le 29 avril et dure 43 jours ; et, sans être écrites ni ancêtres, la réception des études, qui la suit, reportée au 29 avril, et le dossier de conception, dont les dates ne bougent pas mais dont la marge de 7 jours tombe à zéro : il passe sur le chemin critique. Les études de détail, critiques avant comme après, et les pupitres, en mode manuel, n'y sont pas. Les totaux de la structure ne changent pas (WF-PLA-0020, WF-PLA-0030, WF-PLA-0100).",
+  "value": {
+    "nodes": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000524",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000624",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 2,
+        "row_number": 5,
+        "level": 2,
+        "lock_version": 2,
+        "task": {
+          "label": "Revue de conception",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "10",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-04-16",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-29",
+            "hours": "8"
+          },
+          "progress": "started",
+          "finish_overdue": false,
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "0.00",
+          "reestimated_amount": "0.00",
+          "total_float_days": 0,
+          "is_critical": true,
+          "started_on": "2026-04-13"
+        },
+        "predecessors": [
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000522",
+            "predecessor_row_number": 2,
+            "link_type": "finish_to_start",
+            "lag": {
+              "value": "0",
+              "unit": "d"
+            }
+          },
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000526",
+            "predecessor_row_number": 7,
+            "link_type": "finish_to_start",
+            "lag": {
+              "value": "0",
+              "unit": "d"
+            }
+          }
+        ],
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.progress"
+        ]
+      }
+    ],
+    "ancestors": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000521",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+        "kind": "task",
+        "parent_id": null,
+        "position": 0,
+        "row_number": 1,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Études",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "43",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-03-02",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-04-29",
+            "hours": "8"
+          },
+          "progress": "started",
+          "finish_overdue": false,
+          "is_summary": true,
+          "is_milestone": false,
+          "budgeted_amount": "100000.00",
+          "reestimated_amount": "100000.00",
+          "physical_progress": {
+            "is_computable": true,
+            "value": "0.5",
+            "reason": null
+          }
+        },
+        "computed_fields": [
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description"
+        ]
+      }
+    ],
+    "rescheduled": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000525",
+        "start": {
+          "date": "2026-04-29",
+          "hours": "8"
+        },
+        "finish": {
+          "date": "2026-04-29",
+          "hours": "8"
+        },
+        "total_float": {
+          "value": "0",
+          "unit": "d"
+        },
+        "is_critical": true,
+        "finish_overdue": false
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000526",
+        "start": {
+          "date": "2026-04-09",
+          "hours": "0"
+        },
+        "finish": {
+          "date": "2026-04-15",
+          "hours": "8"
+        },
+        "total_float": {
+          "value": "0",
+          "unit": "d"
+        },
+        "is_critical": true,
+        "finish_overdue": false
+      }
+    ],
+    "totals": {
+      "task_count": 6,
+      "estimate_line_count": 1,
+      "hours": "0",
+      "budgeted_amount": "100000.00",
+      "reestimated_amount": "100000.00"
+    },
+    "structure_lock_version": 2
+  }
+}

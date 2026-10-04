@@ -90,6 +90,7 @@
         ]
       }
     ],
+    "rescheduled": [],
     "totals": {
       "task_count": 3,
       "estimate_line_count": 3,

@@ -128,4 +128,7 @@ export interface Examples {
   "POST /session": {
     201: "session";
   };
+  "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
+    200: "predecessor_set";
+  };
 }
