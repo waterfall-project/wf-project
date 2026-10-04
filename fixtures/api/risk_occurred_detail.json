@@ -1,0 +1,36 @@
+{
+  "summary": "Le retard de livraison des armoires, survenu : sa provision de 60, la gravité de 200 à 30 % retenue à la révision de référence, est portée par les lignes fusionnées de son devis propre, et sa ligne de provision est retirée de la structure principale (WF-RIS-0050, WF-RIS-0060).",
+  "value": {
+    "risk_id": "01926f3a-7c00-7000-8000-000000000752",
+    "label": "Retard de livraison des armoires",
+    "description": "Le fournisseur des armoires annonce un retard de livraison possible.",
+    "mitigation_notes": "Relance hebdomadaire du fournisseur ; transport exceptionnel réservé.",
+    "probability": "0.3",
+    "severity": "200.00",
+    "provision_amount": "60.00",
+    "state": "occurred",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000215",
+    "provision_node_id": null,
+    "matrix_cell": {
+      "probability_level": 3,
+      "severity_level": 1,
+      "zone": "nominal"
+    },
+    "last_review_on": "2026-02-20",
+    "audit": {
+      "created_at": "2026-01-12T10:30:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-02-20T16:00:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 3
+  }
+}

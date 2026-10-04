@@ -116,6 +116,16 @@ RiskId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
+RiskRevision:
+  name: revision_id
+  in: query
+  description: >-
+    Révision dont on lit les risques, chacune figeant la version de leur devis propre,
+    de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou
+    la dernière révision marquée quand aucune n'est en cours. La provision d'un risque
+    survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050).
+  schema: { $ref: common.yaml#/Uuid }
+
 TimelineId:
   name: timeline_id
   in: path

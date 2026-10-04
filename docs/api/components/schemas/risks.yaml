@@ -40,7 +40,9 @@ Risk:
     state: { $ref: '#/RiskState' }
     structure_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
-      description: Structure de coûts propre du risque, dans la révision en cours (WF-RIS-0030).
+      description: >-
+        Structure de coûts propre du risque, dans la révision lue (`revision_id`), qui en
+        fige une version (WF-RIS-0030).
     provision_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Ligne de provision portée par la structure principale (WF-RIS-0010).
@@ -120,11 +122,44 @@ RiskMatrixCell:
     severity_level: { type: integer, minimum: 1, maximum: 4 }
     zone: { $ref: reference.yaml#/AlertZone }
 
+RiskMatrixLevel:
+  type: object
+  required: [level, lower, upper]
+  description: >-
+    Un niveau d'un axe de la matrice et ses bornes, que le référentiel fixe (WF-REF-0160) :
+    la borne basse comprise, la borne haute exclue, nulle au dernier niveau, qui n'en a
+    pas. Un pourcentage : de probabilité sur l'axe des probabilités, du budget de
+    référence sur l'axe des gravités — celui de chaque projet, ce qui vaut aussi pour la
+    matrice du portefeuille.
+  properties:
+    level: { type: integer, minimum: 1, maximum: 4 }
+    lower: { $ref: ../common.yaml#/Percent }
+    upper:
+      anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
+
 RiskMatrix:
   type: object
-  required: [cells, totals]
-  description: Matrice remplie par les risques du projet (WF-RIS-0040, WF-REF-0160).
+  required: [probability_levels, severity_levels, cells, totals]
+  description: >-
+    Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes
+    se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans
+    la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des
+    projets retenus pour celle du portefeuille.
   properties:
+    probability_levels:
+      type: array
+      minItems: 4
+      maxItems: 4
+      description: Les quatre niveaux de probabilité, du plus bas au plus haut, en pourcentage.
+      items: { $ref: '#/RiskMatrixLevel' }
+    severity_levels:
+      type: array
+      minItems: 4
+      maxItems: 4
+      description: >-
+        Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage du budget
+        de référence.
+      items: { $ref: '#/RiskMatrixLevel' }
     cells:
       type: array
       items:
@@ -139,9 +174,12 @@ RiskMatrix:
 
 ProvisionTotals:
   type: object
-  required: [identified, occurred, dismissed]
-  description: Les trois totaux de provisions, distincts (WF-RIS-0040).
+  required: [identified, occurred, dismissed, total]
+  description: >-
+    Les trois totaux de provisions, distincts, et le total général, leur somme
+    (WF-RIS-0040), calculés par le serveur sur les risques retenus.
   properties:
+    total: { $ref: ../common.yaml#/Money }
     identified: { $ref: ../common.yaml#/Money }
     occurred: { $ref: ../common.yaml#/Money }
     dismissed: { $ref: ../common.yaml#/Money }

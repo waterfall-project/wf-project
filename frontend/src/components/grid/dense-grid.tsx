@@ -28,7 +28,7 @@
 "use client";
 
 import type { RowData, Row as TableRowModel } from "@tanstack/react-table";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Fragment,
@@ -80,6 +80,7 @@ import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { useGridPaste } from "./paste";
 import { PasteDialog } from "./paste-dialog";
+import { usePendingAddress } from "./pending-address";
 import { useRootFontSize, useRowWindow } from "./row-window";
 import { type GridQuery, type GridSort, searchHref, sortHref } from "./query";
 import {
@@ -488,9 +489,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const locale = useLocale();
-  const router = useRouter();
   const pathname = usePathname();
-  const address = useSearchParams();
   const [pending, startTransition] = useTransition();
   // The sort asked, shown until the server answers: a second click on the header, before the
   // answer to the first, goes on from it — ascending, then descending.
@@ -505,19 +504,9 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const scroller = useRef<HTMLDivElement>(null);
   const rowHeight = ROW_REM * useRootFontSize();
 
-  // The address the last navigation of the grid asked for, and the address it was asked from.
-  // Until it arrives, the address of the screen is still the one before, and Next drops a
-  // navigation under way for the next one: a search entered right after a sort, before the
-  // server answered, must carry the sort too. Forgotten once the address of the screen changes.
-  const asked = useRef<{ readonly from: string; readonly query: string }>(undefined);
-  /** Navigate to an address built from the last one asked, or from that of the screen. */
-  const request = (build: (query: URLSearchParams) => string) => {
-    const from = address.toString();
-    const base = asked.current?.from === from ? asked.current.query : from;
-    const href = build(new URLSearchParams(base));
-    asked.current = { from, query: href.split("?")[1] ?? "" };
-    router.push(href, { scroll: false });
-  };
+  // The address the last navigation of the grid — or of its screen — asked for: a search entered
+  // right after a sort, before the server answered, must carry the sort too (`pending-address.tsx`).
+  const { request } = usePendingAddress();
   // The preference of the last sort asked is written once the page shows what the address asked,
   // with the settings of then — a width changed meanwhile included: Next carries a server action
   // in the state of its router, so that a navigation is not shown before the actions dispatched

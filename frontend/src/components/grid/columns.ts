@@ -18,14 +18,15 @@ import type { ReactNode } from "react";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import type { Catalogue } from "@/i18n/catalogues";
-import { formatDecimal, formatMoney, formatPlanningDate } from "@/i18n/format";
+import { formatDecimal, formatMoney, formatPercent, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
 /**
  * How the value of a cell shows, from the exact string of the contract: as it is (`text`), an
- * amount (`money`), a decimal — hours, a quantity (`decimal`) —, a date of planning (`date`).
+ * amount (`money`), a decimal — hours, a quantity (`decimal`) —, a ratio as a percentage
+ * (`percent`), a date of planning (`date`).
  */
-export type CellFormat = "text" | "money" | "decimal" | "date";
+export type CellFormat = "text" | "money" | "decimal" | "percent" | "date";
 
 /**
  * Where the content of a cell aligns: the start for a text, the end for a figure, the centre
@@ -124,8 +125,12 @@ export interface ComputedCells<Row> {
   readonly whole: boolean;
   /** Whether the server computes the cell of a row. */
   readonly in: (row: Row) => boolean;
-  /** The field of the contract the cell of a row shows, which the refusal asks the server about. */
-  readonly field: (row: Row) => ComputedValueField;
+  /**
+   * The field of the contract the cell of a row shows, which the refusal asks the server about;
+   * none for a value the contract names no field of a node for — the severity and the provision
+   * of a risk —, and the refusal says only that the value is computed.
+   */
+  readonly field: (row: Row) => ComputedValueField | undefined;
 }
 
 /**
@@ -291,6 +296,8 @@ export function formatCell(format: CellFormat, value: CellValue, locale: Locale)
       return formatMoney(value, locale);
     case "decimal":
       return formatDecimal(value, locale);
+    case "percent":
+      return formatPercent(value, locale);
     case "date":
       // A dense grid shows a date in its short form, the same width on every row; the year keeps
       // its four digits, clearer over the fifteen years a project may span than the mock-up's two.

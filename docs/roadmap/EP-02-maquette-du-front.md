@@ -410,7 +410,7 @@ retirés (WF-IND-0100, WF-IND-0120 retirée) ; `getIndexHistory` (WF-IND-0130) ;
 transition (`StateTransition.reason`, #185) ; `inflated_amount` sur la ligne de devis
 (WF-DEV-0050), `finish_overdue` sur la tâche (WF-RAE-0040), `uses_inactive_object` sur la ligne
 (WF-REF-0010) ; la base du plan de charge (`basis`, WF-DEV-0070) ; la part de la provision sur
-les lignes fusionnées d'un risque survenu (WF-RIS-0060, exemple `risk_occurred`) ;
+les lignes fusionnées d'un risque survenu (WF-RIS-0060, exemple `nodes_risk_occurred`) ;
 `delta_to_reference` sur la ligne du portefeuille (WF-PTF-0040). Chaque forme est consignée
 dans `docs/api/DECISIONS.md`, « Révision de la spécification du 2026-10-03 ». Le front n'est
 touché que là où le client engendré ne compilait plus : la grille de planning écrit la durée
@@ -499,6 +499,8 @@ par sa valeur et son unité, et les dates par leur date.
 - `PasteApply.lock_version` ne dit pas de quel objet il est, `applyPaste` ne déclare pas de 412, et sa réponse ne rend pas la version suivante — US-0130/L1, ouvert en #201. D'ici là, la confirmation porte la version de la structure principale lue avec la page ; un refus se dit par `OutcomeNotice`. Corrigé par EP-02/L8 : `PasteApply.lock_version` est le compteur de la structure, qui avance à chaque écriture dans son arbre ; `applyPaste` déclare 412 et rend, dans `NodesWritten`, le compteur suivant (`structure_lock_version`), que la grille du devis garde pour le collage suivant.
 - Une liaison écrite, ou la durée saisie d'une tâche en mode automatique, redate ses successeurs (WF-PLA-0020), qui ne sont ni les nœuds écrits ni leurs ancêtres : `NodesWritten` ne les rendait pas, et la grille de planning aurait montré les dates d'avant pour toute la chaîne qui suit, jusqu'à une relecture — EP-02/L8, ouvert en #222. Corrigé par EP-02/L10 (décision de l'utilisateur du 2026-10-04) : toute écriture de grille rend `rescheduled`, exigé, les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé sans être écrites — successeurs, et ce que le chemin critique déplace (WF-PLA-0100) —, chacune une fois, dans l'ordre du plan, vide quand rien d'autre n'a bougé ; chacune en projection légère (`NodeSchedule` : début, fin, marge, nulle en mode manuel, criticité, fin dépassée), sans les montants qui dépendent des dates, que la grille de devis relit à son ouverture ; `ancestors` porte les ancêtres des nœuds écrits et des tâches redatées, recalculés, chacun une fois, entier ; la marge totale est une durée sur la facette comme dans la projection (`TaskFacet.total_float`, à la place de `total_float_days`), que la grille de planning écrit par sa valeur et son unité ; l'exemple `predecessor_set` de `setPredecessors` en porte deux, les autres exemples une liste vide.
 - Le contrat ne nomme pas le montant à l'année de référence que la grille de devis présente à côté du montant corrigé de l'inflation (WF-DEV-0050), et ne porte `inflated_amount` ni sur la facette d'une tâche — récapitulatives comprises — ni dans `NodeTotals` — EP-02/L11, ouvert en #235. D'ici là, la grille lit `reestimated_amount` pour le montant à l'année de référence, d'une ligne comme d'une tâche, avec son total ; la cellule corrigée de l'inflation d'une tâche, et le total corrigé, restent vides. Les tests de la grille ne tiennent donc du Vérif de WF-DEV-0050 que l'absence des montants budgété et réestimé nommés ; le montant corrigé supérieur de 4,04 % reste au serveur, aucun exemple ne le chiffrant.
+- Les lectures des risques ne nommaient pas de révision, quand l'écran est sous `…/revisions/[r]/risks` et que chaque révision fige le devis propre d'un risque, donc sa gravité, sa provision et sa case (WF-RIS-0030) ; la matrice ne disait pas les bornes de ses niveaux, que l'écran ne pouvait tirer que du référentiel ; aucun total général des provisions n'était rendu, que WF-RIS-0040 veut égal à la somme des trois ; aucune des quatre lectures n'avait d'exemple — US-0230/L2. Corrigé par ce lot, sur l'autorisation de l'utilisateur du 2026-10-04 (ajouts de lecture d'un lot d'écran) : `revision_id` (`RiskRevision`) sur `listRisks`, `getRisk`, `listRiskReviews` et `getProjectRiskMatrix` ; `RiskMatrix.probability_levels` et `severity_levels` (`RiskMatrixLevel`, la gravité en pourcentage du budget de référence) ; `ProvisionTotals.total` ; les exemples `risks`, `risks_empty`, `risk`, `risk_occurred_detail`, `risk_reviews` et `risk_matrix`.
+- Le refus d'une saisie sur la gravité ou la provision d'un risque ne peut pas nommer ce dont elles dépendent (WF-IHM-0030) : `getComputedValueDependencies` ne connaît que les champs d'un nœud (`ComputedValueField`), et un risque n'en est pas un — US-0230/L2, ouvert en #250. D'ici là, la grille des risques présente les deux colonnes comme calculées, Σ et « Calculé », et leur refus dit seulement que la valeur est calculée ; la phrase du Vérif tenue est celle de l'US-0150, « ne sont pas saisissables ».
 
 ### Ordre de construction
 
@@ -715,7 +717,7 @@ WF-ARC-0070 impose. EP-06 branchera ces commandes ; les poser au bon endroit dè
 
 ## US-0150 — Valeur calculée contre valeur saisie
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0030-A`
 - **opérations** : `getComputedValueDependencies` (EP-02/L4)
 - **issue** : #79
@@ -979,7 +981,7 @@ les objectifs de temps de réponse.
 
 ## US-0230 — Écrans des risques, du reste à engager et des coûts réels
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre — EP-08 et EP-09
 - **opérations** : `listRisks`, `getRisk`, `listRiskReviews`, `getProjectRiskMatrix`,
   `getRemainingIndicators`, `setLineRemaining`, `listStartableTasks`, `listActualCosts`,

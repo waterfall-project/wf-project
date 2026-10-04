@@ -24,6 +24,9 @@
  * closes it only, the focus going where the click took it; a click on the cell itself closes it;
  * scrolled out of view, it closes, the focus kept on the active cell where it is.
  *
+ * A cell that holds a link and takes no entry — the label of a risk, which leads to its detail —
+ * follows it on Enter: the link is out of the order of tabulation, the grid being one stop.
+ *
  * The cell entered and the refusal follow their row by its identity: a reading anew that moves it
  * takes the active cell with it, and one that no longer holds it closes them — a later reading
  * that brings the row back does not open them again by itself.
@@ -245,6 +248,22 @@ interface CellNature<Row, Totals> {
   readonly entry: CellEntry<Row, Totals> | undefined;
 }
 
+/**
+ * Follow the link a cell holds, on Enter, as a click would: whether it held one. The cell is the
+ * target of the key, the grid giving the focus to its cells, never to what they hold.
+ */
+function followLink(event: KeyboardEvent<HTMLElement>): boolean {
+  const link =
+    event.key === "Enter" && event.target instanceof Element
+      ? event.target.querySelector("a[href]")
+      : null;
+  if (!(link instanceof HTMLElement)) {
+    return false;
+  }
+  link.click();
+  return true;
+}
+
 /** Move the active cell of a grid, enter and validate cells, and refuse a computed cell tried. */
 export function useGridKeyboard<Row extends RowData, Sort extends string, Totals>({
   config,
@@ -439,7 +458,11 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     if (target !== undefined) {
       origin.current = undefined;
       moveTo(target);
-    } else if (!(triesEntry(event) && start(at, typed)) && event.key !== " ") {
+    } else if (
+      !(triesEntry(event) && start(at, typed)) &&
+      !followLink(event) &&
+      event.key !== " "
+    ) {
       return;
     }
     // A key the grid took: its default — the page scrolled by Space — is not done.

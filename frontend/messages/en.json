@@ -121,7 +121,8 @@
   "grid": {
     "names": {
       "estimate": "Estimate grid",
-      "planning": "Planning grid"
+      "planning": "Planning grid",
+      "risks": "Risk register"
     },
     "columns": {
       "rowNumber": "No.",
@@ -139,7 +140,13 @@
       "duration": "Duration",
       "progress": "Progress",
       "totalFloat": "Float",
-      "predecessors": "Predecessors"
+      "predecessors": "Predecessors",
+      "probability": "Probability",
+      "severity": "Severity",
+      "provisionAmount": "Provision",
+      "state": "State",
+      "lastReview": "Last review",
+      "matrixCell": "Matrix cell"
     },
     "computed": "Computed",
     "unknown": "Unknown reference",
@@ -187,6 +194,49 @@
     "critical": "Critical path",
     "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";"
+  },
+  "risks": {
+    "summary": "{risks, plural, =0 {no risk retained} one {# risk retained} other {# risks retained}}",
+    "generalTotal": "General total",
+    "filter": "Filter by state",
+    "everyState": "Every state",
+    "provisions": {
+      "title": "Provisions of the risks retained",
+      "identified": "Identified risks",
+      "occurred": "Occurred risks",
+      "dismissed": "Dismissed risks",
+      "total": "General total"
+    },
+    "matrix": {
+      "title": "Risk matrix",
+      "probability": "Probability",
+      "severity": "Severity, as a share of the reference budget",
+      "between": "{lower} to under {upper}",
+      "from": "{lower} and over"
+    },
+    "detail": {
+      "hint": "Choose a risk in the register to read its description, its mitigation actions and the history of its reviews.",
+      "close": "Close the detail of the risk",
+      "description": "Description",
+      "mitigation": "Mitigation actions",
+      "notSet": "Not set",
+      "neverReviewed": "Never reviewed",
+      "provisionLine": {
+        "title": "Provision line",
+        "present": "In the main structure: the provision weighs on the estimate.",
+        "withdrawn": "Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear the provision.",
+        "absent": "Not in the main structure: the risk does not weigh on the estimate."
+      },
+      "reviews": {
+        "title": "History of the reviews",
+        "none": "No review.",
+        "reviewedOn": "Date",
+        "probability": "Probability",
+        "severity": "Severity",
+        "state": "State",
+        "actor": "By"
+      }
+    }
   },
   "computedValue": {
     "title": "Computed value",
