@@ -4221,7 +4221,8 @@ export interface components {
         /** @description Charges sommées par rôle et par mois : sur le reste à engager pour les projets en cours, sur le devis pondéré pour les projets en chiffrage inclus (WF-PTF-0060). */
         PortfolioWorkload: {
             scope: components["schemas"]["PortfolioScope"];
-            under_load_threshold?: components["schemas"]["Percent"];
+            /** @description Le seuil de sous-charge retenu, toujours rendu : celui que la requête a demandé, ou, sans demande, celui que le serveur a choisi, que l'écran montre (WF-PTF-0060). */
+            under_load_threshold: components["schemas"]["Percent"];
             roles: {
                 resource_role_id: components["schemas"]["Uuid"];
                 label: string;

@@ -764,6 +764,15 @@ de calcul, et les rend dans `scope.from` et `scope.to`, que l'écran affiche ave
 (WF-IHM-0020). La liste des projets, qui ne retient de projet terminé que sur une période demandée,
 rend alors une période nulle.
 
+## Le seuil de sous-charge retenu (US-0240/L5)
+
+**Le plan de charge agrégé rend toujours son seuil de sous-charge**
+(`PortfolioWorkload.under_load_threshold`, exigé), resserrement de lecture que l'écran exige, sur
+l'autorisation de l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »). Facultatif, une réponse conforme pouvait l'omettre, et
+l'écran, qui montre le seuil retenu par le serveur quand l'adresse n'en nomme aucun, aurait dit
+« Par défaut » sans dire lequel (relevé par Copilot sur la PR #338), comme `last_import_at` des
+coûts réels l'a été. L'exemple `portfolio_workload` le porte.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
