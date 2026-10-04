@@ -37,7 +37,7 @@
           application/json:
             schema:
               type: object
-              required: [items, totals, meta]
+              required: [items, totals, last_import_at, meta]
               properties:
                 items:
                   type: array

@@ -571,6 +571,11 @@ le libellé, résolus à la lecture, exigés, nuls pour une ligne imputée au se
 sous-projet » —, comme le libellé d'un écart l'est pour la clé `unassigned` de
 `RevisionComparison`. Écarté : un objet `subproject` imbriqué, qui redirait l'identifiant.
 
+**La date du dernier import est toujours rendue** (`last_import_at`, exigé, nul tant que rien
+n'a été importé). Facultative, son absence se confondait avec « aucun import » : l'écran aurait
+dit qu'aucun import n'a eu lieu d'une réponse conforme qui l'omettait (relevé par Copilot sur la
+PR #295). Exigée et nullable, `null` dit seul qu'il n'y a pas d'import.
+
 **Exemples** : `actual_costs` (au 4 mai 2026, quatre lignes hors sous-projet — les codes de
 sous-projet de l'ERP ne sont pas ceux du projet —, dont un avoir de -200 et la réception du
 client exclue du périmètre suivi ; 3 000 suivis, le coût réel de `remaining_indicators_over_budget`,

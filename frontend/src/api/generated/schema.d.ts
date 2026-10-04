@@ -8499,7 +8499,7 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["ActualCostLine"][];
                         totals: components["schemas"]["ActualCostTotals"];
-                        last_import_at?: components["schemas"]["Timestamp"] | null;
+                        last_import_at: components["schemas"]["Timestamp"] | null;
                         meta: components["schemas"]["PaginationMeta"];
                     };
                 };
