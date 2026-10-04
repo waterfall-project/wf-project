@@ -42,7 +42,7 @@ export interface Examples {
     200: "missing_rates" | "missing_rates_none";
   };
   "GET /projects/{project_id}/imports": {
-    200: "imports" | "imports_empty";
+    200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
     200: "import_analysed" | "import_analysing" | "import_planning_mismatch";

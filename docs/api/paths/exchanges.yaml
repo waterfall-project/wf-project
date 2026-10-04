@@ -57,6 +57,7 @@
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
             examples:
               imports: { $ref: ../../../fixtures/api/imports.json }
+              page: { $ref: ../../../fixtures/api/imports_page.json }
               empty: { $ref: ../../../fixtures/api/imports_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

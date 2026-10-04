@@ -691,7 +691,8 @@ dont la durée des « Études de détail » diffère de celle que Waterfall reca
 confirmation explicite ; il est de l'univers des indicateurs et du planning, sa tâche étant
 0602 de `nodes.json`, #287), `imports` (au 1er juin : le devis qui attend sa
 confirmation, le planning abandonné, et les quatre extractions de coûts réels de
-`cost_imports_periods` antérieures au 1er juin, appliquées) et `imports_empty` ;
+`cost_imports_periods` antérieures au 1er juin, appliquées), `imports_page` (la même liste lue
+deux par deux, sa deuxième page) et `imports_empty` ;
 `task_export_queued` et `task_export_succeeded` (l'export du devis demandé à 9 h 10, abouti, son
 résultat à lire par la tâche). L'application de l'import du devis est `task_import_queued`, à
 9 h.
