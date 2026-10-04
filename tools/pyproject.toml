@@ -33,13 +33,14 @@ include = [
     "../docs/spec/tools",
 ]
 # The tools of the specification and of the contract run as scripts, from their directory.
-extraPaths = ["../docs/spec/tools"]
+extraPaths = ["../docs/spec/tools", "../docs/api/tools"]
 # `# type: ignore` is not honoured: a type error is fixed, never silenced (US-0050).
 enableTypeIgnoreComments = false
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["../docs/api/tools"]
 addopts = ["--strict-markers", "--strict-config"]
 markers = ["requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)"]
 xfail_strict = true

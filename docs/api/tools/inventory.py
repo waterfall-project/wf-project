@@ -114,6 +114,20 @@ def operations() -> Iterator[Operation]:
                 )
 
 
+def contract_sources() -> list[Path]:
+    """Return the files the contract is written in, never a bundle built from them.
+
+    `make build-openapi` writes the bundle beside them, ignored by git and embedding the
+    examples of `fixtures/api/`: read with them, a requirement cited only by an example
+    would count or not depending on whether a bundle, perhaps stale, lies on the machine.
+    """
+    return [
+        ROOT / "openapi.yaml",
+        *sorted((ROOT / "paths").rglob("*.yaml")),
+        *sorted((ROOT / "components").rglob("*.yaml")),
+    ]
+
+
 def requirements_of_the_document() -> dict[str, str]:
     """Return the key and the title of every requirement, the example of §1.3.1 excepted."""
     return {r.key: r.title for r in projection.read() if not r.is_example}
@@ -186,7 +200,7 @@ def main() -> int:
         print(f"specification not found: {projection.PROJECTION}", file=sys.stderr)
         return 1
     ops = list(operations())
-    contract = "".join(f.read_text(encoding="utf-8") for f in ROOT.rglob("*.yaml"))
+    contract = "".join(f.read_text(encoding="utf-8") for f in contract_sources())
     cited = set(RE_REQUIREMENT.findall(contract))
     everything = requirements_of_the_document()
     lines = _document(ops, cited, everything)
