@@ -7,6 +7,7 @@ import { example } from "@/test/fixtures";
 
 import {
   editableDecimal,
+  formatBytes,
   formatDecimal,
   formatLocale,
   formatMoney,
@@ -143,6 +144,24 @@ describe("the locale of the formatters", () => {
     expect(formatLocale("fr")).toBe("fr");
     const list = new Intl.ListFormat(formatLocale("en"), { type: "conjunction" });
     expect(list.format(["a", "b", "c"])).toBe("a, b and c");
+  });
+});
+
+describe("a size in bytes", () => {
+  it("is said in the largest unit it fills, in words, as the installation gives it", () => {
+    const { avatar_max_bytes: bound } = example(
+      "installation",
+    ) as components["schemas"]["Installation"];
+    expect(plain(formatBytes(bound, "fr"))).toBe("2 mégaoctets");
+    expect(formatBytes(bound, "en")).toBe("2 megabytes");
+    expect(plain(formatBytes(512, "fr"))).toBe("512 octets");
+    expect(formatBytes(1024, "en")).toBe("1 kilobyte");
+  });
+
+  it("keeps a tenth at most, cut, never saying more than the size given", () => {
+    expect(plain(formatBytes(1_572_864, "fr"))).toBe("1,5 mégaoctet");
+    // 2,097,151 bytes are a byte short of 2 megabytes: never said 2.
+    expect(formatBytes(2_097_151, "en")).toBe("1.9 megabytes");
   });
 });
 

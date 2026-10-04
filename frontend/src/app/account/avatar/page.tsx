@@ -3,11 +3,13 @@
 /**
  * The avatar of the account (US-0320, WF-ADM-0080): the image it has — read by the server and
  * written into the page (`avatarSource`) — or its initials, and the form that puts, replaces or
- * withdraws it.
+ * withdraws it, bounded by the size the installation admits (`getInstallation`, §4.4.1).
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
+import { readOrFail } from "@/api/problem";
+import { serverClient } from "@/api/server";
 import { AvatarForm } from "@/components/account/avatar-form";
 import { AvatarPicture } from "@/components/account/avatar-picture";
 import { avatarSource } from "@/components/account/avatar-source";
@@ -27,9 +29,11 @@ export async function generateMetadata(): Promise<Metadata> {
 function AvatarScreen({
   account,
   source,
+  maxBytes,
 }: {
   readonly account: Me;
   readonly source: string | undefined;
+  readonly maxBytes: number;
 }) {
   const t = useTranslations();
   return (
@@ -41,7 +45,7 @@ function AvatarScreen({
         </CardHeader>
         <CardContent className="grid gap-5">
           <AvatarPicture account={account} source={source} />
-          <AvatarForm hasAvatar={account.has_avatar === true} />
+          <AvatarForm hasAvatar={account.has_avatar === true} maxBytes={maxBytes} />
         </CardContent>
       </Card>
     </Screen>
@@ -50,7 +54,12 @@ function AvatarScreen({
 
 /** Render the avatar of the account. */
 export default async function AvatarPage() {
-  const account = await readMe();
+  const [account, installation] = await Promise.all([
+    readMe(),
+    readOrFail("getInstallation", () => serverClient().GET("/installation")),
+  ]);
   const source = account.has_avatar === true ? await avatarSource(account.user_id) : undefined;
-  return <AvatarScreen account={account} source={source} />;
+  return (
+    <AvatarScreen account={account} source={source} maxBytes={installation.avatar_max_bytes} />
+  );
 }
