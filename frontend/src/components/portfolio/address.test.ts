@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { parametersHref, perimeterQuery, readPerimeter, statesValue } from "./address";
+import {
+  HORIZON,
+  HORIZONS,
+  parametersHref,
+  perimeterQuery,
+  readChoice,
+  readPerimeter,
+  statesValue,
+} from "./address";
 
 describe("the address of a view of the portfolio", () => {
   it("reads the states of a portfolio in their order, and the dates and the node the API may take", () => {
@@ -55,5 +63,10 @@ describe("the address of a view of the portfolio", () => {
   it("writes the states in the order of the portfolio, none for none", () => {
     expect(statesValue(["completed", "in_progress"])).toBe("in_progress,completed");
     expect(statesValue([])).toBeUndefined();
+  });
+
+  it("reads a parameter of a view among the values it offers alone", () => {
+    expect(readChoice(new URLSearchParams("horizon_months=12"), HORIZON, HORIZONS)).toBe("12");
+    expect(readChoice(new URLSearchParams("horizon_months=7"), HORIZON, HORIZONS)).toBeUndefined();
   });
 });

@@ -28,6 +28,7 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
+import { readNodes } from "../nodes";
 
 /** Title the tab with the function. */
 export function generateMetadata(): Promise<Metadata> {
@@ -39,16 +40,6 @@ function readValue(perimeter: Perimeter) {
   return readOrFail("getPortfolioValue", () =>
     serverClient().GET("/portfolio/value", { params: { query: perimeterQuery(perimeter) } }),
   );
-}
-
-/** The nodes of organisation the labour may be restricted to, each named with its parent. */
-async function readNodes() {
-  const nodes = await readOrFail("listOrgNodes", () => serverClient().GET("/reference/org-nodes"));
-  return nodes.map((node) => ({
-    id: node.org_node_id,
-    label: node.label,
-    parent: node.parent_label,
-  }));
 }
 
 /** Render the value of the portfolio and the list of its projects. */

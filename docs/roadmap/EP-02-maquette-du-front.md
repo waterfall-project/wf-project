@@ -755,7 +755,7 @@ filtres de la grille ne les montrent pas.
 
 ## US-0160 — Échelle de signalement commune, lisible sans couleur
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0070-A`
 - **opérations** : aucune en propre
 - **issue** : #80
@@ -1034,7 +1034,10 @@ sans que le front ait à sommer quoi que ce soit.
 - `WF-IHM-0130-A` — « Le plan de charge exporté est une image PNG qui porte le nom du projet,
   la révision et la date de calcul. »
 
-**Notes de réalisation.** Courbes en Apache ECharts (annexe C).
+**Notes de réalisation.** Courbes en Apache ECharts (annexe C). Le portefeuille est livré en deux
+lots, coupés à l'estimation (2026-10-04) : la liste des projets et la valeur du portefeuille
+(US-0240/L3, #120), puis les six autres vues et la preuve de la phrase 2 de `WF-IHM-0070-A`
+(US-0240/L5, #310). L'US reste en cours jusqu'au plan de charge du projet (US-0240/L4, #286).
 
 - écart : `WF-IHM-0130-A` — « La liste des projets filtrée sur un état ne compte que les
   projets de cet état dans ses totaux. » demande un serveur qui filtre : le faux back rend

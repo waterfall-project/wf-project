@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -10,7 +11,13 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
+import CashOutPage, { generateMetadata as cashOutTitle } from "./cash-out/page";
+import CostStructurePage, { generateMetadata as costStructureTitle } from "./cost-structure/page";
+import PerformancePage, { generateMetadata as performanceTitle } from "./performance/page";
+import PilotHealthPage, { generateMetadata as pilotHealthTitle } from "./pilot-health/page";
 import ProjectsPage, { generateMetadata as projectsTitle } from "./projects/page";
+import RisksPage, { generateMetadata as risksTitle } from "./risks/page";
+import WorkloadPage, { generateMetadata as workloadTitle } from "./workload/page";
 
 const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
   answers: {},
@@ -48,6 +55,7 @@ vi.mock("next/headers", () => ({
 }));
 
 const DESIGN_OFFICE = "01926f3a-7c00-7000-8000-000000000471";
+const WITNESS = "/projects/01926f3a-7c00-7000-8000-000000000001";
 
 /** A page of the portfolio, as Next renders it with the query of its address. */
 type PortfolioPage = (props: { searchParams: Promise<PageSearchParams> }) => Promise<unknown>;
@@ -87,12 +95,26 @@ beforeEach(() => {
     "GET /portfolio/projects": "volume/portfolio_projects",
     "GET /portfolio/value": "volume/portfolio_value",
     "GET /reference/org-nodes": "org_nodes",
+    "GET /portfolio/performance": "volume/portfolio_performance",
+    "GET /portfolio/cost-structure": "volume/portfolio_cost_structure",
+    "GET /portfolio/risks": "volume/portfolio_risks",
+    "GET /portfolio/workload": "portfolio_workload",
+    "GET /portfolio/cash-out": "portfolio_cash_out",
+    "GET /portfolio/pilot-health": "pilot_health",
   };
 });
 
 describe("the screens of the portfolio", () => {
-  it("titles the tab with the function", async () => {
-    expect((await projectsTitle()).title).toBe("Project portfolio — Waterfall");
+  it.each([
+    [projectsTitle, "Project portfolio"],
+    [workloadTitle, "Aggregated workload"],
+    [performanceTitle, "Portfolio performance"],
+    [costStructureTitle, "Portfolio cost structure"],
+    [risksTitle, "Portfolio risks"],
+    [cashOutTitle, "Portfolio cash-out"],
+    [pilotHealthTitle, "Project control health"],
+  ])("titles the tab with the function", async (title: () => Promise<Metadata>, name) => {
+    expect((await title()).title).toBe(`${name} — Waterfall`);
   });
 
   it("offers the nodes of organisation, each named with its parent as the reference gives it", async () => {
@@ -147,5 +169,71 @@ describe("the screens of the portfolio", () => {
     const page = text(await render(ProjectsPage, { states: "completed" }));
     expect(page).toContain("Completed · no project · calculated on 16 Mar 2026");
     expect(grids.projects[0]?.projects).toEqual([]);
+  });
+  it("presents the aggregated indices with their zone, the projections, and the projects by zone [WF-IHM-0070-A]", async () => {
+    const markup = await render(PerformancePage, { as_of: "2026-03-16" });
+    expect(queryOf("GET /portfolio/performance")).toEqual({ as_of: "2026-03-16" });
+    const page = text(markup);
+    expect(page).toContain("In progress · 269 projects · calculated on 16 Mar 2026");
+    expect(page).toMatch(/Cost index 0\.94 Nominal Schedule index 0\.91 Nominal/);
+    expect(page).toMatch(/At the observed rate .*2,757,435,807\.65 .*160,146,307\.65/);
+    expect(page).toContain("Cost index Alert 53");
+    expect(markup.match(/text-signal-alert/g)).toHaveLength(2);
+    expect(page).toContain("Q1 2026");
+  });
+
+  it("presents the structure of the costs by nature and the labour by node, and no breakdown of the actual cost", async () => {
+    const page = text(await render(CostStructurePage, { from: "2025-01-01" }));
+    expect(queryOf("GET /portfolio/cost-structure")).toEqual({});
+    expect(page).toContain("The actual cost is not broken down by nature");
+    expect(page).toMatch(/Reference budget by nature .*Main-d'œuvre .*1,428,509,225\.00 55%/);
+    expect(page).toMatch(/Labour by organisation node .*Bureau d'études électricité .*100%/);
+  });
+
+  it("opens the project of each of the heaviest risks, and fills the matrix [WF-PTF-0030-A]", async () => {
+    const markup = await render(RisksPage);
+    const page = text(markup);
+    expect(page).toMatch(/Provisions of the identified risks .*174,007,479\.90/);
+    expect(markup).toContain(
+      'href="/projects/01926f3a-7c00-7000-8000-000300000182">Automatisation de l&#x27;atelier de montage — Dunkerque</a>',
+    );
+    expect(page).toContain("Risk matrix");
+  });
+
+  it("signals a month of a role over its capacity, and sends the horizon and the threshold chosen [WF-PTF-0060-A]", async () => {
+    const markup = await render(WorkloadPage, {
+      horizon_months: "12",
+      under_load_threshold: "0.5",
+      from: "2025-01-01",
+    });
+    expect(queryOf("GET /portfolio/workload")).toEqual({
+      horizon_months: "12",
+      under_load_threshold: "0.5",
+    });
+    expect(markup).toMatch(/1,092\.024 h.*?aria-label="Alert".*?120%/);
+    expect(text(markup)).toContain("Ingénieur électricien 910.02 h");
+  });
+
+  it("sends the horizon of the cash-out, and lists its months", async () => {
+    const page = text(await render(CashOutPage, { horizon_months: "24" }));
+    expect(queryOf("GET /portfolio/cash-out")).toEqual({ horizon_months: "24" });
+    expect(page).toContain("March 2026 31,864,205.10 38,215,760.00");
+  });
+
+  it("opens the project of each signal of the health of the steering, by its zone [WF-PTF-0030-A] [WF-IHM-0070-A]", async () => {
+    const markup = await render(PilotHealthPage);
+    expect(markup.match(new RegExp(`href="${WITNESS}"`, "g"))).toHaveLength(2);
+    const page = text(markup);
+    expect(page).toContain("Periodic review overdue Watch");
+    expect(page).toContain("Contractual milestone overdue Alert");
+  });
+  it("sends a node of organisation to the views that take one, and to those alone", async () => {
+    const asked = { org_node_id: DESIGN_OFFICE, from: "2025-01-01" };
+    await render(PerformancePage, asked);
+    await render(CostStructurePage, asked);
+    await render(RisksPage, asked);
+    expect(queryOf("GET /portfolio/performance")).toEqual(asked);
+    expect(queryOf("GET /portfolio/cost-structure")).toEqual({ org_node_id: DESIGN_OFFICE });
+    expect(queryOf("GET /portfolio/risks")).toEqual({ from: "2025-01-01" });
   });
 });

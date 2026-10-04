@@ -15,7 +15,8 @@ import { example, fakeClient } from "@/test/fixtures";
 
 import { type Perimeter, readPerimeter, type Takes } from "./address";
 
-import { type NodeChoice, PerimeterBar } from "./perimeter";
+import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter";
+import { CashOutChart, QuarterlyChart } from "./portfolio-charts";
 import type { ProjectPage, ProjectRow } from "./portfolio-grid";
 import { ProjectsGrid } from "./projects-grid";
 
@@ -86,7 +87,11 @@ const NODES: readonly NodeChoice[] = [
 ];
 
 /** The perimeter bar of a view, the address at `search`. */
-function perimeterBar(search: string, takes: Takes = { period: true, node: false }) {
+function perimeterBar(
+  search: string,
+  takes: Takes = { period: true, node: false },
+  view?: ViewParameters,
+) {
   page.search = search;
   const perimeter: Perimeter = readPerimeter(new URLSearchParams(search));
   return inLanguage(
@@ -95,6 +100,7 @@ function perimeterBar(search: string, takes: Takes = { period: true, node: false
       retained={["in_progress", "pricing"]}
       takes={takes}
       nodes={NODES}
+      {...(view === undefined ? {} : { view })}
     />,
   );
 }
@@ -226,5 +232,39 @@ describe("the perimeter of a view of the portfolio", () => {
     ]);
     await userEvent.selectOptions(node, "Bureau d’études électricité (Direction technique)");
     expect(await lastAddress()).toBe(`${PATHNAME}?org_node_id=node-471`);
+  });
+
+  it("offers the horizon and the threshold of a view [WF-PTF-0060-A]", async () => {
+    render(
+      perimeterBar("", { period: false, node: false }, { horizon: undefined, threshold: "0.5" }),
+    );
+    expect(screen.getByLabelText("Seuil de sous-charge")).toHaveValue("0.5");
+    await userEvent.selectOptions(screen.getByLabelText("Horizon"), "12 mois");
+    expect(await lastAddress()).toBe(`${PATHNAME}?horizon_months=12`);
+  });
+});
+
+describe("the charts of the portfolio", () => {
+  it("lists the two indices of each quarter, as the server computes them", () => {
+    const performance = example("volume/portfolio_performance") as Schemas["PortfolioPerformance"];
+    render(inLanguage(<QuarterlyChart quarters={performance.quarterly} />, "en"));
+    const figure = screen.getByRole("figure", { name: "Quarterly evolution of the indices" });
+    const rows = within(figure).getAllByRole("row");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "QuarterCost indexSchedule index",
+      "Q2 20250.970.98",
+      "Q3 20250.950.96",
+      expect.stringMatching(/^Q4 2025/),
+      "Q1 20260.940.91",
+    ]);
+  });
+
+  it("lists each month of cash-out, the past and the forecast", () => {
+    const cashOut = example("portfolio_cash_out") as Schemas["PortfolioCashOut"];
+    render(inLanguage(<CashOutChart months={cashOut.months} />));
+    const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
+    expect(within(figure).getByRole("row", { name: /mars 2026/ })).toHaveTextContent(
+      `mars 202631${NARROW}864${NARROW}205,1038${NARROW}215${NARROW}760,00`,
+    );
   });
 });
