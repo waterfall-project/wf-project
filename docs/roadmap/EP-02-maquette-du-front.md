@@ -514,6 +514,15 @@ par sa valeur et son unité, et les dates par leur date.
 - `listUsers`, `listPermissions`, `listAccessRoles`, `getSystemStatus`, `listBackups` et `getBackupSchedule` n'avaient aucun exemple, et un compte ne nommait ses rôles et son nœud que par leur identifiant : l'écran des comptes les aurait rapprochés de `listAccessRoles` et de `listOrgNodes` dans le front (WF-ARC-0020) — US-0250/L2. Corrigé par ce lot, sur l'autorisation de l'utilisateur du 2026-10-04 (ajouts de lecture d'un lot d'écran) : `User.access_role_labels` et `User.org_node_label`, résolus à la lecture, exigés, que la session porte aussi ; les exemples `users`, `users_page`, `permissions`, `access_roles`, `system_status`, `system_status_backup_failed`, `backups`, `backups_empty`, `backups_beyond`, `backup_schedule`, `backup_schedule_weekly` et `backup_schedule_disabled`, dans l'univers des autres ; les sessions d'un chiffreur et sans administration portent chacune leur rôle propre, `Chiffreur` et `Pilotage de projet`, plutôt que celui qui accorde tout le catalogue (revue d'US-0250/L2).
 - `BackupSchedule.weekday` va de 1 à 7 sans dire quel jour est le premier — US-0250/L2, ouvert en #314. D'ici là, l'écran des sauvegardes le lit comme ISO 8601 : 1 est le lundi.
 - `BackupSchedule.at_time` ne dit pas dans quel fuseau s'entend l'heure d'une sauvegarde planifiée, quand l'écran montre les horodatages dans l'heure locale du poste — US-0250/L2, ouvert en #316. D'ici là, l'écran des sauvegardes rend l'heure telle quelle, « heure de la plateforme », sans la convertir.
+- Le filtre `org_node_id` de `getProjectWorkload` ne dit pas s'il retient aussi les rôles des nœuds descendants du nœud choisi, que WF-DEV-0070 laisse entendre (« les rôles qui en relèvent ») — US-0240/L4. D'ici là, le filtre du plan de charge liste les nœuds dans l'ordre de la réponse, chacun avec le libellé de son parent (`parent_label`), comme l'écran des ressources ; l'arbre lui-même — profondeur, ordre — est #297. Proposition : la portée du filtre dite dans sa description.
+- Le 422 de `getProjectWorkload` (`VALIDATION_FAILED`) refuse aussi bien une révision marquée manquante ou non marquée qu'un nœud d'organisation inconnu, et `FieldProblem.pointer` ne dit pas comment il désigne un paramètre de requête — US-0240/L4, revue. D'ici là, l'écran lit le dernier segment du pointeur (`revision_id`, `org_node_id`) et dit la raison du seul paramètre désigné, une raison générique sinon. Proposition : la description de `FieldProblem.pointer` fixe la forme qui désigne un paramètre de requête (`/revision_id`).
+- `uploadFile`, `openImport`, `getImport`, `listImports` et `requestExport` n'avaient aucun exemple, et un import ne nommait pas son fichier, que l'écran ne pouvait rappeler ni au compte rendu ni dans la liste des imports une fois le fichier supprimé (WF-DAT-0120) — US-0260/L1. Corrigé par ce lot, sur l'autorisation de l'utilisateur du 2026-10-04 : `Import.filename`, exigé ; les exemples `file_upload`, `import_analysing`, `import_analysed`, `import_planning_mismatch`, `imports`, `imports_page`, `imports_empty`, `task_export_queued` et `task_export_succeeded`, dans l'univers des autres.
+- Le contrat ne nomme une commande d'import que pour les coûts réels (`import_actual_costs`, sur le projet) : rien ne dit quand un import de planning, de devis ou de reste à engager est disponible, ni s'il l'est sans révision en cours, que l'import crée au besoin (WF-INTF-0090) ; aucune commande ne dit non plus qu'un export est disponible — US-0260/L1, ouvert en #318. D'ici là, l'écran des imports et exports offre l'import d'un planning, d'un devis, d'un reste à engager comme la révision en cours offre `edit_planning`, `edit_estimate`, `edit_remaining`, et aucun sans révision en cours ; il offre l'export à qui lit l'écran, un refus dit par `OutcomeNotice`.
+- `ImportDifference.fields` nomme les champs d'un écart par des chaînes libres, qu'aucun catalogue ne rend (WF-ARC-0110) — US-0260/L1, ouvert en #319. D'ici là, le compte rendu présente chaque écart par son changement, son objet et son libellé, sans ses champs.
+- `listImports` ne dit pas dans quel ordre il rend les imports — US-0260/L1, ouvert en #320. D'ici là, l'écran les présente dans l'ordre de la réponse.
+- Le refus d'un fichier au format ou à la version non reconnus (`openImport`, 422) dit nommer le format attendu (WF-INTF-0070), mais `FILE_FORMAT_UNREADABLE` ne déclare aucun paramètre qui le porte — US-0260/L1, ouvert en #321. D'ici là, le refus se dit par la phrase de son code.
+- `getBackgroundTaskResult` ne déclare ni le nom du fichier rendu (`Content-Disposition`) ni sa nature au-delà de `application/octet-stream` — revue d'US-0260/L1, ouvert en #323. D'ici là, le front transmet le `Content-Disposition` de l'API quand il vient, et pose sinon `attachment`, avec `X-Content-Type-Options: nosniff`.
+- Le contrat ne borne pas la taille d'un fichier déposé (`uploadFile`, 413 sans maximum) — revue d'US-0260/L1, ouvert en #324. D'ici là, l'écran refuse dans la page un fichier de plus de 10 Mio, la plus grande taille d'import du §4.6.2 (un fichier MS Project), et la borne des actions serveur de Next (`next.config.ts`) est réglée un peu au-dessus, l'enveloppe multipart comprise.
 
 ### Ordre de construction
 
@@ -1092,7 +1101,7 @@ une sauvegarde ou une restauration — restent aux EPICs de l'administration et 
 
 ## US-0260 — Écran d'import en deux temps
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre — EP-09 et EP-12
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
   `listImports`, `requestExport`, `getBackgroundTaskResult`
@@ -1109,6 +1118,24 @@ temps du contrat se tient à l'écran.
 - propre à l'US : l'application est une tâche de fond suivie par le composant de l'US-0180 ;
 - propre à l'US : rien n'est appliqué sans confirmation, et un abandon laisse l'écran de
   départ.
+
+**Notes de réalisation.** L'écran est la feuille FBS-4.3.4 (Imports / Exports) du planning,
+`…/revisions/[revisionId]/exchanges`, de la portée et de la permission du planning, sur le modèle
+du plan de charge (FBS-4.4.4) : l'en-tête de l'écran du planning, son point d'accès d'après la
+spécification, y mène dans le même contexte, comme l'en-tête de l'écran des coûts réels. Il offre
+aussi l'import des coûts réels, qui suit `import_actual_costs` du projet. Cette place, proposée à
+la revue d'US-0260/L1, est confirmée par l'utilisateur le 2026-10-04, en connaissance de ses deux
+conséquences :
+
+- l'écran est de portée révision et se lit sous la permission du planning : un utilisateur qui
+  exerce `import_actual_costs` sans lire le planning y arrive par l'écran des coûts réels, mais
+  pas s'il ne lit pas non plus les coûts réels ;
+- un projet sans aucune révision ne peut plus rien importer, alors que l'import des coûts réels
+  n'a pas besoin de révision et que WF-INTF-0090 dit que l'import en crée une au besoin — suivi en
+  #332.
+
+L'alternative écartée était un écran de portée projet, `/projects/[projectId]/…`, hors des
+feuilles de la FBS, que le premier passage du lot avait pris.
 
 ## US-0270 — Le front n'appelle l'API que par le client engendré
 
