@@ -755,7 +755,7 @@ filtres de la grille ne les montrent pas.
 
 ## US-0160 — Échelle de signalement commune, lisible sans couleur
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-IHM-0070-A`
 - **opérations** : aucune en propre
 - **issue** : #80

@@ -327,21 +327,17 @@ des indicateurs les seuils des indices et le délai entre deux revues. Un objet 
 par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
 listes dans le front ; une section se nomme par `aria-label` (#251).
 
-Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2.1 à
-FBS-2.7), sont hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du
-contrat — les états retenus (`states`), la période (`from`, `to`) et la date de calcul (`as_of`),
-et, pour le plan de charge agrégé et les décaissements, l'horizon (`horizon_months`) et le seuil de
-sous-charge (`under_load_threshold`), paramètres de la vue et non préférences (WF-PTF-0060), choisis
-parmi des valeurs du contrat écrites telles quelles. Un état se montre pressé comme l'adresse le
-demande, ou, quand elle n'en nomme aucun, comme le serveur les a retenus (`scope.states`) : le front
-ne suppose aucun défaut. Sous le titre, le périmètre que le serveur a retenu et la date de calcul de
-la vue, `scope.as_of` (`PortfolioHeader`), que portent tous ses chiffres. La liste des projets est
-une configuration de plus de la grille dense, triée, cherchée et paginée par le serveur, sa ligne de
-totaux le nombre de projets retenus (`meta.total`), sous la valeur du portefeuille ; chaque projet
-nommé — libellé de la liste, risque le plus lourd, signal de santé — ouvre le projet (WF-PTF-0030).
-Les zones d'indice, de charge et de santé sont celles du serveur, par `Signal` ; l'évolution
-trimestrielle des indices et les décaissements sont des figures de `Chart`, sans export : la
-provenance d'une image nomme un projet et une révision, qu'une vue du portefeuille n'a pas.
+Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
+hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
+retenus (`states`), la période (`from`, `to`), la date de calcul (`as_of`) et le nœud d'organisation
+(`org_node_id`), offert par `listOrgNodes`, chaque nœud nommé avec son parent comme le serveur les
+rend —, de ce périmètre ce que l'opération prend (`perimeterQuery`, `Takes`). Un état se montre
+pressé comme l'adresse le demande, ou, quand elle n'en nomme aucun, comme le serveur les a retenus
+(`scope.states`) : le front ne suppose aucun défaut. Sous le titre, le périmètre que le serveur a
+retenu et la date de calcul de la vue, `scope.as_of` (`PortfolioHeader`), que portent tous ses
+chiffres. La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
+cherchée et paginée par le serveur, sa ligne de totaux le nombre de projets retenus
+(`meta.total`), sous la valeur du portefeuille ; le libellé d'un projet l'ouvre (WF-PTF-0030).
 
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le

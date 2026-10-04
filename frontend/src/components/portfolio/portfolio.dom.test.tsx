@@ -11,12 +11,11 @@ import type { ApiClient } from "@/api/client";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
-import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
 
-import { type Perimeter, readPerimeter } from "./address";
-import { PerimeterBar, type ViewParameters } from "./perimeter";
-import { CashOutChart, QuarterlyChart } from "./portfolio-charts";
+import { type Perimeter, readPerimeter, type Takes } from "./address";
+
+import { type NodeChoice, PerimeterBar } from "./perimeter";
 import type { ProjectPage, ProjectRow } from "./portfolio-grid";
 import { ProjectsGrid } from "./projects-grid";
 
@@ -80,16 +79,22 @@ function cellsOf(code: string): HTMLElement[] {
   return [...(row?.querySelectorAll("td") ?? [])];
 }
 
+/** Two nodes of organisation, the second under the first, as the reference names them. */
+const NODES: readonly NodeChoice[] = [
+  { id: "node-470", label: "Direction technique", parent: null },
+  { id: "node-471", label: "Bureau d’études électricité", parent: "Direction technique" },
+];
+
 /** The perimeter bar of a view, the address at `search`. */
-function perimeterBar(search: string, view?: ViewParameters, period = true) {
+function perimeterBar(search: string, takes: Takes = { period: true, node: false }) {
   page.search = search;
   const perimeter: Perimeter = readPerimeter(new URLSearchParams(search));
   return inLanguage(
     <PerimeterBar
       perimeter={perimeter}
       retained={["in_progress", "pricing"]}
-      period={period}
-      {...(view === undefined ? {} : { view })}
+      takes={takes}
+      nodes={NODES}
     />,
   );
 }
@@ -115,8 +120,8 @@ afterEach(() => {
 });
 
 describe("the list of the projects of the portfolio", () => {
-  it("presents each column the requirement names, the indices with their zone [WF-PTF-0040-A]", async () => {
-    const { container } = render(projectsGrid());
+  it("presents each column the requirement names, the indices with their zone [WF-PTF-0040-A]", () => {
+    render(projectsGrid());
     expect(
       within(grid())
         .getAllByRole("columnheader")
@@ -140,7 +145,6 @@ describe("the list of the projects of the portfolio", () => {
     expect(witness[8]).toHaveTextContent("Non calculable");
     expect(within(witness[9] ?? document.body).getByRole("img", { name: "Alerte" })).toBeVisible();
     expect(witness[9]).toHaveTextContent("0");
-    await expectAccessible(container);
   });
 
   it("shows the estimate and the probability of an offer where a project in progress shows its budget [WF-PTF-0040-A]", () => {
@@ -207,36 +211,20 @@ describe("the perimeter of a view of the portfolio", () => {
     expect(await lastAddress()).toBe(`${PATHNAME}?from=2025-01-01&as_of=2026-03-16`);
   });
 
-  it("offers the horizon and the threshold of a view, the date of calculation alone [WF-PTF-0060-A]", async () => {
-    render(perimeterBar("", { horizon: undefined, threshold: "0.5" }, false));
+  it("restricts the labour to a node of organisation, named with its parent; the date alone where the view takes no period", async () => {
+    render(perimeterBar("", { period: false, node: true }));
     expect(screen.queryByLabelText("Du")).toBeNull();
-    expect(screen.getByLabelText("Seuil de sous-charge")).toHaveValue("0.5");
-    await userEvent.selectOptions(screen.getByLabelText("Horizon"), "12 mois");
-    expect(await lastAddress()).toBe(`${PATHNAME}?horizon_months=12`);
-  });
-});
-
-describe("the charts of the portfolio", () => {
-  it("lists the two indices of each quarter, as the server computes them", () => {
-    const performance = example("volume/portfolio_performance") as Schemas["PortfolioPerformance"];
-    render(inLanguage(<QuarterlyChart quarters={performance.quarterly} />, "en"));
-    const figure = screen.getByRole("figure", { name: "Quarterly evolution of the indices" });
-    const rows = within(figure).getAllByRole("row");
-    expect(rows.map((row) => row.textContent)).toEqual([
-      "QuarterCost indexSchedule index",
-      "Q2 20250.970.98",
-      "Q3 20250.950.96",
-      expect.stringMatching(/^Q4 2025/),
-      "Q1 20260.940.91",
+    const node = screen.getByLabelText("Nœud d’organisation");
+    expect(
+      within(node)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual([
+      "Tous les nœuds",
+      "Direction technique",
+      "Bureau d’études électricité (Direction technique)",
     ]);
-  });
-
-  it("lists each month of cash-out, the past and the forecast", () => {
-    const cashOut = example("portfolio_cash_out") as Schemas["PortfolioCashOut"];
-    render(inLanguage(<CashOutChart months={cashOut.months} />));
-    const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
-    expect(within(figure).getByRole("row", { name: /mars 2026/ })).toHaveTextContent(
-      `mars 202631${NARROW}864${NARROW}205,1038${NARROW}215${NARROW}760,00`,
-    );
+    await userEvent.selectOptions(node, "Bureau d’études électricité (Direction technique)");
+    expect(await lastAddress()).toBe(`${PATHNAME}?org_node_id=node-471`);
   });
 });

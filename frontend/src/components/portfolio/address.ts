@@ -4,10 +4,9 @@
  * What the screens of the portfolio read of their address (WF-PTF-0010): the perimeter every view
  * is computed on, under the names of the contract — the states retained, `states`, its values
  * separated by commas (`explode: false`); the period of the projects completed and of the
- * statistics of a period, `from` and `to`; the date of calculation, `as_of` — and the parameters of
- * a view: its horizon, `horizon_months`, and the threshold of under-load the user chooses at the
- * consultation, `under_load_threshold` (WF-PTF-0060), neither kept from one consultation to the
- * next. A choice only changes the address, and the page reads anew: the server computes, sorts and
+ * statistics of a period, `from` and `to`; the date of calculation, `as_of`; the node of
+ * organisation whose roles the labour lines are restricted to, `org_node_id`. A choice only changes
+ * the address, and the page reads anew: the server computes, sorts and
  * filters, the front nothing (WF-ARC-0020).
  *
  * Pure, and neither server nor client: the page reads, the screen writes.
@@ -28,8 +27,7 @@ export const STATES = "states";
 export const FROM = "from";
 export const TO = "to";
 export const AS_OF = "as_of";
-export const HORIZON = "horizon_months";
-export const THRESHOLD = "under_load_threshold";
+export const ORG_NODE = "org_node_id";
 
 /**
  * The states a portfolio retains (WF-PTF-0010): the projects in progress, the offers in pricing
@@ -38,19 +36,17 @@ export const THRESHOLD = "under_load_threshold";
  */
 export const PORTFOLIO_STATES: readonly ProjectState[] = ["in_progress", "pricing", "completed"];
 
-/** The horizons a view offers, in months: half a year, a year, two years. */
-export const HORIZONS = ["6", "12", "24"] as const;
-
-/** The thresholds of under-load the aggregated workload offers, as the contract writes them. */
-export const THRESHOLDS = ["0.3", "0.5", "0.7"] as const;
-
 /** The perimeter the address asks; what it does not name, the server chooses. */
 export interface Perimeter {
   readonly states: readonly ProjectState[];
   readonly from: string | undefined;
   readonly to: string | undefined;
   readonly asOf: string | undefined;
+  readonly orgNode: string | undefined;
 }
+
+/** An identifier the API may know: anything else names no node, and is not asked. */
+const IDENTIFIER = /^[\w-]+$/;
 
 /** A date of the address the API may take; none otherwise — 30 February is not asked. */
 function dateOf(search: SearchParameters, name: string): string | undefined {
@@ -67,6 +63,12 @@ export function readStates(search: SearchParameters): readonly ProjectState[] {
   return PORTFOLIO_STATES.filter((state) => asked.has(state));
 }
 
+/** An identifier of the address the API may know; none otherwise. */
+function identifierOf(search: SearchParameters, name: string): string | undefined {
+  const value = search.get(name);
+  return value !== null && IDENTIFIER.test(value) ? value : undefined;
+}
+
 /** Read the perimeter the address asks; a value the contract would refuse is not asked. */
 export function readPerimeter(search: SearchParameters): Perimeter {
   return {
@@ -74,26 +76,34 @@ export function readPerimeter(search: SearchParameters): Perimeter {
     from: dateOf(search, FROM),
     to: dateOf(search, TO),
     asOf: dateOf(search, AS_OF),
+    orgNode: identifierOf(search, ORG_NODE),
   };
 }
 
-/** One of the values a parameter of a view offers, as the address names it; none otherwise. */
-export function readChoice<Value extends string>(
-  search: SearchParameters,
-  name: string,
-  offered: readonly Value[],
-): Value | undefined {
-  const value = search.get(name);
-  return offered.find((each) => each === value);
+/**
+ * What of the perimeter a view takes, besides its states and its date of calculation: a period,
+ * a node of organisation. Every view takes both but those the contract gives neither or one.
+ */
+export interface Takes {
+  readonly period: boolean;
+  readonly node: boolean;
 }
 
-/** The query of the perimeter, as the client of the contract sends it: what is asked alone. */
-export function perimeterQuery(perimeter: Perimeter) {
+/** A view that takes the whole perimeter. */
+export const WHOLE: Takes = { period: true, node: true };
+
+/**
+ * The query of the perimeter, as the client of the contract sends it: what is asked alone, and of
+ * that, what the view takes.
+ */
+export function perimeterQuery(perimeter: Perimeter, takes: Takes = WHOLE) {
+  const { from, to, orgNode } = perimeter;
   return {
     ...(perimeter.states.length === 0 ? {} : { states: [...perimeter.states] }),
-    ...(perimeter.from === undefined ? {} : { from: perimeter.from }),
-    ...(perimeter.to === undefined ? {} : { to: perimeter.to }),
+    ...(!takes.period || from === undefined ? {} : { from }),
+    ...(!takes.period || to === undefined ? {} : { to }),
     ...(perimeter.asOf === undefined ? {} : { as_of: perimeter.asOf }),
+    ...(!takes.node || orgNode === undefined ? {} : { org_node_id: orgNode }),
   };
 }
 

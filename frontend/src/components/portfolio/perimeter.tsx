@@ -3,8 +3,9 @@
 /**
  * The perimeter of a view of the portfolio, as the user chooses it (WF-PTF-0010): the states it
  * retains — the projects in progress, to which the offers in pricing may be added, and the projects
- * completed —, the period and the date of calculation; and, for the views that take them, the
- * horizon and the threshold of under-load (WF-PTF-0060). A choice only changes the address, under
+ * completed —, the period and the date of calculation, the node of organisation whose roles the
+ * labour lines are restricted to, named with its parent as the server gives them — for the views
+ * that take them. A choice only changes the address, under
  * the names of the contract, and the page reads anew what the server computes on it. A state shows
  * pressed as the address asks it, or, when the address asks none, as the server retained it by
  * default (`scope.states`): the front assumes no default of its own. A change goes on from the
@@ -14,7 +15,7 @@
 
 import { CalendarRange, Circle, CircleCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { type SubmitEvent, useId, useState } from "react";
 
 import { usePendingAddress } from "@/components/grid/pending-address";
@@ -22,13 +23,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { formatPercent } from "@/i18n/format";
 
 import {
   AS_OF,
   FROM,
-  HORIZON,
-  HORIZONS,
+  ORG_NODE,
   type Perimeter,
   PORTFOLIO_STATES,
   type ProjectState,
@@ -36,9 +35,9 @@ import {
   readStates,
   STATES,
   statesValue,
-  THRESHOLD,
-  THRESHOLDS,
+  type Takes,
   TO,
+  WHOLE,
 } from "./address";
 
 /** Change parameters of the address last asked, from what it asks. */
@@ -146,22 +145,31 @@ function DatesForm({
   );
 }
 
-/** A parameter of a view chosen among the values it offers, or left to the server. */
+/** A choice of a select: the value the address writes, and its name. */
+interface Choice {
+  readonly value: string;
+  readonly label: string;
+}
+
+/** A parameter of a view chosen among the values offered, or left to the server (`none`). */
 function ViewChoice({
   name,
   label,
+  none,
   value,
   offered,
   write,
 }: {
   readonly name: string;
   readonly label: string;
+  readonly none: string;
   readonly value: string | undefined;
-  readonly offered: readonly { readonly value: string; readonly label: string }[];
+  readonly offered: readonly Choice[];
   readonly write: (value: string | undefined) => void;
 }) {
-  const t = useTranslations("portfolio.perimeter");
   const id = useId();
+  // A value the address names that is not offered stays chosen, under its value as written.
+  const unknown = value !== undefined && !offered.some((each) => each.value === value);
   return (
     <div className="flex items-center gap-2">
       <Label htmlFor={id}>{label}</Label>
@@ -172,42 +180,45 @@ function ViewChoice({
         onChange={(event) => {
           write(event.target.value === "" ? undefined : event.target.value);
         }}
-        className="w-40"
+        className="w-56"
       >
-        <option value="">{t("byDefault")}</option>
+        <option value="">{none}</option>
         {offered.map((each) => (
           <option key={each.value} value={each.value}>
             {each.label}
           </option>
         ))}
+        {unknown ? <option value={value}>{value}</option> : null}
       </NativeSelect>
     </div>
   );
 }
 
-/** The parameters of a view the address asks: its horizon, its threshold; none, not offered. */
-export interface ViewParameters {
-  readonly horizon?: string | undefined;
-  readonly threshold?: string | undefined;
+/** A node of organisation the labour may be restricted to, named with its parent by the server. */
+export interface NodeChoice {
+  readonly id: string;
+  readonly label: string;
+  readonly parent: string | null;
 }
 
 /** What the perimeter shows: what the address asks, what the server retained, what the view takes. */
 export interface PerimeterBarProps {
   readonly perimeter: Perimeter;
   readonly retained: readonly ProjectState[];
-  /**
-   * Whether the view takes a period; the aggregated workload, the cost structure, the cash-out and
-   * the health of the steering take the date of calculation alone.
-   */
-  readonly period?: boolean;
-  /** The parameters the view takes, and their value; none, and none is offered. */
-  readonly view?: ViewParameters;
+  /** What of the perimeter the view takes besides its states and its date: a period, a node. */
+  readonly takes?: Takes;
+  /** The nodes of organisation, when the view takes one. */
+  readonly nodes?: readonly NodeChoice[];
 }
 
 /** Render the perimeter of a view of the portfolio, as the address asks it. */
-export function PerimeterBar({ perimeter, retained, period = true, view }: PerimeterBarProps) {
+export function PerimeterBar({
+  perimeter,
+  retained,
+  takes = WHOLE,
+  nodes = [],
+}: PerimeterBarProps) {
   const t = useTranslations("portfolio.perimeter");
-  const locale = useLocale();
   const change = useParameters();
   return (
     <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -216,27 +227,23 @@ export function PerimeterBar({ perimeter, retained, period = true, view }: Perim
       <DatesForm
         key={`${perimeter.from ?? ""}/${perimeter.to ?? ""}/${perimeter.asOf ?? ""}`}
         perimeter={perimeter}
-        fields={period ? DATES.period : DATES.date}
+        fields={takes.period ? DATES.period : DATES.date}
       />
-      {view !== undefined && "horizon" in view ? (
+      {takes.node ? (
         <ViewChoice
-          name={HORIZON}
-          label={t("horizon")}
-          value={view.horizon}
-          offered={HORIZONS.map((months) => ({ value: months, label: t("months", { months }) }))}
+          name={ORG_NODE}
+          label={t("orgNode")}
+          none={t("everyNode")}
+          value={perimeter.orgNode}
+          offered={nodes.map((node) => ({
+            value: node.id,
+            label:
+              node.parent === null
+                ? node.label
+                : t("nodeChoice", { label: node.label, parent: node.parent }),
+          }))}
           write={(value) => {
-            change(() => ({ [HORIZON]: value }));
-          }}
-        />
-      ) : null}
-      {view !== undefined && "threshold" in view ? (
-        <ViewChoice
-          name={THRESHOLD}
-          label={t("threshold")}
-          value={view.threshold}
-          offered={THRESHOLDS.map((value) => ({ value, label: formatPercent(value, locale) }))}
-          write={(value) => {
-            change(() => ({ [THRESHOLD]: value }));
+            change(() => ({ [ORG_NODE]: value }));
           }}
         />
       ) : null}
