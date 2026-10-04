@@ -248,6 +248,19 @@ ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #1
 deux cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures
 (`EstimateSummary`).
 
+L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de
+ses opérations dans la révision de sa route (`revision_id`) : les totaux des provisions des
+risques retenus, par état et le total général, tels que le serveur les rend ; le filtre par
+état, des boutons pressés qui n'écrivent que l'adresse (`states`, sous le nom et la forme du
+contrat) ; la grille dense, une configuration de plus (`risk-grid.tsx`), en lecture, où la
+gravité et la provision sont des colonnes calculées entières — le contrat ne leur nomme aucun
+champ de nœud, et leur refus dit seulement que la valeur est calculée (`field` rend `undefined`,
+constat de l'EPIC) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés par les bornes
+que rend le serveur, chaque case par son signal et son nombre de risques ; et, quand l'adresse
+nomme un risque (`risk`), son détail : notes, ligne de provision présente ou retirée à la
+survenance, historique des réexamens. Le libellé d'un risque est un lien hors de la tabulation :
+la grille suit le lien d'une cellule qui n'est pas saisie à Entrée (`grid-keyboard.ts`).
+
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
 vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une

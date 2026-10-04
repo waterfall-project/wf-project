@@ -121,7 +121,8 @@
   "grid": {
     "names": {
       "estimate": "Grille de devis",
-      "planning": "Grille de planning"
+      "planning": "Grille de planning",
+      "risks": "Registre des risques"
     },
     "columns": {
       "rowNumber": "N°",
@@ -139,7 +140,13 @@
       "duration": "Durée",
       "progress": "Avancement",
       "totalFloat": "Marge",
-      "predecessors": "Prédécesseurs"
+      "predecessors": "Prédécesseurs",
+      "probability": "Probabilité",
+      "severity": "Gravité",
+      "provisionAmount": "Provision",
+      "state": "État",
+      "lastReview": "Dernier réexamen",
+      "matrixCell": "Case de la matrice"
     },
     "computed": "Calculé",
     "unknown": "Référence inconnue",
@@ -187,6 +194,49 @@
     "critical": "Chemin critique",
     "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";"
+  },
+  "risks": {
+    "summary": "{risks, plural, =0 {aucun risque retenu} one {# risque retenu} other {# risques retenus}}",
+    "generalTotal": "Total général",
+    "filter": "Filtrer par état",
+    "everyState": "Tous les états",
+    "provisions": {
+      "title": "Provisions des risques retenus",
+      "identified": "Risques identifiés",
+      "occurred": "Risques survenus",
+      "dismissed": "Risques écartés",
+      "total": "Total général"
+    },
+    "matrix": {
+      "title": "Matrice des risques",
+      "probability": "Probabilité",
+      "severity": "Gravité, en part du budget de référence",
+      "between": "{lower} à moins de {upper}",
+      "from": "{lower} et plus"
+    },
+    "detail": {
+      "hint": "Choisissez un risque dans le registre pour lire sa description, ses actions de mitigation et l’historique de ses réexamens.",
+      "close": "Fermer le détail du risque",
+      "description": "Description",
+      "mitigation": "Actions de mitigation",
+      "notSet": "Non renseignée",
+      "neverReviewed": "Jamais réexaminé",
+      "provisionLine": {
+        "title": "Ligne de provision",
+        "present": "Présente dans la structure principale : la provision pèse sur le devis.",
+        "withdrawn": "Retirée de la structure principale à la survenance : les lignes fusionnées de son devis propre portent la provision.",
+        "absent": "Absente de la structure principale : le risque ne pèse pas sur le devis."
+      },
+      "reviews": {
+        "title": "Historique des réexamens",
+        "none": "Aucun réexamen.",
+        "reviewedOn": "Date",
+        "probability": "Probabilité",
+        "severity": "Gravité",
+        "state": "État",
+        "actor": "Par"
+      }
+    }
   },
   "computedValue": {
     "title": "Valeur calculée",
