@@ -290,6 +290,8 @@ def test_the_parts_of_the_cost_structure_sum_to_their_totals(volumes: dict[str, 
         assert total(part["share"] for part in structure[parts]) == 1
     labor = structure["budget_by_cost_type"][0]
     assert labor["label"] == "Main-d'œuvre"
+    nodes = {node["org_node_id"]: node["label"] for node in mockdata.fixture("org_nodes")}
+    assert all(nodes[part["key"]] == part["label"] for part in structure["labor_by_org_node"])
     assert total(part["amount"] for part in structure["labor_by_org_node"]) == Decimal(
         labor["amount"]
     )

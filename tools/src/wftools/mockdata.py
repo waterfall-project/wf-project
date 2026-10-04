@@ -452,9 +452,6 @@ _LABOR_SHARE, _NON_LABOR_SHARE = Decimal("0.55"), Decimal("0.35")
 _REMAINING_LABOR_SHARE, _REMAINING_NON_LABOR_SHARE = Decimal("0.5"), Decimal("0.4")
 """How the budgets and the remaining to commit of the portfolio part by nature."""
 
-_ORG_NODE_LABEL = "Bureau d'études électricité"
-"""The node of organisation of every role of the universe; no example names it yet (#286)."""
-
 
 def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
     """Return the answer of getPortfolioCostStructure over the projects in progress (WF-PTF-0080).
@@ -472,6 +469,7 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
     ]
     budgets = _parts(budget, (_LABOR_SHARE, _NON_LABOR_SHARE))
     org_node = fixture("resource_roles")[0]["org_node_id"]
+    label = next(node["label"] for node in fixture("org_nodes") if node["org_node_id"] == org_node)
     return {
         "scope": _scope(rows, ["in_progress"], period=False),
         "budget_by_cost_type": _by_key(natures, budgets, budget),
@@ -480,7 +478,7 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
             _parts(remaining, (_REMAINING_LABOR_SHARE, _REMAINING_NON_LABOR_SHARE)),
             remaining,
         ),
-        "labor_by_org_node": _by_key([(org_node, _ORG_NODE_LABEL)], budgets[:1], budgets[0]),
+        "labor_by_org_node": _by_key([(org_node, label)], budgets[:1], budgets[0]),
     }
 
 
