@@ -516,15 +516,24 @@
     description: >-
       La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070,
       WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon
-      WF-PLA-0070.
+      WF-PLA-0070. Une écriture de grille comme les autres : elle rend ses ancêtres
+      recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`),
+      pour que la grille montre juste et que le collage suivant porte le bon compteur
+      (WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
       - $ref: ../components/parameters.yaml#/StructureId
       - $ref: ../components/parameters.yaml#/NodeId
     responses:
-      '204':
-        description: Nœud supprimé.
+      '200':
+        description: >-
+          Nœud supprimé ; `nodes` est vide, les ancêtres et les totaux sont recalculés sans lui.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              deleted: { $ref: ../../../fixtures/api/node_deleted.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

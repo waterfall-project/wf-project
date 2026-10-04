@@ -368,6 +368,57 @@ describe("a block pasted from a spreadsheet", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("carries the highest version of the structure told, whatever the order the answers come back in", async () => {
+    let releaseLine: () => void = () => undefined;
+    const heldLine = new Promise<void>((resolve) => {
+      releaseLine = resolve;
+    });
+    let releaseApply: () => void = () => undefined;
+    const heldApply = new Promise<void>((resolve) => {
+      releaseApply = resolve;
+    });
+    // The cell written answers the structure at its version 3, the first paste applied at 2.
+    const client = fakeClient(
+      { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
+      {
+        hold: (route, index) =>
+          route === LINE ? heldLine : route === APPLY && index === 0 ? heldApply : undefined,
+      },
+    );
+    server.client = client;
+    renderGrid();
+    cell(FIRST, "label").focus();
+    await userEvent.keyboard("X{Enter}");
+    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
+    const first = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(
+      await within(first).findByRole("button", { name: "Appliquer le collage" }),
+    );
+    // The write answers first, version 3; the paste answers after it, version 2.
+    await act(async () => {
+      releaseLine();
+      await heldLine;
+    });
+    await act(async () => {
+      releaseApply();
+      await heldApply;
+    });
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
+    const second = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(
+      await within(second).findByRole("button", { name: "Appliquer le collage" }),
+    );
+    await vi.waitFor(() => {
+      expect(bodies(client, APPLY)).toHaveLength(2);
+    });
+    expect(
+      bodies(client, APPLY).map((body) => (body as { lock_version: number }).lock_version),
+    ).toEqual([1, 3]);
+  });
+
   it("whose span crosses a hidden column is refused, naming it, and nothing is asked", async () => {
     const client = serve();
     // The role hidden: the server would fill it where the user saw the quantity (#200).

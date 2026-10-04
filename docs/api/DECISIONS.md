@@ -354,8 +354,10 @@ leurs ancêtres recalculés — montants, dates, durée, avancement d'une récap
 ancêtres d'un déplacement —, les totaux de la structure entière et le compteur de la structure. La
 réponse ne portait que le nœud écrit, et la grille montrait des totaux et des montants de
 récapitulatives faux jusqu'à une relecture (WF-DEV-0050, WF-ARC-0020). Une seule enveloppe pour
-les neuf écritures — cellule, collage, déplacement, création, liaison, avancement, réestimation,
-inscription —, un tableau `nodes` même pour une cellule, plutôt qu'une enveloppe par opération.
+les dix écritures — cellule, collage, déplacement, création, suppression, liaison, avancement,
+réestimation, inscription —, un tableau `nodes` même pour une cellule, vide après une suppression,
+plutôt qu'une enveloppe par opération ; une suppression qui répondrait 204 laisserait la grille
+sans le compteur que la structure a pris, et le collage suivant en 412.
 Les totaux sont ceux de la structure sans filtre : une grille filtrée relit les siens par
 `listNodes`. Écartés : relire la structure après chaque saisie, six mille nœuds pour une cellule
 (§4.6.2) ; une relecture ciblée des ancêtres, un appel de plus par saisie.
@@ -420,8 +422,8 @@ engendré avec les autres (`make mock-data`), et la ligne de l'ingénierie élec
 `RateUpdateProposal.categories[].label`, #204). Un écart n'était nommé que par sa `key`, une
 catégorie que par son identifiant, et l'écran disait « Sans nom », WF-ARC-0020 lui interdisant de
 joindre le référentiel. Le serveur résout le libellé à la lecture, comme `AmountByKey.label` et la
-réponse de `getMissingRates` ; il est absent pour `unassigned`, que le front sait nommer, et exigé
-sur une catégorie.
+réponse de `getMissingRates` ; exigé, il est nul pour la seule clé `unassigned`, que le front sait
+nommer.
 
 **Un taux horaire manquant rend un montant non calculable** (`EstimateIndicators`,
 `ComputableAmountByKey`, `hourly_rate_missing`, #159). WF-DEV-0010 refuse le calcul d'un devis
@@ -436,7 +438,10 @@ aussi) ; les montants que ces lignes ne touchent pas se calculent. Le motif suit
 énumération (`no_actual_cost`), non celle du code d'erreur `HOURLY_RATE_MISSING` qui dit le même
 refus sur une écriture : les deux catalogues ont chacun leur convention. `Computable` gagne
 `params`, parce qu'un motif peut nommer quelque chose — jusqu'ici, une grandeur nulle ne nommait
-rien. Écarté : refuser la lecture par 409 ou 422, qui aurait privé l'écran des montants que les
+rien. Un montant calculable est un `ComputableMoney`, la même enveloppe dont la valeur garde la
+contrainte de `Money` — deux décimales au plus — qu'un `Decimal` perdrait : le total, les écarts,
+les montants par clé, et la projection au rythme constaté ; les ratios, les indices et les parts
+restent des `Computable`. Écarté : refuser la lecture par 409 ou 422, qui aurait privé l'écran des montants que les
 taux manquants ne touchent pas, et des provisions.
 
 **Le devis dit son écart à la référence et ses totaux par poste** (`delta_to_reference`,

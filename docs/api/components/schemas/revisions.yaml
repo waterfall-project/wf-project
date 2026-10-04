@@ -481,22 +481,24 @@ NodesWritten:
   required: [nodes, ancestors, totals, structure_lock_version]
   description: >-
     Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un
-    déplacement, une création, une liaison, un avancement, une réestimation, une inscription
-    aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de
+    déplacement, une création, une suppression, une liaison, un avancement, une réestimation,
+    une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de
     la structure, pour que la grille montre juste sans relire la structure ni rien sommer
     (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé.
   properties:
     nodes:
       type: array
-      minItems: 1
-      description: Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan.
+      description: >-
+        Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une
+        suppression, qui ne laisse rien à rendre.
       items: { $ref: '#/Node' }
     ancestors:
       type: array
       description: >-
-        Les ancêtres des nœuds écrits — et, pour un déplacement, leurs anciens ancêtres —,
-        recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois,
-        entier, dans l'ordre du plan ; vide pour un nœud de premier niveau.
+        Les ancêtres des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs
+        anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une
+        récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de
+        premier niveau.
       items: { $ref: '#/Node' }
     totals:
       allOf: [{ $ref: '#/NodeTotals' }]
@@ -1053,7 +1055,7 @@ RevisionComparison:
         joint rien (WF-ARC-0020).
       items:
         type: object
-        required: [dimension, key, delta]
+        required: [dimension, key, label, delta]
         properties:
           dimension:
             type: string
@@ -1062,8 +1064,8 @@ RevisionComparison:
             type: string
             description: L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020).
           label:
-            type: string
-            description: Le libellé de la nature ou du sous-projet ; absent pour `unassigned`, que le front nomme.
+            anyOf: [{ type: string }, { type: 'null' }]
+            description: Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme.
           delta: { $ref: ../common.yaml#/Money }
 
 ComparedNode:

@@ -1125,7 +1125,7 @@ export interface paths {
         };
         /**
          * Grille des taux horaires
-         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150).
+         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100).
          */
         get: operations["getHourlyRateGrid"];
         put?: never;
@@ -1659,7 +1659,7 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un nœud
-         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070.
+         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une écriture de grille comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110).
          */
         delete: operations["deleteNode"];
         options?: never;
@@ -3379,8 +3379,8 @@ export interface components {
                 dimension: "cost_type" | "subproject";
                 /** @description L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020). */
                 key: string;
-                /** @description Le libellé de la nature ou du sous-projet ; absent pour `unassigned`, que le front nomme. */
-                label?: string;
+                /** @description Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme. */
+                label: string | null;
                 delta: components["schemas"]["Money"];
             }[];
         };
@@ -3627,11 +3627,11 @@ export interface components {
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
         };
-        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
+        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
         NodesWritten: {
-            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan. */
+            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre. */
             nodes: components["schemas"]["Node"][];
-            /** @description Les ancêtres des nœuds écrits — et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de premier niveau. */
+            /** @description Les ancêtres des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de premier niveau. */
             ancestors: components["schemas"]["Node"][];
             /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
             totals: components["schemas"]["NodeTotals"];
@@ -3764,26 +3764,37 @@ export interface components {
             /** @description Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040). */
             is_stored?: boolean;
         };
+        /** @description Un montant qui peut être non calculable : la même enveloppe que `Computable`, sa valeur contrainte comme un `Money` — deux décimales au plus, dans la devise de l'installation (WF-REF-0140, WF-DAT-0100). Les ratios, les indices et les parts restent des `Computable`. */
+        ComputableMoney: {
+            is_computable: boolean;
+            value?: components["schemas"]["Money"] | null;
+            /** @description Pourquoi le montant n'est pas calculable, en code ; nul pour un montant calculable. */
+            reason?: components["schemas"]["NotComputableReason"] | null;
+            /** @description Ce que le motif nomme, comme pour `Computable` — `missing_rates` pour `hourly_rate_missing`. */
+            params?: {
+                missing_rates?: components["schemas"]["MissingRate"][];
+            };
+        };
         /** @description Un montant par clé — nature de coût, sous-projet, poste —, qui peut ne pas se calculer (`hourly_rate_missing`), et sa part du total, qui ne se calcule pas sans lui. */
         ComputableAmountByKey: {
             key: string;
             label?: string;
-            amount: components["schemas"]["Computable"];
+            amount: components["schemas"]["ComputableMoney"];
             share?: components["schemas"]["Computable"];
         };
-        /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque montant est un `Computable` : tant qu'une catégorie de main-d'œuvre employée n'a pas de taux horaire pour l'année de référence, les montants qui en dépendent — le total, la nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à zéro. Les montants que ces lignes ne touchent pas se calculent. */
+        /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de taux horaire pour l'année de référence, les montants qui en dépendent — le total, la nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à zéro. Les montants que ces lignes ne touchent pas se calculent. */
         EstimateIndicators: {
             context: components["schemas"]["CalculationContext"];
-            total: components["schemas"]["Computable"];
+            total: components["schemas"]["ComputableMoney"];
             by_cost_type: components["schemas"]["ComputableAmountByKey"][];
             by_subproject: components["schemas"]["ComputableAmountByKey"][];
             /** @description Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche récapitulative qui porte chacun ; nul quand le planning n'est pas structuré en postes — absents plutôt que nuls (WF-DEV-0060). */
             by_order_item: components["schemas"]["ComputableAmountByKey"][] | null;
             provisions_identified?: components["schemas"]["Money"];
             /** @description L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) ; nul quand le projet n'a pas de révision de référence. */
-            delta_to_reference: components["schemas"]["Computable"] | null;
+            delta_to_reference: components["schemas"]["ComputableMoney"] | null;
             /** @description L'écart avec la révision marquée précédente ; nul sans elle. */
-            delta_to_previous_revision?: components["schemas"]["Computable"] | null;
+            delta_to_previous_revision?: components["schemas"]["ComputableMoney"] | null;
         };
         /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
         WorkloadPlan: {
@@ -3841,7 +3852,7 @@ export interface components {
         Projections: {
             at_budget: components["schemas"]["Money"];
             project_manager: components["schemas"]["Money"];
-            at_observed_rate: components["schemas"]["Computable"];
+            at_observed_rate: components["schemas"]["ComputableMoney"];
             variance_at_budget?: components["schemas"]["Money"];
             variance_project_manager?: components["schemas"]["Money"];
             variance_at_observed_rate?: components["schemas"]["Money"] | null;
@@ -6294,6 +6305,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -7395,12 +7407,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœud supprimé. */
-            204: {
+            /** @description Nœud supprimé ; `nodes` est vide, les ancêtres et les totaux sont recalculés sans lui. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NodesWritten"];
+                };
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

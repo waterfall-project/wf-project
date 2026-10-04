@@ -1,5 +1,5 @@
 {
-  "summary": "La ligne 4 de la structure des volumes, « Heures d'ingénierie », dont le libellé est saisi « Heures de câblage » : rien d'autre ne change, pas même ses montants ; une version de plus. Avec elle, ses trois ancêtres, inchangés, et les totaux de la structure. Le faux back la rend à toute écriture d'une ligne, qui ne garde rien de ce qu'on lui envoie (WF-DEV-0020, WF-IHM-0040).",
+  "summary": "La ligne 4 de la structure des volumes, « Heures d'ingénierie », dont le libellé est saisi « Heures de câblage » : rien d'autre ne change, pas même ses montants ; une version de plus. Avec elle, ses trois ancêtres, inchangés, les totaux de la structure, et son compteur, passé à 3 après deux écritures. Le faux back la rend à toute écriture d'une ligne, qui ne garde rien de ce qu'on lui envoie (WF-DEV-0020, WF-IHM-0040).",
   "value": {
     "nodes": [
       {
@@ -183,6 +183,6 @@
       "budgeted_amount": "60553621.36",
       "reestimated_amount": "60553621.36"
     },
-    "structure_lock_version": 2
+    "structure_lock_version": 3
   }
 }

@@ -660,7 +660,8 @@
       une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne
       n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit
       (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive`
-      (WF-REF-0150).
+      (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive`
+      est refusé par 403 (WF-ADM-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
     responses:
@@ -672,6 +673,7 @@
             examples:
               volume: { $ref: ../../../fixtures/api/volume/hourly_rate_grid.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /reference/cost-categories/{cost_category_id}/hourly-rates:

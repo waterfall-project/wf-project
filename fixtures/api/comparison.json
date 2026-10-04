@@ -64,6 +64,7 @@
       {
         "dimension": "subproject",
         "key": "unassigned",
+        "label": null,
         "delta": "500.00"
       }
     ]

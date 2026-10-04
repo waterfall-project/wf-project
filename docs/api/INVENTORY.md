@@ -113,7 +113,7 @@ Le contrat cite **182 des 208 exigences** de la spécification.
 | POST | `/reference/cost-categories` | Créer une catégorie de coût | WF-REF-0040 |
 | PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0040, WF-REF-0130 |
 | PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-REF-0010, WF-REF-0020 |
-| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-REF-0050, WF-REF-0060, WF-REF-0150 |
+| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
 | GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0050, WF-REF-0130 |
 
@@ -163,7 +163,7 @@ Le contrat cite **182 des 208 exigences** de la spécification.
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-REV-0050, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-RAE-0050 |
-| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-PLA-0070 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-IHM-0110, WF-PLA-0070 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies` | Ce dont dépend une valeur calculée | WF-IHM-0030, WF-PLA-0040 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-IHM-0040, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-IHM-0040, WF-RIS-0010 |

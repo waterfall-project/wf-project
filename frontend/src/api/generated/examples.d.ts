@@ -5,6 +5,9 @@
  * the fake client of the tests may answer to each (`src/test/fixtures.ts`).
  */
 export interface Examples {
+  "DELETE /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}": {
+    200: "node_deleted";
+  };
   "GET /installation": {
     200: "installation" | "installation_english";
   };
