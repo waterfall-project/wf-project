@@ -20,7 +20,14 @@
 
 import { Redo2, Undo2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, type ReactElement, useId, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactElement,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -155,25 +162,36 @@ function opensMenu(event: KeyboardEvent<HTMLElement>): boolean {
   return (event.key === "F10" && event.shiftKey) || event.key === "ContextMenu";
 }
 
+/** The `contextmenu` events the keyboard sent, which the browser did not. */
+const KEYED = new WeakSet<Event>();
+
+/**
+ * How long after a key opened the menu a `contextmenu` the browser sends is the echo of that key
+ * — the native one of Shift+F10 or of the Menu key, which some browsers send besides —, not a new
+ * gesture.
+ */
+const KEY_ECHO_MS = 1000;
+
 /**
  * Open the menu of the cell that holds the focus from the keyboard, under it, as a right click
- * would: the browser does not open it from Shift+F10 everywhere, nor in a test.
+ * would: the browser does not open it from Shift+F10 everywhere, nor in a test. Return when it did.
  */
-function openFromKeyboard(event: KeyboardEvent<HTMLElement>) {
+function openFromKeyboard(event: KeyboardEvent<HTMLElement>): boolean {
   const cell = event.target;
   if (!opensMenu(event) || !(cell instanceof HTMLElement) || entering(cell)) {
-    return;
+    return false;
   }
   event.preventDefault();
   const box = cell.getBoundingClientRect();
-  cell.dispatchEvent(
-    new MouseEvent("contextmenu", {
-      bubbles: true,
-      cancelable: true,
-      clientX: box.left,
-      clientY: box.bottom,
-    }),
-  );
+  const opening = new MouseEvent("contextmenu", {
+    bubbles: true,
+    cancelable: true,
+    clientX: box.left,
+    clientY: box.bottom,
+  });
+  KEYED.add(opening);
+  cell.dispatchEvent(opening);
+  return true;
 }
 
 /**
@@ -183,19 +201,43 @@ function openFromKeyboard(event: KeyboardEvent<HTMLElement>) {
  */
 export function CellMenu({
   offered,
+  disabled,
   children,
 }: {
   readonly offered: boolean | undefined;
+  /**
+   * Whether a cell is being entered: the menu then opens on nothing, and the browser's — paste,
+   * spelling — stays the field's, whose entry a menu taking the focus would validate.
+   */
+  readonly disabled: boolean;
   readonly children: ReactElement;
 }) {
   const t = useTranslations("grid.undo");
   const reason = useId();
+  // When a key last opened the menu: the native echo of that key moves nothing.
+  const keyed = useRef(Number.NEGATIVE_INFINITY);
   if (offered !== true) {
     return children;
   }
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (openFromKeyboard(event)) {
+      keyed.current = event.timeStamp;
+    }
+  };
+  const onContextMenu = (event: MouseEvent<HTMLElement>) => {
+    if (!KEYED.has(event.nativeEvent) && event.timeStamp - keyed.current < KEY_ECHO_MS) {
+      // Prevented, it reaches neither the browser nor the menu, already open.
+      event.preventDefault();
+    }
+  };
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild onKeyDown={openFromKeyboard}>
+      <ContextMenuTrigger
+        asChild
+        disabled={disabled}
+        onKeyDown={onKeyDown}
+        onContextMenu={onContextMenu}
+      >
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent aria-label={t("menu")} className="max-w-64">

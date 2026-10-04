@@ -165,6 +165,33 @@ describe("undo and redo, placed in the grids", () => {
     expect(client.calls).toEqual([]);
   });
 
+  it("leaves the menu of the browser to the field of a cell being entered, whose entry it neither takes nor validates", async () => {
+    render(estimateGrid());
+    focusLabel();
+    await userEvent.keyboard("{F2}");
+    const field = screen.getByRole("textbox", { name: "Libellé" });
+    await userEvent.type(field, " de câb");
+    // A right click to paste, or the Menu key: nothing prevented, the browser opens its own.
+    expect(fireEvent.contextMenu(field)).toBe(true);
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(field).toHaveFocus();
+    expect(field).toHaveValue("Câblage des armoires de câb");
+    expect(client.calls).toEqual([]);
+  });
+
+  it("opens the menu of a cell once for the key that opened it, whatever the browser sends besides", async () => {
+    render(estimateGrid());
+    const cell = focusLabel();
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    const shown = cellMenu().parentElement?.getAttribute("style");
+    // The native echo of the key, elsewhere: prevented, it moves nothing.
+    expect(fireEvent.contextMenu(cell, { clientX: 300, clientY: 200 })).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    expect(cellMenu().parentElement?.getAttribute("style")).toBe(shown);
+  });
+
   it("opens the menu of a cell by a right click, and adds no stop to the order of tabulation", async () => {
     render(estimateGrid());
     const cell = focusLabel();

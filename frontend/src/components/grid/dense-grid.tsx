@@ -722,7 +722,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
             })}
           </TableRow>
         </TableHeader>
-        <CellMenu offered={undoable}>
+        <CellMenu offered={undoable} disabled={keyboard.draft !== undefined}>
           <TableBody {...keyboard.body}>
             {items.map((item, position) => {
               const row = model[item.index];
