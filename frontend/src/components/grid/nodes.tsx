@@ -30,6 +30,12 @@ export type LineField = keyof EstimateLineFacet;
 /** The totals of a reading of the nodes, which the server computes. */
 export type NodeTotals = components["schemas"]["NodeTotals"];
 
+/**
+ * What the API answers a write of a grid with: the nodes written, their ancestors recalculated,
+ * the totals of the structure and the version it moved on to.
+ */
+export type NodesWritten = components["schemas"]["NodesWritten"];
+
 /** The answer of `listNodes`: the nodes, depth first, and their totals. */
 export type NodeList = operations["listNodes"]["responses"][200]["content"]["application/json"];
 

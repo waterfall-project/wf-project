@@ -383,7 +383,7 @@ class _Emitter:
     def task(self, task: Task, place: _Place) -> Decimal:
         """Append a task, its lines and its subordinates; return the amount they carry."""
         facet = _task_facet(task)
-        node = _node(task.row, place, "task", facet, _task_computed(task))
+        node = _node(task.row, place, "task", facet, _task_fields(task))
         if task.predecessors:
             node["predecessors"] = [
                 {
@@ -410,20 +410,23 @@ class _Emitter:
     def _line(self, task: Task, index: int, level: int, *, completed: bool) -> Decimal:
         line, amount, hours = _line(task, index, completed=completed)
         kind = LINE_KINDS[index]
-        computed: list[JsonValue] = (
-            ["estimate_line.quantity", "estimate_line.unit_disbursement"]
-            if kind.is_provision
-            else []
-        )
         place = _Place(task, index, level)
-        self.items.append(_node(task.row + 1 + index, place, "estimate_line", line, computed))
+        self.items.append(
+            _node(task.row + 1 + index, place, "estimate_line", line, _line_fields(kind))
+        )
         self.totals.add(kind, _subproject(task, kind), amount, hours)
         return amount
 
 
-def _node(
-    row: int, place: _Place, kind: str, facet: JsonObject, computed: list[JsonValue]
-) -> JsonObject:
+@dataclass(frozen=True, slots=True)
+class _Fields:
+    """What a node says of the fields of its facet: those computed here, those it accepts."""
+
+    computed: list[JsonValue]
+    editable: list[JsonValue]
+
+
+def _node(row: int, place: _Place, kind: str, facet: JsonObject, fields: _Fields) -> JsonObject:
     return {
         "node_id": identifier(_NODE, row),
         "lineage_id": identifier(_LINEAGE, row),
@@ -434,7 +437,8 @@ def _node(
         "level": place.level,
         "lock_version": 1,
         kind: facet,
-        "computed_fields": computed,
+        "computed_fields": fields.computed,
+        "editable_fields": fields.editable,
     }
 
 
@@ -477,11 +481,44 @@ def _span(task: Task) -> JsonObject:
     return {"start": start, "finish": work_instant(task.end, HOURS_PER_DAY)}
 
 
-def _task_computed(task: Task) -> list[JsonValue]:
+def _task_fields(task: Task) -> _Fields:
+    """Return what a task computes and what it accepts (WF-PLA-0130).
+
+    The tasks are in automatic mode: their dates are computed, none is entered. A summary
+    computes its duration and its progress too, and accepts its label and description alone; a
+    milestone has no duration to enter.
+    """
     dates: list[JsonValue] = ["task.start", "task.finish"]
+    editable: list[JsonValue] = ["task.label", "task.description"]
     if task.is_summary:
-        return ["task.duration", *dates, "task.progress"]
-    return dates
+        return _Fields(["task.duration", *dates, "task.progress"], editable)
+    editable.append("task.scheduling_mode")
+    if not task.is_milestone:
+        editable.append("task.duration")
+    editable.append("task.progress")
+    return _Fields(dates, editable)
+
+
+def _line_fields(kind: LineKind) -> _Fields:
+    """Return what a line computes and what it accepts (WF-DEV-0020).
+
+    A labour line takes its role and its hours, another its unit disbursement; a provision
+    computes its quantity and its unit disbursement from its risk, and takes neither, nor its
+    category (WF-RIS-0010).
+    """
+    editable: list[JsonValue] = ["estimate_line.label"]
+    if kind.is_provision:
+        editable.extend(["estimate_line.payment_delay_days", "estimate_line.subproject_id"])
+        return _Fields(["estimate_line.quantity", "estimate_line.unit_disbursement"], editable)
+    editable.append("estimate_line.cost_category_id")
+    if kind.rate is not None:
+        editable.append("estimate_line.resource_role_id")
+    editable.append("estimate_line.quantity")
+    editable.append(
+        "estimate_line.hours" if kind.rate is not None else "estimate_line.unit_disbursement"
+    )
+    editable.extend(["estimate_line.payment_delay_days", "estimate_line.subproject_id"])
+    return _Fields([], editable)
 
 
 def _line(task: Task, index: int, *, completed: bool) -> tuple[JsonObject, Decimal, Decimal]:

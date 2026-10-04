@@ -45,8 +45,8 @@ import {
 
 /**
  * What the columns of the estimate read of a node, beyond what every grid reads: the amounts of
- * a task, the figures of a line — and its category, which each write of a line carries, the
- * contract requiring it (#178). The page hands the grid these alone (`projectNodes`).
+ * a task, the figures of a line and its category. The page hands the grid these alone
+ * (`projectNodes`).
  */
 export const ESTIMATE_FIELDS = {
   node: [],
@@ -145,10 +145,10 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
 /** The columns of the contract the grid of the estimate sorts by. */
 export const ESTIMATE_SORT_COLUMNS = sortColumns(ESTIMATE_GRID);
 
-/** The fields of a line of the estimate an entry writes, beyond those every write carries. */
+/** The fields of a line of the estimate an entry writes: the cell entered, nothing else (#178). */
 export type LineChange = Partial<
   Pick<
-    components["schemas"]["EstimateLineWrite"],
+    components["schemas"]["EstimateLineUpdate"],
     "label" | "cost_category_id" | "resource_role_id" | "quantity" | "hours" | "unit_disbursement"
   >
 >;
@@ -163,7 +163,7 @@ export interface EstimateWrites {
   readonly line: (node: EstimateNode, change: LineChange) => Promise<Outcome<EstimateNode>>;
   readonly task?:
     ((node: EstimateNode, label: string) => Promise<Outcome<EstimateNode>>) | undefined;
-  readonly paste: GridPaste<EstimateNode>;
+  readonly paste: GridPaste<EstimateNode, NodeSortColumn>;
 }
 
 /**

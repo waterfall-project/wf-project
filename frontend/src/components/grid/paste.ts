@@ -118,12 +118,16 @@ function landing<Row extends RowData, Sort extends string, Totals>(
   return config.columns.slice(Math.max(from, 0));
 }
 
-/** Where a block landed: the cell, its row, the columns it would fill, the first of them. */
+/**
+ * Where a block landed: the cell, its row, the columns it would fill, the first of them — named
+ * as the server names it, by the column it sorts by (#200).
+ */
 interface Landed<Row, Sort extends string, Totals> {
   readonly at: CellPosition;
   readonly row: Row;
   readonly span: readonly GridColumn<Row, Sort, Totals>[];
   readonly column: GridColumn<Row, Sort, Totals>;
+  readonly named: Sort;
 }
 
 /** The cell a paste landed on, among the rows shown; none when the focus holds no cell. */
@@ -136,9 +140,11 @@ function landedAt<Row extends RowData, Sort extends string, Totals>(
   const row = at === undefined ? undefined : rows[at.row];
   const span = at === undefined ? [] : landing(config, at);
   const column = span[0];
-  return at === undefined || row === undefined || column === undefined
+  // Every column of a grid sorts (WF-IHM-0060): one the server has no name for takes no paste.
+  const named = column?.sortBy;
+  return at === undefined || row === undefined || column === undefined || named === undefined
     ? undefined
-    : { at, row, span, column };
+    : { at, row, span, column, named };
 }
 
 /** The refusal the front opposes itself, before asking anything (#200). */
@@ -206,6 +212,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     row: Row,
     at: CellPosition,
     column: GridColumn<Row, Sort, Totals>,
+    named: Sort,
     block: PastedBlock,
   ) => {
     current.current += 1;
@@ -214,7 +221,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     refuse(undefined, undefined);
     setPasting({ block, width: widest(block), target, plan: undefined, applying: false });
     void asking
-      .preview(row, column.key, block)
+      .preview(row, named, block)
       .catch(() => UNREACHABLE)
       .then((answer) => {
         if (current.current !== asked) {
@@ -249,7 +256,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
       return;
     }
     origin.current = focused instanceof HTMLElement ? focused : undefined;
-    ask(paste, landed.row, landed.at, landed.column, block);
+    ask(paste, landed.row, landed.at, landed.column, landed.named, block);
   };
 
   // The event is heard on the document, where the browser lets it bubble whatever node the

@@ -364,14 +364,7 @@ describe("a block pasted from a spreadsheet", () => {
         "Matériel de câblage",
       ]);
     });
-    expect(bodies(client, LINE)).toEqual([
-      {
-        label: "X",
-        cost_category_id: "01926f3a-7c00-7000-8000-000000000402",
-        quantity: "1",
-        lock_version: 1,
-      },
-    ]);
+    expect(bodies(client, LINE)).toEqual([{ label: "X", lock_version: 1 }]);
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

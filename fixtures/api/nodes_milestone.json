@@ -38,6 +38,10 @@
           "task.start",
           "task.finish",
           "task.progress"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description"
         ]
       },
       {
@@ -74,6 +78,12 @@
         "computed_fields": [
           "task.start",
           "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.progress"
         ]
       }
     ],

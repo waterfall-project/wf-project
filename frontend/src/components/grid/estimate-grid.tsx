@@ -15,7 +15,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { applyPaste, previewPaste, updateEstimateLine, updateTaskFacet } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
@@ -30,8 +30,8 @@ import {
 } from "./estimate";
 import { nodeDependencies } from "./node-dependencies";
 import {
-  type Node,
   type NodeRows,
+  type NodesWritten,
   type NodeSortColumn,
   projectNode,
   type StructurePath,
@@ -46,8 +46,8 @@ export interface EstimateGridProps {
   /** The structure the rows belong to. */
   readonly structure: StructurePath;
   /**
-   * The version of the structure read, which a paste applied carries: the contract does not say of
-   * which object its `lock_version` is (#201).
+   * The version of the structure read with the page, which a paste applied carries and every write
+   * of the grid moves on (`NodesWritten.structure_lock_version`, #201).
    */
   readonly structureVersion: number;
   /** The categories and roles the lines are named by, and chosen from. */
@@ -67,26 +67,48 @@ export interface EstimateGridProps {
   readonly preferences: GridPreferences | undefined;
 }
 
-/** A node the API answered, as the grid of the estimate reads it. */
-function asRow(outcome: Outcome<Node>): Outcome<EstimateNode> {
-  return outcome.kind === "done"
-    ? { kind: "done", data: projectNode(outcome.data, ESTIMATE_FIELDS) }
-    : outcome;
+/** Told the version the structure moved on to, which the next paste carries. */
+type Moved = (version: number) => void;
+
+/**
+ * The nodes the API answered a write with, as the grid of the estimate reads them; the version the
+ * structure moved on to is told, for the next paste. The ancestors and the totals the answer
+ * carries too are not applied yet (#218).
+ */
+function asRows(outcome: Outcome<NodesWritten>, moved: Moved): Outcome<readonly EstimateNode[]> {
+  if (outcome.kind !== "done") {
+    return outcome;
+  }
+  moved(outcome.data.structure_lock_version);
+  return {
+    kind: "done",
+    data: outcome.data.nodes.map((node) => projectNode(node, ESTIMATE_FIELDS)),
+  };
 }
 
-/** The nodes the API answered, as the grid of the estimate reads them. */
-function asRows(outcome: Outcome<Node[]>): Outcome<readonly EstimateNode[]> {
-  return outcome.kind === "done"
-    ? { kind: "done", data: outcome.data.map((node) => projectNode(node, ESTIMATE_FIELDS)) }
-    : outcome;
+/** The one node a write of a cell answers, as the grid of the estimate reads it. */
+function asRow(outcome: Outcome<NodesWritten>, moved: Moved): Outcome<EstimateNode> {
+  const rows = asRows(outcome, moved);
+  if (rows.kind !== "done") {
+    return rows;
+  }
+  const [row] = rows.data;
+  if (row === undefined) {
+    throw new Error("a write of a cell answered no node");
+  }
+  return { kind: "done", data: row };
 }
 
 /**
  * How the grid pastes a block in the structure: from the node of the active cell and its column,
  * under the name of its column in the contract (#200); the plan confirmed, with the version of
- * the structure read (#201).
+ * the structure last read or answered (#201).
  */
-function structurePaste(structure: StructurePath, version: number): EstimateWrites["paste"] {
+function structurePaste(
+  structure: StructurePath,
+  version: number,
+  moved: Moved,
+): EstimateWrites["paste"] {
   return {
     preview: (node, column, block) =>
       previewPaste(structure, {
@@ -101,33 +123,32 @@ function structurePaste(structure: StructurePath, version: number): EstimateWrit
           confirmed: true,
           lock_version: version,
         }),
+        moved,
       ),
   };
 }
 
 /**
- * How the grid writes the cells of a structure: each write carries what the contract requires —
- * the label, the category and the quantity of a line, the label of a task (#178) — and the version
- * of the node read (`lock_version`), with the field entered. The label of a task is written only
- * where the planning may be entered.
+ * How the grid writes the cells of a structure: each write carries the field entered and the
+ * version of the node read (`lock_version`), nothing else (#178). The label of a task is written
+ * only where the planning may be entered.
  */
 function structureWrites(
   structure: StructurePath,
   version: number,
+  moved: Moved,
   tasks: boolean,
 ): EstimateWrites {
   return {
-    paste: structurePaste(structure, version),
-    line: async (node, change) => {
-      const line = node.estimate_line;
-      const required = {
-        label: line?.label ?? "",
-        cost_category_id: line?.cost_category_id ?? "",
-        quantity: line?.quantity ?? "",
-      };
-      const body = { ...required, ...change, lock_version: node.lock_version };
-      return asRow(await updateEstimateLine(structure, node.node_id, body));
-    },
+    paste: structurePaste(structure, version, moved),
+    line: async (node, change) =>
+      asRow(
+        await updateEstimateLine(structure, node.node_id, {
+          ...change,
+          lock_version: node.lock_version,
+        }),
+        moved,
+      ),
     task: tasks
       ? async (node, label) =>
           asRow(
@@ -135,6 +156,7 @@ function structureWrites(
               label,
               lock_version: node.lock_version,
             }),
+            moved,
           )
       : undefined,
   };
@@ -153,6 +175,10 @@ export function EstimateGrid({
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
   const unknown = useTranslations("grid")("unknown");
+  // The version of the structure moves with each write answered: the last one told, or the one
+  // read with the page when a new reading is more recent.
+  const [moved, setMoved] = useState(structureVersion);
+  const version = Math.max(structureVersion, moved);
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
@@ -163,9 +189,9 @@ export function EstimateGrid({
       estimateGrid(
         reference,
         unknown,
-        editable ? structureWrites(structure, structureVersion, tasksEditable) : undefined,
+        editable ? structureWrites(structure, version, setMoved, tasksEditable) : undefined,
       ),
-    [reference, unknown, editable, tasksEditable, structure, structureVersion],
+    [reference, unknown, editable, tasksEditable, structure, version],
   );
   return (
     <DenseGrid

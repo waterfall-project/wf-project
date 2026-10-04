@@ -1,32 +1,140 @@
 {
-  "summary": "La ligne de main-d'œuvre du devis, « Raccordement des borniers », dont la charge passe de 12,5 à 14 h : le montant réestimé recalculé, 1 120,00, le budgété inchangé, fixé par la référence ; une version de plus (WF-DEV-0020, WF-DEV-0030).",
+  "summary": "La ligne de main-d'œuvre du devis, « Raccordement des borniers », dont la charge passe de 12,5 à 14 h : le montant réestimé recalculé, 1 120,00, le budgété inchangé, fixé par la référence ; une version de plus. Avec elle, sa tâche et la récapitulative au-dessus, dont le montant réestimé passe à 2 854,56, et les totaux de la structure, 14 h et 2 854,56 réestimés (WF-DEV-0020, WF-DEV-0030, WF-DEV-0050).",
   "value": {
-    "node_id": "01926f3a-7c00-7000-8000-000000000523",
-    "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
-    "kind": "estimate_line",
-    "parent_id": "01926f3a-7c00-7000-8000-000000000522",
-    "position": 0,
-    "row_number": 3,
-    "level": 3,
-    "lock_version": 2,
-    "estimate_line": {
-      "label": "Raccordement des borniers",
-      "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
-      "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
-      "quantity": "1",
-      "hours": "14",
-      "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
-      "budgeted_amount": "1000.00",
-      "reestimated_amount": "1120.00",
-      "inflated_amount": "1120.00",
-      "previous_reestimated_amount": null,
-      "is_computed": false,
-      "uses_inactive_object": false,
-      "remaining_entry": {
-        "is_available": true,
-        "missing_conditions": []
+    "nodes": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000523",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+        "kind": "estimate_line",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000522",
+        "position": 0,
+        "row_number": 3,
+        "level": 3,
+        "lock_version": 2,
+        "estimate_line": {
+          "label": "Raccordement des borniers",
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+          "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+          "quantity": "1",
+          "hours": "14",
+          "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "budgeted_amount": "1000.00",
+          "reestimated_amount": "1120.00",
+          "inflated_amount": "1120.00",
+          "previous_reestimated_amount": null,
+          "is_computed": false,
+          "uses_inactive_object": false,
+          "remaining_entry": {
+            "is_available": true,
+            "missing_conditions": []
+          }
+        },
+        "computed_fields": [],
+        "editable_fields": [
+          "estimate_line.label",
+          "estimate_line.cost_category_id",
+          "estimate_line.resource_role_id",
+          "estimate_line.quantity",
+          "estimate_line.hours",
+          "estimate_line.payment_delay_days",
+          "estimate_line.subproject_id"
+        ]
       }
+    ],
+    "ancestors": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000521",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+        "kind": "task",
+        "parent_id": null,
+        "position": 0,
+        "row_number": 1,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Poste de commande",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "42",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-04",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-30",
+            "hours": "8"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": true,
+          "is_milestone": false,
+          "budgeted_amount": "2734.56",
+          "reestimated_amount": "2854.56"
+        },
+        "computed_fields": [
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description"
+        ]
+      },
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000522",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 0,
+        "row_number": 2,
+        "level": 2,
+        "lock_version": 1,
+        "task": {
+          "label": "Câblage des armoires",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "42",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-04",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-30",
+            "hours": "8"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "2734.56",
+          "reestimated_amount": "2854.56"
+        },
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.progress"
+        ]
+      }
+    ],
+    "totals": {
+      "task_count": 3,
+      "estimate_line_count": 3,
+      "hours": "14",
+      "budgeted_amount": "2734.56",
+      "reestimated_amount": "2854.56"
     },
-    "computed_fields": []
+    "structure_lock_version": 2
   }
 }

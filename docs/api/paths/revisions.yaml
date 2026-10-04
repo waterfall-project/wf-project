@@ -429,32 +429,7 @@
           Colonne du tri ; absente, l'ordre du plan. Chaque colonne d'une grille se
           trie dans les deux sens (WF-IHM-0060) : une colonne de grille qui manquerait
           ici est un constat sur le contrat.
-        schema:
-          type: string
-          enum:
-            - label
-            - description
-            - scheduling_mode
-            - duration
-            - start
-            - finish
-            - progress
-            - physical_progress
-            - total_float_days
-            - is_critical
-            - predecessors
-            - cost_category
-            - resource_role
-            - quantity
-            - hours
-            - unit_disbursement
-            - subproject
-            - payment_delay_days
-            - consumption_year
-            - budgeted_amount
-            - reestimated_amount
-            - inflated_amount
-            - previous_reestimated_amount
+        schema: { $ref: ../components/schemas/revisions.yaml#/NodeColumn }
       - $ref: ../components/parameters.yaml#/SortOrder
       - name: fields
         in: query
@@ -510,10 +485,12 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/NodeCreate }
     responses:
       '201':
-        description: Nœud créé.
+        description: >-
+          Nœud créé, avec ses ancêtres recalculés et les totaux de la structure
+          (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -600,7 +577,8 @@
       récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle
       (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps
       écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser
-      quinze ans (WF-PLA-0150).
+      quinze ans (WF-PLA-0150). Seul le compteur lu est exigé : seul ce qui est envoyé
+      change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -610,13 +588,15 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/revisions.yaml#/TaskFacetWrite }
+          schema: { $ref: ../components/schemas/revisions.yaml#/TaskFacetUpdate }
     responses:
       '200':
-        description: Tâche modifiée, avec les dates et la criticité recalculées.
+        description: >-
+          Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés
+          et les totaux de la structure (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               renamed: { $ref: ../../../fixtures/api/task_renamed.json }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -633,7 +613,9 @@
     description: >-
       Les deux montants sont calculés et non saisissables : le budgété par la référence,
       le réestimé par les revues (WF-DEV-0020, WF-DEV-0030). Une ligne de provision est
-      calculée depuis son risque (WF-RIS-0010).
+      calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est exigé : seul ce
+      qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte
+      (`editable_fields`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -643,13 +625,15 @@
       required: true
       content:
         application/json:
-          schema: { $ref: ../components/schemas/revisions.yaml#/EstimateLineWrite }
+          schema: { $ref: ../components/schemas/revisions.yaml#/EstimateLineUpdate }
     responses:
       '200':
-        description: Ligne modifiée, avec son montant recalculé.
+        description: >-
+          Ligne modifiée, avec son montant recalculé, les montants de ses ancêtres et les
+          totaux de la structure (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               entered: { $ref: ../../../fixtures/api/estimate_line_entered.json }
               updated: { $ref: ../../../fixtures/api/estimate_line_updated.json }
@@ -687,10 +671,12 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/PredecessorsReplace }
     responses:
       '200':
-        description: Liaisons enregistrées, dates recalculées.
+        description: >-
+          Liaisons enregistrées, dates recalculées ; les ancêtres et les totaux avec
+          (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -720,10 +706,12 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/ProgressUpdate }
     responses:
       '200':
-        description: État enregistré.
+        description: >-
+          État enregistré ; l'avancement des récapitulatives au-dessus recalculé
+          (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -751,10 +739,12 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/RemainingUpdate }
     responses:
       '200':
-        description: Réestimation enregistrée.
+        description: >-
+          Réestimation enregistrée ; les montants réestimés des ancêtres et les totaux
+          recalculés (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -787,10 +777,10 @@
               lock_version: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '200':
-        description: Inscriptions enregistrées.
+        description: Inscriptions enregistrées (`NodesWritten`).
         content:
           application/json:
-            schema: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
@@ -814,12 +804,12 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/NodeMove }
     responses:
       '200':
-        description: Nœuds déplacés.
+        description: >-
+          Nœuds déplacés ; leurs anciens et nouveaux ancêtres recalculés, et les totaux
+          (`NodesWritten`).
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
@@ -832,7 +822,11 @@
     summary: Aperçu d'un collage depuis un tableur
     description: >-
       Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien
-      n'est écrit à cette étape (WF-IHM-0050).
+      n'est écrit à cette étape (WF-IHM-0050). Le bloc remplit, à partir de la colonne
+      visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn` — l'ordre
+      des grilles (WF-PLA-0080, WF-DEV-0050) —, sans décaler aucune cellule : une cellule
+      non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par
+      sa ligne et sa colonne (`PastePreview`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -856,8 +850,9 @@
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
       '422':
         description: >-
-          Bloc plus large que la grille à partir de la colonne visée : `params.max_columns`
-          dit combien de colonnes elle y offre ; rien n'est écrit (WF-IHM-0050).
+          Bloc plus large que les colonnes de la facette à partir de la colonne visée
+          (`NodeColumn`) : `params.max_columns` dit combien il en reste ; rien n'est écrit
+          (WF-IHM-0050).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -869,7 +864,11 @@
     operationId: applyPaste
     tags: [revisions]
     summary: Appliquer un collage
-    description: Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée (WF-IHM-0050).
+    description: >-
+      Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée
+      (WF-IHM-0050). Porte le compteur de la structure, refusé par 412 s'il est périmé, et
+      rend le compteur suivant avec les nœuds écrits, leurs ancêtres et les totaux
+      (`NodesWritten`, WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -881,17 +880,16 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/PasteApply }
     responses:
       '200':
-        description: Collage appliqué.
+        description: Collage appliqué ; le compteur de la structure a avancé.
         content:
           application/json:
-            schema:
-              type: array
-              items: { $ref: ../components/schemas/revisions.yaml#/Node }
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               applied: { $ref: ../../../fixtures/api/paste_applied.json }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
 
 /projects/{project_id}/revisions/{revision_id}/undo:
   post:

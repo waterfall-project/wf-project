@@ -311,6 +311,20 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert row(4)["estimate_line"]["resource_role_id"] is not None
     assert row(4)["estimate_line"]["hours"].isdigit()
     assert row(4)["computed_fields"] == []
+    # A labour line takes its role and its hours, never a unit disbursement (WF-DEV-0020).
+    assert row(4)["editable_fields"] == [
+        "estimate_line.label",
+        "estimate_line.cost_category_id",
+        "estimate_line.resource_role_id",
+        "estimate_line.quantity",
+        "estimate_line.hours",
+        "estimate_line.payment_delay_days",
+        "estimate_line.subproject_id",
+    ]
+    assert row(6)["estimate_line"]["label"] == "Matériel"
+    assert "estimate_line.unit_disbursement" in row(6)["editable_fields"]
+    assert "estimate_line.hours" not in row(6)["editable_fields"]
+    assert row(1)["editable_fields"] == ["task.label", "task.description"]
     subordinates = [node for node in items if node["parent_id"] == row(1)["node_id"]]
     assert [(node["row_number"], node["task"]["label"]) for node in subordinates] == [
         (2, "Études — Poste de commande"),

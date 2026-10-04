@@ -911,6 +911,52 @@
         "unit_disbursement": "Débours unitaire"
       }
     },
+    "EditableField": {
+      "task": {
+        "label": "Libellé de la tâche",
+        "description": "Description de la tâche",
+        "scheduling_mode": "Mode de planification de la tâche",
+        "duration": "Durée de la tâche",
+        "start": "Début de la tâche",
+        "finish": "Fin de la tâche",
+        "progress": "Avancement de la tâche"
+      },
+      "estimate_line": {
+        "label": "Libellé de la ligne",
+        "cost_category_id": "Catégorie de coût de la ligne",
+        "resource_role_id": "Rôle de ressource de la ligne",
+        "quantity": "Quantité de la ligne",
+        "hours": "Charge de la ligne",
+        "unit_disbursement": "Débours unitaire de la ligne",
+        "payment_delay_days": "Délai de paiement de la ligne",
+        "subproject_id": "Sous-projet de la ligne"
+      }
+    },
+    "NodeColumn": {
+      "label": "Libellé",
+      "description": "Description",
+      "scheduling_mode": "Mode de planification",
+      "duration": "Durée",
+      "start": "Début",
+      "finish": "Fin",
+      "progress": "Avancement",
+      "physical_progress": "Avancement physique",
+      "total_float_days": "Marge totale",
+      "is_critical": "Chemin critique",
+      "predecessors": "Prédécesseurs",
+      "cost_category": "Catégorie de coût",
+      "resource_role": "Rôle de ressource",
+      "quantity": "Quantité",
+      "hours": "Charge",
+      "unit_disbursement": "Débours unitaire",
+      "subproject": "Sous-projet",
+      "payment_delay_days": "Délai de paiement",
+      "consumption_year": "Année de consommation",
+      "budgeted_amount": "Montant budgété",
+      "reestimated_amount": "Montant réestimé",
+      "inflated_amount": "Montant corrigé de l’inflation",
+      "previous_reestimated_amount": "Montant réestimé précédent"
+    },
     "ComputedValueField": {
       "task": {
         "duration": "Durée de la tâche",

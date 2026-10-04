@@ -47,7 +47,6 @@ const STRUCTURE = {
 };
 const NODES = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/structures/${STRUCTURE.structure_id}/nodes`;
 // The categories and the roles of the examples, by identifier.
-const ELECTRICAL_ENGINEERING = "01926f3a-7c00-7000-8000-000000000402";
 const COMMISSIONING = "01926f3a-7c00-7000-8000-000000000405";
 const COMMISSIONING_TECHNICIAN = "01926f3a-7c00-7000-8000-000000000452";
 const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
@@ -164,13 +163,8 @@ describe("the keyboard of a grid", () => {
       { quantity: "2", lock_version: 2 },
       { hours: "15", lock_version: 2 },
     ]);
-    // Each write carries what the contract requires of a line (#178).
-    expect(bodies[0]).toEqual({
-      label: "Raccordement et repérage",
-      cost_category_id: ELECTRICAL_ENGINEERING,
-      quantity: "1",
-      lock_version: 1,
-    });
+    // Each write carries the cell entered and the version read, nothing else (#178).
+    expect(bodies[0]).toEqual({ label: "Raccordement et repérage", lock_version: 1 });
     // The row the server answered takes the place of what was typed: its effort, its amount.
     await vi.waitFor(() => {
       expect(cell(LABOUR, "hours")).toHaveTextContent(/^14$/);

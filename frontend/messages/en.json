@@ -911,6 +911,52 @@
         "unit_disbursement": "Unit disbursement"
       }
     },
+    "EditableField": {
+      "task": {
+        "label": "Task label",
+        "description": "Task description",
+        "scheduling_mode": "Task scheduling mode",
+        "duration": "Task duration",
+        "start": "Task start",
+        "finish": "Task finish",
+        "progress": "Task progress"
+      },
+      "estimate_line": {
+        "label": "Line label",
+        "cost_category_id": "Line cost category",
+        "resource_role_id": "Line resource role",
+        "quantity": "Line quantity",
+        "hours": "Line hours",
+        "unit_disbursement": "Line unit disbursement",
+        "payment_delay_days": "Line payment delay",
+        "subproject_id": "Line subproject"
+      }
+    },
+    "NodeColumn": {
+      "label": "Label",
+      "description": "Description",
+      "scheduling_mode": "Scheduling mode",
+      "duration": "Duration",
+      "start": "Start",
+      "finish": "Finish",
+      "progress": "Progress",
+      "physical_progress": "Physical progress",
+      "total_float_days": "Total float",
+      "is_critical": "Critical path",
+      "predecessors": "Predecessors",
+      "cost_category": "Cost category",
+      "resource_role": "Resource role",
+      "quantity": "Quantity",
+      "hours": "Hours",
+      "unit_disbursement": "Unit disbursement",
+      "subproject": "Subproject",
+      "payment_delay_days": "Payment delay",
+      "consumption_year": "Consumption year",
+      "budgeted_amount": "Budgeted amount",
+      "reestimated_amount": "Re-estimated amount",
+      "inflated_amount": "Inflation-corrected amount",
+      "previous_reestimated_amount": "Previous re-estimated amount"
+    },
     "ComputedValueField": {
       "task": {
         "duration": "Duration of the task",

@@ -1,39 +1,102 @@
 {
-  "summary": "La tâche « Câblage des armoires » renommée « Câblage et repérage des armoires » ; une version de plus (WF-PLA-0130).",
+  "summary": "La tâche « Câblage des armoires » renommée « Câblage et repérage des armoires » ; une version de plus. Avec elle, sa récapitulative, dont rien ne change, et les totaux de la structure (WF-PLA-0130, WF-IHM-0040).",
   "value": {
-    "node_id": "01926f3a-7c00-7000-8000-000000000522",
-    "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
-    "kind": "task",
-    "parent_id": "01926f3a-7c00-7000-8000-000000000521",
-    "position": 0,
-    "row_number": 2,
-    "level": 2,
-    "lock_version": 2,
-    "task": {
-      "label": "Câblage et repérage des armoires",
-      "scheduling_mode": "automatic",
-      "duration": {
-        "value": "42",
-        "unit": "d"
-      },
-      "start": {
-        "date": "2026-05-04",
-        "hours": "0"
-      },
-      "finish": {
-        "date": "2026-06-30",
-        "hours": "8"
-      },
-      "progress": "not_started",
-      "finish_overdue": false,
-      "is_summary": false,
-      "is_milestone": false,
+    "nodes": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000522",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
+        "kind": "task",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "position": 0,
+        "row_number": 2,
+        "level": 2,
+        "lock_version": 2,
+        "task": {
+          "label": "Câblage et repérage des armoires",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "42",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-04",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-30",
+            "hours": "8"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": false,
+          "is_milestone": false,
+          "budgeted_amount": "2734.56",
+          "reestimated_amount": "2734.56"
+        },
+        "computed_fields": [
+          "task.start",
+          "task.finish"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description",
+          "task.scheduling_mode",
+          "task.duration",
+          "task.progress"
+        ]
+      }
+    ],
+    "ancestors": [
+      {
+        "node_id": "01926f3a-7c00-7000-8000-000000000521",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+        "kind": "task",
+        "parent_id": null,
+        "position": 0,
+        "row_number": 1,
+        "level": 1,
+        "lock_version": 1,
+        "task": {
+          "label": "Poste de commande",
+          "scheduling_mode": "automatic",
+          "duration": {
+            "value": "42",
+            "unit": "d"
+          },
+          "start": {
+            "date": "2026-05-04",
+            "hours": "0"
+          },
+          "finish": {
+            "date": "2026-06-30",
+            "hours": "8"
+          },
+          "progress": "not_started",
+          "finish_overdue": false,
+          "is_summary": true,
+          "is_milestone": false,
+          "budgeted_amount": "2734.56",
+          "reestimated_amount": "2734.56"
+        },
+        "computed_fields": [
+          "task.duration",
+          "task.start",
+          "task.finish",
+          "task.progress"
+        ],
+        "editable_fields": [
+          "task.label",
+          "task.description"
+        ]
+      }
+    ],
+    "totals": {
+      "task_count": 3,
+      "estimate_line_count": 3,
+      "hours": "12.5",
       "budgeted_amount": "2734.56",
       "reestimated_amount": "2734.56"
     },
-    "computed_fields": [
-      "task.start",
-      "task.finish"
-    ]
+    "structure_lock_version": 2
   }
 }

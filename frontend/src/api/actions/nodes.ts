@@ -25,8 +25,11 @@ type ComputedValueField = components["schemas"]["ComputedValueField"];
 /** What a computed value depends on, as the server says it. */
 type ComputedValueDependencies = components["schemas"]["ComputedValueDependencies"];
 
-/** A node of a structure, as the API answers a write. */
-type Node = components["schemas"]["Node"];
+/**
+ * What the API answers a write of a grid with: the nodes written, their ancestors recalculated,
+ * the totals of the structure and its version (#188, #201).
+ */
+type NodesWritten = components["schemas"]["NodesWritten"];
 
 /** The path of a node: its structure, and the node itself. */
 function nodePath(structure: StructurePath, nodeId: string) {
@@ -52,15 +55,16 @@ export async function readComputedDependencies(
 }
 
 /**
- * Write the fields of the task of a node a cell of a grid entered, with the version of the node
- * read (WF-IHM-0040): the API answers the node as it now is, its computed values recalculated —
- * or refuses it, a value it computes or a version it no longer has among its reasons.
+ * Write the fields of the task of a node a cell of a grid entered — those alone —, with the
+ * version of the node read (WF-IHM-0040): the API answers the node as it now is, its computed
+ * values recalculated, with its ancestors and the totals of the structure — or refuses it, a
+ * value it computes or a version it no longer has among its reasons.
  */
 export async function updateTaskFacet(
   structure: StructurePath,
   nodeId: string,
-  task: components["schemas"]["TaskFacetWrite"],
-): Promise<Outcome<Node>> {
+  task: components["schemas"]["TaskFacetUpdate"],
+): Promise<Outcome<NodesWritten>> {
   return decode(() =>
     serverClient().PATCH(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task",
@@ -70,15 +74,16 @@ export async function updateTaskFacet(
 }
 
 /**
- * Write the fields of the line of the estimate of a node a cell of a grid entered, with the
- * version of the node read (WF-IHM-0040): the API answers the node as it now is, its amounts
- * recalculated — or refuses it.
+ * Write the fields of the line of the estimate of a node a cell of a grid entered — those
+ * alone —, with the version of the node read (WF-IHM-0040): the API answers the node as it now
+ * is, its amounts recalculated, with its ancestors and the totals of the structure — or refuses
+ * it.
  */
 export async function updateEstimateLine(
   structure: StructurePath,
   nodeId: string,
-  line: components["schemas"]["EstimateLineWrite"],
-): Promise<Outcome<Node>> {
+  line: components["schemas"]["EstimateLineUpdate"],
+): Promise<Outcome<NodesWritten>> {
   return decode(() =>
     serverClient().PATCH(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line",
@@ -110,13 +115,15 @@ export async function previewPaste(
 }
 
 /**
- * Apply a paste once confirmed, in one operation (WF-IHM-0050): the API answers the nodes it
- * wrote, as they now are — or refuses the whole of it.
+ * Apply a paste once confirmed, with the version of the structure read, in one operation
+ * (WF-IHM-0050): the API answers the nodes it wrote, as they now are, with their ancestors, the
+ * totals and the version the structure moved on to — or refuses the whole of it, a stale version
+ * among its reasons (412).
  */
 export async function applyPaste(
   structure: StructurePath,
   confirmation: components["schemas"]["PasteApply"],
-): Promise<Outcome<Node[]>> {
+): Promise<Outcome<NodesWritten>> {
   return decode(() =>
     serverClient().POST(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste",

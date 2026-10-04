@@ -324,6 +324,64 @@ répétée.
 **Sans surface** : WF-IHM-0120, l'accueil, est le filtre `is_contributor` existant ; WF-CMP-0030
 et WF-QUA-0080 relèvent du déploiement et de la chaîne.
 
+## Constats du contrat, second passage (EP-02/L8)
+
+Les constats que les écrans d'EP-02 ont relevés après EP-02/L4, corrigés avec les décisions prises
+avec l'utilisateur le 2026-10-03 (#214), et la forme retenue pour chacun.
+
+**Un `PATCH` de cellule ne porte que ce qui change** (`TaskFacetUpdate`, `EstimateLineUpdate`,
+#178). WF-IHM-0040 veut que chaque cellule se valide seule ; les schémas d'écriture exigeaient le
+libellé, la catégorie et la quantité d'une ligne à chaque saisie, et la grille renvoyait ce qu'elle
+avait lu en dernier. Seul `lock_version` est exigé, tout autre champ est facultatif, un champ absent
+reste ce qu'il était, et `minProperties: 2` refuse un corps qui ne changerait rien. La création
+garde ses champs exigés, sans compteur (`TaskFacetWrite`, `EstimateLineWrite`, `NodeCreate`) :
+deux schémas par facette, comme `SubprojectWrite` et `SubprojectUpdate`, parce qu'une modification
+partielle ne se décrit pas par `allOf` d'un schéma qui exige.
+
+**Le nœud dit quels champs il accepte** (`editable_fields`, `EditableField`, #194), symétrique de
+`computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une autre le débours
+unitaire (WF-DEV-0020), une provision ni l'un ni l'autre, ni sa catégorie ni sa quantité ; une
+tâche en mode manuel porte ses dates, un jalon n'a pas de durée, une récapitulative ni durée, ni
+dates, ni avancement (WF-PLA-0130). La grille n'offre une cellule que si son champ y figure, sans
+déduire la règle de la nature de la catégorie. La liste dit ce que la ligne accepte, pas ce que
+l'appelant a le droit d'écrire, qui reste aux commandes de la révision. Écarté : laisser le serveur
+refuser après coup, qui offre des commandes que l'API refusera (WF-IHM-0090).
+
+**Toute écriture de grille rend la même enveloppe** (`NodesWritten`, #188, #201) : les nœuds écrits,
+leurs ancêtres recalculés — montants, dates, durée, avancement d'une récapitulative, et les anciens
+ancêtres d'un déplacement —, les totaux de la structure entière et le compteur de la structure. La
+réponse ne portait que le nœud écrit, et la grille montrait des totaux et des montants de
+récapitulatives faux jusqu'à une relecture (WF-DEV-0050, WF-ARC-0020). Une seule enveloppe pour
+les neuf écritures — cellule, collage, déplacement, création, liaison, avancement, réestimation,
+inscription —, un tableau `nodes` même pour une cellule, plutôt qu'une enveloppe par opération.
+Les totaux sont ceux de la structure sans filtre : une grille filtrée relit les siens par
+`listNodes`. Écartés : relire la structure après chaque saisie, six mille nœuds pour une cellule
+(§4.6.2) ; une relecture ciblée des ancêtres, un appel de plus par saisie.
+
+**Le compteur du collage est celui de la structure** (`PasteApply.lock_version`,
+`CostStructure.lock_version`, #201), et il avance à chaque écriture dans son arbre, pas seulement
+à la modification de la structure elle-même : sans cela, un collage confirmé après la saisie d'un
+collègue sur l'une de ses lignes l'écraserait sans refus (WF-IHM-0110). `applyPaste` déclare 412,
+et l'enveloppe rend le compteur suivant (`structure_lock_version`) à chaque écriture, pour que la
+grille porte toujours le dernier. Écarté : le plan lui-même (`paste_id`) comme objet du compteur,
+qui aurait obligé le serveur à garder un plan tant que la structure ne change pas.
+
+**La colonne visée d'un collage est une colonne de `listNodes`** (`NodeColumn`,
+`PastePreview.target_column`, #200) : une énumération nommée, celle du tri, que les deux emploient.
+Son ordre est celui des grilles — planning (WF-PLA-0080), puis devis et reste à engager
+(WF-DEV-0050, WF-RAE-0040) —, et c'est dans cet ordre que le bloc remplit les colonnes qui suivent
+la colonne visée, parmi celles de la facette du nœud visé : le serveur ne connaît ni les colonnes
+que la grille montre ni leur ordre (WF-IHM-0060), et le contrat fixe donc l'ordre de référence.
+Aucune cellule n'est décalée : une cellule non vide qui tombe sur une colonne que sa ligne n'accepte
+pas — calculée pour ce nœud, refusée par sa nature, ou qu'aucune écriture ne porte — est refusée,
+nommée par sa ligne et sa colonne (`PastePlan.rejected[].column`) ; une cellule vide n'écrit rien,
+pour qu'un bloc de lignes de main-d'œuvre et hors main-d'œuvre se colle tel qu'un tableur le copie.
+`max_columns` compte les colonnes de la facette à partir de la colonne visée. Écartés : un tableau
+`columns` envoyé par la grille, qui ferait du contrat l'image des colonnes affichées ; sauter une
+colonne non saisissable, qui déplacerait une valeur dans la colonne voisine — ce que le motif de
+WF-IHM-0050 veut éviter. Le front garde sa garde locale sur une colonne masquée, qui ne contredit
+pas le contrat.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
@@ -334,10 +392,10 @@ forme.
 **Un bloc plus large que la grille est refusé à l'aperçu**, par un 422 `PASTE_TOO_WIDE` dont
 `params.max_columns` dit combien de colonnes la grille offre à partir de la colonne visée
 (EP-02, US-0130). Le code et son paramètre existaient sans qu'aucune réponse de `previewPaste`
-ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit. Tant que
-l'aperçu ne transmet pas les colonnes que remplit le bloc (#200), le serveur ne connaît ni les
-colonnes affichées ni leur ordre : `max_columns` ne peut valoir que pour les colonnes du contrat
-à partir de la colonne visée, et le front garde une garde locale sur ce qu'il montre.
+ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit. Le serveur
+ne connaît ni les colonnes affichées ni leur ordre : `max_columns` compte les colonnes de la facette
+du nœud visé à partir de la colonne visée, dans l'ordre de `NodeColumn` (EP-02/L8, #200), et le
+front garde une garde locale sur ce qu'il montre.
 
 **L'annulation est une opération de la révision**, `POST .../undo` et `POST .../redo`, pas
 un état du client. C'est ce qui rend vraie la phrase de WF-IHM-0110 : une annulation est

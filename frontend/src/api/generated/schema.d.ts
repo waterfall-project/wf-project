@@ -1682,7 +1682,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier la facette temps d'une tâche
-         * @description Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser quinze ans (WF-PLA-0150).
+         * @description Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser quinze ans (WF-PLA-0150). Seul le compteur lu est exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
          */
         patch: operations["updateTaskFacet"];
         trace?: never;
@@ -1702,7 +1702,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier la facette argent d'une ligne de devis
-         * @description Les deux montants sont calculés et non saisissables : le budgété par la référence, le réestimé par les revues (WF-DEV-0020, WF-DEV-0030). Une ligne de provision est calculée depuis son risque (WF-RIS-0010).
+         * @description Les deux montants sont calculés et non saisissables : le budgété par la référence, le réestimé par les revues (WF-DEV-0020, WF-DEV-0030). Une ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`).
          */
         patch: operations["updateEstimateLine"];
         trace?: never;
@@ -1818,7 +1818,7 @@ export interface paths {
         put?: never;
         /**
          * Aperçu d'un collage depuis un tableur
-         * @description Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit à cette étape (WF-IHM-0050).
+         * @description Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit à cette étape (WF-IHM-0050). Le bloc remplit, à partir de la colonne visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn` — l'ordre des grilles (WF-PLA-0080, WF-DEV-0050) —, sans décaler aucune cellule : une cellule non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par sa ligne et sa colonne (`PastePreview`).
          */
         post: operations["previewPaste"];
         delete?: never;
@@ -1838,7 +1838,7 @@ export interface paths {
         put?: never;
         /**
          * Appliquer un collage
-         * @description Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée (WF-IHM-0050).
+         * @description Appliqué en une seule opération ; un collage abandonné laisse la grille inchangée (WF-IHM-0050). Porte le compteur de la structure, refusé par 412 s'il est périmé, et rend le compteur suivant avec les nœuds écrits, leurs ancêtres et les totaux (`NodesWritten`, WF-IHM-0110).
          */
         post: operations["applyPaste"];
         delete?: never;
@@ -3346,6 +3346,7 @@ export interface components {
             risk_id?: components["schemas"]["Uuid"] | null;
             /** @description Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050). */
             is_merged: boolean;
+            /** @description Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Crée un différentiel ou le devis propre d'un risque. La structure principale n'est jamais créée ici : elle existe dès la création de la révision (WF-REV-0100). */
@@ -3366,6 +3367,11 @@ export interface components {
          * @enum {string}
          */
         TaskProgress: "not_started" | "started" | "completed";
+        /**
+         * @description Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente. C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050).
+         * @enum {string}
+         */
+        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float_days" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_reestimated_amount";
         /**
          * @description Mode de planification de la tâche : dates calculées depuis les liaisons, ou saisies (WF-PLA-0020).
          * @enum {string}
@@ -3500,6 +3506,11 @@ export interface components {
         };
         /** @enum {string} */
         ComputedField: "task.duration" | "task.start" | "task.finish" | "task.progress" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement";
+        /**
+         * @description Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il accepte (`editable_fields`, WF-IHM-0040).
+         * @enum {string}
+         */
+        EditableField: "task.label" | "task.description" | "task.scheduling_mode" | "task.duration" | "task.start" | "task.finish" | "task.progress" | "estimate_line.label" | "estimate_line.cost_category_id" | "estimate_line.resource_role_id" | "estimate_line.quantity" | "estimate_line.hours" | "estimate_line.unit_disbursement" | "estimate_line.payment_delay_days" | "estimate_line.subproject_id";
         /** @description `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps et les inscriptions aux suivis (WF-DAT-0030). */
         Node: {
             node_id: components["schemas"]["Uuid"];
@@ -3515,6 +3526,8 @@ export interface components {
             predecessors?: components["schemas"]["Predecessor"][];
             /** @description Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision. Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud. */
             computed_fields: components["schemas"]["ComputedField"][];
+            /** @description Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire (WF-DEV-0020), une ligne de provision ni les uns ni l'autre ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste. */
+            editable_fields: components["schemas"]["EditableField"][];
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. */
@@ -3525,7 +3538,7 @@ export interface components {
             budgeted_amount: components["schemas"]["Money"];
             reestimated_amount: components["schemas"]["Money"];
         };
-        /** @description Champs saisissables d'une tâche (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100). */
+        /** @description Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100). */
         TaskFacetWrite: {
             label: string;
             description?: string | null;
@@ -3533,9 +3546,8 @@ export interface components {
             duration?: components["schemas"]["Duration"];
             start?: components["schemas"]["WorkInstant"] | null;
             finish?: components["schemas"]["WorkInstant"] | null;
-            lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Champs saisissables d'une ligne de devis (WF-DEV-0020). */
+        /** @description Champs saisissables d'une ligne de devis, à sa création (WF-DEV-0020) : le rôle et la charge pour une catégorie de main-d'œuvre, le débours unitaire pour une autre. */
         EstimateLineWrite: {
             label: string;
             cost_category_id: components["schemas"]["Uuid"];
@@ -3545,7 +3557,6 @@ export interface components {
             unit_disbursement?: components["schemas"]["Money"] | null;
             payment_delay_days?: number | null;
             subproject_id?: components["schemas"]["Uuid"] | null;
-            lock_version: components["schemas"]["LockVersion"];
         };
         NodeCreate: {
             kind: components["schemas"]["NodeKind"];
@@ -3553,6 +3564,17 @@ export interface components {
             position?: number | null;
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
+        };
+        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les tâches recalculées au-dessus d'eux et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
+        NodesWritten: {
+            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan. */
+            nodes: components["schemas"]["Node"][];
+            /** @description Les ancêtres des nœuds écrits — et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide pour un nœud de premier niveau. */
+            ancestors: components["schemas"]["Node"][];
+            /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
+            totals: components["schemas"]["NodeTotals"];
+            /** @description Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110). */
+            structure_lock_version: components["schemas"]["LockVersion"];
         };
         /**
          * @description Champ d'un nœud dont le serveur calcule la valeur, pour ce nœud-ci ou pour tous : ceux que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants, la marge, l'avancement physique (WF-IHM-0030).
@@ -3578,6 +3600,28 @@ export interface components {
             depends_on: components["schemas"]["ComputedDependency"][];
             /** @description Chaque ligne une fois, dans l'ordre du plan. */
             rows: components["schemas"]["DependencyRow"][];
+        };
+        /** @description Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) ; une valeur que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030). */
+        TaskFacetUpdate: {
+            label?: string;
+            description?: string | null;
+            scheduling_mode?: components["schemas"]["SchedulingMode"];
+            duration?: components["schemas"]["Duration"];
+            start?: components["schemas"]["WorkInstant"] | null;
+            finish?: components["schemas"]["WorkInstant"] | null;
+            lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Modification d'une ligne de devis, cellule par cellule (WF-IHM-0040) : seul le compteur lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent reste ce qu'il était. Les mêmes champs qu'à la création (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours d'une ligne de main-d'œuvre, le rôle ou la charge d'une autre — est refusé par 422 (WF-DEV-0020), et le nœud dit lesquels il accepte (`editable_fields`). */
+        EstimateLineUpdate: {
+            label?: string;
+            cost_category_id?: components["schemas"]["Uuid"];
+            quantity?: components["schemas"]["Decimal"];
+            resource_role_id?: components["schemas"]["Uuid"] | null;
+            hours?: components["schemas"]["Hours"] | null;
+            unit_disbursement?: components["schemas"]["Money"] | null;
+            payment_delay_days?: number | null;
+            subproject_id?: components["schemas"]["Uuid"] | null;
+            lock_version: components["schemas"]["LockVersion"];
         };
         PredecessorsReplace: {
             predecessors: components["schemas"]["PredecessorWrite"][];
@@ -3607,27 +3651,37 @@ export interface components {
             position?: number | null;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Bloc collé depuis un tableur. L'aperçu dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit sans confirmation (WF-IHM-0050). */
+        /**
+         * @description Bloc collé depuis un tableur, sur la cellule visée : le nœud et sa colonne. L'aperçu dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit sans confirmation (WF-IHM-0050).
+         *     La première colonne du bloc remplit `target_column` ; chacune des suivantes remplit la colonne suivante de la facette du nœud visé, dans l'ordre de `NodeColumn` — pour une ligne de devis collée sur son libellé : la catégorie, le rôle, la quantité, la charge, le débours unitaire, le sous-projet, le délai de paiement ; pour une tâche : la description, le mode, la durée, le début, la fin. Chaque ligne du bloc écrit la ligne de la grille à la même distance sous le nœud visé, dans l'ordre du plan. Aucune cellule n'est décalée : une cellule qui tombe sur une colonne que sa ligne n'accepte pas — un champ calculé pour ce nœud, un champ que sa nature refuse, une colonne qu'aucune écriture ne porte comme les montants — est refusée, la ligne et la colonne nommées (`PastePlan.rejected`), sauf si elle est vide, qui n'écrit rien. Un bloc plus large que les colonnes de la facette à partir de la colonne visée est refusé par 422 (`PASTE_TOO_WIDE`, `params.max_columns`).
+         */
         PastePreview: {
-            target_node_id?: components["schemas"]["Uuid"];
-            target_column?: string;
+            target_node_id: components["schemas"]["Uuid"];
+            /** @description La colonne de la cellule visée, que la première colonne du bloc remplit. */
+            target_column: components["schemas"]["NodeColumn"];
             rows: string[][];
         };
+        /** @description Ce qu'un collage écrira et ce qu'il refusera, chaque refus avec son motif et, quand il tient à une cellule, sa colonne (WF-IHM-0050). */
         PastePlan: {
             paste_id: components["schemas"]["Uuid"];
             accepted: number;
             rejected: {
+                /** @description La ligne du bloc refusée, comptée de zéro. */
                 row: number;
+                /** @description La colonne de la cellule refusée ; absente quand le refus porte sur la ligne entière. */
+                column?: components["schemas"]["NodeColumn"];
                 code: components["schemas"]["ErrorCode"];
                 params?: {
                     [key: string]: unknown;
                 };
             }[];
         };
+        /** @description Confirme un plan de collage. Le compteur est celui de la structure dans laquelle le bloc s'écrit (`CostStructure.lock_version`), lu avec la page ou rendu par la dernière écriture (`NodesWritten.structure_lock_version`) ; périmé, le collage est refusé par 412 et rien n'est écrit (WF-IHM-0050, WF-IHM-0110). */
         PasteApply: {
             paste_id: components["schemas"]["Uuid"];
             /** @constant */
             confirmed: true;
+            /** @description Le compteur de la structure lue, que le collage écrit. */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Annule ou rétablit la dernière modification de la session. Une annulation est une modification comme une autre ; elle est refusée par 409 si une modification postérieure porte sur le même objet (WF-IHM-0110). */
@@ -7102,7 +7156,7 @@ export interface operations {
                 progress?: components["schemas"]["TaskProgress"][];
                 is_critical?: boolean;
                 /** @description Colonne du tri ; absente, l'ordre du plan. Chaque colonne d'une grille se trie dans les deux sens (WF-IHM-0060) : une colonne de grille qui manquerait ici est un constat sur le contrat. */
-                sort_by?: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float_days" | "is_critical" | "predecessors" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_reestimated_amount";
+                sort_by?: components["schemas"]["NodeColumn"];
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
                 /** @description Les propriétés à rendre de chaque nœud, en plus des quatre toujours rendues ; une propriété inconnue est refusée (400). */
@@ -7152,13 +7206,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Nœud créé. */
+            /** @description Nœud créé, avec ses ancêtres recalculés et les totaux de la structure (`NodesWritten`). */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -7247,17 +7301,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TaskFacetWrite"];
+                "application/json": components["schemas"]["TaskFacetUpdate"];
             };
         };
         responses: {
-            /** @description Tâche modifiée, avec les dates et la criticité recalculées. */
+            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés et les totaux de la structure (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -7281,17 +7335,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EstimateLineWrite"];
+                "application/json": components["schemas"]["EstimateLineUpdate"];
             };
         };
         responses: {
-            /** @description Ligne modifiée, avec son montant recalculé. */
+            /** @description Ligne modifiée, avec son montant recalculé, les montants de ses ancêtres et les totaux de la structure (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -7327,13 +7381,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Liaisons enregistrées, dates recalculées. */
+            /** @description Liaisons enregistrées, dates recalculées ; les ancêtres et les totaux avec (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -7368,13 +7422,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description État enregistré. */
+            /** @description État enregistré ; l'avancement des récapitulatives au-dessus recalculé (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -7401,13 +7455,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Réestimation enregistrée. */
+            /** @description Réestimation enregistrée ; les montants réestimés des ancêtres et les totaux recalculés (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -7437,13 +7491,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Inscriptions enregistrées. */
+            /** @description Inscriptions enregistrées (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -7467,13 +7521,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Nœuds déplacés. */
+            /** @description Nœuds déplacés ; leurs anciens et nouveaux ancêtres recalculés, et les totaux (`NodesWritten`). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"][];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -7511,7 +7565,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["PayloadTooLarge"];
-            /** @description Bloc plus large que la grille à partir de la colonne visée : `params.max_columns` dit combien de colonnes elle y offre ; rien n'est écrit (WF-IHM-0050). */
+            /** @description Bloc plus large que les colonnes de la facette à partir de la colonne visée (`NodeColumn`) : `params.max_columns` dit combien il en reste ; rien n'est écrit (WF-IHM-0050). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7539,18 +7593,19 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Collage appliqué. */
+            /** @description Collage appliqué ; le compteur de la structure a avancé. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Node"][];
+                    "application/json": components["schemas"]["NodesWritten"];
                 };
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            412: components["responses"]["PreconditionFailed"];
         };
     };
     undoLastChange: {
