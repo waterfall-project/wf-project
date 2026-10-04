@@ -453,21 +453,27 @@ describe("the request of an export", () => {
     expect(download).toHaveAttribute("download");
   });
 
-  it("asks the image of the tree of tasks at the level given", async () => {
-    const client = serve({ [EXPORT]: { example: "task_export_queued", status: 202 } });
-    open(<ExportForm projectId={PROJECT} revisionId={REVISION} />);
-    const form = screen.getByRole("form", { name: "Demander un export" });
-    await userEvent.selectOptions(
-      within(form).getByLabelText("Fichier à exporter"),
-      "Image de l’arborescence de tâches",
-    );
-    await userEvent.type(within(form).getByLabelText("Niveau de l’arborescence"), "2");
-    await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
-    await settled(form);
-    expect(client.calls.map((call) => call.body)).toEqual([
-      { kind: "task_tree_image", revision_id: REVISION, depth: 2 },
-    ]);
-  });
+  it.each([
+    ["2", 2],
+    ["1000", 1000],
+  ] as const)(
+    "asks the image of the tree of tasks at the level given: %s",
+    async (typed, level) => {
+      const client = serve({ [EXPORT]: { example: "task_export_queued", status: 202 } });
+      open(<ExportForm projectId={PROJECT} revisionId={REVISION} />);
+      const form = screen.getByRole("form", { name: "Demander un export" });
+      await userEvent.selectOptions(
+        within(form).getByLabelText("Fichier à exporter"),
+        "Image de l’arborescence de tâches",
+      );
+      await userEvent.type(within(form).getByLabelText("Niveau de l’arborescence"), typed);
+      await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
+      await settled(form);
+      expect(client.calls.map((call) => call.body)).toEqual([
+        { kind: "task_tree_image", revision_id: REVISION, depth: level },
+      ]);
+    },
+  );
 
   it("asks without a revision when the screen reads in none, and tells a refusal", async () => {
     const client = serve({ [EXPORT]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });

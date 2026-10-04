@@ -59,7 +59,10 @@ export function ExportForm({
       return;
     }
     // The level of the image of the tree, when the user gives one; the server's otherwise.
-    const level = kind === "task_tree_image" && /^[1-9]\d{0,2}$/.test(depth) ? Number(depth) : null;
+    const level =
+      kind === "task_tree_image" && /^[1-9]\d*$/.test(depth) && Number.isSafeInteger(Number(depth))
+        ? Number(depth)
+        : null;
     const request: ExportRequest = {
       kind,
       revision_id: revisionId ?? null,
