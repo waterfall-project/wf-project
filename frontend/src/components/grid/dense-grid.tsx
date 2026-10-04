@@ -621,7 +621,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     <div className="flex min-h-0 flex-col gap-2">
       <GridToolbar
         search={query.search}
-        onSearch={search}
+        onSearch={config.searched === false ? undefined : search}
         columns={toggledColumns(table, config, (column) => t(`columns.${column.label}`))}
       />
       <OutcomeNotice

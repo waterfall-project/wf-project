@@ -15,7 +15,14 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { createContext, type ReactNode, type RefObject, useContext, useRef } from "react";
+import {
+  createContext,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+  useContext,
+  useRef,
+} from "react";
 
 /** The address asked, by its query, and the query of the address it was asked from. */
 interface Asked {
@@ -55,4 +62,24 @@ export function usePendingAddress() {
     router.push(href, { scroll: false });
   };
   return { base, request };
+}
+
+/**
+ * A link of the screen to an address built from its query: its `href`, from the address shown, for
+ * the browser — a new tab, a new window, a click with a modifier —, and a plain click, which goes
+ * on from the address last asked (`usePendingAddress`): a sort or a filter under way is kept.
+ */
+export function usePendingLink(build: (query: URLSearchParams) => string) {
+  const address = useSearchParams();
+  const { request } = usePendingAddress();
+  return {
+    href: build(new URLSearchParams(address)),
+    onClick: (event: MouseEvent<HTMLAnchorElement>) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      request(build);
+    },
+  };
 }

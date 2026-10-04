@@ -33,6 +33,11 @@ export interface GridQuery<Sort extends string> {
 export const SORT_BY = "sort_by";
 export const SORT_ORDER = "sort_order";
 export const SEARCH = "search";
+/**
+ * The place of the first row of a page of a list the server pages (`offset`, as the contract
+ * names it): a sort or a search changed starts again from the first page.
+ */
+export const OFFSET = "offset";
 
 /** The longest search the contract accepts. */
 export const SEARCH_LENGTH = 200;
@@ -80,7 +85,7 @@ export function readGridQuery<Sort extends string>(
 
 /**
  * The address of the same screen with the sort changed, the rest of its query kept — the
- * reading context, the search. A sort lifted, back to the order of the plan, keeps `sort_by`,
+ * reading context, the search —, back to its first page. A sort lifted, back to the order of the plan, keeps `sort_by`,
  * empty: the page then asks no sort, and does not fall back on the one the account keeps,
  * whether or not the preference has been written yet.
  */
@@ -92,6 +97,7 @@ export function sortHref<Sort extends string>(
   const next = new URLSearchParams(query);
   next.delete(SORT_BY);
   next.delete(SORT_ORDER);
+  next.delete(OFFSET);
   next.set(SORT_BY, sort?.column ?? "");
   if (sort !== undefined) {
     next.set(SORT_ORDER, sort.order);
@@ -99,9 +105,13 @@ export function sortHref<Sort extends string>(
   return address(pathname, next);
 }
 
-/** The address of the same screen with the search changed — or lifted when empty —, the rest kept. */
+/**
+ * The address of the same screen with the search changed — or lifted when empty —, back to its
+ * first page, the rest kept.
+ */
 export function searchHref(pathname: string, query: URLSearchParams, search: string): string {
   const next = new URLSearchParams(query);
+  next.delete(OFFSET);
   const text = search.trim();
   if (text === "") {
     next.delete(SEARCH);

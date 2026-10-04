@@ -122,7 +122,8 @@
     "names": {
       "estimate": "Grille de devis",
       "planning": "Grille de planning",
-      "risks": "Registre des risques"
+      "risks": "Registre des risques",
+      "actualCosts": "Coûts réels"
     },
     "columns": {
       "rowNumber": "N°",
@@ -146,7 +147,14 @@
       "provisionAmount": "Provision",
       "state": "État",
       "lastReview": "Dernier réexamen",
-      "matrixCell": "Case de la matrice"
+      "matrixCell": "Case de la matrice",
+      "documentNumber": "N° de pièce",
+      "documentDate": "Date de pièce",
+      "amount": "Montant",
+      "subproject": "Sous-projet",
+      "trackedScope": "Périmètre suivi",
+      "excludedReason": "Motif de l’exclusion",
+      "passthrough": "Colonnes conservées du fichier"
     },
     "computed": "Calculé",
     "unknown": "Référence inconnue",
@@ -236,6 +244,66 @@
         "state": "État",
         "actor": "Par"
       }
+    }
+  },
+  "actualCosts": {
+    "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
+    "generalTotal": "Total général des lignes retenues",
+    "totals": {
+      "title": "Totaux des lignes retenues",
+      "tracked": "Périmètre suivi",
+      "excluded": "Exclu du périmètre suivi",
+      "overall": "Total général"
+    },
+    "lastImport": {
+      "label": "Dernier import",
+      "never": "Aucun import"
+    },
+    "scope": {
+      "tracked": "Suivie",
+      "excluded": "Exclue"
+    },
+    "filters": {
+      "label": "Filtres des coûts réels",
+      "scope": "Périmètre",
+      "everyLine": "Toutes les lignes",
+      "tracked": "Suivies",
+      "excluded": "Exclues",
+      "subproject": "Sous-projet",
+      "everySubproject": "Tous les sous-projets",
+      "subprojectChoice": "{code} — {label}",
+      "period": "Période des pièces",
+      "from": "Pièces du",
+      "to": "au",
+      "apply": "Filtrer"
+    },
+    "pages": {
+      "costs": {
+        "label": "Pages des coûts réels",
+        "beyond": "La page demandée est au-delà de la fin de la liste.",
+        "previous": "Lignes précédentes",
+        "next": "Lignes suivantes"
+      },
+      "imports": {
+        "label": "Pages du journal des imports",
+        "beyond": "La page demandée est au-delà de la fin du journal.",
+        "previous": "Imports plus récents",
+        "next": "Imports plus anciens"
+      }
+    },
+    "imports": {
+      "title": "Journal des imports",
+      "none": "Aucun coût réel n’a encore été importé.",
+      "importedAt": "Date",
+      "actor": "Par",
+      "period": "Période extraite",
+      "created": "Créées",
+      "updated": "Mises à jour",
+      "ignored": "Ignorées",
+      "periodRange": "du {from} au {to}",
+      "periodFrom": "à partir du {from}",
+      "periodTo": "jusqu’au {to}",
+      "periodUnknown": "Non renseignée"
     }
   },
   "computedValue": {

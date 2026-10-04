@@ -122,7 +122,8 @@
     "names": {
       "estimate": "Estimate grid",
       "planning": "Planning grid",
-      "risks": "Risk register"
+      "risks": "Risk register",
+      "actualCosts": "Actual costs"
     },
     "columns": {
       "rowNumber": "No.",
@@ -146,7 +147,14 @@
       "provisionAmount": "Provision",
       "state": "State",
       "lastReview": "Last review",
-      "matrixCell": "Matrix cell"
+      "matrixCell": "Matrix cell",
+      "documentNumber": "Document no.",
+      "documentDate": "Document date",
+      "amount": "Amount",
+      "subproject": "Sub-project",
+      "trackedScope": "Tracked scope",
+      "excludedReason": "Reason for exclusion",
+      "passthrough": "Columns kept from the file"
     },
     "computed": "Computed",
     "unknown": "Unknown reference",
@@ -236,6 +244,66 @@
         "state": "State",
         "actor": "By"
       }
+    }
+  },
+  "actualCosts": {
+    "summary": "{count, plural, =0 {no line retained} one {# line retained} other {# lines retained}}",
+    "generalTotal": "General total of the lines retained",
+    "totals": {
+      "title": "Totals of the lines retained",
+      "tracked": "Tracked scope",
+      "excluded": "Excluded from the tracked scope",
+      "overall": "General total"
+    },
+    "lastImport": {
+      "label": "Last import",
+      "never": "No import"
+    },
+    "scope": {
+      "tracked": "Tracked",
+      "excluded": "Excluded"
+    },
+    "filters": {
+      "label": "Filters of the actual costs",
+      "scope": "Scope",
+      "everyLine": "Every line",
+      "tracked": "Tracked",
+      "excluded": "Excluded",
+      "subproject": "Sub-project",
+      "everySubproject": "Every sub-project",
+      "subprojectChoice": "{code} — {label}",
+      "period": "Period of the documents",
+      "from": "Documents from",
+      "to": "to",
+      "apply": "Filter"
+    },
+    "pages": {
+      "costs": {
+        "label": "Pages of the actual costs",
+        "beyond": "The page asked is beyond the end of the list.",
+        "previous": "Previous lines",
+        "next": "Next lines"
+      },
+      "imports": {
+        "label": "Pages of the journal of the imports",
+        "beyond": "The page asked is beyond the end of the journal.",
+        "previous": "More recent imports",
+        "next": "Older imports"
+      }
+    },
+    "imports": {
+      "title": "Journal of the imports",
+      "none": "No actual cost has been imported yet.",
+      "importedAt": "Date",
+      "actor": "By",
+      "period": "Period extracted",
+      "created": "Created",
+      "updated": "Updated",
+      "ignored": "Ignored",
+      "periodRange": "from {from} to {to}",
+      "periodFrom": "from {from}",
+      "periodTo": "until {to}",
+      "periodUnknown": "Not given"
     }
   },
   "computedValue": {

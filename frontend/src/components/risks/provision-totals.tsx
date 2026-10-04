@@ -29,8 +29,14 @@ export function ComputedAmount({ amount }: { readonly amount: string }) {
   );
 }
 
-/** A total: its name, and its amount marked computed. */
-function Total({ name, amount }: { readonly name: string; readonly amount: string }) {
+/** A total: its name, and its amount marked computed — an entry of a list of terms (`dl`). */
+export function ComputedTotal({
+  name,
+  amount,
+}: {
+  readonly name: string;
+  readonly amount: string;
+}) {
   return (
     <div className="space-y-0.5">
       <dt className="text-xs text-muted-foreground">{name}</dt>
@@ -48,9 +54,9 @@ export function ProvisionSummary({ totals }: { readonly totals: ProvisionTotals 
     <section aria-label={t("title")}>
       <dl className="flex flex-wrap gap-x-8 gap-y-2">
         {RISK_STATES.map((state) => (
-          <Total key={state} name={t(state)} amount={totals[state]} />
+          <ComputedTotal key={state} name={t(state)} amount={totals[state]} />
         ))}
-        <Total name={t("total")} amount={totals.total} />
+        <ComputedTotal name={t("total")} amount={totals.total} />
       </dl>
     </section>
   );
