@@ -125,8 +125,9 @@
     description: >-
       La confirmation sans modification produit un réexamen daté ; un risque identifié
       peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010,
-      WF-RIS-0020). Lorsque plus aucun risque n'est identifié, les provisions des
-      risques écartés entrent au budget de référence (WF-RIS-0050).
+      WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ;
+      la réserve pour risques de la révision de référence et le budget de référence
+      restent inchangés (WF-RIS-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId

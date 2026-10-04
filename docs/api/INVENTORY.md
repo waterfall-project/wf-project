@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**151 opérations sur 117 chemins, dans 12 familles.**
+**152 opérations sur 118 chemins, dans 12 familles.**
 Le contrat cite **177 des 208 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -231,7 +231,7 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 
 ## Portefeuille
 
-`paths/portfolio.yaml` — 8 opérations
+`paths/portfolio.yaml` — 9 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -240,8 +240,9 @@ Le contrat cite **177 des 208 exigences** de la spécification.
 | GET | `/portfolio/workload` | Plan de charge agrégé | WF-PTF-0060 |
 | GET | `/portfolio/performance` | Indices, projections, répartition par zone et évolution trimestrielle | WF-PTF-0010, WF-PTF-0020, WF-PTF-0070 |
 | GET | `/portfolio/cost-structure` | Structure des coûts du portefeuille | WF-PTF-0080 |
-| GET | `/portfolio/risks` | Risques du portefeuille | WF-PTF-0090 |
-| GET | `/portfolio/cash-out` | Décaissements du portefeuille | WF-PTF-0100 |
+| GET | `/portfolio/risks` | Risques du portefeuille | WF-PTF-0090, WF-RIS-0050 |
+| GET | `/portfolio/cost-curve` | Courbe en S du portefeuille | WF-IND-0100, WF-PTF-0100 |
+| GET | `/portfolio/cash-out` | Courbe en S du portefeuille, lecture en décaissements | WF-IND-0100, WF-PTF-0100 |
 | GET | `/portfolio/pilot-health` | Santé du pilotage | WF-PTF-0110, WF-REF-0180 |
 
 ## Exigences que le contrat ne cite pas

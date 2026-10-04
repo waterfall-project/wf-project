@@ -144,8 +144,11 @@ PortfolioCostStructure:
 
 PortfolioRisks:
   type: object
-  required: [scope, identified_total, heaviest, matrix, period_outcome]
-  description: Risques tous projets confondus (WF-PTF-0090).
+  required: [scope, identified_total, heaviest, matrix, coverage, period_outcome]
+  description: >-
+    Risques tous projets confondus, avec la couverture des risques agrégée : chaque
+    montant est la somme de celui des projets en cours du périmètre (WF-PTF-0090,
+    WF-RIS-0050).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     identified_total: { $ref: ../common.yaml#/Money }
@@ -161,6 +164,18 @@ PortfolioRisks:
           project_label: { type: string }
           provision_amount: { $ref: ../common.yaml#/Money }
     matrix: { $ref: risks.yaml#/RiskMatrix }
+    coverage:
+      type: object
+      required: [reserve, remaining_provisions, occurred_cost, coverage_variance]
+      description: >-
+        Somme des couvertures des projets : réserve de référence, provisions des risques
+        identifiés, coût réestimé des risques survenus, et écart signé
+        reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050).
+      properties:
+        reserve: { $ref: ../common.yaml#/Money }
+        remaining_provisions: { $ref: ../common.yaml#/Money }
+        occurred_cost: { $ref: ../common.yaml#/Money }
+        coverage_variance: { $ref: ../common.yaml#/Money }
     period_outcome:
       type: object
       required: [occurred_provisions, dismissed_provisions]
@@ -168,10 +183,34 @@ PortfolioRisks:
         occurred_provisions: { $ref: ../common.yaml#/Money }
         dismissed_provisions: { $ref: ../common.yaml#/Money }
 
+PortfolioCostCurve:
+  type: object
+  required: [scope, months]
+  description: >-
+    Courbe en S du portefeuille : somme, mois par mois, des trois courbes de coûts
+    cumulés des projets du périmètre (WF-IND-0100). Le coût réel s'arrête à la date de
+    calcul, la projection commence au-delà (WF-PTF-0100).
+  properties:
+    scope: { $ref: '#/PortfolioScope' }
+    months:
+      type: array
+      items:
+        type: object
+        required: [month, reference_budget]
+        properties:
+          month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+          reference_budget: { $ref: ../common.yaml#/Money }
+          actual_cost:
+            anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+          project_manager_projection:
+            anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+
 PortfolioCashOut:
   type: object
   required: [scope, months]
-  description: Somme des projections de décaissement des projets du périmètre (WF-PTF-0100).
+  description: >-
+    Lecture en décaissements de la courbe en S du portefeuille : somme des décaissements
+    passés et à venir des projets du périmètre (WF-PTF-0100).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     months:

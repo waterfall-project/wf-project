@@ -1438,7 +1438,7 @@ export interface paths {
         get?: never;
         /**
          * Désigner la révision de référence
-         * @description Désignation manuelle possible tant que le projet n'a ni coût réel ni révision marquée postérieure ; au-delà, la référence ne se déplace plus que par avenant ou risque survenu (WF-REV-0040). Inscrite au journal d'audit (WF-SEC-0030). La désignation fait passer le projet à En cours si les conditions de WF-CYC-0030 sont réunies.
+         * @description Désignation manuelle possible tant que le projet n'a ni coût réel ni révision marquée postérieure ; au-delà, la référence ne se déplace plus qu'à la contractualisation d'un avenant (WF-REV-0040). Inscrite au journal d'audit (WF-SEC-0030). La désignation fait passer le projet à En cours si les conditions de WF-CYC-0030 sont réunies.
          */
         put: operations["designateReferenceRevision"];
         post?: never;
@@ -2083,7 +2083,7 @@ export interface paths {
         put?: never;
         /**
          * Réexaminer un risque
-         * @description La confirmation sans modification produit un réexamen daté ; un risque identifié peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010, WF-RIS-0020). Lorsque plus aucun risque n'est identifié, les provisions des risques écartés entrent au budget de référence (WF-RIS-0050).
+         * @description La confirmation sans modification produit un réexamen daté ; un risque identifié peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010, WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ; la réserve pour risques de la révision de référence et le budget de référence restent inchangés (WF-RIS-0050).
          */
         post: operations["reviewRisk"];
         delete?: never;
@@ -2429,9 +2429,29 @@ export interface paths {
         };
         /**
          * Risques du portefeuille
-         * @description Total des provisions identifiées, risques les plus lourds tous projets confondus, matrice remplie, et provisions survenues face aux provisions écartées sur la période (WF-PTF-0090).
+         * @description Total des provisions identifiées, risques les plus lourds tous projets confondus, matrice remplie, couverture des risques agrégée — somme des réserves de référence face aux provisions restantes et au coût des risques survenus (WF-RIS-0050) —, et provisions survenues face aux provisions écartées sur la période (WF-PTF-0090).
          */
         get: operations["getPortfolioRisks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/portfolio/cost-curve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Courbe en S du portefeuille
+         * @description Somme, mois par mois, des courbes de coûts cumulés des projets (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis projection du chef de projet ; un projet en chiffrage inclus contribue pondéré par sa probabilité de gain. Rien n'y est recalculé, de sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
+         */
+        get: operations["getPortfolioCostCurve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2448,8 +2468,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Décaissements du portefeuille
-         * @description Somme des projections de décaissement des projets ; rien n'y est recalculé, de sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
+         * Courbe en S du portefeuille, lecture en décaissements
+         * @description Le mode décaissement de la courbe en S du portefeuille : somme des décaissements passés et à venir des projets, par la règle de WF-IND-0100 appliquée à chacun ; rien n'y est recalculé (WF-PTF-0100).
          */
         get: operations["getPortfolioCashOut"];
         put?: never;
@@ -3128,7 +3148,7 @@ export interface components {
             description?: string | null;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Désigne la révision de référence parmi les révisions marquées. Corrigible tant que le projet n'a ni coût réel ni révision marquée postérieure ; au-delà, la référence ne se déplace plus que par avenant ou risque survenu (WF-REV-0040). */
+        /** @description Désigne la révision de référence parmi les révisions marquées. Corrigible tant que le projet n'a ni coût réel ni révision marquée postérieure ; au-delà, la référence ne se déplace plus qu'à la contractualisation d'un avenant (WF-REV-0040). */
         ReferenceDesignation: {
             revision_id: components["schemas"]["Uuid"];
             /** @constant */
@@ -3539,7 +3559,7 @@ export interface components {
             probability: components["schemas"]["Percent"];
             /** @description Calculée, jamais saisie (WF-RIS-0010). */
             severity: components["schemas"]["Money"];
-            /** @description Calculée ; celle retenue au budget est figée à la révision de référence (WF-RIS-0050). */
+            /** @description Calculée, gravité pondérée par la probabilité ; celle que portait la révision de référence compte à la réserve pour risques, jamais au budget de référence (WF-RIS-0050). */
             provision_amount: components["schemas"]["Money"];
             state: components["schemas"]["RiskState"];
             /** @description Structure de coûts propre du risque, dans la révision en cours (WF-RIS-0030). */
@@ -3797,7 +3817,7 @@ export interface components {
             remaining_by_cost_type: components["schemas"]["AmountByKey"][];
             labor_by_org_node: components["schemas"]["AmountByKey"][];
         };
-        /** @description Risques tous projets confondus (WF-PTF-0090). */
+        /** @description Risques tous projets confondus, avec la couverture des risques agrégée : chaque montant est la somme de celui des projets en cours du périmètre (WF-PTF-0090, WF-RIS-0050). */
         PortfolioRisks: {
             scope: components["schemas"]["PortfolioScope"];
             identified_total: components["schemas"]["Money"];
@@ -3809,12 +3829,29 @@ export interface components {
                 provision_amount: components["schemas"]["Money"];
             }[];
             matrix: components["schemas"]["RiskMatrix"];
+            /** @description Somme des couvertures des projets : réserve de référence, provisions des risques identifiés, coût réestimé des risques survenus, et écart signé reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). */
+            coverage: {
+                reserve: components["schemas"]["Money"];
+                remaining_provisions: components["schemas"]["Money"];
+                occurred_cost: components["schemas"]["Money"];
+                coverage_variance: components["schemas"]["Money"];
+            };
             period_outcome: {
                 occurred_provisions: components["schemas"]["Money"];
                 dismissed_provisions: components["schemas"]["Money"];
             };
         };
-        /** @description Somme des projections de décaissement des projets du périmètre (WF-PTF-0100). */
+        /** @description Courbe en S du portefeuille : somme, mois par mois, des trois courbes de coûts cumulés des projets du périmètre (WF-IND-0100). Le coût réel s'arrête à la date de calcul, la projection commence au-delà (WF-PTF-0100). */
+        PortfolioCostCurve: {
+            scope: components["schemas"]["PortfolioScope"];
+            months: {
+                month: string;
+                reference_budget: components["schemas"]["Money"];
+                actual_cost?: components["schemas"]["Money"] | null;
+                project_manager_projection?: components["schemas"]["Money"] | null;
+            }[];
+        };
+        /** @description Lecture en décaissements de la courbe en S du portefeuille : somme des décaissements passés et à venir des projets du périmètre (WF-PTF-0100). */
         PortfolioCashOut: {
             scope: components["schemas"]["PortfolioScope"];
             months: {
@@ -8171,6 +8208,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortfolioRisks"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPortfolioCostCurve: {
+        parameters: {
+            query?: {
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                states?: components["parameters"]["PortfolioStates"];
+                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                as_of?: components["parameters"]["AsOf"];
+                horizon_months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Séries cumulées par mois. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioCostCurve"];
                 };
             };
             404: components["responses"]["NotFound"];

@@ -307,6 +307,8 @@ paths:
     $ref: ./paths/portfolio.yaml#/~1portfolio~1cost-structure
   /portfolio/risks:
     $ref: ./paths/portfolio.yaml#/~1portfolio~1risks
+  /portfolio/cost-curve:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1cost-curve
   /portfolio/cash-out:
     $ref: ./paths/portfolio.yaml#/~1portfolio~1cash-out
   /portfolio/pilot-health:

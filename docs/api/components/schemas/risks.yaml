@@ -36,7 +36,10 @@ Risk:
       description: Calculée, jamais saisie (WF-RIS-0010).
     provision_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
-      description: Calculée ; celle retenue au budget est figée à la révision de référence (WF-RIS-0050).
+      description: >-
+        Calculée, gravité pondérée par la probabilité ; celle que portait la révision de
+        référence compte à la réserve pour risques, jamais au budget de référence
+        (WF-RIS-0050).
     state: { $ref: '#/RiskState' }
     structure_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]

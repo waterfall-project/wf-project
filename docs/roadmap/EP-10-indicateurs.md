@@ -12,8 +12,8 @@ issue:
 
 La date et le périmètre de calcul, la granularité par sous-projet, la valeur acquise,
 l'avancement financier et physique, les projections à terminaison, les indices de coût et de
-délai et leurs seuils, le diagramme temps/temps, la courbe des coûts cumulés, les courbes de
-valeur acquise, avec sa lecture en décaissements. Les indicateurs d'une révision marquée sont
+délai et leurs seuils, le diagramme temps/temps, la courbe des coûts cumulés avec sa lecture
+en décaissements, et les courbes de valeur acquise. Les indicateurs d'une révision marquée sont
 calculés dans la transaction qui la marque et conservés ; ceux de la révision en cours sont
 calculés à la demande et mis en cache.
 
@@ -86,7 +86,7 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (11) :
 - `reference` : `getReferenceSettings`, `updateReferenceSettings` ;
 - `revisions` : `mergeCostStructure`, `createNode`, `setTaskProgress`, `setNodeTracking` ;
 - `analysis` : `getEstimateIndicators`, `getRemainingIndicators` ;
-- `risks` : `createRisk`, `reviewRisk`, `declareRiskOccurrence`.
+- `risks` : `createRisk`, `reviewRisk`, `declareRiskOccurrence`, `getProjectRiskCoverage`.
 
 ## Préalables
 

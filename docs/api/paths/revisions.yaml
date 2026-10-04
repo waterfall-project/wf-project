@@ -133,8 +133,9 @@
     summary: Désigner la révision de référence
     description: >-
       Désignation manuelle possible tant que le projet n'a ni coût réel ni révision
-      marquée postérieure ; au-delà, la référence ne se déplace plus que par avenant ou
-      risque survenu (WF-REV-0040). Inscrite au journal d'audit (WF-SEC-0030). La
+      marquée postérieure ; au-delà, la référence ne se déplace plus qu'à la
+      contractualisation d'un avenant (WF-REV-0040). Inscrite au journal d'audit
+      (WF-SEC-0030). La
       désignation fait passer le projet à En cours si les conditions de WF-CYC-0030
       sont réunies.
     parameters:

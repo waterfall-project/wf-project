@@ -842,8 +842,8 @@ porte le cycle d'une revue mensuelle de bout en bout.
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getProjectCashOut`, `getMilestoneTracking`, `getProjectWorkload`, `getPortfolioProjects`,
   `getPortfolioValue`, `getPortfolioPerformance`, `getPortfolioWorkload`,
-  `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCashOut`,
-  `getPortfolioPilotHealth`
+  `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCostCurve`,
+  `getPortfolioCashOut`, `getPortfolioPilotHealth`
 - **issue** : #88
 
 **En tant que** manager, **je veux** les courbes et les tableaux d'indicateurs du projet et du

@@ -68,9 +68,9 @@ Rattachement établi d'après les exigences que chaque opération cite, à revoi
 US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
 un travail qui précède.
 
-Servies ici pour la première fois (8) :
+Servies ici pour la première fois (9) :
 
-- `portfolio` : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`, `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCashOut`, `getPortfolioPilotHealth`.
+- `portfolio` : `getPortfolioProjects`, `getPortfolioValue`, `getPortfolioWorkload`, `getPortfolioPerformance`, `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCostCurve`, `getPortfolioCashOut`, `getPortfolioPilotHealth`.
 
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (4) :
 
