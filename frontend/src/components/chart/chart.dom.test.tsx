@@ -1,0 +1,121 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+import { render, screen, waitFor } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { CATALOGUES } from "@/i18n/catalogues";
+import { expectAccessible } from "@/test/axe";
+
+import { Chart, type ChartOption, type ChartPalette, seriesLook } from "./chart";
+
+/** A chart of one series of two points, its option recorded with each palette it is drawn in. */
+function drawn(option: (palette: ChartPalette) => ChartOption) {
+  return render(
+    <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+      <Chart title="Indice" description="Une courbe de deux points." option={option}>
+        <table>
+          <tbody>
+            <tr>
+              <td>0,8</td>
+            </tr>
+          </tbody>
+        </table>
+      </Chart>
+    </NextIntlClientProvider>,
+  );
+}
+
+/** The option of a line of two points, in the colours of the palette. */
+function line(palette: ChartPalette): ChartOption {
+  return {
+    xAxis: { type: "category", data: ["a", "b"] },
+    yAxis: { type: "value" },
+    series: [{ type: "line", ...seriesLook(palette, 0), data: ["0.8", "0.9"] }],
+  };
+}
+
+afterEach(() => {
+  document.documentElement.removeAttribute("data-theme");
+});
+
+describe("the envelope of the charts", () => {
+  it("is a figure named by its caption, its drawing an image described in a sentence, its values a table [WF-IHM-0100-A]", async () => {
+    const { container } = drawn(line);
+    expect(screen.getByRole("figure", { name: "Indice" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Une courbe de deux points." })).toBeInTheDocument();
+    expect(screen.getByText("Valeurs du graphique")).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "0,8" })).toBeInTheDocument();
+    await expectAccessible(container);
+  });
+
+  it("draws in SVG, with the option aria of ECharts on and the description of the chart", async () => {
+    const option = vi.fn(line);
+    drawn(option);
+    const image = screen.getByRole("img", { name: "Une courbe de deux points." });
+    await waitFor(() => {
+      expect(image.querySelector("svg")).not.toBeNull();
+    });
+    expect(option).toHaveBeenCalledOnce();
+    expect(image).toHaveAttribute("aria-label", "Une courbe de deux points.");
+  });
+
+  it("reads its colours from the tokens of the charter, and draws again in the mode the account forces", async () => {
+    const option = vi.fn(line);
+    drawn(option);
+    await waitFor(() => {
+      expect(option).toHaveBeenCalledOnce();
+    });
+    const [palette] = option.mock.calls[0] ?? [];
+    expect(palette?.series).toHaveLength(4);
+    expect(Object.keys(palette ?? {})).toEqual(["series", "text", "mark", "axis", "grid", "font"]);
+    // Each colour is a probe painted by the class of its token, which the browser resolves.
+    const probes = document.querySelectorAll("[data-probe]");
+    expect([...probes].map((probe) => probe.className)).toEqual([
+      "text-chart-1",
+      "text-chart-2",
+      "text-chart-3",
+      "text-chart-4",
+      "text-muted-foreground",
+      "text-foreground",
+      "text-input",
+      "text-border",
+    ]);
+    document.documentElement.setAttribute("data-theme", "dark");
+    await waitFor(() => {
+      expect(option).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("lets go of ECharts once it is gone: a change of mode draws nothing more", async () => {
+    const option = vi.fn(line);
+    const { unmount } = drawn(option);
+    await waitFor(() => {
+      expect(option).toHaveBeenCalledOnce();
+    });
+    unmount();
+    document.documentElement.setAttribute("data-theme", "light");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(option).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the look of a series", () => {
+  const palette: ChartPalette = {
+    series: ["one", "two", "three", "four"],
+    text: "text",
+    mark: "mark",
+    axis: "axis",
+    grid: "grid",
+    font: "font",
+  };
+
+  it("tells twelve series apart without their colour, by their symbol and their stroke", () => {
+    const looks = Array.from({ length: 12 }, (_, rank) => {
+      const look = seriesLook(palette, rank);
+      return `${look.symbol}/${look.lineStyle.type}`;
+    });
+    expect(new Set(looks).size).toBe(12);
+    expect(seriesLook(palette, 4).color).toBe("one");
+  });
+});

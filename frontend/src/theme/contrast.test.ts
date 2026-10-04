@@ -134,6 +134,10 @@ const CONTROLS: readonly [string, string][] = [
   ["ring", "popover"],
   ["sidebar-ring", "sidebar"],
   ["sidebar-ring", "sidebar-accent"],
+  // The series of a chart and its axes, on the page and on a card (US-0240).
+  ...(["chart-1", "chart-2", "chart-3", "chart-4", "input"] as const).flatMap((series) =>
+    (["background", "card"] as const).map((background): [string, string] => [series, background]),
+  ),
 ];
 
 const MODES: readonly Mode[] = ["light", "dark"];

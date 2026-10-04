@@ -130,12 +130,16 @@ const ALLOWED_IN_CLIENT: readonly string[] = [
 // <img> does, from an address it is given, and the shell gives it none. Nor do those of the
 // dense grid (US-0110): @tanstack/react-table computes the model of a table from the rows it
 // is handed — its experimental worker plugin, which would start a worker, is not imported —,
-// and @tanstack/virtual-core the rows in view from the sizes and the scroll it observes.
+// and @tanstack/virtual-core the rows in view from the sizes and the scroll it observes. Nor
+// does Apache ECharts (US-0240), imported piece by piece: it draws the series it is handed, in
+// SVG — an image would be loaded from an address given as a symbol (`image://`), and no chart
+// gives one; a map, from the GeoJSON registered with it, which no chart registers.
 const DEPENDENCIES = [
   "@tanstack/react-table",
   "@tanstack/virtual-core",
   "class-variance-authority",
   "clsx",
+  "echarts",
   "geist",
   "lucide-react",
   "next",
