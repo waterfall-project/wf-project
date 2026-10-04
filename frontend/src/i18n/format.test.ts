@@ -12,6 +12,7 @@ import {
   formatLocale,
   formatMoney,
   formatPercent,
+  formatMonth,
   formatPlanningDate,
   formatTimestamp,
   parseDecimal,
@@ -221,6 +222,25 @@ describe("a planning date", () => {
     expect(() => formatPlanningDate("2026-06-30T00:00:00Z", "fr")).toThrow(RangeError);
     expect(() => formatPlanningDate("2026-02-30", "fr")).toThrow(RangeError);
     expect(() => formatPlanningDate("2026-13-01", "fr")).toThrow(RangeError);
+  });
+});
+
+describe("a month", () => {
+  const original = process.env.TZ;
+
+  afterEach(() => {
+    process.env.TZ = original;
+  });
+
+  it("shows by its name and its year, the same month west of Greenwich [WF-DAT-0100-A]", () => {
+    process.env.TZ = "Pacific/Pago_Pago";
+    expect(formatMonth("2026-05", "fr")).toBe("mai 2026");
+    expect(formatMonth("2026-05", "en")).toBe("May 2026");
+  });
+
+  it("refuses what is not a month of the contract", () => {
+    expect(() => formatMonth("2026-13", "fr")).toThrow(RangeError);
+    expect(() => formatMonth("2026-05-01", "fr")).toThrow(RangeError);
   });
 });
 

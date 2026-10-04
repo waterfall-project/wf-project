@@ -127,6 +127,7 @@ function rateGrid(
   return {
     key: RATE_GRID_KEY,
     name: "hourlyRates",
+    searched: true,
     rowKey: (row) => row.cost_category_id,
     columns: [
       {

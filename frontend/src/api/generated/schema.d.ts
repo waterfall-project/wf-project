@@ -4059,6 +4059,10 @@ export interface components {
             project_id: components["schemas"]["Uuid"];
             /** @description Nul lorsque la ligne est imputée au seul projet, donc « hors sous-projet » (WF-CRE-0020). */
             subproject_id?: components["schemas"]["Uuid"] | null;
+            /** @description Code ERP du sous-projet imputé, résolu à la lecture ; nul hors sous-projet (WF-CRE-0020, WF-PRJ-0050). */
+            subproject_code: string | null;
+            /** @description Libellé du sous-projet imputé, résolu à la lecture ; nul hors sous-projet. */
+            subproject_label: string | null;
             /** @description Faux pour une ligne exclue, qui reste consultable et n'entre dans aucun indicateur (WF-CRE-0030). */
             is_in_tracked_scope: boolean;
             excluded_reason?: string | null;
@@ -8497,7 +8501,7 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["ActualCostLine"][];
                         totals: components["schemas"]["ActualCostTotals"];
-                        last_import_at?: components["schemas"]["Timestamp"] | null;
+                        last_import_at: components["schemas"]["Timestamp"] | null;
                         meta: components["schemas"]["PaginationMeta"];
                     };
                 };

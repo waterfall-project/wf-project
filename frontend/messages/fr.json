@@ -123,6 +123,7 @@
       "estimate": "Grille de devis",
       "planning": "Grille de planning",
       "risks": "Registre des risques",
+      "actualCosts": "Coûts réels",
       "hourlyRates": "Grille des taux horaires"
     },
     "columns": {
@@ -148,6 +149,13 @@
       "state": "État",
       "lastReview": "Dernier réexamen",
       "matrixCell": "Case de la matrice",
+      "documentNumber": "N° de pièce",
+      "documentDate": "Date de pièce",
+      "amount": "Montant",
+      "subproject": "Sous-projet",
+      "trackedScope": "Périmètre suivi",
+      "excludedReason": "Motif de l’exclusion",
+      "passthrough": "Colonnes conservées du fichier",
       "code": "Code",
       "hourlyRate": "Taux horaire"
     },
@@ -241,6 +249,66 @@
       }
     }
   },
+  "actualCosts": {
+    "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
+    "generalTotal": "Total général des lignes retenues",
+    "totals": {
+      "title": "Totaux des lignes retenues",
+      "tracked": "Périmètre suivi",
+      "excluded": "Exclu du périmètre suivi",
+      "overall": "Total général"
+    },
+    "lastImport": {
+      "label": "Dernier import",
+      "never": "Aucun import"
+    },
+    "scope": {
+      "tracked": "Suivie",
+      "excluded": "Exclue"
+    },
+    "filters": {
+      "label": "Filtres des coûts réels",
+      "scope": "Périmètre",
+      "everyLine": "Toutes les lignes",
+      "tracked": "Suivies",
+      "excluded": "Exclues",
+      "subproject": "Sous-projet",
+      "everySubproject": "Tous les sous-projets",
+      "subprojectChoice": "{code} — {label}",
+      "period": "Période des pièces",
+      "from": "Pièces du",
+      "to": "Pièces jusqu’au",
+      "apply": "Filtrer"
+    },
+    "pages": {
+      "costs": {
+        "label": "Pages des coûts réels",
+        "beyond": "La page demandée est au-delà de la fin de la liste.",
+        "previous": "Lignes précédentes",
+        "next": "Lignes suivantes"
+      },
+      "imports": {
+        "label": "Pages du journal des imports",
+        "beyond": "La page demandée est au-delà de la fin du journal.",
+        "previous": "Imports plus récents",
+        "next": "Imports plus anciens"
+      }
+    },
+    "imports": {
+      "title": "Journal des imports",
+      "none": "Aucun coût réel n’a encore été importé.",
+      "importedAt": "Date",
+      "actor": "Par",
+      "period": "Période extraite",
+      "created": "Créées",
+      "updated": "Mises à jour",
+      "ignored": "Ignorées",
+      "periodRange": "du {from} au {to}",
+      "periodFrom": "à partir du {from}",
+      "periodTo": "jusqu’au {to}",
+      "periodUnknown": "Non renseignée"
+    }
+  },
   "computedValue": {
     "title": "Valeur calculée",
     "refused": "{column} ne se saisit pas : Waterfall calcule cette valeur.",
@@ -294,7 +362,11 @@
     "computedAt": "Calculé le <time></time>"
   },
   "chart": {
-    "values": "Valeurs du graphique"
+    "values": "Valeurs du graphique",
+    "exportPng": "Exporter en PNG",
+    "exportTitle": "{title} — {project}",
+    "exportSubtitle": "Révision : {revision} · Calculé le {date}",
+    "fileName": "{file}-{code}.png"
   },
   "projectIndicators": {
     "notInProgress": {
@@ -352,6 +424,47 @@
       "value": "Indice",
       "zone": "Zone",
       "currentRevision": "Révision en cours"
+    },
+    "milestones": {
+      "title": "Suivi des jalons",
+      "chartTitle": "Diagramme temps/temps",
+      "description": "Pour chaque jalon inscrit au suivi, la date que prévoyait chaque révision marquée, en fonction de sa date de marquage, et le dernier point au jour courant, avec la diagonale des dates égales.",
+      "milestone": "Jalon",
+      "markedAt": "Révision du",
+      "forecast": "Date prévue",
+      "completedOn": "Terminé le",
+      "notCompleted": "Non terminé",
+      "diagonal": "Dates égales",
+      "none": "Aucun jalon n’est inscrit au suivi.",
+      "file": "suivi-des-jalons"
+    },
+    "costCurve": {
+      "title": "Coûts cumulés",
+      "chartTitle": "Courbe en S",
+      "chartTitleDelayed": "Décaissements",
+      "description": "Courbes cumulées du budget de référence selon les dates de la référence, du coût réel selon les dates de pièce jusqu’à la date de calcul, puis de la projection du chef de projet, avec les marches datées du budget de référence.",
+      "descriptionDelayed": "Les mêmes courbes décalées du délai de paiement de chaque ligne, les provisions des risques identifiés ajoutées à la date de leur tâche : les décaissements, passés et à venir.",
+      "delay": "Décaler des délais de paiement",
+      "undelay": "Retirer le décalage des délais de paiement",
+      "file": "courbe-en-s",
+      "fileDelayed": "decaissements"
+    },
+    "earnedValue": {
+      "title": "Courbes de valeur acquise",
+      "chartTitle": "Valeur planifiée, valeur acquise et coût réel",
+      "description": "Courbes cumulées de la valeur planifiée, prolongée jusqu’à la fin de la référence, de la valeur acquise selon les dates de terminaison et du coût réel selon les dates de pièce, jusqu’à la date de calcul.",
+      "file": "valeur-acquise"
+    },
+    "curves": {
+      "series": "Courbe",
+      "date": "Date",
+      "amount": "Montant",
+      "steps": "Marches du budget de référence",
+      "cause": "Motif",
+      "cashOut": "Décaissements par mois",
+      "month": "Mois",
+      "past": "Décaissé",
+      "forecast": "À décaisser"
     }
   },
   "commands": {

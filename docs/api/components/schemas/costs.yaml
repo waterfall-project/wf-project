@@ -8,6 +8,8 @@ ActualCostLine:
     - document_date
     - amount
     - project_id
+    - subproject_code
+    - subproject_label
     - is_in_tracked_scope
     - audit
   description: >-
@@ -27,6 +29,14 @@ ActualCostLine:
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Nul lorsque la ligne est imputée au seul projet, donc « hors sous-projet » (WF-CRE-0020).
+    subproject_code:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Code ERP du sous-projet imputé, résolu à la lecture ; nul hors sous-projet (WF-CRE-0020,
+        WF-PRJ-0050).
+    subproject_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: Libellé du sous-projet imputé, résolu à la lecture ; nul hors sous-projet.
     is_in_tracked_scope:
       type: boolean
       description: Faux pour une ligne exclue, qui reste consultable et n'entre dans aucun indicateur (WF-CRE-0030).

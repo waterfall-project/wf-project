@@ -26,8 +26,14 @@ export interface Examples {
   "GET /projects/{project_id}": {
     200: "project" | "project_pricing";
   };
+  "GET /projects/{project_id}/actual-costs": {
+    200: "actual_costs" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
+  };
   "GET /projects/{project_id}/contributors": {
     200: "contributors";
+  };
+  "GET /projects/{project_id}/cost-imports": {
+    200: "cost_imports" | "cost_imports_beyond" | "cost_imports_empty" | "cost_imports_periods";
   };
   "GET /projects/{project_id}/estimate-indicators": {
     200: "estimate_indicators" | "estimate_indicators_breakdown" | "estimate_indicators_missing_rates" | "volume/estimate_indicators";
@@ -38,8 +44,17 @@ export interface Examples {
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators";
   };
+  "GET /projects/{project_id}/indicators/cost-curve": {
+    200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays";
+  };
+  "GET /projects/{project_id}/indicators/earned-value-curves": {
+    200: "earned_value_curves";
+  };
   "GET /projects/{project_id}/indicators/index-history": {
     200: "index_history";
+  };
+  "GET /projects/{project_id}/indicators/milestone-tracking": {
+    200: "milestone_tracking" | "milestone_tracking_none";
   };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";

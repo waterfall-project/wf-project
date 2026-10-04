@@ -78,4 +78,12 @@ describe("the address a grid leads to", () => {
     );
     expect(searchHref("/p", current, "   ")).toBe("/p?subproject_id=unassigned");
   });
+
+  it("starts a list the server pages again from its first page, on a sort or a search changed", () => {
+    const paged = new URLSearchParams("in_tracked_scope=false&offset=50");
+    expect(sortHref("/p", paged, { column: "amount", order: "asc" })).toBe(
+      "/p?in_tracked_scope=false&sort_by=amount&sort_order=asc",
+    );
+    expect(searchHref("/p", paged, "pièce")).toBe("/p?in_tracked_scope=false&search=pi%C3%A8ce");
+  });
 });

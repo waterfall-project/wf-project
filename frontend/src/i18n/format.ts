@@ -203,6 +203,19 @@ export function parseDecimal(
 }
 
 /**
+ * Whether a text is a `PlanningDate` of the contract: its ISO form, and a day of the calendar.
+ * A date that does not exist is refused: 30 February would roll over to 2 March, and 13 months
+ * make no date at all.
+ */
+export function isPlanningDate(value: string): value is PlanningDate {
+  if (!DATE.test(value)) {
+    return false;
+  }
+  const midnight = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(midnight.getTime()) && midnight.toISOString().startsWith(value);
+}
+
+/**
  * Format a `PlanningDate` as it is: the date of the API, whatever the time zone of the
  * workstation. It is read and written at midnight in UTC, so no zone ever moves it a day.
  */
@@ -211,15 +224,31 @@ export function formatPlanningDate(
   locale: Locale,
   dateStyle: Intl.DateTimeFormatOptions["dateStyle"] = "medium",
 ): string {
-  const midnight = new Date(`${value}T00:00:00Z`);
-  // A date that does not exist is refused: 30 February would roll over to 2 March, and
-  // 13 months make no date at all — toISOString throws.
-  if (!DATE.test(value) || !midnight.toISOString().startsWith(value)) {
+  if (!isPlanningDate(value)) {
     throw new RangeError(`Not a date of the contract: ${JSON.stringify(value)}`);
   }
+  const midnight = new Date(`${value}T00:00:00Z`);
   return new Intl.DateTimeFormat(formatLocale(locale), { dateStyle, timeZone: TIME_ZONE }).format(
     midnight,
   );
+}
+
+// A month of the contract: `2026-04`, as `WorkloadPlan` and `CashOutMonth` give it.
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * Format a month of the contract (`2026-04`) by its name and its year, in the language given: a
+ * month has no time zone, and is written as its first day at midnight in UTC.
+ */
+export function formatMonth(value: string, locale: Locale): string {
+  if (!MONTH.test(value)) {
+    throw new RangeError(`Not a month of the contract: ${JSON.stringify(value)}`);
+  }
+  return new Intl.DateTimeFormat(formatLocale(locale), {
+    month: "long",
+    year: "numeric",
+    timeZone: TIME_ZONE,
+  }).format(new Date(`${value}-01T00:00:00Z`));
 }
 
 /**

@@ -108,14 +108,21 @@ export const readRevision = cache(async (projectId: string, revisionId: string) 
   ),
 );
 
-/** Read the sub-projects of a project, once per request (`listSubprojects`). */
-const readSubprojects = cache(async (projectId: string) =>
-  readApi(() =>
-    serverClient().GET("/projects/{project_id}/subprojects", {
-      params: { path: { project_id: projectId } },
-    }),
-  ),
+/**
+ * Ask the sub-projects of a project, once per request (`listSubprojects`): the banner names the
+ * one a filter restricts to, and a screen that filters on them offers them — each reading the one
+ * answer by its own rule.
+ */
+export const askSubprojects = cache((projectId: string) =>
+  serverClient().GET("/projects/{project_id}/subprojects", {
+    params: { path: { project_id: projectId } },
+  }),
 );
+
+/** Read the sub-projects of a project, or nothing when the API is out of reach. */
+function readSubprojects(projectId: string) {
+  return readApi(() => askSubprojects(projectId));
+}
 
 /** The sub-project a filter names, read only when it names one rather than `unassigned`. */
 async function filteredSubproject(

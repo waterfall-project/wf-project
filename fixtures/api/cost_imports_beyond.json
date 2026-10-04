@@ -1,0 +1,11 @@
+{
+  "summary": "Une page du journal demandée au-delà de sa fin (limit=12, offset=12) : aucune entrée, et le compte des deux imports au 4 mai 2026 (WF-CRE-0050).",
+  "value": {
+    "items": [],
+    "meta": {
+      "limit": 12,
+      "offset": 12,
+      "total": 2
+    }
+  }
+}

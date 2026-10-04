@@ -1,0 +1,11 @@
+{
+  "summary": "Le journal d'un projet dont aucun coût réel n'a encore été importé (WF-CRE-0050).",
+  "value": {
+    "items": [],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 0
+    }
+  }
+}

@@ -260,6 +260,11 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   readonly name: GridName;
   /** The identity of a row, stable from one answer to the next. */
   readonly rowKey: (row: Row) => string;
+  /**
+   * Whether the server searches the rows on their labels, which the bar of the grid then offers:
+   * an operation without `search` — the actual costs — offers none.
+   */
+  readonly searched: boolean;
   /** The number of a row, shown first and pinned, as the API computes it; none, no column. */
   readonly rowNumber?: (row: Row) => number;
   readonly tree?: GridTree<Row>;

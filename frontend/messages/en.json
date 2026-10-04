@@ -123,6 +123,7 @@
       "estimate": "Estimate grid",
       "planning": "Planning grid",
       "risks": "Risk register",
+      "actualCosts": "Actual costs",
       "hourlyRates": "Hourly rate grid"
     },
     "columns": {
@@ -148,6 +149,13 @@
       "state": "State",
       "lastReview": "Last review",
       "matrixCell": "Matrix cell",
+      "documentNumber": "Document no.",
+      "documentDate": "Document date",
+      "amount": "Amount",
+      "subproject": "Subproject",
+      "trackedScope": "Tracked scope",
+      "excludedReason": "Reason for exclusion",
+      "passthrough": "Columns kept from the file",
       "code": "Code",
       "hourlyRate": "Hourly rate"
     },
@@ -241,6 +249,66 @@
       }
     }
   },
+  "actualCosts": {
+    "summary": "{count, plural, =0 {no line retained} one {# line retained} other {# lines retained}}",
+    "generalTotal": "General total of the lines retained",
+    "totals": {
+      "title": "Totals of the lines retained",
+      "tracked": "Tracked scope",
+      "excluded": "Excluded from the tracked scope",
+      "overall": "General total"
+    },
+    "lastImport": {
+      "label": "Last import",
+      "never": "No import"
+    },
+    "scope": {
+      "tracked": "Tracked",
+      "excluded": "Excluded"
+    },
+    "filters": {
+      "label": "Filters of the actual costs",
+      "scope": "Scope",
+      "everyLine": "Every line",
+      "tracked": "Tracked",
+      "excluded": "Excluded",
+      "subproject": "Subproject",
+      "everySubproject": "Every subproject",
+      "subprojectChoice": "{code} — {label}",
+      "period": "Period of the documents",
+      "from": "Documents from",
+      "to": "Documents up to",
+      "apply": "Filter"
+    },
+    "pages": {
+      "costs": {
+        "label": "Pages of the actual costs",
+        "beyond": "The page asked is beyond the end of the list.",
+        "previous": "Previous lines",
+        "next": "Next lines"
+      },
+      "imports": {
+        "label": "Pages of the journal of the imports",
+        "beyond": "The page asked is beyond the end of the journal.",
+        "previous": "More recent imports",
+        "next": "Older imports"
+      }
+    },
+    "imports": {
+      "title": "Journal of the imports",
+      "none": "No actual cost has been imported yet.",
+      "importedAt": "Date",
+      "actor": "By",
+      "period": "Period extracted",
+      "created": "Created",
+      "updated": "Updated",
+      "ignored": "Ignored",
+      "periodRange": "from {from} to {to}",
+      "periodFrom": "from {from}",
+      "periodTo": "until {to}",
+      "periodUnknown": "Not given"
+    }
+  },
   "computedValue": {
     "title": "Computed value",
     "refused": "{column} cannot be entered: Waterfall computes this value.",
@@ -294,7 +362,11 @@
     "computedAt": "Computed on <time></time>"
   },
   "chart": {
-    "values": "Values of the chart"
+    "values": "Values of the chart",
+    "exportPng": "Export as PNG",
+    "exportTitle": "{title} — {project}",
+    "exportSubtitle": "Revision: {revision} · Computed on {date}",
+    "fileName": "{file}-{code}.png"
   },
   "projectIndicators": {
     "notInProgress": {
@@ -352,6 +424,47 @@
       "value": "Index",
       "zone": "Zone",
       "currentRevision": "Current revision"
+    },
+    "milestones": {
+      "title": "Milestone tracking",
+      "chartTitle": "Time/time diagram",
+      "description": "For each tracked milestone, the date each marked revision forecast, by the date of its marking, and the last point at the current day, with the diagonal of equal dates.",
+      "milestone": "Milestone",
+      "markedAt": "Revision of",
+      "forecast": "Forecast date",
+      "completedOn": "Completed on",
+      "notCompleted": "Not completed",
+      "diagonal": "Equal dates",
+      "none": "No milestone is tracked.",
+      "file": "milestone-tracking"
+    },
+    "costCurve": {
+      "title": "Cumulative costs",
+      "chartTitle": "S-curve",
+      "chartTitleDelayed": "Cash out",
+      "description": "Cumulative curves of the reference budget by the dates of the reference, of the actual cost by the document dates up to the calculation date, then of the project manager’s projection, with the dated steps of the reference budget.",
+      "descriptionDelayed": "The same curves shifted by the payment delay of each line, the provisions of the identified risks added at the date of their task: the cash out, past and to come.",
+      "delay": "Shift by the payment delays",
+      "undelay": "Remove the shift by the payment delays",
+      "file": "s-curve",
+      "fileDelayed": "cash-out"
+    },
+    "earnedValue": {
+      "title": "Earned value curves",
+      "chartTitle": "Planned value, earned value and actual cost",
+      "description": "Cumulative curves of the planned value, extended to the end of the reference, of the earned value by the completion dates and of the actual cost by the document dates, up to the calculation date.",
+      "file": "earned-value"
+    },
+    "curves": {
+      "series": "Curve",
+      "date": "Date",
+      "amount": "Amount",
+      "steps": "Steps of the reference budget",
+      "cause": "Cause",
+      "cashOut": "Cash out by month",
+      "month": "Month",
+      "past": "Paid out",
+      "forecast": "To pay out"
     }
   },
   "commands": {

@@ -68,6 +68,7 @@ export type PlanningNode = RowOf<typeof PLANNING_FIELDS>;
 /** The grid of the planning. */
 export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals> = {
   key: "planning",
+  searched: true,
   name: "planning",
   rowKey: nodeKey,
   rowNumber: nodeNumber,

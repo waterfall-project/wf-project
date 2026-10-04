@@ -1,0 +1,40 @@
+{
+  "summary": "Le journal des imports de coûts réels au 4 mai 2026, du plus récent au plus ancien : l'extraction d'avril, deux lignes créées et une ignorée, imputée à un autre projet, puis celle de mars, deux lignes créées (WF-CRE-0020, WF-CRE-0050).",
+  "value": {
+    "items": [
+      {
+        "cost_import_id": "01926f3a-7c00-7000-8000-000000000c12",
+        "imported_at": "2026-05-04T08:30:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "period_from": "2026-04-01",
+        "period_to": "2026-04-30",
+        "created_count": 2,
+        "updated_count": 0,
+        "ignored_count": 1
+      },
+      {
+        "cost_import_id": "01926f3a-7c00-7000-8000-000000000c11",
+        "imported_at": "2026-04-03T08:30:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "period_from": "2026-03-01",
+        "period_to": "2026-03-31",
+        "created_count": 2,
+        "updated_count": 0,
+        "ignored_count": 0
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 2
+    }
+  }
+}

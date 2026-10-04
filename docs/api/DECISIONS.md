@@ -558,6 +558,61 @@ retirée), `risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de
 `risk_matrix` (les seize cases, les bornes, les trois risques placés), dans l'univers des autres
 exemples.
 
+## Les exemples des courbes (US-0240/L2)
+
+**Les lectures des courbes ont leurs exemples** (#246, autorisation de l'utilisateur du
+2026-10-04 : un lot d'écran ajoute les exemples des opérations qu'il consomme). Sans eux, le faux
+back tirait de leurs schémas des valeurs sans rapport avec l'univers témoin, et les tests du front
+n'avaient rien du contrat à lire. Tous sont au 16 mars 2026, sur la révision courante du projet
+témoin, et suivent les montants de `project_indicators` et de `remaining_indicators` — budget de
+référence et reste à engager de 100 000, portés par les études de détail du 2 mars au 10 avril,
+valeur planifiée de 33 333,33 à la date de calcul, aucun coût réel ni valeur acquise. Ils ne
+suivent pas le devis de `nodes_estimate`, d'un autre univers : la scission des univers témoins est
+#287. `milestone_tracking` (`getMilestoneTracking`) suit deux jalons, la réception des études et
+la réception usine, par l'offre v1.0, la référence et la révision en cours ;
+`milestone_tracking_none`, un projet sans jalon inscrit. `cost_curve` (`getCostCurve`) est la
+courbe sans délais de paiement, sans marche ; `cost_curve_payment_delays`, les décaissements — le
+budget de référence et la projection translatés de trente jours, le coût réel, nul, laissé à ses
+dates, les mois à venir égaux au reste à engager ; `cost_curve_amendment`, la marche d'un avenant
+de 15 000 contractualisé le 10 mars — `steps[].amount` y est le montant de la marche. **Une marche
+est verticale** (WF-IND-0100 : « la courbe du budget présente une marche à sa date ») : la série
+du budget de référence porte deux points à la date de la marche, la valeur d'avant puis celle
+d'après, dans cet ordre, et non la seule valeur d'après, que le tracé relierait au point précédent
+par une pente (relevé par la revue de la PR #289) ; le front trace les points tels quels.
+`earned_value_curves` (`getEarnedValueCurves`) prolonge la valeur planifiée jusqu'à la fin de la
+référence. Les exemples du plan de charge viendront avec son écran (#286).
+
+## Les coûts réels d'un projet (US-0230/L3)
+
+Ajouts de lecture que l'écran des coûts réels exige, faits par son lot sur la même autorisation
+de l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »).
+
+**Une ligne de coût nomme son sous-projet** (`ActualCostLine.subproject_code`,
+`subproject_label`). La consultation présente l'imputation de chaque ligne (WF-CRE-0010,
+WF-CRE-0020) ; la ligne ne la portait que par `subproject_id`, que l'écran ne pouvait nommer
+qu'en rapprochant `listSubprojects` de chaque page, dans le front (WF-ARC-0020). Le code ERP et
+le libellé, résolus à la lecture, exigés, nuls pour une ligne imputée au seul projet — « hors
+sous-projet » —, comme le libellé d'un écart l'est pour la clé `unassigned` de
+`RevisionComparison`. Écarté : un objet `subproject` imbriqué, qui redirait l'identifiant.
+
+**La date du dernier import est toujours rendue** (`last_import_at`, exigé, nul tant que rien
+n'a été importé). Facultative, son absence se confondait avec « aucun import » : l'écran aurait
+dit qu'aucun import n'a eu lieu d'une réponse conforme qui l'omettait (relevé par Copilot sur la
+PR #295). Exigée et nullable, `null` dit seul qu'il n'y a pas d'import.
+
+**Exemples** : `actual_costs` (au 4 mai 2026, quatre lignes hors sous-projet — les codes de
+sous-projet de l'ERP ne sont pas ceux du projet —, dont un avoir de -200 et la réception du
+client exclue du périmètre suivi ; 3 000 suivis, le coût réel de `remaining_indicators_over_budget`,
+650 exclus, 3 650 en tout ; le dernier import du 4 mai), `actual_costs_page` (la même
+consultation lue une ligne par page, la deuxième ; les totaux de toutes les lignes retenues),
+`actual_costs_subproject` (filtrée sur le Poste de commande, après l'import du 3 juin : une
+facture imputée au sous-projet, nommé), `actual_costs_empty` (aucun import) ; `cost_imports`
+(les imports de mars et d'avril, une ligne d'un autre projet ignorée), `cost_imports_periods`
+(le journal au 3 juin : trois extractions à la période incomplète, dont une réextraction qui
+ignore 12 345 lignes d'autres projets, puis les imports de mars et d'avril de `cost_imports`), `cost_imports_beyond` (une page demandée au-delà de la fin) et
+`cost_imports_empty`.
+Ils restent dans l'univers des indicateurs, sans coût réel au 16 mars (`project_indicators`).
+
 ## Le référentiel (US-0250/L1)
 
 Ajouts que les écrans du référentiel exigent, faits par leur lot sur l'autorisation de
