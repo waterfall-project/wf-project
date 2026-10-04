@@ -94,7 +94,7 @@ afterEach(() => {
 });
 
 describe("the export of a chart", () => {
-  it("draws at the keyboard a PNG image that bears its title, the name of the project, the revision and the date of calculation, on the background of the charter [WF-IHM-0130-A]", async () => {
+  it("draws at the keyboard a PNG image that bears its title, the name of the project, the revision and the date of calculation, on the background of the charter", async () => {
     const user = userEvent.setup();
     render(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
@@ -135,7 +135,7 @@ describe("the export of a chart", () => {
     expect(canvas.hosts[0]?.isConnected).toBe(false);
   });
 
-  it("folds a long title within the width of the image, the chart moved down by its lines, the provenance whole [WF-IHM-0130-A]", async () => {
+  it("folds a long title within the width of the image, the chart moved down by its lines, the provenance whole", async () => {
     const user = userEvent.setup();
     // The longest name of a project the contract admits: three hundred characters.
     const project = Array.from({ length: 30 }, () => "Ouvrage 12")

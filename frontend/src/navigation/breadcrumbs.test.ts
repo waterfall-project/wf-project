@@ -48,6 +48,23 @@ describe("the breadcrumb", () => {
     ]);
   });
 
+  it("sits a leaf after its function, a link to its screen in the same context", () => {
+    expect(steps(`/projects/${PROJECT}/revisions/${REVISION}/workload?as_of=2026-05-31`)).toEqual([
+      { kind: "label", label: "functionGroups.projects", href: "/" },
+      {
+        kind: "project",
+        projectId: PROJECT,
+        href: `/projects/${PROJECT}?revision_id=${REVISION}&as_of=2026-05-31`,
+      },
+      {
+        kind: "label",
+        label: "functions.estimate",
+        href: `/projects/${PROJECT}/revisions/${REVISION}/estimate?as_of=2026-05-31`,
+      },
+      { kind: "label", label: "functions.workload" },
+    ]);
+  });
+
   it("sits the page of a project and of a revision, which are no function, in the list of projects", () => {
     const projects = { kind: "label", label: "functionGroups.projects", href: "/" };
     expect(steps(`/projects/${PROJECT}`)).toEqual([

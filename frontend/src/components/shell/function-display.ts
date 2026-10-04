@@ -9,7 +9,8 @@
  * the functions: a function added to `functions.json` has neither until it is given them here,
  * and the typing says so. The blocks of the FBS have their icons too, which the side bar shows
  * before their names, and so have the pages of the account, in the menu of the account and in
- * the headers of their screens.
+ * the headers of their screens. A leaf with a screen of its own has its icon by its code, which
+ * the link of its function's screen and the header of its own screen show.
  */
 import {
   Activity,
@@ -18,6 +19,7 @@ import {
   BriefcaseBusiness,
   Calculator,
   CalendarRange,
+  ChartColumnStacked,
   ChartGantt,
   ChartPie,
   Coins,
@@ -78,6 +80,11 @@ export const FUNCTION_ICONS: Readonly<Record<FunctionPermission, LucideIcon>> = 
   project_indicators: Gauge,
   lifecycle: RefreshCcw,
 };
+
+/** The icon of each leaf with a screen of its own, by its code: the workload of the project. */
+export const LEAF_ICONS = {
+  "FBS-4.4.4": ChartColumnStacked,
+} as const satisfies Readonly<Record<string, LucideIcon>>;
 
 /** The icon of each block of the FBS, by the key of its name. */
 export const GROUP_ICONS: Readonly<Record<FunctionGroup["label"], LucideIcon>> = {

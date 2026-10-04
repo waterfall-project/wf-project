@@ -15,6 +15,7 @@ import {
   findScreen,
   FUNCTION_GROUPS,
   type FunctionGroup,
+  functionHref,
   type NavigationFunction,
 } from "./functions";
 import { HOME } from "./home";
@@ -57,10 +58,18 @@ function blockOf(fn: NavigationFunction): FunctionGroup | undefined {
   return FUNCTION_GROUPS.find((group) => group.functions.includes(fn));
 }
 
-/** The steps of the screen of a function. */
-function functionSteps(fn: NavigationFunction, context: ProjectContext | undefined): Crumb[] {
+/**
+ * The steps of the screen of a function, a leaf after the function it is a leaf of, a link to its
+ * screen in the same context.
+ */
+function functionSteps(
+  fn: NavigationFunction,
+  parent: NavigationFunction | undefined,
+  context: ProjectContext | undefined,
+): Crumb[] {
   if (fn.scope !== "platform" && context !== undefined) {
-    return [PROJECTS_STEP, projectStep(context), label(fn.label)];
+    const above = parent === undefined ? [] : [label(parent.label, functionHref(parent, context))];
+    return [PROJECTS_STEP, projectStep(context), ...above, label(fn.label)];
   }
   const block = blockOf(fn);
   return block === undefined ? [label(fn.label)] : [label(block.label), label(fn.label)];
@@ -90,7 +99,7 @@ export function crumbsOf(pathname: string, context: ProjectContext | undefined):
   }
   const screen = findScreen(pathname.split("/").slice(1));
   if (screen !== undefined) {
-    return functionSteps(screen.fn, context);
+    return functionSteps(screen.fn, screen.parent, context);
   }
   return context === undefined ? [] : projectSteps(pathname, context);
 }

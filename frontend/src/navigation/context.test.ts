@@ -42,6 +42,14 @@ describe("the reading context", () => {
     );
   });
 
+  it("reads the context of a leaf with a screen of its own as that of its function", () => {
+    const pathname = `/projects/${PROJECT}/revisions/${REVISION}/workload`;
+    const context = readContext(pathname, new URLSearchParams({ as_of: "2026-05-31" }));
+    expect(context?.revisionId).toBe(REVISION);
+    expect(context?.revisionInPath).toBe(true);
+    expect(context && contextAddress(pathname, context)).toBe(`${pathname}?as_of=2026-05-31`);
+  });
+
   it("reads the exchanges of a project as a screen of the project itself", () => {
     const exchanges = `/projects/${PROJECT}/exchanges`;
     const context = readContext(exchanges, new URLSearchParams({ revision_id: REVISION }));
@@ -70,6 +78,7 @@ describe("the reading context", () => {
     "/projects/",
     `/projects/${PROJECT}/unknown`,
     `/projects/${PROJECT}/planning`,
+    `/projects/${PROJECT}/workload`,
     `/projects/${PROJECT}/revisions/${REVISION}/lifecycle`,
     `/projects/${PROJECT}/revisions/${REVISION}/risks/more`,
     "/projects/../admin",

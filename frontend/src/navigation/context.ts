@@ -32,11 +32,23 @@ const COOKIE_AGE = 60 * 60 * 24 * 365;
 // An identifier in a path, as the contract makes them: never `.`, `..`, empty, nor encoded.
 const IDENTIFIER = /^[\w-]+$/;
 
-/** The last segment of the routes of the functions of a scope: `lifecycle`, `planning`… */
+/** A function of the table, as this module reads it: its scope, its route, its leaves. */
+interface Routed {
+  readonly scope: string;
+  readonly route: string;
+  readonly leaves?: readonly Routed[];
+}
+
+/**
+ * The last segment of the routes of the functions of a scope, and of their leaves with a screen
+ * of their own: `lifecycle`, `planning`, `workload`…
+ */
 function screens(scope: string): ReadonlySet<string> {
-  const routes = table.groups.flatMap((group) =>
-    group.functions.filter((fn) => fn.scope === scope).map((fn) => fn.route),
-  );
+  const functions: readonly Routed[] = table.groups.flatMap((group) => group.functions);
+  const routes = functions
+    .flatMap((fn) => [fn, ...(fn.leaves ?? [])])
+    .filter((fn) => fn.scope === scope)
+    .map((fn) => fn.route);
   return new Set(routes.map((route) => route.slice(route.lastIndexOf("/") + 1)));
 }
 
