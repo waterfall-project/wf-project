@@ -248,7 +248,8 @@
     "unreachable": "The service cannot be reached; try again in a moment.",
     "conflictingObject": "Conflicting object: {name}.",
     "reload": "Reload",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "dismiss": "Dismiss"
   },
   "tasks": {
     "label": "Background tasks",

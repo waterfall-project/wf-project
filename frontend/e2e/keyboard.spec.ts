@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
-import { rowAt, withinBox } from "./scroll";
+import { rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2), which the journeys read by marks the generator writes
@@ -30,8 +30,9 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
 }
 
 /**
- * Open the estimate, and reach its active cell by Tab alone, as the keyboard does: some forty
- * stops, each a round trip to the browser, which the journey is given the time of (`test.slow`).
+ * Open the estimate, and reach its active cell by Tab alone, as the keyboard does: past the
+ * shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip to
+ * the browser, which the journey is given the time of (`test.slow`).
  */
 async function tabIntoGrid(page: Page): Promise<Locator> {
   test.slow();
@@ -59,6 +60,31 @@ async function press(page: Page, ...keys: readonly string[]): Promise<void> {
     await page.keyboard.press(key);
   }
 }
+
+test("is one stop of the tabulation, and reaches the header by the arrows, which sorts its column by Enter [WF-IHM-0100-A]", async ({
+  page,
+}) => {
+  const grid = await tabIntoGrid(page);
+  // Tab leaves the grid, Shift+Tab comes back to its active cell: no other stop within it.
+  await page.keyboard.press("Tab");
+  await expect(grid.locator(":focus")).toHaveCount(0);
+  await page.keyboard.press("Shift+Tab");
+  await expect(cellAt(grid, 1, LABEL)).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(grid.locator(":focus")).toHaveCount(0);
+  await page.keyboard.press("Tab");
+  await expect(cellAt(grid, 1, LABEL)).toBeFocused();
+  // The up arrow reaches the header, which Enter sorts by, the focus kept on it.
+  await page.keyboard.press("ArrowUp");
+  const header = grid.getByRole("columnheader", { name: "Libellé" });
+  await expect(header).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(`${ESTIMATE}?sort_by=label&sort_order=asc`);
+  await expect(header).toHaveAttribute("aria-sort", "ascending");
+  await expect(header).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(cellAt(grid, 1, LABEL)).toBeFocused();
+});
 
 test("stops on the computed cells without entering them, and refuses a try", async ({ page }) => {
   const grid = await tabIntoGrid(page);
@@ -140,5 +166,53 @@ test.describe("on a narrow window", () => {
         (pinned?.x ?? 0) + (pinned?.width ?? 0) - 1,
       );
     }
+  });
+
+  test("brings each header into view sideways as the arrows move along the header, the rows left where they are", async ({
+    page,
+  }) => {
+    const grid = await tabIntoGrid(page);
+    const label = grid.getByRole("columnheader", { name: "Libellé" });
+    const headers = grid.getByRole("columnheader");
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("End");
+    await expect(headers.nth(INFLATED)).toBeFocused();
+    await expect(headers.nth(INFLATED)).toBeInViewport({ ratio: 1 });
+    // The rows scrolled down, as the wheel does: moving along the header scrolls them no more.
+    const top = await scroller(grid).evaluate((element) => {
+      element.scrollTop = 560;
+      return element.scrollTop;
+    });
+    expect(top).toBeGreaterThan(0);
+    for (const column of [REFERENCE, DISBURSEMENT, HOURS, QUANTITY]) {
+      await page.keyboard.press("ArrowLeft");
+      const active = headers.nth(column);
+      await expect(active).toBeFocused();
+      const [cell, pinned] = await Promise.all([active.boundingBox(), label.boundingBox()]);
+      expect(cell?.x ?? 0, `column ${column.toString()}`).toBeGreaterThanOrEqual(
+        (pinned?.x ?? 0) + (pinned?.width ?? 0) - 1,
+      );
+    }
+    expect(await scroller(grid).evaluate((element) => element.scrollTop)).toBe(top);
+  });
+});
+
+test.describe("on a window lower than the floor of the grid", () => {
+  test.use({ viewport: { width: 700, height: 300 } });
+
+  test("brings a cell of a pinned column into the window as the arrows move it down (#183)", async ({
+    page,
+  }) => {
+    const grid = await tabIntoGrid(page);
+    // The page scrolled back to its top: the grid overflows the window below it.
+    await scroller(grid).evaluate((element) => {
+      for (let each: Element | null = element; each !== null; each = each.parentElement) {
+        each.scrollTop = 0;
+      }
+    });
+    await page.keyboard.press("PageDown");
+    const active = grid.locator("td:focus");
+    await expect(active).toHaveAttribute("data-column", "label");
+    await expect(active).toBeInViewport();
   });
 });
