@@ -231,6 +231,7 @@ export function EstimateGrid({
       query={query}
       preferences={preferences}
       dependencies={dependencies}
+      undoable={editable}
     />
   );
 }

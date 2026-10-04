@@ -378,6 +378,18 @@ contenu : la colonne visée part sous son nom de `sort_by`, et la confirmation p
 de la structure lue (`structureVersion`) — deux points que le contrat ne dit pas encore (#200,
 #201). Une grille sans `paste` dans sa configuration, en lecture seule, ne prend aucun collage.
 
+Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
+une grille qui saisit une révision en cours (`undoable` de `DenseGrid` — le devis par
+`edit_estimate`, le planning par `edit_planning`) les montre dans sa barre, en boutons et dans
+son menu Édition avec leurs raccourcis, et prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac — quand
+le focus est dans la grille. Indisponibles tant que le serveur ne conserve pas l'historique des
+saisies, elles restent dans l'ordre du clavier, `aria-disabled`, décrites par leur raison ; le
+raccourci la dit dans une région annoncée. Un champ en cours de saisie — l'éditeur d'une
+cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. Aucune autre
+grille ne les pose : ni le marquage, ni un import appliqué, ni l'exclusion d'une ligne de coût ne
+s'annulent. EP-06 les branche sur `undoLastChange` et `redoLastUndo`, une annulation portée par
+le serveur, jamais une pile dans le navigateur.
+
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
 celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission

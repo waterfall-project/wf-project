@@ -28,10 +28,21 @@ export interface PlanningGridProps {
   readonly structure: StructurePath;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
+  /**
+   * Whether the revision may be planned (`edit_planning`): its grid places undo and redo, which
+   * act on the entries of the planning once EP-06 keeps them; none, and it places none.
+   */
+  readonly undoable?: boolean | undefined;
 }
 
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
-export function PlanningGrid({ nodes, structure, query, preferences }: PlanningGridProps) {
+export function PlanningGrid({
+  nodes,
+  structure,
+  query,
+  preferences,
+  undoable,
+}: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
@@ -47,6 +58,7 @@ export function PlanningGrid({ nodes, structure, query, preferences }: PlanningG
       query={query}
       preferences={preferences}
       dependencies={dependencies}
+      undoable={undoable}
     />
   );
 }

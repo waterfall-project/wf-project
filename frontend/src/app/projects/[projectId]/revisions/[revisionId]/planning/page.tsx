@@ -82,6 +82,7 @@ export default async function PlanningPage({
           structure={screen.structure}
           query={screen.query}
           preferences={screen.preferences}
+          undoable={screen.reading.edits.has("edit_planning")}
         />
       </Screen>
     </>

@@ -698,7 +698,7 @@ avec #200.
 
 ## US-0140 — Annulation et rétablissement des saisies
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : aucune en propre — `undoLastChange` et `redoLastUndo` attendent EP-06
 - **issue** : #78

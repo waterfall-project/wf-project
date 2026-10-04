@@ -3,8 +3,8 @@
 /**
  * The bar above a dense grid: the search on the labels, asked of the server when entered — the
  * grid shows what it retains, and the totals of what it retains —, and the choice of the
- * columns shown, a menu whose entries stay open while several are set. What the grid does not
- * do yet has no button here: the entry, the paste, the undo come with their lots.
+ * columns shown, a menu whose entries stay open while several are set; for a grid that enters a
+ * revision in progress, undo and redo, placed but not wired yet (`UndoCommands`).
  */
 "use client";
 
@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { SEARCH_LENGTH } from "./query";
+import { UndoCommands } from "./undo-commands";
 
 /** A column the user may show or hide. */
 export interface ToggledColumn {
@@ -44,6 +45,8 @@ export interface GridToolbarProps {
    * the server does not search, and the bar offers no search.
    */
   readonly onSearch: ((search: string) => void) | undefined;
+  /** Whether the grid enters a revision in progress, whose entries undo and redo will act on. */
+  readonly undoable: boolean | undefined;
 }
 
 /** The search on the labels, sent when entered. */
@@ -82,7 +85,7 @@ function SearchField({
 }
 
 /** Render the bar of a grid. */
-export function GridToolbar({ columns, search, onSearch }: GridToolbarProps) {
+export function GridToolbar({ columns, search, onSearch, undoable }: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -91,6 +94,7 @@ export function GridToolbar({ columns, search, onSearch }: GridToolbarProps) {
         <SearchField key={search ?? ""} search={search} onSearch={onSearch} />
       )}
       <div className="flex-1" />
+      {undoable === true ? <UndoCommands /> : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline" size="sm" className="h-7 text-xs">

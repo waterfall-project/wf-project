@@ -23,7 +23,8 @@
  * and what the server answers takes the place of what was read — the row, the rows the write changed
  * with it, the totals (`useCellWrites`). A block pasted
  * from a spreadsheet on the active cell is shown as the server would write and refuse it, and
- * written once confirmed, in one operation (WF-IHM-0050, `useGridPaste`).
+ * written once confirmed, in one operation (WF-IHM-0050, `useGridPaste`). A grid that enters a
+ * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`).
  */
 "use client";
 
@@ -90,6 +91,7 @@ import {
   recordedPreferences,
   useSettingsWriter,
 } from "./settings";
+import { UndoAnnouncer, useUndoShortcut } from "./undo-commands";
 
 /**
  * The height of a row, in `rem` — `h-7`, a dense grid —: in pixels, as many times the size of
@@ -133,6 +135,11 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * on it (WF-IHM-0030); none, and the refusal says only that the value is computed.
    */
   readonly dependencies?: DependencyReader<Row> | undefined;
+  /**
+   * Whether the grid enters a revision in progress: its bar offers undo and redo, and it takes
+   * Ctrl+Z and Ctrl+Shift+Z (WF-IHM-0110) — placed, not wired yet.
+   */
+  readonly undoable?: boolean | undefined;
 }
 
 /** How a cell of a column is pinned: its classes, and its offset from the start. */
@@ -487,6 +494,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   query,
   preferences,
   dependencies,
+  undoable,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const locale = useLocale();
@@ -594,6 +602,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     writes,
     scroller,
   });
+  const undo = useUndoShortcut(undoable);
   const invalid = useId();
   const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
@@ -619,14 +628,16 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const bodyRows = Math.max(model.length, 1);
 
   return (
-    <div className="flex min-h-0 flex-col gap-2">
+    <div className="flex min-h-0 flex-col gap-2" onKeyDown={undo.onKeyDown}>
       <GridToolbar
         search={query.search}
         onSearch={config.searched ? search : undefined}
+        undoable={undoable}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),
         )}
       />
+      <UndoAnnouncer told={undo.told} />
       <OutcomeNotice
         outcome={writer.outcome}
         onClear={writer.clear}
