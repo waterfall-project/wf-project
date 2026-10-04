@@ -19,8 +19,7 @@
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
-import { Unreachable } from "@/api/client";
-import { isGatewayFailure, readOrFail, refusalOf } from "@/api/problem";
+import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
@@ -51,56 +50,35 @@ export async function generateMetadata({
   return screenMetadata("functions.estimate", projectId);
 }
 
-/** The statuses of the refusal #159 foresees for indicators while hourly rates are missing. */
-const RATE_REFUSALS: ReadonlySet<number> = new Set([409, 422]);
-
 /**
- * Whether the API refuses the indicators as the screen expects it may: not found, or refused
- * for a missing hourly rate — what the contract does not say yet (#159).
+ * The refusals of the indicators the screen does without: not found, or refused for a missing
+ * hourly rate — what #159 foresaw while the contract did not say it.
  */
-function isExpectedRefusal(status: number, body: unknown): boolean {
-  if (status === 404) {
-    return true;
-  }
-  return (
-    RATE_REFUSALS.has(status) &&
-    typeof body === "object" &&
-    body !== null &&
-    "code" in body &&
-    body.code === "HOURLY_RATE_MISSING"
-  );
-}
+const INDICATOR_REFUSALS = [
+  { status: 404 },
+  { status: 409, code: "HOURLY_RATE_MISSING" },
+  { status: 422, code: "HOURLY_RATE_MISSING" },
+] as const;
 
 /**
  * The indicators of the estimate of the revision, for the sub-project the address filters —
  * the whole project otherwise —; none when the API refuses them as expected, not found or for
  * a missing hourly rate: the rest of the screen stays, and says the indicators unavailable,
- * rather than coming down. Any other answer follows the rule of the reads (`readOrFail`): a
- * failure of the service is thrown with its correlation identifier, a refusal for want of a
- * session leads to the sign-in, a gateway saying the service is down is the API out of reach.
+ * rather than coming down. Any other answer follows the rule of the reads (`readUnlessRefused`).
  */
 async function readIndicators({ revision, context }: GridAddress) {
   const subproject = context.parameters.get("subproject_id");
-  const answer = await serverClient().GET("/projects/{project_id}/estimate-indicators", {
-    params: {
-      path: { project_id: revision.projectId },
-      query: {
-        revision_id: revision.revisionId,
-        ...(subproject === null ? {} : { scope: subproject }),
+  return readUnlessRefused("getEstimateIndicators", INDICATOR_REFUSALS, () =>
+    serverClient().GET("/projects/{project_id}/estimate-indicators", {
+      params: {
+        path: { project_id: revision.projectId },
+        query: {
+          revision_id: revision.revisionId,
+          ...(subproject === null ? {} : { scope: subproject }),
+        },
       },
-    },
-  });
-  const { ok, status } = answer.response;
-  if (ok) {
-    return answer.data;
-  }
-  if (isExpectedRefusal(status, answer.error)) {
-    return undefined;
-  }
-  if (isGatewayFailure(answer.response, answer.error)) {
-    throw new Unreachable();
-  }
-  throw refusalOf("getEstimateIndicators", status, answer.error);
+    }),
+  );
 }
 
 /**
@@ -131,18 +109,7 @@ async function readOptional<T>(
   operation: string,
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T | undefined> {
-  const answer = await call();
-  const { ok, status } = answer.response;
-  if (ok) {
-    return answer.data;
-  }
-  if (status === 404 || status === 403) {
-    return undefined;
-  }
-  if (isGatewayFailure(answer.response, answer.error)) {
-    throw new Unreachable();
-  }
-  throw refusalOf(operation, status, answer.error);
+  return readUnlessRefused(operation, [{ status: 404 }, { status: 403 }], call);
 }
 
 /**

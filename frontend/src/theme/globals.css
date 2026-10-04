@@ -57,6 +57,13 @@
   --signal-nominal: light-dark(#1f756c, #07a1a3);
   --signal-watch: light-dark(#923002, #f89228);
   --signal-alert: light-dark(#6b1d24, #fdb299);
+  /* The series of a chart (US-0240), in the order a chart takes them: the blue of the logo,
+     then an amber, a purple and a green, apart in hue and told apart without their colour by
+     the symbol and the stroke of each series. Each draws on the page and on a card at 4.5:1. */
+  --chart-1: light-dark(#0270b3, #1195e1);
+  --chart-2: light-dark(#b45309, #f59e0b);
+  --chart-3: light-dark(#7e22ce, #c084fc);
+  --chart-4: light-dark(#047857, #34d399);
   /* What floats over the page — a menu, the panel of a sub-menu —: the surface of a card. */
   --popover: var(--card);
   --popover-foreground: var(--card-foreground);
@@ -105,6 +112,10 @@
   --color-signal-nominal: var(--signal-nominal);
   --color-signal-watch: var(--signal-watch);
   --color-signal-alert: var(--signal-alert);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-sidebar: var(--sidebar);

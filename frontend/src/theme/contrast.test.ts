@@ -119,10 +119,15 @@ const TEXTS: readonly [string, string][] = [
       background,
     ]),
   ),
+  // The series of a chart, on the page and on a card, as legible as a text (US-0240).
+  ...(["chart-1", "chart-2", "chart-3", "chart-4"] as const).flatMap((series) =>
+    (["background", "card"] as const).map((background): [string, string] => [series, background]),
+  ),
 ];
 
 // What shows a control or its state, and the backgrounds it is drawn on.
 const CONTROLS: readonly [string, string][] = [
+  // The border of a field, and the axes of a chart (US-0240).
   ["input", "background"],
   ["input", "card"],
   ["ring", "background"],

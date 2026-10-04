@@ -1001,7 +1001,7 @@ porte le cycle d'une revue mensuelle de bout en bout.
 
 ## US-0240 — Écrans des indicateurs et du portefeuille
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0130-A` ; les autres sont à EP-10 et EP-11
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getMilestoneTracking`, `getIndexHistory`, `getProjectWorkload`, `getPortfolioProjects`,

@@ -59,13 +59,24 @@ const FORMATS: Readonly<Record<IndicatorLabel, typeof formatDecimal>> = {
 
 /** An indicator: the key of its name in the catalogues; its value; its context. */
 export interface ComputedIndicatorProps {
-  readonly label: IndicatorLabel;
+  readonly indicator: IndicatorLabel;
   readonly value: Computable;
   readonly context: CalculationContext;
+  /**
+   * Where the date of its context shows: under the value (`own`, the default), or above it, by
+   * the card or the section that holds the indicator and shows the date of the same context
+   * (`held`) — once for all its indicators, never left out.
+   */
+  readonly date?: "own" | "held";
 }
 
 /** Render an indicator, its value or why it has none, and the date it is computed at. */
-export function ComputedIndicator({ label, value, context }: ComputedIndicatorProps) {
+export function ComputedIndicator({
+  indicator,
+  value,
+  context,
+  date = "own",
+}: ComputedIndicatorProps) {
   const t = useTranslations();
   const locale = useLocale();
   // A value the API calls computable yet leaves out is not made up either: it is said missing.
@@ -73,18 +84,20 @@ export function ComputedIndicator({ label, value, context }: ComputedIndicatorPr
   const reason = computed === null ? (value.reason ?? null) : null;
   return (
     <dl className="space-y-0.5">
-      <dt className="text-sm text-muted-foreground">{t(label)}</dt>
+      <dt className="text-sm text-muted-foreground">{t(indicator)}</dt>
       <dd className="text-lg font-semibold tabular-nums">
-        {computed === null ? t("indicator.notComputable") : FORMATS[label](computed, locale)}
+        {computed === null ? t("indicator.notComputable") : FORMATS[indicator](computed, locale)}
       </dd>
       {reason === null ? null : (
         <dd className="text-sm text-muted-foreground">
           {t(`enums.NotComputableReason.${reason}`)}
         </dd>
       )}
-      <dd>
-        <CalculationDate context={context} />
-      </dd>
+      {date === "own" ? (
+        <dd>
+          <CalculationDate context={context} />
+        </dd>
+      ) : null}
     </dl>
   );
 }

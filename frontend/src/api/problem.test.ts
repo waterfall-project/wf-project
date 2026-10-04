@@ -15,8 +15,10 @@ import {
   type BackgroundTask,
   decode,
   decodeTask,
+  type ExpectedRefusal,
   reach,
   readOrFail,
+  readUnlessRefused,
   SignedOut,
   UnexpectedAnswer,
 } from "./problem";
@@ -328,5 +330,48 @@ describe("the decoder of a background task", () => {
       problem: { code: "NOT_FOUND", status: 404 },
       conflictingObjectId: null,
     });
+  });
+});
+
+describe("a read a screen can do without", () => {
+  const ROUTE = "GET /projects/{project_id}/indicators";
+  const indicators = (
+    answer: FakeAnswer<typeof ROUTE>,
+    expected: readonly ExpectedRefusal[] = [{ status: 409, code: "STATE_FORBIDS_OPERATION" }],
+  ) => {
+    const client = fakeClient({ [ROUTE]: answer });
+    return readUnlessRefused("getProjectIndicators", expected, () =>
+      client.GET("/projects/{project_id}/indicators", {
+        params: { path: { project_id: PROJECT } },
+      }),
+    );
+  };
+
+  it("gives the data of a success", async () => {
+    expect(await indicators("project_indicators")).toEqual(example("project_indicators"));
+  });
+
+  it("gives nothing on a refusal it expects, its status and its code", async () => {
+    const refused = { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } } as const;
+    expect(await indicators(refused)).toBeUndefined();
+  });
+
+  it("throws a refusal of the same status for another code as unexpected", async () => {
+    const refused = { problem: { code: "ALREADY_EXISTS", status: 409 } } as const;
+    await expect(indicators(refused)).rejects.toBeInstanceOf(UnexpectedAnswer);
+  });
+
+  it("gives nothing on a status it expects whatever the code, when it names none", async () => {
+    const missing = { problem: { code: "NOT_FOUND", status: 404 } } as const;
+    expect(await indicators(missing, [{ status: 404 }])).toBeUndefined();
+  });
+
+  it("follows the rule of the reads for the rest: not found, no session", async () => {
+    await expect(indicators({ problem: { code: "NOT_FOUND", status: 404 } })).rejects.toMatchObject(
+      { digest: "NEXT_HTTP_ERROR_FALLBACK;404" },
+    );
+    await expect(
+      indicators({ problem: { code: "SESSION_REQUIRED", status: 401 } }),
+    ).rejects.toBeInstanceOf(SignedOut);
   });
 });

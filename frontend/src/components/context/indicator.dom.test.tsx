@@ -34,7 +34,7 @@ const PHYSICAL_PROGRESS = held(INDICATORS.physical_progress);
 function page(label: IndicatorLabel, value: Computable, locale: Locale = "fr") {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
-      <ComputedIndicator label={label} value={value} context={INDICATORS.context} />
+      <ComputedIndicator indicator={label} value={value} context={INDICATORS.context} />
     </NextIntlClientProvider>
   );
 }
@@ -62,6 +62,20 @@ describe("an indicator", () => {
     expect(time).toHaveAttribute("datetime", COMPUTED_AT);
     expect(INDICATORS.context.computed_at).toBe(COMPUTED_AT);
     await expectAccessible(container);
+  });
+
+  it("leaves its date to what holds it and shows the date of the same context, once for all", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        <ComputedIndicator
+          indicator="indicator.names.physicalProgress"
+          value={PHYSICAL_PROGRESS}
+          context={INDICATORS.context}
+          date="held"
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["0%"]);
   });
 
   it("shows a cost index without actual cost as not computable, with its reason and its date", async () => {

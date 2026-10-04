@@ -21,7 +21,8 @@
  *
  * A read of a server component that its screen cannot do without goes through `readOrFail`
  * instead: what is not its data is thrown — not found, the API out of reach, no session, an
- * unexpected answer —, and the pages of the shell say it (`not-found.tsx`, `error.tsx`).
+ * unexpected answer —, and the pages of the shell say it (`not-found.tsx`, `error.tsx`). A read it
+ * can do without goes through `readUnlessRefused`, which gives nothing on the refusals it expects.
  *
  * A client component imports only the types of this module; the decoding runs on the server.
  */
@@ -188,6 +189,47 @@ export async function readOrFail<T>(operation: string, call: () => Promise<Answe
     throw new Unreachable();
   }
   throw refusalOf(operation, status, answer.error);
+}
+
+/** A code of the catalogue of errors (WF-ARC-0110). */
+export type ErrorCode = components["schemas"]["ErrorCode"];
+
+/**
+ * A refusal a screen expects and does without: its status, and the code its envelope carries when
+ * the status alone does not say which refusal it is — a 409 says a state forbids, not which.
+ */
+export interface ExpectedRefusal {
+  readonly status: number;
+  readonly code?: ErrorCode;
+}
+
+/** Whether an answer is a refusal the screen expects. */
+function isExpected(answer: Answer<unknown>, expected: ExpectedRefusal): boolean {
+  if (answer.response.status !== expected.status) {
+    return false;
+  }
+  const body = answer.error;
+  return (
+    expected.code === undefined ||
+    (typeof body === "object" && body !== null && "code" in body && body.code === expected.code)
+  );
+}
+
+/**
+ * Call the API for a read its screen can do without: its data; `undefined` on a refusal the
+ * screen expects, which says the data unavailable and shows the rest. Any other answer follows
+ * the rule of `readOrFail`: not found, the API out of reach, no session, an unexpected answer.
+ */
+export async function readUnlessRefused<T>(
+  operation: string,
+  expected: readonly ExpectedRefusal[],
+  call: () => Promise<Answer<T>>,
+): Promise<T | undefined> {
+  const answer = await call();
+  if (!answer.response.ok && expected.some((refusal) => isExpected(answer, refusal))) {
+    return undefined;
+  }
+  return readOrFail(operation, () => Promise.resolve(answer));
 }
 
 /** Decode an answer of the API into what the screen is to do with it. */
