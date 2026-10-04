@@ -18,6 +18,7 @@ import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/f
 
 import { ExportForm } from "./export-form";
 import { ImportCommands } from "./import-commands";
+import { ImportList } from "./import-list";
 import { ImportReport } from "./import-report";
 import { importOffers } from "./offers";
 
@@ -417,6 +418,22 @@ describe("the report of an import", () => {
     open(report(applied));
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.getByText("Cet import n’a pas de compte rendu.")).toBeVisible();
+  });
+
+  it("offers no undo of an import applied: neither its report nor the list of the imports holds such a command [WF-IHM-0110-A]", () => {
+    serve({});
+    const { items } = example("imports") as { items: Import[] };
+    const applied = items.find((entry) => entry.status === "applied");
+    if (applied === undefined) {
+      throw new Error("the example of the imports holds one applied");
+    }
+    const { unmount } = open(report(applied));
+    expect(screen.queryByRole("button", { name: /Annuler|Rétablir/ })).toBeNull();
+    unmount();
+    open(<ImportList imports={items} total={items.length} current={undefined} start={START} />);
+    expect(screen.getByRole("table")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Annuler|Rétablir/ })).toBeNull();
+    expect(screen.queryByRole("menuitem")).toBeNull();
   });
 
   it("is rendered from the same codes in the language of its reader [WF-ARC-0110-A]", () => {

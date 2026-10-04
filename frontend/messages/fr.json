@@ -183,6 +183,20 @@
       "label": "Rechercher un libellé",
       "placeholder": "Rechercher un libellé"
     },
+    "undo": {
+      "undo": "Annuler",
+      "redo": "Rétablir",
+      "menu": "Menu de la cellule",
+      "shortcut": {
+        "undo": "Ctrl+Z",
+        "redo": "Ctrl+Maj+Z"
+      },
+      "unavailable": "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
+      "told": {
+        "undo": "Annuler est indisponible : le serveur ne conserve pas encore l’historique des saisies.",
+        "redo": "Rétablir est indisponible : le serveur ne conserve pas encore l’historique des saisies."
+      }
+    },
     "columnsMenu": {
       "open": "Colonnes",
       "title": "Colonnes affichées"
