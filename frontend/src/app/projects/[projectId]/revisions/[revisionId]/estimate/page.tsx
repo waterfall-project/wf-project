@@ -11,12 +11,15 @@
  * indicators and the rates are read alongside the grid, and so are the categories and the roles
  * the lines are named by and chosen from (US-0120). The grid is entered from the keyboard, and takes
  * a block pasted from a spreadsheet, when the revision lists `edit_estimate` available to the caller
- * (WF-IHM-0040, WF-IHM-0050). A refused read of the rates
+ * (WF-IHM-0040, WF-IHM-0050). Its head leads to the workload of the project, a leaf of the estimate
+ * with a screen of its own (FBS-4.4.4), in the same context. A refused read of the rates
  * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
  * refused as expected are said unavailable, the rest of the screen shown: the screen never shows
  * a figure it did not read.
  */
+import { ChartColumnStacked } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { readOrFail, readUnlessRefused } from "@/api/problem";
@@ -33,7 +36,9 @@ import { EstimateGrid } from "@/components/grid/estimate-grid";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
+import { functionHref, leafOf } from "@/navigation/functions";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
@@ -144,13 +149,21 @@ async function readReference(): Promise<EstimateReference> {
   };
 }
 
-/** The title of the grid, and what it holds: the structure, its tasks and lines retained. */
+/** The workload of the project, a leaf of the estimate with a screen of its own (FBS-4.4.4). */
+const WORKLOAD = leafOf("FBS-4.4.4");
+
+/**
+ * The title of the grid, and what it holds: the structure, its tasks and lines retained; and the
+ * link to the workload of the project, in the same context.
+ */
 function EstimateHeader({
   label,
   totals,
+  workload,
 }: {
   readonly label: string;
   readonly totals: NodeTotals;
+  readonly workload: string | undefined;
 }) {
   const t = useTranslations();
   return (
@@ -163,6 +176,14 @@ function EstimateHeader({
         tasks: totals.task_count,
         lines: totals.estimate_line_count,
       })}
+      actions={
+        workload === undefined ? undefined : (
+          <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <ChartColumnStacked aria-hidden="true" />
+            {t(WORKLOAD.label)}
+          </Link>
+        )
+      }
     />
   );
 }
@@ -191,7 +212,11 @@ export default async function EstimatePage({
     <>
       <ContextBanner reading={screen.reading} />
       <Screen density={FUNCTION_DENSITY.estimate} fill>
-        <EstimateHeader label={screen.label} totals={screen.nodes.totals} />
+        <EstimateHeader
+          label={screen.label}
+          totals={screen.nodes.totals}
+          workload={functionHref(WORKLOAD, at.context)}
+        />
         <EstimateSummary
           indicators={indicators}
           missingRates={missingRates}

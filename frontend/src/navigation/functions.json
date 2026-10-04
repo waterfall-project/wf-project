@@ -154,7 +154,16 @@
           "label": "functions.estimate",
           "route": "/projects/[projectId]/revisions/[revisionId]/estimate",
           "scope": "revision",
-          "permission": "estimate"
+          "permission": "estimate",
+          "leaves": [
+            {
+              "code": "FBS-4.4.4",
+              "label": "functions.workload",
+              "route": "/projects/[projectId]/revisions/[revisionId]/workload",
+              "scope": "revision",
+              "permission": "estimate"
+            }
+          ]
         },
         {
           "code": "FBS-4.5",

@@ -295,6 +295,7 @@
     "exportPng": "Exporter en PNG",
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Révision : {revision} · Calculé le {date}",
+    "exportSubtitleWith": "Révision : {revision} · {detail} · Calculé le {date}",
     "fileName": "{file}-{code}.png"
   },
   "projectIndicators": {
@@ -395,6 +396,35 @@
       "past": "Décaissé",
       "forecast": "À décaisser"
     }
+  },
+  "workload": {
+    "title": "Plan de charge du projet",
+    "chartTitle": "Charge par rôle et par mois",
+    "description": "Barres de la charge de chaque rôle de ressource par mois, en heures, et sa capacité mensuelle en regard, en tirets.",
+    "basis": "Base",
+    "markedRevision": "Révision marquée",
+    "unnamedRevision": "Révision marquée sans nom",
+    "orgNode": "Nœud d’organisation",
+    "allOrgNodes": "Tous les nœuds",
+    "unknownOrgNode": "nœud inconnu",
+    "show": "Afficher",
+    "reading": "Base : {basis} — révision « {revision} »",
+    "role": "Rôle",
+    "month": "Mois",
+    "hours": "Charge (h)",
+    "capacity": "Capacité (h par mois)",
+    "loadRatio": "Charge rapportée à la capacité",
+    "zone": "Zone",
+    "capacityOf": "Capacité — {role}",
+    "noLoad": "Aucune charge",
+    "none": "Aucun rôle n’a de charge sur cette base.",
+    "noneInNode": "Aucun rôle du nœud « {node} » n’a de charge sur cette base.",
+    "refused": {
+      "noReference": "Le plan de charge n’est pas disponible sur cette base : le projet n’a pas de révision de référence, seule la révision en cours en est une.",
+      "markedRevision": "Le plan de charge n’est pas disponible sur cette base : la révision marquée demandée manque, ou n’est pas marquée."
+    },
+    "exportDetail": "Base : {basis} · Nœud d’organisation : {node}",
+    "file": "plan-de-charge"
   },
   "commands": {
     "label": "Commandes",
@@ -616,6 +646,7 @@
     "projectSettings": "Paramètres de projets",
     "planning": "Planification",
     "estimate": "Chiffrage et devis",
+    "workload": "Plan de charge",
     "remaining": "Estimation du reste à engager",
     "risks": "Gestion des risques",
     "actualCosts": "Coûts réels",

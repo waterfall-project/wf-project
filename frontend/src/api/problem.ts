@@ -215,6 +215,31 @@ function isExpected(answer: Answer<unknown>, expected: ExpectedRefusal): boolean
   );
 }
 
+/** What a read its screen can do without gives: its data, or the expected refusal it met. */
+export type ReadOrRefused<T, R extends ExpectedRefusal> =
+  { readonly kind: "read"; readonly data: T } | { readonly kind: "refused"; readonly refusal: R };
+
+/**
+ * Call the API for a read its screen can do without, and says why when it is refused: its data;
+ * on a refusal the screen expects, which of them — the first that the answer matches —, for the
+ * screen to say the data unavailable and why, and show the rest. Any other answer follows the
+ * rule of `readOrFail`: not found, the API out of reach, no session, an unexpected answer.
+ */
+export async function readOrRefused<T, R extends ExpectedRefusal>(
+  operation: string,
+  expected: readonly R[],
+  call: () => Promise<Answer<T>>,
+): Promise<ReadOrRefused<T, R>> {
+  const answer = await call();
+  const refusal = answer.response.ok
+    ? undefined
+    : expected.find((each) => isExpected(answer, each));
+  if (refusal !== undefined) {
+    return { kind: "refused", refusal };
+  }
+  return { kind: "read", data: await readOrFail(operation, () => Promise.resolve(answer)) };
+}
+
 /**
  * Call the API for a read its screen can do without: its data; `undefined` on a refusal the
  * screen expects, which says the data unavailable and shows the rest. Any other answer follows
@@ -225,11 +250,8 @@ export async function readUnlessRefused<T>(
   expected: readonly ExpectedRefusal[],
   call: () => Promise<Answer<T>>,
 ): Promise<T | undefined> {
-  const answer = await call();
-  if (!answer.response.ok && expected.some((refusal) => isExpected(answer, refusal))) {
-    return undefined;
-  }
-  return readOrFail(operation, () => Promise.resolve(answer));
+  const read = await readOrRefused(operation, expected, call);
+  return read.kind === "read" ? read.data : undefined;
 }
 
 /** Decode an answer of the API into what the screen is to do with it. */
