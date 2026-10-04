@@ -124,7 +124,8 @@
       "planning": "Planning grid",
       "risks": "Risk register",
       "actualCosts": "Actual costs",
-      "hourlyRates": "Hourly rate grid"
+      "hourlyRates": "Hourly rate grid",
+      "portfolioProjects": "Portfolio projects"
     },
     "columns": {
       "rowNumber": "No.",
@@ -157,7 +158,15 @@
       "excludedReason": "Reason for exclusion",
       "passthrough": "Columns kept from the file",
       "code": "Code",
-      "hourlyRate": "Hourly rate"
+      "hourlyRate": "Hourly rate",
+      "referenceBudget": "Reference budget",
+      "currentEstimate": "Current estimate",
+      "winProbability": "Win probability",
+      "projectManagerProjection": "Project manager’s projection",
+      "deltaToReference": "Variance to budget",
+      "costIndex": "Cost index",
+      "scheduleIndex": "Schedule index",
+      "lastMarkedAt": "Last marked revision"
     },
     "computed": "Computed",
     "unknown": "Unknown reference",
@@ -329,67 +338,46 @@
       "periodUnknown": "Not given"
     }
   },
-  "exchanges": {
-    "subtitle": "Import a file in two steps — the analysis, then the confirmed application — or request an export.",
-    "import": {
-      "title": "Import a file",
-      "none": "No import is offered to you on this project.",
-      "kinds": {
-        "ms_project_schedule": "Import an MS Project schedule",
-        "estimate": "Import an estimate",
-        "remaining": "Import an estimate to complete",
-        "actual_costs": "Import actual costs"
-      },
-      "file": "File to import",
-      "fileRequired": "Choose the file to import.",
-      "analyse": "Analyse the file",
-      "cancel": "Cancel",
-      "period": "Period extracted",
-      "periodFrom": "From",
-      "periodTo": "To",
-      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
+  "portfolio": {
+    "perimeter": {
+      "label": "Portfolio perimeter",
+      "states": "States retained",
+      "period": "Period and calculation date",
+      "from": "From",
+      "to": "To",
+      "asOf": "Calculated on",
+      "apply": "Apply",
+      "orgNode": "Organisation node",
+      "everyNode": "All nodes",
+      "nodeChoice": "{label} ({parent})"
     },
-    "report": {
-      "title": "Report of the import “{file}”",
-      "kind": "Kind",
-      "status": "Status",
-      "openedAt": "Opened on",
-      "expiresAt": "Applicable until",
-      "formatVersion": "Format version",
-      "analysing": "The file is being analysed. The background task follow-up will offer to reload the screen once it has finished.",
-      "none": "This import has no report.",
-      "read": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}.",
-      "reasons": "Explicit confirmation required",
-      "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
-      "rejectedTable": "Rejected lines",
-      "row": "Line",
-      "motive": "Reason",
-      "differences": "{count, plural, =0 {No difference with the existing data} one {# difference with the existing data} other {# differences with the existing data}}",
-      "differencesTable": "Differences with the existing data",
-      "change": "Change",
-      "target": "Object",
-      "label": "Label",
-      "unnamed": "No label",
-      "apply": "Apply the import",
-      "abandon": "Abandon the import",
-      "confirmTitle": "Confirmation of the application",
-      "confirmQuestion": "Apply the import “{file}” to the project, in a single operation?",
-      "confirm": "Confirm the application",
-      "cancel": "Cancel"
+    "scope": {
+      "noPeriod": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · calculated on {asOf}",
+      "period": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period from {from} to {to} · calculated on {asOf}",
+      "since": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period from {from} · calculated on {asOf}",
+      "until": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period up to {to} · calculated on {asOf}"
     },
-    "list": {
-      "title": "Imports of the project",
-      "none": "No import has been opened on this project yet.",
-      "file": "File",
-      "kind": "Kind",
-      "status": "Status",
-      "openedAt": "Opened on"
+    "projects": {
+      "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
+      "reason": " — {reason}"
     },
-    "export": {
-      "title": "Request an export",
-      "kind": "File to export",
-      "request": "Request the export",
-      "depth": "Level of the tree"
+    "pages": {
+      "label": "Pages of the projects",
+      "beyond": "The page asked is beyond the end of the list.",
+      "previous": "Previous projects",
+      "next": "Next projects"
+    },
+    "value": {
+      "title": "Portfolio value",
+      "orderBook": "Order book",
+      "pipelineGross": "Gross pipeline",
+      "pipelineWeighted": "Weighted pipeline",
+      "delivered": "Delivered",
+      "conversionRate": "Conversion rate",
+      "period": "Delivered and conversion rate over the period from {from} to {to}",
+      "since": "Delivered and conversion rate over the period from {from}",
+      "until": "Delivered and conversion rate over the period up to {to}",
+      "noPeriod": "Delivered and conversion rate without a period"
     }
   },
   "computedValue": {
@@ -984,14 +972,14 @@
     "revisions": "Revision management",
     "projectSettings": "Project settings",
     "planning": "Planning",
-    "exchanges": "Imports and exports",
     "estimate": "Costing and estimate",
     "workload": "Workload",
     "remaining": "Estimate to complete",
     "risks": "Risk management",
     "actualCosts": "Actual costs",
     "projectIndicators": "Project indicators",
-    "lifecycle": "Project lifecycle"
+    "lifecycle": "Project lifecycle",
+    "exchanges": "Imports and exports"
   },
   "errors": {
     "MALFORMED_REQUEST": "The request is malformed.",
@@ -1652,6 +1640,69 @@
       "reference_budget": "Budget of the reference revision",
       "marked_remaining": "Remaining of a marked revision",
       "current_remaining": "Remaining of the current revision"
+    }
+  },
+  "exchanges": {
+    "subtitle": "Import a file in two steps — the analysis, then the confirmed application — or request an export.",
+    "import": {
+      "title": "Import a file",
+      "none": "No import is offered to you on this project.",
+      "kinds": {
+        "ms_project_schedule": "Import an MS Project schedule",
+        "estimate": "Import an estimate",
+        "remaining": "Import an estimate to complete",
+        "actual_costs": "Import actual costs"
+      },
+      "file": "File to import",
+      "fileRequired": "Choose the file to import.",
+      "analyse": "Analyse the file",
+      "cancel": "Cancel",
+      "period": "Period extracted",
+      "periodFrom": "From",
+      "periodTo": "To",
+      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
+    },
+    "report": {
+      "title": "Report of the import “{file}”",
+      "kind": "Kind",
+      "status": "Status",
+      "openedAt": "Opened on",
+      "expiresAt": "Applicable until",
+      "formatVersion": "Format version",
+      "analysing": "The file is being analysed. The background task follow-up will offer to reload the screen once it has finished.",
+      "none": "This import has no report.",
+      "read": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}.",
+      "reasons": "Explicit confirmation required",
+      "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
+      "rejectedTable": "Rejected lines",
+      "row": "Line",
+      "motive": "Reason",
+      "differences": "{count, plural, =0 {No difference with the existing data} one {# difference with the existing data} other {# differences with the existing data}}",
+      "differencesTable": "Differences with the existing data",
+      "change": "Change",
+      "target": "Object",
+      "label": "Label",
+      "unnamed": "No label",
+      "apply": "Apply the import",
+      "abandon": "Abandon the import",
+      "confirmTitle": "Confirmation of the application",
+      "confirmQuestion": "Apply the import “{file}” to the project, in a single operation?",
+      "confirm": "Confirm the application",
+      "cancel": "Cancel"
+    },
+    "list": {
+      "title": "Imports of the project",
+      "none": "No import has been opened on this project yet.",
+      "file": "File",
+      "kind": "Kind",
+      "status": "Status",
+      "openedAt": "Opened on"
+    },
+    "export": {
+      "title": "Request an export",
+      "kind": "File to export",
+      "request": "Request the export",
+      "depth": "Level of the tree"
     }
   }
 }

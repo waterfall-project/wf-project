@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The way through the pages of a list the server pages — the actual costs, the journal of their
- * imports, the imports of a project (US-0260) —: the links to the page before and the page after
- * the one shown, when there are, by the pagination of shadcn/ui. A list never shows one of its
- * pages as if it were the whole; a page asked beyond its end says so, and leads back to its last
- * page. A page turned only changes the address (`offset`, `imports_offset`), from the address last
- * asked: a sort or a filter under way is kept, and the costs then start from their first page.
+ * imports, the imports of a project (US-0260), the projects of the portfolio —: the links to the
+ * page before and the page after the one shown, when there are, by the pagination of shadcn/ui. A
+ * list never shows one of its pages as if it were the whole; a page asked beyond its end says so,
+ * and leads back to its last page. A page turned only changes the address (`offset`,
+ * `imports_offset`), from the address last asked: a sort or a filter under way is kept, and the
+ * list then starts from its first page.
  */
 "use client";
 
@@ -15,6 +16,7 @@ import { useTranslations } from "next-intl";
 
 import { EXCHANGES_PAGE } from "@/components/exchanges/offers";
 import { usePendingLink } from "@/components/grid/pending-address";
+import { OFFSET } from "@/components/grid/query";
 import {
   Pagination,
   PaginationContent,
@@ -26,13 +28,22 @@ import {
 import { COSTS_PAGE, IMPORTS_PAGE, pageHref, sameList } from "./address";
 import type { ListPage } from "./cost-grid";
 
-/** The lists of the screen that the server pages, by the parameter of their page. */
-const PAGES = { costs: COSTS_PAGE, imports: IMPORTS_PAGE, exchanges: EXCHANGES_PAGE } as const;
+/**
+ * The lists the server pages, by the parameter of their page and the texts of their links: those
+ * of the actual costs, the imports of a project, and the projects of the portfolio, which share
+ * the way through their pages.
+ */
+const PAGES = {
+  costs: { name: COSTS_PAGE, texts: "actualCosts.pages.costs" },
+  imports: { name: IMPORTS_PAGE, texts: "actualCosts.pages.imports" },
+  exchanges: { name: EXCHANGES_PAGE, texts: "actualCosts.pages.exchanges" },
+  projects: { name: OFFSET, texts: "portfolio.pages" },
+} as const;
 
 /**
  * A link to another page of a list: the same screen, its query kept, the page changed — or, when
- * the address last asked reads the costs otherwise than the one shown, their first page. The
- * journal and the imports of a project read nothing of the address but their page.
+ * the address last asked reads the list otherwise than the one shown, its first page. The journal
+ * of the imports and the imports of a project read nothing of the address but their page.
  */
 function PageLink({
   list,
@@ -43,16 +54,20 @@ function PageLink({
   readonly offset: number;
   readonly direction: "previous" | "next";
 }) {
-  const t = useTranslations(`actualCosts.pages.${list}`);
+  const t = useTranslations(PAGES[list].texts);
   const pathname = usePathname();
   const shown = useSearchParams();
-  const name = PAGES[list];
+  const { name } = PAGES[list];
   const { href, onClick } = usePendingLink((query) =>
     pageHref(
       pathname,
       query,
       name,
-      list !== "costs" || sameList(query, new URLSearchParams(shown), name) ? offset : 0,
+      list === "imports" ||
+        list === "exchanges" ||
+        sameList(query, new URLSearchParams(shown), name)
+        ? offset
+        : 0,
     ),
   );
   const Link = direction === "previous" ? PaginationPrevious : PaginationNext;
@@ -78,7 +93,7 @@ export function ListPages({
   readonly page: ListPage;
   readonly shown: number;
 }) {
-  const t = useTranslations(`actualCosts.pages.${list}`);
+  const t = useTranslations(PAGES[list].texts);
   const beyond = shown === 0 && page.offset > 0 && page.offset >= page.total;
   const before = page.offset > 0;
   const after = page.offset + shown < page.total;

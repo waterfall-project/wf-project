@@ -124,7 +124,8 @@
       "planning": "Grille de planning",
       "risks": "Registre des risques",
       "actualCosts": "Coûts réels",
-      "hourlyRates": "Grille des taux horaires"
+      "hourlyRates": "Grille des taux horaires",
+      "portfolioProjects": "Projets du portefeuille"
     },
     "columns": {
       "rowNumber": "N°",
@@ -157,7 +158,15 @@
       "excludedReason": "Motif de l’exclusion",
       "passthrough": "Colonnes conservées du fichier",
       "code": "Code",
-      "hourlyRate": "Taux horaire"
+      "hourlyRate": "Taux horaire",
+      "referenceBudget": "Budget de référence",
+      "currentEstimate": "Devis courant",
+      "winProbability": "Probabilité de gain",
+      "projectManagerProjection": "Projection du chef de projet",
+      "deltaToReference": "Écart au budget",
+      "costIndex": "Indice de coût",
+      "scheduleIndex": "Indice de délai",
+      "lastMarkedAt": "Dernière révision marquée"
     },
     "computed": "Calculé",
     "unknown": "Référence inconnue",
@@ -329,67 +338,46 @@
       "periodUnknown": "Non renseignée"
     }
   },
-  "exchanges": {
-    "subtitle": "Importer un fichier en deux temps — l’analyse, puis l’application confirmée — ou demander un export.",
-    "import": {
-      "title": "Importer un fichier",
-      "none": "Aucun import ne vous est offert sur ce projet.",
-      "kinds": {
-        "ms_project_schedule": "Importer un planning MS Project",
-        "estimate": "Importer un devis",
-        "remaining": "Importer un reste à engager",
-        "actual_costs": "Importer des coûts réels"
-      },
-      "file": "Fichier à importer",
-      "fileRequired": "Choisissez le fichier à importer.",
-      "analyse": "Analyser le fichier",
-      "cancel": "Annuler",
-      "period": "Période extraite",
-      "periodFrom": "Du",
-      "periodTo": "Au",
-      "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
+  "portfolio": {
+    "perimeter": {
+      "label": "Périmètre du portefeuille",
+      "states": "États retenus",
+      "period": "Période et date de calcul",
+      "from": "Du",
+      "to": "Au",
+      "asOf": "Calculé au",
+      "apply": "Appliquer",
+      "orgNode": "Nœud d’organisation",
+      "everyNode": "Tous les nœuds",
+      "nodeChoice": "{label} ({parent})"
     },
-    "report": {
-      "title": "Compte rendu de l’import « {file} »",
-      "kind": "Nature",
-      "status": "État",
-      "openedAt": "Ouvert le",
-      "expiresAt": "Applicable jusqu’au",
-      "formatVersion": "Version du format",
-      "analysing": "L’analyse du fichier est en cours. Le suivi des tâches de fond vous proposera de recharger l’écran quand elle aura abouti.",
-      "none": "Cet import n’a pas de compte rendu.",
-      "read": "{count, plural, =0 {Aucune ligne lue} one {# ligne lue} other {# lignes lues}}.",
-      "reasons": "Confirmation explicite demandée",
-      "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
-      "rejectedTable": "Lignes rejetées",
-      "row": "Ligne",
-      "motive": "Motif",
-      "differences": "{count, plural, =0 {Aucun écart avec les données existantes} one {# écart avec les données existantes} other {# écarts avec les données existantes}}",
-      "differencesTable": "Écarts avec les données existantes",
-      "change": "Changement",
-      "target": "Objet",
-      "label": "Libellé",
-      "unnamed": "Sans libellé",
-      "apply": "Appliquer l’import",
-      "abandon": "Abandonner l’import",
-      "confirmTitle": "Confirmation de l’application",
-      "confirmQuestion": "Appliquer au projet l’import « {file} », en une seule opération ?",
-      "confirm": "Confirmer l’application",
-      "cancel": "Annuler"
+    "scope": {
+      "noPeriod": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · calculé au {asOf}",
+      "period": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période du {from} au {to} · calculé au {asOf}",
+      "since": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période à partir du {from} · calculé au {asOf}",
+      "until": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période jusqu’au {to} · calculé au {asOf}"
     },
-    "list": {
-      "title": "Imports du projet",
-      "none": "Aucun import n’a encore été ouvert sur ce projet.",
-      "file": "Fichier",
-      "kind": "Nature",
-      "status": "État",
-      "openedAt": "Ouvert le"
+    "projects": {
+      "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
+      "reason": " — {reason}"
     },
-    "export": {
-      "title": "Demander un export",
-      "kind": "Fichier à exporter",
-      "request": "Demander l’export",
-      "depth": "Niveau de l’arborescence"
+    "pages": {
+      "label": "Pages des projets",
+      "beyond": "La page demandée est au-delà de la fin de la liste.",
+      "previous": "Projets précédents",
+      "next": "Projets suivants"
+    },
+    "value": {
+      "title": "Valeur du portefeuille",
+      "orderBook": "Carnet",
+      "pipelineGross": "Pipeline brut",
+      "pipelineWeighted": "Pipeline pondéré",
+      "delivered": "Réalisé",
+      "conversionRate": "Taux de transformation",
+      "period": "Réalisé et taux de transformation sur la période du {from} au {to}",
+      "since": "Réalisé et taux de transformation sur la période à partir du {from}",
+      "until": "Réalisé et taux de transformation sur la période jusqu’au {to}",
+      "noPeriod": "Réalisé et taux de transformation sans période"
     }
   },
   "computedValue": {
@@ -984,14 +972,14 @@
     "revisions": "Gestion des révisions",
     "projectSettings": "Paramètres de projets",
     "planning": "Planification",
-    "exchanges": "Imports et exports",
     "estimate": "Chiffrage et devis",
     "workload": "Plan de charge",
     "remaining": "Estimation du reste à engager",
     "risks": "Gestion des risques",
     "actualCosts": "Coûts réels",
     "projectIndicators": "Indicateurs projets",
-    "lifecycle": "Cycle de vie du projet"
+    "lifecycle": "Cycle de vie du projet",
+    "exchanges": "Imports et exports"
   },
   "errors": {
     "MALFORMED_REQUEST": "La requête est mal formée.",
@@ -1652,6 +1640,69 @@
       "reference_budget": "Budget de la révision de référence",
       "marked_remaining": "Reste à engager d’une révision marquée",
       "current_remaining": "Reste à engager de la révision en cours"
+    }
+  },
+  "exchanges": {
+    "subtitle": "Importer un fichier en deux temps — l’analyse, puis l’application confirmée — ou demander un export.",
+    "import": {
+      "title": "Importer un fichier",
+      "none": "Aucun import ne vous est offert sur ce projet.",
+      "kinds": {
+        "ms_project_schedule": "Importer un planning MS Project",
+        "estimate": "Importer un devis",
+        "remaining": "Importer un reste à engager",
+        "actual_costs": "Importer des coûts réels"
+      },
+      "file": "Fichier à importer",
+      "fileRequired": "Choisissez le fichier à importer.",
+      "analyse": "Analyser le fichier",
+      "cancel": "Annuler",
+      "period": "Période extraite",
+      "periodFrom": "Du",
+      "periodTo": "Au",
+      "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
+    },
+    "report": {
+      "title": "Compte rendu de l’import « {file} »",
+      "kind": "Nature",
+      "status": "État",
+      "openedAt": "Ouvert le",
+      "expiresAt": "Applicable jusqu’au",
+      "formatVersion": "Version du format",
+      "analysing": "L’analyse du fichier est en cours. Le suivi des tâches de fond vous proposera de recharger l’écran quand elle aura abouti.",
+      "none": "Cet import n’a pas de compte rendu.",
+      "read": "{count, plural, =0 {Aucune ligne lue} one {# ligne lue} other {# lignes lues}}.",
+      "reasons": "Confirmation explicite demandée",
+      "rejected": "{count, plural, =0 {Aucune ligne rejetée} one {# ligne rejetée} other {# lignes rejetées}}",
+      "rejectedTable": "Lignes rejetées",
+      "row": "Ligne",
+      "motive": "Motif",
+      "differences": "{count, plural, =0 {Aucun écart avec les données existantes} one {# écart avec les données existantes} other {# écarts avec les données existantes}}",
+      "differencesTable": "Écarts avec les données existantes",
+      "change": "Changement",
+      "target": "Objet",
+      "label": "Libellé",
+      "unnamed": "Sans libellé",
+      "apply": "Appliquer l’import",
+      "abandon": "Abandonner l’import",
+      "confirmTitle": "Confirmation de l’application",
+      "confirmQuestion": "Appliquer au projet l’import « {file} », en une seule opération ?",
+      "confirm": "Confirmer l’application",
+      "cancel": "Annuler"
+    },
+    "list": {
+      "title": "Imports du projet",
+      "none": "Aucun import n’a encore été ouvert sur ce projet.",
+      "file": "Fichier",
+      "kind": "Nature",
+      "status": "État",
+      "openedAt": "Ouvert le"
+    },
+    "export": {
+      "title": "Demander un export",
+      "kind": "Fichier à exporter",
+      "request": "Demander l’export",
+      "depth": "Niveau de l’arborescence"
     }
   }
 }
