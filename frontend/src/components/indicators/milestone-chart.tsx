@@ -68,6 +68,9 @@ export function MilestoneChart({ tracking, provenance }: MilestoneChartProps) {
 
   const option = useCallback(
     (palette: ChartPalette): ChartOption => {
+      const points = milestones.flatMap((milestone) => milestone.points);
+      const markings = points.map((point) => point.marked_at);
+      const forecasts = points.map((point) => planningInstant(point.forecast_date));
       const diagonal =
         first === undefined
           ? []
@@ -92,8 +95,14 @@ export function MilestoneChart({ tracking, provenance }: MilestoneChartProps) {
         textStyle: { fontFamily: palette.font, color: palette.text },
         // No legend: each curve is named at its end (`curve`), the diagonal too.
         grid: { left: 96, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
-        xAxis: timeAxis(palette, formatLocale(locale), true),
-        yAxis: timeAxis(palette, formatLocale(locale), true),
+        xAxis: timeAxis(palette, formatLocale(locale), [...markings, context.computed_at], true),
+        // The forecasts, and the diagonal of equal dates, which runs over the markings.
+        yAxis: timeAxis(
+          palette,
+          formatLocale(locale),
+          [...forecasts, ...markings, context.computed_at],
+          true,
+        ),
         series: [
           ...milestones.map((milestone, index) => ({
             name: milestone.label,

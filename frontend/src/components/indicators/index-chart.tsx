@@ -120,7 +120,11 @@ export function IndexChart({ kind, history }: IndexChartProps) {
         // No legend: each curve is named at its end (`curve`), whatever their number — a
         // legend of one entry per sub-project would overflow onto the plot.
         grid: { left: 48, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
-        xAxis: timeAxis(palette, formatLocale(locale)),
+        xAxis: timeAxis(
+          palette,
+          formatLocale(locale),
+          history.scopes.flatMap((scope) => scope.points.map((point) => point.at)),
+        ),
         yAxis: {
           type: "value",
           // An index is never negative: its axis starts at zero, drawn even when no point is.

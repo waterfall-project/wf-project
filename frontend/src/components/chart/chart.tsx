@@ -172,28 +172,84 @@ function readPalette(probes: HTMLElement): ChartPalette {
 const MONTH: Intl.DateTimeFormatOptions = { month: "short", year: "numeric" };
 
 /**
- * The shortest span between two ticks of an axis of time, in milliseconds: four weeks, so that two
- * ticks never fall in the same month, which their labels would write alike.
+ * The steps between two ticks of an axis of time, in months: one month, then longer ones for a
+ * long range, so that an axis writes `MAX_TICKS` ticks at most.
  */
-const MONTH_SPAN = 28 * 24 * 60 * 60 * 1000;
+const MONTH_STEPS = [1, 2, 3, 6, 12, 24, 60, 120] as const;
+
+/** The most ticks an axis of time writes before its step lengthens. */
+const MAX_TICKS = 13;
 
 /**
- * An axis of time, its ticks written in the language of the interface by month — in UTC for an
- * axis of dates of planning, which have no time zone (`utc`), in the local time of the
- * workstation otherwise —, a tick that would overlap another left out. ECharts places the ticks
- * at the first of each month in the local time of the workstation, unless the option of the chart
- * says `useUTC`: a chart with an axis in UTC says it, or its ticks, written in UTC, would name the
- * month before east of Greenwich.
+ * The ticks of an axis of time over the instants it shows: the first of each month — in UTC, or in
+ * the local time of the workstation —, from the month of the earliest instant to the first of the
+ * month after the latest; every second, third, sixth month, every year or more over a long range,
+ * a step falling on the first of a month that is a multiple of it from January. None without an
+ * instant. They are positions of the axis, never figures the screen shows.
  */
-export function timeAxis(palette: ChartPalette, locale: string, utc = false) {
-  const format = new Intl.DateTimeFormat(locale, utc ? { ...MONTH, timeZone: "UTC" } : MONTH);
+export function monthTicks(instants: readonly string[], utc: boolean): number[] {
+  const times = instants.map((instant) => Date.parse(instant)).filter(Number.isFinite);
+  if (times.length === 0) {
+    return [];
+  }
+  const parts = (time: number) => {
+    const date = new Date(time);
+    return utc
+      ? { year: date.getUTCFullYear(), month: date.getUTCMonth() }
+      : { year: date.getFullYear(), month: date.getMonth() };
+  };
+  const first = (year: number, month: number) =>
+    utc ? Date.UTC(year, month, 1) : new Date(year, month, 1).getTime();
+  const earliest = Math.min(...times);
+  const latest = Math.max(...times);
+  const start = parts(earliest);
+  const end = parts(latest);
+  const months = (end.year - start.year) * 12 + end.month - start.month + 2;
+  const step =
+    MONTH_STEPS.find((candidate) => Math.ceil(months / candidate) + 1 <= MAX_TICKS) ??
+    MONTH_STEPS[MONTH_STEPS.length - 1] ??
+    1;
+  const from = start.month - (start.month % step);
+  const ticks: number[] = [];
+  for (let index = 0; ticks.length === 0 || (ticks.at(-1) ?? latest) <= latest; index += 1) {
+    ticks.push(first(start.year, from + index * step));
+  }
+  return ticks;
+}
+
+/** How the ticks of an axis of time are written over a long range: the year alone. */
+const YEAR: Intl.DateTimeFormatOptions = { year: "numeric" };
+
+/**
+ * An axis of time over the instants it shows, its ticks on the first of the months `monthTicks`
+ * gives, written in the language of the interface — the month and the year, the year alone when
+ * the step is a year or more —, in UTC for an axis of dates of planning, which have no time zone
+ * (`utc`), in the local time of the workstation otherwise; the axis runs from the first tick to
+ * the last, and a tick that would overlap another is left out. A chart with an axis in UTC says
+ * `useUTC` too, so that ECharts reads its points in the same zone.
+ */
+export function timeAxis(
+  palette: ChartPalette,
+  locale: string,
+  instants: readonly string[],
+  utc = false,
+) {
+  const ticks = monthTicks(instants, utc);
+  const yearly = ticks.length > 1 && (ticks[1] ?? 0) - (ticks[0] ?? 0) > 360 * 24 * 60 * 60 * 1000;
+  const options = yearly ? YEAR : MONTH;
+  const format = new Intl.DateTimeFormat(locale, utc ? { ...options, timeZone: "UTC" } : options);
+  const [low] = ticks;
+  const high = ticks.at(-1);
+  const bounds = low === undefined || high === undefined ? {} : { min: low, max: high };
   return {
     type: "time" as const,
-    minInterval: MONTH_SPAN,
+    ...bounds,
     axisLine: { show: true, lineStyle: { color: palette.axis } },
+    axisTick: { customValues: ticks },
     axisLabel: {
       color: palette.text,
       hideOverlap: true,
+      customValues: ticks,
       formatter: (value: number) => format.format(value),
     },
     splitLine: { lineStyle: { color: palette.grid } },
@@ -274,16 +330,114 @@ export function useProvenance(
 /** The size of an exported image, whatever the size of the screen. */
 const EXPORT_SIZE = { width: 1280, height: 720 } as const;
 
-/** The height the title of an exported image takes above the chart, in pixels. */
-const EXPORT_HEADER = 64;
+/** The width the title and the provenance of an exported image take at most, in pixels. */
+const EXPORT_TEXT_WIDTH = EXPORT_SIZE.width - 32;
 
-/** A component of an option moved down by the height of the title, if it says where its top is. */
-function below<T>(component: T): T {
+/** The size of the letters of the title and of the provenance, and the height of their lines. */
+const EXPORT_TITLE = { size: 18, line: 24 } as const;
+const EXPORT_SUBTITLE = { size: 12, line: 16 } as const;
+
+/** The space above the title, between the title and the provenance, and below the provenance. */
+const EXPORT_MARGINS = { top: 12, gap: 6, bottom: 14 } as const;
+
+/** How wide a text is written in a font: measured by a canvas, estimated without one. */
+type Measure = (text: string) => number;
+
+/**
+ * The measure of a text in the font of the page at a size: that of a canvas of the browser; an
+ * estimate by the number of its letters where the document paints none.
+ */
+function measureIn(font: string, size: number): Measure {
+  const context = document.createElement("canvas").getContext("2d");
+  if (context === null) {
+    return (text) => text.length * size * 0.6;
+  }
+  context.font = `${String(size)}px ${font}`;
+  return (text) => context.measureText(text).width;
+}
+
+/**
+ * A text cut into lines no wider than the width given: at its spaces, and within a word that
+ * alone would be wider, so that nothing of it goes beyond the image.
+ */
+export function wrapLines(text: string, width: number, measure: Measure): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const joined = line === "" ? word : `${line} ${word}`;
+    if (measure(joined) <= width) {
+      line = joined;
+      continue;
+    }
+    if (line !== "") {
+      lines.push(line);
+    }
+    line = "";
+    for (const letter of word) {
+      if (line !== "" && measure(line + letter) > width) {
+        lines.push(line);
+        line = "";
+      }
+      line += letter;
+    }
+  }
+  lines.push(line);
+  return lines;
+}
+
+/** A component of an option moved down by the height of the head, if it says where its top is. */
+function below<T>(component: T, header: number): T {
   if (typeof component !== "object" || component === null || Array.isArray(component)) {
     return component;
   }
   const top = "top" in component && typeof component.top === "number" ? component.top : 0;
-  return { ...component, top: top + EXPORT_HEADER };
+  return { ...component, top: top + header };
+}
+
+/**
+ * The head of an exported image: its title and its provenance cut into lines within the width of
+ * the image, and the height they take, which the chart is moved down by — the provenance stays
+ * whole whatever the length of the name of the project.
+ */
+function exportHead(image: ChartExport, palette: ChartPalette) {
+  const title = wrapLines(
+    image.title,
+    EXPORT_TEXT_WIDTH,
+    measureIn(palette.font, EXPORT_TITLE.size),
+  );
+  const subtitle = wrapLines(
+    image.subtitle,
+    EXPORT_TEXT_WIDTH,
+    measureIn(palette.font, EXPORT_SUBTITLE.size),
+  );
+  const height =
+    EXPORT_MARGINS.top +
+    title.length * EXPORT_TITLE.line +
+    EXPORT_MARGINS.gap +
+    subtitle.length * EXPORT_SUBTITLE.line +
+    EXPORT_MARGINS.bottom;
+  return {
+    height,
+    title: {
+      text: title.join("\n"),
+      subtext: subtitle.join("\n"),
+      left: 16,
+      top: EXPORT_MARGINS.top,
+      itemGap: EXPORT_MARGINS.gap,
+      textStyle: {
+        color: palette.mark,
+        fontFamily: palette.font,
+        fontSize: EXPORT_TITLE.size,
+        lineHeight: EXPORT_TITLE.line,
+      },
+      subtextStyle: {
+        color: palette.text,
+        fontFamily: palette.font,
+        fontSize: EXPORT_SUBTITLE.size,
+        lineHeight: EXPORT_SUBTITLE.line,
+      },
+    },
+  };
 }
 
 /**
@@ -301,19 +455,13 @@ export function exportPng(option: ChartOption, palette: ChartPalette, image: Cha
   host.style.height = `${String(EXPORT_SIZE.height)}px`;
   document.body.append(host);
   const chart = init(host, null, { renderer: "canvas", ...EXPORT_SIZE });
+  const head = exportHead(image, palette);
   try {
     chart.setOption({
       ...option,
-      ...inertLegend(option.legend === undefined ? undefined : below(option.legend)),
-      grid: below(option.grid),
-      title: {
-        text: image.title,
-        subtext: image.subtitle,
-        left: 16,
-        top: 12,
-        textStyle: { color: palette.mark, fontFamily: palette.font, fontSize: 18 },
-        subtextStyle: { color: palette.text, fontFamily: palette.font },
-      },
+      ...inertLegend(option.legend === undefined ? undefined : below(option.legend, head.height)),
+      grid: below(option.grid, head.height),
+      title: head.title,
       backgroundColor: palette.background,
       animation: false,
     });

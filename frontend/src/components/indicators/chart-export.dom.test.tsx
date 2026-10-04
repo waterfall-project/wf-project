@@ -118,7 +118,8 @@ describe("the export of a chart", () => {
     // The colour the probe of the token resolves to, as the simulated document writes it back.
     expect(option.backgroundColor).toBe(BACKGROUND);
     // Its curves as on the screen, below the title, drawn at once.
-    expect(option.grid).toMatchObject({ top: 24 + 64 });
+    // The head: a line of title, a line of provenance, and their margins (12 + 24 + 6 + 16 + 14).
+    expect(option.grid).toMatchObject({ top: 24 + 72 });
     expect((option.series as LineSeriesOption[]).map((each) => each.name)).toEqual([
       "Réception des études",
       "Réception usine",
@@ -132,5 +133,36 @@ describe("the export of a chart", () => {
     // The instance out of the screen is released, and its host gone.
     expect(canvas.disposed).toBe(1);
     expect(canvas.hosts[0]?.isConnected).toBe(false);
+  });
+
+  it("folds a long title within the width of the image, the chart moved down by its lines, the provenance whole [WF-IHM-0130-A]", async () => {
+    const user = userEvent.setup();
+    // The longest name of a project the contract admits: three hundred characters.
+    const project = Array.from({ length: 30 }, () => "Ouvrage 12")
+      .join(" ")
+      .slice(0, 300);
+    render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
+        <MilestoneChart
+          tracking={TRACKING}
+          provenance={{ project, code: "PRJ-001", revision: "Current revision" }}
+        />
+      </NextIntlClientProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Export as PNG" }));
+    const option = canvas.options[0] as ChartOption;
+    const title = option.title as { text: string; subtext: string };
+    const lines = title.text.split("\n");
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.join(" ")).toBe(`Time/time diagram — ${project}`);
+    // Each line within the width of the image less its margins (1280 - 32), at the size of the
+    // title, as the simulated document estimates it without a canvas: 0.6 of 18 pixels a letter.
+    for (const line of lines) {
+      expect(line.length * 18 * 0.6).toBeLessThanOrEqual(1280 - 32);
+    }
+    expect(title.subtext).toBe(
+      `Revision: Current revision · Computed on ${formatTimestamp(TRACKING.context.computed_at, "en")}`,
+    );
+    expect(option.grid).toMatchObject({ top: 24 + 12 + lines.length * 24 + 6 + 16 + 14 });
   });
 });

@@ -1,5 +1,5 @@
 {
-  "summary": "La même courbe si l'avenant 2 — reprise des essais, 15 000 — avait été contractualisé le 10 mars : le budget de référence présente une marche de 15 000 à cette date, et atteint 115 000 le 10 avril (WF-IND-0100).",
+  "summary": "La même courbe si l'avenant 2 — reprise des essais, 15 000 — avait été contractualisé le 10 mars : le budget de référence présente une marche de 15 000 à cette date, la série portant deux points à la même date, avant et après l'avenant — 23 333,33 puis 38 333,33 —, et atteint 115 000 le 10 avril (WF-IND-0100).",
   "value": {
     "context": {
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
@@ -20,6 +20,10 @@
           {
             "date": "2026-03-09",
             "amount": "20000.00"
+          },
+          {
+            "date": "2026-03-10",
+            "amount": "23333.33"
           },
           {
             "date": "2026-03-10",

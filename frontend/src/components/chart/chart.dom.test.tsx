@@ -8,7 +8,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 
-import { Chart, type ChartOption, type ChartPalette, curve, GAP } from "./chart";
+import {
+  Chart,
+  type ChartOption,
+  type ChartPalette,
+  curve,
+  GAP,
+  monthTicks,
+  wrapLines,
+} from "./chart";
 
 /** A chart of one series of two points, its option recorded with each palette it is drawn in. */
 function drawn(option: (palette: ChartPalette) => ChartOption, note?: string) {
@@ -211,5 +219,67 @@ describe("the look of a curve", () => {
       ["b", GAP],
     ]);
     expect(look.endLabel.show).toBe(false);
+  });
+});
+
+describe("the ticks of an axis of time", () => {
+  const iso = (ticks: number[]) => ticks.map((tick) => new Date(tick).toISOString().slice(0, 10));
+
+  it("falls on the first of each month, from the month of the earliest instant to the one after the latest", () => {
+    expect(iso(monthTicks(["2026-03-16T14:05:00Z", "2026-01-31T23:00:00Z"], true))).toEqual([
+      "2026-01-01",
+      "2026-02-01",
+      "2026-03-01",
+      "2026-04-01",
+    ]);
+  });
+
+  it("lengthens its step over a long range, a step falling on a multiple of it from January", () => {
+    const ticks = iso(monthTicks(["2020-05-10T00:00:00Z", "2031-02-01T00:00:00Z"], true));
+    expect(ticks).toEqual([
+      "2020-01-01",
+      "2021-01-01",
+      "2022-01-01",
+      "2023-01-01",
+      "2024-01-01",
+      "2025-01-01",
+      "2026-01-01",
+      "2027-01-01",
+      "2028-01-01",
+      "2029-01-01",
+      "2030-01-01",
+      "2031-01-01",
+      "2032-01-01",
+    ]);
+    const quarters = iso(monthTicks(["2026-02-10T00:00:00Z", "2028-08-01T00:00:00Z"], true));
+    expect(quarters[0]).toBe("2026-01-01");
+    expect(quarters.length).toBeLessThanOrEqual(13);
+    expect(new Set(quarters.map((tick) => tick.slice(5)))).toEqual(
+      new Set(["01-01", "04-01", "07-01", "10-01"]),
+    );
+  });
+
+  it("falls on the first of the month in the local time of the workstation for an axis of instants", () => {
+    const [first] = monthTicks(["2026-03-16T14:05:00Z"], false);
+    expect(first).toBe(new Date(2026, 2, 1).getTime());
+  });
+
+  it("has none without an instant", () => {
+    expect(monthTicks([], true)).toEqual([]);
+  });
+});
+
+describe("the lines of the head of an exported image", () => {
+  // A measure of ten pixels a letter.
+  const measure = (text: string) => text.length * 10;
+
+  it("cut a text at its spaces within the width, and a word wider than it within the word", () => {
+    expect(wrapLines("Plan de charge du projet", 100, measure)).toEqual([
+      "Plan de",
+      "charge du",
+      "projet",
+    ]);
+    expect(wrapLines("Modernisation", 50, measure)).toEqual(["Moder", "nisat", "ion"]);
+    expect(wrapLines("Court", 100, measure)).toEqual(["Court"]);
   });
 });

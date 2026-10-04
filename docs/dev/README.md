@@ -177,19 +177,22 @@ coup, sans animation, et une légende y est inerte : un clic, à la souris seule
 série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur nombre — pas de
 légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms qui se
 chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; une
-courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme  ; `timeAxis` écrit
-un axe de temps par mois, dans la langue et le fuseau du poste — en UTC pour un axe de dates de
-planning, que `planningInstant` place à leur minuit UTC, l'option de la figure disant alors
-`useUTC`, sans quoi ECharts placerait les graduations au premier du mois dans le fuseau du
-poste, et l'étiquette nommerait le mois d'avant à l'est de Greenwich. Une courbe trace les
-chaînes de l'API telles quelles — ECharts en tire une position —, une valeur non calculable
-étant un trou, et le tableau les écrit par `src/i18n/format.ts`, les zones par `Signal`. Une
-figure qui reçoit `exported` offre la commande « Exporter en PNG » (WF-IHM-0130) : `exportPng`
-la redessine dans une instance hors écran, en rendu canvas, à la taille d'une image, son titre
-et sa provenance (`useProvenance`) — projet, révision du calcul, date de calcul, écrite dans
-l'heure du poste au moment de l'export — en tête, sur le fond de la charte, puis libère
-l'instance. Un choix qui change ce qu'une courbe lit — les délais de paiement — est un paramètre
-de l'adresse, que le serveur envoie à l'API : le front ne filtre ni ne décale rien.
+courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; `timeAxis` gradue
+un axe de temps au premier de chaque mois que `monthTicks` tire des instants qu'il montre — tous
+les deux, trois, six mois ou chaque année sur une longue plage, l'année seule alors —, écrits
+dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de planning, que
+`planningInstant` place à leur minuit UTC, l'option de la figure disant alors `useUTC`. Une
+courbe trace les chaînes de l'API telles quelles — ECharts en tire une position —, une valeur
+non calculable étant un trou, un cumul d'événements datés — valeur acquise, coût réel — en
+escalier (`step`), une marche verticale par deux points à la même date, et le tableau les écrit
+par `src/i18n/format.ts`, les zones par `Signal`. Une figure qui reçoit `exported` offre la
+commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une instance hors
+écran, en rendu canvas, à la taille d'une image, son titre et sa provenance (`useProvenance`) —
+projet, révision du calcul, date de calcul, écrite dans l'heure du poste au moment de l'export —
+en tête, repliés à la largeur de l'image (`wrapLines`), la figure descendue de la hauteur de
+leurs lignes, sur le fond de la charte, puis libère l'instance. Un choix qui change ce qu'une
+courbe lit — les délais de paiement — est un paramètre de l'adresse, que le serveur envoie à
+l'API : le front ne filtre ni ne décale rien.
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes

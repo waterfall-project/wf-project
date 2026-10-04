@@ -39,6 +39,12 @@ import { formatLocale, formatMoney, formatMonth, formatPlanningDate } from "@/i1
 /** Cumulative curves, as the API computes them. */
 export type CurveSeries = components["schemas"]["CurveSeries"];
 
+/** The series that cumulate dated events, drawn by steps: the earned value, the actual cost. */
+const STEPPED: ReadonlySet<CurveSeries["series"][number]["name"]> = new Set([
+  "earned_value",
+  "actual_cost",
+]);
+
 /**
  * What a chart of cumulative curves is named — its caption, the sentence of its image, the name
  * of the file of its exported image before the code of the project —, and where it comes from.
@@ -70,8 +76,9 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
         </thead>
         <tbody>
           {curves.series.flatMap((series) =>
-            series.points.map((point) => (
-              <tr key={`${series.name}-${point.date}`}>
+            // A date may come twice in a series: the two sides of a step of the budget.
+            series.points.map((point, index) => (
+              <tr key={`${series.name}-${point.date}-${String(index)}`}>
                 <th scope="row" className="font-normal">
                   {t(`enums.CurveSeries.series.name.${series.name}`)}
                 </th>
@@ -155,6 +162,10 @@ export function CurveSeriesChart({
           index,
           series.points.map((point) => [planningInstant(point.date), point.amount] as const),
         ),
+        // A cumulation of dated events — the earned value at the completion of each task, the
+        // actual cost at the date of each document — climbs by steps at their dates, never by a
+        // slope between them (WF-IND-0110); a cumulation spread over durations is a line.
+        ...(STEPPED.has(series.name) ? { step: "end" as const } : {}),
       }));
       return {
         // Its axis of time is in UTC: its ticks too (`timeAxis`).
@@ -162,7 +173,17 @@ export function CurveSeriesChart({
         textStyle: { fontFamily: palette.font, color: palette.text },
         // No legend: each curve is named at its end (`curve`).
         grid: { left: 80, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
-        xAxis: timeAxis(palette, formatLocale(locale), true),
+        xAxis: timeAxis(
+          palette,
+          formatLocale(locale),
+          [
+            ...curves.series.flatMap((series) =>
+              series.points.map((point) => planningInstant(point.date)),
+            ),
+            ...steps.map((step) => planningInstant(step.date)),
+          ],
+          true,
+        ),
         yAxis: {
           type: "value",
           axisLine: { show: true, lineStyle: { color: palette.axis } },

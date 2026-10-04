@@ -534,7 +534,11 @@ la réception usine, par l'offre v1.0, la référence et la révision en cours ;
 courbe sans délais de paiement, sans marche ; `cost_curve_payment_delays`, les décaissements — le
 budget de référence et la projection translatés de trente jours, le coût réel, nul, laissé à ses
 dates, les mois à venir égaux au reste à engager ; `cost_curve_amendment`, la marche d'un avenant
-de 15 000 contractualisé le 10 mars — `steps[].amount` y est le montant de la marche.
+de 15 000 contractualisé le 10 mars — `steps[].amount` y est le montant de la marche. **Une marche
+est verticale** (WF-IND-0100 : « la courbe du budget présente une marche à sa date ») : la série
+du budget de référence porte deux points à la date de la marche, la valeur d'avant puis celle
+d'après, dans cet ordre, et non la seule valeur d'après, que le tracé relierait au point précédent
+par une pente (relevé par la revue de la PR #289) ; le front trace les points tels quels.
 `earned_value_curves` (`getEarnedValueCurves`) prolonge la valeur planifiée jusqu'à la fin de la
 référence. Les exemples du plan de charge viendront avec son écran (#286).
 

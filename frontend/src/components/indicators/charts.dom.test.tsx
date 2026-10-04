@@ -213,6 +213,17 @@ describe("the tracking of the milestones", () => {
     expect(option?.useUTC).toBe(true);
     const yAxis = option?.yAxis as { axisLabel: { formatter: (value: number) => string } };
     expect(yAxis.axisLabel.formatter(Date.parse("2026-05-01T00:00:00Z"))).toBe("May 2026");
+    // The markings run from 15 December to 16 March: a tick on the first of each month, from
+    // December to April, in UTC.
+    const xAxis = option?.xAxis as { axisLabel: { customValues: number[] }; min: number };
+    expect(xAxis.axisLabel.customValues.map((tick) => new Date(tick).toISOString())).toEqual([
+      "2025-12-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+      "2026-02-01T00:00:00.000Z",
+      "2026-03-01T00:00:00.000Z",
+      "2026-04-01T00:00:00.000Z",
+    ]);
+    expect(xAxis.min).toBe(Date.parse("2025-12-01T00:00:00Z"));
   });
 });
 
@@ -248,6 +259,9 @@ describe("the cumulative curves", () => {
     ]);
     expect(series[2]?.data?.[0]).toEqual(["2026-03-16T00:00:00Z", "0.00"]);
     expect(series[0]?.data?.at(-1)).toEqual(["2026-06-30T00:00:00Z", "100000.00"]);
+    // The actual cost cumulates dated documents: by steps; the budget and the projection, spread
+    // over durations, by lines.
+    expect(series.map((each) => each.step)).toEqual([undefined, "end", undefined]);
     // Dates of planning: the ticks are placed at midnight in UTC, as the points.
     expect(lastOption()?.useUTC).toBe(true);
   });
@@ -260,6 +274,12 @@ describe("the cumulative curves", () => {
     expect(marks?.map(({ xAxis, name }) => [name, xAxis])).toEqual([
       ["Amendment", "2026-03-10T00:00:00Z"],
     ]);
+    // The step is vertical: the curve bears the budget before and after it at its date.
+    expect(lastSeries()[0]?.data?.slice(2, 4)).toEqual([
+      ["2026-03-10T00:00:00Z", "23333.33"],
+      ["2026-03-10T00:00:00Z", "38333.33"],
+    ]);
+    expect(screen.getAllByRole("row", { name: /^Reference budget 10 Mar 2026/ })).toHaveLength(2);
     const table = screen.getByRole("table", { name: "Steps of the reference budget" });
     expect(
       within(table).getByRole("row", { name: "10 Mar 2026 Amendment 15,000.00" }),
@@ -294,6 +314,9 @@ describe("the cumulative curves", () => {
     ]);
     expect(series[0]?.data?.at(-1)).toEqual(["2026-06-30T00:00:00Z", "100000.00"]);
     expect(series[1]?.data?.at(-1)).toEqual(["2026-03-16T00:00:00Z", "0.00"]);
+    // A task completed makes a step in the earned value at its date, as the actual cost at the
+    // date of a document: both by steps, the planned value by a line.
+    expect(series.map((each) => each.step)).toEqual([undefined, "end", "end"]);
     // No step, no cash out: neither a mark nor a table of them.
     expect(series).toHaveLength(3);
     expect(screen.queryByRole("table", { name: "Cash out by month" })).toBeNull();
