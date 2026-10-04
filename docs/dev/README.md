@@ -209,7 +209,12 @@ couleur ; une date se montre dans sa forme courte. Le tri et la
 recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`, `search`,
 `query.ts`) : un en-tête cliqué ou une recherche saisie change l'adresse, la page relit
 l'opération avec eux, et la grille rend les lignes dans l'ordre reçu, les totaux de la
-réponse en pied — TanStack Table n'y enregistre aucun modèle trié, filtré ni groupé. Seules
+réponse en pied — TanStack Table n'y enregistre aucun modèle trié, filtré ni groupé. Au
+clavier, la grille est un seul arrêt de tabulation, sa cellule active, que les flèches déplacent,
+l'en-tête compris — ses boutons et ses poignées hors de la tabulation — : Entrée ou Espace sur un
+en-tête trie sa colonne, Maj et les flèches l'élargissent (motif `grid` d'ARIA, #182). Un refus
+d'écriture reste dit jusqu'à ce que l'utilisateur ferme son avis (`OutcomeNotice`,
+`dismissible`), quoi qui réussisse après lui. Seules
 les lignes visibles sont rendues (`row-window.ts`, sur `@tanstack/virtual-core`) : le
 virtualiseur est lu comme un magasin dont l'instantané est une donnée, qui ne change que
 quand la fenêtre bouge. Le React Compiler n'est pas activé dans ce front, mais le lint de

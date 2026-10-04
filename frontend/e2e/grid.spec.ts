@@ -1,8 +1,15 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Request, test } from "@playwright/test";
 
-import { scrollPageToGrid, scroller, scrollToFoot, scrollToPosition, withinBox } from "./scroll";
+import {
+  rowAt,
+  scrollPageToGrid,
+  scroller,
+  scrollToFoot,
+  scrollToPosition,
+  withinBox,
+} from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2): a thousand tasks and five thousand lines, six thousand rows, of which the grid
@@ -215,6 +222,36 @@ test("shows the sort asked without waiting for the server actions of the page, i
   await expect(page).toHaveURL(`${GRID}?sort_by=reestimated_amount&sort_order=asc`);
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
+});
+
+test("shows the sort asked without waiting for the totals a searched grid reads anew after a write", async ({
+  page,
+}) => {
+  // A grid read with a search reads its totals anew once its writes answered, by a server action
+  // of its own, held here longer than the wait of an address: it leaves before the sort is
+  // clicked, and Next shows a navigation without waiting for the actions dispatched before it.
+  const isRetotal = (request: Request) =>
+    request.headers()["next-action"] !== undefined &&
+    !(request.postData() ?? "").includes("lock_version");
+  await page.route(`**${GRID}*`, async (route) => {
+    if (isRetotal(route.request())) {
+      await new Promise((resolve) => setTimeout(resolve, 8_000));
+    }
+    await route.continue().catch(() => undefined);
+  });
+  await page.goto(`${GRID}?search=revue`);
+  // The label of row 4, a line of labour, entered: the fake back answers its line.
+  const label = rowAt(grid(page), 4).getByRole("gridcell").nth(1);
+  await label.click();
+  await page.keyboard.type("Heures de câblage");
+  const retotal = page.waitForRequest(isRetotal);
+  await page.keyboard.press("Enter");
+  await expect(label).toHaveText("Heures de câblage");
+  await retotal;
+  const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
+  await header.getByRole("button").click();
+  await expect(page).toHaveURL(`${GRID}?search=revue&sort_by=reestimated_amount&sort_order=asc`);
+  await expect(header).toHaveAttribute("aria-sort", "ascending");
 });
 
 test("hides a column chosen in the menu of the columns, and searches the labels on the server", async ({
