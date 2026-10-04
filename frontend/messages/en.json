@@ -315,6 +315,7 @@
       "title": "Contributors",
       "none": "This project has no contributor.",
       "name": "Name",
+      "kind": "Capacity",
       "account": "Account",
       "active": "Active",
       "inactive": "Deactivated"
@@ -326,7 +327,8 @@
       "change": "Transition",
       "actor": "By",
       "creation": "Creation",
-      "to": "to"
+      "to": "to",
+      "reason": "Reason"
     }
   },
   "revisionScreen": {

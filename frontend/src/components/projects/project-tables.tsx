@@ -3,8 +3,9 @@
 /**
  * The lists of a project, in dense tables, in the order the server gave them (US-0210): its
  * sub-projects, each by the code the ERP knows it by, and whether actual costs are charged to it
- * (WF-PRJ-0050); its contributors, and whether their account is still active (WF-PRJ-0060); the
- * history of its states, each transition dated when it occurred and by whom (WF-CYC-0130). Each
+ * (WF-PRJ-0050); its contributors, the project manager told from the others, and whether their
+ * account is still active (WF-PRJ-0060); the history of its states, each transition dated when it
+ * occurred, by whom, and with the motive given to confirm an exit, if any (WF-CYC-0130). Each
  * table is a section under its title; an empty list says it is. Nothing is offered to create or
  * modify: those forms belong to the epic of their domain.
  */
@@ -15,6 +16,7 @@ import {
   History,
   type LucideIcon,
   User,
+  UserCog,
   Users,
   UserX,
 } from "lucide-react";
@@ -117,20 +119,25 @@ export function SubprojectList({ subprojects }: { readonly subprojects: readonly
   );
 }
 
-/** The contributors of a project, each by the name of their account, and whether it is active. */
+/**
+ * The contributors of a project, each by the name of their account, their capacity — the project
+ * manager marked by an icon besides its name, readable without colour —, and whether their
+ * account is active.
+ */
 export function ContributorList({
   contributors,
 }: {
   readonly contributors: readonly Contributor[];
 }) {
   const t = useTranslations("projectLists.contributors");
+  const kind = useTranslations("enums.ContributorKind");
   return (
     <ListSection
       title={t("title")}
       icon={Users}
       empty={contributors.length === 0 ? t("none") : undefined}
     >
-      <ListTable label={t("title")} columns={[t("name"), t("account")]}>
+      <ListTable label={t("title")} columns={[t("name"), t("kind"), t("account")]}>
         {contributors.map((contributor) => (
           <TableRow key={contributor.user_id}>
             <TableCell className={CELL}>
@@ -138,6 +145,16 @@ export function ContributorList({
                 <User aria-hidden="true" className={ICON} />
                 {contributor.display_name}
               </span>
+            </TableCell>
+            <TableCell className={CELL}>
+              {contributor.kind === "project_manager" ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <UserCog aria-hidden="true" className={ICON} />
+                  {kind(contributor.kind)}
+                </span>
+              ) : (
+                kind(contributor.kind)
+              )}
             </TableCell>
             <TableCell className={CELL}>
               {contributor.is_active ? (
@@ -168,7 +185,10 @@ function Actor({ actor }: { readonly actor: StateTransition["actor"] }) {
   );
 }
 
-/** The history of the states of a project, from its creation to its current state. */
+/**
+ * The history of the states of a project, from its creation to its current state; the motive of
+ * an exit as the user gave it, a transition without one left blank rather than said lacking.
+ */
 export function TransitionList({
   transitions,
 }: {
@@ -182,7 +202,10 @@ export function TransitionList({
       icon={History}
       empty={transitions.length === 0 ? t("none") : undefined}
     >
-      <ListTable label={t("title")} columns={[t("occurredAt"), t("change"), t("actor")]}>
+      <ListTable
+        label={t("title")}
+        columns={[t("occurredAt"), t("change"), t("actor"), t("reason")]}
+      >
         {transitions.map((transition) => (
           <TableRow key={`${transition.occurred_at}:${transition.to_state}`}>
             <TableCell className={CELL}>
@@ -198,6 +221,7 @@ export function TransitionList({
             <TableCell className={CELL}>
               <Actor actor={transition.actor} />
             </TableCell>
+            <TableCell className={CELL}>{transition.reason}</TableCell>
           </TableRow>
         ))}
       </ListTable>

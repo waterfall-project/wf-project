@@ -315,6 +315,7 @@
       "title": "Contributeurs",
       "none": "Ce projet n’a aucun contributeur.",
       "name": "Nom",
+      "kind": "Qualité",
       "account": "Compte",
       "active": "Actif",
       "inactive": "Désactivé"
@@ -326,7 +327,8 @@
       "change": "Transition",
       "actor": "Par",
       "creation": "Création",
-      "to": "vers"
+      "to": "vers",
+      "reason": "Motif"
     }
   },
   "revisionScreen": {
