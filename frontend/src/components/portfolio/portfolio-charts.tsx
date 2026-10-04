@@ -55,12 +55,17 @@ function point(value: Computable): string {
   return value.is_computable ? (value.value ?? GAP) : GAP;
 }
 
-/** The axis of the values of a chart, from zero, its ticks in the language of the interface. */
-function valueAxis(palette: ChartPalette, locale: string) {
+/**
+ * The axis of the values of a chart — from zero for an index, from the lowest value drawn for a
+ * signed amount —, its ticks in the language of the interface.
+ */
+function valueAxis(palette: ChartPalette, locale: string, fromZero: boolean) {
   const tick = new Intl.NumberFormat(locale);
   return {
     type: "value" as const,
-    min: 0,
+    // An index is never negative, its axis starts at zero; an amount is signed, its axis reaches
+    // down to the lowest value drawn.
+    ...(fromZero ? { min: 0 } : {}),
     axisLine: { show: true, lineStyle: { color: palette.axis } },
     axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
     splitLine: { lineStyle: { color: palette.grid } },
@@ -82,7 +87,7 @@ export function QuarterlyChart({ quarters }: { readonly quarters: readonly Quart
         axisLine: { show: true, lineStyle: { color: palette.axis } },
         axisLabel: { color: palette.text },
       },
-      yAxis: valueAxis(palette, formatLocale(locale)),
+      yAxis: valueAxis(palette, formatLocale(locale), true),
       series: INDICES.map((index, rank) => ({
         name: t(`portfolio.performance.${index}`),
         ...curve(
@@ -156,16 +161,14 @@ export function CashOutChart({ months }: { readonly months: readonly CashOutMont
       useUTC: true,
       textStyle: { fontFamily: palette.font, color: palette.text },
       grid: { left: 96, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
+      // The axis runs to the first of the month after the latest already (`monthTicks`).
       xAxis: timeAxis(
         palette,
         formatLocale(locale),
-        [
-          ...months.map((month) => planningInstant(month.month)),
-          ...(end === undefined ? [] : [end]),
-        ],
+        months.map((month) => planningInstant(month.month)),
         true,
       ),
-      yAxis: valueAxis(palette, formatLocale(locale)),
+      yAxis: valueAxis(palette, formatLocale(locale), false),
       series: PARTS.map((part, rank) => {
         const drawn = curve(
           palette,
