@@ -102,14 +102,14 @@ describe("the summary of the estimate", () => {
   it("names each category whose hourly rate the calculation lacks, with its year, and leads to the reference", () => {
     const html = summary("estimate_indicators", "missing_rates");
     expect(text(html)).toMatch(
-      /^Taux horaires manquants Le devis ne peut pas être calculé tant que ces catégories de coût n’ont pas de taux horaire pour son année de référence : Ingénierie électrique — 2026 Mise en service — 2026 Renseigner les taux horaires Indicateurs du devis/,
+      /^Taux horaires manquants Le devis ne peut pas être calculé tant que ces catégories de coût n’ont pas de taux horaire pour son année de référence : Ingénierie électrique — 2026 Renseigner les taux horaires Indicateurs du devis/,
     );
     expect(html).toMatch(/<a [^>]*href="\/reference\/costs"/);
   });
 
   it("leads a session that may read the reference but not write it to see the rates, by a link bearing the icon of the function", () => {
     const html = summary("estimate_indicators", "missing_rates", estimator);
-    expect(text(html)).toContain("Mise en service — 2026 Voir les taux horaires Indicateurs");
+    expect(text(html)).toContain("Ingénierie électrique — 2026 Voir les taux horaires Indicateurs");
     expect(html).toMatch(
       /<a [^>]*href="\/reference\/costs"[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Voir les taux horaires<\/a>/,
     );
@@ -118,7 +118,7 @@ describe("the summary of the estimate", () => {
   it("names the missing rates without a way to a reference the session may not read", () => {
     // No session: no permission at all.
     const html = summary("estimate_indicators", "missing_rates", []);
-    expect(text(html)).toContain("Ingénierie électrique — 2026 Mise en service — 2026");
+    expect(text(html)).toContain("Ingénierie électrique — 2026 Indicateurs");
     expect(html).not.toContain("<a ");
   });
 
@@ -132,7 +132,7 @@ describe("the summary of the estimate", () => {
         unlabelled(example("missing_rates") as MissingRates),
       ),
     );
-    expect(html).toContain("Sans libellé — 2026 Sans libellé — 2026");
+    expect(html).toContain("Sans libellé — 2026");
     expect(html).toContain("Par nature de coût Sans libellé 1 000,00 (36,57 %) Sans libellé");
     expect(html).not.toMatch(/01926f3a-/);
   });
