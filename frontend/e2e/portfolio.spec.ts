@@ -34,6 +34,22 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
     "Taux de transformation40 %",
   );
   const grid = page.getByRole("grid", { name: "Projets du portefeuille" });
+  // Each column the requirement names.
+  for (const name of [
+    "Libellé",
+    "Code",
+    "État",
+    "Budget de référence",
+    "Devis courant",
+    "Probabilité de gain",
+    "Projection du chef de projet",
+    "Écart au budget",
+    "Indice de coût",
+    "Indice de délai",
+    "Dernière révision marquée",
+  ]) {
+    await expect(grid.getByRole("columnheader", { name })).toBeVisible();
+  }
   const witness = grid.getByRole("row", { name: /Modernisation du poste de commande/ });
   await expect(witness.getByRole("img", { name: "Alerte" })).toBeVisible();
   // The grid holds in the window: its totals, the number of projects the server retained, in view.

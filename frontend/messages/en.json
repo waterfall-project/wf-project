@@ -342,7 +342,8 @@
       "until": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period up to {to} · calculated on {asOf}"
     },
     "projects": {
-      "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}"
+      "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
+      "reason": " — {reason}"
     },
     "pages": {
       "label": "Pages of the projects",
@@ -356,7 +357,11 @@
       "pipelineGross": "Gross pipeline",
       "pipelineWeighted": "Weighted pipeline",
       "delivered": "Delivered",
-      "conversionRate": "Conversion rate"
+      "conversionRate": "Conversion rate",
+      "period": "Delivered and conversion rate over the period from {from} to {to}",
+      "since": "Delivered and conversion rate over the period from {from}",
+      "until": "Delivered and conversion rate over the period up to {to}",
+      "noPeriod": "Delivered and conversion rate without a period"
     },
     "performance": {
       "indices": "Aggregated indices",
@@ -474,6 +479,7 @@
     "exportPng": "Export as PNG",
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Revision: {revision} · Computed on {date}",
+    "exportSubtitleWith": "Revision: {revision} · {detail} · Computed on {date}",
     "fileName": "{file}-{code}.png"
   },
   "projectIndicators": {
@@ -574,6 +580,38 @@
       "past": "Paid out",
       "forecast": "To pay out"
     }
+  },
+  "workload": {
+    "title": "Project workload",
+    "chartTitle": "Load by role and by month",
+    "description": "Bars of the load of each resource role by month, in hours, and its monthly capacity against it, dashed.",
+    "basis": "Basis",
+    "markedRevision": "Marked revision",
+    "unnamedRevision": "Unnamed marked revision",
+    "orgNode": "Organisation node",
+    "allOrgNodes": "All nodes",
+    "orgNodeIn": "{node} ({parent})",
+    "unknownOrgNode": "unknown node",
+    "show": "Show",
+    "reading": "Basis: {basis} — revision “{revision}”",
+    "role": "Role",
+    "month": "Month",
+    "hours": "Load (h)",
+    "capacity": "Capacity (h per month)",
+    "loadRatio": "Load against capacity",
+    "zone": "Zone",
+    "capacityOf": "Capacity — {role}",
+    "noLoad": "No load",
+    "none": "No role has a load on this basis.",
+    "noneInNode": "No role of the node “{node}” has a load on this basis.",
+    "refused": {
+      "noReference": "The workload is not available on this basis: the project has no reference revision, and only the current revision is one.",
+      "markedRevision": "The workload is not available on this basis: the marked revision asked for is missing, or is not marked.",
+      "orgNode": "The workload is not available: the organisation node asked for does not exist.",
+      "invalid": "The workload is not available: the API refuses what is asked."
+    },
+    "exportDetail": "Basis: {basis} · Organisation node: {node}",
+    "file": "workload"
   },
   "commands": {
     "label": "Commands",
@@ -878,6 +916,7 @@
     "projectSettings": "Project settings",
     "planning": "Planning",
     "estimate": "Costing and estimate",
+    "workload": "Workload",
     "remaining": "Estimate to complete",
     "risks": "Risk management",
     "actualCosts": "Actual costs",

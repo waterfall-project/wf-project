@@ -27,7 +27,7 @@ export interface Examples {
     200: "pilot_health";
   };
   "GET /portfolio/projects": {
-    200: "portfolio_projects_empty" | "volume/portfolio_projects";
+    200: "portfolio_projects_empty" | "volume/portfolio_projects" | "volume/portfolio_projects_page";
   };
   "GET /portfolio/risks": {
     200: "volume/portfolio_risks";
@@ -78,7 +78,7 @@ export interface Examples {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
   };
   "GET /projects/{project_id}/revisions": {
-    200: "revisions" | "revisions_empty";
+    200: "revisions" | "revisions_empty" | "revisions_marked";
   };
   "GET /projects/{project_id}/revisions/comparison": {
     200: "comparison" | "comparison_identical";
@@ -115,6 +115,9 @@ export interface Examples {
   };
   "GET /projects/{project_id}/subprojects": {
     200: "subprojects";
+  };
+  "GET /projects/{project_id}/workload": {
+    200: "workload" | "workload_marked_remaining" | "workload_reference_budget";
   };
   "GET /reference/calendars": {
     200: "calendars";

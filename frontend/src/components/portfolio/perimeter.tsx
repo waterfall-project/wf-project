@@ -8,8 +8,9 @@
  * and the threshold of under-load (WF-PTF-0060), for the views that take them. A choice only
  * changes the address, under the names of the contract, and the page reads anew what the server
  * computes on it. A state shows pressed as the address asks it, or, when the address asks none, as
- * the server retained it by default (`scope.states`): the front assumes no default of its own. A
- * change goes on from the address last asked (`usePendingAddress`).
+ * the server retained it by default (`scope.states`): the front assumes no default of its own; the
+ * last state pressed cannot be released, a perimeter retaining at least one. A change goes on from
+ * the address last asked (`usePendingAddress`).
  */
 "use client";
 
@@ -73,6 +74,8 @@ function StatesFilter({
     >
       {PORTFOLIO_STATES.map((state) => {
         const pressed = shown.includes(state);
+        // The last state retained stays: releasing it would leave a perimeter of nothing.
+        const kept = pressed && shown.length === 1;
         const Icon = pressed ? CircleCheck : Circle;
         return (
           <Button
@@ -80,7 +83,11 @@ function StatesFilter({
             size="sm"
             variant={pressed ? "default" : "outline"}
             aria-pressed={pressed}
+            aria-disabled={kept ? true : undefined}
             onClick={() => {
+              if (kept) {
+                return;
+              }
               change((query) => {
                 const last = readStates(query);
                 const from = last.length === 0 ? retained : last;

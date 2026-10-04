@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockdata, mockstructure
+from wftools import REPOSITORY, mockdata, mockportfolio, mockstructure
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
 CONTRACT = REPOSITORY / "docs" / "api" / "paths"
@@ -44,6 +44,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "portfolio_cost_structure.json",
         "portfolio_performance.json",
         "portfolio_projects.json",
+        "portfolio_projects_page.json",
         "portfolio_risks.json",
         "portfolio_value.json",
         "summary_dependencies.json",
@@ -140,16 +141,16 @@ def test_the_indicators_keep_the_context_and_labels_of_the_universe(
     volumes: dict[str, Any],
 ) -> None:
     indicators = volumes["estimate_indicators.json"]["value"]
-    witness = mockdata.fixture("estimate_indicators")
+    witness = mockstructure.fixture("estimate_indicators")
     assert indicators["context"] == witness["context"]
     assert indicators["delta_to_reference"] == witness["delta_to_reference"]
     assert indicators["delta_to_previous_revision"] == witness["delta_to_previous_revision"]
-    natures = mockdata.fixture("estimate_indicators_breakdown")["by_cost_type"]
+    natures = mockstructure.fixture("estimate_indicators_breakdown")["by_cost_type"]
     assert [(part["key"], part["label"]) for part in indicators["by_cost_type"]] == [
         (part["key"], part["label"]) for part in natures
     ]
     subprojects = [
-        (entry["subproject_id"], entry["label"]) for entry in mockdata.fixture("subprojects")
+        (entry["subproject_id"], entry["label"]) for entry in mockstructure.fixture("subprojects")
     ]
     assert [(part["key"], part.get("label")) for part in indicators["by_subproject"]] == [
         *subprojects,
@@ -179,8 +180,8 @@ def test_no_project_takes_the_subject_and_object_of_the_witness_or_the_offer(
 
 def test_the_witness_and_the_offer_are_those_of_their_examples(volumes: dict[str, Any]) -> None:
     witness, offer = volumes["portfolio_projects.json"]["value"]["items"][:2]
-    project = mockdata.fixture("project")
-    indicators = mockdata.fixture("project_indicators")
+    project = mockstructure.fixture("project")
+    indicators = mockstructure.fixture("project_indicators")
     for field in ("project_id", "label", "code", "state", "win_probability"):
         assert witness[field] == project[field]
     assert witness["reference_budget"] == indicators["reference_budget"]
@@ -188,7 +189,7 @@ def test_the_witness_and_the_offer_are_those_of_their_examples(volumes: dict[str
     assert witness["cost_index"] == indicators["cost_index"]
     assert witness["schedule_index"] == indicators["schedule_index"]
     assert witness["last_marked_at"] == "2026-02-01T09:00:00Z"
-    pricing = mockdata.fixture("project_pricing")
+    pricing = mockstructure.fixture("project_pricing")
     for field in ("project_id", "label", "code", "state", "win_probability"):
         assert offer[field] == pricing[field]
     assert offer["reference_budget"] is None
@@ -214,7 +215,7 @@ def test_an_offer_shows_its_estimate_and_a_project_in_progress_its_budget(
     [("1", "nominal"), ("0.9", "nominal"), ("0.89", "watch"), ("0.8", "watch"), ("0.5", "alert")],
 )
 def test_an_index_is_zoned_by_the_thresholds_of_the_reference(index: str, zone: str) -> None:
-    assert mockdata.zone(Decimal(index)) == zone
+    assert mockportfolio.zone(Decimal(index)) == zone
 
 
 def test_the_zone_of_each_index_is_the_one_its_value_takes(volumes: dict[str, Any]) -> None:
@@ -226,7 +227,7 @@ def test_the_zone_of_each_index_is_the_one_its_value_takes(volumes: dict[str, An
     ]
     assert len(indexes) > 500
     assert all(
-        index["zone"] == mockdata.zone(Decimal(index["value"]["value"])) for index in indexes
+        index["zone"] == mockportfolio.zone(Decimal(index["value"]["value"])) for index in indexes
     )
     assert {index["zone"] for index in indexes} == {"nominal", "watch", "alert"}
 
@@ -263,11 +264,11 @@ def test_the_performance_is_a_ratio_of_sums_and_counts_each_project_once(
 ) -> None:
     performance = volumes["portfolio_performance.json"]["value"]
     progressing = rows_of(volumes, "in_progress")
-    sums = [mockdata.earned(row) for row in progressing]
+    sums = [mockportfolio.earned(row) for row in progressing]
     value, actual = total(e.earned for e in sums), total(e.actual for e in sums)
     cost = performance["cost_index"]
     assert Decimal(cost["value"]["value"]) == (value / actual).quantize(Decimal("0.01"))
-    assert cost["zone"] == mockdata.zone(Decimal(cost["value"]["value"]))
+    assert cost["zone"] == mockportfolio.zone(Decimal(cost["value"]["value"]))
     assert performance["reference_budget"] == volumes["portfolio_value.json"]["value"]["order_book"]
     assert performance["scope"]["project_count"] == len(progressing)
     for index in ("cost", "schedule"):
@@ -294,7 +295,7 @@ def test_the_parts_of_the_cost_structure_sum_to_their_totals(volumes: dict[str, 
         assert total(part["share"] for part in structure[parts]) == 1
     labor = structure["budget_by_cost_type"][0]
     assert labor["label"] == "Main-d'œuvre"
-    nodes = {node["org_node_id"]: node["label"] for node in mockdata.fixture("org_nodes")}
+    nodes = {node["org_node_id"]: node["label"] for node in mockstructure.fixture("org_nodes")}
     assert all(nodes[part["key"]] == part["label"] for part in structure["labor_by_org_node"])
     assert total(part["amount"] for part in structure["labor_by_org_node"]) == Decimal(
         labor["amount"]
@@ -322,15 +323,15 @@ def test_the_heaviest_risks_are_those_of_projects_of_the_list(volumes: dict[str,
 def test_a_view_written_by_hand_reads_the_portfolio_of_the_list(
     volumes: dict[str, Any], name: str
 ) -> None:
-    scope = mockdata.fixture(name)["scope"]
+    scope = mockstructure.fixture(name)["scope"]
     assert scope["as_of"] == mockstructure.AS_OF.isoformat()
     assert scope["states"] == ["in_progress"]
     assert scope["project_count"] == len(rows_of(volumes, "in_progress"))
 
 
 def test_the_roles_of_the_workload_are_those_of_the_universe() -> None:
-    roles = {role["resource_role_id"]: role for role in mockdata.fixture("resource_roles")}
-    for role in mockdata.fixture("portfolio_workload")["roles"]:
+    roles = {role["resource_role_id"]: role for role in mockstructure.fixture("resource_roles")}
+    for role in mockstructure.fixture("portfolio_workload")["roles"]:
         known = roles[role["resource_role_id"]]
         assert role["label"] == known["label"]
         capacity = Decimal(known["capacity"]["monthly_hours"]) * Decimal(
@@ -342,27 +343,78 @@ def test_the_roles_of_the_workload_are_those_of_the_universe() -> None:
 
 
 def test_the_marks_the_portfolio_journey_reads(volumes: dict[str, Any]) -> None:
-    # The end-to-end path of the portfolio (portfolio.spec.ts) reads the list, the witness
-    # project in alert by its schedule index, and the performance by these figures: a change of
-    # the generator that moves them fails here.
+    # The end-to-end path of the list of the portfolio (portfolio.spec.ts) reads the perimeter the
+    # server retained, the number of projects, the conversion rate and the witness project in alert
+    # by its schedule index: a change of the generator that moves them fails here.
     value = volumes["portfolio_projects.json"]["value"]
-    assert value["meta"]["total"] == 300
-    witness = value["items"][0]
+    assert value["scope"]["states"] == ["in_progress", "pricing"]
+    assert value["scope"]["as_of"] == "2026-03-16"
+    assert value["meta"]["total"] == value["scope"]["project_count"] == 300
+    witness = next(row for row in value["items"] if row["code"] == "PRJ-001")
     assert witness["label"] == "Modernisation du poste de commande"
     assert witness["schedule_index"]["zone"] == "alert"
+    assert volumes["portfolio_value.json"]["value"]["conversion_rate"]["value"] == "0.4"
+
+
+def test_the_marks_the_zone_journey_reads(volumes: dict[str, Any]) -> None:
+    # The end-to-end path of the colours of the zones (portfolio.spec.ts) reads three indices of
+    # the list and the distribution of the projects by zone of the cost index: a change of the
+    # generator that moves them fails here.
+    rows = {row["code"]: row for row in volumes["portfolio_projects.json"]["value"]["items"]}
+    assert rows["PRJ-003"]["cost_index"]["zone"] == "watch"
+    assert rows["PRJ-004"]["cost_index"]["zone"] == "nominal"
     performance = volumes["portfolio_performance.json"]["value"]
-    assert performance["cost_index"]["value"]["value"] == "0.94"
-    assert performance["zone_distribution"][2] == {
-        "index": "cost",
-        "zone": "alert",
-        "project_count": 53,
+    counts = {
+        entry["zone"]: entry["project_count"]
+        for entry in performance["zone_distribution"]
+        if entry["index"] == "cost"
     }
+    assert counts == {"nominal": 168, "watch": 47, "alert": 53}
+
+
+def test_the_second_page_holds_the_projects_fifty_to_a_hundred(volumes: dict[str, Any]) -> None:
+    rows = volumes["portfolio_projects.json"]["value"]["items"]
+    page = volumes["portfolio_projects_page.json"]["value"]
+    assert page["items"] == rows[50:100]
+    assert page["meta"] == {"limit": 50, "offset": 50, "total": 300}
+    assert page["scope"] == volumes["portfolio_projects.json"]["value"]["scope"]
+
+
+def test_the_values_drawn_give_back_the_indices_of_the_row(volumes: dict[str, Any]) -> None:
+    for row in rows_of(volumes, "in_progress")[1:]:
+        values = mockportfolio.earned(row)
+        cost = Decimal(row["cost_index"]["value"]["value"])
+        schedule = Decimal(row["schedule_index"]["value"]["value"])
+        assert abs(values.earned / values.actual - cost) < Decimal("0.0001")
+        assert abs(values.earned / values.planned - schedule) < Decimal("0.0001")
+
+
+def test_each_risk_holds_in_its_cell_and_is_provisioned_at_its_probability(
+    volumes: dict[str, Any],
+) -> None:
+    rows = volumes["portfolio_projects.json"]["value"]["items"]
+    matrix = mockstructure.fixture("risk_matrix")
+    witness = mockstructure.fixture("project")["project_id"]
+
+    def holds(value: Decimal, level: dict[str, Any]) -> bool:
+        upper = level["upper"]
+        return Decimal(level["lower"]) <= value and (upper is None or value < Decimal(upper))
+
+    risks = mockportfolio.identified_risks(rows)
+    drawn = [risk for risk in risks if risk.row["project_id"] != witness]
+    assert len(drawn) > 300
+    for risk in drawn:
+        probability, severity = risk.cell
+        budget = Decimal(str(risk.row["reference_budget"]))
+        assert holds(risk.probability, matrix["probability_levels"][probability - 1])
+        assert holds(risk.severity / budget, matrix["severity_levels"][severity - 1])
+        assert risk.provision == (risk.severity * risk.probability).quantize(Decimal("0.01"))
 
 
 def test_the_rate_is_the_one_the_witness_estimate_reads() -> None:
     lines = [
         node["estimate_line"]
-        for node in mockdata.fixture("nodes_estimate")["items"]
+        for node in mockstructure.fixture("nodes_estimate")["items"]
         if node["kind"] == "estimate_line"
         and node["estimate_line"]["cost_category_id"] == mockstructure.ELECTRICAL_ENGINEERING
     ]
@@ -444,12 +496,14 @@ def test_two_hundred_categories_a_hundred_and_fifty_of_them_labour(
     for field in ("cost_category_id", "code", "accounting_code", "label"):
         assert len({category[field] for category in categories}) == 200
     labels = {category["cost_category_id"]: category["label"] for category in categories}
-    for missing in mockdata.fixture("missing_rates"):
+    for missing in mockstructure.fixture("missing_rates"):
         assert labels[missing["cost_category_id"]] == missing["label"]
     used = {kind.category for kind in mockstructure.LINE_KINDS}
     assert used <= labels.keys()
     # Each category names its nature as the natures of the universe do (WF-ARC-0020).
-    natures = {nature["cost_type_id"]: nature["label"] for nature in mockdata.fixture("cost_types")}
+    natures = {
+        nature["cost_type_id"]: nature["label"] for nature in mockstructure.fixture("cost_types")
+    }
     assert all(
         category["cost_type_label"] == natures[category["cost_type_id"]] for category in categories
     )
@@ -469,19 +523,19 @@ def test_the_marks_the_reference_journeys_read(volumes: dict[str, Any]) -> None:
     assert (rates[2016]["amount"], rates[2016]["lock_version"]) == ("86.98", 1)
     assert grid["rows"][0]["cells"][-1]["amount"] == "80.00"
     for name, year in (("hourly_rate_entered", 2015), ("hourly_rate_corrected", 2016)):
-        written = mockdata.fixture(name)
+        written = mockstructure.fixture(name)
         assert (written["cost_category_id"], written["year"]) == (
             mechanical["cost_category_id"],
             year,
         )
-    assert mockdata.fixture("hourly_rate_corrected")["lock_version"] == 2
+    assert mockstructure.fixture("hourly_rate_corrected")["lock_version"] == 2
 
 
 def test_the_missing_rates_are_those_the_estimate_indicators_name() -> None:
     # The same estimate, the same rates missing: the list and the amount that cannot be
     # calculated name the same categories, for the same year (#205).
-    indicators = mockdata.fixture("estimate_indicators_missing_rates")
-    assert mockdata.fixture("missing_rates") == indicators["total"]["params"]["missing_rates"]
+    indicators = mockstructure.fixture("estimate_indicators_missing_rates")
+    assert mockstructure.fixture("missing_rates") == indicators["total"]["params"]["missing_rates"]
 
 
 def test_two_runs_write_the_same_bytes() -> None:
@@ -591,6 +645,8 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
         ("getPortfolioProjects", "portfolio_projects"),
         ("getPortfolioValue", "portfolio_value"),
         ("getPortfolioPerformance", "portfolio_performance"),
+        ("getPortfolioCostStructure", "portfolio_cost_structure"),
+        ("getPortfolioRisks", "portfolio_risks"),
     ]:
         assert first_example("portfolio.yaml", operation) == (
             f"volume: {{ $ref: ../../../fixtures/api/volume/{name}.json }}"
@@ -598,5 +654,5 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
 
 
 def test_a_fixture_is_read_by_its_value() -> None:
-    project = cast("dict[str, Any]", mockdata.fixture("project"))
+    project = cast("dict[str, Any]", mockstructure.fixture("project"))
     assert project["project_id"] == "01926f3a-7c00-7000-8000-000000000001"

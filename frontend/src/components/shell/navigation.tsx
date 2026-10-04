@@ -51,6 +51,7 @@ import {
 } from "@/navigation/context";
 import {
   diagnosticGroups,
+  findScreen,
   type FunctionGroup,
   functionHref,
   type NavigationFunction,
@@ -83,8 +84,11 @@ interface Entry {
   readonly href: string;
   readonly label: string;
   readonly icon: LucideIcon;
-  /** Whether it leads to the page shown, whatever the query. */
-  readonly current: boolean;
+  /**
+   * Whether it leads to the page shown, whatever the query (`page`); to the function whose leaf
+   * the page shown is, which the bar does not offer (`true`); or to neither.
+   */
+  readonly current: false | "page" | "true";
 }
 
 /** The entries of a list, in the order given. */
@@ -94,7 +98,7 @@ function Entries({ entries }: { readonly entries: readonly Entry[] }) {
       {entries.map(({ key, href, label, icon: Icon, current }) => (
         <SidebarMenuItem key={key}>
           <SidebarMenuButton asChild tooltip={label}>
-            <Link href={href} aria-current={current ? "page" : undefined}>
+            <Link href={href} aria-current={current || undefined}>
               <Icon aria-hidden="true" />
               <span>{label}</span>
             </Link>
@@ -136,6 +140,14 @@ function functionEntries(
   pathname: string,
   name: Naming,
 ): Entry[] {
+  // The function whose leaf the page shown is, if it is one: its entry stands for the leaf.
+  const parent = findScreen(pathname.split("/").slice(1))?.parent;
+  const current = (href: string, fn: NavigationFunction): Entry["current"] => {
+    if (href.split("?")[0] === pathname) {
+      return "page";
+    }
+    return fn.code === parent?.code ? "true" : false;
+  };
   return functions
     .filter((fn) => fn.scope === scope)
     .flatMap((fn) => {
@@ -148,7 +160,7 @@ function functionEntries(
               href,
               label: name(fn),
               icon: FUNCTION_ICONS[fn.permission],
-              current: href.split("?")[0] === pathname,
+              current: current(href, fn),
             },
           ];
     });
@@ -216,7 +228,7 @@ function PlatformBlock({
             {entries.map(({ key, href, label: name, icon: EntryIcon, current }) => (
               <SidebarMenuSubItem key={key}>
                 <SidebarMenuSubButton>
-                  <Link href={href} aria-current={current ? "page" : undefined}>
+                  <Link href={href} aria-current={current || undefined}>
                     <EntryIcon aria-hidden="true" />
                     <span>{name}</span>
                   </Link>
@@ -288,7 +300,7 @@ function NavigationGroups({ permissions, remembered }: Omit<NavigationProps, "th
   const functions = groups.flatMap((group) => group.functions);
   const name: Naming = (fn) => t(fn.label);
   const projectEntries: Entry[] = [
-    ...groups.flatMap((group) =>
+    ...groups.flatMap((group): Entry[] =>
       group.route === undefined
         ? []
         : [
@@ -297,12 +309,12 @@ function NavigationGroups({ permissions, remembered }: Omit<NavigationProps, "th
               href: group.route,
               label: t(group.label),
               icon: GROUP_ICONS[group.label],
-              current: group.route === pathname,
+              current: group.route === pathname ? "page" : false,
             },
           ],
     ),
     ...(context === undefined && last !== undefined
-      ? [
+      ? ([
           {
             key: "return",
             href: last,
@@ -310,7 +322,7 @@ function NavigationGroups({ permissions, remembered }: Omit<NavigationProps, "th
             icon: Undo2,
             current: false,
           },
-        ]
+        ] satisfies Entry[])
       : []),
     ...functionEntries(functions, "project", context, pathname, name),
   ];

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { render, screen, within } from "@testing-library/react";
+import type { LineSeriesOption } from "echarts/charts";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -72,7 +73,8 @@ function lastOption() {
 /** The series of the last option a chart was handed. */
 function lastSeries() {
   const series = lastOption()?.series;
-  return Array.isArray(series) ? series : [];
+  // These charts draw lines alone.
+  return (Array.isArray(series) ? series : []) as LineSeriesOption[];
 }
 
 beforeEach(() => {
@@ -205,6 +207,29 @@ describe("the tracking of the milestones", () => {
     const figure = screen.getByRole("figure", { name: "Time/time diagram" });
     expect(figure.querySelector("time")).toHaveAttribute("datetime", TRACKING.context.computed_at);
     await expectAccessible(container);
+  });
+
+  it("starts the diagonal at the earliest marking of any milestone, not at the first one listed [WF-IND-0090-A]", () => {
+    // The witness tracking, its first milestone marked from February only and its points in
+    // reverse: the earliest marking is the last point of the second.
+    const [studies, factory] = TRACKING.milestones;
+    if (studies === undefined || factory === undefined) {
+      throw new Error("the example tracks two milestones");
+    }
+    const tracking = {
+      ...TRACKING,
+      milestones: [
+        { ...studies, points: studies.points.slice(1).reverse() },
+        { ...factory, points: [...factory.points].reverse() },
+      ],
+    };
+    english(<MilestoneChart tracking={tracking} provenance={PROVENANCE} />);
+    const diagonal = lastSeries().at(-1);
+    expect(diagonal?.name).toBe("Equal dates");
+    expect(diagonal?.data).toEqual([
+      ["2025-12-15T16:00:00Z", "2025-12-15T16:00:00Z"],
+      ["2026-03-16T14:05:00Z", "2026-03-16T14:05:00Z"],
+    ]);
   });
 
   it("places and writes the ticks of its axes in UTC, whatever the zone of the workstation", () => {

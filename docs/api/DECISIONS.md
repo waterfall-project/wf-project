@@ -580,7 +580,26 @@ du budget de référence porte deux points à la date de la marche, la valeur d'
 d'après, dans cet ordre, et non la seule valeur d'après, que le tracé relierait au point précédent
 par une pente (relevé par la revue de la PR #289) ; le front trace les points tels quels.
 `earned_value_curves` (`getEarnedValueCurves`) prolonge la valeur planifiée jusqu'à la fin de la
-référence. Les exemples du plan de charge viendront avec son écran (#286).
+référence. Les exemples du plan de charge sont venus avec son écran (US-0240/L4, ci-dessous).
+
+## Les exemples du plan de charge (US-0240/L4)
+
+**Le plan de charge et ce que son écran offre au choix ont leurs exemples** (#286, même
+autorisation de l'utilisateur du 2026-10-04). `getProjectWorkload` a un exemple par base, tous au
+16 mars 2026 comme les courbes : `workload`, sur le reste à engager de la révision en cours, le
+premier, que le faux back sert ; `workload_reference_budget`, sur les montants budgétés de la
+révision de référence ; `workload_marked_remaining`, sur les montants réestimés de la révision
+marquée « Référence », nommée par `revision_id`. Chacun répartit les 12,5 heures de main-d'œuvre
+du raccordement des borniers, portées par le câblage des armoires du 4 mai au 30 juin, sur ces deux
+mois au prorata de leurs heures travaillées — 5,95 en mai, 6,55 en juin —, pour l'ingénieur
+électricien, sa capacité en regard ; le technicien de mise en service, du même nœud
+d'organisation, n'a pas de charge, et sa capacité seule. Ces exemples suivent le devis de
+`nodes_estimate`, non les montants de `project_indicators` : ils sont de l'univers du devis, que la
+scission des univers témoins (#287) nomme déjà. Les deux rôles sont ceux de `resource_roles`,
+relevant du bureau d'études électricité d'`org_nodes` — l'exemple du référentiel (US-0250/L1), que
+l'écran offre au filtre, chaque nœud avec le libellé de son parent. `revisions_marked`
+(`listRevisions`, filtre `status=marked`), les deux révisions marquées du projet, la référence et
+l'offre v1.0, que l'écran offre comme base. Aucune forme du contrat ne change : rien que des exemples.
 
 ## Les coûts réels d'un projet (US-0230/L3)
 
@@ -668,13 +687,25 @@ projet témoin sans zone de coût, et quatre trimestres d'évolution, le premier
 nature, dont les parts somment à un, et la main-d'œuvre du bureau d'études électricité, le nœud
 dont relèvent tous les rôles de l'univers) ; les risques (`portfolio_risks`,
 `getPortfolioRisks` : le registre du projet témoin et jusqu'à trois risques identifiés par autre
-projet en cours, les dix plus lourds avec leur projet, la matrice aux bornes de `risk_matrix`).
+projet en cours, chacun tiré d'abord dans une case de la matrice, puis sa probabilité et sa gravité
+dans les bornes des niveaux de cette case (`risk_matrix`), sa provision la gravité pondérée par la
+probabilité (WF-RIS-0010) ; les dix plus lourds avec leur projet) ; et la deuxième page de cinquante
+projets de la liste (`portfolio_projects_page`).
 **Ce que la liste ne porte pas s'écrit à la main**, au même instant et sur le même périmètre :
 `portfolio_workload` (`getPortfolioWorkload` : deux rôles de `resource_roles` sur six mois, au
 seuil de 50 %, chaque mois avec sa zone) et `portfolio_cash_out` (`getPortfolioCashOut` :
 d'octobre 2025 à septembre 2026, mars portant le passé et l'avenir). `portfolio_projects_empty`
 est la liste filtrée qui ne retient aucun projet. `pilot_health` reste au 1er juin, l'exemple de
-l'US-0160.
+l'US-0160. Les montants des exemples écrits à la main ne sont pas tirés des trois cents projets :
+leur échelle se suit dans #287.
+
+**La période des statistiques, par défaut, est l'année qui précède la date de calcul.** Les
+statistiques d'une période — le réalisé et le taux de transformation de la valeur (WF-PTF-0050),
+les provisions survenues et écartées des risques (WF-PTF-0090) — se calculent sur `from` et
+`to` ; quand la requête ne les nomme pas, le serveur retient les douze mois qui finissent à la date
+de calcul, et les rend dans `scope.from` et `scope.to`, que l'écran affiche avec la vue
+(WF-IHM-0020). La liste des projets, qui ne retient de projet terminé que sur une période demandée,
+rend alors une période nulle.
 
 ## Collage et annulation
 

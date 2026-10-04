@@ -196,10 +196,10 @@ describe("the screens of the portfolio", () => {
   it("opens the project of each of the heaviest risks, and fills the matrix [WF-PTF-0030-A]", async () => {
     const markup = await render(RisksPage);
     const page = text(markup);
-    expect(page).toMatch(/Provisions of the identified risks .*174,007,479\.90/);
+    expect(page).toMatch(/Provisions of the identified risks .*103,826,197\.03/);
     expect(markup.match(/href="\/projects\/[\w-]+"/g)).toHaveLength(10);
     expect(markup).toContain(
-      'href="/projects/01926f3a-7c00-7000-8000-000300000182">Automatisation de l&#x27;atelier de montage — Dunkerque</a>',
+      'href="/projects/01926f3a-7c00-7000-8000-000300000119">Extension de la sous-station — Grenoble</a>',
     );
     expect(page).toContain("Risk matrix");
     // The cell of the highest probability and severity, by its signal and its count.
@@ -233,6 +233,17 @@ describe("the screens of the portfolio", () => {
   });
 
   it("stands without a node to choose when the API does not find the nodes of organisation", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const markup = await render(ProjectsPage);
+    expect(text(markup)).toMatch(/Order book .*2,597,289,500\.00/);
+    expect(grids.projects[0]?.projects).toHaveLength(300);
+    expect(markup).not.toContain("Organisation node");
+  });
+
+  it("stands without a node to choose on a view that takes one, when the API does not find the nodes", async () => {
     server.answers = {
       ...server.answers,
       "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
@@ -287,4 +298,11 @@ describe("the screens of the portfolio", () => {
       expect(queryOf(route)).toEqual(expected);
     },
   );
+
+  it("says the period of the statistics of the value, as the server retained it", async () => {
+    const page = text(await render(ProjectsPage));
+    expect(page).toContain(
+      "Delivered and conversion rate over the period from 17 Mar 2025 to 16 Mar 2026",
+    );
+  });
 });

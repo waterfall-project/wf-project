@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
+import type { components } from "@/api/generated/schema";
+import { example } from "@/test/fixtures";
+
 import {
   parametersHref,
   perimeterQuery,
@@ -10,6 +13,10 @@ import {
   readThreshold,
   statesValue,
 } from "./address";
+
+/** A node of organisation of the reference, as the contract identifies it. */
+const [, NODE] = example("org_nodes") as components["schemas"]["OrgNode"][];
+const DESIGN_OFFICE = NODE?.org_node_id ?? "";
 
 describe("the address of a view of the portfolio", () => {
   it("reads the states of a portfolio in their order, and the dates and the node the API may take", () => {
@@ -37,12 +44,12 @@ describe("the address of a view of the portfolio", () => {
 
   it("asks of the perimeter what a view takes alone", () => {
     const perimeter = readPerimeter(
-      new URLSearchParams("from=2025-01-01&as_of=2026-03-16&org_node_id=node-471"),
+      new URLSearchParams(`from=2025-01-01&as_of=2026-03-16&org_node_id=${DESIGN_OFFICE}`),
     );
     expect(perimeterQuery(perimeter)).toEqual({
       from: "2025-01-01",
       as_of: "2026-03-16",
-      org_node_id: "node-471",
+      org_node_id: DESIGN_OFFICE,
     });
     expect(perimeterQuery(perimeter, { period: false, node: false })).toEqual({
       as_of: "2026-03-16",

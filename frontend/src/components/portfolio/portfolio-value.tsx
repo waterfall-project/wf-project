@@ -14,7 +14,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
-import { formatPercent } from "@/i18n/format";
+import { formatPercent, formatPlanningDate } from "@/i18n/format";
 
 type Schemas = components["schemas"];
 type Computable = Schemas["Computable"];
@@ -70,8 +70,27 @@ export function Figure({
   );
 }
 
+/** The period the statistics of the value are computed on, as the server retained it. */
+function ValuePeriod({ scope }: { readonly scope: Schemas["PortfolioScope"] }) {
+  const t = useTranslations("portfolio.value");
+  const locale = useLocale();
+  const from = scope.from ?? null;
+  const to = scope.to ?? null;
+  const date = (value: string) => formatPlanningDate(value, locale);
+  const sentence =
+    from !== null && to !== null
+      ? t("period", { from: date(from), to: date(to) })
+      : from !== null
+        ? t("since", { from: date(from) })
+        : to !== null
+          ? t("until", { to: date(to) })
+          : t("noPeriod");
+  return <p className="text-sm text-muted-foreground">{sentence}</p>;
+}
+
 /**
- * Render the value of the portfolio: order book, pipeline raw and weighted, delivered, conversion.
+ * Render the value of the portfolio: order book, pipeline raw and weighted, delivered, conversion;
+ * and the period its statistics — the delivered, the conversion — are computed on (WF-IHM-0020).
  */
 export function PortfolioValueView({ value }: { readonly value: Schemas["PortfolioValue"] }) {
   const t = useTranslations("portfolio.value");
@@ -84,6 +103,7 @@ export function PortfolioValueView({ value }: { readonly value: Schemas["Portfol
   ] as const;
   return (
     <ViewSection title={t("title")}>
+      <ValuePeriod scope={value.scope} />
       <dl className="flex flex-wrap gap-x-8 gap-y-2">
         {amounts.map(([name, amount]) => (
           <ComputedTotal key={name} name={t(name)} amount={amount} />
