@@ -41,6 +41,25 @@ describe("what the tracker follows", () => {
     expect(after.tasks[0]?.task.status).toBe("running");
   });
 
+  it("changes nothing, not even the list, when a read finds the task where it stood", () => {
+    const before = following(task("task_running"));
+    const read = {
+      type: "answer",
+      source: "read",
+      key: MARKING,
+      taskId: MARKING,
+      outcome: { kind: "done", data: { ...task("task_running") } },
+    } as const;
+    expect(tracking(before, read)).toBe(before);
+    // A task that moved on changes it.
+    const moved = tracking(before, {
+      ...read,
+      outcome: { kind: "done", data: task("task_succeeded") },
+    });
+    expect(moved).not.toBe(before);
+    expect(moved.tasks[0]?.task.status).toBe("succeeded");
+  });
+
   it("drops the answer to a task dismissed since it was asked", () => {
     const dismissed = tracking(following(task("task_running")), { type: "dismiss", key: MARKING });
     const after = tracking(dismissed, {

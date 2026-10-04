@@ -805,10 +805,26 @@ async function hydratePending(running: Promise<readonly BackgroundTask[]>) {
 describe("the tracker as the page hydrates", () => {
   // #173: a context above the page that changes while its boundary is pending makes React render
   // the page anew in the browser, beside the one the server sent, which the browser still holds.
-  it("leaves the page the server sent to hydrate, when it has no task to follow", async () => {
-    serve({});
-    const { container, root } = await hydratePending(Promise.resolve([]));
+  it.each([
+    ["it has no task to follow", false, false],
+    ["the tab has tasks to follow again", true, false],
+    ["the layout streams tasks it did not follow", false, true],
+  ])("leaves the page the server sent to hydrate, when %s", async (_, kept, streamed) => {
+    if (kept) {
+      window.sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify([
+          { key: MARKING, task_id: MARKING, kind: "revision_mark", status: "running" },
+        ]),
+      );
+    }
+    serve({ [TASK]: "task_running" });
+    const running = streamed
+      ? (example("tasks_running") as { readonly items: readonly BackgroundTask[] }).items
+      : [];
+    const { container, root } = await hydratePending(Promise.resolve(running));
     try {
+      await tick();
       expect(within(container).queryByRole("heading", { name: "Avatar" })).toBeNull();
       expect(container).toHaveTextContent("Chargement");
     } finally {

@@ -169,7 +169,20 @@ function refused(
   return { ...entry, outcome, command: outcome.kind === "stale" ? undefined : entry.command };
 }
 
-/** Apply the answer of a read or of a relaunch to the task it was asked for. */
+/** Whether two readings of a task say the same of it: the API gives them as plain data. */
+function unchanged(before: TrackedTask, after: BackgroundTask): boolean {
+  return (
+    before.outcome === undefined &&
+    before.interrupted === undefined &&
+    JSON.stringify(before.task) === JSON.stringify(after)
+  );
+}
+
+/**
+ * Apply the answer of a read or of a relaunch to the task it was asked for. A read that finds
+ * the task where it stood changes nothing, not even the list: what the tab keeps is not written
+ * again, and nothing is rendered again (#180).
+ */
 function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" }>): Tracking {
   const entry = state.tasks.find((tracked) => tracked.key === event.key);
   if (entry?.task.task_id !== event.taskId) {
@@ -177,6 +190,9 @@ function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" 
     return state;
   }
   const { outcome, source } = event;
+  if (outcome.kind === "done" && unchanged(entry, outcome.data)) {
+    return state;
+  }
   const next: TrackedTask =
     outcome.kind === "done"
       ? { ...entry, task: outcome.data, outcome: undefined, interrupted: undefined }

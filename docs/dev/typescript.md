@@ -229,6 +229,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     côté de celle du serveur, que le document garde, cachée, jusqu'à la révélation : deux champs
     de fichier portent un instant le même nom, et un parcours en mode strict échoue : rejoué en
     boucle, deux champs 9 fois sur 40, puis 0 sur 110 une fois corrigé (#173).
-    Une valeur de contexte au-dessus des pages ne se reconstruit que quand ce qu'elle montre
-    change (`TaskTracker`) ; restes suivis en #180. Un test hydrate une frontière en attente sous
-    le fournisseur (`task-tracker.dom.test.tsx`) ; aucun outil ne le tient : la revue le cherche.
+    Ce qui change au-dessus des pages pendant l'hydratation — les tâches suivies, la largeur de
+    la fenêtre, le projet montré — ne passe pas par la valeur d'un contexte, qui reste stable :
+    il se lit dans un magasin externe (`useSyncExternalStore`), auquel ne s'abonnent que les
+    pièces de la coquille qui le montrent, et une écriture qui ne change rien n'avertit personne
+    (#180). Des tests hydratent une frontière en attente sous chaque fournisseur
+    (`task-tracker.dom.test.tsx`, `shell/hydration.dom.test.tsx`) ; aucun outil ne le tient : la
+    revue le cherche.
