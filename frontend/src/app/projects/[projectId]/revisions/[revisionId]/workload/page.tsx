@@ -14,7 +14,6 @@
  * missing or not marked (422) — is said unavailable, and why, the rest of the screen shown. Any
  * other answer follows the rule of the reads (`readOrFail`).
  */
-import { ChartColumnStacked } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -24,6 +23,7 @@ import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import { LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
   BASIS_REFUSED,
@@ -144,7 +144,7 @@ function WorkloadScreen({
   const { project } = reading;
   return (
     <Screen density="airy">
-      <PageHeader title={t("functions.workload")} icon={ChartColumnStacked} density="airy" />
+      <PageHeader title={t("functions.workload")} icon={LEAF_ICONS["FBS-4.4.4"]} density="airy" />
       <WorkloadSection
         workload={read.workload}
         asked={asked}

@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { LEAF_ICONS } from "@/components/shell/function-display";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
@@ -127,6 +128,10 @@ describe("the leaves of the table", () => {
       expect(text(CATALOGUES.en, leaf.label), leaf.label).toEqual(expect.any(String));
       expect(routes.has(leaf.route), leaf.route).toBe(false);
     }
+  });
+
+  it("have each an icon of their own, and only they", () => {
+    expect(Object.keys(LEAF_ICONS)).toEqual(leaves.map(({ leaf }) => leaf.code));
   });
 
   it("are not offered by the navigation, which offers their function", () => {

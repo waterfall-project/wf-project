@@ -17,7 +17,6 @@
  * refused as expected are said unavailable, the rest of the screen shown: the screen never shows
  * a figure it did not read.
  */
-import { ChartColumnStacked } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -34,7 +33,7 @@ import {
 } from "@/components/grid/estimate";
 import { EstimateGrid } from "@/components/grid/estimate-grid";
 import type { NodeTotals } from "@/components/grid/nodes";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
@@ -152,6 +151,9 @@ async function readReference(): Promise<EstimateReference> {
 /** The workload of the project, a leaf of the estimate with a screen of its own (FBS-4.4.4). */
 const WORKLOAD = leafOf("FBS-4.4.4");
 
+/** The icon of the workload, which its own screen shows too. */
+const WorkloadIcon = LEAF_ICONS["FBS-4.4.4"];
+
 /**
  * The title of the grid, and what it holds: the structure, its tasks and lines retained; and the
  * link to the workload of the project, in the same context.
@@ -179,7 +181,7 @@ function EstimateHeader({
       actions={
         workload === undefined ? undefined : (
           <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
-            <ChartColumnStacked aria-hidden="true" />
+            <WorkloadIcon aria-hidden="true" />
             {t(WORKLOAD.label)}
           </Link>
         )
