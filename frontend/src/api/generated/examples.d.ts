@@ -83,11 +83,17 @@ export interface Examples {
   "GET /projects/{project_id}/subprojects": {
     200: "subprojects";
   };
+  "GET /reference/calendars": {
+    200: "calendars";
+  };
   "GET /reference/cost-categories": {
     200: "volume/cost_categories";
   };
   "GET /reference/cost-categories/{cost_category_id}/hourly-rates": {
     200: "volume/hourly_rates";
+  };
+  "GET /reference/cost-types": {
+    200: "cost_types";
   };
   "GET /reference/duration-units": {
     200: "duration_units";
@@ -95,11 +101,17 @@ export interface Examples {
   "GET /reference/hourly-rates": {
     200: "volume/hourly_rate_grid";
   };
+  "GET /reference/org-nodes": {
+    200: "org_nodes";
+  };
   "GET /reference/readiness": {
     200: "reference_readiness" | "reference_readiness_incomplete";
   };
   "GET /reference/resource-roles": {
     200: "resource_roles";
+  };
+  "GET /reference/settings": {
+    200: "reference_settings";
   };
   "GET /session": {
     200: "session" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_without_administration" | "session_without_preferences";
@@ -142,5 +154,8 @@ export interface Examples {
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
     200: "predecessor_set";
+  };
+  "PUT /reference/cost-categories/{cost_category_id}/hourly-rates/{year}": {
+    200: "hourly_rate_corrected" | "hourly_rate_entered";
   };
 }

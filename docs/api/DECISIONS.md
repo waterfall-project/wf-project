@@ -558,6 +558,28 @@ retirée), `risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de
 `risk_matrix` (les seize cases, les bornes, les trois risques placés), dans l'univers des autres
 exemples.
 
+## Le référentiel (US-0250/L1)
+
+Ajouts que les écrans du référentiel exigent, faits par leur lot sur l'autorisation de
+l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »).
+
+**La grille des taux horaires se cherche** (`search` sur `getHourlyRateGrid`). L'écran la
+présente sur la grille dense, dont la recherche est celle de toute grille, et WF-IHM-0130 veut
+toute table filtrable : la recherche retient les catégories dont le code ou le libellé contient
+le texte cherché, et les années restent celles de toute la grille, pour qu'une colonne ne
+disparaisse pas d'une recherche à l'autre. Écarté : une grille sans recherche, seule de son
+espèce ; filtrer les cent cinquante lignes dans le front.
+
+**Exemples**, dans l'univers des autres : `reference_settings` (l'euro, le français, les bornes
+de la matrice et les zones de `risk_matrix`, les seuils 0,9 et 0,8 d'`index_history`, huit
+semaines entre deux revues, que dépasse le projet témoin de `pilot_health`), `cost_types` (les
+trois natures que ventilent les indicateurs de devis), `org_nodes` (trois niveaux, le nœud des
+rôles de `resource_roles` au deuxième), `calendars` (le calendrier par défaut de ces rôles, et un
+second), et, pour `setHourlyRate`, `hourly_rate_entered` — le premier taux 2015 d'une catégorie
+qui n'en avait pas dans la grille des volumes — et `hourly_rate_corrected` — le taux 2016 de la
+même catégorie corrigé, sa version avancée. La catégorie n'est employée par aucun devis des
+exemples : ni l'une ni l'autre écriture ne contredit un montant chiffré ailleurs.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

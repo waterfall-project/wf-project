@@ -1125,7 +1125,7 @@ export interface paths {
         };
         /**
          * Grille des taux horaires
-         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100).
+         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100). `search` retient les catégories dont le code ou le libellé contient le texte cherché (WF-IHM-0130), les années restant celles de toute la grille.
          */
         get: operations["getHourlyRateGrid"];
         put?: never;
@@ -6316,6 +6316,8 @@ export interface operations {
             query?: {
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
+                /** @description Recherche sur le libellé. */
+                search?: components["parameters"]["Search"];
             };
             header?: never;
             path?: never;

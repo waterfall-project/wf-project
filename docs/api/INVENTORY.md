@@ -113,7 +113,7 @@ Le contrat cite **181 des 208 exigences** de la spécification.
 | POST | `/reference/cost-categories` | Créer une catégorie de coût | WF-REF-0040 |
 | PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0040, WF-REF-0130 |
 | PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-REF-0010, WF-REF-0020 |
-| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
+| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
 | GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0050, WF-REF-0130 |
 
