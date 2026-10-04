@@ -63,11 +63,13 @@ son code, la clé de son libellé, sa route, sa portée et la permission qui la 
 consulter ; une fonction dont la session n'a pas la permission `<fonction>.read` n'y figure
 pas. La table ne porte encore que le second niveau : les feuilles adressables y entrent avec
 le contrôle de complétude des écrans, que le lot EP-02/L3 (#125) ajoute. Une feuille qui a déjà
-son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même permission :
-le plan de charge du projet, FBS-4.4.4, sous le devis (`/projects/[projectId]/revisions/[revisionId]/workload`).
-La navigation ne l'offre pas — l'écran de sa fonction y mène, dans le même contexte —, mais
-`readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle. Trois portées : hors projet ; `project`, les fonctions du
-projet lui-même — révisions, paramètres, cycle de vie —, sous `/projects/[projectId]/…`,
+son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même
+permission : le plan de charge du projet, FBS-4.4.4, sous le devis
+(`/projects/[projectId]/revisions/[revisionId]/workload`). La navigation ne l'offre pas —
+l'écran de sa fonction y mène, dans le même contexte, et son entrée est marquée courante —,
+mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle.
+Trois portées : hors projet ; `project`, les fonctions du projet lui-même — révisions,
+paramètres, cycle de vie —, sous `/projects/[projectId]/…`,
 qu'un projet sans révision offre ; `revision`, les autres, sous
 `/projects/[projectId]/revisions/[revisionId]/…`. Le contexte de lecture est dans l'adresse :
 le projet dans le chemin, la révision dans le chemin ou, sur une fonction du projet, en
@@ -182,8 +184,9 @@ série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit l
 légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms qui se
 chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; une
 courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; une série de barres
-(`bars`) se distingue aussi par le motif du symbole de son rang, que la légende montre ; `timeAxis` gradue
-un axe de temps au premier de chaque mois que `monthTicks` tire des instants qu'il montre — tous
+(`bars`) se distingue aussi par le motif du symbole de son rang, que la légende montre ;
+`timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire des instants
+qu'il montre — tous
 les deux, trois, six mois ou chaque année sur une longue plage, l'année seule alors —, écrits
 dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de planning, que
 `planningInstant` place à leur minuit UTC, l'option de la figure disant alors `useUTC`. Une
