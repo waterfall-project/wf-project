@@ -188,19 +188,47 @@ describe("the screen of the workload of a project", () => {
     expect(page).not.toContain("Load by role and by month");
   });
 
-  it("says the workload unavailable on a marked revision missing or not marked, and why", async () => {
-    server.answers = {
-      ...server.answers,
-      [WORKLOAD_ROUTE]: { problem: { code: "VALIDATION_FAILED", status: 422 } },
-    };
-    const page = text(
-      html(await WorkloadPage(at({ basis: "marked_remaining", workload_revision: REVISION }))),
-    );
-    expect(queryOf(WORKLOAD_ROUTE)).toEqual({ basis: "marked_remaining", revision_id: REVISION });
-    expect(page).toContain(
+  it.each([
+    [
+      [{ pointer: "/revision_id", code: "VALIDATION_FAILED" }],
       "The workload is not available on this basis: the marked revision asked for is missing, or is not marked.",
-    );
-  });
+    ],
+    [
+      [{ pointer: "/org_node_id", code: "VALIDATION_FAILED" }],
+      "The workload is not available: the organisation node asked for does not exist.",
+    ],
+    [[], "The workload is not available: the API refuses what is asked."],
+    [
+      [
+        { pointer: "/revision_id", code: "VALIDATION_FAILED" },
+        { pointer: "/org_node_id", code: "VALIDATION_FAILED" },
+      ],
+      "The workload is not available: the API refuses what is asked.",
+    ],
+  ] as const)(
+    "says the workload unavailable on a parameter the API refuses, by what its envelope points at: %j",
+    async (fields, sentence) => {
+      server.answers = {
+        ...server.answers,
+        [WORKLOAD_ROUTE]: {
+          problem: { code: "VALIDATION_FAILED", status: 422, fields: [...fields] },
+        },
+      };
+      const page = text(
+        html(
+          await WorkloadPage(
+            at({ basis: "marked_remaining", workload_revision: REVISION, org_node_id: "x" }),
+          ),
+        ),
+      );
+      expect(queryOf(WORKLOAD_ROUTE)).toEqual({
+        basis: "marked_remaining",
+        revision_id: REVISION,
+        org_node_id: "x",
+      });
+      expect(page).toContain(sentence);
+    },
+  );
 
   it("does not take a refusal of the same status for another reason as one of the basis", async () => {
     server.answers = {

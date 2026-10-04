@@ -398,9 +398,13 @@ describe("a read a screen can do without, and says why when it is refused", () =
 
   it("names the refusal it met among those it expects", async () => {
     const invalid = { problem: { code: "VALIDATION_FAILED", status: 422 } } as const;
-    expect(await workload(invalid)).toEqual({ kind: "refused", refusal: REFUSALS[1] });
+    expect(await workload(invalid)).toEqual({
+      kind: "refused",
+      refusal: REFUSALS[1],
+      problem: invalid.problem,
+    });
     const forbidden = { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } } as const;
-    expect(await workload(forbidden)).toEqual({ kind: "refused", refusal: REFUSALS[0] });
+    expect(await workload(forbidden)).toMatchObject({ kind: "refused", refusal: REFUSALS[0] });
   });
 
   it("follows the rule of the reads for the rest", async () => {

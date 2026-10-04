@@ -43,20 +43,49 @@ type OrgNode = components["schemas"]["OrgNode"];
 export const WORKLOAD_PARAMETERS = ["basis", "workload_revision", "org_node_id"] as const;
 
 /**
- * The refusals of a basis the screen says unavailable, each with the key of its reason
- * (WF-DEV-0070): a project without a reference revision (409), a marked revision missing or not
- * marked (422).
+ * The refusals of what the workload is asked on, which the screen says unavailable, and why
+ * (`refusalReason`): a project without a reference revision (409), a parameter the API does not
+ * take (422).
  */
 export const BASIS_REFUSED = [
-  { status: 409, code: "STATE_FORBIDS_OPERATION", reason: "noReference" },
-  { status: 422, code: "VALIDATION_FAILED", reason: "markedRevision" },
+  { status: 409, code: "STATE_FORBIDS_OPERATION" },
+  { status: 422, code: "VALIDATION_FAILED" },
 ] as const;
 
-/** A refusal of a basis, and its reason. */
+/** A refusal of what the workload is asked on. */
 export type BasisRefused = (typeof BASIS_REFUSED)[number];
 
-/** The workload as the API gave it, or the refusal of the basis asked. */
+/** The workload as the API gave it, or the refusal of what it is asked on. */
 export type WorkloadRead = ReadOrRefused<WorkloadPlan, BasisRefused>;
+
+/** The parameters of `getProjectWorkload` a refusal may name, and the key of its reason. */
+const REFUSED_PARAMETERS: Readonly<Record<string, RefusalReason>> = {
+  revision_id: "markedRevision",
+  org_node_id: "orgNode",
+};
+
+/** Why the screen says the workload unavailable: the key of its sentence in the catalogue. */
+export type RefusalReason = "noReference" | "markedRevision" | "orgNode" | "invalid";
+
+/**
+ * Why the API refused the workload: a project without a reference revision (409); on a 422, the
+ * parameter its envelope points at (`fields[].pointer`, by its last segment) — the marked revision
+ * missing or not marked, the node of organisation —, and a reason that names none when the
+ * envelope points at none of them, or at both.
+ */
+export function refusalReason(refused: Extract<WorkloadRead, { kind: "refused" }>): RefusalReason {
+  if (refused.refusal.status === 409) {
+    return "noReference";
+  }
+  const named = new Set(
+    (refused.problem.fields ?? []).flatMap((field) => {
+      const reason = REFUSED_PARAMETERS[field.pointer.slice(field.pointer.lastIndexOf("/") + 1)];
+      return reason === undefined ? [] : [reason];
+    }),
+  );
+  const [only] = named;
+  return named.size === 1 && only !== undefined ? only : "invalid";
+}
 
 /** What the workload is asked on, as the address asks it. */
 export interface WorkloadAsked {
@@ -252,7 +281,7 @@ export function WorkloadSection(props: WorkloadSectionProps) {
     <section aria-label={t("workload.title")} className="space-y-3">
       <WorkloadChoices {...props} />
       {workload.kind === "refused" ? (
-        <Said>{t(`workload.refused.${workload.refusal.reason}`)}</Said>
+        <Said>{t(`workload.refused.${refusalReason(workload)}`)}</Said>
       ) : (
         <ComputedWorkload
           workload={workload.data}

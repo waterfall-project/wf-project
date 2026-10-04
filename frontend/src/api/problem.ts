@@ -215,9 +215,13 @@ function isExpected(answer: Answer<unknown>, expected: ExpectedRefusal): boolean
   );
 }
 
-/** What a read its screen can do without gives: its data, or the expected refusal it met. */
+/**
+ * What a read its screen can do without gives: its data, or the expected refusal it met and its
+ * envelope — whose `fields` may say which parameter it refused.
+ */
 export type ReadOrRefused<T, R extends ExpectedRefusal> =
-  { readonly kind: "read"; readonly data: T } | { readonly kind: "refused"; readonly refusal: R };
+  | { readonly kind: "read"; readonly data: T }
+  | { readonly kind: "refused"; readonly refusal: R; readonly problem: Problem };
 
 /**
  * Call the API for a read its screen can do without, and says why when it is refused: its data;
@@ -235,7 +239,7 @@ export async function readOrRefused<T, R extends ExpectedRefusal>(
     ? undefined
     : expected.find((each) => isExpected(answer, each));
   if (refusal !== undefined) {
-    return { kind: "refused", refusal };
+    return { kind: "refused", refusal, problem: envelope(answer.error, answer.response.status) };
   }
   return { kind: "read", data: await readOrFail(operation, () => Promise.resolve(answer)) };
 }
