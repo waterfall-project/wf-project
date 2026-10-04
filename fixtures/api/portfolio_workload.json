@@ -1,0 +1,152 @@
+{
+  "summary": "Le plan de charge agrégé des projets en cours du portefeuille au 16 mars 2026, sur six mois, au seuil de sous-charge de 50 % : l'ingénieur électricien, six personnes, surchargé en mars et en avril puis sous-chargé l'été ; le technicien de mise en service, quatre personnes, surchargé en juillet et sous-chargé en août. Chaque mois porte sa zone, que le serveur classe (WF-PTF-0060, WF-IHM-0070).",
+  "value": {
+    "scope": {
+      "states": [
+        "in_progress"
+      ],
+      "as_of": "2026-03-16",
+      "from": null,
+      "to": null,
+      "org_node_id": null,
+      "project_count": 269
+    },
+    "under_load_threshold": "0.5",
+    "roles": [
+      {
+        "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+        "label": "Ingénieur électricien",
+        "capacity_monthly_hours": "910.02",
+        "months": [
+          {
+            "month": "2026-03",
+            "hours": "1092.024",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "1.2",
+              "reason": null
+            },
+            "zone": "alert"
+          },
+          {
+            "month": "2026-04",
+            "hours": "955.521",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "1.05",
+              "reason": null
+            },
+            "zone": "alert"
+          },
+          {
+            "month": "2026-05",
+            "hours": "864.519",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.95",
+              "reason": null
+            },
+            "zone": "nominal"
+          },
+          {
+            "month": "2026-06",
+            "hours": "728.016",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.8",
+              "reason": null
+            },
+            "zone": "nominal"
+          },
+          {
+            "month": "2026-07",
+            "hours": "409.509",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.45",
+              "reason": null
+            },
+            "zone": "watch"
+          },
+          {
+            "month": "2026-08",
+            "hours": "273.006",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.3",
+              "reason": null
+            },
+            "zone": "watch"
+          }
+        ]
+      },
+      {
+        "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+        "label": "Technicien de mise en service",
+        "capacity_monthly_hours": "606.68",
+        "months": [
+          {
+            "month": "2026-03",
+            "hours": "364.008",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.6",
+              "reason": null
+            },
+            "zone": "nominal"
+          },
+          {
+            "month": "2026-04",
+            "hours": "424.676",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.7",
+              "reason": null
+            },
+            "zone": "nominal"
+          },
+          {
+            "month": "2026-05",
+            "hours": "546.012",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.9",
+              "reason": null
+            },
+            "zone": "nominal"
+          },
+          {
+            "month": "2026-06",
+            "hours": "606.68",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "1",
+              "reason": null
+            },
+            "zone": "nominal"
+          },
+          {
+            "month": "2026-07",
+            "hours": "667.348",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "1.1",
+              "reason": null
+            },
+            "zone": "alert"
+          },
+          {
+            "month": "2026-08",
+            "hours": "242.672",
+            "load_ratio": {
+              "is_computable": true,
+              "value": "0.4",
+              "reason": null
+            },
+            "zone": "watch"
+          }
+        ]
+      }
+    ]
+  }
+}

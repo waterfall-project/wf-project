@@ -1,0 +1,77 @@
+{
+  "summary": "Les décaissements des projets en cours du portefeuille au 16 mars 2026, d'octobre 2025 à septembre 2026 : le passé, somme des coûts réels par mois de date de pièce, jusqu'au 16 mars ; l'avenir, somme des projections des projets, à partir de ce jour — mars porte les deux (WF-PTF-0100, WF-IND-0100).",
+  "value": {
+    "scope": {
+      "states": [
+        "in_progress"
+      ],
+      "as_of": "2026-03-16",
+      "from": null,
+      "to": null,
+      "org_node_id": null,
+      "project_count": 269
+    },
+    "months": [
+      {
+        "month": "2025-10",
+        "past": "61204380.15",
+        "forecast": "0.00"
+      },
+      {
+        "month": "2025-11",
+        "past": "64987512.40",
+        "forecast": "0.00"
+      },
+      {
+        "month": "2025-12",
+        "past": "58730214.85",
+        "forecast": "0.00"
+      },
+      {
+        "month": "2026-01",
+        "past": "66412907.30",
+        "forecast": "0.00"
+      },
+      {
+        "month": "2026-02",
+        "past": "69158340.75",
+        "forecast": "0.00"
+      },
+      {
+        "month": "2026-03",
+        "past": "31864205.10",
+        "forecast": "38215760.00"
+      },
+      {
+        "month": "2026-04",
+        "past": "0.00",
+        "forecast": "72460315.00"
+      },
+      {
+        "month": "2026-05",
+        "past": "0.00",
+        "forecast": "75980240.00"
+      },
+      {
+        "month": "2026-06",
+        "past": "0.00",
+        "forecast": "78312455.00"
+      },
+      {
+        "month": "2026-07",
+        "past": "0.00",
+        "forecast": "74105890.00"
+      },
+      {
+        "month": "2026-08",
+        "past": "0.00",
+        "forecast": "70544120.00"
+      },
+      {
+        "month": "2026-09",
+        "past": "0.00",
+        "forecast": "68930475.00"
+      }
+    ]
+  }
+}

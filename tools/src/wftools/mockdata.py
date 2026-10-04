@@ -15,6 +15,10 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   refusal the journeys try on it;
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first;
+- ``portfolio_value.json``, ``portfolio_performance.json``, ``portfolio_cost_structure.json``
+  and ``portfolio_risks.json``, of ``getPortfolioValue``, ``getPortfolioPerformance``,
+  ``getPortfolioCostStructure`` and ``getPortfolioRisks``: the views of the same projects,
+  summed from their rows, so that the list and the views tell the same story;
 - ``cost_categories.json``, ``listCostCategories``: the categories of §4.6.2, most of them
   labour — the rows of the grid of hourly rates;
 - ``hourly_rates.json``, ``listHourlyRates``: fifteen years of rates of one labour category;
@@ -36,6 +40,7 @@ import argparse
 import json
 import sys
 from collections import Counter
+from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
@@ -43,6 +48,7 @@ from typing import TYPE_CHECKING, Any, cast
 from wftools import REPOSITORY
 from wftools.mockstructure import (
     AS_OF,
+    CENT,
     COMMISSIONING,
     ELECTRICAL_ENGINEERING,
     ELECTRICAL_RATE,
@@ -260,6 +266,319 @@ def _index(value: Decimal) -> JsonObject:
     }
 
 
+# --- The views of the portfolio, summed from its projects ----------------------------------
+
+PERIOD_FROM = date(2025, 3, 17)
+"""The start of the period of the views that read one: the year up to the day of the examples."""
+
+_RATIO = Decimal("0.0001")
+"""The places of a share or a rate the server gives: a ratio of sums, never rounded before."""
+
+_RISK = 5
+"""The family of the identifiers of the risks made here."""
+
+_RISK_SUBJECTS = (
+    "Retard d'approvisionnement",
+    "Reprise des fondations",
+    "Défaillance d'un sous-traitant",
+    "Dérive du coût de l'acier",
+    "Indisponibilité d'un poste d'essais",
+    "Non-conformité à la réception",
+)
+
+_CONVERSION_RATE = "0.4"
+"""Ten offers out of pricing over the period, four of them won: the Vérif of WF-PTF-0050-A."""
+
+
+@dataclass(frozen=True)
+class Earned:
+    """What a project in progress contributes to the sums of the portfolio (WF-PTF-0020)."""
+
+    budget: Decimal
+    planned: Decimal
+    earned: Decimal
+    actual: Decimal
+    projection: Decimal
+
+    @property
+    def remaining(self) -> Decimal:
+        """The remaining to commit: the projection of the project manager, less the actual cost."""
+        return self.projection - self.actual
+
+
+def earned(row: JsonObject) -> Earned:
+    """Return the values of earned value of a project in progress of the portfolio.
+
+    The witness project's are those of its indicators; another's are drawn so that the indices
+    of its row are theirs: an actual cost drawn from its budget, the earned value at its cost
+    index, the planned value at its schedule index.
+    """
+    indicators = fixture("project_indicators")
+    if row["project_id"] == fixture("project")["project_id"]:
+        return Earned(
+            budget=Decimal(indicators["reference_budget"]),
+            planned=Decimal(indicators["planned_value"]),
+            earned=Decimal(indicators["earned_value"]),
+            actual=Decimal(indicators["actual_cost"]),
+            projection=Decimal(indicators["projections"]["project_manager"]),
+        )
+    budget = Decimal(cast("str", row["reference_budget"]))
+    actual = (budget * draw(f"spent/{row['project_id']}", 20, 80) / 100).quantize(CENT)
+    value = actual * _index_of(row, "cost_index")
+    return Earned(
+        budget=budget,
+        planned=(value / _index_of(row, "schedule_index")).quantize(CENT),
+        earned=value.quantize(CENT),
+        actual=actual,
+        projection=Decimal(cast("str", row["project_manager_projection"])),
+    )
+
+
+def _index_of(row: JsonObject, name: str) -> Decimal:
+    index = cast("JsonObject", row[name])
+    return Decimal(cast("str", cast("JsonObject", index["value"])["value"]))
+
+
+def _scope(rows: list[JsonObject], states: list[JsonValue], *, period: bool) -> JsonObject:
+    return {
+        "states": states,
+        "as_of": AS_OF.isoformat(),
+        "from": PERIOD_FROM.isoformat() if period else None,
+        "to": AS_OF.isoformat() if period else None,
+        "org_node_id": None,
+        "project_count": sum(1 for row in rows if row["state"] in states),
+    }
+
+
+def _ratio(numerator: Decimal, denominator: Decimal) -> str:
+    return decimal((numerator / denominator).quantize(_RATIO))
+
+
+def portfolio_value(rows: list[JsonObject]) -> JsonObject:
+    """Return the answer of getPortfolioValue over the rows of the portfolio (WF-PTF-0050).
+
+    The order book sums the budgets of the projects in progress, the pipeline the estimates of
+    the offers that have one, raw and weighted by their probability of winning; no project of the
+    scope is completed, and nothing is delivered.
+    """
+    offers = [row for row in rows if row["state"] == "pricing" and row["current_estimate"]]
+    weighted = sum(
+        (
+            Decimal(cast("str", row["current_estimate"]))
+            * Decimal(cast("str", row["win_probability"]))
+            for row in offers
+        ),
+        Decimal(0),
+    )
+    return {
+        "scope": _scope(rows, ["in_progress", "pricing"], period=True),
+        "order_book": money(sum((each.budget for each in _progressing(rows)), Decimal(0))),
+        "pipeline_gross": money(
+            sum((Decimal(cast("str", row["current_estimate"])) for row in offers), Decimal(0))
+        ),
+        "pipeline_weighted": money(weighted),
+        "delivered": money(Decimal(0)),
+        "conversion_rate": {"is_computable": True, "value": _CONVERSION_RATE, "reason": None},
+    }
+
+
+def _progressing(rows: list[JsonObject]) -> list[Earned]:
+    return [earned(row) for row in rows if row["state"] == "in_progress"]
+
+
+def portfolio_performance(rows: list[JsonObject]) -> JsonObject:
+    """Return the answer of getPortfolioPerformance over the projects in progress (WF-PTF-0070).
+
+    Each index is the ratio of the sums (WF-PTF-0020); the distribution counts each project
+    once in the zone of each of its indices, none when its index has no zone; the evolution runs
+    over the four quarters up to the day of the examples, the last one that day's.
+    """
+    sums = _progressing(rows)
+    budget = sum((each.budget for each in sums), Decimal(0))
+    planned = sum((each.planned for each in sums), Decimal(0))
+    value = sum((each.earned for each in sums), Decimal(0))
+    actual = sum((each.actual for each in sums), Decimal(0))
+    projection = sum((each.projection for each in sums), Decimal(0))
+    cost = (value / actual).quantize(CENT)
+    schedule = (value / planned).quantize(CENT)
+    at_budget = actual + budget - value
+    at_rate = (actual + (budget - value) * actual / value).quantize(CENT)
+    return {
+        "scope": _scope(rows, ["in_progress"], period=False),
+        "reference_budget": money(budget),
+        "cost_index": _index(cost),
+        "schedule_index": _index(schedule),
+        "cost_variance": money(value - actual),
+        "schedule_variance": money(value - planned),
+        "projections": {
+            "at_budget": money(at_budget),
+            "project_manager": money(projection),
+            "at_observed_rate": {"is_computable": True, "value": money(at_rate), "reason": None},
+            "variance_at_budget": money(at_budget - budget),
+            "variance_project_manager": money(projection - budget),
+            "variance_at_observed_rate": money(at_rate - budget),
+        },
+        "zone_distribution": [
+            {"index": index, "zone": name, "project_count": count}
+            for index in ("cost", "schedule")
+            for name, count in _zones(rows, f"{index}_index").items()
+        ],
+        "quarterly": [
+            {
+                "quarter": quarter,
+                "cost_index": _drift(quarter, "cost", cost, last=quarter == "2026-Q1"),
+                "schedule_index": _drift(quarter, "schedule", schedule, last=quarter == "2026-Q1"),
+            }
+            for quarter in ("2025-Q2", "2025-Q3", "2025-Q4", "2026-Q1")
+        ],
+    }
+
+
+def _zones(rows: list[JsonObject], name: str) -> dict[str, int]:
+    counted = Counter(
+        cast("JsonObject", row[name])["zone"]
+        for row in rows
+        if row["state"] == "in_progress" and row[name] is not None
+    )
+    return {zone: counted[zone] for zone in ("nominal", "watch", "alert")}
+
+
+def _drift(quarter: str, index: str, today: Decimal, *, last: bool) -> JsonObject:
+    value = today if last else today + Decimal(draw(f"quarter/{index}/{quarter}", -8, 8)) / 100
+    return {"is_computable": True, "value": decimal(value), "reason": None}
+
+
+_LABOR_SHARE, _NON_LABOR_SHARE = Decimal("0.55"), Decimal("0.35")
+_REMAINING_LABOR_SHARE, _REMAINING_NON_LABOR_SHARE = Decimal("0.5"), Decimal("0.4")
+"""How the budgets and the remaining to commit of the portfolio part by nature."""
+
+_ORG_NODE_LABEL = "Bureau d'études électricité"
+"""The node of organisation of every role of the universe; no example names it yet (#286)."""
+
+
+def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
+    """Return the answer of getPortfolioCostStructure over the projects in progress (WF-PTF-0080).
+
+    The budget and the remaining to commit part between the three natures of the universe, the
+    provisions taking what is left, so that the parts sum to their totals; the labour is that of
+    the one node of organisation the roles of the universe come under.
+    """
+    sums = _progressing(rows)
+    budget = sum((each.budget for each in sums), Decimal(0))
+    remaining = sum((each.remaining for each in sums), Decimal(0))
+    natures = [
+        (entry["key"], entry["label"])
+        for entry in fixture("estimate_indicators_breakdown")["by_cost_type"]
+    ]
+    budgets = _parts(budget, (_LABOR_SHARE, _NON_LABOR_SHARE))
+    org_node = fixture("resource_roles")[0]["org_node_id"]
+    return {
+        "scope": _scope(rows, ["in_progress"], period=False),
+        "budget_by_cost_type": _by_key(natures, budgets, budget),
+        "remaining_by_cost_type": _by_key(
+            natures,
+            _parts(remaining, (_REMAINING_LABOR_SHARE, _REMAINING_NON_LABOR_SHARE)),
+            remaining,
+        ),
+        "labor_by_org_node": _by_key([(org_node, _ORG_NODE_LABEL)], budgets[:1], budgets[0]),
+    }
+
+
+def _cell(risk: Any) -> tuple[int, int]:
+    return risk["matrix_cell"]["probability_level"], risk["matrix_cell"]["severity_level"]
+
+
+def _provision(risk: JsonObject) -> Decimal:
+    return Decimal(cast("str", risk["provision_amount"]))
+
+
+def _parts(total: Decimal, shares: tuple[Decimal, Decimal]) -> list[Decimal]:
+    first, second = ((total * share).quantize(CENT) for share in shares)
+    return [first, second, total - first - second]
+
+
+def _by_key(keys: list[tuple[str, str]], amounts: list[Decimal], total: Decimal) -> list[JsonValue]:
+    return [
+        {"key": key, "label": label, "amount": money(amount), "share": _ratio(amount, total)}
+        for (key, label), amount in zip(keys, amounts, strict=True)
+    ]
+
+
+def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
+    """Return the answer of getPortfolioRisks over the projects in progress (WF-PTF-0090).
+
+    The witness project brings the risks of its register; every other project in progress up
+    to three identified risks, each in a cell of the matrix and provisioned at a part of its
+    budget. The total, the heaviest and the matrix are those of the identified risks; the risks
+    that occurred or were dismissed over the period are the witness project's and a drawn sum.
+    """
+    witness = fixture("project")
+    register = fixture("risks")["items"]
+    risks: list[tuple[JsonObject, JsonObject, int, int]] = []
+    for row in rows:
+        if row["state"] != "in_progress":
+            continue
+        if row["project_id"] == witness["project_id"]:
+            risks.extend(
+                (row, risk, *_cell(risk)) for risk in register if risk["state"] == "identified"
+            )
+            continue
+        for rank in range(draw(f"risks/{row['project_id']}", 0, 3)):
+            key = f"risk/{row['project_id']}/{rank}"
+            budget = Decimal(cast("str", row["reference_budget"]))
+            risk: JsonObject = {
+                "risk_id": identifier(_RISK, len(risks) + 1),
+                "label": _RISK_SUBJECTS[draw(f"{key}/subject", 0, len(_RISK_SUBJECTS) - 1)],
+                "provision_amount": money(budget * draw(f"{key}/provision", 5, 80) / 1000),
+            }
+            cell = (draw(f"{key}/probability", 1, 4), draw(f"{key}/severity", 1, 4))
+            risks.append((row, risk, *cell))
+    total = sum((_provision(risk) for _, risk, _, _ in risks), Decimal(0))
+    heaviest = sorted(risks, key=lambda each: -_provision(each[1]))[:10]
+    matrix = fixture("risk_matrix")
+    counted = Counter((probability, severity) for _, _, probability, severity in risks)
+    occurred = sum(
+        (Decimal(risk["provision_amount"]) for risk in register if risk["state"] == "occurred"),
+        Decimal(draw("risks/occurred", 2_000, 9_000) * 1_000),
+    )
+    dismissed = sum(
+        (Decimal(risk["provision_amount"]) for risk in register if risk["state"] == "dismissed"),
+        Decimal(draw("risks/dismissed", 2_000, 9_000) * 1_000),
+    )
+    return {
+        "scope": _scope(rows, ["in_progress"], period=True),
+        "identified_total": money(total),
+        "heaviest": [
+            {
+                "risk_id": risk["risk_id"],
+                "label": risk["label"],
+                "project_id": row["project_id"],
+                "project_label": row["label"],
+                "provision_amount": risk["provision_amount"],
+            }
+            for row, risk, _, _ in heaviest
+        ],
+        "matrix": {
+            "probability_levels": matrix["probability_levels"],
+            "severity_levels": matrix["severity_levels"],
+            "cells": [
+                cell | {"count": counted[cell["probability_level"], cell["severity_level"]]}
+                for cell in matrix["cells"]
+            ],
+            "totals": {
+                "identified": money(total),
+                "occurred": money(occurred),
+                "dismissed": money(dismissed),
+                "total": money(total + occurred + dismissed),
+            },
+        },
+        "period_outcome": {
+            "occurred_provisions": money(occurred),
+            "dismissed_provisions": money(dismissed),
+        },
+    }
+
+
 # --- The grid of hourly rates -------------------------------------------------------------
 
 _TRADES = (
@@ -403,6 +722,8 @@ def volumes() -> dict[str, JsonObject]:
     }
     labels.update((entry["subproject_id"], entry["label"]) for entry in fixture("subprojects"))
     indicators = estimate_indicators(built.totals, witness, labels)
+    projects = portfolio()
+    rows = cast("list[JsonObject]", projects["items"])
     return {
         "nodes_thousand.json": _example(_structure_summary(built.nodes), built.nodes),
         "summary_dependencies.json": _example(
@@ -422,7 +743,35 @@ def volumes() -> dict[str, JsonObject]:
             f"Les {_count(PROJECT_COUNT)} projets du portefeuille du §4.6.2, en cours et en "
             f"chiffrage, le projet témoin et l'offre en tête ; indices classés par les seuils "
             f"de {_amount(WATCH_THRESHOLD, 1)} et {_amount(ALERT_THRESHOLD, 1)}.",
-            portfolio(),
+            projects,
+        ),
+        "portfolio_value.json": _example(
+            "La valeur du portefeuille du §4.6.2 au 16 mars 2026 : le carnet des projets en "
+            "cours, le pipeline des offres brut et pondéré par leur probabilité de gain, rien de "
+            "réalisé, aucun projet du périmètre n'étant terminé, et le taux de transformation de "
+            "dix offres sorties du chiffrage sur l'année, dont quatre gagnées (WF-PTF-0050).",
+            portfolio_value(rows),
+        ),
+        "portfolio_performance.json": _example(
+            "La performance des projets en cours du portefeuille du §4.6.2 au 16 mars 2026 : "
+            "chaque indice est le rapport des sommes de leurs valeurs acquises, coûts réels et "
+            "valeurs planifiées, la répartition compte chaque projet dans la zone de chacun de "
+            "ses indices, et l'évolution court sur quatre trimestres (WF-PTF-0070).",
+            portfolio_performance(rows),
+        ),
+        "portfolio_cost_structure.json": _example(
+            "La structure des coûts des projets en cours du portefeuille du §4.6.2 au 16 mars "
+            "2026 : leur budget de référence et leur reste à engager par nature, en montant et "
+            "en part, et leur main-d'œuvre par nœud d'organisation ; aucune ventilation du coût "
+            "réel (WF-PTF-0080).",
+            portfolio_cost_structure(rows),
+        ),
+        "portfolio_risks.json": _example(
+            "Les risques des projets en cours du portefeuille du §4.6.2 au 16 mars 2026 : le "
+            "total des provisions identifiées, les dix risques les plus lourds avec leur projet, "
+            "la matrice remplie, et les provisions survenues et écartées sur l'année "
+            "(WF-PTF-0090).",
+            portfolio_risks(rows),
         ),
         "cost_categories.json": _example(
             f"Les {_count(CATEGORY_COUNT)} catégories de coût du §4.6.2, dont "

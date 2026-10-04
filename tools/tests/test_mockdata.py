@@ -41,7 +41,11 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "hourly_rate_grid.json",
         "hourly_rates.json",
         "nodes_thousand.json",
+        "portfolio_cost_structure.json",
+        "portfolio_performance.json",
         "portfolio_projects.json",
+        "portfolio_risks.json",
+        "portfolio_value.json",
         "summary_dependencies.json",
     ]
     for example in volumes.values():
@@ -225,6 +229,128 @@ def test_the_zone_of_each_index_is_the_one_its_value_takes(volumes: dict[str, An
         index["zone"] == mockdata.zone(Decimal(index["value"]["value"])) for index in indexes
     )
     assert {index["zone"] for index in indexes} == {"nominal", "watch", "alert"}
+
+
+def rows_of(volumes: dict[str, Any], state: str) -> list[dict[str, Any]]:
+    """Return the rows of the list of the portfolio in a state."""
+    rows = volumes["portfolio_projects.json"]["value"]["items"]
+    return [row for row in rows if row["state"] == state]
+
+
+def total(amounts: Any) -> Decimal:
+    """Return the sum of amounts written as the contract writes them."""
+    return sum((Decimal(amount) for amount in amounts), Decimal(0))
+
+
+def test_the_value_sums_the_rows_of_the_list(volumes: dict[str, Any]) -> None:
+    value = volumes["portfolio_value.json"]["value"]
+    offers = [row for row in rows_of(volumes, "pricing") if row["current_estimate"] is not None]
+    assert value["scope"]["project_count"] == 300
+    assert Decimal(value["order_book"]) == total(
+        row["reference_budget"] for row in rows_of(volumes, "in_progress")
+    )
+    assert Decimal(value["pipeline_gross"]) == total(row["current_estimate"] for row in offers)
+    weighted = total(
+        Decimal(row["current_estimate"]) * Decimal(row["win_probability"]) for row in offers
+    )
+    assert Decimal(value["pipeline_weighted"]) == weighted
+    assert value["delivered"] == "0.00"
+    assert value["conversion_rate"]["value"] == "0.4"
+
+
+def test_the_performance_is_a_ratio_of_sums_and_counts_each_project_once(
+    volumes: dict[str, Any],
+) -> None:
+    performance = volumes["portfolio_performance.json"]["value"]
+    progressing = rows_of(volumes, "in_progress")
+    sums = [mockdata.earned(row) for row in progressing]
+    value, actual = total(e.earned for e in sums), total(e.actual for e in sums)
+    cost = performance["cost_index"]
+    assert Decimal(cost["value"]["value"]) == (value / actual).quantize(Decimal("0.01"))
+    assert cost["zone"] == mockdata.zone(Decimal(cost["value"]["value"]))
+    assert performance["reference_budget"] == volumes["portfolio_value.json"]["value"]["order_book"]
+    assert performance["scope"]["project_count"] == len(progressing)
+    for index in ("cost", "schedule"):
+        counted = Counter(
+            row[f"{index}_index"]["zone"] for row in progressing if row[f"{index}_index"]["zone"]
+        )
+        assert {
+            entry["zone"]: entry["project_count"]
+            for entry in performance["zone_distribution"]
+            if entry["index"] == index
+        } == {zone: counted[zone] for zone in ("nominal", "watch", "alert")}
+    assert performance["quarterly"][-1]["cost_index"]["value"] == cost["value"]["value"]
+
+
+def test_the_parts_of_the_cost_structure_sum_to_their_totals(volumes: dict[str, Any]) -> None:
+    structure = volumes["portfolio_cost_structure.json"]["value"]
+    budget = Decimal(volumes["portfolio_performance.json"]["value"]["reference_budget"])
+    assert total(part["amount"] for part in structure["budget_by_cost_type"]) == budget
+    for parts in ("budget_by_cost_type", "remaining_by_cost_type"):
+        assert total(part["share"] for part in structure[parts]) == 1
+    labor = structure["budget_by_cost_type"][0]
+    assert labor["label"] == "Main-d'œuvre"
+    assert total(part["amount"] for part in structure["labor_by_org_node"]) == Decimal(
+        labor["amount"]
+    )
+
+
+def test_the_heaviest_risks_are_those_of_projects_of_the_list(volumes: dict[str, Any]) -> None:
+    risks = volumes["portfolio_risks.json"]["value"]
+    labels = {row["project_id"]: row["label"] for row in rows_of(volumes, "in_progress")}
+    heaviest = risks["heaviest"]
+    assert len(heaviest) == 10
+    assert all(labels[risk["project_id"]] == risk["project_label"] for risk in heaviest)
+    amounts = [Decimal(risk["provision_amount"]) for risk in heaviest]
+    assert amounts == sorted(amounts, reverse=True)
+    totals = risks["matrix"]["totals"]
+    assert totals["identified"] == risks["identified_total"]
+    assert totals["occurred"] == risks["period_outcome"]["occurred_provisions"]
+    assert Decimal(totals["total"]) == total(
+        totals[name] for name in ("identified", "occurred", "dismissed")
+    )
+    assert len(risks["matrix"]["cells"]) == 16
+
+
+@pytest.mark.parametrize("name", ["portfolio_workload", "portfolio_cash_out"])
+def test_a_view_written_by_hand_reads_the_portfolio_of_the_list(
+    volumes: dict[str, Any], name: str
+) -> None:
+    scope = mockdata.fixture(name)["scope"]
+    assert scope["as_of"] == mockstructure.AS_OF.isoformat()
+    assert scope["states"] == ["in_progress"]
+    assert scope["project_count"] == len(rows_of(volumes, "in_progress"))
+
+
+def test_the_roles_of_the_workload_are_those_of_the_universe() -> None:
+    roles = {role["resource_role_id"]: role for role in mockdata.fixture("resource_roles")}
+    for role in mockdata.fixture("portfolio_workload")["roles"]:
+        known = roles[role["resource_role_id"]]
+        assert role["label"] == known["label"]
+        capacity = Decimal(known["capacity"]["monthly_hours"]) * Decimal(
+            known["capacity"]["headcount"]
+        )
+        assert Decimal(role["capacity_monthly_hours"]) == capacity
+        for month in role["months"]:
+            assert Decimal(month["hours"]) == capacity * Decimal(month["load_ratio"]["value"])
+
+
+def test_the_marks_the_portfolio_journey_reads(volumes: dict[str, Any]) -> None:
+    # The end-to-end path of the portfolio (portfolio.spec.ts) reads the list, the witness
+    # project in alert by its schedule index, and the performance by these figures: a change of
+    # the generator that moves them fails here.
+    value = volumes["portfolio_projects.json"]["value"]
+    assert value["meta"]["total"] == 300
+    witness = value["items"][0]
+    assert witness["label"] == "Modernisation du poste de commande"
+    assert witness["schedule_index"]["zone"] == "alert"
+    performance = volumes["portfolio_performance.json"]["value"]
+    assert performance["cost_index"]["value"]["value"] == "0.94"
+    assert performance["zone_distribution"][2] == {
+        "index": "cost",
+        "zone": "alert",
+        "project_count": 53,
+    }
 
 
 def test_the_rate_is_the_one_the_witness_estimate_reads() -> None:
@@ -428,6 +554,14 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
     assert first_example("reference.yaml", "getHourlyRateGrid") == (
         "volume: { $ref: ../../../fixtures/api/volume/hourly_rate_grid.json }"
     )
+    for operation, name in [
+        ("getPortfolioProjects", "portfolio_projects"),
+        ("getPortfolioValue", "portfolio_value"),
+        ("getPortfolioPerformance", "portfolio_performance"),
+    ]:
+        assert first_example("portfolio.yaml", operation) == (
+            f"volume: {{ $ref: ../../../fixtures/api/volume/{name}.json }}"
+        )
 
 
 def test_a_fixture_is_read_by_its_value() -> None:
