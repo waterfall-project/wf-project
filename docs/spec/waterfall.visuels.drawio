@@ -420,7 +420,7 @@
         <mxCell id="gVRlwLGwSYEDeYzQaK_8-6" value="FBS-2.5&#xa;Risques du portefeuille" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
           <mxGeometry x="120" y="2082" width="200" height="38" as="geometry" />
         </mxCell>
-        <mxCell id="gVRlwLGwSYEDeYzQaK_8-7" value="FBS-2.6&#xa;Décaissements du portefeuille" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+        <mxCell id="gVRlwLGwSYEDeYzQaK_8-7" value="FBS-2.6&#xa;Courbe en S du portefeuille" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
           <mxGeometry x="120" y="2162" width="200" height="38" as="geometry" />
         </mxCell>
         <mxCell id="gVRlwLGwSYEDeYzQaK_8-8" value="FBS-2.7&#xa;Santé du pilotage" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">

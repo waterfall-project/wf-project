@@ -13,7 +13,7 @@ issue:
 La date et le périmètre de calcul, la granularité par sous-projet, la valeur acquise,
 l'avancement financier et physique, les projections à terminaison, les indices de coût et de
 délai et leurs seuils, le diagramme temps/temps, la courbe des coûts cumulés, les courbes de
-valeur acquise et les projections de décaissement. Les indicateurs d'une révision marquée sont
+valeur acquise, avec sa lecture en décaissements. Les indicateurs d'une révision marquée sont
 calculés dans la transaction qui la marque et conservés ; ceux de la révision en cours sont
 calculés à la demande et mis en cache.
 

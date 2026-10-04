@@ -1,6 +1,6 @@
 ---
 id: EP-11
-titre: Voir l'ensemble des projets : valeur, charge, performance, risques, décaissements, santé
+titre: Voir l'ensemble des projets : valeur, charge, performance, risques, courbe en S, santé
 statut: à planifier
 depend_de: EP-10
 issue:
@@ -12,7 +12,7 @@ issue:
 
 Les vues du portefeuille (FBS-2), en consultation seule, calculées sur un périmètre et à une
 date : la liste des projets, la valeur et le pipeline pondéré, le plan de charge agrégé, les
-indices et projections, la structure des coûts, les risques, les décaissements et la santé du
+indices et projections, la structure des coûts, les risques, la courbe en S et la santé du
 pilotage. Une grandeur de portefeuille est une somme, un indice un rapport de sommes — jamais
 une moyenne d'indices —, et un projet en chiffrage compte au prorata de sa probabilité de gain.
 
@@ -54,7 +54,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PTF-0070-A` | Indices et projections du portefeuille | entière | — |
 | `WF-PTF-0080-A` | Structure des coûts du portefeuille | entière | — |
 | `WF-PTF-0090-A` | Risques du portefeuille | entière | — |
-| `WF-PTF-0100-A` | Décaissements du portefeuille | entière | — |
+| `WF-PTF-0100-A` | Courbe en S du portefeuille | entière | — |
 | `WF-PTF-0110-A` | Santé du pilotage | entière | — |
 | `WF-REF-0180-A` | Délai maximal entre deux revues | fin — amorcée en EP-05 | — |
 | `WF-PRJ-0090-A` | Probabilité de gain | fin — amorcée en EP-04 | — |
