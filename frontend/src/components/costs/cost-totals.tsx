@@ -27,7 +27,7 @@ export function CostSummary({
   lastImport,
 }: {
   readonly totals: ActualCostTotals;
-  readonly lastImport: string | null | undefined;
+  readonly lastImport: string | null;
 }) {
   const t = useTranslations("actualCosts");
   return (
@@ -39,11 +39,7 @@ export function CostSummary({
         <div className="space-y-0.5">
           <dt className="text-xs text-muted-foreground">{t("lastImport.label")}</dt>
           <dd className="font-semibold">
-            {lastImport === null || lastImport === undefined ? (
-              t("lastImport.never")
-            ) : (
-              <LocalTime value={lastImport} />
-            )}
+            {lastImport === null ? t("lastImport.never") : <LocalTime value={lastImport} />}
           </dd>
         </div>
       </dl>

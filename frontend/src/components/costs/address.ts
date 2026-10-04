@@ -12,6 +12,7 @@
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
 import { OFFSET } from "@/components/grid/query";
+import { isPlanningDate } from "@/i18n/format";
 import type { SearchParameters } from "@/navigation/context";
 
 /** The parameter of the address the scope filtered on goes by, as the contract names it. */
@@ -39,13 +40,13 @@ export interface CostFilters {
   readonly to: string | undefined;
 }
 
-/** A date of planning, as the contract writes it: anything else is not asked, the API would refuse it. */
-const PLANNING_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** A date of the address the API may take; none otherwise. */
+/**
+ * A date of the address the API may take, a day of the calendar as the contract writes it; none
+ * otherwise — 30 February is not asked, the API would refuse it.
+ */
 function dateOf(search: SearchParameters, name: string): string | undefined {
   const value = search.get(name);
-  return value !== null && PLANNING_DATE.test(value) ? value : undefined;
+  return value !== null && isPlanningDate(value) ? value : undefined;
 }
 
 /** Read the filters the address asks of the list; a value the contract would refuse is not asked. */

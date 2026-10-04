@@ -41,7 +41,7 @@ vi.mock("next/navigation", async (original) => ({
 interface CostList {
   readonly items: components["schemas"]["ActualCostLine"][];
   readonly totals: CostRows["totals"];
-  readonly last_import_at?: string | null;
+  readonly last_import_at: string | null;
   readonly meta: ListPage;
 }
 
@@ -305,6 +305,17 @@ describe("the filters of the actual costs", () => {
     expect(
       readCostFilters(new URLSearchParams("in_tracked_scope=yes&from=avril&to=2026-4-1")),
     ).toEqual({ scope: undefined, from: undefined, to: undefined });
+  });
+
+  it("does not ask a date the calendar does not hold", () => {
+    expect(readCostFilters(new URLSearchParams("from=2026-02-30&to=2026-13-01"))).toEqual({
+      scope: undefined,
+      from: undefined,
+      to: undefined,
+    });
+    expect(readCostFilters(new URLSearchParams("from=2028-02-29"))).toMatchObject({
+      from: "2028-02-29",
+    });
   });
 });
 
