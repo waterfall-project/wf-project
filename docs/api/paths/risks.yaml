@@ -5,11 +5,12 @@
     summary: Registre des risques
     description: >-
       Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la
-      case de matrice et les totaux de provisions (WF-RIS-0040). Le tri et les filtres
-      sont faits par le serveur, et les totaux sont ceux des risques retenus
-      (WF-IHM-0130).
+      case de matrice et les totaux de provisions (WF-RIS-0040), tels que la révision lue
+      les porte (`revision_id`, WF-RIS-0030). Le tri et les filtres sont faits par le
+      serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskRevision
       - name: states
         in: query
         schema:
@@ -44,6 +45,9 @@
                   type: array
                   items: { $ref: ../components/schemas/risks.yaml#/Risk }
                 totals: { $ref: ../components/schemas/risks.yaml#/ProvisionTotals }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risks.json }
+              empty: { $ref: ../../../fixtures/api/risks_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -77,17 +81,22 @@
     operationId: getRisk
     summary: Un risque
     description: >-
-      Attributs du risque et état où il se trouve (WF-RIS-0010, WF-RIS-0020).
+      Attributs du risque et état où il se trouve dans la révision lue (`revision_id`,
+      WF-RIS-0010, WF-RIS-0020, WF-RIS-0030).
     tags: [risks]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
+      - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
         description: Risque.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk.json }
+              occurred: { $ref: ../../../fixtures/api/risk_occurred.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:
@@ -125,10 +134,12 @@
     summary: Historique des réexamens
     description: >-
       Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus
-      (WF-RIS-0010).
+      (WF-RIS-0010). Pour une révision marquée (`revision_id`), les réexamens faits
+      jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
+      - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
         description: Réexamens, du plus récent au plus ancien.
@@ -137,6 +148,8 @@
             schema:
               type: array
               items: { $ref: ../components/schemas/risks.yaml#/RiskReview }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk_reviews.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
@@ -213,15 +226,20 @@
     summary: Matrice de risques du projet
     description: >-
       Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel
-      (WF-REF-0160, WF-RIS-0040). Chaque case porte sa zone, doublée d'un indice non
-      coloré à l'affichage (WF-IHM-0070).
+      (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue
+      (`revision_id`) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du
+      budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à
+      l'affichage (WF-IHM-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
         description: Matrice remplie et totaux.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/RiskMatrix }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk_matrix.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

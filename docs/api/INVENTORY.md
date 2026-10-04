@@ -201,9 +201,9 @@ Le contrat cite **181 des 208 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects/{project_id}/risks` | Registre des risques | WF-IHM-0130, WF-RIS-0040 |
+| GET | `/projects/{project_id}/risks` | Registre des risques | WF-IHM-0130, WF-RIS-0030, WF-RIS-0040 |
 | POST | `/projects/{project_id}/risks` | Déclarer un risque | WF-RIS-0010, WF-RIS-0030, WF-RIS-0050 |
-| GET | `/projects/{project_id}/risks/{risk_id}` | Un risque | WF-RIS-0010, WF-RIS-0020 |
+| GET | `/projects/{project_id}/risks/{risk_id}` | Un risque | WF-RIS-0010, WF-RIS-0020, WF-RIS-0030 |
 | PATCH | `/projects/{project_id}/risks/{risk_id}` | Modifier un risque | WF-RIS-0010, WF-RIS-0030 |
 | GET | `/projects/{project_id}/risks/{risk_id}/reviews` | Historique des réexamens | WF-RIS-0010 |
 | POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Réexaminer un risque | WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |

@@ -518,6 +518,44 @@ tâche en mode manuel. La colonne et le champ calculé suivent (`NodeColumn.tota
 `ComputedValueField` `task.total_float`), et la grille de planning l'écrit comme une durée, par
 sa valeur et son unité.
 
+## Les risques d'une révision (US-0230/L2)
+
+Ajouts de lecture que l'écran des risques exige, faits par son lot sur l'autorisation de
+l'utilisateur du 2026-10-04 (« ajouts de lecture inclus ») : un lot d'écran ajoute au contrat
+les exemples nommés des opérations qu'il consomme et les petits ajouts de lecture que son écran
+exige.
+
+**Les risques se lisent dans une révision** (`revision_id`, paramètre `RiskRevision` de
+`listRisks`, `getRisk`, `listRiskReviews` et `getProjectRiskMatrix`). Chaque révision fige une
+version du devis propre d'un risque (WF-RIS-0030), donc de sa gravité, de sa provision et de sa
+case de matrice ; l'écran est sous `…/revisions/[r]/risks`, et sans le paramètre il montrerait,
+pour une révision marquée, les chiffres de la révision en cours. Absent, la révision en cours,
+ou la dernière marquée quand aucune n'est en cours ; c'est le nom que les indicateurs de devis
+donnent déjà au même paramètre (`getEstimateIndicators`). L'historique des réexamens lu pour une révision marquée s'arrête à son
+marquage. Un paramètre de requête et non un chemin sous la révision : le risque est un objet du
+projet, que les révisions versionnent, et les chemins d'écriture restent ceux du projet. Écarté :
+lire la révision de l'adresse dans le front pour filtrer — le front ne saurait rien en tirer.
+
+**La matrice dit les bornes de ses niveaux** (`RiskMatrix.probability_levels`,
+`severity_levels`, `RiskMatrixLevel`). L'écran nomme les axes de la matrice par leurs bornes,
+que le référentiel fixe (WF-REF-0160) : sans elles, il lirait le référentiel des risques, sous
+une permission que le chef de projet n'a pas forcément, et rapprocherait deux réponses. Chaque
+niveau porte sa borne basse, comprise, et sa borne haute, exclue, nulle au dernier niveau ; la
+gravité en pourcentage du budget de référence, qui est celui de chaque projet — la matrice du
+portefeuille, qui reprend `RiskMatrix`, porte les mêmes bornes. Écarté : les montants des bornes
+de gravité, propres à un projet et faux pour le portefeuille.
+
+**Le total général des provisions est rendu** (`ProvisionTotals.total`). WF-RIS-0040 veut les
+trois totaux distincts et leur somme égale au total général : le front ne somme rien
+(WF-ARC-0020), le serveur rend donc le quatrième, sur les mêmes risques retenus que les trois
+autres.
+
+**Exemples** : `risks` (trois risques, un par état — le survenu est celui de
+`nodes_risk_occurred`, gravité 200 à 30 %, sa ligne de provision retirée — et les quatre totaux),
+`risks_empty`, `risk`, `risk_occurred` (le risque survenu, sa ligne de provision retirée), `risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de 1 000 à
+1 250) et `risk_matrix` (les seize cases, les bornes, les trois risques placés), dans l'univers
+des autres exemples.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

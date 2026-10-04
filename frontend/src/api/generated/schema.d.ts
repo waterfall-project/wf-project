@@ -2136,7 +2136,7 @@ export interface paths {
         };
         /**
          * Registre des risques
-         * @description Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la case de matrice et les totaux de provisions (WF-RIS-0040). Le tri et les filtres sont faits par le serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130).
+         * @description Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la case de matrice et les totaux de provisions (WF-RIS-0040), tels que la révision lue les porte (`revision_id`, WF-RIS-0030). Le tri et les filtres sont faits par le serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130).
          */
         get: operations["listRisks"];
         put?: never;
@@ -2160,7 +2160,7 @@ export interface paths {
         };
         /**
          * Un risque
-         * @description Attributs du risque et état où il se trouve (WF-RIS-0010, WF-RIS-0020).
+         * @description Attributs du risque et état où il se trouve dans la révision lue (`revision_id`, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030).
          */
         get: operations["getRisk"];
         put?: never;
@@ -2184,7 +2184,7 @@ export interface paths {
         };
         /**
          * Historique des réexamens
-         * @description Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus (WF-RIS-0010).
+         * @description Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus (WF-RIS-0010). Pour une révision marquée (`revision_id`), les réexamens faits jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige.
          */
         get: operations["listRiskReviews"];
         put?: never;
@@ -2228,7 +2228,7 @@ export interface paths {
         };
         /**
          * Matrice de risques du projet
-         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040). Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070).
+         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue (`revision_id`) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070).
          */
         get: operations["getProjectRiskMatrix"];
         put?: never;
@@ -3990,8 +3990,9 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Les trois totaux de provisions, distincts (WF-RIS-0040). */
+        /** @description Les trois totaux de provisions, distincts, et le total général, leur somme (WF-RIS-0040), calculés par le serveur sur les risques retenus. */
         ProvisionTotals: {
+            total: components["schemas"]["Money"];
             identified: components["schemas"]["Money"];
             occurred: components["schemas"]["Money"];
             dismissed: components["schemas"]["Money"];
@@ -4027,8 +4028,18 @@ export interface components {
             confirmed: true;
             version_name: string;
         };
-        /** @description Matrice remplie par les risques du projet (WF-RIS-0040, WF-REF-0160). */
+        /** @description Un niveau d'un axe de la matrice et ses bornes, que le référentiel fixe (WF-REF-0160) : la borne basse comprise, la borne haute exclue, nulle au dernier niveau, qui n'en a pas. Un pourcentage : de probabilité sur l'axe des probabilités, du budget de référence sur l'axe des gravités — celui de chaque projet, ce qui vaut aussi pour la matrice du portefeuille. */
+        RiskMatrixLevel: {
+            level: number;
+            lower: components["schemas"]["Percent"];
+            upper: components["schemas"]["Percent"] | null;
+        };
+        /** @description Matrice remplie par les risques du projet dans la révision lue (WF-RIS-0040, WF-REF-0160), avec les bornes de ses niveaux, pour que ses axes se nomment sans lire le référentiel. */
         RiskMatrix: {
+            /** @description Les quatre niveaux de probabilité, du plus bas au plus haut, en pourcentage. */
+            probability_levels: components["schemas"]["RiskMatrixLevel"][];
+            /** @description Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage du budget de référence. */
+            severity_levels: components["schemas"]["RiskMatrixLevel"][];
             cells: {
                 probability_level: number;
                 severity_level: number;
@@ -4386,6 +4397,8 @@ export interface components {
         WorkloadBasis: "reference_budget" | "marked_remaining" | "current_remaining";
         /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
         AsOf: components["schemas"]["PlanningDate"];
+        /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+        RiskRevision: components["schemas"]["Uuid"];
         RiskId: components["schemas"]["Uuid"];
         CostLineId: components["schemas"]["Uuid"];
         ImportId: components["schemas"]["Uuid"];
@@ -8198,6 +8211,8 @@ export interface operations {
     listRisks: {
         parameters: {
             query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
                 states?: components["schemas"]["RiskState"][];
                 /** @description Restreint aux risques dont la case de matrice est dans l'une de ces zones. */
                 zones?: components["schemas"]["AlertZone"][];
@@ -8264,7 +8279,10 @@ export interface operations {
     };
     getRisk: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -8321,7 +8339,10 @@ export interface operations {
     };
     listRiskReviews: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
@@ -8417,7 +8438,10 @@ export interface operations {
     };
     getProjectRiskMatrix: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
+                revision_id?: components["parameters"]["RiskRevision"];
+            };
             header?: never;
             path: {
                 project_id: components["parameters"]["ProjectId"];
