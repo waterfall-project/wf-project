@@ -92,6 +92,32 @@ export function formatDecimal(value: Decimal, locale: Locale): string {
   }).format(exact);
 }
 
+/** The units a size is said in, each 1,024 times the one before. */
+const BYTE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
+
+/**
+ * Format a size in bytes — an integer of the contract, `avatar_max_bytes` — in the largest
+ * unit it fills, in words: `2097152` is « 2 mégaoctets » in French, `2 megabytes` in English.
+ * A unit is 1,024 of the one before, a division by a power of two that a float makes exactly;
+ * a tenth at most is kept, cut rather than rounded up, so that the size said is never more
+ * than the size given.
+ */
+export function formatBytes(value: number, locale: Locale): string {
+  let unit = 0;
+  let size = value;
+  while (size >= 1024 && unit < BYTE_UNITS.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return new Intl.NumberFormat(formatLocale(locale), {
+    style: "unit",
+    unit: BYTE_UNITS[unit],
+    unitDisplay: "long",
+    maximumFractionDigits: 1,
+    roundingMode: "trunc",
+  }).format(size);
+}
+
 /**
  * Format a ratio — a `Decimal` or a `Percent` of the contract, `0.25` for a quarter — as a
  * percentage, with every digit the API gave: `0.125` is « 12,5 % » in French and `12.5%` in

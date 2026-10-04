@@ -98,7 +98,9 @@
       "current": "Your avatar",
       "initials": "No picture: your initials stand in for it.",
       "file": "PNG or JPEG image",
+      "limit": "An image of {size} at most.",
       "wrongType": "Choose a PNG or JPEG image.",
+      "tooLarge": "This image is larger than {size}: choose a lighter one.",
       "upload": "Upload the image",
       "remove": "Remove the avatar",
       "uploaded": "Your avatar is saved.",
@@ -318,6 +320,7 @@
       "title": "Contributors",
       "none": "This project has no contributor.",
       "name": "Name",
+      "kind": "Capacity",
       "account": "Account",
       "active": "Active",
       "inactive": "Deactivated"
@@ -329,7 +332,8 @@
       "change": "Transition",
       "actor": "By",
       "creation": "Creation",
-      "to": "to"
+      "to": "to",
+      "reason": "Reason"
     }
   },
   "revisionScreen": {

@@ -9,7 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import type { components } from "@/api/generated/schema";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { AvatarForm } from "./avatar-form";
 import { AvatarPicture } from "./avatar-picture";
@@ -33,6 +34,10 @@ vi.mock("next/navigation", async (original) => ({
 const PREFERENCES = "PATCH /me/preferences";
 // The eight bytes that open every PNG file, standing for an image.
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+// The largest avatar the installation admits: two megabytes.
+const { avatar_max_bytes: MAX_BYTES } = example(
+  "installation",
+) as components["schemas"]["Installation"];
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {
@@ -184,7 +189,7 @@ describe("the change of the password", () => {
 describe("the avatar of the account", () => {
   it("puts the PNG or JPEG image chosen, and says it is saved", async () => {
     const client = serve({ "PUT /me/avatar": { status: 204 } });
-    const { container } = render(inFrench(<AvatarForm hasAvatar={false} />));
+    const { container } = render(inFrench(<AvatarForm hasAvatar={false} maxBytes={MAX_BYTES} />));
     await expectAccessible(container);
     const upload = screen.getByRole("button", { name: "Déposer l’image" });
     expect(upload).toHaveAttribute("aria-disabled", "true");
@@ -208,14 +213,16 @@ describe("the avatar of the account", () => {
 
   it("says a file of another kind is no avatar, rather than send what the API would refuse", async () => {
     const client = serve({ "PUT /me/avatar": { status: 204 } });
-    render(inFrench(<AvatarForm hasAvatar={false} />));
+    render(inFrench(<AvatarForm hasAvatar={false} maxBytes={MAX_BYTES} />));
     const field = screen.getByLabelText("Image PNG ou JPEG");
     await userEvent.upload(field, new File([PNG], "camille.gif", { type: "image/gif" }), {
       applyAccept: false,
     });
     expect(screen.getByRole("alert")).toHaveTextContent("Choisissez une image PNG ou JPEG.");
     expect(field).toHaveAttribute("aria-invalid", "true");
-    expect(field).toHaveAccessibleDescription("Choisissez une image PNG ou JPEG.");
+    expect(field).toHaveAccessibleDescription(
+      "Une image de 2\u00A0mégaoctets au plus. Choisissez une image PNG ou JPEG.",
+    );
     const upload = screen.getByRole("button", { name: "Déposer l’image" });
     expect(upload).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(upload);
@@ -224,7 +231,7 @@ describe("the avatar of the account", () => {
 
   it("holds the choice of an image while one is sent", async () => {
     const answer = holding({ "PUT /me/avatar": { status: 204 } });
-    render(inFrench(<AvatarForm hasAvatar={false} />));
+    render(inFrench(<AvatarForm hasAvatar={false} maxBytes={MAX_BYTES} />));
     const field = screen.getByLabelText("Image PNG ou JPEG");
     await userEvent.upload(field, new File([PNG], "camille.png", { type: "image/png" }));
     await userEvent.click(screen.getByRole("button", { name: "Déposer l’image" }));
@@ -237,9 +244,43 @@ describe("the avatar of the account", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Votre avatar est enregistré.");
   });
 
+  it("says the largest image the installation admits before one is chosen", () => {
+    render(inFrench(<AvatarForm hasAvatar={false} maxBytes={MAX_BYTES} />));
+    expect(screen.getByLabelText("Image PNG ou JPEG")).toHaveAccessibleDescription(
+      "Une image de 2\u00A0mégaoctets au plus.",
+    );
+  });
+
+  it("refuses an image larger than the installation admits, says so, and sends nothing", async () => {
+    const client = serve({ "PUT /me/avatar": { status: 204 } });
+    render(inFrench(<AvatarForm hasAvatar={false} maxBytes={MAX_BYTES} />));
+    const field = screen.getByLabelText("Image PNG ou JPEG");
+    const heavy = new Uint8Array(MAX_BYTES + 1);
+    heavy.set(PNG);
+    await userEvent.upload(field, new File([heavy], "camille.png", { type: "image/png" }));
+    const refusal = "Cette image dépasse 2\u00A0mégaoctets\u00A0: choisissez-en une plus légère.";
+    // The text content of an element reads every space as a plain one.
+    expect(screen.getByRole("alert")).toHaveTextContent(refusal.replaceAll("\u00A0", " "));
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription(`Une image de 2\u00A0mégaoctets au plus. ${refusal}`);
+    const upload = screen.getByRole("button", { name: "Déposer l’image" });
+    expect(upload).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(upload);
+    expect(client.calls).toEqual([]);
+
+    // An image of the bound exactly is sent.
+    await userEvent.upload(
+      field,
+      new File([heavy.subarray(0, MAX_BYTES)], "camille.png", { type: "image/png" }),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(upload);
+    expect(sent(client, "PUT /me/avatar")).toHaveLength(1);
+  });
+
   it("tells an image the API finds too large", async () => {
     serve({ "PUT /me/avatar": { problem: { code: "FILE_TOO_LARGE", status: 413 } } });
-    render(inFrench(<AvatarForm hasAvatar={false} />));
+    render(inFrench(<AvatarForm hasAvatar={false} maxBytes={MAX_BYTES} />));
     await userEvent.upload(
       screen.getByLabelText("Image PNG ou JPEG"),
       new File([PNG], "camille.jpg", { type: "image/jpeg" }),
@@ -253,7 +294,7 @@ describe("the avatar of the account", () => {
 
   it("withdraws the avatar the account has, and says it is withdrawn", async () => {
     const client = serve({ "DELETE /me/avatar": { status: 204 } });
-    render(inFrench(<AvatarForm hasAvatar />));
+    render(inFrench(<AvatarForm hasAvatar maxBytes={MAX_BYTES} />));
     await userEvent.click(screen.getByRole("button", { name: "Retirer l’avatar" }));
     expect(client.calls.map((call) => call.route)).toEqual(["DELETE /me/avatar"]);
     expect(refresh).toHaveBeenCalledOnce();

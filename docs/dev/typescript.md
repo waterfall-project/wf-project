@@ -39,8 +39,9 @@ et des types ; un module de `src/api/actions/` s'ouvre sur `"use server"`. C'est
 de la chaîne, éprouvé par `src/api/network-guard.test.ts`, et il voit l'import direct : le
 cas transitif — un module sans directive qui importe `@/api/server`, et qu'un composant
 client importe — reste à `server-only`, qu'importent `client.ts` et `server.ts`, le filet
-de `next build`, que la chaîne ne lance qu'au palier complet, pour la mesure de la seconde
-(`make e2e`), et une fois le faux back démarré (#131). `make client-up-to-date`.
+de `next build`, que `make build-front` lance au palier rapide, sans API joignable (#131),
+et `make e2e` au palier complet.
+`make client-up-to-date`.
 
 ### Le front affiche, il ne calcule pas
 
@@ -229,6 +230,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     côté de celle du serveur, que le document garde, cachée, jusqu'à la révélation : deux champs
     de fichier portent un instant le même nom, et un parcours en mode strict échoue : rejoué en
     boucle, deux champs 9 fois sur 40, puis 0 sur 110 une fois corrigé (#173).
-    Une valeur de contexte au-dessus des pages ne se reconstruit que quand ce qu'elle montre
-    change (`TaskTracker`) ; restes suivis en #180. Un test hydrate une frontière en attente sous
-    le fournisseur (`task-tracker.dom.test.tsx`) ; aucun outil ne le tient : la revue le cherche.
+    Ce qui change au-dessus des pages pendant l'hydratation — les tâches suivies, la largeur de
+    la fenêtre, le projet montré — ne passe pas par la valeur d'un contexte, qui reste stable :
+    il se lit dans un magasin externe (`useSyncExternalStore`), auquel ne s'abonnent que les
+    pièces de la coquille qui le montrent, et une écriture qui ne change rien n'avertit personne
+    (#180). Des tests hydratent une frontière en attente sous chaque fournisseur
+    (`task-tracker.dom.test.tsx`, `shell/hydration.dom.test.tsx`) ; aucun outil ne le tient : la
+    revue le cherche.

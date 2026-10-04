@@ -69,7 +69,11 @@ function choices(markup: string): (string | undefined)[] {
 }
 
 beforeEach(() => {
-  server.answers = { "GET /me": "me", "GET /session": "session" };
+  server.answers = {
+    "GET /me": "me",
+    "GET /session": "session",
+    "GET /installation": "installation",
+  };
   server.clients = [];
 });
 
@@ -136,7 +140,11 @@ describe("the avatar of the account", () => {
     const source = `data:image/png;base64,${Buffer.from(PNG).toString("base64")}`;
     expect(screen.props).toMatchObject({ source });
     expect(text(page)).toContain("CM");
-    expect(routes()).toEqual(["/me", "/users/01926f3a-7c00-7000-8000-000000000301/avatar"]);
+    expect(routes()).toEqual([
+      "/me",
+      "/installation",
+      "/users/01926f3a-7c00-7000-8000-000000000301/avatar",
+    ]);
     expect(text(page)).toContain("Retirer l’avatar");
     expect(await avatarMetadata()).toEqual({ title: "Changer l’avatar — Waterfall" });
   });
@@ -146,8 +154,21 @@ describe("the avatar of the account", () => {
     expect(page).not.toMatch(/<img/);
     expect(text(page)).toContain("CM Aucune image : vos initiales en tiennent lieu.");
     expect(text(page)).not.toContain("Retirer l’avatar");
-    expect(routes()).toEqual(["/me"]);
+    expect(routes()).toEqual(["/me", "/installation"]);
     expect(page).toMatch(/<input[^>]*type="file"[^>]*accept="image\/png,image\/jpeg"/);
+  });
+
+  it("says the largest image the installation admits, as getInstallation gives it", async () => {
+    const page = html(await AvatarPage());
+    expect(text(page)).toContain("Image PNG ou JPEG Une image de 2 mégaoctets au plus.");
+  });
+
+  it("does not offer the form when the installation cannot be read: the screen of failure says so", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /installation": { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } },
+    };
+    await expect(AvatarPage()).rejects.toMatchObject({ operation: "getInstallation" });
   });
 
   it("shows the initials when the image cannot be read", async () => {

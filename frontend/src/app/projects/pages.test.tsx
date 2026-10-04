@@ -675,7 +675,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toContain(
-      "Missing hourly rates The estimate cannot be calculated until these cost categories have an hourly rate for its reference year: Ingénierie électrique — 2026 Mise en service — 2026 Enter the hourly rates",
+      "Missing hourly rates The estimate cannot be calculated until these cost categories have an hourly rate for its reference year: Ingénierie électrique — 2026 Enter the hourly rates",
     );
     expect(links(html)).toContain("/reference/costs");
 
@@ -684,7 +684,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     // An estimator reads the rates, and may not enter them.
-    expect(text(estimator)).toContain("Mise en service — 2026 See the hourly rates");
+    expect(text(estimator)).toContain("Ingénierie électrique — 2026 See the hourly rates");
     expect(links(estimator)).toContain("/reference/costs");
   });
 
@@ -698,7 +698,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toContain(
-      "Mise en service — 2026 Enter the hourly rates Estimate indicators The estimate indicators are unavailable.",
+      "Ingénierie électrique — 2026 Enter the hourly rates Estimate indicators The estimate indicators are unavailable.",
     );
     expect(html).toMatch(/<table[^>]*role="grid"[^>]*aria-label="Estimate grid"/);
   });
