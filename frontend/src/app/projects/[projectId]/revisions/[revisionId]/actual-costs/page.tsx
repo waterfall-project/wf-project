@@ -19,7 +19,7 @@ import { useTranslations } from "next-intl";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
-import { readProjectContext } from "@/components/context/reading";
+import { askSubprojects, readProjectContext } from "@/components/context/reading";
 import {
   type CostFilters,
   COSTS_PAGE,
@@ -111,13 +111,9 @@ async function readImports({ revision, address }: GridAddress) {
   );
 }
 
-/** The sub-projects of the project, which the filter offers. */
+/** The sub-projects of the project, which the filter offers: the answer the banner reads too. */
 async function readSubprojects({ revision }: GridAddress) {
-  const subprojects = await readOrFail("listSubprojects", () =>
-    serverClient().GET("/projects/{project_id}/subprojects", {
-      params: { path: { project_id: revision.projectId } },
-    }),
-  );
+  const subprojects = await readOrFail("listSubprojects", () => askSubprojects(revision.projectId));
   return subprojects.map(({ subproject_id, code, label }) => ({ id: subproject_id, code, label }));
 }
 

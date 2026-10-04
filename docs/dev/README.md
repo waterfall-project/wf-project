@@ -295,7 +295,8 @@ nommé par le serveur, son périmètre en mots et les colonnes conservées du fi
 qu'importées ; et le journal des imports, paginé à part (`imports_offset`). Un tri ou une
 recherche changés ramènent toute liste paginée à sa première page (`sortHref`, `searchHref`).
 Un lien de page, comme le libellé d'un risque, part de la dernière adresse demandée
-(`usePendingLink`).
+(`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
+en attente —, il mène à leur première page.
 
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le

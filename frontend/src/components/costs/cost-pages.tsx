@@ -6,11 +6,11 @@
  * pagination of shadcn/ui. A list never shows one of its pages as if it were the whole; a page
  * asked beyond its end says so, and leads back to its last page. A page turned only changes the
  * address (`offset`, `imports_offset`), from the address last asked: a sort or a filter under way
- * is kept.
+ * is kept, and the costs then start from their first page.
  */
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { usePendingLink } from "@/components/grid/pending-address";
@@ -22,13 +22,17 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-import { COSTS_PAGE, IMPORTS_PAGE, pageHref } from "./address";
+import { COSTS_PAGE, IMPORTS_PAGE, pageHref, sameList } from "./address";
 import type { ListPage } from "./cost-grid";
 
 /** The lists of the screen that the server pages, by the parameter of their page. */
 const PAGES = { costs: COSTS_PAGE, imports: IMPORTS_PAGE } as const;
 
-/** A link to another page of a list: the same screen, its query kept, the page changed. */
+/**
+ * A link to another page of a list: the same screen, its query kept, the page changed — or, when
+ * the address last asked reads the costs otherwise than the one shown, their first page. The
+ * journal reads nothing of the address but its page.
+ */
 function PageLink({
   list,
   offset,
@@ -40,8 +44,15 @@ function PageLink({
 }) {
   const t = useTranslations(`actualCosts.pages.${list}`);
   const pathname = usePathname();
+  const shown = useSearchParams();
+  const name = PAGES[list];
   const { href, onClick } = usePendingLink((query) =>
-    pageHref(pathname, query, PAGES[list], offset),
+    pageHref(
+      pathname,
+      query,
+      name,
+      list === "imports" || sameList(query, new URLSearchParams(shown), name) ? offset : 0,
+    ),
   );
   const Link = direction === "previous" ? PaginationPrevious : PaginationNext;
   return (

@@ -151,7 +151,7 @@
       "documentNumber": "Document no.",
       "documentDate": "Document date",
       "amount": "Amount",
-      "subproject": "Sub-project",
+      "subproject": "Subproject",
       "trackedScope": "Tracked scope",
       "excludedReason": "Reason for exclusion",
       "passthrough": "Columns kept from the file"
@@ -269,12 +269,12 @@
       "everyLine": "Every line",
       "tracked": "Tracked",
       "excluded": "Excluded",
-      "subproject": "Sub-project",
-      "everySubproject": "Every sub-project",
+      "subproject": "Subproject",
+      "everySubproject": "Every subproject",
       "subprojectChoice": "{code} — {label}",
       "period": "Period of the documents",
       "from": "Documents from",
-      "to": "to",
+      "to": "Documents up to",
       "apply": "Filter"
     },
     "pages": {

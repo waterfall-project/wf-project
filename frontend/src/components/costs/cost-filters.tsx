@@ -98,6 +98,12 @@ function SubprojectFilter({
   const t = useTranslations();
   const id = useId();
   const filter = useFilter();
+  // A sub-project the address names that the project does not hold stays chosen, under its value
+  // as the address writes it — as the banner says it —, rather than the choice showing another.
+  const unknown =
+    subproject !== undefined &&
+    subproject !== UNASSIGNED &&
+    !subprojects.some((choice) => choice.id === subproject);
   return (
     <div className="flex items-center gap-2">
       <Label htmlFor={id}>{t("actualCosts.filters.subproject")}</Label>
@@ -117,6 +123,7 @@ function SubprojectFilter({
             {t("actualCosts.filters.subprojectChoice", { code: choice.code, label: choice.label })}
           </option>
         ))}
+        {unknown ? <option value={subproject}>{subproject}</option> : null}
       </NativeSelect>
     </div>
   );
@@ -144,6 +151,10 @@ function PeriodFilter({ from, to }: Pick<CostFilters, "from" | "to">) {
             id={ids[bound]}
             type="date"
             value={period[bound]}
+            // Each bound keeps the other side of the period: a start after the end is not offered.
+            {...(bound === "from"
+              ? { max: period.to === "" ? undefined : period.to }
+              : { min: period.from === "" ? undefined : period.from })}
             onChange={(event) => {
               setPeriod({ ...period, [bound]: event.target.value });
             }}

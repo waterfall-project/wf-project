@@ -10,8 +10,9 @@
  *
  * The number, the date, the amount and the sub-project sort by the columns of the contract of the
  * same name, the server sorting — the most recent documents first when none is asked —; the
- * server searches nothing, and the bar of the grid offers no search. The totals row shows the
- * general total of the lines retained the server gives, never a sum of the page.
+ * contract sorts by no other (#292). The server searches nothing, and the bar of the grid offers
+ * no search. The totals row shows the general total of the lines retained the server gives, never
+ * a sum of the page.
  */
 import type { components, operations } from "@/api/generated/schema";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
@@ -121,7 +122,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
       label: "trackedScope",
       format: "text",
       width: 112,
-      // The server does not sort by the scope: the filter retains it.
+      // The server sorts neither by the scope, nor by the reason, nor by the columns kept (#292).
       value: (line) => String(line.is_in_tracked_scope),
       render: (line) => <ScopeCell tracked={line.is_in_tracked_scope} />,
     },

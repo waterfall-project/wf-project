@@ -37,6 +37,7 @@ test("reads the actual costs of a project: the lines and their three totals, the
   await expect(totals).toHaveText(
     /Périmètre suivi\s*3\s000,00\s*Exclu du périmètre suivi\s*650,00\s*Total général\s*3\s650,00\s*Dernier import\s*4 mai 2026/,
   );
+  await expect(page.getByRole("region", { name: "Journal des imports" })).toHaveCount(1);
   await expect(
     page.getByRole("table", { name: "Journal des imports" }).getByRole("row"),
   ).toHaveCount(3);

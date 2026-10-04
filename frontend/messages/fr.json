@@ -274,7 +274,7 @@
       "subprojectChoice": "{code} — {label}",
       "period": "Période des pièces",
       "from": "Pièces du",
-      "to": "au",
+      "to": "Pièces jusqu’au",
       "apply": "Filtrer"
     },
     "pages": {

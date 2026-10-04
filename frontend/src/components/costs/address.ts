@@ -114,3 +114,20 @@ export function pageHref(
   put(next, name, offset > 0 ? String(offset) : undefined);
   return address(pathname, next);
 }
+
+/** A query without one of its parameters, in a stable order. */
+function without(query: URLSearchParams, name: string): string {
+  const rest = new URLSearchParams(query);
+  rest.delete(name);
+  rest.sort();
+  return rest.toString();
+}
+
+/**
+ * Whether two queries ask the same list but for its page (`name`): a page turned from a query
+ * that asks another — a filter or a sort under way — starts that list from its first page, the
+ * place of a row in the one shown meaning nothing in the other.
+ */
+export function sameList(query: URLSearchParams, shown: URLSearchParams, name: string): boolean {
+  return without(query, name) === without(shown, name);
+}

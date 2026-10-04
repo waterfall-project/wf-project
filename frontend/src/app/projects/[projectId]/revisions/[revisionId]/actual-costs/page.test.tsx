@@ -151,7 +151,7 @@ describe("the screen of the actual costs", () => {
     });
   });
 
-  it("asks the server for the sort, the filters and the pages the address names, by the names of the contract [WF-CRE-0040-A] [WF-IHM-0130-A]", async () => {
+  it("asks the server for the sort, the filters and the pages the address names, by the names of the contract [WF-CRE-0040-A]", async () => {
     await costsAt({
       sort_by: "amount",
       sort_order: "desc",

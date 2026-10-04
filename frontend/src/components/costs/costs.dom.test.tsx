@@ -165,7 +165,7 @@ describe("the grid of the actual costs", () => {
     expect(total).toHaveTextContent(/^Total général des lignes retenues\s*3\s650,00$/);
   });
 
-  it("offers no search, which the server does not make, and asks it to sort by the amount [WF-IHM-0130-A]", async () => {
+  it("offers no search, which the server does not make, and asks it to sort by the amount", async () => {
     render(costsGrid(costsOf("actual_costs")));
     expect(screen.queryByRole("search")).toBeNull();
     const heading = within(grid()).getByRole("columnheader", { name: /Montant/ });
@@ -270,7 +270,7 @@ describe("the filters of the actual costs", () => {
   it("asks the server for the documents of a period, and lifts it when emptied [WF-CRE-0040-A]", async () => {
     const { unmount } = renderFilters("in_tracked_scope=true");
     await userEvent.type(screen.getByLabelText("Pièces du"), "2026-04-01");
-    await userEvent.type(screen.getByLabelText("au"), "2026-04-30");
+    await userEvent.type(screen.getByLabelText("Pièces jusqu’au"), "2026-04-30");
     await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?in_tracked_scope=true&from=2026-04-01&to=2026-04-30`,
@@ -280,9 +280,25 @@ describe("the filters of the actual costs", () => {
     renderFilters("from=2026-04-01&to=2026-04-30");
     expect(screen.getByLabelText("Pièces du")).toHaveValue("2026-04-01");
     await userEvent.clear(screen.getByLabelText("Pièces du"));
-    await userEvent.clear(screen.getByLabelText("au"));
+    await userEvent.clear(screen.getByLabelText("Pièces jusqu’au"));
     await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
     expect(router.push).toHaveBeenLastCalledWith(PATHNAME, { scroll: false });
+  });
+
+  it("keeps each bound of the period on its side of the other", async () => {
+    renderFilters("from=2026-04-01&to=2026-04-30");
+    expect(screen.getByLabelText("Pièces du")).toHaveAttribute("max", "2026-04-30");
+    expect(screen.getByLabelText("Pièces jusqu’au")).toHaveAttribute("min", "2026-04-01");
+    await userEvent.clear(screen.getByLabelText("Pièces jusqu’au"));
+    expect(screen.getByLabelText("Pièces du")).not.toHaveAttribute("max");
+  });
+
+  it("keeps chosen a sub-project the address names that the project does not hold, under its value", () => {
+    const unknown = "01926f3a-7c00-7000-8000-000000000899";
+    renderFilters(`subproject_id=${unknown}`);
+    const select = screen.getByRole("combobox", { name: "Sous-projet" });
+    expect(select).toHaveValue(unknown);
+    expect(within(select).getByRole("option", { selected: true })).toHaveTextContent(unknown);
   });
 
   it("does not ask a date or a scope the contract would refuse", () => {
@@ -317,9 +333,11 @@ describe("the pages of a list the server pages", () => {
   });
 
   it("says a page asked beyond the end, and leads back to the last page", () => {
-    render(
-      inLanguage(<ListPages list="imports" page={{ limit: 12, offset: 48, total: 2 }} shown={0} />),
-    );
+    const beyond = example("cost_imports_beyond") as {
+      readonly items: [];
+      readonly meta: ListPage;
+    };
+    render(inLanguage(<ListPages list="imports" page={beyond.meta} shown={beyond.items.length} />));
     expect(screen.getByText("La page demandée est au-delà de la fin du journal.")).toBeVisible();
     expect(screen.getByRole("link", { name: /Imports plus récents/ })).toHaveAttribute(
       "href",
@@ -327,7 +345,7 @@ describe("the pages of a list the server pages", () => {
     );
   });
 
-  it("turns a page from the address last asked: a sort under way is kept", async () => {
+  it("turns a page from the address last asked: a sort under way is kept, from the first page", async () => {
     page.search = "offset=1";
     const list = listOf("actual_costs_page");
     render(
@@ -352,15 +370,49 @@ describe("the pages of a list the server pages", () => {
     });
     await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
     expect(router.push).toHaveBeenLastCalledWith(
-      `${PATHNAME}?sort_by=document_date&sort_order=asc&offset=2`,
+      `${PATHNAME}?sort_by=document_date&sort_order=asc`,
       { scroll: false },
     );
+  });
+
+  it("turns a page of the costs from a filter under way to their first page, and keeps the page of the journal", async () => {
+    page.search = "offset=1&imports_offset=12";
+    const list = listOf("actual_costs_page");
+    const journal = example("cost_imports_beyond") as { readonly meta: ListPage };
+    render(
+      inLanguage(
+        <PendingAddress>
+          <CostFilterBar
+            filters={readCostFilters(new URLSearchParams(page.search))}
+            subproject={undefined}
+            subprojects={SUBPROJECTS}
+          />
+          <ListPages list="costs" page={list.meta} shown={list.items.length} />
+          <ListPages list="imports" page={journal.meta} shown={0} />
+        </PendingAddress>,
+      ),
+    );
+    const scope = screen.getByRole("group", { name: "Périmètre" });
+    await userEvent.click(within(scope).getByRole("button", { name: "Exclues" }));
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?imports_offset=12&in_tracked_scope=false`,
+      { scroll: false },
+    );
+    await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?imports_offset=12&in_tracked_scope=false`,
+      { scroll: false },
+    );
+    await userEvent.click(screen.getByRole("link", { name: /Imports plus récents/ }));
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?in_tracked_scope=false`, {
+      scroll: false,
+    });
   });
 });
 
 describe("the journal of the imports", () => {
   /** The journal of an example. */
-  function journalOf(name: "cost_imports" | "cost_imports_empty") {
+  function journalOf(name: "cost_imports" | "cost_imports_periods" | "cost_imports_empty") {
     return example(name) as { readonly items: CostImport[]; readonly meta: ListPage };
   }
 
@@ -379,23 +431,23 @@ describe("the journal of the imports", () => {
     await expectAccessible(container);
   });
 
-  it("says a period the API does not give, or gives a bound of", () => {
-    const [entry] = journalOf("cost_imports").items;
-    if (entry === undefined) {
-      throw new Error("the journal holds an import");
-    }
-    const imports = [
-      { ...entry, cost_import_id: "a", period_from: null },
-      { ...entry, cost_import_id: "b", period_to: null },
-      { ...entry, cost_import_id: "c", period_from: null, period_to: null },
-    ];
-    render(
-      inLanguage(<ImportJournal imports={imports} page={{ limit: 12, offset: 0, total: 3 }} />),
-    );
-    const table = screen.getByRole("table", { name: "Journal des imports" });
-    expect(within(table).getByText("jusqu’au 30/04/2026")).toBeVisible();
-    expect(within(table).getByText("à partir du 01/04/2026")).toBeVisible();
-    expect(within(table).getByText("Non renseignée")).toBeVisible();
+  it("says a period the API does not give, or gives a bound of, and its counts in the format of the language [WF-CRE-0050-A]", () => {
+    const journal = journalOf("cost_imports_periods");
+    render(inLanguage(<ImportJournal imports={journal.items} page={journal.meta} />));
+    const rows = within(screen.getByRole("table", { name: "Journal des imports" }))
+      .getAllByRole("row")
+      .slice(1);
+    expect(within(rows[0] ?? document.body).getByText("à partir du 01/05/2026")).toBeVisible();
+    expect(within(rows[1] ?? document.body).getByText("jusqu’au 30/04/2026")).toBeVisible();
+    expect(rows[1]?.querySelectorAll("td")[5]).toHaveTextContent(/^12\s345$/);
+    expect(within(rows[2] ?? document.body).getByText("Non renseignée")).toBeVisible();
+  });
+
+  it("writes its counts in English the English way", () => {
+    const journal = journalOf("cost_imports_periods");
+    render(inLanguage(<ImportJournal imports={journal.items} page={journal.meta} />, "en"));
+    expect(screen.getByText("12,345")).toBeVisible();
+    expect(screen.getByText("until 30/04/2026")).toBeVisible();
   });
 
   it("says no import was ever made", () => {

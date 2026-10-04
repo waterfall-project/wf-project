@@ -74,6 +74,7 @@ export type EstimateNode = RowOf<typeof ESTIMATE_FIELDS>;
 /** The grid of the estimate. */
 export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals> = {
   key: "estimate",
+  searched: true,
   name: "estimate",
   rowKey: nodeKey,
   rowNumber: nodeNumber,

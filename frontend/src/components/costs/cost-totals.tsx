@@ -10,7 +10,7 @@
 import { useTranslations } from "next-intl";
 
 import { LocalTime } from "@/components/local-time";
-import { ComputedTotal } from "@/components/risks/provision-totals";
+import { ComputedTotal } from "@/components/computed-amount";
 
 import type { ActualCostTotals } from "./cost-grid";
 
