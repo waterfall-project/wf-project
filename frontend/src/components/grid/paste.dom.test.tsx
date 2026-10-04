@@ -90,6 +90,7 @@ function renderGrid(editable = true, preferences?: GridPreferences) {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
+        filtered={false}
         nodes={nodes}
         structure={STRUCTURE}
         structureVersion={STRUCTURE_VERSION}

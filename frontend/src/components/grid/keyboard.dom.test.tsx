@@ -88,6 +88,7 @@ function renderGrid(nodes: NodeList = estimate) {
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
+        filtered={false}
         reference={estimateReference()}
         editable
         tasksEditable

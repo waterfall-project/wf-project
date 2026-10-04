@@ -11,8 +11,8 @@
  * structure and its node; a cell entered is written by the structure and its node too; a block
  * pasted, by the structure and the version read of it. What a write answers — the nodes written,
  * the ancestors recalculated, the tasks rescheduled, the totals of the structure — is read as the
- * grid reads it (`nodesWritten`, #218), the totals taken only by a grid read without a search,
- * whose totals are those of the structure.
+ * grid reads it (`nodesWritten`, #218), the totals taken only by a grid read without a search nor
+ * a filter, whose totals are those of the structure.
  */
 "use client";
 
@@ -55,6 +55,11 @@ export interface EstimateGridProps {
    * of the grid moves on (`NodesWritten.structure_lock_version`, #201).
    */
   readonly structureVersion: number;
+  /**
+   * Whether the rows were read under a search or a filter — a sub-project —: their totals are
+   * those of the reading, which the totals of the structure a write answers are not.
+   */
+  readonly filtered: boolean;
   /** The categories and roles the lines are named by, and chosen from. */
   readonly reference: EstimateReference;
   /**
@@ -166,6 +171,7 @@ export function EstimateGrid({
   nodes,
   structure,
   structureVersion,
+  filtered,
   reference,
   editable,
   tasksEditable,
@@ -180,8 +186,6 @@ export function EstimateGrid({
   // one read with the page when a new reading is more recent.
   const [moved, setMoved] = useState(structureVersion);
   const version = Math.max(structureVersion, moved);
-  // A search reads some of the structure, whose totals the server answers for it whole.
-  const whole = query.search === undefined;
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
@@ -192,7 +196,7 @@ export function EstimateGrid({
       to: (next) => {
         setMoved((before) => Math.max(before, next));
       },
-      whole,
+      whole: !filtered,
     };
     const name = (column: NodeColumn) => columns(column);
     return estimateGrid(
@@ -200,7 +204,7 @@ export function EstimateGrid({
       unknown,
       editable ? structureWrites(structure, version, told, tasksEditable, name) : undefined,
     );
-  }, [reference, unknown, editable, tasksEditable, structure, version, whole, columns]);
+  }, [reference, unknown, editable, tasksEditable, structure, version, filtered, columns]);
   return (
     <DenseGrid
       config={config}

@@ -313,6 +313,21 @@ describe("the witness path", () => {
     expect(html).toMatch(
       /<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Amount corrected for inflation/,
     );
+    // The totals of the reading are not those of the structure a write answers.
+    expect(grids.estimate[0]?.filtered).toBe(true);
+  });
+
+  it("tells the grid its rows are the whole structure, without a search nor a filter, or narrowed by either", async () => {
+    const { grid } = await estimateWith();
+    expect(grid?.filtered).toBe(false);
+    const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
+    for (const search of [{ search: "revue" }, { subproject_id: "unassigned" }]) {
+      grids.estimate = [];
+      renderToStaticMarkup(
+        inEnglish(await EstimatePage({ params, searchParams: Promise.resolve(search) })),
+      );
+      expect(grids.estimate[0]?.filtered).toBe(true);
+    }
   });
 
   it("asks the plan order of the whole structure when the address holds no sort the grid offers, nor a search", async () => {

@@ -96,6 +96,11 @@ export interface GridScreen<Row> {
   /** The version of the main structure read, which a paste applied carries (#201). */
   readonly structureVersion: number;
   readonly nodes: NodeRows<Row>;
+  /**
+   * Whether the nodes were read under a search or a filter: the totals are then those of the
+   * reading alone, never those of the structure a write answers (`NodesWritten.totals`, #218).
+   */
+  readonly filtered: boolean;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
 }
@@ -149,6 +154,7 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
     structure,
     structureVersion: main.lock_version,
     nodes: projectNodes(answer, fields),
+    filtered: search !== undefined || subproject !== null,
   };
 }
 

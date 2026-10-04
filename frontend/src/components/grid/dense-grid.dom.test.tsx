@@ -99,6 +99,7 @@ function renderGrid(
   const grid = (query: GridQuery<NodeSortColumn>) => (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <EstimateGrid
+        filtered={false}
         reference={estimateReference()}
         editable
         tasksEditable

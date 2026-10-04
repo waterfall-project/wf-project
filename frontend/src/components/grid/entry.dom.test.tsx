@@ -78,6 +78,7 @@ function grid(
   editable = true,
   tasksEditable = true,
   query: GridQuery<NodeSortColumn> = NO_QUERY,
+  filtered = false,
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
@@ -89,6 +90,7 @@ function grid(
         editable={editable}
         tasksEditable={tasksEditable}
         query={query}
+        filtered={filtered}
         preferences={undefined}
       />
     </NextIntlClientProvider>
@@ -634,9 +636,9 @@ describe("what a write answers besides the row written", () => {
     ]);
   });
 
-  it("keeps the totals of a reading a search filtered, which those of the structure are not", async () => {
+  it("keeps the totals of a reading a search or a filter narrowed, which those of the structure are not", async () => {
     serve();
-    render(grid("fr", estimate, true, true, { sort: undefined, search: "borniers" }));
+    render(grid("fr", estimate, true, true, { sort: undefined, search: "borniers" }, true));
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     await vi.waitFor(() => {
