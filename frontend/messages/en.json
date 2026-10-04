@@ -821,12 +821,13 @@
     },
     "schedule": {
       "title": "Schedule",
-      "state": "Schedule",
+      "state": "State",
       "enabled": "On",
       "disabled": "Off",
       "frequency": "Frequency",
       "weekday": "Day",
       "at": "Time",
+      "platformTime": "{time}, platform time",
       "retained": "Retention",
       "count": "{count, plural, one {# backup kept} other {# backups kept}}",
       "weekdays": {

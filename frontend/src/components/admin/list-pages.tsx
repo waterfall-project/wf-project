@@ -5,7 +5,8 @@
  * backups —: how many the list holds, and the links to the page before and the page after the one
  * shown, when there are, by the pagination of shadcn/ui. A list never shows one of its pages as if
  * it were the whole; a page asked beyond its end says so, and leads back to its last page. The page
- * is asked by its `offset`, as the contract names it.
+ * is asked by its `offset`, as the contract names it (`offsetOf`). A list that holds nothing says
+ * so itself: its pages say nothing.
  */
 import { useTranslations } from "next-intl";
 
@@ -17,17 +18,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import type { SearchParameters } from "@/navigation/context";
 
 /** Where a page of a list stands in it, as the server says. */
 export type ListPage = components["schemas"]["PaginationMeta"];
-
-/** The offset the address asks for, or none when it asks for none a server could take. */
-export function offsetOf(search: SearchParameters): number | undefined {
-  const value = search.get("offset");
-  const offset = Number(value);
-  return value !== null && Number.isSafeInteger(offset) && offset > 0 ? offset : undefined;
-}
 
 /** The address of a page of the list of a screen. */
 function pageHref(path: string, offset: number): string {
@@ -53,6 +46,10 @@ export function ListPages({
   readonly count: string;
 }) {
   const t = useTranslations("admin.pages");
+  if (page.total === 0) {
+    // The list holds nothing, which the list itself says.
+    return null;
+  }
   const beyond = shown === 0 && page.offset >= page.total && page.total > 0;
   const before = page.offset > 0;
   const after = page.offset + shown < page.total;

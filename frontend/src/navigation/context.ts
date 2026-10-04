@@ -167,6 +167,15 @@ export function pageSearch(search: PageSearchParams): SearchParameters {
 }
 
 /**
+ * The offset of a page of a list the address asks for (`offset`), or none when it asks for none a
+ * server could take.
+ */
+export function offsetOf(value: string | null): number | undefined {
+  const offset = Number(value);
+  return value !== null && Number.isSafeInteger(offset) && offset > 0 ? offset : undefined;
+}
+
+/**
  * The address of the last project context, read from the cookie: `undefined` when there is
  * none, or when the value is not the address of a screen of a project — a cookie is the
  * browser's to change, and the shell only ever leads back into a project.

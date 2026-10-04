@@ -18,7 +18,7 @@ import { ContributorFilter, ProjectList } from "@/components/projects/project-li
 import { GROUP_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { ReferenceIncomplete } from "@/components/system/empty-states";
-import { type PageSearchParams, pageSearch } from "@/navigation/context";
+import { offsetOf, type PageSearchParams, pageSearch } from "@/navigation/context";
 import { isContributorFiltered } from "@/navigation/home";
 import { requestSession } from "@/session/request";
 
@@ -27,12 +27,6 @@ import { screenMetadata } from "../title";
 /** Title the tab with the list of projects. */
 export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functionGroups.projects");
-}
-
-/** The offset the address asks for, or none when it asks for none a server could take. */
-function offsetOf(value: string | null): number | undefined {
-  const offset = Number(value);
-  return value !== null && Number.isSafeInteger(offset) && offset > 0 ? offset : undefined;
 }
 
 /** The title of the list, with the icon of its block, and its filter at the right. */

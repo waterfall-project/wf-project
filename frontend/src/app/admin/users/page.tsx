@@ -14,10 +14,10 @@ import { useTranslations } from "next-intl";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
-import { ListPages, type ListPage, offsetOf } from "@/components/admin/list-pages";
+import { ListPages, type ListPage } from "@/components/admin/list-pages";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { type PageSearchParams, pageSearch } from "@/navigation/context";
+import { offsetOf, type PageSearchParams, pageSearch } from "@/navigation/context";
 import { functionOf } from "@/navigation/functions";
 
 import { screenMetadata } from "../../title";
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.users");
 }
 
-/** The title of the screen, and how many accounts the list holds. */
+/** The title of the screen. */
 function UsersHeader() {
   const t = useTranslations("functions");
   return (
@@ -54,7 +54,7 @@ export default async function UsersPage({
 }: {
   searchParams: Promise<PageSearchParams>;
 }) {
-  const offset = offsetOf(pageSearch(await searchParams));
+  const offset = offsetOf(pageSearch(await searchParams).get("offset"));
   const users = await readOrFail("listUsers", () =>
     serverClient().GET("/users", {
       params: { query: { include_inactive: true, ...(offset === undefined ? {} : { offset }) } },
@@ -63,7 +63,7 @@ export default async function UsersPage({
   return (
     <Screen density={FUNCTION_DENSITY.users}>
       <UsersHeader />
-      <UserList users={users.items} />
+      <UserList users={users.items} page={users.meta} />
       <UserPages page={users.meta} shown={users.items.length} />
     </Screen>
   );

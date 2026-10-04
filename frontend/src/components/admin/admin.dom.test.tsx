@@ -28,7 +28,11 @@ const roles = example("access_roles") as Schemas["AccessRole"][];
 const permissions = example("permissions") as Schemas["Permission"][];
 const users = example("users") as { items: Schemas["User"][]; meta: Schemas["PaginationMeta"] };
 const failed = example("system_status_backup_failed") as Schemas["SystemStatus"];
-const backups = example("backups") as { items: Schemas["Backup"][] };
+const backups = example("backups") as {
+  items: Schemas["Backup"][];
+  meta: Schemas["PaginationMeta"];
+};
+const suspended = example("backup_schedule_disabled") as Schemas["BackupSchedule"];
 
 /** Render in a language. */
 function rendered(children: ReactNode, locale: Locale = "fr") {
@@ -49,7 +53,9 @@ describe("the matrix of the permissions", () => {
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
     ).toEqual(["Accordée", "Non accordée", "Accordée", "Non accordée"]);
+    // Each of the twenty-four functions heads its group by its code, then by its name.
     expect(within(matrix).getAllByRole("rowheader", { name: /^FBS-/ })).toHaveLength(24);
+    expect(within(matrix).getAllByRole("rowheader", { name: /^FBS-\d+\.\d+ \S/ })).toHaveLength(24);
     expect(
       within(matrix).getByRole("rowheader", { name: "FBS-1.2 Gestion des rôles d’habilitation" }),
     ).toHaveAttribute("rowspan", "2");
@@ -69,7 +75,7 @@ describe("the lists of the accounts and the roles", () => {
   it("break no rule of accessibility", async () => {
     const { container } = rendered(
       <>
-        <UserList users={users.items} />
+        <UserList users={users.items} page={users.meta} />
         <ListPages
           path="/admin/users"
           page={{ limit: 2, offset: 2, total: 5 }}
@@ -107,13 +113,7 @@ describe("the lists of the accounts and the roles", () => {
   });
 
   it("say an empty list", () => {
-    rendered(
-      <>
-        <UserList users={[]} />
-        <AccessRoleList roles={[]} />
-      </>,
-    );
-    expect(screen.getByText("Aucun compte.")).toBeInTheDocument();
+    rendered(<AccessRoleList roles={[]} />);
     expect(screen.getByText("Aucun rôle d’habilitation.")).toBeInTheDocument();
   });
 });
@@ -126,8 +126,8 @@ describe("the state of the platform and its backups", () => {
         <ComponentList components={failed.components} />
         <StorageFacts storage={failed.storage} />
         <OperationList status={failed} />
-        <BackupScheduleFacts schedule={{ is_enabled: false, retained_count: 1, lock_version: 1 }} />
-        <BackupList backups={backups.items} />
+        <BackupScheduleFacts schedule={suspended} />
+        <BackupList backups={backups.items} page={backups.meta} />
       </>,
     );
     const alerts = screen.getByRole("table", { name: "Alertes en cours" });
@@ -144,7 +144,7 @@ describe("the state of the platform and its backups", () => {
         .querySelector("time"),
     ).toHaveAttribute("datetime", "2026-03-16T01:00:00Z");
     expect(screen.getByText("Désactivée")).toBeInTheDocument();
-    expect(screen.getByText("1 sauvegarde conservée")).toBeInTheDocument();
+    expect(screen.getByText("7 sauvegardes conservées")).toBeInTheDocument();
     expect(screen.queryByText("Fréquence")).toBeNull();
     await expectAccessible(container);
   });

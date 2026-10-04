@@ -821,12 +821,13 @@
     },
     "schedule": {
       "title": "Planification",
-      "state": "Planification",
+      "state": "État",
       "enabled": "Active",
       "disabled": "Désactivée",
       "frequency": "Fréquence",
       "weekday": "Jour",
       "at": "Heure",
+      "platformTime": "{time}, heure de la plateforme",
       "retained": "Rétention",
       "count": "{count, plural, one {# sauvegarde conservée} other {# sauvegardes conservées}}",
       "weekdays": {

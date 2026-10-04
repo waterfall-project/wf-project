@@ -15,6 +15,7 @@ import { Check, KeyRound, ShieldCheck, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import type { ListPage } from "@/components/admin/list-pages";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { ActiveState, ReferenceSection } from "@/components/reference/section";
 import { Badge } from "@/components/ui/badge";
@@ -32,8 +33,18 @@ type User = components["schemas"]["User"];
 type AccessRole = components["schemas"]["AccessRole"];
 type Permission = components["schemas"]["Permission"];
 
-/** The accounts of a page of the list, or that the installation has none. */
-export function UserList({ users }: { readonly users: readonly User[] }) {
+/**
+ * The accounts of a page of the list, or that the installation has none — only when the list holds
+ * none at all: a page asked beyond its end is no empty list, and shows no table; its pages say where
+ * it stands (`ListPages`).
+ */
+export function UserList({
+  users,
+  page,
+}: {
+  readonly users: readonly User[];
+  readonly page: ListPage;
+}) {
   const t = useTranslations("admin.users");
   const columns = useTranslations("reference.columns");
   const origins = useTranslations("enums.UserOrigin");
@@ -41,50 +52,52 @@ export function UserList({ users }: { readonly users: readonly User[] }) {
     <ReferenceSection
       title={t("title")}
       icon={Users}
-      empty={users.length === 0 ? t("none") : undefined}
+      empty={page.total === 0 ? t("none") : undefined}
     >
-      <ListTable
-        label={t("title")}
-        columns={[
-          t("lastName"),
-          t("firstName"),
-          t("email"),
-          t("origin"),
-          t("roles"),
-          t("orgNode"),
-          columns("state"),
-        ]}
-      >
-        {users.map((user) => (
-          <TableRow key={user.user_id}>
-            <TableCell className={CELL}>{user.last_name}</TableCell>
-            <TableCell className={CELL}>{user.first_name}</TableCell>
-            <TableCell className={CELL}>{user.email}</TableCell>
-            <TableCell className={CELL}>{origins(user.origin)}</TableCell>
-            <TableCell className={CELL}>
-              {user.access_role_labels.length === 0 ? (
-                <span className="text-muted-foreground">{t("noRole")}</span>
-              ) : (
-                <ul className="flex flex-wrap gap-1">
-                  {user.access_role_labels.map((label, at) => (
-                    <li key={user.access_role_ids[at] ?? label}>
-                      <Badge variant="secondary">{label}</Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </TableCell>
-            <TableCell className={CELL}>
-              {user.org_node_label ?? (
-                <span className="text-muted-foreground">{t("noOrgNode")}</span>
-              )}
-            </TableCell>
-            <TableCell className={CELL}>
-              <ActiveState active={user.is_active} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
+      {users.length === 0 ? null : (
+        <ListTable
+          label={t("title")}
+          columns={[
+            t("lastName"),
+            t("firstName"),
+            t("email"),
+            t("origin"),
+            t("roles"),
+            t("orgNode"),
+            columns("state"),
+          ]}
+        >
+          {users.map((user) => (
+            <TableRow key={user.user_id}>
+              <TableCell className={CELL}>{user.last_name}</TableCell>
+              <TableCell className={CELL}>{user.first_name}</TableCell>
+              <TableCell className={CELL}>{user.email}</TableCell>
+              <TableCell className={CELL}>{origins(user.origin)}</TableCell>
+              <TableCell className={CELL}>
+                {user.access_role_labels.length === 0 ? (
+                  <span className="text-muted-foreground">{t("noRole")}</span>
+                ) : (
+                  <ul className="flex flex-wrap gap-1">
+                    {user.access_role_labels.map((label, at) => (
+                      <li key={user.access_role_ids[at] ?? label}>
+                        <Badge variant="secondary">{label}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </TableCell>
+              <TableCell className={CELL}>
+                {user.org_node_label ?? (
+                  <span className="text-muted-foreground">{t("noOrgNode")}</span>
+                )}
+              </TableCell>
+              <TableCell className={CELL}>
+                <ActiveState active={user.is_active} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </ListTable>
+      )}
     </ReferenceSection>
   );
 }

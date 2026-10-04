@@ -12,11 +12,11 @@ import { useTranslations } from "next-intl";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { ListPages, type ListPage, offsetOf } from "@/components/admin/list-pages";
+import { ListPages, type ListPage } from "@/components/admin/list-pages";
 import { BackupList, BackupScheduleFacts } from "@/components/admin/platform-lists";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { type PageSearchParams, pageSearch } from "@/navigation/context";
+import { offsetOf, type PageSearchParams, pageSearch } from "@/navigation/context";
 import { functionOf } from "@/navigation/functions";
 
 import { screenMetadata } from "../../title";
@@ -57,7 +57,7 @@ export default async function BackupsPage({
 }: {
   searchParams: Promise<PageSearchParams>;
 }) {
-  const offset = offsetOf(pageSearch(await searchParams));
+  const offset = offsetOf(pageSearch(await searchParams).get("offset"));
   const client = serverClient();
   const [schedule, backups] = await Promise.all([
     readOrFail("getBackupSchedule", () => client.GET("/backup-schedule")),
@@ -69,7 +69,7 @@ export default async function BackupsPage({
     <Screen density={FUNCTION_DENSITY.backups}>
       <BackupsHeader />
       <BackupScheduleFacts schedule={schedule} />
-      <BackupList backups={backups.items} />
+      <BackupList backups={backups.items} page={backups.meta} />
       <BackupPages page={backups.meta} shown={backups.items.length} />
     </Screen>
   );

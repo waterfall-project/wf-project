@@ -123,6 +123,8 @@ export function functionOf(permission: FunctionPermission): NavigationFunction {
 /**
  * The function of the table of a code of the FBS — `FBS-1.1` —, as a permission of the catalogue
  * names the function it covers (`Permission.fbs_code`); `undefined` for a code the table has not.
+ * The table holds the functions of the second level only: a leaf of the FBS — `FBS-4.3.2` — is not
+ * found, nor is a block of the first level.
  */
 export function functionAt(code: string): NavigationFunction | undefined {
   return FUNCTION_GROUPS.flatMap((group) => group.functions).find((fn) => fn.code === code);

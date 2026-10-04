@@ -269,7 +269,7 @@ describe("the backups", () => {
   it("present their schedule and retention, and start neither a backup nor a restoration", async () => {
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
-      "Planification Planification Active Fréquence Quotidienne Heure 01:00 Rétention 7 sauvegardes conservées",
+      "Planification État Active Fréquence Quotidienne Heure 01:00, heure de la plateforme Rétention 7 sauvegardes conservées",
     );
     expect(buttons(page)).toEqual([]);
     expect(links(page)).toEqual([]);
@@ -279,14 +279,26 @@ describe("the backups", () => {
     server.answers = { ...server.answers, "GET /backup-schedule": "backup_schedule_weekly" };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
-      "Fréquence Hebdomadaire Jour Dimanche Heure 02:30 Rétention 4 sauvegardes conservées",
+      "Fréquence Hebdomadaire Jour Dimanche Heure 02:30, heure de la plateforme Rétention 4 sauvegardes conservées",
     );
   });
 
-  it("say there is none yet, and ask the page the address names", async () => {
+  it("say there is none yet, once", async () => {
     server.answers = { ...server.answers, "GET /backups": "backups_empty" };
+    const page = rendered(await BackupsPage(searched()));
+    expect(text(page)).toMatch(/Sauvegardes Aucune sauvegarde\.$/);
+    expect(page).not.toContain('<table aria-label="Sauvegardes"');
+  });
+
+  it("say a page asked beyond the end of the list is no empty list, and lead back to its last page", async () => {
+    server.answers = { ...server.answers, "GET /backups": "backups_beyond" };
     const page = rendered(await BackupsPage(searched({ offset: "50" })));
     expect(queriesOf("GET /backups")).toEqual([{ offset: "50" }]);
-    expect(text(page)).toContain("Aucune sauvegarde. Aucune sauvegarde");
+    expect(text(page)).not.toContain("Aucune sauvegarde.");
+    expect(page).not.toContain('<table aria-label="Sauvegardes"');
+    expect(text(page)).toContain(
+      "8 sauvegardes Cette page est au-delà de la fin de la liste. Page précédente",
+    );
+    expect(links(page)).toEqual(["/admin/backups"]);
   });
 });

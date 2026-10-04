@@ -25,6 +25,7 @@ import {
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import type { ListPage } from "@/components/admin/list-pages";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { ReferenceSection } from "@/components/reference/section";
@@ -207,8 +208,18 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
   );
 }
 
-/** The backups of a page of the list, each dated, sized and verified; or that there is none. */
-export function BackupList({ backups }: { readonly backups: readonly Backup[] }) {
+/**
+ * The backups of a page of the list, each dated, sized and verified; or that there is none — only
+ * when the list holds none at all: a page asked beyond its end shows no table, and its pages say
+ * where it stands (`ListPages`).
+ */
+export function BackupList({
+  backups,
+  page,
+}: {
+  readonly backups: readonly Backup[];
+  readonly page: ListPage;
+}) {
   const t = useTranslations("admin.backups");
   const enums = useTranslations("enums.Backup");
   const locale = useLocale();
@@ -216,35 +227,37 @@ export function BackupList({ backups }: { readonly backups: readonly Backup[] })
     <ReferenceSection
       title={t("title")}
       icon={DatabaseBackup}
-      empty={backups.length === 0 ? t("none") : undefined}
+      empty={page.total === 0 ? t("none") : undefined}
     >
-      <ListTable
-        label={t("title")}
-        columns={[t("takenAt"), t("size"), t("verification"), t("origin"), t("retention")]}
-      >
-        {backups.map((backup) => (
-          <TableRow key={backup.backup_id}>
-            <TableCell className={CELL}>
-              <LocalTime value={backup.taken_at} />
-            </TableCell>
-            <TableCell className={`${CELL} text-right tabular-nums`}>
-              {formatBytes(backup.size_bytes, locale)}
-            </TableCell>
-            <TableCell className={CELL}>{enums(`verification.${backup.verification}`)}</TableCell>
-            <TableCell className={CELL}>
-              {backup.origin === undefined ? null : enums(`origin.${backup.origin}`)}
-            </TableCell>
-            <TableCell className={CELL}>
-              {backup.is_retained ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <Archive aria-hidden="true" className={ICON} />
-                  {t("retained")}
-                </span>
-              ) : null}
-            </TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
+      {backups.length === 0 ? null : (
+        <ListTable
+          label={t("title")}
+          columns={[t("takenAt"), t("size"), t("verification"), t("origin"), t("retention")]}
+        >
+          {backups.map((backup) => (
+            <TableRow key={backup.backup_id}>
+              <TableCell className={CELL}>
+                <LocalTime value={backup.taken_at} />
+              </TableCell>
+              <TableCell className={`${CELL} text-right tabular-nums`}>
+                {formatBytes(backup.size_bytes, locale)}
+              </TableCell>
+              <TableCell className={CELL}>{enums(`verification.${backup.verification}`)}</TableCell>
+              <TableCell className={CELL}>
+                {backup.origin === undefined ? null : enums(`origin.${backup.origin}`)}
+              </TableCell>
+              <TableCell className={CELL}>
+                {backup.is_retained ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Archive aria-hidden="true" className={ICON} />
+                    {t("retained")}
+                  </span>
+                ) : null}
+              </TableCell>
+            </TableRow>
+          ))}
+        </ListTable>
+      )}
     </ReferenceSection>
   );
 }
@@ -266,7 +279,7 @@ export function BackupScheduleFacts({ schedule }: { readonly schedule: BackupSch
       facts.push([t("weekday"), t(`weekdays.${weekday}`)]);
     }
     if (schedule.at_time !== undefined) {
-      facts.push([t("at"), schedule.at_time]);
+      facts.push([t("at"), t("platformTime", { time: schedule.at_time })]);
     }
   }
   facts.push([t("retained"), t("count", { count: schedule.retained_count })]);

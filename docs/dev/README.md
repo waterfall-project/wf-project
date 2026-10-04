@@ -335,8 +335,10 @@ l'ordre du catalogue, les permissions consécutives d'une même fonction de seco
 même nature hors fonction, groupées sous un en-tête de groupe (`scope="rowgroup"`), une colonne par
 rôle, accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification,
 sans aucune commande. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en
-porte et mène aux pages voisines par `offset` (`ListPages`), sans jamais montrer une page pour le
-tout.
+porte et mène aux pages voisines par `offset` (`ListPages`, `offsetOf`), sans jamais montrer une
+page pour le tout ; elle ne se dit vide que si elle ne tient rien (`meta.total`), et une page
+demandée au-delà de sa fin le dit et ramène à la dernière. L'heure d'une sauvegarde planifiée
+s'affiche telle quelle, « heure de la plateforme », le contrat n'en disant pas le fuseau.
 
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
