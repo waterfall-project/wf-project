@@ -27,7 +27,7 @@ export interface Examples {
     200: "permissions";
   };
   "GET /portfolio/cash-out": {
-    200: "portfolio_cash_out";
+    200: "portfolio_cash_out" | "portfolio_cash_out_credit";
   };
   "GET /portfolio/cost-structure": {
     200: "volume/portfolio_cost_structure";

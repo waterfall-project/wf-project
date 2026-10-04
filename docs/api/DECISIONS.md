@@ -771,7 +771,10 @@ rend alors une période nulle.
 l'autorisation de l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »). Facultatif, une réponse conforme pouvait l'omettre, et
 l'écran, qui montre le seuil retenu par le serveur quand l'adresse n'en nomme aucun, aurait dit
 « Par défaut » sans dire lequel (relevé par Copilot sur la PR #338), comme `last_import_at` des
-coûts réels l'a été. L'exemple `portfolio_workload` le porte.
+coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cash_out_credit`, calculé au
+31 décembre 2025, montre un mois de décaissements net négatif — les avoirs de décembre importés
+avant ses factures, que l'import de janvier apporte au 16 mars — : un décaissement est un `Money`
+signé, comme le coût réel dont il vient.
 
 ## Collage et annulation
 

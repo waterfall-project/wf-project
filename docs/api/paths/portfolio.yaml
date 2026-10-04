@@ -225,6 +225,7 @@
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCashOut }
             examples:
               witness: { $ref: ../../../fixtures/api/portfolio_cash_out.json }
+              credit: { $ref: ../../../fixtures/api/portfolio_cash_out_credit.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
