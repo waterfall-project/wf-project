@@ -129,8 +129,8 @@
       "quantity": "Qty",
       "hours": "Effort (h)",
       "unitDisbursement": "Unit disbursement",
-      "budgetedAmount": "Budgeted",
-      "reestimatedAmount": "Re-estimated",
+      "referenceAmount": "Amount (reference year)",
+      "inflatedAmount": "Amount corrected for inflation",
       "startDate": "Start",
       "finishDate": "Finish",
       "schedulingMode": "Scheduling mode",
@@ -170,7 +170,8 @@
       "blocked": "A paste with a refused row is not applied: the grid stays unchanged. Correct the block in the spreadsheet, then paste it again.",
       "apply": "Apply the paste",
       "abandon": "Abandon",
-      "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block."
+      "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block.",
+      "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block."
     }
   },
   "estimateGrid": {
@@ -196,8 +197,10 @@
     "total": "Estimate total",
     "provisions": "Identified provisions",
     "delta": "Deviation from the previous marked revision",
+    "deltaToReference": "Deviation from the reference",
     "byCostType": "By nature of cost",
     "bySubproject": "By subproject",
+    "byOrderItem": "By order item",
     "shareOf": " ({share})",
     "notComputable": "Not computable — {reason}",
     "unavailable": "The estimate indicators are unavailable.",

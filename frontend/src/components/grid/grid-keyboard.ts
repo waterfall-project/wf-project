@@ -214,15 +214,15 @@ export interface GridKeyboardOptions<Row extends RowData, Sort extends string, T
   readonly page: () => number;
   /** Whether the row at an index is in view, clear of the header and the totals. */
   readonly inView: (index: number) => boolean;
-  readonly writes: CellWrites<Row>;
+  readonly writes: CellWrites<Row, Totals>;
   readonly locale: Locale;
 }
 
 /** What a cell of the body is: its row, whether the server computes it, how it is entered. */
-interface CellNature<Row> {
+interface CellNature<Row, Totals> {
   readonly row: Row;
   readonly computed: boolean;
-  readonly entry: CellEntry<Row> | undefined;
+  readonly entry: CellEntry<Row, Totals> | undefined;
 }
 
 /** Move the active cell of a grid, enter and validate cells, and refuse a computed cell tried. */
@@ -285,7 +285,7 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     }
     return cell !== undefined;
   };
-  const cellAt = (at: CellPosition): CellNature<Row> | undefined => {
+  const cellAt = (at: CellPosition): CellNature<Row, Totals> | undefined => {
     const row = rows[at.row];
     const column = configColumn(config, at.column);
     if (row === undefined || column === undefined) {

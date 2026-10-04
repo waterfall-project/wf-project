@@ -63,7 +63,7 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    */
   readonly computed?: ComputedCells<Row>;
   /** How its cells are entered from the keyboard (WF-IHM-0040); none, and no cell of it is. */
-  readonly entry?: CellEntry<Row> | undefined;
+  readonly entry?: CellEntry<Row, Totals> | undefined;
   /**
    * The identifying column: it stays at the start when the grid scrolls sideways, and cannot
    * be hidden. The first of them carries the tree, when the grid has one.
@@ -154,22 +154,52 @@ export type EntryKind =
       readonly nullable: boolean;
     };
 
+/** A row a write changed without writing it, by its key: how it now reads, from the row shown. */
+export interface RowChange<Row> {
+  readonly key: string;
+  readonly change: (row: Row) => Row;
+}
+
+/**
+ * What the server answers a write of a grid with, as the grid reads it (#218): the rows written,
+ * as they now are; the other rows the write changed — the summaries above them recalculated, the
+ * tasks it rescheduled —; the totals of the reading as the write left them; and the place of the
+ * write among those of the rows. The grid shows each of them in place of what it showed, never a
+ * sum nor a date of its own (WF-ARC-0020).
+ */
+export interface RowsWritten<Row, Totals> {
+  readonly rows: readonly Row[];
+  readonly changed: readonly RowChange<Row>[];
+  /**
+   * The totals of the reading after the write; none when those the server answers are not the
+   * reading's — a filtered reading keeps its own.
+   */
+  readonly totals: Totals | undefined;
+  /**
+   * The place of the write among those of the rows: a later write answers a greater one. Writes
+   * of different rows leave together, and an answer may come back after a later one: a row or
+   * totals a later write answered are never taken back to an earlier one.
+   */
+  readonly order: number;
+}
+
 /**
  * How the cells of a column are entered, row by row: which take an entry, what an entry starts
  * from, and how a value validated is written — each cell alone, the server answering the row as
- * it now is, which the grid shows in place of what was typed.
+ * it now is, which the grid shows in place of what was typed, with the other rows and the totals
+ * the write changed.
  */
-export interface CellEntry<Row> {
+export interface CellEntry<Row, Totals = unknown> {
   readonly kind: EntryKind;
   /**
-   * Whether the cell of a row takes an entry: its field is written for this row, and the server
-   * does not compute it here — a computed cell is traversed, and refuses the entry.
+   * Whether the cell of a row takes an entry: the row accepts its field, and the server does not
+   * compute it here — a computed cell is traversed, and refuses the entry.
    */
   readonly in: (row: Row) => boolean;
   /** The value of the contract an entry starts from: the text, the decimal, the identifier. */
   readonly value: (row: Row) => CellValue;
-  /** Write a value validated, `null` for a cell emptied, and give the row the server answers. */
-  readonly write: (row: Row, value: string | null) => Promise<Outcome<Row>>;
+  /** Write a value validated, `null` for a cell emptied, and give what the server answers. */
+  readonly write: (row: Row, value: string | null) => Promise<Outcome<RowsWritten<Row, Totals>>>;
 }
 
 /** A block of cells pasted from a spreadsheet: its rows, each the texts of its cells, as copied. */
@@ -183,11 +213,19 @@ export type PastePlan = components["schemas"]["PastePlan"];
  * server says what it would write and refuse — nothing is written yet —, then applies the plan
  * once the user confirmed it, in one operation. The grid judges nothing of what is pasted.
  */
-export interface GridPaste<Row, Sort extends string = string> {
+export interface GridPaste<Row, Sort extends string = string, Totals = unknown> {
   /** Ask the plan of a block pasted from the cell of a row, in a column, named as the server sorts by it. */
   readonly preview: (row: Row, column: Sort, block: PastedBlock) => Promise<Outcome<PastePlan>>;
-  /** Apply a plan confirmed: the rows the server wrote, as the grid reads them. */
-  readonly apply: (plan: PastePlan) => Promise<Outcome<readonly Row[]>>;
+  /** Apply a plan confirmed: what the server wrote, as the grid reads it. */
+  readonly apply: (plan: PastePlan) => Promise<Outcome<RowsWritten<Row, Totals>>>;
+  /**
+   * The columns a block pasted on the cell of a row fills, from its column, in the order the
+   * server fills them — those of the contract, whether the grid shows them or not (#223) —; none
+   * when the contract does not say, and the server alone judges the block.
+   */
+  readonly span: (row: Row, column: Sort) => readonly Sort[] | undefined;
+  /** The name of a column of the contract the grid has none for, in the language of the interface. */
+  readonly name: (column: Sort) => string;
 }
 
 /** The tree of a grid: the depth of a row, the icon of its nature, how its label stands out. */
@@ -212,7 +250,7 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   readonly tree?: GridTree<Row>;
   readonly columns: readonly GridColumn<Row, Sort, Totals>[];
   /** How a block pasted from a spreadsheet is written; none, and the grid takes no paste. */
-  readonly paste?: GridPaste<Row, Sort> | undefined;
+  readonly paste?: GridPaste<Row, Sort, Totals> | undefined;
 }
 
 /** The key of the column of row numbers, which no configuration may take. */

@@ -4,16 +4,17 @@
  * What the screen of the estimate says above its grid: the hourly rates missing for its
  * calculation (WF-DEV-0010), each category named with its year, and the way to the reference
  * where rates are entered when the session may read it; then the indicators of the estimate
- * (WF-DEV-0060) — its total, its provisions, its deviation from the previous marked revision,
- * the one the contract gives (#160), its totals by nature of cost, in amount and in share of
- * the total, and by sub-project —, with the date they are computed at (WF-IHM-0020), or that
- * they are unavailable when the API did not give them.
+ * (WF-DEV-0060) — its total, its provisions, its deviations from the reference and from the
+ * previous marked revision, its totals by nature of cost, in amount and in share of the total, by
+ * sub-project and by order item (#220) —, with the date they are computed at (WF-IHM-0020), or
+ * that they are unavailable when the API did not give them.
  *
  * Every figure is the API's, formatted in the language of the interface from its exact string:
  * nothing is summed, nor divided, nor hidden by a rule of the front (WF-ARC-0020). A deviation
- * the API does not give is not shown as zero: it is left out. An amount the API cannot compute —
- * an hourly rate missing (WF-DEV-0010) — is said so, with its reason, never made up. A name the
- * API leaves out is said missing, never replaced by an identifier.
+ * the API does not give is not shown as zero: it is left out, as are the totals by order item of a
+ * planning that is not structured in order items — absent rather than nil. An amount the API
+ * cannot compute — an hourly rate missing (WF-DEV-0010) — is said so, with its reason, never made
+ * up. A name the API leaves out is said missing, never replaced by an identifier.
  */
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
@@ -38,7 +39,7 @@ export type MissingRates =
 /** A permission of the catalogue (WF-ADM-0100). */
 type Permission = components["schemas"]["PermissionCode"];
 
-/** An amount by key — a nature of cost, a sub-project —, which may not be computable. */
+/** An amount by key — a nature of cost, a sub-project, an order item —, maybe not computable. */
 type AmountByKey = components["schemas"]["ComputableAmountByKey"];
 
 /** A value that may not be computable (WF-IND-0010). */
@@ -191,18 +192,22 @@ function Breakdown({
   );
 }
 
-/** The figures of the indicators: the total, the provisions, the deviation, the breakdowns. */
+/** The figures of the indicators: the total, the provisions, the deviations, the breakdowns. */
 function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
   const t = useTranslations("estimateSummary");
+  const reference = indicators.delta_to_reference;
   const delta = indicators.delta_to_previous_revision;
   const provisions = indicators.provisions_identified;
+  const orderItems = indicators.by_order_item;
   return (
     <dl className="flex flex-wrap gap-x-8 gap-y-2">
       <Figure name={t("total")} amount={indicators.total} />
       {provisions === undefined ? null : <Figure name={t("provisions")} amount={provisions} />}
+      {reference === null ? null : <Figure name={t("deltaToReference")} amount={reference} />}
       {delta === null || delta === undefined ? null : <Figure name={t("delta")} amount={delta} />}
       <Breakdown name={t("byCostType")} items={indicators.by_cost_type} />
       <Breakdown name={t("bySubproject")} items={indicators.by_subproject} />
+      {orderItems === null ? null : <Breakdown name={t("byOrderItem")} items={orderItems} />}
     </dl>
   );
 }

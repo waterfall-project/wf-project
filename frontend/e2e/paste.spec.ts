@@ -20,10 +20,11 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 const LINE_4 = "01926f3a-7c00-7000-8000-000100000004";
 
-// Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+// Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
+// reference, amount corrected for inflation.
 const LABEL = 1;
 const QUANTITY = 4;
-const REESTIMATED = 8;
+const REFERENCE = 7;
 
 const READ = ["Heures d'ingénierie", "Heures de mise en service", "Matériel"];
 
@@ -141,7 +142,7 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
     "Matériel de câblage",
   ]);
   await expect(cellAt(grid, 6, QUANTITY)).toHaveText("24");
-  await expect(cellAt(grid, 6, REESTIMATED)).toHaveText(/^25\s985,28/);
+  await expect(cellAt(grid, 6, REFERENCE)).toHaveText(/^25\s985,28/);
   await expect(cellAt(grid, 4, LABEL)).toBeFocused();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
@@ -174,15 +175,15 @@ test("a block whose cell names an unknown category is sent as copied for the ser
 test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
   const posted = actions(page);
   await openOnRow4(page);
-  // Nine columns from the label, where the grid shows eight.
+  // Fourteen columns from the label, where a line has thirteen in the contract (#223).
   await paste(
     page,
-    BLOCK.map((row) => [...row, "33", "", "", "", ""]),
+    BLOCK.map((row) => [...row, ...Array.from({ length: 10 }, () => "")]),
   );
 
   const alert = page.getByRole("main").getByRole("alert");
   await expect(alert).toContainText("Les données collées ont plus de colonnes que la grille.");
-  await expect(alert).toContainText("La grille accepte au plus 8 colonnes.");
+  await expect(alert).toContainText("La grille accepte au plus 13 colonnes.");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(argumentsWith(posted, "target_column")).toBeUndefined();
   expect(await labels(page)).toEqual(READ);

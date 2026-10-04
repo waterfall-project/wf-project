@@ -3,8 +3,8 @@
 /**
  * The cells of the grid of the planning that are more than a value formatted (WF-PLA-0080): the
  * scheduling mode and the progress of a task, each an icon named for its value; its duration in
- * the unit of its entry (WF-PLA-0160) and its total float in working days; the critical path marked on
- * the float by an icon and bold type, never by a colour alone (WF-PLA-0100); and its
+ * the unit of its entry (WF-PLA-0160) and its total float in working days; the critical path
+ * marked on the float by an icon and bold type, never by a colour alone (WF-PLA-0100); and its
  * predecessors, named by their row numbers with the type of each link and its lag in its unit,
  * as Microsoft Project writes them (WF-PLA-0030).
  *
@@ -106,8 +106,8 @@ export function DurationCell({ duration }: { readonly duration: Duration | null 
 
 /**
  * Render the total float of a task, a duration in working days written as a duration is — none
- * for a task in manual mode, which bears no float (WF-PLA-0100) —, and, on the critical path, the icon that names it before the float set
- * in bold: the mark reads without its colour.
+ * for a task in manual mode, which bears no float (WF-PLA-0100) —, and, on the critical path, the
+ * icon that names it before the float set in bold: the mark reads without its colour.
  */
 export function FloatCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations("planningGrid");

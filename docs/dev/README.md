@@ -248,17 +248,20 @@ Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IH
 vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une
 saisie en cours garde le collage pour son champ —, jamais par `navigator.clipboard`, qui demande
 une permission ; en valeurs séparées par des tabulations, une cellule entre guillemets gardant
-ses tabulations et ses fins de ligne (`readBlock`). Le serveur range le bloc dans l'ordre de ses
-colonnes à lui, sans connaître celles que la grille montre (#200) : le front refuse donc
-aussitôt, sans rien demander, un bloc plus large que les colonnes de la configuration à partir
-de la cellule — comme le serveur le refuserait (`PASTE_TOO_WIDE`) — et un bloc dont la portée,
-de la colonne visée à la dernière colonne remplie dans cet ordre, enjambe une colonne masquée,
-qu'il nomme ; cette garde locale disparaît avec #200. Sinon `previewPaste` rend le plan, que
+ses tabulations et ses fins de ligne (`readBlock`). Le serveur remplit, à partir de la colonne
+visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn`, sans connaître
+celles que la grille montre (#200) : le front mesure donc le bloc sur ces colonnes-là
+(`GridPaste.span`, `pasteSpan`, #223), et refuse aussitôt, sans rien demander, un bloc plus
+large qu'elles à partir de la cellule — comme le serveur le refuserait (`PASTE_TOO_WIDE`) — et
+un bloc dont la portée, de la colonne visée à la dernière colonne remplie dans cet ordre,
+atteint une colonne que la grille ne montre pas, masquée ou absente de sa configuration, qu'il
+nomme — par son en-tête, ou par son libellé du catalogue (`enums.NodeColumn`).
+Sinon `previewPaste` rend le plan, que
 montre une boîte de dialogue de shadcn (`PasteDialog`, `ui/dialog.tsx`), dans une seule région
 annoncée — ce qui sera écrit, chaque ligne refusée par sa place dans le bloc, ses cellules
 telles que copiées et son motif ; un plan qui refuse une ligne n'annonce que des lignes valides,
-rien ne sera écrit —, et `applyPaste` l'applique sur confirmation, en une seule opération ; les
-nœuds rendus prennent la place des lignes lues (`CellWrites.applied`), et une écriture de
+rien ne sera écrit —, et `applyPaste` l'applique sur confirmation, en une seule opération ; ce
+qu'il rend prend la place de ce qui était lu (`CellWrites.applied`), et une écriture de
 cellule partie avant le collage et répondue après est ignorée tout entière. Un plan qui refuse
 une ligne ne s'applique pas : la boîte n'offre que l'abandon. Échap abandonne, une réponse
 arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien du

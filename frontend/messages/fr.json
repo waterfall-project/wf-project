@@ -129,8 +129,8 @@
       "quantity": "Qté",
       "hours": "Charge (h)",
       "unitDisbursement": "Débours unit.",
-      "budgetedAmount": "Budgété",
-      "reestimatedAmount": "Réestimé",
+      "referenceAmount": "Montant (année de réf.)",
+      "inflatedAmount": "Montant corrigé de l’inflation",
       "startDate": "Début",
       "finishDate": "Fin",
       "schedulingMode": "Mode de planification",
@@ -170,7 +170,8 @@
       "blocked": "Un collage dont une ligne est refusée ne s’applique pas : la grille reste inchangée. Corrigez le bloc dans le tableur, puis collez-le à nouveau.",
       "apply": "Appliquer le collage",
       "abandon": "Abandonner",
-      "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit."
+      "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
+      "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit."
     }
   },
   "estimateGrid": {
@@ -196,8 +197,10 @@
     "total": "Total du devis",
     "provisions": "Provisions identifiées",
     "delta": "Écart avec la révision marquée précédente",
+    "deltaToReference": "Écart avec la référence",
     "byCostType": "Par nature de coût",
     "bySubproject": "Par sous-projet",
+    "byOrderItem": "Par poste",
     "shareOf": " ({share})",
     "notComputable": "Non calculable — {reason}",
     "unavailable": "Les indicateurs du devis sont indisponibles.",

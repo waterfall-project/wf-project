@@ -53,3 +53,13 @@ export const COMPUTED_FLOAT: ComputedCells<GridNode> = {
   in: (node) => node.task !== undefined && node.task !== null,
   field: () => "task.total_float",
 };
+
+/**
+ * The cells of the amount corrected for inflation, computed in every line: a task bears none
+ * (WF-DEV-0040, WF-DEV-0050).
+ */
+export const COMPUTED_INFLATED: ComputedCells<GridNode> = {
+  whole: true,
+  in: (node) => node.estimate_line !== undefined && node.estimate_line !== null,
+  field: () => "estimate_line.inflated_amount",
+};

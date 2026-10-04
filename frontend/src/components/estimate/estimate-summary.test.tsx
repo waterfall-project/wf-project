@@ -57,12 +57,13 @@ function summary(
 }
 
 describe("the summary of the estimate", () => {
-  it("shows the total, the provisions and the deviation the API gives, with the date they are computed at", () => {
+  it("shows the total, the provisions and the deviations the API gives, with the date they are computed at", () => {
     const html = summary("estimate_indicators", "missing_rates_none");
     expect(text(html)).toMatch(
       new RegExp(
         `^Indicateurs du devis Calculé le .*Total du devis 100 000,00 ` +
-          `Provisions identifiées 0,00 Écart avec la révision marquée précédente 0,00 ` +
+          `Provisions identifiées 0,00 Écart avec la référence 0,00 ` +
+          `Écart avec la révision marquée précédente 0,00 ` +
           `Par nature de coût Débours 100 000,00 \\(100 %\\) ` +
           `Par sous-projet Hors sous-projet 100 000,00 \\(100 %\\)$`,
       ),
@@ -97,6 +98,33 @@ describe("the summary of the estimate", () => {
   it("leaves out a deviation the API does not give, rather than showing it as zero", () => {
     const html = text(summary("estimate_indicators_breakdown", "missing_rates_none"));
     expect(html).not.toContain("Écart");
+  });
+
+  it("names the deviation from the reference apart from that from the previous marked revision", () => {
+    const indicators = example("estimate_indicators") as EstimateIndicators;
+    const html = text(
+      renderSummary(
+        { ...indicators, delta_to_previous_revision: null },
+        [] satisfies MissingRates,
+        all,
+        "en",
+      ),
+    );
+    expect(html).toContain("Identified provisions 0.00 Deviation from the reference 0.00 By");
+    expect(html).not.toContain("previous marked revision");
+  });
+
+  it("breaks the total down by order item as the API gives it, and leaves the order items out of a planning not structured in them, rather than nil [WF-DEV-0060-A]", () => {
+    expect(text(summary("estimate_indicators_breakdown", "missing_rates_none"))).toMatch(
+      /Par sous-projet .* Par poste Fourniture et montage des armoires 2 734,56 \(100 %\)$/,
+    );
+    expect(text(summary("estimate_indicators", "missing_rates_none"))).not.toContain("Par poste");
+  });
+
+  it("says an amount by order item the API could not compute, with its reason", () => {
+    expect(text(summary("estimate_indicators_missing_rates", "missing_rates"))).toMatch(
+      /Par poste Fourniture et montage des armoires Non calculable — Taux horaire manquant pour l’année de référence\.$/,
+    );
   });
 
   it("names each category whose hourly rate the calculation lacks, with its year, and leads to the reference", () => {

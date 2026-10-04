@@ -3,12 +3,14 @@
 /**
  * The configuration of the grid of the estimate (WF-DEV-0050): the common tree of a structure
  * (`listNodes`), its tasks and the lines they bear, each row numbered and marked by the icon of
- * its nature; the label, the quantity, the effort, the unit disbursement, and the two amounts,
- * which the server computes and never lets anyone enter — the budgeted, fixed by the reference,
- * and the re-estimated (WF-DEV-0020, WF-DEV-0030). The figures of a provision are computed too,
- * from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals are those of
- * the answer: the hours and the amounts of the lines retained, never the amounts of the tasks,
- * which would count them twice.
+ * its nature; the label, the quantity, the effort, the unit disbursement, and the two amounts the
+ * server computes and never lets anyone enter — the amount at the year of reference, the current
+ * one of the line or the task as the server gives it, and the amount corrected for inflation,
+ * that of the line projected on its year of consumption (WF-DEV-0040) —, never the budgeted nor
+ * the re-estimated amount by name (#216). The figures of a provision are computed too, from its
+ * risk, which its node says (`computed_fields`, WF-IHM-0030). The totals are those of the answer:
+ * the hours and the amount of the lines retained, never the amounts of the tasks, which would
+ * count them twice; the contract gives no total corrected for inflation, and none is shown.
  *
  * Each column sorts by the column of the contract of the same name. The category and the role of
  * a line, which the answer names by identifier only, are named by the reference data the page
@@ -16,8 +18,11 @@
  *
  * A line is entered whole from the keyboard (WF-IHM-0040): its label, its category and its role,
  * chosen from their lists, its quantity, its effort and its unit disbursement, each written alone
- * by `updateEstimateLine`, where the node does not name the field among its computed fields; the
- * label of a task by `updateTaskFacet` (`estimateGrid`).
+ * by `updateEstimateLine`, where the node names the field among those it accepts
+ * (`editable_fields`, #219) and not among those it computes — a line of labour takes no unit
+ * disbursement, another no role nor effort, a provision none of them (WF-DEV-0020), which the grid
+ * never deduces from the nature of the category —; the label of a task by `updateTaskFacet`
+ * (`estimateGrid`).
  */
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -29,11 +34,13 @@ import {
   type GridColumn,
   type GridConfig,
   type GridPaste,
+  type RowsWritten,
   sortColumns,
 } from "./columns";
-import { computedAmount, computedWhereNamed } from "./computed-nodes";
+import { COMPUTED_INFLATED, computedAmount, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
+  type GridNode,
   LABEL_COLUMN,
   NODE_TREE,
   nodeKey,
@@ -44,20 +51,20 @@ import {
 } from "./nodes";
 
 /**
- * What the columns of the estimate read of a node, beyond what every grid reads: the amounts of
- * a task, the figures of a line and its category. The page hands the grid these alone
+ * What the columns of the estimate read of a node, beyond what every grid reads: the amount of a
+ * task, the figures of a line, its amounts and its category. The page hands the grid these alone
  * (`projectNodes`).
  */
 export const ESTIMATE_FIELDS = {
   node: [],
-  task: ["budgeted_amount", "reestimated_amount"],
+  task: ["reestimated_amount"],
   line: [
     "cost_category_id",
     "quantity",
     "hours",
     "unit_disbursement",
-    "budgeted_amount",
     "reestimated_amount",
+    "inflated_amount",
   ],
 } as const satisfies AnyNodeFields;
 
@@ -119,19 +126,11 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       sortBy: "unit_disbursement",
       value: (node) => node.estimate_line?.unit_disbursement,
     },
-    {
-      key: "budgeted_amount",
-      label: "budgetedAmount",
-      format: "money",
-      width: 128,
-      computed: computedAmount("budgeted_amount"),
-      sortBy: "budgeted_amount",
-      value: (node) => node.task?.budgeted_amount ?? node.estimate_line?.budgeted_amount,
-      total: (totals) => totals.budgeted_amount,
-    },
+    // The amount at the year of reference is the current one the server gives the node
+    // (WF-DEV-0050), whatever the reference fixed or the reviews changed.
     {
       key: "reestimated_amount",
-      label: "reestimatedAmount",
+      label: "referenceAmount",
       format: "money",
       width: 128,
       computed: computedAmount("reestimated_amount"),
@@ -139,11 +138,23 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       value: (node) => node.task?.reestimated_amount ?? node.estimate_line?.reestimated_amount,
       total: (totals) => totals.reestimated_amount,
     },
+    {
+      key: "inflated_amount",
+      label: "inflatedAmount",
+      format: "money",
+      width: 128,
+      computed: COMPUTED_INFLATED,
+      sortBy: "inflated_amount",
+      value: (node) => node.estimate_line?.inflated_amount,
+    },
   ],
 };
 
 /** The columns of the contract the grid of the estimate sorts by. */
 export const ESTIMATE_SORT_COLUMNS = sortColumns(ESTIMATE_GRID);
+
+/** What a write of the grid of the estimate answers, as the grid reads it. */
+export type EstimateWritten = RowsWritten<EstimateNode, NodeTotals>;
 
 /** The fields of a line of the estimate an entry writes: the cell entered, nothing else (#178). */
 export type LineChange = Partial<
@@ -160,10 +171,10 @@ export type LineChange = Partial<
  * steps, by the structure (`previewPaste`, `applyPaste`, WF-IHM-0050).
  */
 export interface EstimateWrites {
-  readonly line: (node: EstimateNode, change: LineChange) => Promise<Outcome<EstimateNode>>;
+  readonly line: (node: EstimateNode, change: LineChange) => Promise<Outcome<EstimateWritten>>;
   readonly task?:
-    ((node: EstimateNode, label: string) => Promise<Outcome<EstimateNode>>) | undefined;
-  readonly paste: GridPaste<EstimateNode, NodeSortColumn>;
+    ((node: EstimateNode, label: string) => Promise<Outcome<EstimateWritten>>) | undefined;
+  readonly paste: GridPaste<EstimateNode, NodeSortColumn, NodeTotals>;
 }
 
 /**
@@ -175,9 +186,16 @@ export interface EstimateReference {
   readonly roles: readonly Choice[] | undefined;
 }
 
-/** How a column of a line is entered: what it takes, the field it writes, what it starts from. */
+/** A field of a facet a node may accept, as the contract names it. */
+type EditableField = components["schemas"]["EditableField"];
+
+/**
+ * How a column of a line is entered: what it takes, the field the node must accept for it, what
+ * it writes, what it starts from.
+ */
 interface Entered {
   readonly kind: EntryKind;
+  readonly field: (node: GridNode) => EditableField;
   readonly change: (value: string | null) => LineChange;
   /** The value of the contract an entry starts from; by default, what the column shows. */
   readonly read?: (node: EstimateNode) => CellValue;
@@ -190,6 +208,7 @@ interface Entered {
  */
 function listEntered(
   choices: readonly Choice[],
+  field: EditableField,
   nullable: boolean,
   read: (node: EstimateNode) => CellValue,
   change: (value: string | null) => LineChange,
@@ -197,6 +216,7 @@ function listEntered(
   const ids = new Set(choices.map((choice) => choice.id));
   return {
     kind: { type: "choice", choices: () => choices, nullable },
+    field: () => field,
     change,
     read,
     known: (node) => {
@@ -212,13 +232,18 @@ function enteredColumns(
 ): Readonly<Record<string, Entered & { readonly known?: (node: EstimateNode) => boolean }>> {
   const { categories, roles } = reference;
   return {
-    // The contract takes a label of 1 to 300 characters.
-    label: { kind: { type: "text", maxLength: 300 }, change: (value) => ({ label: value ?? "" }) },
+    // The contract takes a label of 1 to 300 characters: a task's, or a line's.
+    label: {
+      kind: { type: "text", maxLength: 300 },
+      field: (node) => (bearsLine(node) ? "estimate_line.label" : "task.label"),
+      change: (value) => ({ label: value ?? "" }),
+    },
     ...(categories === undefined
       ? {}
       : {
           cost_category: listEntered(
             categories,
+            "estimate_line.cost_category_id",
             false,
             (node) => node.estimate_line?.cost_category_id,
             (value) => (value === null ? {} : { cost_category_id: value }),
@@ -229,6 +254,7 @@ function enteredColumns(
       : {
           resource_role: listEntered(
             roles,
+            "estimate_line.resource_role_id",
             true,
             (node) => node.estimate_line?.resource_role_id,
             (value) => ({ resource_role_id: value }),
@@ -236,18 +262,24 @@ function enteredColumns(
         }),
     quantity: {
       kind: { type: "decimal", nullable: false },
+      field: () => "estimate_line.quantity",
       change: (value) => (value === null ? {} : { quantity: value }),
     },
-    hours: { kind: { type: "decimal", nullable: true }, change: (value) => ({ hours: value }) },
+    hours: {
+      kind: { type: "decimal", nullable: true },
+      field: () => "estimate_line.hours",
+      change: (value) => ({ hours: value }),
+    },
     unit_disbursement: {
       kind: { type: "money", nullable: true },
+      field: () => "estimate_line.unit_disbursement",
       change: (value) => ({ unit_disbursement: value }),
     },
   };
 }
 
 /** Whether a node bears a line of the estimate. */
-function bearsLine(node: EstimateNode): boolean {
+function bearsLine(node: GridNode): boolean {
   return node.estimate_line !== undefined && node.estimate_line !== null;
 }
 
@@ -268,9 +300,14 @@ function namer(
   };
 }
 
-/** Whether the cell of a column takes an entry in a row: the row bears what it writes. */
-function takes(label: boolean, writes: EstimateWrites, node: EstimateNode): boolean {
-  return label && !bearsLine(node) ? writes.task !== undefined : bearsLine(node);
+/**
+ * Whether the cell of a column takes an entry in a row: the node accepts the field it writes —
+ * which the node says, never the grid by the nature of its category (#219) —, and, for the label
+ * of a task, the planning may be entered.
+ */
+function takes(label: boolean, writes: EstimateWrites, spec: Entered, node: EstimateNode): boolean {
+  const accepted = node.editable_fields.includes(spec.field(node));
+  return accepted && (label && !bearsLine(node) ? writes.task !== undefined : bearsLine(node));
 }
 
 /** A column of the estimate, entered through `writes`: the fields of a line, and a task's label. */
@@ -288,7 +325,7 @@ function entered(
     entry: {
       kind: spec.kind,
       in: (node) =>
-        takes(label, writes, node) &&
+        takes(label, writes, spec, node) &&
         column.computed?.in(node) !== true &&
         spec.known?.(node) !== false,
       value: spec.read ?? column.value,
@@ -303,8 +340,10 @@ function entered(
 /**
  * The grid of the estimate: its categories and roles named by the reference data — `unknown` for
  * an identifier the list does not know —, its cells entered and a block pasted through `writes`;
- * none, and the grid is read only, taking neither entry nor paste. A line takes its label, category, role, quantity, effort and unit disbursement,
- * where the server does not compute the field; a task, its label, where the planning is entered.
+ * none, and the grid is read only, taking neither entry nor paste. A line takes its label,
+ * category, role, quantity, effort and unit disbursement, where its node accepts the field and the
+ * server does not compute it; a task, its label, where its node accepts it and the planning is
+ * entered.
  */
 export function estimateGrid(
   reference: EstimateReference,

@@ -15,13 +15,14 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 
-// Number, label, category, role, quantity, hours, unit disbursement, budgeted, re-estimated.
+// Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
+// reference, amount corrected for inflation.
 const LABEL = 1;
 const QUANTITY = 4;
 const HOURS = 5;
 const DISBURSEMENT = 6;
-const BUDGETED = 7;
-const REESTIMATED = 8;
+const REFERENCE = 7;
+const INFLATED = 8;
 
 /** A cell of the row at a position among the rows of the answer, by the position of its column. */
 function cellAt(grid: Locator, row: number, column: number): Locator {
@@ -86,8 +87,9 @@ test("stops on the computed cells without entering them, and refuses a try", asy
   await expect(refusal).toHaveCount(0);
   await expect(cellAt(grid, 21, DISBURSEMENT)).toBeFocused();
   await press(page, "ArrowLeft", "ArrowRight", "ArrowRight");
-  await expect(cellAt(grid, 21, BUDGETED)).toBeFocused();
-  await expect(cellAt(grid, 21, HOURS)).not.toHaveAttribute("aria-readonly");
+  await expect(cellAt(grid, 21, REFERENCE)).toBeFocused();
+  // The effort of a provision, which its node does not accept, is read only as well (#219).
+  await expect(cellAt(grid, 21, HOURS)).toHaveAttribute("aria-readonly", "true");
 });
 
 test("keeps the active cell in the window, clear of the header and the totals, from the first row to the six thousandth", async ({
@@ -116,7 +118,7 @@ test("keeps the active cell in the window, clear of the header and the totals, f
     expect((cell?.y ?? 0) + (cell?.height ?? 0)).toBeLessThanOrEqual((foot?.y ?? 0) + 2);
   }
   await press(page, "Control+End");
-  await expect(cellAt(grid, 6000, REESTIMATED)).toBeFocused();
+  await expect(cellAt(grid, 6000, INFLATED)).toBeFocused();
 });
 
 test.describe("on a narrow window", () => {
@@ -128,8 +130,8 @@ test.describe("on a narrow window", () => {
     const grid = await tabIntoGrid(page);
     const label = grid.getByRole("columnheader", { name: "Libellé" });
     await page.keyboard.press("End");
-    await expect(cellAt(grid, 1, REESTIMATED)).toBeFocused();
-    for (const column of [BUDGETED, DISBURSEMENT, HOURS, QUANTITY]) {
+    await expect(cellAt(grid, 1, INFLATED)).toBeFocused();
+    for (const column of [REFERENCE, DISBURSEMENT, HOURS, QUANTITY]) {
       await page.keyboard.press("ArrowLeft");
       const active = cellAt(grid, 1, column);
       await expect(active).toBeFocused();
