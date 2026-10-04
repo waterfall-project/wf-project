@@ -277,6 +277,8 @@ paths:
     $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1{risk_id}~1occurrence
   /projects/{project_id}/risks/matrix:
     $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1matrix
+  /projects/{project_id}/risks/coverage:
+    $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1coverage
   /projects/{project_id}/actual-costs:
     $ref: ./paths/costs.yaml#/~1projects~1{project_id}~1actual-costs
   /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope:
