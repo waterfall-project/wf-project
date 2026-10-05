@@ -1,0 +1,8 @@
+{
+  "summary": "Les indicateurs de valeur acquise demandés pour l'extension de la ligne d'essais, en chiffrage : ils ne se calculent qu'à partir de l'état En cours, seuls les indicateurs de devis existent (WF-IND-0010).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000924"
+  }
+}

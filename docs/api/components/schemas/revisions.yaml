@@ -469,6 +469,8 @@ NodeTotals:
     montants et les heures sont ceux des seules lignes de devis retenues par les
     filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —,
     et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre.
+    `budgeted_amount` somme les montants budgétés des lignes, provisions des risques
+    identifiés comprises : ce n'est pas le budget de référence (WF-RIS-0050).
   properties:
     task_count: { type: integer, minimum: 0 }
     estimate_line_count: { type: integer, minimum: 0 }
@@ -734,7 +736,14 @@ EstimateLineFacet:
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020).
-    budgeted_amount: { $ref: ../common.yaml#/Money }
+    budgeted_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020). La ligne de
+        provision d'un risque identifié ou écarté porte sa provision, qui n'entre pas dans
+        le budget de référence tant qu'un risque du projet est identifié (WF-RIS-0050) : le
+        serveur l'en exclut par l'état du risque, sans que la ligne change. Le budget de
+        référence se lit dans les indicateurs, jamais en sommant ces montants.
     reestimated_amount: { $ref: ../common.yaml#/Money }
     inflated_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]

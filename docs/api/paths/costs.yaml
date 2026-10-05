@@ -25,10 +25,14 @@
         schema: { type: boolean }
       - name: sort_by
         in: query
-        description: Colonne du tri ; absente, les pièces les plus récentes d'abord.
+        description: >-
+          Colonne du tri ; absente, les pièces les plus récentes d'abord. Le périmètre
+          suivi et le motif d'exclusion se trient comme les autres (WF-IHM-0060) : `in_tracked_scope` range dans l'ordre croissant
+          les lignes exclues avant les lignes suivies, `excluded_reason` range par motif
+          d'exclusion.
         schema:
           type: string
-          enum: [document_date, document_number, amount, subproject]
+          enum: [document_date, document_number, amount, subproject, in_tracked_scope, excluded_reason]
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
@@ -55,6 +59,20 @@
               empty: { $ref: ../../../fixtures/api/actual_costs_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : un filtre que le serveur ne peut appliquer, désigné dans
+          `fields` — une période dont la fin précède le début (`/query/to`,
+          `VALUE_OUT_OF_RANGE`), une date mal formée (`/query/from` ou `/query/to`,
+          `DATE_INVALID`), un sous-projet que le projet n'a pas ou un identifiant mal formé
+          (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). Aucune liste vide ne tient lieu de
+          refus.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/actual_costs_period_inverted.json }
+              subproject_unknown: { $ref: ../../../fixtures/api/actual_costs_subproject_unknown.json }
 
 /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope:
   put:

@@ -188,9 +188,28 @@
       - $ref: ../components/parameters.yaml#/TaskId
     responses:
       '200':
-        description: Contenu du résultat.
+        description: >-
+          Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportRequest.kind`) :
+          un planning MS Project en XML (`application/xml`, `.xml`), un devis ou un reste à
+          engager en classeur Excel
+          (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `.xlsx`),
+          l'image de l'arborescence en PNG (`image/png`, `.png`) (WF-INTF-0050, WF-INTF-0110,
+          WF-INTF-0130, WF-PLA-0120).
+        headers:
+          Content-Disposition:
+            required: true
+            description: >-
+              `attachment`, et le nom du fichier que le serveur lui donne (`filename`), avec
+              l'extension de sa nature.
+            schema:
+              type: string
+              example: attachment; filename="devis-poste-de-commande.xlsx"
         content:
-          application/octet-stream:
+          application/xml:
+            schema: { type: string, format: binary }
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema: { type: string, format: binary }
+          image/png:
             schema: { type: string, format: binary }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

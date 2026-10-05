@@ -37,14 +37,15 @@
     summary: Imports du projet
     description: >-
       Les imports du projet, en cours et passés, avec l'état où chacun s'est arrêté
-      (WF-INTF-0080, WF-ARC-0100).
+      (WF-INTF-0080, WF-ARC-0100), du plus récent au plus ancien par leur ouverture
+      (`created_at`), comme les autres journaux.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
     responses:
       '200':
-        description: Imports, analysés, appliqués ou abandonnés.
+        description: Imports, analysés, appliqués ou abandonnés, du plus récent au plus ancien.
         content:
           application/json:
             schema:
@@ -96,10 +97,15 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '422':
-        description: Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070).
+        description: >-
+          Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) :
+          `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de
+          l'import (un `ExchangeKind`) et `params.expected_version` sa version.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
 
 /projects/{project_id}/imports/{import_id}:
   get:

@@ -362,7 +362,7 @@ export interface paths {
         get?: never;
         /**
          * Déposer ou remplacer mon avatar
-         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE`.
+         * @description L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation : `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne, au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse jamais 8 Mio.
          */
         put: operations["putMyAvatar"];
         post?: never;
@@ -2328,7 +2328,7 @@ export interface paths {
         };
         /**
          * Imports du projet
-         * @description Les imports du projet, en cours et passés, avec l'état où chacun s'est arrêté (WF-INTF-0080, WF-ARC-0100).
+         * @description Les imports du projet, en cours et passés, avec l'état où chacun s'est arrêté (WF-INTF-0080, WF-ARC-0100), du plus récent au plus ancien par leur ouverture (`created_at`), comme les autres journaux.
          */
         get: operations["listImports"];
         put?: never;
@@ -2577,7 +2577,7 @@ export interface components {
          */
         ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         FieldProblem: {
-            /** @description Pointeur JSON vers le champ en défaut. */
+            /** @description Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901), `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son nom, `/query/revision_id`. Aucun champ du corps ne se nomme `query`, et un pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération. */
             pointer: string;
             code: components["schemas"]["ErrorCode"];
             params?: {
@@ -2588,7 +2588,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070). */
             params?: {
                 [key: string]: unknown;
             };
@@ -2653,7 +2653,7 @@ export interface components {
         /** @description Paramètres de l'installation lisibles sans session : ce que le front doit savoir avant d'ouvrir une session, ou pour régler ce qu'il laisse passer. */
         Installation: {
             default_language: components["schemas"]["Language"];
-            /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi et régler la taille de corps qu'il accepte un peu au-dessus, pour que le refus vienne de l'API et se dise par son code. */
+            /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi. Le réglage ne dépasse pas 8 Mio (8 388 608 octets) : le front règle d'avance la taille de corps qu'il laisse passer au-dessus de ce maximum, l'enveloppe du formulaire comprise, pour que le refus d'une image trop lourde vienne de l'API et se dise par son code. */
             avatar_max_bytes: number;
         };
         /**
@@ -2888,7 +2888,9 @@ export interface components {
             is_enabled: boolean;
             /** @enum {string} */
             frequency?: "daily" | "weekly";
+            /** @description Heure de la sauvegarde, en temps universel (UTC), comme les horodatages de la plateforme (`Timestamp`, WF-DAT-0100) : `01:00` est prise à `01:00Z`, quel que soit le fuseau du poste qui la lit. */
             at_time?: string;
+            /** @description Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. */
             weekday?: number | null;
             retained_count: number;
             lock_version: components["schemas"]["LockVersion"];
@@ -2916,6 +2918,7 @@ export interface components {
         RiskMatrixSettings: {
             probability_bounds: components["schemas"]["Percent"][];
             severity_bounds: components["schemas"]["Percent"][];
+            /** @description La zone de chaque case, rangée par niveau de probabilité puis par niveau de gravité, l'un et l'autre du plus bas au plus haut : la case de probabilité p et de gravité g, de 1 à 4, est la zone de rang 4 × (p − 1) + (g − 1), en comptant depuis zéro. */
             zones: components["schemas"]["AlertZone"][];
         };
         /** @description Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). */
@@ -3538,6 +3541,7 @@ export interface components {
             payment_delay_days?: number | null;
             /** @description Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020). */
             subproject_id?: components["schemas"]["Uuid"] | null;
+            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020). La ligne de provision d'un risque identifié ou écarté porte sa provision, qui n'entre pas dans le budget de référence tant qu'un risque du projet est identifié (WF-RIS-0050) : le serveur l'en exclut par l'état du risque, sans que la ligne change. Le budget de référence se lit dans les indicateurs, jamais en sommant ces montants. */
             budgeted_amount: components["schemas"]["Money"];
             reestimated_amount: components["schemas"]["Money"];
             /** @description Montant corrigé de l'inflation, calculé : le montant de la ligne projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant. */
@@ -3607,7 +3611,7 @@ export interface components {
             editable_fields: components["schemas"]["EditableField"][];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. */
+        /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. `budgeted_amount` somme les montants budgétés des lignes, provisions des risques identifiés comprises : ce n'est pas le budget de référence (WF-RIS-0050). */
         NodeTotals: {
             task_count: number;
             estimate_line_count: number;
@@ -3942,6 +3946,7 @@ export interface components {
             /** @description Marches du budget de référence, datées et motivées (WF-IND-0100). */
             steps?: {
                 date: components["schemas"]["PlanningDate"];
+                /** @description Le montant de la marche, signé : ce dont le budget de référence change à sa date — l'avenant contractualisé, la provision du risque survenu, celles des risques écartés —, pas le budget après elle, que porte la série `reference_budget`. */
                 amount: components["schemas"]["Money"];
                 /** @enum {string} */
                 cause: "amendment" | "risk_occurred" | "last_risk_dismissed";
@@ -4614,13 +4619,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Contenu du résultat. */
+            /** @description Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportRequest.kind`) : un planning MS Project en XML (`application/xml`, `.xml`), un devis ou un reste à engager en classeur Excel (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `.xlsx`), l'image de l'arborescence en PNG (`image/png`, `.png`) (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120). */
             200: {
                 headers: {
+                    /** @description `attachment`, et le nom du fichier que le serveur lui donne (`filename`), avec l'extension de sa nature. */
+                    "Content-Disposition": string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/octet-stream": string;
+                    "application/xml": string;
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    "image/png": string;
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -6413,6 +6422,15 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            /** @description La version envoyée n'est plus celle du taux de l'année : il a été corrigé depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante ; le taux, sans identifiant propre, est celui que nomment la catégorie et l'année du chemin. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["UnprocessableEntity"];
         };
     };
@@ -8031,7 +8049,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED` : `marked_remaining` sans révision marquée — `revision_id` absent, inconnu ou non marqué —, ou un nœud d'organisation inconnu ; `fields` désigne le paramètre refusé, `/query/revision_id` ou `/query/org_node_id`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getRemainingIndicators: {
@@ -8114,7 +8140,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Projet antérieur à l'état En cours : seuls les indicateurs de devis existent (WF-IND-0010). */
+            /** @description Projet antérieur à l'état En cours : seuls les indicateurs de devis existent (WF-IND-0010). `STATE_FORBIDS_OPERATION`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8496,8 +8522,8 @@ export interface operations {
                 from?: components["schemas"]["PlanningDate"];
                 to?: components["schemas"]["PlanningDate"];
                 in_tracked_scope?: boolean;
-                /** @description Colonne du tri ; absente, les pièces les plus récentes d'abord. */
-                sort_by?: "document_date" | "document_number" | "amount" | "subproject";
+                /** @description Colonne du tri ; absente, les pièces les plus récentes d'abord. Le périmètre suivi et le motif d'exclusion se trient comme les autres (WF-IHM-0060) : `in_tracked_scope` range dans l'ordre croissant les lignes exclues avant les lignes suivies, `excluded_reason` range par motif d'exclusion. */
+                sort_by?: "document_date" | "document_number" | "amount" | "subproject" | "in_tracked_scope" | "excluded_reason";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
             };
@@ -8525,6 +8551,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : un filtre que le serveur ne peut appliquer, désigné dans `fields` — une période dont la fin précède le début (`/query/to`, `VALUE_OUT_OF_RANGE`), une date mal formée (`/query/from` ou `/query/to`, `DATE_INVALID`), un sous-projet que le projet n'a pas ou un identifiant mal formé (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). Aucune liste vide ne tient lieu de refus. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setActualCostTrackedScope: {
@@ -8631,7 +8666,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Imports, analysés, appliqués ou abandonnés. */
+            /** @description Imports, analysés, appliqués ou abandonnés, du plus récent au plus ancien. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8683,7 +8718,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070). */
+            /** @description Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) : `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de l'import (un `ExchangeKind`) et `params.expected_version` sa version. */
             422: {
                 headers: {
                     [name: string]: unknown;

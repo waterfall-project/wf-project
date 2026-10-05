@@ -118,7 +118,10 @@ Problem:
         récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
         calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030),
         `missing_prerequisites` (WF-CYC-0120),
-        `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040).
+        `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040),
+        `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
+        fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
+        WF-INTF-0070).
     fields:
       type: array
       description: Erreurs par champ, pour une entité refusée à la validation.
@@ -217,7 +220,11 @@ FieldProblem:
   properties:
     pointer:
       type: string
-      description: Pointeur JSON vers le champ en défaut.
+      description: >-
+        Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901),
+        `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son
+        nom, `/query/revision_id`. Aucun champ du corps ne se nomme `query`, et un
+        pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération.
     code: { $ref: '#/ErrorCode' }
     params:
       type: object

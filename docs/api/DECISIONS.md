@@ -776,6 +776,98 @@ coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cas
 avant ses factures, que l'import de janvier apporte au 16 mars — : un décaissement est un `Money`
 signé, comme le coût réel dont il vient.
 
+## Les précisions du contrat (EP-02/L15)
+
+Ce que le contrat taisait sans qu'il y ait de produit à décider, sur la décision de l'utilisateur
+du 2026-10-05 de regrouper les issues du contrat par nature. Chaque précision suit la
+spécification, une convention déjà prise ou ce que les exemples disaient déjà.
+
+**L'heure d'une sauvegarde planifiée est en temps universel** (`BackupSchedule.at_time`, #316),
+comme tout instant de la plateforme (`Timestamp`, WF-DAT-0100) et comme le disaient les
+exemples : la planification de `backup_schedule` à 01:00 et les sauvegardes de `backups` prises à
+`01:00Z`. Le jour d'une planification hebdomadaire s'entend de même, numéroté comme ISO 8601, 1
+le lundi (`weekday`, #314), ce que l'exemple `backup_schedule_weekly` faisait déjà du dimanche,
+7. Écarté : le fuseau de l'installation, qu'aucun paramètre ne porte. L'écran dit l'heure en
+UTC, sans la convertir : une heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à
+heure d'été.
+
+**Les imports se lisent du plus récent au plus ancien** (`listImports`, #320), par leur ouverture,
+comme le journal des imports de coûts réels, les révisions et les tâches de l'appelant ; l'exemple
+`imports` les rangeait déjà ainsi.
+
+**Les zones de la matrice se rangent par probabilité puis par gravité** (`RiskMatrixSettings.zones`,
+#298), chaque axe du plus bas au plus haut, l'ordre où `reference_settings` les donnait déjà,
+celui des cases de `risk_matrix`.
+
+**La borne d'un avatar ne dépasse pas 8 Mio** (`Installation.avatar_max_bytes`, `maximum`, #233).
+Le front règle d'avance, par un réglage statique de Next, la taille de corps de ses actions
+serveur : il ne peut la régler qu'au-dessus d'un maximum déclaré, l'enveloppe du formulaire
+comprise. Huit mébioctets restent sous la borne que le front applique déjà (`bodySizeLimit`), et
+la borne reste un réglage de l'installation sous ce maximum.
+
+**Un paramètre de requête refusé se désigne par `/query/<nom>`** (`FieldProblem.pointer`, #307).
+Le pointeur JSON ne désigne que le corps ; un paramètre de requête a désormais sa forme, préfixée,
+qu'aucun champ du corps ne peut prendre, et que le front compare entière. Écarté : `/revision_id`,
+qu'une opération à corps et à paramètres aurait rendu ambigu. L'exemple
+`workload_revision_refused` (`getProjectWorkload`) la montre.
+
+**`listActualCosts` refuse un filtre qu'il ne peut appliquer** (422, `VALIDATION_FAILED`, #293),
+comme `getProjectWorkload` refuse un nœud d'organisation inconnu : une période dont la fin précède
+le début (`/query/to`, `VALUE_OUT_OF_RANGE`), une date mal formée (`DATE_INVALID`), un sous-projet
+que le projet n'a pas (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`) ; exemples
+`actual_costs_period_inverted` et `actual_costs_subproject_unknown`. Écarté : une liste vide, qui
+dirait « aucune ligne » d'une demande que le serveur n'a pas comprise.
+
+**Le périmètre suivi et le motif d'exclusion se trient** (`sort_by` de `listActualCosts`,
+`in_tracked_scope`, `excluded_reason`, #292), comme toute colonne de grille (WF-IHM-0060) ; les
+lignes exclues avant les suivies dans l'ordre croissant. Les colonnes conservées du fichier, dont
+le nom vient du fichier, ne se trient toujours pas : c'est une forme nouvelle de `sort_by`, à
+décider.
+
+**Le 412 de `setHourlyRate` est déclaré** (#296), comme celui de toute écriture qui porte une
+version : `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante ; un taux n'a
+pas d'identifiant propre, la catégorie et l'année du chemin le nomment. Exemple
+`hourly_rate_stale`, la correction de `hourly_rate_corrected` envoyée avec la version d'avant.
+
+**Le 409 de `getProjectIndicators` est `STATE_FORBIDS_OPERATION`** (#248), le code du catalogue
+pour un état qui interdit l'opération, comme le 409 de `getProjectWorkload` ; exemple
+`project_indicators_not_in_progress`, le projet en chiffrage de `project_pricing`.
+
+**Le résultat d'une tâche se télécharge nommé et typé** (`getBackgroundTaskResult`, #323) :
+`Content-Disposition` exigé, `attachment` et le nom que le serveur donne au fichier, et le type
+de média de la nature de l'export — XML pour un planning MS Project (WF-INTF-0050), classeur
+Excel pour un devis ou un reste à engager (WF-INTF-0110, WF-INTF-0130 ; `.xlsx`, comme les
+fichiers des exemples), PNG pour l'arborescence (WF-PLA-0120) — au lieu de
+`application/octet-stream`.
+
+**`FILE_FORMAT_UNREADABLE` nomme le format et la version attendus** (`params.expected_format`, un
+`ExchangeKind`, et `params.expected_version`, #321), ce que WF-INTF-0070 et la description
+d'`openImport` promettaient ; exemple `import_format_unreadable`. Le format est nommé par la
+nature de l'import, que le front rend par son catalogue.
+
+**La ligne de provision d'un risque identifié porte sa provision pour montant budgété** (#245),
+et le budget de référence l'exclut par l'état du risque (WF-RIS-0050) : les provisions des risques
+écartés y entrent quand plus aucun risque n'est identifié, sans nouvelle révision de référence ni
+changement de la ligne, ce qu'un montant budgété nul n'aurait pas permis ; et la valeur
+planifiée se calcule « hors provisions des risques identifiés » (WF-DEV-0080). Le montant
+budgété d'une tâche et `NodeTotals.budgeted_amount` les comptent donc : ils ne sont pas le budget
+de référence, que rendent les indicateurs. L'exemple `nodes_estimate` le dit, inchangé.
+
+**Une marche de la courbe porte son montant** (`CurveSeries.steps[].amount`, #285), signé, ce dont
+le budget de référence change à sa date, et non le budget après elle, que la série
+`reference_budget` porte ; c'est ce que `cost_curve_amendment` montrait. Le nom reste.
+
+**Les structures des risques témoins ont leurs exemples** (#252) : `structures_amendments` porte
+les devis propres du retard de livraison des armoires et de l'indisponibilité de l'automaticien,
+nommés par `risks`, non fusionnés à la révision de référence — le premier n'est survenu qu'après
+elle, sa provision y étant retenue.
+
+**Non tranché : la borne d'un fichier déposé** (`uploadFile`, #324). Le §4.6.2 fixe un fichier MS
+Project à 10 Mo, mais `uploadFile` reçoit aussi la sauvegarde copiée hors de la plateforme qu'une
+restauration désigne (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), bien plus lourde :
+un seul maximum la refuserait. Une borne par usage, ou un dépôt propre aux sauvegardes, est un
+choix de forme, porté aux décisions de l'utilisateur.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
