@@ -342,9 +342,8 @@ describe("the witness path", () => {
       "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes":
         "nodes_estimate",
     });
-    // The hours and the amount at the year of reference; the contract totals no amount corrected
-    // for inflation.
-    expect(text(html)).toMatch(/Total — 3 tasks, 3 lines 12\.5 2,734\.56$/);
+    // The hours, the amount at the year of reference and the one corrected for inflation.
+    expect(text(html)).toMatch(/Total — 3 tasks, 3 lines 12\.5 2,734\.56 2,734\.56$/);
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {

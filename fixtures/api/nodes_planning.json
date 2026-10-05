@@ -30,8 +30,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "100000.00",
           "budgeted_amount": "100000.00",
           "reestimated_amount": "100000.00",
+          "inflated_amount": "100000.00",
           "physical_progress": {
             "is_computable": true,
             "value": "0.5",
@@ -77,8 +79,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "100000.00",
           "budgeted_amount": "100000.00",
           "reestimated_amount": "100000.00",
+          "inflated_amount": "100000.00",
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -127,8 +131,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
+          "inflated_amount": "0.00",
           "total_float": null,
           "is_critical": false
         },
@@ -171,8 +177,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
+          "inflated_amount": "0.00",
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -231,8 +239,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
+          "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
+          "inflated_amount": "0.00",
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -298,8 +308,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
+          "inflated_amount": "0.00",
           "total_float": {
             "value": "7",
             "unit": "d"
@@ -334,8 +346,10 @@
       "task_count": 6,
       "estimate_line_count": 1,
       "hours": "0",
+      "base_amount": "100000.00",
       "budgeted_amount": "100000.00",
-      "reestimated_amount": "100000.00"
+      "reestimated_amount": "100000.00",
+      "inflated_amount": "100000.00"
     }
   }
 }

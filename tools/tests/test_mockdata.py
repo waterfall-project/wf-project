@@ -48,6 +48,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "portfolio_risks.json",
         "portfolio_value.json",
         "summary_dependencies.json",
+        "task_lengthened.json",
     ]
     for example in volumes.values():
         assert set(example) == {"summary", "description", "value"}

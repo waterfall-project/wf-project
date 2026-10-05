@@ -13,6 +13,9 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
 - ``summary_dependencies.json``, ``getComputedValueDependencies``: what the finish date of its
   first summary depends on, its direct subordinates named from the same structure — the
   refusal the journeys try on it;
+- ``task_lengthened.json``, ``updateTaskFacet``: a duration lengthened in that structure, which
+  pushes a successor into the next year — its schedule, the amounts corrected of its lines and
+  of itself, the summaries above and the totals, recalculated from the same lines;
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first, and ``portfolio_projects_page.json``,
   its second page of fifty;
@@ -57,6 +60,7 @@ from wftools.mockportfolio import (
     portfolio_value,
 )
 from wftools.mockstructure import (
+    CATEGORY_LABELS,
     COMMISSIONING,
     ELECTRICAL_ENGINEERING,
     ELECTRICAL_RATE,
@@ -76,6 +80,7 @@ from wftools.mockstructure import (
     identifier,
     money,
     structure,
+    task_lengthened,
 )
 
 if TYPE_CHECKING:
@@ -134,14 +139,17 @@ _PURCHASES = (
 def categories() -> list[JsonValue]:
     """Return the answer of listCostCategories: the labour categories first, then the others."""
     labor = [
-        (ELECTRICAL_ENGINEERING, "Ingénierie électrique"),
-        (COMMISSIONING, "Mise en service"),
+        (ELECTRICAL_ENGINEERING, CATEGORY_LABELS[ELECTRICAL_ENGINEERING]),
+        (COMMISSIONING, CATEGORY_LABELS[COMMISSIONING]),
     ]
     labor.extend(
         (identifier(_CATEGORY, n), f"{_TRADES[n % len(_TRADES)]} — niveau {n // len(_TRADES) + 1}")
         for n in range(LABOR_CATEGORY_COUNT - len(labor))
     )
-    non_labor = [(SUBCONTRACTING, "Sous-traitance"), (EQUIPMENT, "Matériel électrique")]
+    non_labor = [
+        (SUBCONTRACTING, CATEGORY_LABELS[SUBCONTRACTING]),
+        (EQUIPMENT, CATEGORY_LABELS[EQUIPMENT]),
+    ]
     others = CATEGORY_COUNT - LABOR_CATEGORY_COUNT - 1
     non_labor.extend(
         (
@@ -156,7 +164,10 @@ def categories() -> list[JsonValue]:
         *_categories(labor, "MO", "641", (LABOR, natures[LABOR])),
         *_categories(non_labor, "ACH", "604", (NON_LABOR, natures[NON_LABOR])),
         *_categories(
-            [(PROVISIONS, "Provisions pour risques")], "PRV", "681", (PROVISION, natures[PROVISION])
+            [(PROVISIONS, CATEGORY_LABELS[PROVISIONS])],
+            "PRV",
+            "681",
+            (PROVISION, natures[PROVISION]),
         ),
     ]
 
@@ -264,6 +275,16 @@ def volumes() -> dict[str, JsonObject]:
             "volumes du §4.6.2 : ses subordonnées directes, nommées par leur numéro et leur "
             "libellé (WF-IHM-0030, WF-PLA-0040).",
             summary_dependencies(built.nodes),
+        ),
+        "task_lengthened.json": _example(
+            "La durée de « Revue 3.1.27 » allongée de deux jours ouvrés dans la structure aux "
+            "volumes du §4.6.2 : la tâche finit le 31 décembre 2026, dans sa marge, et « Reprise "
+            "3.1.30 », qui la suit, glisse au premier jour ouvré de 2027 ; ses lignes sont "
+            "consommées un an plus tard, leur montant corrigé de l'inflation et le sien changent "
+            "(reinflated), sa marge diminue (rescheduled), les récapitulatives au-dessus et les "
+            "totaux sont recalculés, le montant à l'année de référence inchangé (WF-PLA-0020, "
+            "WF-DEV-0040, WF-DEV-0050).",
+            task_lengthened(),
         ),
         "estimate_indicators.json": _example(
             f"Les indicateurs du devis de la structure aux volumes du §4.6.2, sommés sur les "

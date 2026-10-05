@@ -3,13 +3,16 @@
 /**
  * What the writes answered in a reading of a grid, as the latest of them left it (#218): the rows
  * the server answered whole — those written, the summaries above them recalculated —, the parts of
- * rows it answered alone — the schedule of a task rescheduled —, and the totals.
+ * rows it answered alone — the schedule of a task rescheduled, the amounts of a line or a task
+ * moved in time —, and the totals.
  *
  * Each answer has its place among the writes (`RowsWritten.order`): a row answered whole is never
  * taken back to one an earlier write answered; a part, kept aside with its place, is laid over the
  * row whole it is later than — the one shown then, or one an earlier write answers after it —, so
  * that a part never keeps out the label nor the version of a row an earlier write answered whole.
- * A part that changes nothing of what the grid reads is not kept at all.
+ * A part sets the values of its own fields alone: the parts of a row are laid one over the other in
+ * the order of their answers, so that the schedule of one write and the amounts of another both
+ * stand. A part that changes nothing of what the grid reads is not kept at all.
  *
  * Pure, and neither server nor client: the cells written keep one of these by reading.
  */
@@ -26,8 +29,8 @@ export interface Answers<Row, Totals> {
   readonly reading: readonly Row[];
   /** The rows answered whole, by their key. */
   readonly rows: Map<string, Answered<Row>>;
-  /** The latest part of a row answered alone, by the key of the row. */
-  readonly parts: Map<string, Answered<RowPart<Row>["change"]>>;
+  /** The parts of a row answered alone, by the key of the row, in the order of their answers. */
+  readonly parts: Map<string, readonly Answered<RowPart<Row>["change"]>[]>;
   totals: Answered<Totals> | undefined;
   /** The place of the latest answer taken. */
   latest: number;
@@ -77,8 +80,8 @@ function whole<Row, Totals>(
 }
 
 /**
- * The row of a key as the answers show it: whole as the latest answer gave it, the latest part
- * answered after it laid over it; none for a row the reading does not show.
+ * The row of a key as the answers show it: whole as the latest answer gave it, each part answered
+ * after it laid over it in turn; none for a row the reading does not show.
  */
 export function shownRow<Row, Totals>(
   answers: Answers<Row, Totals>,
@@ -86,11 +89,16 @@ export function shownRow<Row, Totals>(
   key: string,
 ): Row | undefined {
   const base = whole(answers, rowKey, key);
-  const part = answers.parts.get(key);
   if (base === undefined) {
     return undefined;
   }
-  return part !== undefined && part.order > base.order ? part.value(base.value) : base.value;
+  let row = base.value;
+  for (const part of answers.parts.get(key) ?? []) {
+    if (part.order > base.order) {
+      row = part.value(row);
+    }
+  }
+  return row;
 }
 
 /** Every row the answers changed, by its key, as they show it. */
@@ -110,8 +118,9 @@ export function shownRows<Row, Totals>(
 
 /**
  * Take what a write answered among the answers of its reading: each row written and each row it
- * gave whole, unless a later write answered it whole; each part of a row, kept aside unless a
- * later part was, and only when it changes the row shown; the totals, unless later ones were.
+ * gave whole, unless a later write answered it whole; each part of a row, kept aside among the
+ * others in the order of its answer, only when it changes the row shown; the totals, unless later
+ * ones were.
  */
 export function take<Row, Totals>(
   answers: Answers<Row, Totals>,
@@ -128,8 +137,14 @@ export function take<Row, Totals>(
   }
   for (const { key, change } of written.parts) {
     const shown = shownRow(answers, rowKey, key);
-    if (shown !== undefined && later(order, answers.parts.get(key)) && change(shown) !== shown) {
-      answers.parts.set(key, { value: change, order });
+    if (shown !== undefined && change(shown) !== shown) {
+      const parts = answers.parts.get(key) ?? [];
+      const at = parts.findIndex((part) => part.order > order);
+      const part = { value: change, order };
+      answers.parts.set(
+        key,
+        at < 0 ? [...parts, part] : [...parts.slice(0, at), part, ...parts.slice(at)],
+      );
     }
   }
   if (written.totals !== undefined && later(order, answers.totals)) {

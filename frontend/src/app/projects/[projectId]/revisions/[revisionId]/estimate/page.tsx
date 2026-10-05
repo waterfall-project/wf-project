@@ -8,8 +8,8 @@
  * and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer, with the
  * totals of the answer: a header clicked or a search entered changes the address, and this page
  * reads anew (`grid-screen.ts`). The
- * indicators and the rates are read alongside the grid, and so are the categories and the roles
- * the lines are named by and chosen from (US-0120). The grid is entered from the keyboard, and takes
+ * indicators and the rates are read alongside the grid, and so are the categories and the roles a
+ * line is chosen from (US-0120) — the server names those a line bears (#305). The grid is entered from the keyboard, and takes
  * a block pasted from a spreadsheet, when the revision lists `edit_estimate` available to the caller
  * (WF-IHM-0040, WF-IHM-0050). Its head leads to the workload of the project, a leaf of the estimate
  * with a screen of its own (FBS-4.4.4), in the same context. A refused read of the rates
@@ -117,11 +117,12 @@ async function readOptional<T>(
 }
 
 /**
- * The categories and the roles the lines of the estimate are named by, as the grid reads them —
- * an identifier, a name, whether it may still be chosen, nothing more crossing to the browser.
- * The deactivated ones are read too: a line may bear one, which it shows; the list of a cell
- * offers the active ones alone (WF-REF-0150). A list the API refuses is none: its column is
- * neither named nor entered, and the screen stays.
+ * The categories and the roles a line of the estimate is chosen from, as the grid reads them — an
+ * identifier, a name, whether it may still be chosen, nothing more crossing to the browser. The
+ * deactivated ones are read too: a line may bear one, which its list keeps; the list of a cell
+ * offers the active ones alone (WF-REF-0150). The cell names what the line bears by the label the
+ * server resolves (#305), whatever these lists hold. A list the API refuses is none: its column is
+ * not entered, and the screen stays.
  */
 async function readReference(): Promise<EstimateReference> {
   const client = serverClient();

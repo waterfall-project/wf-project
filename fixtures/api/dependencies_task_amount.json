@@ -1,11 +1,10 @@
 {
-  "summary": "Ce dont dépend le montant réestimé de la tâche « Câblage des armoires » : les trois lignes qu'elle porte, et les revues du reste à engager (WF-IHM-0030, WF-DEV-0050, WF-RAE-0040).",
+  "summary": "Ce dont dépend le montant à l'année de référence de la tâche « Câblage des armoires » : les trois lignes qu'elle porte (WF-IHM-0030, WF-DEV-0050).",
   "value": {
     "node_id": "01926f3a-7c00-7000-8000-000000000522",
-    "field": "task.reestimated_amount",
+    "field": "task.base_amount",
     "depends_on": [
-      "lines_and_subordinates",
-      "remaining_reviews"
+      "lines_and_subordinates"
     ],
     "rows": [
       {

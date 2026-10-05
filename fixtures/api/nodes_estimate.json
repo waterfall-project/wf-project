@@ -30,8 +30,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "2734.56",
           "budgeted_amount": "2734.56",
-          "reestimated_amount": "2734.56"
+          "reestimated_amount": "2734.56",
+          "inflated_amount": "2734.56"
         },
         "computed_fields": [
           "task.duration",
@@ -72,8 +74,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "2734.56",
           "budgeted_amount": "2734.56",
-          "reestimated_amount": "2734.56"
+          "reestimated_amount": "2734.56",
+          "inflated_amount": "2734.56"
         },
         "computed_fields": [
           "task.start",
@@ -99,10 +103,14 @@
         "estimate_line": {
           "label": "Raccordement des borniers",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+          "cost_category_label": "Ingénierie électrique",
           "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+          "resource_role_label": "Ingénieur électricien",
           "quantity": "1",
           "hours": "12.5",
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "subproject_label": "Poste de commande",
+          "base_amount": "1000.00",
           "budgeted_amount": "1000.00",
           "reestimated_amount": "1000.00",
           "inflated_amount": "1000.00",
@@ -136,11 +144,15 @@
         "estimate_line": {
           "label": "Borniers",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+          "cost_category_label": "Matériel électrique",
           "resource_role_id": null,
+          "resource_role_label": null,
           "quantity": "1",
           "hours": null,
           "unit_disbursement": "1234.56",
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "subproject_label": "Poste de commande",
+          "base_amount": "1234.56",
           "budgeted_amount": "1234.56",
           "reestimated_amount": "1234.56",
           "inflated_amount": "1234.56",
@@ -174,11 +186,15 @@
         "estimate_line": {
           "label": "Provision — risque de reprise du câblage",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000404",
+          "cost_category_label": "Provisions pour risques",
           "resource_role_id": null,
+          "resource_role_label": null,
           "quantity": "1",
           "hours": null,
           "unit_disbursement": "500.00",
           "subproject_id": null,
+          "subproject_label": null,
+          "base_amount": "500.00",
           "budgeted_amount": "500.00",
           "reestimated_amount": "500.00",
           "inflated_amount": "500.00",
@@ -228,8 +244,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
+          "base_amount": "0.00",
           "budgeted_amount": "0.00",
-          "reestimated_amount": "0.00"
+          "reestimated_amount": "0.00",
+          "inflated_amount": "0.00"
         },
         "computed_fields": [
           "task.start",
@@ -247,8 +265,10 @@
       "task_count": 3,
       "estimate_line_count": 3,
       "hours": "12.5",
+      "base_amount": "2734.56",
       "budgeted_amount": "2734.56",
-      "reestimated_amount": "2734.56"
+      "reestimated_amount": "2734.56",
+      "inflated_amount": "2734.56"
     }
   }
 }

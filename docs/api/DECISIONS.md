@@ -501,7 +501,8 @@ fin, sa marge totale, nulle en mode manuel, sa criticité et sa fin dépassée �
 une chaîne de mille tâches reste légère, et le recalcul tient dans la seconde du §4.6.2. Les
 montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation —
 n'y sont pas : ils se lisent dans la grille de devis, écran distinct qui relit la structure à son
-ouverture. L'exemple `predecessor_set` lie la revue de conception du planning témoin au dossier
+ouverture — EP-02/L16 les rend à part, pour les lignes et les tâches non récapitulatives
+(`reinflated`). L'exemple `predecessor_set` lie la revue de conception du planning témoin au dossier
 de conception : la revue, écrite, et la réception des études qui la suit glissent au 29 avril, et
 le dossier, dont les dates ne bougent pas, passe sur le chemin critique. Écartés : des `Node`
 entiers, qui pourraient porter la moitié du plan, facettes de devis comprises ; une relecture de
@@ -904,6 +905,77 @@ et les ancêtres rendus entiers gardent le leur, ce que les exemples (`predecess
 écriture dans son arbre (`structure_lock_version`). Le front garde la version lue d'une tâche
 redatée et n'en prend que le calendrier (`rescheduled()` de
 `frontend/src/components/grid/nodes.tsx`).
+
+## Les montants et les libellés de la structure (EP-02/L16)
+
+**La grille de devis lit un montant nommé à l'année de référence** (`base_amount`, #235, décision
+de l'utilisateur du 2026-10-05). WF-DEV-0050 veut, pour chaque ligne, son montant à l'année de
+référence et son montant corrigé de l'inflation, et jamais le montant budgété ni le montant
+réestimé ; le contrat ne nommait pas le premier, et la grille lisait `reestimated_amount` à sa
+place (#216). `base_amount` est le montant de la ligne telle qu'elle est chiffrée — quantité ×
+charge × taux de l'année de référence, ou quantité × débours (WF-DEV-0030) —, sur la ligne, sur la
+tâche (somme de son sous-arbre, récapitulative comprise) et dans `NodeTotals` ; la colonne et le
+champ calculé suivent (`NodeColumn.base_amount`, rangé avant les montants budgété et réestimé de
+la grille de reste à engager ; `ComputedValueField` `task.base_amount`, `estimate_line.base_amount`).
+Les montants budgété et réestimé sont, eux aussi, à l'année de référence (sous-décision du même
+jour) : seul `inflated_amount` porte l'inflation, et les descriptions le disent. La colonne de la grille
+change de clé avec son champ (`reestimated_amount` → `base_amount`) : une largeur, un masquage ou un
+tri gardés sous l'ancienne clé dans les préférences d'affichage ne s'appliquent plus, et la colonne
+revient à son réglage par défaut.
+
+**Le montant corrigé de l'inflation remonte à la tâche et aux totaux** (`TaskFacet.inflated_amount`,
+`NodeTotals.inflated_amount`, `ComputedValueField` `task.inflated_amount`). Une récapitulative et le
+total n'avaient pas de montant corrigé, et la grille montrait une cellule vide ; ils portent la
+somme des montants corrigés de leurs lignes, que le front ne calcule pas.
+
+**Après une écriture qui déplace des nœuds dans le temps, leurs montants corrigés en projection
+légère** (`NodesWritten.reinflated`, `NodeInflation`, exigé ; décisions de l'utilisateur du
+2026-10-05). Un rôle changé dans la grille de devis change le calendrier de la tâche
+(WF-PLA-0010), donc ses dates et l'année de consommation de ses autres lignes (WF-DEV-0040) ; une
+durée ou une liaison écrite au planning déplace de même les lignes des tâches qu'elle redate. Leur
+montant corrigé, et celui des tâches non récapitulatives qui les portent — redatées
+(`rescheduled`) ou non —, serait resté périmé dans la grille même. `reinflated` rend chaque nœud
+dont le montant corrigé a changé sans être écrit, lignes et tâches non récapitulatives, hors ceux
+que `ancestors` rend entiers, où restent les récapitulatives ; chacun une fois, dans l'ordre du
+plan, vide quand aucun n'a bougé, sur le modèle de `rescheduled` : le nœud, son montant corrigé et
+l'année de consommation d'une ligne, nulle pour une tâche, dont la facette n'en porte pas — une
+chaîne de mille tâches et de leurs cinq mille lignes reste légère. Une tâche peut ainsi être dans
+`rescheduled` et dans `reinflated` : chaque projection pose ses seuls champs, et la grille les
+compose. Comme `NodeSchedule`, `NodeInflation` ne porte pas `lock_version` : un recalcul ne
+fait pas avancer le compteur du nœud (EP-02/L15, `LockVersion`). Le montant à l'année de
+référence ne dépend pas des dates : il n'y est pas. Écarté : le
+montant corrigé d'une tâche dans `NodeSchedule`, qui aurait mêlé les montants au calendrier et
+laissé sans projection une tâche dont les lignes bougent sans qu'elle soit redatée. L'exemple
+`task_lengthened` (`updateTaskFacet`), engendré dans le volume par `make mock-data`, le montre :
+la durée de « Revue 3.1.27 » allongée de deux jours ouvrés, dans sa marge, pousse « Reprise
+3.1.30 » au premier jour ouvré de 2027 ; elle est dans `rescheduled` avec les tâches de sa chaîne
+dont la marge diminue, ses lignes et elle-même dans `reinflated`, les deux récapitulatives au-dessus
+dans `ancestors`, et les totaux suivent. Les autres exemples rendent une liste vide. L'univers
+n'offre aucune écriture du devis qui redate : ses deux rôles actifs sont sur le même calendrier,
+le calendrier par défaut, et le seul rôle sur un autre est désactivé — un changement de rôle ne
+change donc le calendrier d'aucune tâche (WF-PLA-0010). La projection est éprouvée sur l'exemple
+du planning appliqué aux lignes du devis ; le chemin de la grille de devis le sera quand l'univers
+aura une telle écriture (#287).
+
+**Les exemples de dépendance d'un montant suivent** : `dependencies_labour` et
+`dependencies_task_amount` disent désormais ce dont dépend le montant à l'année de référence d'une
+ligne et d'une tâche — le taux horaire ; les lignes portées —, celui dont la grille de devis
+demande la raison au refus d'une saisie.
+
+**`paste_too_wide` dit la largeur de la ligne de devis** : `base_amount` porte à quatorze les
+colonnes de sa facette à partir du libellé (`NodeColumn`) ; l'exemple disait huit, largeur
+antérieure à EP-02/L8, et dit désormais quatorze pour un bloc de quinze.
+
+**La ligne de devis nomme sa catégorie, son rôle et son sous-projet** (`cost_category_label`,
+`resource_role_label`, `subproject_label`, #305, décision de l'utilisateur du 2026-10-05). La
+grille les nommait en rapprochant `listCostCategories` et `listResourceRoles` dans le front, ce que
+WF-ARC-0020 exclut, et disait inconnu un objet désactivé mais employé, que ces listes ne rendent
+pas sans `include_inactive` (WF-REF-0150). Les trois libellés sont exigés, résolus par le serveur à
+la lecture, l'objet actif ou désactivé, nuls sans objet — le rôle d'une ligne hors main-d'œuvre, le
+sous-projet d'une ligne hors sous-projet —, comme ceux d'un rôle de ressource (US-0250/L1). Ils
+pèsent sur six mille nœuds : `fields` ne les rend qu'à la grille qui les lit, celle du devis, qui ne
+présente pas encore de sous-projet et ne demande donc pas `subproject_label`. Les listes du
+référentiel restent lues par l'écran, pour offrir le choix d'une saisie.
 
 ## Collage et annulation
 

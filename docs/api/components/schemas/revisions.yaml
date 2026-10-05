@@ -333,8 +333,10 @@ NodeColumn:
     colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de
     la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille
     les présente : de `label` à `predecessors`, les colonnes de la tâche ; `label`, puis de
-    `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis. C'est dans
-    cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée
+    `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à
+    l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la
+    grille de devis (WF-DEV-0050), les montants budgété et réestimé, que présente celle de reste à
+    engager. C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée
     (`PastePreview.target_column`, WF-IHM-0050).
   enum:
     - label
@@ -356,6 +358,7 @@ NodeColumn:
     - subproject
     - payment_delay_days
     - consumption_year
+    - base_amount
     - budgeted_amount
     - reestimated_amount
     - inflated_amount
@@ -374,11 +377,14 @@ ComputedValueField:
     - task.progress
     - task.physical_progress
     - task.total_float
+    - task.base_amount
     - task.budgeted_amount
     - task.reestimated_amount
+    - task.inflated_amount
     - estimate_line.quantity
     - estimate_line.hours
     - estimate_line.unit_disbursement
+    - estimate_line.base_amount
     - estimate_line.budgeted_amount
     - estimate_line.reestimated_amount
     - estimate_line.previous_reestimated_amount
@@ -395,7 +401,7 @@ ComputedDependency:
     (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard
     (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas
     (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de
-    sa charge et du taux horaire de sa catégorie ; `unit_disbursement`, celui d'une ligne
+    sa charge et du taux horaire de sa catégorie pour l'année de référence ; `unit_disbursement`, celui d'une ligne
     hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les
     grandeurs et le montant d'une ligne de provision (WF-RIS-0010) ;
     `reference_revision`, le montant budgété, fixé par la révision de référence
@@ -463,30 +469,42 @@ EntryAvailability:
 
 NodeTotals:
   type: object
-  required: [task_count, estimate_line_count, hours, budgeted_amount, reestimated_amount]
+  required:
+    - task_count
+    - estimate_line_count
+    - hours
+    - base_amount
+    - budgeted_amount
+    - reestimated_amount
+    - inflated_amount
   description: >-
     Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les
     montants et les heures sont ceux des seules lignes de devis retenues par les
     filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —,
     et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre.
-    `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de provision
-    comprises : ce n'est pas le budget de référence, diminué des provisions selon
+    Chaque montant est la somme du montant de même nom des lignes retenues
+    (`EstimateLineFacet`) : à l'année de référence, sauf le montant corrigé de l'inflation
+    (WF-DEV-0050). `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de
+    provision comprises : ce n'est pas le budget de référence, diminué des provisions selon
     WF-RIS-0050.
   properties:
     task_count: { type: integer, minimum: 0 }
     estimate_line_count: { type: integer, minimum: 0 }
     hours: { $ref: ../common.yaml#/Hours }
+    base_amount: { $ref: ../common.yaml#/Money }
     budgeted_amount: { $ref: ../common.yaml#/Money }
     reestimated_amount: { $ref: ../common.yaml#/Money }
+    inflated_amount: { $ref: ../common.yaml#/Money }
 
 NodesWritten:
   type: object
-  required: [nodes, ancestors, rescheduled, totals, structure_lock_version]
+  required: [nodes, ancestors, rescheduled, reinflated, totals, structure_lock_version]
   description: >-
     Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un
     déplacement, une création, une suppression, une liaison, un avancement, une réestimation,
     une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que
-    l'écriture a redatées, les récapitulatives recalculées au-dessus des uns et des autres,
+    l'écriture a redatées, le montant corrigé des autres lignes et tâches qu'elle a déplacées
+    dans le temps, les récapitulatives recalculées au-dessus des uns et des autres,
     et les totaux de la structure,
     pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040,
     WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé.
@@ -516,9 +534,21 @@ NodesWritten:
         mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans
         `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que
         les écritures (`LockVersion`). Les montants qui dépendent des dates — le montant corrigé de
-        l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de
-        devis, qui relit la structure à son ouverture.
+        l'inflation, l'année de consommation — n'y sont pas : ils sont dans `reinflated`.
       items: { $ref: '#/NodeSchedule' }
+    reinflated:
+      type: array
+      description: >-
+        Chaque nœud dont le montant corrigé de l'inflation, ou l'année de consommation d'une
+        ligne, a changé par l'écriture sans qu'il soit écrit : les lignes de devis d'une tâche
+        écrite ou redatée, dont les dates ont bougé — un rôle changé change le calendrier de la
+        tâche, donc ses dates (WF-PLA-0010, WF-DEV-0040) —, et les tâches non récapitulatives
+        dont ces lignes changent le montant corrigé, redatées (`rescheduled`) ou non, hors
+        celles que `ancestors` rend entières. Les récapitulatives restent dans `ancestors`. Chacun une fois, dans l'ordre du
+        plan ; vide quand aucun n'a bougé. Une projection de leurs montants, non le nœud entier,
+        comme `rescheduled` : le montant à l'année de référence ne dépend pas des dates et ne
+        change pas.
+      items: { $ref: '#/NodeInflation' }
     totals:
       allOf: [{ $ref: '#/NodeTotals' }]
       description: >-
@@ -561,6 +591,29 @@ NodeSchedule:
       description: >-
         Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de
         calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`.
+
+NodeInflation:
+  type: object
+  required: [node_id, inflated_amount, consumption_year]
+  description: >-
+    Les montants d'une ligne de devis ou d'une tâche non récapitulative qu'une écriture a
+    déplacée dans le temps sans l'écrire (`NodesWritten.reinflated`) : ceux qui dépendent des
+    dates, sous la forme des champs de même nom de sa facette (`EstimateLineFacet`,
+    `TaskFacet`), que la grille de devis présente (WF-DEV-0040, WF-DEV-0050). Sans
+    `lock_version`, comme `NodeSchedule` : un recalcul ne fait pas avancer le compteur du nœud
+    (`LockVersion`).
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    inflated_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Le montant corrigé de l'inflation, comme `EstimateLineFacet.inflated_amount` pour une
+        ligne et `TaskFacet.inflated_amount` pour une tâche — la somme de ses lignes.
+    consumption_year:
+      anyOf: [{ $ref: ../common.yaml#/Year }, { type: 'null' }]
+      description: >-
+        L'année de consommation d'une ligne, comme `EstimateLineFacet.consumption_year` ; nulle
+        pour une tâche, dont la facette n'en porte pas.
 
 TaskProgress:
   type: string
@@ -628,8 +681,10 @@ TaskFacet:
     - finish_overdue
     - is_summary
     - is_milestone
+    - base_amount
     - budgeted_amount
     - reestimated_amount
+    - inflated_amount
   description: >-
     Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique,
     dates et durée d'une récapitulative, marge, criticité, avancement physique, fin
@@ -685,15 +740,24 @@ TaskFacet:
         budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce
         sous-arbre (WF-IND-0060), non calculable quand ce total est nul
         (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative.
+    base_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de
+        ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille
+        de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de
+        la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent.
     budgeted_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Somme des montants budgétés des lignes que la tâche porte et de ceux de ses
-        subordonnées, calculée par le serveur, jamais saisissable (WF-DEV-0050). Un
-        attribut de la tâche : un filtre de la grille ne le change pas.
+        Même somme, pour les montants budgétés, à l'année de référence (WF-DEV-0020).
     reestimated_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
-      description: Même somme, pour les montants réestimés.
+      description: Même somme, pour les montants réestimés, à l'année de référence.
+    inflated_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Même somme, pour les montants corrigés de l'inflation (WF-DEV-0040, WF-DEV-0050).
     tracking:
       type: array
       description: Inscriptions aux chronologies et au suivi temps/temps (WF-PLA-0060).
@@ -704,7 +768,11 @@ EstimateLineFacet:
   required:
     - label
     - cost_category_id
+    - cost_category_label
+    - resource_role_label
+    - subproject_label
     - quantity
+    - base_amount
     - budgeted_amount
     - reestimated_amount
     - inflated_amount
@@ -712,21 +780,34 @@ EstimateLineFacet:
     - uses_inactive_object
     - remaining_entry
   description: >-
-    Facette argent d'un nœud. Les trois montants sont calculés et non saisissables :
-    le budgété est fixé par la révision de référence et nul pour une ligne ajoutée
-    après elle, le réestimé est mis à jour par les revues (WF-DEV-0020, WF-DEV-0030),
-    et le montant corrigé de l'inflation est le montant projeté sur l'année de
-    consommation de la ligne (WF-DEV-0040), celui que la grille de devis présente avec
-    le montant à l'année de référence (WF-DEV-0050). Une ligne qui emploie un objet du
+    Facette argent d'un nœud. Les quatre montants sont calculés et non saisissables :
+    le montant à l'année de référence est celui de la ligne telle qu'elle est chiffrée
+    (WF-DEV-0030), le budgété est fixé par la révision de référence et nul pour une ligne
+    ajoutée après elle, le réestimé est mis à jour par les revues (WF-DEV-0020,
+    WF-RAE-0040) — tous trois à l'année de référence —, et le montant corrigé de
+    l'inflation, seul à porter l'inflation, est le montant projeté sur l'année de
+    consommation de la ligne (WF-DEV-0040). La grille de devis présente le premier et le
+    dernier, jamais le budgété ni le réestimé (WF-DEV-0050). La catégorie, le rôle et le
+    sous-projet sont nommés par leur libellé, que le serveur résout à la lecture, l'objet
+    actif ou désactivé, pour que la grille ne rapproche aucune liste (WF-ARC-0020,
+    WF-REF-0150). Une ligne qui emploie un objet du
     référentiel désactivé le dit (`uses_inactive_object`), pour que les grilles de devis
     et de reste à engager la signalent (WF-REF-0010).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
+    cost_category_label:
+      type: string
+      description: Libellé de la catégorie de coût, résolu à la lecture, active ou désactivée.
     quantity: { $ref: ../common.yaml#/Decimal }
     resource_role_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Exigé pour une catégorie de main-d'œuvre, absent sinon (WF-DEV-0020).
+    resource_role_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Libellé du rôle de ressource, résolu à la lecture, actif ou désactivé ; nul pour une
+        ligne sans rôle.
     hours:
       anyOf: [{ $ref: ../common.yaml#/Hours }, { type: 'null' }]
     unit_disbursement:
@@ -740,19 +821,31 @@ EstimateLineFacet:
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020).
+    subproject_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: Libellé du sous-projet, résolu à la lecture ; nul pour une ligne hors sous-projet.
+    base_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Montant à l'année de référence, calculé : le produit de la quantité, de la charge et du
+        taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de
+        main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030), avant toute inflation ;
+        celui que la grille de devis présente (WF-DEV-0050).
     budgeted_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020) : une ligne de
-        provision présente dans la révision de référence porte la provision qu'elle y avait.
-        Le budget de référence est la somme des montants budgétés des lignes de la révision
-        de référence, diminuée des provisions selon les règles de WF-RIS-0050 (glossaire) :
-        il se lit dans les indicateurs, jamais en sommant ces montants.
-    reestimated_amount: { $ref: ../common.yaml#/Money }
+        Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de
+        référence : une ligne de provision présente dans la révision de référence porte la
+        provision qu'elle y avait. Le budget de référence est la somme des montants budgétés
+        des lignes de la révision de référence, diminuée des provisions selon les règles de
+        WF-RIS-0050 (glossaire) : il se lit dans les indicateurs, jamais en sommant ces montants.
+    reestimated_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: Montant réestimé, à l'année de référence.
     inflated_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Montant corrigé de l'inflation, calculé : le montant de la ligne projeté sur son
+        Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son
         année de consommation au taux d'inflation du projet, chaque part d'une tâche à
         cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050).
         Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte
@@ -760,8 +853,8 @@ EstimateLineFacet:
     previous_reestimated_amount:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
-        Montant réestimé au reste à engager précédent, que la grille de reste à
-        engager présente à côté du courant (WF-RAE-0040) ; nul avant la première revue.
+        Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de
+        reste à engager présente à côté du courant (WF-RAE-0040) ; nul avant la première revue.
     consumption_year:
       anyOf: [{ $ref: ../common.yaml#/Year }, { type: 'null' }]
       description: Année de consommation, déduite du planning (WF-DEV-0040).

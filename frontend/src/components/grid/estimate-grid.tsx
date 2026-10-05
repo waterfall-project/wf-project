@@ -5,12 +5,13 @@
  * planning renders too —, given its configuration here, on the side of the browser — a
  * configuration reads the rows by functions, which never cross from a server component to a
  * client one. The page hands it data only: the rows of the answer of `listNodes` as the grid
- * reads them (`projectNodes`), the structure they belong to, the categories and roles that name
- * those of the lines, whether the revision may be entered, what the address asked, and the
+ * reads them (`projectNodes`), the structure they belong to, the categories and roles a line is
+ * entered from, whether the revision may be entered, what the address asked, and the
  * settings the session read. A computed cell asks the server what its value depends on, by the
  * structure and its node; a cell entered is written by the structure and its node too; a block
  * pasted, by the structure and the version read of it. What a write answers — the nodes written,
- * the ancestors recalculated, the tasks rescheduled, the totals of the structure — is read as the
+ * the ancestors recalculated, the tasks rescheduled, the lines and tasks moved in time, the totals of the
+ * structure — is read as the
  * grid reads it (`nodesWritten`, #218), the totals taken only by a grid read without a search nor
  * a filter, whose totals are those of the structure; a grid read with either reads its own anew by
  * the same request, once its writes answered (`readNodeTotals`).
@@ -69,7 +70,7 @@ export interface EstimateGridProps {
    * structure a write answers are not, and which the grid reads anew by the same request.
    */
   readonly filters: NodeFilters;
-  /** The categories and roles the lines are named by, and chosen from. */
+  /** The categories and roles a line is entered from: the server names those it bears. */
   readonly reference: EstimateReference;
   /**
    * Whether the estimate may be entered: the revision is open and lists `edit_estimate` available
@@ -191,7 +192,7 @@ export function EstimateGrid({
   preferences,
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
-  const unknown = useTranslations("grid")("unknown");
+
   const columns = useTranslations("enums.NodeColumn");
   // The version of the structure moves with each write answered: the highest one told — writes
   // of different rows leave together, and an answer may come back after a later one —, or the
@@ -214,12 +215,11 @@ export function EstimateGrid({
     const name = (column: NodeColumn) => columns(column);
     return estimateGrid(
       reference,
-      unknown,
       editable
         ? structureWrites(structure, version, told, tasksEditable, name, filters)
         : undefined,
     );
-  }, [reference, unknown, editable, tasksEditable, structure, version, filters, columns]);
+  }, [reference, editable, tasksEditable, structure, version, filters, columns]);
   return (
     <DenseGrid
       config={config}

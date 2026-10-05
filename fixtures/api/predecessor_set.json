@@ -30,8 +30,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
+          "inflated_amount": "0.00",
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -101,8 +103,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "100000.00",
           "budgeted_amount": "100000.00",
           "reestimated_amount": "100000.00",
+          "inflated_amount": "100000.00",
           "physical_progress": {
             "is_computable": true,
             "value": "0.5",
@@ -157,12 +161,15 @@
         "finish_overdue": false
       }
     ],
+    "reinflated": [],
     "totals": {
       "task_count": 6,
       "estimate_line_count": 1,
       "hours": "0",
+      "base_amount": "100000.00",
       "budgeted_amount": "100000.00",
-      "reestimated_amount": "100000.00"
+      "reestimated_amount": "100000.00",
+      "inflated_amount": "100000.00"
     },
     "structure_lock_version": 2
   }
