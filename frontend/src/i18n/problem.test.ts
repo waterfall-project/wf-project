@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { example } from "@/test/fixtures";
 
 import { CATALOGUES } from "./catalogues";
 import type { Locale } from "./locale";
@@ -116,6 +117,16 @@ describe("the sentence of a refusal", () => {
     };
     expect(say(problem, "fr")).toBe(
       "Un composant du service est indisponible. Composant indisponible\u00A0: Base de données.",
+    );
+  });
+
+  it("names the format and the version a file was expected in [WF-INTF-0070-A]", () => {
+    const problem = example("import_format_unreadable") as ProblemText;
+    expect(say(problem, "fr")).toBe(
+      "Le format du fichier est illisible. Format attendu\u00A0: Devis. Version attendue\u00A0: 1.",
+    );
+    expect(say(problem, "en")).toBe(
+      "The file format cannot be read. Expected format: Estimate. Expected version: 1.",
     );
   });
 

@@ -70,7 +70,11 @@ LockVersion:
   description: >-
     Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une
     création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend
-    l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060).
+    l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). Il suit
+    les écritures de l'utilisateur : ce que le serveur recalcule sans que personne ne
+    l'écrive — les dates des successeurs d'une liaison ou d'une durée, ce que le chemin
+    critique déplace, les montants et les dates d'une récapitulative — ne fait avancer le
+    compteur d'aucun nœud.
 
 Audit:
   type: object
@@ -117,8 +121,12 @@ Problem:
         `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une
         récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
         calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030),
-        `missing_prerequisites` (WF-CYC-0120),
-        `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040).
+        `missing_prerequisites` (WF-CYC-0120), `state` (l'état de l'objet qui interdit
+        l'opération, `STATE_FORBIDS_OPERATION` ; un `ProjectState` pour un projet),
+        `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040),
+        `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
+        fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
+        WF-INTF-0070).
     fields:
       type: array
       description: Erreurs par champ, pour une entité refusée à la validation.
@@ -217,7 +225,11 @@ FieldProblem:
   properties:
     pointer:
       type: string
-      description: Pointeur JSON vers le champ en défaut.
+      description: >-
+        Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901),
+        `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son
+        nom, `/query/revision_id`. Aucun champ du corps ne se nomme `query`, et un
+        pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération.
     code: { $ref: '#/ErrorCode' }
     params:
       type: object

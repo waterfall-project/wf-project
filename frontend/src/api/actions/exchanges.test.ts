@@ -52,6 +52,8 @@ describe("the server actions of the exchanges", () => {
     expect(file).toBeInstanceOf(File);
     expect((file as File).name).toBe("devis-poste-de-commande.xlsx");
     expect(await (file as File).text()).toBe("devis");
+    // The deposit says it is for an import, which the contract bounds at 10 MiB.
+    expect((upload?.body as FormData).get("purpose")).toBe("import");
     expect(open?.path).toBe(`/projects/${PROJECT}/imports`);
     expect(open?.body).toEqual({
       kind: "estimate",

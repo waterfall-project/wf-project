@@ -58,10 +58,13 @@ export type BasisRefused = (typeof BASIS_REFUSED)[number];
 /** The workload as the API gave it, or the refusal of what it is asked on. */
 export type WorkloadRead = ReadOrRefused<WorkloadPlan, BasisRefused>;
 
-/** The parameters of `getProjectWorkload` a refusal may name, and the key of its reason. */
+/**
+ * The parameters of `getProjectWorkload` a refusal may point at, as the contract points at a
+ * parameter of the query (`/query/<name>`), and the key of its reason.
+ */
 const REFUSED_PARAMETERS: ReadonlyMap<string, RefusalReason> = new Map([
-  ["revision_id", "markedRevision"],
-  ["org_node_id", "orgNode"],
+  ["/query/revision_id", "markedRevision"],
+  ["/query/org_node_id", "orgNode"],
 ]);
 
 /** Why the screen says the workload unavailable: the key of its sentence in the catalogue. */
@@ -69,7 +72,7 @@ export type RefusalReason = "noReference" | "markedRevision" | "orgNode" | "inva
 
 /**
  * Why the API refused the workload: a project without a reference revision (409); on a 422, the
- * parameter its envelope points at (`fields[].pointer`, by its last segment) — the marked revision
+ * parameter its envelope points at (`fields[].pointer`, whole) — the marked revision
  * missing or not marked, the node of organisation —, and a reason that names none when the
  * envelope points at none of them, or at both.
  */
@@ -79,9 +82,7 @@ export function refusalReason(refused: Extract<WorkloadRead, { kind: "refused" }
   }
   const named = new Set(
     (refused.problem.fields ?? []).flatMap((field) => {
-      const reason = REFUSED_PARAMETERS.get(
-        field.pointer.slice(field.pointer.lastIndexOf("/") + 1),
-      );
+      const reason = REFUSED_PARAMETERS.get(field.pointer);
       return reason === undefined ? [] : [reason];
     }),
   );

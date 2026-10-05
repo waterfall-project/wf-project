@@ -46,8 +46,8 @@ import { type GridAddress, gridAddress } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
 /**
- * The imports a page of the list holds. The contract does not say in which order it gives them
- * (#320): the list is shown in the order received, a page after the other.
+ * The imports a page of the list holds, the most recent first as the server orders them, a page
+ * after the other.
  */
 const IMPORTS_LIMIT = 20;
 

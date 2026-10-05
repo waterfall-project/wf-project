@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the risks (FBS-3.3, US-0250), outside any project: the bounds of the risk
- * matrix, common to every project (WF-REF-0160), as the server gives them. A read the API
+ * matrix, common to every project (WF-REF-0160), and the zone of each of its cells, as the server
+ * gives them. A read the API
  * refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
-import { RiskBoundsTable } from "@/components/reference/setting-tables";
+import { RiskBoundsTable, RiskZonesTable } from "@/components/reference/setting-tables";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 
@@ -39,6 +40,7 @@ export default async function RiskSettingsPage() {
     <Screen density={FUNCTION_DENSITY.risk_settings}>
       <RisksHeader />
       <RiskBoundsTable matrix={settings.risk_matrix} />
+      <RiskZonesTable matrix={settings.risk_matrix} />
     </Screen>
   );
 }

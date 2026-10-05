@@ -1,5 +1,5 @@
 {
-  "summary": "Une planification hebdomadaire, le dimanche à deux heures et demie, quatre sauvegardes conservées (WF-ADM-0170).",
+  "summary": "Une planification hebdomadaire, le dimanche — 7, le dernier jour de la semaine ISO 8601 — à deux heures et demie en temps universel, quatre sauvegardes conservées (WF-ADM-0170).",
   "value": {
     "is_enabled": true,
     "frequency": "weekly",

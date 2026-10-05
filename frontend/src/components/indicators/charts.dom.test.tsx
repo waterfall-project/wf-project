@@ -306,6 +306,8 @@ describe("the cumulative curves", () => {
     ]);
     expect(screen.getAllByRole("row", { name: /^Reference budget 10 Mar 2026/ })).toHaveLength(2);
     const table = screen.getByRole("table", { name: "Steps of the reference budget" });
+    // The amount of the step, not the budget after it (38,333.33).
+    expect(within(table).getByRole("columnheader", { name: "Amount of the step" })).toBeVisible();
     expect(
       within(table).getByRole("row", { name: "10 Mar 2026 Amendment 15,000.00" }),
     ).toBeVisible();

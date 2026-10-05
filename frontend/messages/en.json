@@ -274,6 +274,11 @@
   },
   "actualCosts": {
     "summary": "{count, plural, =0 {no line retained} one {# line retained} other {# lines retained}}",
+    "refused": {
+      "period": "The actual costs cannot be read over this period: its end precedes its start.",
+      "subproject": "The actual costs cannot be read: the sub-project asked for does not exist.",
+      "invalid": "The actual costs cannot be read: the API refuses the filters asked for."
+    },
     "generalTotal": "General total of the lines retained",
     "totals": {
       "title": "Totals of the lines retained",
@@ -595,6 +600,7 @@
       "amount": "Amount",
       "steps": "Steps of the reference budget",
       "cause": "Cause",
+      "stepAmount": "Amount of the step",
       "cashOut": "Cash out by month",
       "month": "Month",
       "past": "Paid out",
@@ -899,6 +905,12 @@
       "probability": "Probability",
       "severity": "Severity, as a percentage of the reference budget"
     },
+    "riskZones": {
+      "title": "Zones of the risk matrix",
+      "axes": "Probability, then severity",
+      "probability": "Probability, level {level}",
+      "severity": "Severity, level {level}"
+    },
     "indices": {
       "title": "Alert thresholds of the indices",
       "index": "Index",
@@ -995,7 +1007,7 @@
       "frequency": "Frequency",
       "weekday": "Day",
       "at": "Time",
-      "platformTime": "{time}, platform time",
+      "universalTime": "{time} UTC",
       "retained": "Retention",
       "count": "{count, plural, one {# backup kept} other {# backups kept}}",
       "weekdays": {
@@ -1102,7 +1114,9 @@
     "missing_condition": "Unmet condition: {condition}.",
     "missing_prerequisites": "Still missing: {prerequisites}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
-    "component": "Unavailable component: {component}."
+    "component": "Unavailable component: {component}.",
+    "expected_format": "Expected format: {format}.",
+    "expected_version": "Expected version: {version}."
   },
   "permissions": {
     "users": {
@@ -1633,6 +1647,10 @@
       "estimate": "Estimate",
       "remaining": "Estimate to complete",
       "actual_costs": "Actual costs"
+    },
+    "FileUploadPurpose": {
+      "import": "Import",
+      "external_backup": "External backup to restore"
     },
     "ImportDifference": {
       "change": {

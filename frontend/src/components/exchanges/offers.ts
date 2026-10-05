@@ -78,9 +78,9 @@ export const IMPORT_STEPS: Readonly<
 export const MEBIBYTE = 1024 * 1024;
 
 /**
- * The largest file an import takes: that of an MS Project file, the largest the volumes of
- * §4.6.2 name, ten megabytes. The contract does not bound a file deposited yet (#324); the bound
- * of the server actions of Next (`next.config.ts`) is set a little above it.
+ * The largest file an import takes, as the contract bounds a deposit for an import (`uploadFile`,
+ * `purpose: import`): 10 MiB, an MS Project file, the largest the volumes of §4.6.2 name. The
+ * bound of the server actions of Next (`next.config.ts`) is set a little above it.
  */
 export const IMPORT_MAX_BYTES = 10 * MEBIBYTE;
 
