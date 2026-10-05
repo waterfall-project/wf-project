@@ -1210,16 +1210,14 @@
     "all_projects_read": "View every project"
   },
   "enums": {
-    "ComponentHealth": {
-      "component": {
-        "api": "API service",
-        "worker": "Background worker",
-        "database": "Database",
-        "cache": "Cache",
-        "object_storage": "File storage",
-        "directory": "Directory",
-        "metrics": "Metrics"
-      }
+    "PlatformComponent": {
+      "api": "API service",
+      "worker": "Background worker",
+      "database": "Database",
+      "cache": "Cache",
+      "object_storage": "File storage",
+      "directory": "Directory",
+      "metrics": "Metrics"
     },
     "AlertZone": {
       "nominal": "Nominal",
@@ -1646,6 +1644,12 @@
         "link": "Link",
         "actual_cost_line": "Actual cost line"
       }
+    },
+    "ActualCostColumn": {
+      "document_date": "Document date",
+      "document_number": "Document no.",
+      "amount": "Amount",
+      "subproject": "Subproject"
     },
     "ImportReport": {
       "requires_confirmation_reasons": {

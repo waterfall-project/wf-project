@@ -119,7 +119,25 @@ ImportDifference:
       anyOf: [{ type: string }, { type: 'null' }]
     fields:
       type: array
-      items: { type: string }
+      description: >-
+        Les champs qu'un écart `updated` change, vide pour un ajout ou un retrait, nommés
+        comme les colonnes de leur grille, que le front rend par son catalogue
+        (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une
+        liaison changée de type ou de décalage par `predecessors`, la colonne qui la
+        présente ; une ligne de coût réel par `ActualCostColumn`.
+      items:
+        anyOf:
+          - $ref: revisions.yaml#/NodeColumn
+          - $ref: '#/ActualCostColumn'
+
+ActualCostColumn:
+  type: string
+  description: >-
+    Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de
+    `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son
+    montant, son sous-projet. Le périmètre suivi et le motif d'exclusion, que le serveur
+    déduit, ne sont pas des colonnes du fichier.
+  enum: [document_date, document_number, amount, subproject]
 
 ImportApply:
   type: object

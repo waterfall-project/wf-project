@@ -164,6 +164,16 @@ RateYear:
   required: true
   schema: { $ref: common.yaml#/Year }
 
+IndicatorsRevision:
+  name: revision_id
+  in: query
+  description: >-
+    La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ;
+    une révision marquée, les valeurs calculées à son marquage et conservées
+    (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la
+    révision par sa date, refusée par 422, `VALIDATION_FAILED`.
+  schema: { $ref: common.yaml#/Uuid }
+
 AsOf:
   name: as_of
   in: query
@@ -219,6 +229,7 @@ PortfolioOrgNode:
   name: org_node_id
   in: query
   description: >-
-    Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un
-    projet n'appartient à aucun service (WF-PTF-0010).
+    Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à
+    lui ou à l'un de ses descendants ; un projet n'appartient à aucun service
+    (WF-PTF-0010).
   schema: { $ref: common.yaml#/Uuid }

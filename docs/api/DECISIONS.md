@@ -776,6 +776,65 @@ coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cas
 avant ses factures, que l'import de janvier apporte au 16 mars — : un décaissement est un `Money`
 signé, comme le coût réel dont il vient.
 
+## Ce que les lectures nomment (EP-02/L18)
+
+Décisions de l'utilisateur du 2026-10-05, consignées sur #311, #297, #247, #326, #319 et #327.
+
+**Les paramètres d'un signal et d'une alerte sont typés** (#311). `PilotHealth.signals[].params`
+et `Alert.params` étaient des objets libres : l'écran ne pouvait dire ni « 11 semaines sans revue »,
+ni le jalon dépassé, ni le composant indisponible. Ils portent, comme `Computable.params`, des
+propriétés facultatives typées, et leur description dit lesquelles chaque code porte :
+`weeks_since_last_mark` pour `review_overdue` ; `lineage_id`, `milestone_label` et
+`reference_date` pour `contractual_milestone_overdue` — le libellé du jalon le nomme, l'écran n'a
+pas à le chercher ; `component` pour `component_unavailable`, `used_bytes` et `available_bytes`
+pour `storage_nearly_full`. Les autres codes ne portent rien. Le composant est nommé
+(`PlatformComponent`), que `ComponentHealth.component` emploie aussi : un seul jeu de libellés.
+Écarté : une union discriminée par code, plus lourde à engendrer pour le même contrôle.
+
+**Un nœud d'organisation a un code et une profondeur, et l'arbre se lit dans son ordre** (#297).
+`OrgNode.code`, exigé, est le code unique de WF-REF-0070 : écrit à la création et à la
+modification (`OrgNodeWrite`), un code déjà porté, désactivés compris, est refusé par 409,
+`ALREADY_EXISTS`. `OrgNode.level` est résolu à la lecture, 1 pour une racine. `listOrgNodes` rend
+l'arbre en ordre de profondeur — chaque nœud suivi de ses descendants —, les frères triés par
+libellé ; une recherche rend aussi les ancêtres des nœuds retenus, pour que l'arbre se lise sans
+trou. **Relever d'un nœud, c'est relever de lui ou de l'un de ses descendants**, pour les quatre
+filtres `org_node_id` : `getProjectWorkload`, `listResourceRoles`, `listUsers` et le portefeuille
+(`PortfolioOrgNode`), comme WF-DEV-0070 l'entend (« les rôles qui en relèvent »). L'exemple
+`org_nodes` porte les codes et les niveaux, dans l'ordre de l'arbre.
+
+**Les indicateurs et les courbes se lisent pour une révision** (#247). `getProjectIndicators`,
+`getCostCurve` et `getEarnedValueCurves` prennent `revision_id`, comme les indicateurs de devis :
+absent, ou la révision en cours, le calcul du jour ; une révision marquée, les indicateurs
+conservés à son marquage (WF-DAT-0040), `is_stored` vrai, et les courbes à la même date, pour
+qu'un écran ne montre pas des indicateurs et des courbes de deux instants. `as_of` choisit déjà la
+révision par sa date : les deux ensemble sont refusés par 422, `VALIDATION_FAILED`, `fields` sur
+`/query/revision_id`. Exemple : `project_indicators_marked`, la référence marquée le 1er février
+2026, avant que rien ne soit planifié ni dépensé — ni indice de coût ni indice de délai — : sur
+l'écran de cette révision, les indicateurs sont les siens, et l'évolution des indices, toujours
+calculée au jour sur la révision en cours, l'est sur une autre.
+
+**Les mois du plan de charge agrégé sont en tête de la réponse** (#326). `PortfolioWorkload.months`,
+exigé, porte les mois de l'horizon, croissants et sans trou ; chaque rôle porte un mois par mois de
+cette liste, dans le même ordre, un mois sans charge compris — comme les années de la grille des
+taux (`HourlyRateGrid.years`). L'écran tire ses colonnes de `months`, non du premier rôle.
+
+**Les champs d'un écart d'import sont des colonnes** (#319). `ImportDifference.fields` nomme les
+champs d'un écart `updated` comme les colonnes de leur grille, que le front rend par son catalogue
+(WF-ARC-0110) : `NodeColumn` pour une tâche, une ligne de devis ou une liaison — une liaison changée
+de type ou de décalage par `predecessors`, la colonne qui la présente —, et `ActualCostColumn`,
+nommée comme le tri de `listActualCosts`, pour une ligne de coût réel : sa date et son numéro de
+pièce, son montant, son sous-projet, les quatre attributs que porte le fichier (WF-CRE-0010).
+
+**Le périmètre d'une vue du portefeuille nomme son nœud** (#327). `PortfolioScope.org_node_label`,
+exigé, nul sans nœud, résolu à la lecture, désactivé compris (WF-REF-0150) : l'en-tête d'une vue
+dit le nœud retenu sans joindre `listOrgNodes` (WF-ARC-0020). Exemple :
+`portfolio_workload_org_node`, le plan de charge agrégé restreint à la direction technique, dont les
+deux rôles, du bureau d'études électricité, son descendant, restent retenus. Les résumés des exemples qui retiennent
+aussi les projets en chiffrage disent que la requête les a ajoutés au périmètre par défaut, les
+projets en cours (WF-PTF-0010), qui reste celui du contrat. `CashOutMonth` dit enfin ce que montrait
+`portfolio_cash_out` : un mois qui précède celui de la date de calcul ne porte que le passé, un mois
+qui le suit que l'avenir, et le mois de la date de calcul les deux.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

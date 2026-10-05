@@ -1,5 +1,5 @@
 {
-  "summary": "La santé du pilotage au 1er juin 2026, sur les projets en cours : le projet témoin n'a pas été revu dans le délai du référentiel, en vigilance, et son jalon contractuel de réception est dépassé sans être terminé, en alerte (WF-PTF-0110, WF-IHM-0070).",
+  "summary": "La santé du pilotage au 1er juin 2026, sur les projets en cours : le projet témoin n'a pas été revu depuis onze semaines, au-delà du délai du référentiel, en vigilance, et la réception des études, jalon contractuel attendu le 24 avril par la référence, est dépassée sans être terminée, en alerte (WF-PTF-0110, WF-IHM-0070).",
   "value": {
     "scope": {
       "states": [
@@ -9,6 +9,7 @@
       "from": null,
       "to": null,
       "org_node_id": null,
+      "org_node_label": null,
       "project_count": 1
     },
     "signals": [
@@ -28,6 +29,7 @@
         "code": "contractual_milestone_overdue",
         "params": {
           "lineage_id": "01926f3a-7c00-7000-8000-000000000625",
+          "milestone_label": "Réception des études",
           "reference_date": "2026-04-24"
         }
       }

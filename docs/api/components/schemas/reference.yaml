@@ -13,10 +13,19 @@ ActiveFlag:
 
 OrgNode:
   type: object
-  required: [org_node_id, label, parent_id, parent_label, is_active, audit, lock_version]
-  description: Nœud de l'arbre d'organisation. Il ne porte aucune habilitation (WF-REF-0070).
+  required: [org_node_id, code, label, parent_id, parent_label, level, is_active, audit, lock_version]
+  description: >-
+    Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte
+    aucune habilitation (WF-REF-0070).
   properties:
     org_node_id: { $ref: ../common.yaml#/Uuid }
+    code:
+      type: string
+      minLength: 1
+      maxLength: 20
+      description: >-
+        Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est
+        refusé par 409, `ALREADY_EXISTS` (WF-REF-0070).
     label: { type: string, minLength: 1, maxLength: 200 }
     parent_id:
       anyOf:
@@ -29,14 +38,22 @@ OrgNode:
       description: >-
         Le libellé du nœud parent, résolu à la lecture, qu'il soit actif ou désactivé
         (WF-REF-0150) ; nul pour une racine.
+    level:
+      type: integer
+      minimum: 1
+      description: >-
+        Profondeur du nœud dans l'arbre, résolue à la lecture : 1 pour une racine, celle de
+        son parent plus un pour les autres — un arbre de six niveaux va de 1 à 6
+        (WF-REF-0070).
     is_active: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 OrgNodeWrite:
   type: object
-  required: [label]
+  required: [code, label]
   properties:
+    code: { type: string, minLength: 1, maxLength: 20 }
     label: { type: string, minLength: 1, maxLength: 200 }
     parent_id:
       anyOf:

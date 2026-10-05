@@ -761,13 +761,13 @@ export interface paths {
         };
         /**
          * Arbre d'organisation
-         * @description Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070).
+         * @description Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070). Les nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses descendants, les enfants d'un même parent — les racines entre elles aussi — triés par libellé ; chacun dit sa profondeur (`level`). Une recherche rend les nœuds retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou.
          */
         get: operations["listOrgNodes"];
         put?: never;
         /**
          * Créer un nœud d'organisation
-         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070).
+         * @description Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est refusé par 409, `ALREADY_EXISTS`.
          */
         post: operations["createOrgNode"];
         delete?: never;
@@ -791,7 +791,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un nœud d'organisation
-         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130).
+         * @description La modification vaut pour la suite et ne retouche aucune révision marquée (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409, `ALREADY_EXISTS`.
          */
         patch: operations["updateOrgNode"];
         trace?: never;
@@ -2036,7 +2036,7 @@ export interface paths {
         };
         /**
          * Indicateurs de valeur acquise
-         * @description Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager, avancements, indices avec leur zone, écarts et trois projections. Calculés à partir de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les valeurs conservées de la dernière révision marquée antérieure (WF-DAT-0040).
+         * @description Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager, avancements, indices avec leur zone, écarts et trois projections. Calculés à partir de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les valeurs conservées de la dernière révision marquée antérieure ; pour une révision marquée nommée, celles de son marquage (WF-DAT-0040).
          */
         get: operations["getProjectIndicators"];
         put?: never;
@@ -2076,7 +2076,7 @@ export interface paths {
         };
         /**
          * Courbe de coûts cumulés
-         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100).
+         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision marquée nommée, la courbe à la date de son marquage, comme ses indicateurs.
          */
         get: operations["getCostCurve"];
         put?: never;
@@ -2096,7 +2096,7 @@ export interface paths {
         };
         /**
          * Courbes de valeur acquise
-         * @description Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon les dates de pièce (WF-IND-0110).
+         * @description Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes à la date de son marquage, comme ses indicateurs.
          */
         get: operations["getEarnedValueCurves"];
         put?: never;
@@ -2598,13 +2598,17 @@ export interface components {
             correlation_id?: string;
         };
         /**
+         * @description Composant de la plateforme dont l'écran d'état dit la disponibilité (WF-ADM-0130), et qu'une alerte nomme quand il est indisponible (WF-OBS-0030).
+         * @enum {string}
+         */
+        PlatformComponent: "api" | "worker" | "database" | "cache" | "object_storage" | "directory" | "metrics";
+        /**
          * Format: date-time
          * @description Horodatage en temps universel (WF-DAT-0100).
          */
         Timestamp: string;
         ComponentHealth: {
-            /** @enum {string} */
-            component: "api" | "worker" | "database" | "cache" | "object_storage" | "directory" | "metrics";
+            component: components["schemas"]["PlatformComponent"];
             is_available: boolean;
             checked_at: components["schemas"]["Timestamp"];
             /** @description Version du composant employé, annoncée par WF-CMP-0020. */
@@ -2630,8 +2634,11 @@ export interface components {
             code: "component_unavailable" | "task_queue_stalled" | "scheduled_backup_failed" | "directory_sync_failed" | "storage_nearly_full" | "error_rate_abnormal";
             since: components["schemas"]["Timestamp"];
             severity: components["schemas"]["AlertZone"];
+            /** @description Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où l'alerte s'est déclenchée. Les autres codes n'en portent pas : la sauvegarde échouée et la synchronisation échouée disent leur motif dans `last_backup` et `last_directory_sync`. */
             params?: {
-                [key: string]: unknown;
+                component?: components["schemas"]["PlatformComponent"];
+                used_bytes?: number;
+                available_bytes?: number;
             };
         };
         /** @description Écran d'état, accessible sans qu'aucun projet ne soit ouvert. Il ne présente que des valeurs issues des métriques (WF-ADM-0130, WF-OBS-0010). */
@@ -2942,18 +2949,23 @@ export interface components {
             max_weeks_between_reviews?: number;
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Nœud de l'arbre d'organisation. Il ne porte aucune habilitation (WF-REF-0070). */
+        /** @description Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte aucune habilitation (WF-REF-0070). */
         OrgNode: {
             org_node_id: components["schemas"]["Uuid"];
+            /** @description Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est refusé par 409, `ALREADY_EXISTS` (WF-REF-0070). */
+            code: string;
             label: string;
             parent_id: components["schemas"]["Uuid"] | null;
             /** @description Le libellé du nœud parent, résolu à la lecture, qu'il soit actif ou désactivé (WF-REF-0150) ; nul pour une racine. */
             parent_label: string | null;
+            /** @description Profondeur du nœud dans l'arbre, résolue à la lecture : 1 pour une racine, celle de son parent plus un pour les autres — un arbre de six niveaux va de 1 à 6 (WF-REF-0070). */
+            level: number;
             is_active: boolean;
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
         OrgNodeWrite: {
+            code: string;
             label: string;
             parent_id?: components["schemas"]["Uuid"] | null;
         };
@@ -3920,7 +3932,7 @@ export interface components {
                 }[];
             }[];
         };
-        /** @description Un mois de décaissements : ce qui a été décaissé, et ce qui le sera. Un mois porte l'un ou l'autre selon qu'il précède ou suit la date de calcul (WF-IND-0100, WF-PTF-0100). */
+        /** @description Un mois de décaissements : ce qui a été décaissé, et ce qui le sera. Un mois qui précède celui de la date de calcul ne porte que le passé, un mois qui le suit que l'avenir, l'autre montant nul ; le mois de la date de calcul porte les deux — le décaissé jusqu'à elle, le reste à décaisser après (WF-IND-0100, WF-PTF-0100). */
         CashOutMonth: {
             month: string;
             past: components["schemas"]["Money"];
@@ -4128,6 +4140,11 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * @description Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son montant, son sous-projet. Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.
+         * @enum {string}
+         */
+        ActualCostColumn: "document_date" | "document_number" | "amount" | "subproject";
         ImportDifference: {
             /** @enum {string} */
             change: "added" | "removed" | "updated";
@@ -4135,7 +4152,8 @@ export interface components {
             target: "task" | "estimate_line" | "link" | "actual_cost_line";
             lineage_id?: components["schemas"]["Uuid"] | null;
             label?: string | null;
-            fields?: string[];
+            /** @description Les champs qu'un écart `updated` change, vide pour un ajout ou un retrait, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`. */
+            fields?: (components["schemas"]["NodeColumn"] | components["schemas"]["ActualCostColumn"])[];
         };
         /** @description Compte rendu présenté avant application : lignes lues, lignes rejetées avec leur motif, et écarts avec les données existantes (WF-INTF-0080). */
         ImportReport: {
@@ -4189,6 +4207,8 @@ export interface components {
             from?: components["schemas"]["PlanningDate"] | null;
             to?: components["schemas"]["PlanningDate"] | null;
             org_node_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé du nœud d'organisation retenu, résolu à la lecture, qu'il soit actif ou désactivé (WF-REF-0150), que l'en-tête de la vue nomme ; nul sans nœud. */
+            org_node_label: string | null;
             project_count: number;
         };
         /** @description Ligne de la liste des projets (WF-PTF-0040). */
@@ -4223,10 +4243,13 @@ export interface components {
             scope: components["schemas"]["PortfolioScope"];
             /** @description Le seuil de sous-charge retenu, toujours rendu : celui que la requête a demandé, ou, sans demande, celui que le serveur a choisi, que l'écran montre (WF-PTF-0060). */
             under_load_threshold: components["schemas"]["Percent"];
+            /** @description Les mois de l'horizon, croissants et sans trou ; les colonnes. Chaque rôle porte un mois par mois de cette liste, dans le même ordre. */
+            months: string[];
             roles: {
                 resource_role_id: components["schemas"]["Uuid"];
                 label: string;
                 capacity_monthly_hours?: components["schemas"]["Hours"];
+                /** @description Un mois par mois de `months`, dans le même ordre, un mois sans charge compris. */
                 months: {
                     month: string;
                     hours: components["schemas"]["Hours"];
@@ -4294,8 +4317,12 @@ export interface components {
                 zone: components["schemas"]["AlertZone"];
                 /** @enum {string} */
                 code: "review_overdue" | "risks_not_reviewed" | "no_actual_cost_since_last_review" | "contractual_milestone_overdue";
+                /** @description Ce que le signal nomme, selon son code : `review_overdue`, `weeks_since_last_mark`, les semaines écoulées depuis la dernière révision marquée, que le délai maximal du référentiel ne tient plus (WF-REF-0180) ; `contractual_milestone_overdue`, le jalon dépassé — `lineage_id`, `milestone_label` — et sa date de référence, `reference_date`. Les deux autres ne nomment que leur projet, et n'en portent pas. */
                 params?: {
-                    [key: string]: unknown;
+                    weeks_since_last_mark?: number;
+                    lineage_id?: components["schemas"]["Uuid"];
+                    milestone_label?: string;
+                    reference_date?: components["schemas"]["PlanningDate"];
                 };
             }[];
         };
@@ -4416,6 +4443,8 @@ export interface components {
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
         /** @description Base du plan de charge : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la révision en cours (WF-DEV-0070). */
         WorkloadBasis: "reference_budget" | "marked_remaining" | "current_remaining";
+        /** @description La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ; une révision marquée, les valeurs calculées à son marquage et conservées (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+        IndicatorsRevision: components["schemas"]["Uuid"];
         /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
         AsOf: components["schemas"]["PlanningDate"];
         /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
@@ -4426,7 +4455,7 @@ export interface components {
         /** @description Début de la période, pour les projets terminés et les statistiques de période. */
         PortfolioFrom: components["schemas"]["PlanningDate"];
         PortfolioTo: components["schemas"]["PlanningDate"];
-        /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+        /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
         PortfolioOrgNode: components["schemas"]["Uuid"];
     };
     requestBodies: never;
@@ -4949,7 +4978,7 @@ export interface operations {
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Restreint aux comptes de ces origines (WF-IHM-0130). */
                 origins?: components["schemas"]["UserOrigin"][];
-                /** @description Restreint aux comptes rattachés à ce nœud d'organisation (WF-IHM-0130). */
+                /** @description Restreint aux comptes qui relèvent de ce nœud d'organisation : rattachés à lui ou à l'un de ses descendants (WF-IHM-0130, WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
             };
             header?: never;
@@ -5677,7 +5706,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœuds, sans limite de profondeur. */
+            /** @description Nœuds, sans limite de profondeur, dans l'ordre de l'arbre. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5714,6 +5743,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
         };
     };
@@ -5744,6 +5774,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
         };
     };
@@ -5789,6 +5820,7 @@ export interface operations {
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
+                /** @description Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses descendants (WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
             };
             header?: never;
@@ -8001,6 +8033,7 @@ export interface operations {
                 basis: components["parameters"]["WorkloadBasis"];
                 /** @description La révision marquée dont les montants réestimés font la base ; exigée avec `marked_remaining`, ignorée sinon. */
                 revision_id?: components["schemas"]["Uuid"];
+                /** @description Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses descendants (WF-DEV-0070, WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
             };
             header?: never;
@@ -8090,6 +8123,8 @@ export interface operations {
     getProjectIndicators: {
         parameters: {
             query?: {
+                /** @description La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ; une révision marquée, les valeurs calculées à son marquage et conservées (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
@@ -8116,6 +8151,15 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description Projet antérieur à l'état En cours : seuls les indicateurs de devis existent (WF-IND-0010). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul ; `fields` désigne `/query/revision_id`. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8152,6 +8196,8 @@ export interface operations {
     getCostCurve: {
         parameters: {
             query?: {
+                /** @description La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ; une révision marquée, les valeurs calculées à son marquage et conservées (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Vrai, les séries sont décalées des délais de paiement et portent les provisions des risques identifiés : ce sont les décaissements (WF-IND-0100). */
@@ -8176,11 +8222,22 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul ; `fields` désigne `/query/revision_id`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getEarnedValueCurves: {
         parameters: {
             query?: {
+                /** @description La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ; une révision marquée, les valeurs calculées à son marquage et conservées (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). */
@@ -8205,6 +8262,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul ; `fields` désigne `/query/revision_id`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getIndexHistory: {
@@ -8822,7 +8888,7 @@ export interface operations {
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
@@ -8868,7 +8934,7 @@ export interface operations {
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;
@@ -8897,7 +8963,7 @@ export interface operations {
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
                 horizon_months?: number;
                 /** @description Seuil de sous-charge, choisi par l'utilisateur (WF-PTF-0060). */
@@ -8932,7 +8998,7 @@ export interface operations {
                 to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;
@@ -8961,7 +9027,7 @@ export interface operations {
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
-                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud ; un projet n'appartient à aucun service (WF-PTF-0010). */
+                /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
             };
             header?: never;

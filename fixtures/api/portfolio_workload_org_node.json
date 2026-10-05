@@ -1,5 +1,5 @@
 {
-  "summary": "Le plan de charge agrégé des projets en cours du portefeuille au 16 mars 2026, sur six mois, au seuil de sous-charge de 50 % : l'ingénieur électricien, six personnes, surchargé en mars et en avril puis sous-chargé l'été ; le technicien de mise en service, quatre personnes, surchargé en juillet et sous-chargé en août. Chaque mois porte sa zone, que le serveur classe (WF-PTF-0060, WF-IHM-0070).",
+  "summary": "Le même plan de charge agrégé, restreint à la direction technique : les deux rôles relèvent du bureau d'études électricité, son descendant, et restent retenus, avec les mêmes charges ; l'en-tête de la vue nomme le nœud (WF-PTF-0010, WF-PTF-0060, WF-REF-0070).",
   "value": {
     "scope": {
       "states": [
@@ -8,8 +8,8 @@
       "as_of": "2026-03-16",
       "from": null,
       "to": null,
-      "org_node_id": null,
-      "org_node_label": null,
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000470",
+      "org_node_label": "Direction technique",
       "project_count": 269
     },
     "under_load_threshold": "0.5",

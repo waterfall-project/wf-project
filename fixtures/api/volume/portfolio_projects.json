@@ -1,8 +1,8 @@
 {
-  "summary": "Les 300 projets du portefeuille du §4.6.2, en cours et en chiffrage, le projet témoin et l'offre en tête ; indices classés par les seuils de 0,9 et 0,8.",
+  "summary": "Les 300 projets du portefeuille du §4.6.2, les projets en cours et, ajoutés par la requête au périmètre par défaut (WF-PTF-0010), ceux en chiffrage, le projet témoin et l'offre en tête ; indices classés par les seuils de 0,9 et 0,8.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "scope": {"states":["in_progress","pricing"],"as_of":"2026-03-16","from":null,"to":null,"org_node_id":null,"project_count":300},
+    "scope": {"states":["in_progress","pricing"],"as_of":"2026-03-16","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":300},
     "items": [
       {"project_id":"01926f3a-7c00-7000-8000-000000000001","label":"Modernisation du poste de commande","code":"PRJ-001","state":"in_progress","reference_budget":"100000.00","current_estimate":null,"win_probability":"1","project_manager_projection":"100000.00","delta_to_reference":"0.00","cost_index":{"value":{"is_computable":false,"value":null,"reason":"no_actual_cost"},"zone":null},"schedule_index":{"value":{"is_computable":true,"value":"0","reason":null},"zone":"alert"},"last_marked_at":"2026-02-01T09:00:00Z"},
       {"project_id":"01926f3a-7c00-7000-8000-000000000002","label":"Extension de la ligne d'essais","code":"PRJ-002","state":"pricing","reference_budget":null,"current_estimate":null,"win_probability":"0.4","project_manager_projection":null,"delta_to_reference":null,"cost_index":null,"schedule_index":null,"last_marked_at":null},

@@ -48,7 +48,7 @@ export interface Examples {
     200: "volume/portfolio_value";
   };
   "GET /portfolio/workload": {
-    200: "portfolio_workload";
+    200: "portfolio_workload" | "portfolio_workload_org_node";
   };
   "GET /projects": {
     200: "projects" | "projects_empty";
@@ -78,7 +78,7 @@ export interface Examples {
     200: "import_analysed" | "import_analysing" | "import_planning_mismatch";
   };
   "GET /projects/{project_id}/indicators": {
-    200: "project_indicators";
+    200: "project_indicators" | "project_indicators_marked";
   };
   "GET /projects/{project_id}/indicators/cost-curve": {
     200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays";

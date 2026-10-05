@@ -1,0 +1,62 @@
+{
+  "summary": "Les indicateurs du projet sur sa révision « Référence », tels que son marquage du 1er février 2026 les a calculés et conservés : rien n'était encore planifié ni dépensé — les études de détail commencent le 2 mars —, donc ni indice de coût ni indice de délai, faute de coût réel et de valeur planifiée ; le budget de référence et le reste à engager de 100 000 (WF-IND-0010, WF-DAT-0040).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+      "revision_status": "marked",
+      "computed_at": "2026-02-01T09:00:00Z",
+      "scope": "project",
+      "is_stored": true
+    },
+    "reference_budget": "100000.00",
+    "planned_value": "0.00",
+    "earned_value": "0.00",
+    "actual_cost": "0.00",
+    "remaining": "100000.00",
+    "financial_progress": {
+      "is_computable": true,
+      "value": "0",
+      "reason": null
+    },
+    "budget_consumption": {
+      "is_computable": true,
+      "value": "0",
+      "reason": null
+    },
+    "physical_progress": {
+      "is_computable": true,
+      "value": "0",
+      "reason": null
+    },
+    "cost_index": {
+      "value": {
+        "is_computable": false,
+        "value": null,
+        "reason": "no_actual_cost"
+      },
+      "zone": null
+    },
+    "schedule_index": {
+      "value": {
+        "is_computable": false,
+        "value": null,
+        "reason": "no_planned_value"
+      },
+      "zone": null
+    },
+    "cost_variance": "0.00",
+    "schedule_variance": "0.00",
+    "projections": {
+      "at_budget": "100000.00",
+      "project_manager": "100000.00",
+      "at_observed_rate": {
+        "is_computable": false,
+        "value": null,
+        "reason": "no_actual_cost"
+      },
+      "variance_at_budget": "0.00",
+      "variance_project_manager": "0.00",
+      "variance_at_observed_rate": null
+    }
+  }
+}

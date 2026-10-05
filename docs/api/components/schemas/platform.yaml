@@ -27,14 +27,19 @@ ComponentHealth:
   type: object
   required: [component, is_available, checked_at]
   properties:
-    component:
-      type: string
-      enum: [api, worker, database, cache, object_storage, directory, metrics]
+    component: { $ref: '#/PlatformComponent' }
     is_available: { type: boolean }
     checked_at: { $ref: ../common.yaml#/Timestamp }
     version:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Version du composant employé, annoncée par WF-CMP-0020.
+
+PlatformComponent:
+  type: string
+  description: >-
+    Composant de la plateforme dont l'écran d'état dit la disponibilité (WF-ADM-0130), et
+    qu'une alerte nomme quand il est indisponible (WF-OBS-0030).
+  enum: [api, worker, database, cache, object_storage, directory, metrics]
 
 StorageUsage:
   type: object
@@ -72,7 +77,17 @@ Alert:
     severity: { $ref: reference.yaml#/AlertZone }
     params:
       type: object
-      additionalProperties: true
+      description: >-
+        Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant
+        indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace
+        libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où
+        l'alerte s'est déclenchée. Les autres codes n'en portent pas : la sauvegarde
+        échouée et la synchronisation échouée disent leur motif dans `last_backup` et
+        `last_directory_sync`.
+      properties:
+        component: { $ref: '#/PlatformComponent' }
+        used_bytes: { type: integer, minimum: 0 }
+        available_bytes: { type: integer, minimum: 0 }
 
 Backup:
   type: object

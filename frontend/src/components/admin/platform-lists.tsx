@@ -78,7 +78,7 @@ export function ComponentList({
   readonly components: readonly ComponentHealth[];
 }) {
   const t = useTranslations("admin.status");
-  const names = useTranslations("enums.ComponentHealth.component");
+  const names = useTranslations("enums.PlatformComponent");
   return (
     <ReferenceSection title={t("components")} icon={Server}>
       <ListTable

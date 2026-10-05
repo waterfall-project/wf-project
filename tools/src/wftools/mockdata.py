@@ -273,20 +273,23 @@ def volumes() -> dict[str, JsonObject]:
             indicators,
         ),
         "portfolio_projects.json": _example(
-            f"Les {_count(PROJECT_COUNT)} projets du portefeuille du §4.6.2, en cours et en "
+            f"Les {_count(PROJECT_COUNT)} projets du portefeuille du §4.6.2, les projets en "
+            f"cours et, ajoutés par la requête au périmètre par défaut (WF-PTF-0010), ceux en "
             f"chiffrage, le projet témoin et l'offre en tête ; indices classés par les seuils "
             f"de {_amount(WATCH_THRESHOLD, 1)} et {_amount(ALERT_THRESHOLD, 1)}.",
             projects,
         ),
         "portfolio_projects_page.json": _example(
             f"La deuxième page de {_count(PAGE)} projets de la liste du portefeuille du §4.6.2, "
-            f"lue page par page : les projets {_count(PAGE + 1)} à {_count(2 * PAGE)} sur "
-            f"{_count(PROJECT_COUNT)} (WF-PTF-0040).",
+            f"en cours et en chiffrage, lue page par page : les projets {_count(PAGE + 1)} à "
+            f"{_count(2 * PAGE)} sur {_count(PROJECT_COUNT)} (WF-PTF-0040).",
             portfolio_page(projects),
         ),
         "portfolio_value.json": _example(
-            "La valeur du portefeuille du §4.6.2 au 16 mars 2026 : le carnet des projets en "
-            "cours, le pipeline des offres brut et pondéré par leur probabilité de gain, rien de "
+            "La valeur du portefeuille du §4.6.2 au 16 mars 2026, les projets en chiffrage "
+            "ajoutés par la requête au périmètre par défaut, les projets en cours "
+            "(WF-PTF-0010) : le carnet des projets en cours, le pipeline des offres brut et "
+            "pondéré par leur probabilité de gain, rien de "
             "réalisé, aucun projet du périmètre n'étant terminé, et le taux de transformation de "
             "dix offres sorties du chiffrage sur l'année, dont quatre gagnées (WF-PTF-0050).",
             portfolio_value(rows),

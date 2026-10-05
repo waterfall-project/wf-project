@@ -1210,16 +1210,14 @@
     "all_projects_read": "Consulter tous les projets"
   },
   "enums": {
-    "ComponentHealth": {
-      "component": {
-        "api": "Service d’API",
-        "worker": "Traitements de fond",
-        "database": "Base de données",
-        "cache": "Cache",
-        "object_storage": "Stockage des fichiers",
-        "directory": "Annuaire",
-        "metrics": "Métriques"
-      }
+    "PlatformComponent": {
+      "api": "Service d’API",
+      "worker": "Traitements de fond",
+      "database": "Base de données",
+      "cache": "Cache",
+      "object_storage": "Stockage des fichiers",
+      "directory": "Annuaire",
+      "metrics": "Métriques"
     },
     "AlertZone": {
       "nominal": "Nominal",
@@ -1646,6 +1644,12 @@
         "link": "Liaison",
         "actual_cost_line": "Ligne de coût réel"
       }
+    },
+    "ActualCostColumn": {
+      "document_date": "Date de pièce",
+      "document_number": "N° de pièce",
+      "amount": "Montant",
+      "subproject": "Sous-projet"
     },
     "ImportReport": {
       "requires_confirmation_reasons": {

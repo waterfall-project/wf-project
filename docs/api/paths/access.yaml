@@ -20,7 +20,9 @@
         explode: false
       - name: org_node_id
         in: query
-        description: Restreint aux comptes rattachés à ce nœud d'organisation (WF-IHM-0130).
+        description: >-
+          Restreint aux comptes qui relèvent de ce nœud d'organisation : rattachés à lui ou à
+          l'un de ses descendants (WF-IHM-0130, WF-REF-0070).
         schema: { $ref: ../components/common.yaml#/Uuid }
     responses:
       '200':

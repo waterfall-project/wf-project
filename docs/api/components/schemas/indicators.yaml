@@ -404,9 +404,10 @@ CashOutMonth:
   type: object
   required: [month, past, forecast]
   description: >-
-    Un mois de décaissements : ce qui a été décaissé, et ce qui le sera. Un mois porte
-    l'un ou l'autre selon qu'il précède ou suit la date de calcul (WF-IND-0100,
-    WF-PTF-0100).
+    Un mois de décaissements : ce qui a été décaissé, et ce qui le sera. Un mois qui
+    précède celui de la date de calcul ne porte que le passé, un mois qui le suit que
+    l'avenir, l'autre montant nul ; le mois de la date de calcul porte les deux — le
+    décaissé jusqu'à elle, le reste à décaisser après (WF-IND-0100, WF-PTF-0100).
   properties:
     month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
     past: { $ref: ../common.yaml#/Money }

@@ -5,7 +5,7 @@
 
 PortfolioScope:
   type: object
-  required: [states, as_of, project_count]
+  required: [states, as_of, org_node_label, project_count]
   description: Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010).
   properties:
     states:
@@ -18,6 +18,13 @@ PortfolioScope:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+    org_node_label:
+      anyOf:
+        - { type: string, minLength: 1, maxLength: 200 }
+        - type: 'null'
+      description: >-
+        Le libellé du nœud d'organisation retenu, résolu à la lecture, qu'il soit actif ou
+        désactivé (WF-REF-0150), que l'en-tête de la vue nomme ; nul sans nœud.
     project_count: { type: integer, minimum: 0 }
 
 PortfolioProjectRow:
@@ -71,7 +78,7 @@ PortfolioValue:
 
 PortfolioWorkload:
   type: object
-  required: [scope, under_load_threshold, roles]
+  required: [scope, under_load_threshold, months, roles]
   description: >-
     Charges sommées par rôle et par mois : sur le reste à engager pour les projets
     en cours, sur le devis pondéré pour les projets en chiffrage inclus
@@ -83,6 +90,12 @@ PortfolioWorkload:
       description: >-
         Le seuil de sous-charge retenu, toujours rendu : celui que la requête a demandé, ou,
         sans demande, celui que le serveur a choisi, que l'écran montre (WF-PTF-0060).
+    months:
+      type: array
+      description: >-
+        Les mois de l'horizon, croissants et sans trou ; les colonnes. Chaque rôle porte
+        un mois par mois de cette liste, dans le même ordre.
+      items: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
     roles:
       type: array
       items:
@@ -94,6 +107,8 @@ PortfolioWorkload:
           capacity_monthly_hours: { $ref: ../common.yaml#/Hours }
           months:
             type: array
+            description: >-
+              Un mois par mois de `months`, dans le même ordre, un mois sans charge compris.
             items:
               type: object
               required: [month, hours, load_ratio]
@@ -221,4 +236,15 @@ PilotHealth:
               - contractual_milestone_overdue
           params:
             type: object
-            additionalProperties: true
+            description: >-
+              Ce que le signal nomme, selon son code : `review_overdue`,
+              `weeks_since_last_mark`, les semaines écoulées depuis la dernière révision
+              marquée, que le délai maximal du référentiel ne tient plus (WF-REF-0180) ;
+              `contractual_milestone_overdue`, le jalon dépassé — `lineage_id`,
+              `milestone_label` — et sa date de référence, `reference_date`. Les deux autres
+              ne nomment que leur projet, et n'en portent pas.
+            properties:
+              weeks_since_last_mark: { type: integer, minimum: 1 }
+              lineage_id: { $ref: ../common.yaml#/Uuid }
+              milestone_label: { type: string, minLength: 1 }
+              reference_date: { $ref: ../common.yaml#/PlanningDate }
