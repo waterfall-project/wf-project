@@ -206,6 +206,12 @@ leurs lignes, sur le fond de la charte, puis libère l'instance. Un choix qui ch
 courbe lit — les délais de paiement, la base et le nœud d'organisation du plan de charge — est un
 paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre ni ne décale rien.
 
+L'écran des indicateurs d'un projet lit ses indicateurs et ses courbes dans la révision de sa route
+(`revision_id`) — ceux d'une révision marquée tels que son marquage les a conservés —, ou à la date
+que l'adresse demande (`as_of`), jamais les deux, que l'API refuse ensemble ; un avis en tête nomme
+ce qui est calculé sur une autre révision que celle du bandeau, et laquelle — l'évolution des
+indices, toujours au jour sur la révision en cours (`ComputedElsewhere`).
+
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
 — clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
@@ -333,7 +339,9 @@ taux d'une année, avec celle du taux lu pour une correction, et le taux répond
 saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`). À côté,
 les natures et les catégories de coût — l'écran ne remplit la fenêtre qu'à partir de la grande
 largeur (`Screen`, `fillWide`) : en fenêtre étroite, la grille et les listes s'empilent et la page
-défile ; les paramètres de ressources présentent l'organisation,
+défile ; les paramètres de ressources présentent l'organisation — en arbre, dans l'ordre de
+`listOrgNodes`, chaque nœud par son code, son libellé décalé de sa profondeur (`level`) et son
+niveau —,
 les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice, ceux
 des indicateurs les seuils des indices et le délai entre deux revues. Un objet rattaché se nomme
 par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
@@ -363,7 +371,9 @@ qu'une action serveur dépose (`uploadFile`) puis analyse (`openImport`) ; un fi
 serveur de Next est réglée un peu au-dessus (`next.config.ts`, #324). La tâche de l'analyse va au
 suivi de la coquille, et l'adresse nomme l'import (`import`, un identifiant ou rien), dont la page lit
 le compte rendu (`getImport`) — lignes lues, motifs de confirmation, lignes rejetées par leur place
-et leur motif, rendu comme un refus depuis son code et ses paramètres (`problemMessage`), écarts —,
+et leur motif, rendu comme un refus depuis son code et ses paramètres (`problemMessage`), écarts
+avec les champs qu'ils changent, nommés par le catalogue de leurs colonnes (`NodeColumn`,
+`ActualCostColumn`) —,
 dans l'ordre reçu. Les commandes d'un compte rendu sont les siennes : un autre import montré les
 remplace. L'application n'est offerte qu'à un import analysé, et ne part qu'une fois confirmée dans
 la page ; sa tâche va au suivi. L'abandon ramène à l'adresse de départ, si l'écran montre encore cet
@@ -378,12 +388,13 @@ de Next le lit (`getBackgroundTaskResult`) et le transmet en pièce jointe, sans
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
 hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
 retenus (`states`), la période (`from`, `to`), la date de calcul (`as_of`) et le nœud d'organisation
-(`org_node_id`), offert par `listOrgNodes`, chaque nœud nommé avec son parent comme le serveur les
-rend —, de ce périmètre ce que l'opération prend (`perimeterQuery`, `Takes`). Un état se montre
+(`org_node_id`), qui retient aussi ses descendants, offert dans l'ordre de l'arbre que rend
+`listOrgNodes`, chaque nœud décalé de sa profondeur (`treeLabel`, comme le filtre du plan de charge
+d'un projet) —, de ce périmètre ce que l'opération prend (`perimeterQuery`, `Takes`). Un état se montre
 pressé comme l'adresse le demande, ou, quand elle n'en nomme aucun, comme le serveur les a retenus
 (`scope.states`) : le front ne suppose aucun défaut. Sous le titre, le périmètre que le serveur a
 retenu et la date de calcul de la vue, `scope.as_of` (`PortfolioHeader`), que portent tous ses
-chiffres. La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
+chiffres, et le nœud retenu, nommé par le serveur (`scope.org_node_label`). La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
 cherchée et paginée par le serveur, sa ligne de totaux le nombre de projets retenus
 (`meta.total`), sous la valeur du portefeuille. Les six autres vues (FBS-2.2 à FBS-2.7) montrent ce
 que le serveur calcule : le plan de charge agrégé et les décaissements prennent en outre l'horizon
@@ -391,7 +402,10 @@ que le serveur calcule : le plan de charge agrégé et les décaissements prenne
 paramètres de la vue et non préférences (WF-PTF-0060) : le menu propose quelques valeurs, mais toute
 valeur de l'adresse que le contrat prend — un horizon de 1 à 240 mois, un seuil en `Percent` — est
 envoyée et se montre choisie ; sans seuil dans l'adresse, le menu montre celui que le serveur a
-retenu (`under_load_threshold` de la réponse), comme les états. Chaque projet nommé — libellé de la liste, risque le plus lourd, signal de santé —
+retenu (`under_load_threshold` de la réponse), comme les états ; les colonnes du plan de charge
+sont les mois de la réponse (`months`), que chaque rôle porte dans le même ordre. Un signal de santé
+dit ce qu'il nomme (`params` : les semaines sans revue, le jalon dépassé et sa date de référence),
+comme une alerte de l'état du système le composant indisponible. Chaque projet nommé — libellé de la liste, risque le plus lourd, signal de santé —
 ouvre le projet (WF-PTF-0030). Les zones d'indice, de charge et de santé sont celles du serveur,
 par `Signal` ; l'évolution trimestrielle des indices et les décaissements sont des figures de
 `Chart`, sans export (#312).

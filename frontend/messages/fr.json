@@ -347,9 +347,8 @@
       "to": "Au",
       "asOf": "Calculé au",
       "apply": "Appliquer",
-      "orgNode": "Nœud d’organisation",
+      "orgNode": "Nœud d’organisation et ses descendants",
       "everyNode": "Tous les nœuds",
-      "nodeChoice": "{label} ({parent})",
       "byDefault": "Par défaut",
       "horizon": "Horizon",
       "months": "{months} mois",
@@ -359,7 +358,8 @@
       "noPeriod": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · calculé au {asOf}",
       "period": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période du {from} au {to} · calculé au {asOf}",
       "since": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période à partir du {from} · calculé au {asOf}",
-      "until": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période jusqu’au {to} · calculé au {asOf}"
+      "until": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période jusqu’au {to} · calculé au {asOf}",
+      "node": "Main-d’œuvre de {node} et de ses descendants"
     },
     "projects": {
       "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
@@ -432,7 +432,11 @@
       "signals": "Signaux de santé du pilotage",
       "project": "Projet",
       "signal": "Signal",
-      "zone": "Zone"
+      "zone": "Zone",
+      "detail": {
+        "reviewOverdue": "{weeks, plural, one {# semaine} other {# semaines}} depuis la dernière révision marquée",
+        "milestoneOverdue": "{milestone}, date de référence du {date}"
+      }
     },
     "cashOut": {
       "chartTitle": "Décaissements par mois",
@@ -508,8 +512,9 @@
       "explanation": "Les indicateurs du projet se calculent à partir de l’état En cours ; avant, seuls les indicateurs du devis existent."
     },
     "elsewhere": {
-      "title": "Indicateurs d’une autre révision",
-      "explanation": "Ces indicateurs sont calculés sur la révision « {revision} », et non sur celle que nomme le bandeau.",
+      "title": "Calculé sur une autre révision",
+      "indicators": "Ces indicateurs sont calculés sur la révision « {revision} », et non sur celle que nomme le bandeau.",
+      "history": "L’évolution des indices est calculée sur la révision « {revision} », et non sur celle que nomme le bandeau.",
       "unknown": "sans nom"
     },
     "financial": {
@@ -608,9 +613,8 @@
     "basis": "Base",
     "markedRevision": "Révision marquée",
     "unnamedRevision": "Révision marquée sans nom",
-    "orgNode": "Nœud d’organisation",
+    "orgNode": "Nœud d’organisation et ses descendants",
     "allOrgNodes": "Tous les nœuds",
-    "orgNodeIn": "{node} ({parent})",
     "unknownOrgNode": "nœud inconnu",
     "show": "Afficher",
     "reading": "Base : {basis} — révision « {revision} »",
@@ -856,8 +860,7 @@
     },
     "orgNodes": {
       "title": "Arbre d’organisation",
-      "parent": "Rattaché à",
-      "root": "Racine de l’arbre",
+      "level": "Niveau",
       "none": "Aucun nœud d’organisation."
     },
     "resourceRoles": {
@@ -959,6 +962,7 @@
       "storage": "Espace de stockage",
       "used": "Utilisé",
       "free": "Disponible",
+      "storageDetail": "{used} employés, {available} libres",
       "operations": "Dernières opérations",
       "operation": "Opération",
       "at": "Date",
@@ -1748,6 +1752,7 @@
       "change": "Changement",
       "target": "Objet",
       "label": "Libellé",
+      "fields": "Champs",
       "unnamed": "Sans libellé",
       "apply": "Appliquer l’import",
       "abandon": "Abandonner l’import",

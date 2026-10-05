@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The nodes of organisation a view of the portfolio offers to restrict its labour lines to
- * (WF-PTF-0010), each named with its parent as the reference gives them (`parent_label`): read by
+ * (WF-PTF-0010), in the order of the tree and each with its depth, as the reference gives them: read by
  * the page of every view whose operation takes a node. A list the API does not find leaves the
  * view standing, without a node to choose.
  */
@@ -22,6 +22,6 @@ export async function readNodes(): Promise<NodeChoice[]> {
   return (nodes ?? []).map((node) => ({
     id: node.org_node_id,
     label: node.label,
-    parent: node.parent_label,
+    level: node.level,
   }));
 }

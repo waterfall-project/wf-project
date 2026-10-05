@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the resources (FBS-3.2, US-0250), in dense tables, in the order the server gave
- * them: the nodes of the organisation, each with the node it is attached to (WF-REF-0070); the
+ * them: the nodes of the organisation, as a tree — each by its code, set in by its depth under the
+ * node it is attached to, in the order of the tree the server gives (WF-REF-0070); the
  * resource roles, with their node, their category and their calendar, and their single capacity
  * (WF-REF-0090, WF-REF-0100); the calendars, seven values of hours, the default one marked
  * (WF-REF-0110, WF-REF-0120); the constants the units of duration convert by (WF-PLA-0160). An
@@ -35,21 +36,39 @@ const DAYS = [
   "sunday",
 ] as const satisfies readonly (keyof Calendar["weekly_hours"])[];
 
-/** The nodes of the organisation, each with the node it is attached to, the root with none. */
+/** The depth a level of the tree sets a label in by, in `rem`. */
+const LEVEL_INDENT = 1.25;
+
+/**
+ * The nodes of the organisation as a tree, in the order the server gives it: each by its code, its
+ * label set in by its depth under its parent, and its depth said.
+ */
 export function OrgNodeList({ nodes }: { readonly nodes: readonly OrgNode[] }) {
   const t = useTranslations("reference.orgNodes");
   const columns = useTranslations("reference.columns");
+  const locale = useLocale();
   return (
     <ReferenceSection
       title={t("title")}
       icon={Network}
       empty={nodes.length === 0 ? t("none") : undefined}
     >
-      <ListTable label={t("title")} columns={[columns("label"), t("parent"), columns("state")]}>
+      <ListTable
+        label={t("title")}
+        columns={[columns("code"), columns("label"), t("level"), columns("state")]}
+      >
         {nodes.map((node) => (
           <TableRow key={node.org_node_id}>
-            <TableCell className={CELL}>{node.label}</TableCell>
-            <TableCell className={CELL}>{node.parent_label ?? t("root")}</TableCell>
+            <TableCell className={CELL}>{node.code}</TableCell>
+            <TableCell
+              className={CELL}
+              style={{ paddingInlineStart: `${String((node.level - 1) * LEVEL_INDENT)}rem` }}
+            >
+              {node.label}
+            </TableCell>
+            <TableCell className={`${CELL} tabular-nums`}>
+              {formatDecimal(String(node.level), locale)}
+            </TableCell>
             <TableCell className={CELL}>
               <ActiveState active={node.is_active} />
             </TableCell>

@@ -154,7 +154,7 @@ describe("the screen of the imports and exports", () => {
       "2 lines rejected Line Reason 3 Unknown task. 5 Unknown resource role.",
     );
     expect(text(page)).toContain(
-      "3 differences with the existing data Change Object Label Added Estimate line Essais de continuité Updated Estimate line Raccordement des borniers Removed Estimate line Borniers",
+      "3 differences with the existing data Change Object Label Fields Added Estimate line Essais de continuité Updated Estimate line Raccordement des borniers Hours Removed Estimate line Borniers",
     );
     expect(buttons(page).slice(0, 2)).toEqual(["Apply the import", "Abandon the import"]);
     const current = [...page.matchAll(/<a aria-current="page"[^>]*href="([^"]*)"/g)];

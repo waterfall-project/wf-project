@@ -55,6 +55,7 @@ vi.mock("next/headers", () => ({
 }));
 
 const DESIGN_OFFICE = "01926f3a-7c00-7000-8000-000000000471";
+const TECHNICAL_DIRECTION = "01926f3a-7c00-7000-8000-000000000470";
 const WITNESS = "/projects/01926f3a-7c00-7000-8000-000000000001";
 
 /** A page of the portfolio, as Next renders it with the query of its address. */
@@ -117,12 +118,14 @@ describe("the screens of the portfolio", () => {
     expect((await title()).title).toBe(`${name} — Waterfall`);
   });
 
-  it("offers the nodes of organisation, each named with its parent as the reference gives it", async () => {
+  it("offers the nodes of organisation as the tree the reference orders, a node retaining its descendants", async () => {
     const markup = await render(ProjectsPage, { org_node_id: DESIGN_OFFICE });
     expect(markup).toContain(
-      `<option value="${DESIGN_OFFICE}" selected="">Bureau d&#x27;études électricité (Direction technique)</option>`,
+      `<option value="${DESIGN_OFFICE}" selected="">\u2003Bureau d&#x27;études électricité</option>`,
     );
     expect(markup).toContain(">Direction technique</option>");
+    expect(markup).toContain(">\u2003\u2003Atelier de câblage</option>");
+    expect(text(markup)).toContain("Organisation node and its descendants");
   });
 
   it("asks the list and the value on the perimeter, the sort, the search and the page of the address", async () => {
@@ -220,6 +223,18 @@ describe("the screens of the portfolio", () => {
     expect(text(markup)).toContain("Ingénieur électricien 910.02 h");
   });
 
+  it("heads its columns with the months of the horizon, and names the node the server retained", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /portfolio/workload": "portfolio_workload_org_node",
+    };
+    const page = text(await render(WorkloadPage, { org_node_id: TECHNICAL_DIRECTION }));
+    expect(page).toContain("Labour of Direction technique and of its descendants");
+    expect(page).toContain(
+      "Role Monthly capacity March 2026 April 2026 May 2026 June 2026 July 2026 August 2026 Ingénieur",
+    );
+  });
+
   it("shows the threshold of under-load the server retained when the address names none", async () => {
     const markup = await render(WorkloadPage);
     expect(queryOf("GET /portfolio/workload")).toEqual({});
@@ -263,8 +278,10 @@ describe("the screens of the portfolio", () => {
     const markup = await render(PilotHealthPage);
     expect(markup.match(new RegExp(`href="${WITNESS}"`, "g"))).toHaveLength(2);
     const page = text(markup);
-    expect(page).toContain("Periodic review overdue Watch");
-    expect(page).toContain("Contractual milestone overdue Alert");
+    expect(page).toContain("Periodic review overdue 11 weeks since the last marked revision Watch");
+    expect(page).toContain(
+      "Contractual milestone overdue Réception des études, reference date 24 Apr 2026 Alert",
+    );
   });
   // The whole perimeter asked, and what each view sends of it, as its operation takes it.
   const ASKED = {

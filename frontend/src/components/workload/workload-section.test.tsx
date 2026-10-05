@@ -115,14 +115,15 @@ describe("the workload section", () => {
     expect(page).toContain("No role of the node “unknown node” has a load on this basis.");
   });
 
-  it("lists the nodes in the order of the API, each with the label of its parent the API gives, the root alone", () => {
+  it("lists the nodes in the order of the tree the API gives, each set in by its depth, the root not at all", () => {
     const page = section({});
     const labels = [...page.matchAll(/<option value="01926f3a[^"]*47\d"[^>]*>(.*?)<\/option>/g)];
     expect(labels.map((match) => match[1])).toEqual([
       "Direction technique",
-      "Bureau d&#x27;études électricité (Direction technique)",
-      "Atelier de câblage (Bureau d&#x27;études électricité)",
-      "Service des achats (Direction technique)",
+      "\u2003Bureau d&#x27;études électricité",
+      "\u2003\u2003Atelier de câblage",
+      "\u2003Service des achats",
     ]);
+    expect(page).toContain("Organisation node and its descendants");
   });
 });

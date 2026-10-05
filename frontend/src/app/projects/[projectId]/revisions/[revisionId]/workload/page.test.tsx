@@ -143,9 +143,9 @@ describe("the screen of the workload of a project", () => {
     expect(options(page, "org_node_id")).toEqual([
       "All nodes",
       "Direction technique",
-      "Bureau d&#x27;études électricité (Direction technique)",
-      "Atelier de câblage (Bureau d&#x27;études électricité)",
-      "Service des achats (Direction technique)",
+      "\u2003Bureau d&#x27;études électricité",
+      "\u2003\u2003Atelier de câblage",
+      "\u2003Service des achats",
     ]);
     expect(page).toContain('type="hidden" name="as_of" value="2026-03-16"');
     expect(page).not.toContain('type="hidden" name="basis"');
@@ -185,7 +185,7 @@ describe("the screen of the workload of a project", () => {
     );
     // The banner and the choice stay, the chart is gone.
     expect(page).toContain("Modernisation du poste de commande");
-    expect(page).toContain("Organisation node All nodes");
+    expect(page).toContain("Organisation node and its descendants All nodes");
     expect(page).not.toContain("Load by role and by month");
   });
 

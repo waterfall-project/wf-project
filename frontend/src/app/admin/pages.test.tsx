@@ -233,13 +233,13 @@ describe("the state of the system", () => {
     expect(text(page)).toContain("Aucune alerte en cours.");
   });
 
-  it("signal the failure of a scheduled backup as an alert under way, with its motive [WF-ADM-0170-A]", async () => {
+  it("signal the failure of a scheduled backup as an alert under way, with its motive, and name the component unavailable [WF-ADM-0170-A]", async () => {
     server.answers = { ...server.answers, "GET /system/status": "system_status_backup_failed" };
     const page = rendered(await SystemStatusPage());
     expect(rows(page, "Alertes en cours")).toEqual([
       "Niveau Alerte Depuis",
       "Alerte Échec de la sauvegarde planifiée",
-      "Alerte Composant indisponible",
+      "Alerte Composant indisponible Stockage des fichiers",
     ]);
     expect(rows(page, "Dernières opérations")[2]).toBe(
       "Sauvegarde Échouée Un composant du service est indisponible. Composant indisponible : Stockage des fichiers.",

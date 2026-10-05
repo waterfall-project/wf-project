@@ -3,8 +3,9 @@
 /**
  * The perimeter of a view of the portfolio, as the user chooses it (WF-PTF-0010): the states it
  * retains — the projects in progress, to which the offers in pricing may be added, and the projects
- * completed —, the period and the date of calculation, the node of organisation whose roles the
- * labour lines are restricted to, named with its parent as the server gives them —, and the horizon
+ * completed —, the period and the date of calculation, the node of organisation whose roles — its
+ * own and those of its descendants — the labour lines are restricted to, offered as the tree the
+ * server orders —, and the horizon
  * and the threshold of under-load (WF-PTF-0060), for the views that take them. A choice only
  * changes the address, under the names of the contract, and the page reads anew what the server
  * computes on it. A state shows pressed as the address asks it, or, when the address asks none, as
@@ -23,6 +24,7 @@ import { usePendingAddress } from "@/components/grid/pending-address";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { treeLabel } from "@/components/reference/org-tree";
 import { NativeSelect } from "@/components/ui/native-select";
 import { formatPercent } from "@/i18n/format";
 
@@ -217,11 +219,11 @@ function withChosen(proposed: readonly string[], chosen: string | undefined): re
   return chosen === undefined || proposed.includes(chosen) ? proposed : [...proposed, chosen];
 }
 
-/** A node of organisation the labour may be restricted to, named with its parent by the server. */
+/** A node of organisation the labour may be restricted to, with its depth in the tree. */
 export interface NodeChoice {
   readonly id: string;
   readonly label: string;
-  readonly parent: string | null;
+  readonly level: number;
 }
 
 /**
@@ -275,13 +277,7 @@ export function PerimeterBar({
           label={t("orgNode")}
           none={t("everyNode")}
           value={perimeter.orgNode}
-          offered={nodes.map((node) => ({
-            value: node.id,
-            label:
-              node.parent === null
-                ? node.label
-                : t("nodeChoice", { label: node.label, parent: node.parent }),
-          }))}
+          offered={nodes.map((node) => ({ value: node.id, label: treeLabel(node) }))}
           write={(value) => {
             change(() => ({ [ORG_NODE]: value }));
           }}

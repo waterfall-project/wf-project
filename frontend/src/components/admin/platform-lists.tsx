@@ -5,7 +5,8 @@
  * in its order. The state (WF-ADM-0130): each component, whether it is available and when it was
  * last checked; the storage used and available; the last reading of the accounts of the identity
  * provider, the last backup and the last restoration test, each dated with its outcome and the
- * motive of a failure; the alerts under way, each with its zone, by `Signal`. The backups
+ * motive of a failure; the alerts under way, each with its zone, by `Signal`, and what it names —
+ * the component unavailable, the storage used and free (WF-OBS-0030). The backups
  * (WF-ADM-0150): each with its date, its size, its verification, whether it was taken by hand or
  * on schedule, and whether it is marked to be kept; and their schedule and retention
  * (WF-ADM-0170). Read only: neither a backup nor a restoration is started here — the commands
@@ -181,6 +182,34 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
   );
 }
 
+/**
+ * What an alert names besides its code, as the server gives it: the component unavailable, the
+ * storage used and free; nothing for an alert that names none.
+ */
+function AlertDetail({ alert }: { readonly alert: Alert }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const { component, used_bytes: used, available_bytes: available } = alert.params ?? {};
+  if (alert.code === "component_unavailable" && component !== undefined) {
+    return (
+      <span className="block text-muted-foreground">
+        {t(`enums.PlatformComponent.${component}`)}
+      </span>
+    );
+  }
+  if (alert.code === "storage_nearly_full" && used !== undefined && available !== undefined) {
+    return (
+      <span className="block text-muted-foreground">
+        {t("admin.status.storageDetail", {
+          used: formatBytes(used, locale),
+          available: formatBytes(available, locale),
+        })}
+      </span>
+    );
+  }
+  return null;
+}
+
 /** The alerts under way, each with its zone, what it is about and since when. */
 export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
   const t = useTranslations("admin.status");
@@ -197,7 +226,10 @@ export function AlertList({ alerts }: { readonly alerts: readonly Alert[] }) {
             <TableCell className={CELL}>
               <Signal zone={alert.severity} />
             </TableCell>
-            <TableCell className={CELL}>{codes(alert.code)}</TableCell>
+            <TableCell className={CELL}>
+              {codes(alert.code)}
+              <AlertDetail alert={alert} />
+            </TableCell>
             <TableCell className={CELL}>
               <LocalTime value={alert.since} />
             </TableCell>
