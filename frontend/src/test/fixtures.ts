@@ -63,8 +63,9 @@ type Cited<R extends Route, S> = R extends keyof Examples
  * The answers to one declared status, by what its body is. A JSON body answers the name of a
  * fixture of `fixtures/api/` the contract cites for it (`E`) — alone for 200; a Problem body, a
  * `Problem` carrying that status; any other body — an image, an archive, text — a `Blob` or a
- * string, served with one of the media types the status declares; a status without a body
- * answers the status alone.
+ * string, served with one of the media types the status declares and the headers it declares,
+ * whose values the test takes from their examples; a status without a body answers the status
+ * alone.
  */
 type StatusAnswer<X, S extends keyof X & number, E> = X[S] extends { content: infer C }
   ? "application/json" extends keyof C
@@ -72,16 +73,29 @@ type StatusAnswer<X, S extends keyof X & number, E> = X[S] extends { content: in
       | (Keys<"example" | "status"> & { readonly example: E; readonly status: S })
     : "application/problem+json" extends keyof C
       ? Keys<"problem"> & { readonly problem: Problem & { readonly status: S } }
-      : Keys<"body" | "type" | "status"> & {
+      : Keys<"body" | "type" | "status" | "headers"> & {
           readonly body: Blob | string;
           readonly type: keyof C & string;
           readonly status: S;
-        }
+        } & DeclaredHeaders<X[S]>
   : Keys<"status"> & { readonly status: S };
+
+/**
+ * The headers a response declares, each a string — none when it declares none: the index
+ * signature the generated types add is not one of them.
+ */
+type DeclaredHeaders<R> = R extends { headers: infer H }
+  ? keyof Named<H> extends never
+    ? { readonly headers?: never }
+    : { readonly headers: { readonly [K in keyof Named<H>]: string } }
+  : { readonly headers?: never };
+
+/** The named keys of a record, without its index signature. */
+type Named<H> = { [K in keyof H as string extends K ? never : K]: H[K] };
 
 /** The keys of an answer: it must have none of the others, or a type would take any extra key. */
 type Keys<K extends AnswerKey> = Partial<Readonly<Record<Exclude<AnswerKey, K>, never>>>;
-type AnswerKey = "example" | "problem" | "body" | "type" | "status";
+type AnswerKey = "example" | "problem" | "body" | "type" | "status" | "headers";
 
 /** What the fake client may answer to one call of an operation. */
 export type FakeAnswer<R extends Route> = {
@@ -101,7 +115,12 @@ type AnyAnswer =
   | string
   | { readonly example: string; readonly status: number }
   | { readonly problem: Problem }
-  | { readonly body: Blob | string; readonly type: string; readonly status: number }
+  | {
+      readonly body: Blob | string;
+      readonly type: string;
+      readonly status: number;
+      readonly headers?: Readonly<Record<string, string>>;
+    }
   | { readonly status: number };
 
 /** A call the fake client received. */
@@ -145,7 +164,7 @@ function respond(answer: AnyAnswer): Response {
     return Response.json(answer.problem, { status: answer.problem.status, headers });
   }
   if ("body" in answer) {
-    const headers = { "content-type": answer.type };
+    const headers = { ...answer.headers, "content-type": answer.type };
     return new Response(answer.body, { status: answer.status, headers });
   }
   return new Response(null, { status: answer.status });

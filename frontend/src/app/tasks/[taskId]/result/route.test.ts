@@ -3,7 +3,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
-import { type FakeAnswers, type FakeClient, fakeClient, unreachable } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  unreachable,
+} from "@/test/fixtures";
 
 import { GET } from "./route";
 
@@ -13,6 +19,7 @@ vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 
 const TASK = "01926f3a-7c00-7000-8000-000000000905";
 const RESULT = "GET /tasks/{task_id}/result";
+const SHEET = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {
@@ -45,27 +52,32 @@ beforeEach(() => {
 
 describe("the result of a task, downloaded", () => {
   it("is the file the API gives, handed on as it comes, the attachment it names, never sniffed", async () => {
-    const disposition = 'attachment; filename="planning-poste-de-commande.xml"';
-    let asked: string | undefined;
-    server.client = createApiClient({
-      address: "http://fake.invalid",
-      fetch: (request) => {
-        asked = new URL(request.url).pathname;
-        const headers = { "content-type": "application/xml", "content-disposition": disposition };
-        return Promise.resolve(new Response("<Project/>", { status: 200, headers }));
+    const disposition = example("task_result_disposition") as string;
+    const client = serve({
+      [RESULT]: {
+        body: new Blob(["devis"]),
+        type: SHEET,
+        status: 200,
+        headers: { "Content-Disposition": disposition },
       },
     });
     const response = await download();
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("application/xml");
+    expect(response.headers.get("content-type")).toBe(SHEET);
     expect(response.headers.get("content-disposition")).toBe(disposition);
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(await response.text()).toBe("<Project/>");
-    expect(asked).toBe(`/api/v1/tasks/${TASK}/result`);
+    expect(await response.text()).toBe("devis");
+    expect(client.calls.map((call) => call.path)).toEqual([`/tasks/${TASK}/result`]);
   });
 
-  it("answers a bad gateway when the API names no file, which the contract promises", async () => {
-    serve({ [RESULT]: { body: new Blob(["<Project/>"]), type: "application/xml", status: 200 } });
+  it.each([
+    ["names no file", { "content-type": SHEET }],
+    ["says no media type", { "content-disposition": 'attachment; filename="devis.xlsx"' }],
+  ])("answers a bad gateway when the API %s, which the contract promises", async (_, headers) => {
+    server.client = createApiClient({
+      address: "http://fake.invalid",
+      fetch: () => Promise.resolve(new Response(new Blob(["devis"]), { status: 200, headers })),
+    });
     const response = await download();
     expect([response.status, await response.text()]).toEqual([502, ""]);
   });

@@ -38,6 +38,7 @@ import {
   COST_SORT_COLUMNS,
   costRow,
   type CostSortColumn,
+  isKeptSort,
 } from "@/components/costs/cost-grid";
 import { ListPages } from "@/components/costs/cost-pages";
 import { CostSummary } from "@/components/costs/cost-totals";
@@ -210,7 +211,11 @@ export default async function ActualCostsPage({
   const settings = requestSession().then(
     (session) => session?.user.display_preferences?.grids?.[COST_GRID.key] ?? undefined,
   );
-  const asked = settings.then((kept) => readGridQuery(at.address, COST_SORT_COLUMNS, kept?.sort));
+  // A column kept from the file sorts by its name, which no list of the screen knows beforehand.
+  const asked = settings.then((kept) => {
+    const named = [at.address.get("sort_by"), kept?.sort?.column].filter(isKeptSort);
+    return readGridQuery(at.address, [...COST_SORT_COLUMNS, ...named], kept?.sort);
+  });
   const [reading, costs, imports, subprojects, preferences, query] = await Promise.all([
     readProjectContext(at.pathname, at.context),
     readCosts(at, filters, asked),

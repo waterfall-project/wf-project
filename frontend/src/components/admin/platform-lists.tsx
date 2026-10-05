@@ -9,8 +9,9 @@
  * (WF-ADM-0150): each with its date, its size, its verification, whether it was taken by hand or
  * on schedule, and whether it is marked to be kept; and their schedule and retention
  * (WF-ADM-0170), its time said in universal time as the contract gives it, unconverted: a time
- * of day has no date to take the offset of a zone with summer time from. Read only: neither a backup nor a restoration is started here — the commands
- * belong to the epic of the operation of the platform.
+ * of day has no date to take the offset of a zone with summer time from. Read only: neither a
+ * backup nor a restoration is started here — the commands belong to the epic of the operation of
+ * the platform.
  */
 import {
   Archive,

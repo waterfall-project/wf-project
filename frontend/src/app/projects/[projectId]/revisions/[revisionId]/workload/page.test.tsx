@@ -7,7 +7,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UnexpectedAnswer } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import WorkloadPage, { generateMetadata } from "./page";
 
@@ -177,7 +183,8 @@ describe("the screen of the workload of a project", () => {
   it("says the workload unavailable on a project without a reference revision, and why, the choice left [WF-DEV-0070-A]", async () => {
     server.answers = {
       ...server.answers,
-      [WORKLOAD_ROUTE]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } },
+      // The refusal the contract gives as its example: a project in pricing.
+      [WORKLOAD_ROUTE]: { problem: example("workload_no_reference") as Problem & { status: 409 } },
     };
     const page = text(html(await WorkloadPage(at({ basis: "reference_budget" }))));
     expect(page).toContain(

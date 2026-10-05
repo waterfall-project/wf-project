@@ -5,10 +5,12 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { components } from "@/api/generated/schema";
 import type { RateGridProps } from "@/components/reference/rate-grid";
+import { RiskZonesTable } from "@/components/reference/setting-tables";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import CostSettingsPage, { generateMetadata as costsMetadata } from "./costs/page";
 import IndicatorSettingsPage from "./indicators/page";
@@ -207,7 +209,7 @@ describe("the settings of the risks and of the indicators", () => {
     ]);
   });
 
-  it("present the zone of each cell of the risk matrix, placed by probability then severity, the highest probability at the top", async () => {
+  it("present the zone of each cell of the risk matrix, the highest probability at the top", async () => {
     const page = rendered(await RiskSettingsPage());
     expect(rows(page, "Zones de la matrice de risques")).toEqual([
       "Probabilité, puis gravité Gravité, niveau 1 Gravité, niveau 2 Gravité, niveau 3 Gravité, niveau 4",
@@ -216,6 +218,17 @@ describe("the settings of the risks and of the indicators", () => {
       "Probabilité, niveau 2 Nominal Nominal Vigilance Vigilance",
       "Probabilité, niveau 1 Nominal Nominal Nominal Vigilance",
     ]);
+  });
+
+  it("place each zone by probability then severity, never the transposed cell", () => {
+    // The matrix of the example is symmetric: one zone changed, at the rank of the lowest
+    // probability and the highest severity, tells the order from its transposition.
+    const settings = example("reference_settings") as components["schemas"]["ReferenceSettings"];
+    const matrix = { ...settings.risk_matrix, zones: settings.risk_matrix.zones.with(3, "alert") };
+    const page = rendered(<RiskZonesTable matrix={matrix} />);
+    const [, highest, , , lowest] = rows(page, "Zones de la matrice de risques");
+    expect(lowest).toBe("Probabilité, niveau 1 Nominal Nominal Nominal Alerte");
+    expect(highest).toBe("Probabilité, niveau 4 Vigilance Vigilance Alerte Alerte");
   });
 
   it("present the thresholds of the two indices and the delay between two reviews", async () => {

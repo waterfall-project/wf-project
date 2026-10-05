@@ -4,8 +4,8 @@
  * The cells of the grid of the actual costs that show more than a value formatted: the sub-project
  * a line is charged to, by its code and its label as the server resolves them, or that it is
  * charged to the project alone (WF-CRE-0020); whether it is in the tracked scope, in words and by
- * an icon, never by a colour alone (WF-CRE-0030); and the columns of the file kept for
- * information, each by its name in the file and its value, as imported — never translated
+ * an icon, never by a colour alone (WF-CRE-0030). The columns of the file kept for information
+ * are columns of their own (`costGrid`), their values as imported — never translated
  * (WF-CRE-0010).
  */
 "use client";
@@ -37,20 +37,6 @@ export function ScopeCell({ tracked }: { readonly tracked: boolean }) {
     <span className="inline-flex items-center gap-1 truncate">
       <Icon aria-hidden="true" className="size-3.5 shrink-0" />
       {t(tracked ? "tracked" : "excluded")}
-    </span>
-  );
-}
-
-/** Render the columns of the file kept with a line, each by its name and its value, as imported. */
-export function PassthroughCell({ line }: { readonly line: CostRow }) {
-  return (
-    <span className="flex min-w-0 gap-3 truncate">
-      {Object.entries(line.passthrough ?? {}).map(([name, value]) => (
-        <span key={name} className="inline-flex shrink-0 gap-1">
-          <span className="text-muted-foreground">{name}</span>
-          <span>{value}</span>
-        </span>
-      ))}
     </span>
   );
 }

@@ -1648,6 +1648,10 @@
       "remaining": "Estimate to complete",
       "actual_costs": "Actual costs"
     },
+    "FileUploadPurpose": {
+      "import": "Import",
+      "external_backup": "External backup to restore"
+    },
     "ImportDifference": {
       "change": {
         "added": "Added",

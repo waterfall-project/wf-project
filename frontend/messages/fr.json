@@ -1648,6 +1648,10 @@
       "remaining": "Reste à engager",
       "actual_costs": "Coûts réels"
     },
+    "FileUploadPurpose": {
+      "import": "Import",
+      "external_backup": "Sauvegarde externe à restaurer"
+    },
     "ImportDifference": {
       "change": {
         "added": "Ajouté",

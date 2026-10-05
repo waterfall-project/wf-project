@@ -3,8 +3,8 @@
 /**
  * The settings every project inherits from the installation (US-0250), as the server gives them:
  * the bounds of the risk matrix — three of probability, three of severity in percentage of the
- * reference budget, which delimit four levels on each axis (FBS-3.3, WF-REF-0160) —, and the zone of
- * each of its sixteen cells, placed by its rank in the order of the contract; the watch and
+ * reference budget, which delimit four levels on each axis (FBS-3.3, WF-REF-0160) —, and the
+ * zone of each of its sixteen cells, placed by its rank in the order of the contract; the watch and
  * alert thresholds of the cost and schedule indices (FBS-3.4, WF-REF-0170); the longest delay
  * expected between two marked revisions, in weeks (WF-REF-0180). Read only: their form belongs to
  * the epic of the reference data.

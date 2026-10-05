@@ -316,9 +316,9 @@ filtres par périmètre, par sous-projet — celui du contexte de lecture, `subp
 période des pièces, qui n'écrivent que l'adresse, sous les noms du contrat, et ramènent à la
 première page ; la grille dense en lecture (`cost-grid.tsx`), sans recherche — l'opération n'en
 a pas : une configuration la retire par `searched: false` —, chaque ligne avec son sous-projet
-nommé par le serveur, son périmètre en mots et les colonnes conservées du fichier telles
-qu'importées, chaque colonne triée par le serveur sauf ces dernières, que le contrat ne trie pas ;
-et le journal des imports, paginé à part (`imports_offset`). Des filtres que le serveur refuse
+nommé par le serveur, son périmètre en mots et chaque colonne conservée du fichier comme une
+colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
+(`passthrough.<colonne>`), chaque colonne triée par le serveur ; et le journal des imports, paginé à part (`imports_offset`). Des filtres que le serveur refuse
 (422 : une période qui finit avant de commencer, un sous-projet que le projet n'a pas) se disent à
 la place des lignes, les filtres gardés pour être changés. Un tri ou une
 recherche changés ramènent toute liste paginée à sa première page (`sortHref`, `searchHref`).
@@ -363,9 +363,10 @@ celui de l'écran des coûts réels ; un
 import s'applique pourtant à la révision en cours, créée au besoin (WF-INTF-0090), quelle que soit
 la révision lue. Un import se fait en deux temps (WF-ARC-0100) : la commande de sa nature ouvre dans
 la page le choix du fichier — et, pour une extraction de coûts réels, la période qu'elle couvre —,
-qu'une action serveur dépose (`uploadFile`) puis analyse (`openImport`) ; un fichier de plus de
-10 Mio, la plus grande taille d'import du §4.6.2, est refusé dans la page, et la borne des actions
-serveur de Next est réglée un peu au-dessus (`next.config.ts`, #324). La tâche de l'analyse va au
+qu'une action serveur dépose pour un import (`uploadFile`, `purpose: import`) puis analyse
+(`openImport`) ; un fichier de plus de 10 Mio, la borne que le contrat donne au dépôt d'un import,
+est refusé dans la page, et la borne des actions serveur de Next est réglée un peu au-dessus
+(`next.config.ts`). La tâche de l'analyse va au
 suivi de la coquille, et l'adresse nomme l'import (`import`, un identifiant ou rien), dont la page lit
 le compte rendu (`getImport`) — lignes lues, motifs de confirmation, lignes rejetées par leur place
 et leur motif, rendu comme un refus depuis son code et ses paramètres (`problemMessage`), écarts —,
@@ -379,8 +380,8 @@ rendu de chacun ; la demande d'export part pour la révision lue — l'image de 
 niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en a un : le serveur
 de Next le lit (`getBackgroundTaskResult`) et le transmet, à la route `/tasks/[taskId]/result`,
 avec le type de sa nature et la pièce jointe nommée que le contrat promet (`Content-Disposition`),
-sans sa longueur, que `fetch` a décodée ; une réponse qui ne nomme pas le fichier est une mauvaise
-passerelle (502).
+sans sa longueur, que `fetch` a décodée ; une réponse qui ne nomme pas le fichier, ou pas son type,
+est une mauvaise passerelle (502).
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
 hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états

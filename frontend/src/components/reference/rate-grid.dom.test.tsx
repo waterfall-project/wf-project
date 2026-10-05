@@ -224,7 +224,7 @@ describe("the grid of the hourly rates", () => {
     expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
   });
 
-  it("says a correction sent with a version another one has made stale, the cell kept as it was [WF-IHM-0110-A]", async () => {
+  it("says a correction sent with a version another one has made stale, the cell kept as it was", async () => {
     const stale = example("hourly_rate_stale") as Problem & { status: 412 };
     const client = serve({ [RATE]: { problem: stale } });
     render(rates());
