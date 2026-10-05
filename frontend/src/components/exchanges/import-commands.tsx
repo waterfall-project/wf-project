@@ -13,15 +13,7 @@
  */
 "use client";
 
-import {
-  Calculator,
-  CalendarRange,
-  FileSearch,
-  FileUp,
-  Hourglass,
-  type LucideIcon,
-  X,
-} from "lucide-react";
+import { FileSearch, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
@@ -29,13 +21,14 @@ import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } f
 import { type ExchangeKind, openFileImport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
-import { commandIcon } from "@/components/commands/icons";
+import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
 import {
   EXCHANGE_KINDS,
+  IMPORT_COMMAND,
   IMPORT_MAX_BYTES,
   importHref,
   type ImportOffers,
@@ -45,14 +38,6 @@ import {
 
 /** The field of a date. */
 const DATE = "h-8 rounded-md border border-input bg-background px-2 text-foreground";
-
-/** The icon of the import of each kind: that of the command which modifies the same content. */
-const KIND_ICONS: Readonly<Record<ExchangeKind, LucideIcon>> = {
-  ms_project_schedule: CalendarRange,
-  estimate: Calculator,
-  remaining: Hourglass,
-  actual_costs: FileUp,
-};
 
 /** The imports the server offers, the project, and the address of the screen in its context. */
 export interface ImportCommandsProps {
@@ -245,7 +230,7 @@ export function ImportCommands({ projectId, offers, start }: ImportCommandsProps
             key={kind}
             offer={offers[kind]}
             label={t(kind)}
-            icon={commandIcon(KIND_ICONS[kind])}
+            icon={commandIcon(PROJECT_COMMAND_ICONS[IMPORT_COMMAND[kind]])}
             disclosure={{
               expanded: open === kind,
               controls: form,

@@ -101,6 +101,9 @@ export type ComputedValueField = components["schemas"]["ComputedValueField"];
  */
 export type ComputedDependencies = components["schemas"]["ComputedValueDependencies"];
 
+/** A rule that computes a value, as the contract names it: `subordinates`, `own_estimate`. */
+export type ComputedDependency = components["schemas"]["ComputedDependency"];
+
 /**
  * How a grid asks the server what the value of a field of a row depends on, once an entry is
  * tried on it: the refusal names it. One reader for each reading of the page: what a value depends
@@ -131,11 +134,17 @@ export interface ComputedCells<Row> {
   /** Whether the server computes the cell of a row. */
   readonly in: (row: Row) => boolean;
   /**
-   * The field of the contract the cell of a row shows, which the refusal asks the server about;
-   * none for a value the contract names no field of a node for — the severity and the provision
-   * of a risk —, and the refusal says only that the value is computed.
+   * The field of a node of the contract the cell of a row shows, which the refusal asks the server
+   * about (`getComputedValueDependencies`); none for a value the row says itself what it depends
+   * on (`dependsOn`).
    */
   readonly field: (row: Row) => ComputedValueField | undefined;
+  /**
+   * What the value of the cell of a row depends on, as the row itself says it — a risk names the
+   * rules of its severity and its provision (`Risk.computed_fields`) —: the refusal names them
+   * without asking the server. None where the refusal asks it.
+   */
+  readonly dependsOn?: (row: Row) => readonly ComputedDependency[] | undefined;
 }
 
 /**

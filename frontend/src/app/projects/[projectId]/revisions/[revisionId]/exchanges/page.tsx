@@ -6,10 +6,11 @@
  * (WF-IHM-0020): the import in two steps (WF-ARC-0100) — a file deposited and analysed, the report
  * of the analysis the address names (`import`), applied once confirmed or abandoned —, the imports
  * of the project, a page of them (`offset`), and the request of an export of the revision read. An
- * import applies to the current revision whatever revision the screen reads in (WF-INTF-0090):
- * every import is offered as the server offers its command (`importOffers`), every report rendered
- * from what `getImport` gives; a read the API refuses, or cannot answer, is thrown for the pages
- * of the shell to say.
+ * import applies to the current revision whatever revision the screen reads in, and creates it if
+ * the project has none (WF-INTF-0090): every import is offered as the project offers its command
+ * (`importOffers`), every export as the revision read offers its own (`exportOffers`), every report
+ * rendered from what `getImport` gives; a read the API refuses, or cannot answer, is thrown for the
+ * pages of the shell to say.
  */
 import { FileDown, FileUp } from "lucide-react";
 import type { Metadata } from "next";
@@ -20,8 +21,7 @@ import type { ReactNode } from "react";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
-import { type ProjectReading, readProjectContext } from "@/components/context/reading";
-import type { Revision } from "@/components/context/read-only";
+import { readProjectContext } from "@/components/context/reading";
 import { readPage } from "@/components/costs/address";
 import { ListPages } from "@/components/costs/cost-pages";
 import { ExportForm } from "@/components/exchanges/export-form";
@@ -31,6 +31,8 @@ import { ImportReport } from "@/components/exchanges/import-report";
 import {
   EXCHANGE_KINDS,
   EXCHANGES_PAGE,
+  exportOffers,
+  type ExportOffers,
   IMPORT_PARAMETER,
   importOffers,
   type ImportOffers,
@@ -59,26 +61,6 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { projectId } = await params;
   return screenMetadata("functions.exchanges", projectId);
-}
-
-/**
- * The current revision of the project, which an import of a planning, an estimate or a remaining
- * writes into — the revision the screen reads in when it is the one —; none when the project has
- * none.
- */
-async function readCurrentRevision(read: ProjectReading): Promise<Revision | undefined> {
-  const { project_id, current_revision_id } = read.project;
-  if (current_revision_id == null) {
-    return undefined;
-  }
-  if (read.revision?.revision_id === current_revision_id) {
-    return read.revision;
-  }
-  return readOrFail("getRevision", () =>
-    serverClient().GET("/projects/{project_id}/revisions/{revision_id}", {
-      params: { path: { project_id, revision_id: current_revision_id } },
-    }),
-  );
 }
 
 /** A page of the imports of the project, from the place the address asks. */
@@ -160,12 +142,18 @@ function ImportPart({
   );
 }
 
-/** The request of an export of the revision read. */
-function ExportPart({ revision }: { readonly revision: RevisionParams }) {
+/** The request of an export of the revision read, or that none is offered. */
+function ExportPart({
+  revision,
+  offers,
+}: {
+  readonly revision: RevisionParams;
+  readonly offers: ExportOffers;
+}) {
   const t = useTranslations("exchanges.export");
   return (
     <Part title={t("title")} icon={<FileDown aria-hidden="true" className={ICON} />}>
-      <ExportForm projectId={revision.projectId} revisionId={revision.revisionId} />
+      <ExportForm projectId={revision.projectId} revisionId={revision.revisionId} offers={offers} />
     </Part>
   );
 }
@@ -201,7 +189,7 @@ export default async function ExchangesPage({
   if (reading === "not_found") {
     notFound();
   }
-  const offers = importOffers(reading.project, await readCurrentRevision(reading));
+  const offers = importOffers(reading.project);
   const start = startOf(at, offset);
   const { projectId } = revision;
   return (
@@ -230,7 +218,7 @@ export default async function ExchangesPage({
             <ListPages list="exchanges" page={imports.meta} shown={imports.items.length} />
           </ImportList>
         </PendingAddress>
-        <ExportPart revision={revision} />
+        <ExportPart revision={revision} offers={exportOffers(reading.revision)} />
       </Screen>
     </>
   );

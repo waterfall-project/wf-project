@@ -56,21 +56,56 @@ export interface Disclosure {
   readonly ref?: Ref<HTMLButtonElement> | undefined;
 }
 
-const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
+/** The look of a command unavailable: greyed out, its cursor saying it does nothing. */
+export const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
-/** Render a command as the screen offers it, and tell of the outcome of running it. */
-export function Command({ offer, label, icon, action, names, disclosure }: CommandProps) {
+/**
+ * The identifier of the text that names what an offer lacks, from that of its command; none when
+ * the command is available, or lacks nothing the server names.
+ */
+export function unmetId(offer: CommandOffer, id: string): string | undefined {
+  return offer.is_available || offer.missing_conditions.length === 0 ? undefined : `${id}-unmet`;
+}
+
+/**
+ * The text that names each condition an unavailable command lacks, shown beside it and the
+ * description of its button (`unmetId`); nothing when it lacks none.
+ */
+export function UnmetConditions({
+  id,
+  offer,
+}: {
+  readonly id: string | undefined;
+  readonly offer: CommandOffer;
+}) {
   const t = useTranslations("commands");
   const conditionLabel = useTranslations("enums.CommandCondition");
   const locale = useLocale();
+  if (id === undefined) {
+    return null;
+  }
+  const missing = offer.missing_conditions.map((condition) => conditionLabel(condition));
+  return (
+    <p id={id} className="max-w-64 text-xs text-muted-foreground">
+      {t("unmet", {
+        count: missing.length,
+        conditions: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
+          missing,
+        ),
+      })}
+    </p>
+  );
+}
+
+/** Render a command as the screen offers it, and tell of the outcome of running it. */
+export function Command({ offer, label, icon, action, names, disclosure }: CommandProps) {
   const id = useId();
   const [pending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   if (offer === undefined) {
     return null;
   }
-  const missing = offer.missing_conditions.map((condition) => conditionLabel(condition));
-  const unmet = offer.is_available || missing.length === 0 ? undefined : `${id}-unmet`;
+  const unmet = unmetId(offer, id);
   const run = () => {
     if (!offer.is_available || pending) {
       return;
@@ -104,16 +139,7 @@ export function Command({ offer, label, icon, action, names, disclosure }: Comma
         {icon}
         {label}
       </Button>
-      {unmet === undefined ? null : (
-        <p id={unmet} className="max-w-64 text-xs text-muted-foreground">
-          {t("unmet", {
-            count: missing.length,
-            conditions: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
-              missing,
-            ),
-          })}
-        </p>
-      )}
+      <UnmetConditions id={unmet} offer={offer} />
       <OutcomeNotice
         outcome={outcome}
         names={names}

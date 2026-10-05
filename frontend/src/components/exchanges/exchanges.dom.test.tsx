@@ -20,7 +20,7 @@ import { ExportForm } from "./export-form";
 import { ImportCommands } from "./import-commands";
 import { ImportList } from "./import-list";
 import { ImportReport } from "./import-report";
-import { importOffers } from "./offers";
+import { exportOffers, importOffers } from "./offers";
 
 // The server of Next, as far as the exchanges need it: the fake back behind serverClient.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -78,15 +78,21 @@ function open(part: ReactNode, locale: "fr" | "en" = "fr") {
   return render(shell(part, locale));
 }
 
-/** The commands of import the witness project and its current revision offer. */
+/** The commands of import a project of the contract offers. */
 function importCommands(project = "project") {
-  const offers = importOffers(example(project) as Project, example("revision") as Revision);
+  const offers = importOffers(example(project) as Project);
   return <ImportCommands projectId={PROJECT} offers={offers} start={START} />;
+}
+
+/** The request of an export of a revision of the contract, as it offers its exports. */
+function exportForm(revision = "revision") {
+  const offers = exportOffers(example(revision) as Revision);
+  return <ExportForm projectId={PROJECT} revisionId={REVISION} offers={offers} />;
 }
 
 /** The report of an import of the contract, as the screen shows it. */
 function report(entry: Import) {
-  const offers = importOffers(example("project") as Project, example("revision") as Revision);
+  const offers = importOffers(example("project") as Project);
   return (
     <ImportReport projectId={PROJECT} entry={entry} offer={offers[entry.kind]} start={START} />
   );
@@ -131,6 +137,20 @@ describe("the first step of an import", () => {
     expect(costs).toHaveAttribute("aria-disabled", "true");
     expect(costs).toHaveAccessibleDescription("Condition non remplie : projet non clos.");
     await userEvent.click(costs);
+    expect(screen.queryByRole("form")).toBeNull();
+    await expectAccessible(container);
+  });
+
+  it("offers an import on a project without a current revision, naming the permission to create the revision when it lacks", async () => {
+    serve({});
+    const { container } = open(importCommands("project_pricing_estimator"));
+    const estimate = screen.getByRole("button", { name: "Importer un devis" });
+    expect(screen.getAllByRole("button")).toEqual([estimate]);
+    expect(estimate).toHaveAttribute("aria-disabled", "true");
+    expect(estimate).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: pouvoir créer une révision.",
+    );
+    await userEvent.click(estimate);
     expect(screen.queryByRole("form")).toBeNull();
     await expectAccessible(container);
   });
@@ -454,7 +474,7 @@ describe("the request of an export", () => {
       [EXPORT]: { example: "task_export_queued", status: 202 },
       [TASK]: "task_export_succeeded",
     });
-    open(<ExportForm projectId={PROJECT} revisionId={REVISION} />);
+    open(exportForm());
     const form = screen.getByRole("form", { name: "Demander un export" });
     await userEvent.selectOptions(within(form).getByLabelText("Fichier à exporter"), "Devis");
     await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
@@ -477,7 +497,7 @@ describe("the request of an export", () => {
     "asks the image of the tree of tasks at the level given: %s",
     async (typed, level) => {
       const client = serve({ [EXPORT]: { example: "task_export_queued", status: 202 } });
-      open(<ExportForm projectId={PROJECT} revisionId={REVISION} />);
+      open(exportForm());
       const form = screen.getByRole("form", { name: "Demander un export" });
       await userEvent.selectOptions(
         within(form).getByLabelText("Fichier à exporter"),
@@ -492,17 +512,55 @@ describe("the request of an export", () => {
     },
   );
 
-  it("asks without a revision when the screen reads in none, and tells a refusal", async () => {
+  it("offers only the kinds the revision read offers, and tells a refusal", async () => {
     const client = serve({ [EXPORT]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
-    open(<ExportForm projectId={PROJECT} revisionId={undefined} />);
+    open(exportForm("revision_estimator"));
     const form = screen.getByRole("form", { name: "Demander un export" });
+    const kinds = within(form).getByLabelText("Fichier à exporter");
+    expect(
+      within(kinds)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Devis"]);
     await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
     await settled(form);
     expect(client.calls.map((call) => call.body)).toEqual([
-      { kind: "ms_project_schedule", revision_id: null },
+      { kind: "estimate", revision_id: REVISION },
     ]);
     expect(within(form).getByRole("alert")).toHaveTextContent(
       CATALOGUES.fr.errors.PERMISSION_MISSING,
     );
+  });
+
+  it("presents an export the revision lists unavailable, naming what it lacks, and asks nothing", async () => {
+    const client = serve({});
+    const unavailable = { is_available: false, missing_conditions: ["revision_draft" as const] };
+    const { container } = open(
+      <ExportForm
+        projectId={PROJECT}
+        revisionId={REVISION}
+        offers={{
+          ms_project_schedule: unavailable,
+          estimate: undefined,
+          remaining: undefined,
+          task_tree_image: undefined,
+        }}
+      />,
+    );
+    const request = screen.getByRole("button", { name: "Demander l’export" });
+    expect(request).toHaveAttribute("aria-disabled", "true");
+    expect(request).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: révision en cours d’élaboration.",
+    );
+    await userEvent.click(request);
+    expect(client.calls).toEqual([]);
+    await expectAccessible(container);
+  });
+
+  it("says no export is offered when the revision read offers none", () => {
+    serve({});
+    open(exportForm("revision_reader"));
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(screen.getByText("Aucun export ne vous est offert sur cette révision.")).toBeVisible();
   });
 });

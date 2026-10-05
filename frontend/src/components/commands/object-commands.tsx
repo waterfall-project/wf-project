@@ -11,11 +11,14 @@
  * lifecycle of a project, which open their confirmation (`ExitCommand`). The other commands of
  * a revision — a structure to create or merge, a reference to designate, the revision to
  * abandon — come with the forms of their domain, which hand each command its server action;
- * until then a command is shown, and pressing it does nothing.
+ * until then a command is shown, and pressing it does nothing. The exports of a revision are the
+ * screen of the imports and exports' to offer, where they are asked (`ExportForm`): the list of
+ * the commands of a revision leaves them out.
  */
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import type { components } from "@/api/generated/schema";
 import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
 
@@ -24,6 +27,8 @@ import { ExitCommands } from "./exit-command";
 import { isExit } from "./exits";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
 import { MarkCommand } from "./mark-command";
+
+type RevisionCommand = components["schemas"]["RevisionCommand"];
 
 /** A list of commands, named for what it is; nothing when the caller may exercise none. */
 function CommandList({ children }: { readonly children: readonly ReactNode[] }) {
@@ -61,15 +66,21 @@ export function LifecycleCommands({ project }: { readonly project: Project }) {
   );
 }
 
-/** The commands of a revision the caller may exercise. */
+/** Whether a command of a revision is an export, which the screen of the exchanges offers. */
+function isExport(command: RevisionCommand): boolean {
+  return command.startsWith("export_");
+}
+
+/** The commands of a revision the caller may exercise, its exports left out. */
 export function RevisionCommands({ revision }: { readonly revision: Revision }) {
   const t = useTranslations();
   const names = {
     [revision.revision_id]: revision.version_name ?? t("contextBanner.currentRevision"),
   };
+  const commands = revision.available_commands.filter((offer) => !isExport(offer.command));
   return (
     <CommandList>
-      {revision.available_commands.map((offer) => (
+      {commands.map((offer) => (
         <li key={`${revision.revision_id}:${offer.command}`}>
           {offer.command === "mark" ? (
             <MarkCommand offer={offer} revision={revision} names={names} />
