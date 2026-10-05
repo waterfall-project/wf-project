@@ -627,14 +627,14 @@
     "capacityOf": "Capacity — {role}",
     "noLoad": "No load",
     "none": "No role has a load on this basis.",
-    "noneInNode": "No role of the node “{node}” has a load on this basis.",
+    "noneInNode": "No role of the node “{node}” or of its descendants has a load on this basis.",
     "refused": {
       "noReference": "The workload is not available on this basis: the project has no reference revision, and only the current revision is one.",
       "markedRevision": "The workload is not available on this basis: the marked revision asked for is missing, or is not marked.",
       "orgNode": "The workload is not available: the organisation node asked for does not exist.",
       "invalid": "The workload is not available: the API refuses what is asked."
     },
-    "exportDetail": "Basis: {basis} · Organisation node: {node}",
+    "exportDetail": "Basis: {basis} · Organisation node and its descendants: {node}",
     "file": "workload"
   },
   "commands": {
@@ -861,6 +861,7 @@
     "orgNodes": {
       "title": "Organisation tree",
       "level": "Level",
+      "choice": "{code} · {label}",
       "none": "No organisation node."
     },
     "resourceRoles": {

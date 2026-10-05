@@ -28,7 +28,8 @@ import { ReportCommands } from "./report-commands";
 type Import = components["schemas"]["Import"];
 type Report = components["schemas"]["ImportReport"];
 type ActualCostColumn = components["schemas"]["ActualCostColumn"];
-type DifferenceField = NonNullable<Report["differences"][number]["fields"]>[number];
+type Difference = Report["differences"][number];
+type DifferenceField = NonNullable<Difference["fields"]>[number];
 
 /** The columns of a line of actual cost, every one of them, which its own catalogue names. */
 const ACTUAL_COST_COLUMNS = {
@@ -38,10 +39,7 @@ const ACTUAL_COST_COLUMNS = {
   subproject: true,
 } as const satisfies Record<ActualCostColumn, true>;
 
-/**
- * Whether a field of a difference is a column of a line of actual cost. `subproject` names a column
- * of the structure as well, which both catalogues label alike.
- */
+/** Whether a field of a difference is a column of a line of actual cost. */
 function isActualCostColumn(field: DifferenceField): field is ActualCostColumn {
   return Object.hasOwn(ACTUAL_COST_COLUMNS, field);
 }
@@ -80,10 +78,20 @@ function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
 function Differences({ differences }: { readonly differences: Report["differences"] }) {
   const t = useTranslations();
   const format = useFormatter();
-  const fieldName = (field: DifferenceField) =>
-    isActualCostColumn(field)
-      ? t(`enums.ActualCostColumn.${field}`)
-      : t(`enums.NodeColumn.${field}`);
+  // A field is named by the catalogue of the columns of its object: a line of actual cost by its
+  // own, a task, a line of the estimate or a link by the columns of the structure — `subproject`
+  // is a column of both. A field the object does not have is left unnamed, never guessed.
+  const fieldName = (target: Difference["target"], field: DifferenceField) => {
+    if (target === "actual_cost_line") {
+      return isActualCostColumn(field) ? t(`enums.ActualCostColumn.${field}`) : undefined;
+    }
+    if (field === "subproject") {
+      return t("enums.NodeColumn.subproject");
+    }
+    return isActualCostColumn(field) ? undefined : t(`enums.NodeColumn.${field}`);
+  };
+  const fieldsOf = (difference: Difference) =>
+    (difference.fields ?? []).flatMap((field) => fieldName(difference.target, field) ?? []);
   return (
     <div className="space-y-1">
       <h3 className={HEADING}>
@@ -111,7 +119,7 @@ function Differences({ differences }: { readonly differences: Report["difference
                 {difference.label ?? t("exchanges.report.unnamed")}
               </TableCell>
               <TableCell className={CELL}>
-                {format.list((difference.fields ?? []).map(fieldName), { type: "conjunction" })}
+                {format.list(fieldsOf(difference), { type: "conjunction" })}
               </TableCell>
             </TableRow>
           ))}

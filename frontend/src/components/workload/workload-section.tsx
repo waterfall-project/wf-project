@@ -213,7 +213,10 @@ function WorkloadChoices({
         <option value="">{t("workload.allOrgNodes")}</option>
         {orgNodes.map((node) => (
           <option key={node.org_node_id} value={node.org_node_id}>
-            {treeLabel(node)}
+            {treeLabel(
+              node.level,
+              t("reference.orgNodes.choice", { code: node.code, label: node.label }),
+            )}
           </option>
         ))}
       </Choice>

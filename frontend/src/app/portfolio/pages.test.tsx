@@ -121,10 +121,10 @@ describe("the screens of the portfolio", () => {
   it("offers the nodes of organisation as the tree the reference orders, a node retaining its descendants", async () => {
     const markup = await render(ProjectsPage, { org_node_id: DESIGN_OFFICE });
     expect(markup).toContain(
-      `<option value="${DESIGN_OFFICE}" selected="">\u2003Bureau d&#x27;études électricité</option>`,
+      `<option value="${DESIGN_OFFICE}" selected="">\u2003BE-ELEC · Bureau d&#x27;études électricité</option>`,
     );
-    expect(markup).toContain(">Direction technique</option>");
-    expect(markup).toContain(">\u2003\u2003Atelier de câblage</option>");
+    expect(markup).toContain(">DT · Direction technique</option>");
+    expect(markup).toContain(">\u2003\u2003AT-CABL · Atelier de câblage</option>");
     expect(text(markup)).toContain("Organisation node and its descendants");
   });
 
@@ -278,7 +278,13 @@ describe("the screens of the portfolio", () => {
     const markup = await render(PilotHealthPage);
     expect(markup.match(new RegExp(`href="${WITNESS}"`, "g"))).toHaveLength(2);
     const page = text(markup);
-    expect(page).toContain("Periodic review overdue 11 weeks since the last marked revision Watch");
+    expect(page).toMatch(/Periodic review overdue .*Watch/);
+    expect(page).toMatch(/Contractual milestone overdue .*Alert/);
+  });
+
+  it("says what each signal of the health of the steering names, as the server gives it", async () => {
+    const page = text(await render(PilotHealthPage));
+    expect(page).toContain("Periodic review overdue 17 weeks since the last marked revision Watch");
     expect(page).toContain(
       "Contractual milestone overdue Réception des études, reference date 24 Apr 2026 Alert",
     );

@@ -208,9 +208,12 @@ paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre ni 
 
 L'écran des indicateurs d'un projet lit ses indicateurs et ses courbes dans la révision de sa route
 (`revision_id`) — ceux d'une révision marquée tels que son marquage les a conservés —, ou à la date
-que l'adresse demande (`as_of`), jamais les deux, que l'API refuse ensemble ; un avis en tête nomme
-ce qui est calculé sur une autre révision que celle du bandeau, et laquelle — l'évolution des
-indices, toujours au jour sur la révision en cours (`ComputedElsewhere`).
+que l'adresse demande (`as_of`), jamais les deux, que l'API refuse ensemble ; une offre marquée
+avant l'état En cours, qui n'en a conservé aucun, est refusée comme un projet qui n'est pas en
+cours, et l'écran le dit. Un avis en tête nomme, des indicateurs et de l'évolution des indices,
+celui qui est calculé sur une autre révision que celle du bandeau, et laquelle — l'évolution,
+toujours au jour sur la révision en cours (`ComputedElsewhere`) ; une courbe nomme la sienne dans
+l'image qu'elle exporte.
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes

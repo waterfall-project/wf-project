@@ -38,6 +38,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const REVISION_ROUTE = "GET /projects/{project_id}/revisions/{revision_id}";
 const MARKED = "01926f3a-7c00-7000-8000-000000000101";
+const OFFER = "01926f3a-7c00-7000-8000-000000000100";
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 type Indicators = components["schemas"]["ProjectIndicators"];
 type History = components["schemas"]["IndexHistory"];
@@ -234,7 +235,12 @@ describe("the screen of the indicators of a project", () => {
     // screen reads once, though the indicators and the evolution of the indices both name it.
     server.answers = { ...server.answers, [REVISION_ROUTE]: ["revision_marked", "revision"] };
     const page = text(html(await IndicatorsPage(at({ as_of: "2026-03-16" }, MARKED))));
-    expect(queryOf("GET /projects/{project_id}/indicators")).toEqual({ as_of: "2026-03-16" });
+    // The date alone chooses the revision, of the indicators as of the curves: never with it.
+    for (const route of ["", "/cost-curve", "/earned-value-curves"]) {
+      expect(queryOf(`GET /projects/{project_id}/indicators${route}`)).toEqual({
+        as_of: "2026-03-16",
+      });
+    }
     expect(page).toContain(
       "Computed on another revision These indicators are computed on the revision “Current revision”, not on the one the banner names. The evolution of the indices is computed on the revision “Current revision”, not on the one the banner names. Financial progress",
     );
@@ -255,7 +261,7 @@ describe("the screen of the indicators of a project", () => {
 
   it("says nothing of another revision when its figures are computed on its own, nor reads the revisions", async () => {
     const page = text(html(await IndicatorsPage(at())));
-    expect(page).not.toContain("Indicators of another revision");
+    expect(page).not.toContain("Computed on another revision");
     expect(pathsOf(REVISION_ROUTE)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}`]);
   });
 
@@ -278,6 +284,25 @@ describe("the screen of the indicators of a project", () => {
     expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toBeUndefined();
     expect(page).not.toContain("Cumulative costs");
     expect(page).toContain("Milestone tracking Time/time diagram");
+  });
+
+  it("says the indicators unavailable on an offer marked before the state In progress, which kept none, with no notice of another revision [WF-IND-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [REVISION_ROUTE]: ["revision_offer", "revision"],
+      // The refusal of the contract for a revision marked before the state In progress.
+      "GET /projects/{project_id}/indicators": {
+        problem: { code: "STATE_FORBIDS_OPERATION", status: 409 },
+      },
+    };
+    const page = text(html(await IndicatorsPage(at({}, OFFER))));
+    expect(queryOf("GET /projects/{project_id}/indicators")).toEqual({ revision_id: OFFER });
+    expect(page).toContain(
+      "Indicators unavailable The indicators of a project are computed from the In progress state",
+    );
+    expect(page).not.toContain("Computed on another revision");
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toBeUndefined();
+    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toBeUndefined();
   });
 
   it("does not take a refusal of the same status for another reason as the state of the project", async () => {

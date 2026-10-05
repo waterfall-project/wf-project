@@ -142,10 +142,10 @@ describe("the screen of the workload of a project", () => {
     expect(options(page, "workload_revision")).toEqual(["Référence", "Offre v1.0"]);
     expect(options(page, "org_node_id")).toEqual([
       "All nodes",
-      "Direction technique",
-      "\u2003Bureau d&#x27;études électricité",
-      "\u2003\u2003Atelier de câblage",
-      "\u2003Service des achats",
+      "DT · Direction technique",
+      "\u2003BE-ELEC · Bureau d&#x27;études électricité",
+      "\u2003\u2003AT-CABL · Atelier de câblage",
+      "\u2003ACHATS · Service des achats",
     ]);
     expect(page).toContain('type="hidden" name="as_of" value="2026-03-16"');
     expect(page).not.toContain('type="hidden" name="basis"');

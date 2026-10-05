@@ -222,6 +222,7 @@ function withChosen(proposed: readonly string[], chosen: string | undefined): re
 /** A node of organisation the labour may be restricted to, with its depth in the tree. */
 export interface NodeChoice {
   readonly id: string;
+  readonly code: string;
   readonly label: string;
   readonly level: number;
 }
@@ -258,6 +259,7 @@ export function PerimeterBar({
   view,
 }: PerimeterBarProps) {
   const t = useTranslations("portfolio.perimeter");
+  const named = useTranslations("reference.orgNodes");
   const locale = useLocale();
   const change = useParameters();
   return (
@@ -277,7 +279,10 @@ export function PerimeterBar({
           label={t("orgNode")}
           none={t("everyNode")}
           value={perimeter.orgNode}
-          offered={nodes.map((node) => ({ value: node.id, label: treeLabel(node) }))}
+          offered={nodes.map((node) => ({
+            value: node.id,
+            label: treeLabel(node.level, named("choice", { code: node.code, label: node.label })),
+          }))}
           write={(value) => {
             change(() => ({ [ORG_NODE]: value }));
           }}

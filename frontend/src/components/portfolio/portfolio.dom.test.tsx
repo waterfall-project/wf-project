@@ -122,6 +122,7 @@ function cellsOf(code: string): HTMLElement[] {
 const NODES: readonly NodeChoice[] = (example("org_nodes") as Schemas["OrgNode"][]).map((node) => ({
   id: node.org_node_id,
   label: node.label,
+  code: node.code,
   level: node.level,
 }));
 const DESIGN_OFFICE = "01926f3a-7c00-7000-8000-000000000471";
@@ -335,12 +336,12 @@ describe("the perimeter of a view of the portfolio", () => {
         .map((option) => option.textContent),
     ).toEqual([
       "Tous les nœuds",
-      "Direction technique",
-      "\u2003Bureau d'études électricité",
-      "\u2003\u2003Atelier de câblage",
-      "\u2003Service des achats",
+      "DT · Direction technique",
+      "\u2003BE-ELEC · Bureau d'études électricité",
+      "\u2003\u2003AT-CABL · Atelier de câblage",
+      "\u2003ACHATS · Service des achats",
     ]);
-    await userEvent.selectOptions(node, "\u2003Bureau d'études électricité");
+    await userEvent.selectOptions(node, "\u2003BE-ELEC · Bureau d'études électricité");
     expect(await lastAddress()).toBe(`${PATHNAME}?org_node_id=${DESIGN_OFFICE}`);
   });
 

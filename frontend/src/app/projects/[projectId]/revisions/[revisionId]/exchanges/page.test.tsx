@@ -192,6 +192,27 @@ describe("the screen of the imports and exports", () => {
     expect(page).toContain("No line rejected");
   });
 
+  it("names the fields a difference changes by the columns of its object, in the language of its reader [WF-ARC-0110-A]", async () => {
+    const french = text(await exchangesAt({ import: IMPORT }, "fr"));
+    expect(french).toContain("Modifié Ligne de devis Raccordement des borniers Charge");
+    server.answers = {
+      ...server.answers,
+      [GET_IMPORT]: { example: "import_actual_costs_analysed", status: 200 },
+    };
+    // A line of actual cost already imported, its amount changed in the ERP, updated on it alone.
+    const english = text(await exchangesAt({ import: IMPORT }));
+    expect(english).toContain(
+      "1 difference with the existing data Change Object Label Fields Updated Actual cost line FA-2026-0412 Amount",
+    );
+    server.answers = {
+      ...server.answers,
+      [GET_IMPORT]: { example: "import_planning_mismatch", status: 200 },
+    };
+    expect(text(await exchangesAt({ import: IMPORT }))).toContain(
+      "Updated Task Études de détail Duration",
+    );
+  });
+
   it("says the analysis under way, without a report, still abandonable but not applicable", async () => {
     server.answers = {
       ...server.answers,

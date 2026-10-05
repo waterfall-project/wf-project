@@ -21,6 +21,7 @@ export async function readNodes(): Promise<NodeChoice[]> {
   );
   return (nodes ?? []).map((node) => ({
     id: node.org_node_id,
+    code: node.code,
     label: node.label,
     level: node.level,
   }));

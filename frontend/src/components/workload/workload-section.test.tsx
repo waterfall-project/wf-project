@@ -93,7 +93,7 @@ describe("the workload section", () => {
       }),
     );
     expect(filtered).toContain(
-      "No role of the node “Bureau d&#x27;études électricité” has a load on this basis.",
+      "No role of the node “Bureau d&#x27;études électricité” or of its descendants has a load on this basis.",
     );
     expect(filtered).not.toContain("Load by role and by month");
   });
@@ -112,17 +112,19 @@ describe("the workload section", () => {
         asked: { basis: "marked_remaining", revision: undefined, orgNode: "elsewhere" },
       }),
     );
-    expect(page).toContain("No role of the node “unknown node” has a load on this basis.");
+    expect(page).toContain(
+      "No role of the node “unknown node” or of its descendants has a load on this basis.",
+    );
   });
 
   it("lists the nodes in the order of the tree the API gives, each set in by its depth, the root not at all", () => {
     const page = section({});
     const labels = [...page.matchAll(/<option value="01926f3a[^"]*47\d"[^>]*>(.*?)<\/option>/g)];
     expect(labels.map((match) => match[1])).toEqual([
-      "Direction technique",
-      "\u2003Bureau d&#x27;études électricité",
-      "\u2003\u2003Atelier de câblage",
-      "\u2003Service des achats",
+      "DT · Direction technique",
+      "\u2003BE-ELEC · Bureau d&#x27;études électricité",
+      "\u2003\u2003AT-CABL · Atelier de câblage",
+      "\u2003ACHATS · Service des achats",
     ]);
     expect(page).toContain("Organisation node and its descendants");
   });
