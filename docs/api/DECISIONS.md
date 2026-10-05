@@ -955,7 +955,7 @@ la durée de « Revue 3.1.27 » allongée de deux jours ouvrés, dans sa marge, 
 dont la marge diminue, ses lignes et elle-même dans `reinflated`, les deux récapitulatives au-dessus
 dans `ancestors`, et les totaux suivent. Les autres exemples rendent une liste vide. L'univers
 n'offrait aucune écriture du devis qui redate : ses deux rôles actifs étaient sur le même
-calendrier, le calendrier par défaut, et le seul rôle sur un autre est désactivé — un changement de
+calendrier, le calendrier par défaut, et le seul rôle sur un autre était désactivé — un changement de
 rôle ne changeait donc le calendrier d'aucune tâche (WF-PLA-0010). Le monteur câbleur, actif sur la
 semaine de quatre jours, le permet depuis EP-02/L20 ; la projection est éprouvée sur l'exemple du
 planning appliqué aux lignes du devis, et le chemin de la grille de devis le sera avec l'écriture
@@ -1127,10 +1127,14 @@ aujourd'hui, ou une variante contrefactuelle déclarée.
 **Une famille d'identifiants par nature d'objet, sur des plages disjointes**
 (`mockwitness.IDENTIFIERS`, C16) : les identifiants écrits à la main par centaines — projets,
 révisions, structures, comptes, référentiel, nœuds et lignées, rôles d'habilitation, postes du
-lotissement, risques, sous-projets, sauvegardes, tâches de fond, collages — et les familles
-engendrées, dont le générateur tire désormais ses numéros. Les exemples qui empiètent encore sur
-une autre plage — le poste 701, les tâches de fond 901 à 905 — y seront ramenés avec eux (L24,
-L25).
+lotissement, risques, sous-projets, sauvegardes, tâches de fond, collages et corrélations —, ceux
+qu'ils écrivent en hexadécimal — imports et téléversements (…0a01), lignes de coût réel (…0c01),
+imports de coûts réels (…0c11) — et les familles engendrées, dont le générateur tire désormais
+ses numéros. Un test confronte chaque identifiant de `fixtures/api` à la famille de sa clé
+(`node_id`, `backup_id`…) ; les empiètements d'aujourd'hui y sont déclarés, et leur liste ne
+fera que décroître : le poste 701 sur les rôles d'habilitation ; les tâches de fond 901 à 905,
+les collages 911 et 912 et la corrélation 913 sur les sauvegardes ; les corrélations 921 à 927
+sur les tâches de fond. Ils seront ramenés sur leur plage avec leurs exemples (L24, L25).
 
 **Les dates se calculent en heures de travail sur le calendrier applicable**
 (`wftools.mockcalendar`, WF-PLA-0010, WF-PLA-0160) : une durée et un décalage convertis en heures

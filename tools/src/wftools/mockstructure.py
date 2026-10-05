@@ -29,7 +29,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools.mockcalendar import decimal
+from wftools.mockcalendar import HOURS_PER_DAY
 from wftools.mockwitness import (
     COMMISSIONING_TECHNICIAN,
     ELECTRICAL_ENGINEERING,
@@ -42,6 +42,7 @@ from wftools.mockwitness import (
     SUBPROJECT_CONTROL,
     fixture,
     identifier,
+    universe,
 )
 
 if TYPE_CHECKING:
@@ -69,10 +70,6 @@ the witness estimate reads 1,000.00 for 12.5 hours."""
 CENT = Decimal("0.01")
 SHARE = Decimal("0.0001")
 
-HOURS_PER_DAY = Decimal(8)
-"""The hours of a working day of the structure: those of the default calendar, and of the
-installation's constant (WF-PLA-0160)."""
-
 INFLATION_RATE = Decimal("0.03")
 """The inflation rate of the witness project (project.json), which projects an amount on the
 year its line is consumed (WF-DEV-0040)."""
@@ -81,11 +78,11 @@ REFERENCE_YEAR = 2026
 """The reference year of the witness estimate: an amount of that year is not projected."""
 
 # The universe of the other examples of the contract.
-SUBPROJECT_TESTS = "01926f3a-7c00-7000-8000-000000000802"
-COMMISSIONING = "01926f3a-7c00-7000-8000-000000000405"
-LABOR = "01926f3a-7c00-7000-8000-000000000461"
-NON_LABOR = "01926f3a-7c00-7000-8000-000000000462"
-PROVISION = "01926f3a-7c00-7000-8000-000000000463"
+SUBPROJECT_TESTS = universe(802)
+COMMISSIONING = universe(405)
+LABOR = universe(461)
+NON_LABOR = universe(462)
+PROVISION = universe(463)
 
 CATEGORY_LABELS = {
     ELECTRICAL_ENGINEERING: "Ingénierie électrique",
@@ -135,6 +132,12 @@ def work_instant(offset: int, hours: Decimal) -> JsonObject:
     Its date, and the hours of work elapsed that day (WF-DAT-0100).
     """
     return {"date": working_day(offset).isoformat(), "hours": decimal(hours)}
+
+
+def decimal(value: Decimal) -> str:
+    """Return an exact decimal without trailing zeros: 12.5, 40."""
+    text = format(value, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
 
 
 # --- The structure of a thousand tasks --------------------------------------------------

@@ -18,12 +18,12 @@ from decimal import Decimal
 from functools import cache
 from typing import cast
 
-from wftools.mockcalendar import decimal
 from wftools.mockstructure import (
     AS_OF,
     CENT,
     JsonObject,
     JsonValue,
+    decimal,
     draw,
     money,
 )

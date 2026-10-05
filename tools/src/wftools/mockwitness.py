@@ -24,7 +24,7 @@ from decimal import Decimal
 from typing import Any
 
 from wftools import REPOSITORY
-from wftools.mockcalendar import Calendar
+from wftools.mockcalendar import FINISH_TO_START, START_TO_START, Calendar
 
 FIXTURES = REPOSITORY / "fixtures" / "api"
 """Where the examples of the contract live, those of the universe by their name."""
@@ -129,13 +129,24 @@ class Family:
     first: int
     last: int
     generated: int = 0
+    hexadecimal: bool = False
 
     def holds(self, value: str) -> bool:
-        """Whether an identifier is of the family."""
-        if not value.startswith(PREFIX):
-            return False
+        """Whether an identifier is of the family: its prefix, its family, its number in range.
+
+        The number of a family is written in decimal digits, or in hexadecimal ones for the few
+        written by hand so (…0a01, …0c11); an identifier of the other writing is not of it.
+        """
         tail = value.removeprefix(PREFIX)
-        return int(tail[:4]) == self.generated and self.first <= int(tail[4:]) <= self.last
+        if not value.startswith(PREFIX) or len(tail) != len("000000000000"):
+            return False
+        family, number = tail[:4], tail[4:]
+        digits = "0123456789abcdef" if self.hexadecimal else "0123456789"
+        if not family.isdigit() or int(family) != self.generated:
+            return False
+        if not all(digit in digits for digit in number):
+            return False
+        return self.first <= int(number, 16 if self.hexadecimal else 10) <= self.last
 
 
 NODES, LINEAGES, PROJECTS, CATEGORIES, RISKS = 1, 2, 3, 4, 5
@@ -164,6 +175,9 @@ IDENTIFIERS = (
     Family("sauvegardes", 900, 919),
     Family("tâches de fond", 920, 959),
     Family("collages et corrélations", 960, 999),
+    Family("imports et téléversements", 0xA00, 0xAFF, hexadecimal=True),
+    Family("lignes de coût réel", 0xC00, 0xC0F, hexadecimal=True),
+    Family("imports de coûts réels", 0xC10, 0xCFF, hexadecimal=True),
     Family("nœuds engendrés", 1, _GENERATED, NODES),
     Family("lignées engendrées", 1, _GENERATED, LINEAGES),
     Family("projets du portefeuille", 1, _GENERATED, PROJECTS),
@@ -172,9 +186,10 @@ IDENTIFIERS = (
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 
-The examples written by hand do not all keep to it yet: the order item 701 and the background
-tasks 901 to 905 are on the ranges of the access roles and the backups (#287, C16), until the
-examples that carry them are moved.
+The examples written by hand do not all keep to it yet (#287, C16), until the examples that
+carry them are moved: the order item 701 is on the range of the access roles; the background
+tasks 901 to 905, the pastes 911 and 912 and the correlation 913 on that of the backups; the
+correlations 921 to 927 on that of the background tasks.
 """
 
 # --- The roles, their calendars ---------------------------------------------------------------
@@ -182,9 +197,10 @@ examples that carry them are moved.
 ENGINEER = universe(451)
 COMMISSIONING_TECHNICIAN = universe(452)
 CABLE_FITTER = universe(454)
-"""The roles the lines of the witness employ: the electrical engineer and the commissioning
-technician, on the standard week, and the cable fitter, on the week of four days of ten hours —
-all three active (``resource_roles``)."""
+"""The active roles of the witness (``resource_roles``): the electrical engineer and the
+commissioning technician, whom its lines employ, on the standard week; and the cable fitter, on
+the week of four days of ten hours, whom no line employs yet — a write of the estimate will give
+him one (EP-02/L22)."""
 
 STANDARD_WEEK = universe(481)
 FOUR_DAY_WEEK = universe(482)
@@ -231,7 +247,7 @@ class Link:
     """A link of a task of the core to its predecessor, by the predecessor's number."""
 
     predecessor: int
-    link_type: str = "finish_to_start"
+    link_type: str = FINISH_TO_START
     lag: int = 0
     unit: str = "d"
 
@@ -260,8 +276,10 @@ class Line:
 class Task:
     """A task of the core: its node is its number, 5nn, its lineage 6nn.
 
-    Its duration in working days, its links, its lines and its subordinates. A task in manual
-    mode carries the dates its user entered, and the progress its user declared.
+    Its duration in days of work of eight hours, as its links' lags are in their units, both
+    converted into hours by ``mockcalendar.to_hours`` (WF-PLA-0160); its lines and its
+    subordinates. The progress of a task in automatic mode is read from its dates at TODAY; a
+    task in manual mode carries the dates its user entered, and the progress its user declared.
     """
 
     number: int
@@ -297,15 +315,15 @@ STUDIES = Task(
             525,
             "Réception des études",
             is_milestone=True,
-            links=(Link(524), Link(523, "start_to_start", 1, "w")),
+            links=(Link(524), Link(523, START_TO_START, 1, "w")),
         ),
         Task(526, "Dossier de conception", days=5, links=(Link(522, lag=-2),)),
     ),
 )
-"""The studies: the detailed studies, completed; the operator desks, in manual mode, started
-and past their finish; the design review after them, the reception of the studies at its end,
-also a week after the desks started; and the design file, two days before the detailed studies
-finish, with float (WF-PLA-0030, WF-PLA-0080, WF-PLA-0100)."""
+"""The studies: the detailed studies, finished before today; the operator desks, in manual
+mode, started and past their finish; the design review after them, the reception of the studies
+at its end, also a week after the desks started; and the design file, two days before the
+detailed studies finish, with float (WF-PLA-0030, WF-PLA-0080, WF-PLA-0100)."""
 
 CONTROL_STATION = Task(
     551,
@@ -349,7 +367,7 @@ CONTROL_STATION = Task(
                     542,
                     "Relance du fournisseur",
                     days=5,
-                    links=(Link(552, "start_to_start"),),
+                    links=(Link(552, START_TO_START),),
                     lines=(
                         Line(
                             543,
@@ -382,7 +400,7 @@ CONTROL_STATION = Task(
 )
 """The lot of the control station: the wiring of the cabinets a week after the reception of the
 studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of 500
-of the risk 751 (WF-INTF-0180); the subtree merged by the occurrence of the risk 752, its lines of
+of the risk 751; the subtree merged by the occurrence of the risk 752, its lines of
 120 and 80 budgeted 36 and 24 at the reference revision 103 (WF-RIS-0060); and the factory
 acceptance at the end of the wiring."""
 

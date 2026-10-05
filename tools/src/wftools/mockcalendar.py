@@ -19,14 +19,40 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_FLOOR, Decimal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 ORIGIN = date(2026, 1, 5)
 """The Monday the hours of work are counted from; an instant before it counts negatively."""
 
 HOURS_PER_DAY = Decimal(8)
 HOURS_PER_WEEK = Decimal(40)
-"""The installation's constants, which turn a duration or a lag in days or weeks into hours
-(WF-PLA-0160): 8 and 40, their default values."""
+DAYS_PER_MONTH = Decimal(20)
+"""The installation's constants, which turn a duration or a lag in days, weeks or months of
+work into hours (WF-PLA-0160): 8, 40 and 20, their default values."""
+
+FINISH_TO_START, START_TO_START = "finish_to_start", "start_to_start"
+
+
+def to_hours(value: Decimal | int, unit: str) -> Decimal:
+    """Return a duration or a lag of work in hours, by the installation's constants (WF-PLA-0160).
+
+    The units of work alone: an elapsed time is not placed on a calendar.
+    """
+    if unit == "min":
+        return Decimal(value) / 60
+    per_unit = {
+        "h": Decimal(1),
+        "d": HOURS_PER_DAY,
+        "w": HOURS_PER_WEEK,
+        "mo": HOURS_PER_DAY * DAYS_PER_MONTH,
+    }
+    if unit not in per_unit:
+        message = f"{unit} is not a unit of work"
+        raise ValueError(message)
+    return value * per_unit[unit]
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -50,8 +76,12 @@ class Calendar:
 
     @property
     def weekly(self) -> Decimal:
-        """Return the hours of a week of work."""
-        return sum(self.week, Decimal(0))
+        """Return the hours of a week of work; a calendar without any cannot date a task."""
+        hours = sum(self.week, Decimal(0))
+        if hours <= 0:
+            message = f"the calendar {self.calendar_id} grants no hour of work in a week"
+            raise ValueError(message)
+        return hours
 
     def hours_on(self, day: date) -> Decimal:
         """Return the hours worked on a day."""
@@ -87,13 +117,24 @@ class Calendar:
         """Return the first instant of work from an instant: where a task may start."""
         return self.instant(self.elapsed(at), finish=False)
 
+    def place(self, count: Decimal, hours: Decimal) -> tuple[Instant, Instant]:
+        """Return the start and the finish of a task of so many hours from a count of hours.
+
+        A task of no duration, a milestone, sits at one instant: the finish reading of its
+        count, where what precedes it finishes (WF-PLA-0050).
+        """
+        if hours == 0:
+            at = self.instant(count, finish=True)
+            return at, at
+        return self.instant(count, finish=False), self.instant(count + hours, finish=True)
+
     def finish_after(self, start: Instant, hours: Decimal) -> Instant:
         """Return where a task of so many hours of work, started at an instant, finishes."""
-        return self.instant(self.elapsed(start) + hours, finish=True)
+        return self.place(self.elapsed(start), hours)[1]
 
     def start_before(self, finish: Instant, hours: Decimal) -> Instant:
         """Return where a task of so many hours of work must start to finish at an instant."""
-        return self.instant(self.elapsed(finish) - hours, finish=False)
+        return self.place(self.elapsed(finish) - hours, hours)[0]
 
     def work_between(self, first: Instant, last: Instant) -> Decimal:
         """Return the hours of work from one instant to another."""
@@ -116,7 +157,34 @@ def applicable(calendars: list[Calendar], default: Calendar) -> Calendar:
     return Calendar(names, week)
 
 
-def decimal(value: Decimal) -> str:
-    """Return an exact decimal without trailing zeros: 12.5, 40."""
-    text = format(value, "f")
-    return text.rstrip("0").rstrip(".") if "." in text else text
+@dataclass(frozen=True, slots=True)
+class Predecessor:
+    """A predecessor as its link sees it: its dates, the type of the link and its signed lag."""
+
+    start: Instant
+    finish: Instant
+    link_type: str = FINISH_TO_START
+    lag: Decimal = Decimal(0)
+
+
+def follow(
+    calendar: Calendar, predecessors: Sequence[Predecessor], hours: Decimal, origin: Instant
+) -> tuple[Instant, Instant]:
+    """Return the start and the finish of a task in automatic mode, on its calendar.
+
+    Each link counts from its predecessor's finish, or start for a start-to-start link, its
+    lag in hours placed on the successor's calendar (WF-PLA-0010): the task starts at the
+    latest count its links allow, or at the origin without any (WF-PLA-0030).
+    """
+    counts = [calendar.elapsed(_anchor(each)) + each.lag for each in predecessors]
+    return calendar.place(max(counts, default=calendar.elapsed(origin)), hours)
+
+
+def _anchor(predecessor: Predecessor) -> Instant:
+    """Return where a link counts from: the finish of its predecessor, or its start."""
+    if predecessor.link_type == FINISH_TO_START:
+        return predecessor.finish
+    if predecessor.link_type == START_TO_START:
+        return predecessor.start
+    message = f"the link {predecessor.link_type} is not placed here"
+    raise ValueError(message)

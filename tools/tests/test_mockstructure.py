@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockcalendar, mockdata, mockstructure, mockwitness
+from wftools import REPOSITORY, mockdata, mockstructure, mockwitness
 from wftools.mockstructure import Task
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
@@ -459,7 +459,7 @@ def test_a_drawn_value_depends_on_its_key_alone() -> None:
 
 def test_exact_decimals_are_written_as_the_contract_carries_them() -> None:
     assert mockstructure.money(Decimal(1000)) == "1000.00"
-    assert mockcalendar.decimal(Decimal("12.50")) == "12.5"
-    assert mockcalendar.decimal(Decimal(40)) == "40"
+    assert mockstructure.decimal(Decimal("12.50")) == "12.5"
+    assert mockstructure.decimal(Decimal(40)) == "40"
     assert mockstructure.working_day(5) == date(2026, 3, 9)
     assert mockstructure.working_offset(date(2026, 3, 16)) == 10
