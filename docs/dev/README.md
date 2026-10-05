@@ -373,7 +373,7 @@ la page ; sa tâche va au suivi. L'abandon ramène à l'adresse de départ, si l
 import. Chaque import est offert comme le projet offre sa commande (`importOffers`) :
 `import_planning`, `import_estimate`, `import_remaining`, `import_actual_costs`, avec ou sans
 révision en cours — sans elle, qui ne peut pas créer la révision voit l'import indisponible,
-`can_create_revision` nommée. Un projet sans révision n'a toutefois pas encore d'adresse qui mène
+`may_create_revision` nommée. Un projet sans révision n'a toutefois pas encore d'adresse qui mène
 à l'écran, de portée révision (#332). La liste des imports, paginée par le serveur (`offset`,
 `ListPages`), mène au compte rendu de chacun ; la demande d'export n'offre que les natures que la
 révision lue offre d'exporter (`exportOffers`, `export_*`), une nature indisponible nommant ce qui
@@ -449,7 +449,9 @@ navigateur.
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
 celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission
-garde quelle commande —, présente et disponible, ou présente et indisponible, marquée
+garde quelle commande ; seule exception, décidée par l'utilisateur le 2026-10-05, un import
+sans révision en cours que l'appelant ne pourrait pas créer, listé indisponible,
+`may_create_revision` manquante —, présente et disponible, ou présente et indisponible, marquée
 `aria-disabled` et décrite par le texte visible des conditions qui lui manquent
 (`enums.CommandCondition.*`). `LifecycleCommands` rend, dans l'ordre du serveur, les sorties
 du cycle de vie d'un projet — les autres commandes du projet appartiennent aux formulaires de

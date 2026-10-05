@@ -1,5 +1,5 @@
 {
-  "summary": "Le même projet en chiffrage, sans révision, lu par un chiffreur : l'import d'un devis lui est indisponible, faute de pouvoir créer la révision que l'import créerait (WF-INTF-0090, WF-IHM-0090).",
+  "summary": "Le même projet en chiffrage, sans révision, lu par un chiffreur : l'import d'un devis lui est indisponible, faute de la permission de créer la révision que l'import créerait (WF-INTF-0090) — exception décidée par l'utilisateur le 2026-10-05.",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000002",
     "label": "Extension de la ligne d'essais",
@@ -16,7 +16,7 @@
         "command": "import_estimate",
         "is_available": false,
         "missing_conditions": [
-          "can_create_revision"
+          "may_create_revision"
         ]
       }
     ],

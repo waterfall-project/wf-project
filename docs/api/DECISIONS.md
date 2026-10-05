@@ -139,7 +139,10 @@ EP-02). Chacune dit si elle est disponible et, sinon, les conditions qui lui man
 nommées par un catalogue (`CommandCondition`) que le front rend en phrase. Le serveur ne
 liste que les commandes que l'appelant a la permission d'exercer : une commande absente de
 la liste n'est pas présentée, et le front n'a pas à savoir quelle permission garde quelle
-commande — ce serait une règle recopiée. Les autres fonctions — comptes, rôles,
+commande — ce serait une règle recopiée. Une exception, décidée par l'utilisateur le
+2026-10-05 : sans révision en cours, un import que l'appelant a la permission d'exercer mais
+qui créerait une révision qu'il n'a pas la permission de créer est listé indisponible, la
+condition `may_create_revision` manquante (EP-02/L17). Les autres fonctions — comptes, rôles,
 référentiel, sauvegarde — n'ont pas de conditions à nommer : leurs commandes suivent la
 permission de modification de la fonction, que la session porte, et la restauration sa
 permission propre ; c'est la règle même du catalogue. La saisie d'une révision est trois commandes —
@@ -788,35 +791,48 @@ quand un export est disponible, et l'écran déduisait les uns de la saisie de l
 `import_estimate` et `import_remaining`, à côté de `import_actual_costs` : l'import écrit dans la
 révision en cours et la crée quand il n'y en a pas (WF-INTF-0090), il se dit donc du projet, avec
 ou sans révision en cours. Chacune est gardée par sa permission, comme la saisie : un chiffreur
-importe un devis sans pouvoir importer un planning. **Sans révision en cours, l'import exige aussi
-la permission de créer une révision** (`revisions.write`) : la commande est alors listée
-indisponible, la condition `can_create_revision` manquante, plutôt qu'absente — l'utilisateur
-apprend que l'import lui est ouvert dès qu'une révision existe (exemple
-`project_pricing_estimator`). `RevisionCommand` gagne une commande par nature d'export
-(`ExportRequest.kind`) : `export_planning`, `export_estimate`, `export_remaining`,
-`export_task_tree_image` — l'export lit une révision, marquée comme en cours, et reste disponible
-pendant son marquage. Les exemples portent les nouvelles commandes : disponibles sur le projet
-témoin et sur le projet en chiffrage sans révision, indisponibles sur le projet terminé
-(`project_not_terminal`) ; tous les exports sur les révisions lues avec toutes les permissions,
-l'export du devis seul pour le chiffreur (`revision_estimator`), aucun pour `revision_reader`.
-Écartés : une commande `request_export` unique, qui ne dirait pas qu'un chiffreur exporte le
-devis et pas le planning ; les imports sur la révision, qui ne se diraient pas sans révision en
-cours.
+importe un devis sans pouvoir importer un planning. `RevisionCommand` gagne une commande par
+nature d'export (`ExportRequest.kind`) : `export_planning`, `export_estimate`,
+`export_remaining`, `export_task_tree_image`. Écartés : une commande `request_export` unique, qui
+ne dirait pas qu'un chiffreur exporte le devis et pas le planning ; les imports sur la révision,
+qui ne se diraient pas sans révision en cours.
+
+**Sans révision en cours, l'import exige aussi la permission de créer une révision**
+(`revisions.write`), et le dit par une condition : la commande est listée indisponible,
+`may_create_revision` manquante, plutôt qu'absente (exemple `project_pricing_estimator`). C'est
+la réponse de l'utilisateur du 2026-10-05 à la sous-question de #318, et la seule exception à la
+règle qui ne liste que les commandes que l'appelant a la permission d'exercer (« Le projet et la
+révision portent leurs commandes disponibles », plus haut) : elle tend contre WF-IHM-0090, qui
+veut qu'une commande que les habilitations ne permettent pas ne soit pas présentée — une
+habilitation manquante ne se lève pas par l'utilisateur. Elle est soumise à l'utilisateur à son
+retour ; d'ici là, elle tient comme décidée.
+
+**Un export relève de la consultation** : il est gardé par la permission de consulter la
+fonction de sa nature — le planning et l'image de l'arborescence par celle du planning (FBS-4.3),
+le devis par celle du devis (FBS-4.4), le reste à engager par celle du reste à engager (FBS-4.5) —,
+deux niveaux par fonction (WF-ADM-0100). WF-CYC-0110 range les exports dans ce qui reste
+consultable d'un projet terminal (« ses exports aboutissent ; seules les modifications sont
+refusées ») : un export ne manque d'aucune condition, ni sur une révision marquée, ni pendant un
+marquage, ni sur un projet terminal. Il est présent ou absent. Les exemples le suivent : tous les
+exports sur les révisions lues avec toutes les permissions et sur `revision_reader`, qui lit tout
+sans rien modifier ; le devis et le reste à engager pour le chiffreur (`revision_estimator`), qui
+les lit sans lire le planning. Les imports sont disponibles sur le projet témoin et sur le projet
+en chiffrage sans révision, indisponibles sur le projet terminé (`project_not_terminal`).
 
 **Le risque porte ses dépendances** (`Risk.computed_fields`, #250). WF-IHM-0030 veut que le refus
 d'une saisie sur la gravité ou la provision d'un risque nomme ce dont elles dépendent, et
 `getComputedValueDependencies` ne connaît que les champs d'un nœud. Chaque risque rend, pour sa
-gravité et sa provision, dans cet ordre, les règles qui les calculent : `own_estimate`, la gravité
-total du devis propre, et `severity_and_probability`, la provision cette gravité pondérée par la
-probabilité (WF-RIS-0010), deux codes ajoutés à `ComputedDependency`. Ce sont des constantes,
-légères : aucun appel au refus, et aucune ligne nommée — le devis propre est une structure à part,
-que la grille des risques ne montre pas. Écarté : étendre `getComputedValueDependencies` aux
-risques, un appel de plus pour dire deux phrases fixes.
+gravité et sa provision, dans cet ordre, les règles qui les calculent : `own_estimate`, la
+gravité, total de son devis propre, et `severity_and_probability`, la provision, cette gravité
+pondérée par la probabilité (WF-RIS-0010), deux codes ajoutés à `ComputedDependency`. Ce sont des
+constantes, légères : aucun appel au refus, et aucune ligne nommée — le devis propre est une
+structure à part, que la grille des risques ne montre pas. Écarté : étendre
+`getComputedValueDependencies` aux risques, un appel de plus pour dire deux phrases fixes.
 
 **Ce qui reste ouvert.** `ExportRequest.revision_id` reste facultatif, la révision prise par le
 serveur quand il est nul : la commande qui dit l'export disponible est celle de la révision lue,
-et le contrat ne dit pas laquelle juge un export demandé sans révision. Les commandes d'un risque
-(`Risk.available_commands`, #244) sont décidées et réalisées avec EP-08.
+et le contrat ne dit pas laquelle juge un export demandé sans révision — suivi en #359. Les
+commandes d'un risque (`Risk.available_commands`, #244) sont décidées et réalisées avec EP-08.
 
 ## Collage et annulation
 

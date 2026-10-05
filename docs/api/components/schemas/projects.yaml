@@ -51,7 +51,10 @@ Project:
       description: >-
         Commandes du projet que l'appelant a la permission d'exercer, chacune
         disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une
-        commande absente de la liste n'est pas présentée.
+        commande absente de la liste n'est pas présentée. Seule exception, décidée par
+        l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un
+        devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas
+        celle de créer une révision, indisponible, `may_create_revision` manquante.
       items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -72,7 +75,7 @@ CommandCondition:
     projet qui y écriraient — ses exports, qui la lisent, restent disponibles ; pendant une
     survenance ou un
     import, la déclaration d'une survenance et les imports du projet (WF-IHM-0080,
-    WF-ARC-0090). `can_create_revision` manque, quand le projet n'a pas de révision en
+    WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
     cours, aux imports d'un planning, d'un devis ou d'un reste à engager de qui n'a pas la
     permission de créer une révision (`revisions.write`) : l'import la créerait
     (WF-INTF-0090).
@@ -94,7 +97,7 @@ CommandCondition:
     - task_not_completed
     - hourly_rates_set
     - no_background_task_running
-    - can_create_revision
+    - may_create_revision
 
 ProjectCommand:
   type: string
@@ -120,7 +123,7 @@ ProjectCommand:
     planning MS Project, un devis, un reste à engager — une commande par nature, chacune
     gardée par sa permission —, que l'import applique à la révision en cours et crée au
     besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de
-    révision en cours, et nomment alors `can_create_revision` à qui ne peut pas la créer.
+    révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer.
     Une commande
     que refuse l'état d'un objet particulier — un risque déjà survenu — l'est par
     son code d'erreur.

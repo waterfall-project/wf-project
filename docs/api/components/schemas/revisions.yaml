@@ -67,7 +67,12 @@ RevisionCommand:
     (`ExportRequest.kind`), dans l'ordre de l'énumération (WF-INTF-0050, WF-INTF-0110,
     WF-INTF-0130, WF-PLA-0120). Un export se dit de la révision qu'il lit, marquée
     comme en cours ; un import, qui écrit dans la révision en cours ou la crée, est une
-    commande du projet (`ProjectCommand`).
+    commande du projet (`ProjectCommand`). Un export relève de la consultation
+    (WF-CYC-0110) : il est gardé par la permission de consulter la fonction de sa nature
+    — le planning et l'image de l'arborescence celle du planning (FBS-4.3), le devis celle
+    du devis (FBS-4.4), le reste à engager celle du reste à engager (FBS-4.5) — et ne
+    manque d'aucune condition : sur une révision marquée, pendant un marquage, sur un
+    projet terminal, il reste disponible. Un export est présent ou absent.
 
 RevisionCommandAvailability:
   type: object
