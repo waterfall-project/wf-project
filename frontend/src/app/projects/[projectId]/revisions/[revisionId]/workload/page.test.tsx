@@ -191,11 +191,11 @@ describe("the screen of the workload of a project", () => {
 
   it.each([
     [
-      [{ pointer: "/revision_id", code: "VALIDATION_FAILED" }],
+      [{ pointer: "/query/revision_id", code: "VALIDATION_FAILED" }],
       "The workload is not available on this basis: the marked revision asked for is missing, or is not marked.",
     ],
     [
-      [{ pointer: "/org_node_id", code: "VALIDATION_FAILED" }],
+      [{ pointer: "/query/org_node_id", code: "VALIDATION_FAILED" }],
       "The workload is not available: the organisation node asked for does not exist.",
     ],
     [[], "The workload is not available: the API refuses what is asked."],
@@ -204,9 +204,14 @@ describe("the screen of the workload of a project", () => {
       "The workload is not available: the API refuses what is asked.",
     ],
     [
+      // A field of a body, not the parameter of the query.
+      [{ pointer: "/revision_id", code: "VALIDATION_FAILED" }],
+      "The workload is not available: the API refuses what is asked.",
+    ],
+    [
       [
-        { pointer: "/revision_id", code: "VALIDATION_FAILED" },
-        { pointer: "/org_node_id", code: "VALIDATION_FAILED" },
+        { pointer: "/query/revision_id", code: "VALIDATION_FAILED" },
+        { pointer: "/query/org_node_id", code: "VALIDATION_FAILED" },
       ],
       "The workload is not available: the API refuses what is asked.",
     ],

@@ -8,7 +8,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CostsGridProps } from "@/components/costs/costs-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import ActualCostsPage, { generateMetadata } from "./page";
 
@@ -217,6 +223,49 @@ describe("the screen of the actual costs", () => {
     expect(said).toContain("General total 0.00 Last import No import");
     expect(said).toContain("No row matches the request.");
     expect(said).toContain("Journal of the imports No actual cost has been imported yet.");
+  });
+
+  it.each([
+    [
+      "actual_costs_period_inverted",
+      "The actual costs cannot be read over this period: its end precedes its start.",
+    ],
+    [
+      "actual_costs_subproject_unknown",
+      "The actual costs cannot be read: the sub-project asked for does not exist.",
+    ],
+  ])(
+    "says filters the API refuses in place of the lines, the filters kept to be changed: %s",
+    async (refusal, sentence) => {
+      server.answers = {
+        ...server.answers,
+        [COSTS]: { problem: example(refusal) as Problem & { status: 422 } },
+      };
+      const said = text(await costsAt({ from: "2026-04-30", to: "2026-03-01" }));
+      expect(said).toContain(sentence);
+      expect(said).not.toContain("General total");
+      expect(said).toContain("Journal of the imports");
+      expect(grids.costs).toEqual([]);
+    },
+  );
+
+  it("says the filters refused, without naming one, when the envelope points at none it knows", async () => {
+    server.answers = {
+      ...server.answers,
+      [COSTS]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [
+            { pointer: "/query/to", code: "VALUE_OUT_OF_RANGE" },
+            { pointer: "/query/subproject_id", code: "UNKNOWN_SUBPROJECT" },
+          ],
+        },
+      },
+    };
+    expect(text(await costsAt())).toContain(
+      "The actual costs cannot be read: the API refuses the filters asked for.",
+    );
   });
 
   it("is not found when the API does not find the project", async () => {

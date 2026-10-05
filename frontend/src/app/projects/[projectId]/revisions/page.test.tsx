@@ -309,7 +309,9 @@ describe("the parts of the revision the screen reads in", () => {
     expect(table(page, "Structures de coûts")).toBe(
       "Nature Libellé État Structure principale Structure principale " +
         "Avenant Avenant 1 — extension du poste Fusionnée Avenant Avenant 2 — reprise des essais " +
-        "Devis de risque Risque de reprise du câblage",
+        "Devis de risque Risque de reprise du câblage " +
+        "Devis de risque Retard de livraison des armoires " +
+        "Devis de risque Indisponibilité de l'automaticien",
     );
     // A marked revision is immutable: no rate update is read for it.
     expect(

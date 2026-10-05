@@ -3,16 +3,18 @@
 /**
  * The settings every project inherits from the installation (US-0250), as the server gives them:
  * the bounds of the risk matrix — three of probability, three of severity in percentage of the
- * reference budget, which delimit four levels on each axis (FBS-3.3, WF-REF-0160) —; the watch and
+ * reference budget, which delimit four levels on each axis (FBS-3.3, WF-REF-0160) —, and the zone of
+ * each of its sixteen cells, placed by its rank in the order of the contract; the watch and
  * alert thresholds of the cost and schedule indices (FBS-3.4, WF-REF-0170); the longest delay
  * expected between two marked revisions, in weeks (WF-REF-0180). Read only: their form belongs to
  * the epic of the reference data.
  */
-import { CalendarClock, Gauge, Grid2x2 } from "lucide-react";
+import { CalendarClock, Gauge, Grid2x2, Grid3x3 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { CELL, ListTable } from "@/components/projects/project-tables";
+import { Signal } from "@/components/signal/signal";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatPercent } from "@/i18n/format";
 
@@ -59,6 +61,40 @@ export function RiskBoundsTable({ matrix }: { readonly matrix: RiskMatrixSetting
       <ListTable label={t("title")} columns={[t("axis"), ...columns]}>
         <SettingRow name={t("probability")} values={bounds(matrix.probability_bounds)} />
         <SettingRow name={t("severity")} values={bounds(matrix.severity_bounds)} />
+      </ListTable>
+    </ReferenceSection>
+  );
+}
+
+/** The four levels of an axis of the matrix, from the lowest. */
+const LEVELS = [1, 2, 3, 4] as const;
+
+/**
+ * The zone of each cell of the risk matrix, the highest probability at the top as a matrix of
+ * risks reads: the zones come by probability then by severity, each from the lowest level, so the
+ * cell of probability p and severity s is the zone of rank 4 × (p − 1) + (s − 1).
+ */
+export function RiskZonesTable({ matrix }: { readonly matrix: RiskMatrixSettings }) {
+  const t = useTranslations("reference.riskZones");
+  const severities = LEVELS.map((level) => t("severity", { level }));
+  return (
+    <ReferenceSection title={t("title")} icon={Grid3x3}>
+      <ListTable label={t("title")} columns={[t("axes"), ...severities]}>
+        {[...LEVELS].reverse().map((probability) => (
+          <TableRow key={probability}>
+            <TableHead scope="row" className={CELL}>
+              {t("probability", { level: probability })}
+            </TableHead>
+            {LEVELS.map((severity) => {
+              const zone = matrix.zones[4 * (probability - 1) + (severity - 1)];
+              return (
+                <TableCell key={severity} className={CELL}>
+                  {zone === undefined ? null : <Signal zone={zone} />}
+                </TableCell>
+              );
+            })}
+          </TableRow>
+        ))}
       </ListTable>
     </ReferenceSection>
   );

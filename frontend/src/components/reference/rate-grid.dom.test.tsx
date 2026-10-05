@@ -9,7 +9,13 @@ import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import { type HourlyRateGrid, RateGrid } from "./rate-grid";
 
@@ -216,6 +222,24 @@ describe("the grid of the hourly rates", () => {
       "La valeur sort des limites admises.",
     );
     expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
+  });
+
+  it("says a correction sent with a version another one has made stale, the cell kept as it was [WF-IHM-0110-A]", async () => {
+    const stale = example("hourly_rate_stale") as Problem & { status: 412 };
+    const client = serve({ [RATE]: { problem: stale } });
+    render(rates());
+    cell(MECHANICAL, 2016).focus();
+    await userEvent.keyboard("87{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
+    );
+    expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
+    expect(written(client)).toEqual([
+      {
+        path: `/reference/cost-categories/${MECHANICAL_ID}/hourly-rates/2016`,
+        body: { amount: "87", lock_version: 1 },
+      },
+    ]);
   });
 
   it("offers no entry where the session may not modify the cost settings", async () => {

@@ -177,6 +177,24 @@ describe("the grid of the actual costs", () => {
     });
   });
 
+  it("asks the server to sort by the scope and by the reason, and offers no sort on the columns kept from the file [WF-IHM-0060-A]", async () => {
+    render(costsGrid(costsOf("actual_costs")));
+    const sortBy = async (name: RegExp, column: string) => {
+      const heading = within(grid()).getByRole("columnheader", { name });
+      await userEvent.click(within(heading).getByRole("button"));
+      await waitFor(() => {
+        expect(router.push).toHaveBeenLastCalledWith(
+          `${PATHNAME}?sort_by=${column}&sort_order=asc`,
+          { scroll: false },
+        );
+      });
+    };
+    await sortBy(/Périmètre suivi/, "in_tracked_scope");
+    await sortBy(/Motif de l’exclusion/, "excluded_reason");
+    const kept = within(grid()).getByRole("columnheader", { name: /Colonnes conservées/ });
+    expect(within(kept).queryByRole("button")).toBeNull();
+  });
+
   it("is named and headed in English too", () => {
     render(
       inLanguage(

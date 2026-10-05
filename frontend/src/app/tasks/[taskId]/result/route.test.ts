@@ -44,31 +44,36 @@ beforeEach(() => {
 });
 
 describe("the result of a task, downloaded", () => {
-  it("is the file the API gives, handed on as it comes, an attachment never sniffed", async () => {
-    const client = serve({
-      [RESULT]: { body: new Blob(["<Project/>"]), type: "application/octet-stream", status: 200 },
+  it("is the file the API gives, handed on as it comes, the attachment it names, never sniffed", async () => {
+    const disposition = 'attachment; filename="planning-poste-de-commande.xml"';
+    let asked: string | undefined;
+    server.client = createApiClient({
+      address: "http://fake.invalid",
+      fetch: (request) => {
+        asked = new URL(request.url).pathname;
+        const headers = { "content-type": "application/xml", "content-disposition": disposition };
+        return Promise.resolve(new Response("<Project/>", { status: 200, headers }));
+      },
     });
     const response = await download();
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("application/octet-stream");
-    expect(response.headers.get("content-disposition")).toBe("attachment");
+    expect(response.headers.get("content-type")).toBe("application/xml");
+    expect(response.headers.get("content-disposition")).toBe(disposition);
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(await response.text()).toBe("<Project/>");
-    expect(client.calls.map((call) => call.path)).toEqual([`/tasks/${TASK}/result`]);
+    expect(asked).toBe(`/api/v1/tasks/${TASK}/result`);
   });
 
-  it("keeps the name the API gives the file", async () => {
-    const disposition = 'attachment; filename="devis.xlsx"';
-    answering("devis", {
-      "content-type": "application/octet-stream",
-      "content-disposition": disposition,
-    });
-    expect((await download()).headers.get("content-disposition")).toBe(disposition);
+  it("answers a bad gateway when the API names no file, which the contract promises", async () => {
+    serve({ [RESULT]: { body: new Blob(["<Project/>"]), type: "application/xml", status: 200 } });
+    const response = await download();
+    expect([response.status, await response.text()]).toEqual([502, ""]);
   });
 
   it("hands on the whole of a file the API sent compressed, without the length it had then", async () => {
     answering("<Project><Tasks/></Project>", {
-      "content-type": "application/octet-stream",
+      "content-type": "application/xml",
+      "content-disposition": 'attachment; filename="planning.xml"',
       "content-encoding": "gzip",
       "content-length": "12",
     });

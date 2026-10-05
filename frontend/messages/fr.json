@@ -274,6 +274,11 @@
   },
   "actualCosts": {
     "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
+    "refused": {
+      "period": "Les coûts réels ne se lisent pas sur cette période : sa fin précède son début.",
+      "subproject": "Les coûts réels ne se lisent pas : le sous-projet demandé n’existe pas.",
+      "invalid": "Les coûts réels ne se lisent pas : l’API refuse les filtres demandés."
+    },
     "generalTotal": "Total général des lignes retenues",
     "totals": {
       "title": "Totaux des lignes retenues",
@@ -595,6 +600,7 @@
       "amount": "Montant",
       "steps": "Marches du budget de référence",
       "cause": "Motif",
+      "stepAmount": "Montant de la marche",
       "cashOut": "Décaissements par mois",
       "month": "Mois",
       "past": "Décaissé",
@@ -899,6 +905,12 @@
       "probability": "Probabilité",
       "severity": "Gravité, en pourcentage du budget de référence"
     },
+    "riskZones": {
+      "title": "Zones de la matrice de risques",
+      "axes": "Probabilité, puis gravité",
+      "probability": "Probabilité, niveau {level}",
+      "severity": "Gravité, niveau {level}"
+    },
     "indices": {
       "title": "Seuils d’alerte des indices",
       "index": "Indice",
@@ -995,7 +1007,7 @@
       "frequency": "Fréquence",
       "weekday": "Jour",
       "at": "Heure",
-      "platformTime": "{time}, heure de la plateforme",
+      "universalTime": "{time} UTC",
       "retained": "Rétention",
       "count": "{count, plural, one {# sauvegarde conservée} other {# sauvegardes conservées}}",
       "weekdays": {
@@ -1102,7 +1114,9 @@
     "missing_condition": "Condition non remplie : {condition}.",
     "missing_prerequisites": "À compléter : {prerequisites}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
-    "component": "Composant indisponible : {component}."
+    "component": "Composant indisponible : {component}.",
+    "expected_format": "Format attendu : {format}.",
+    "expected_version": "Version attendue : {version}."
   },
   "permissions": {
     "users": {

@@ -8,10 +8,10 @@
  * another configuration, read only — the actual costs are imported and excluded by the epic of the
  * actual costs (EP-09). Every value is entered by the ERP, none computed here.
  *
- * The number, the date, the amount and the sub-project sort by the columns of the contract of the
- * same name, the server sorting — the most recent documents first when none is asked —; the
- * contract sorts by no other (#292). The server searches nothing, and the bar of the grid offers
- * no search. The totals row shows the general total of the lines retained the server gives, never
+ * The number, the date, the amount, the sub-project, the scope and the reason sort by the columns
+ * of the contract of the same name, the server sorting — the most recent documents first when none
+ * is asked —; the columns kept from the file, named by the file, have no sort in the contract. The
+ * server searches nothing, and the bar of the grid offers no search. The totals row shows the general total of the lines retained the server gives, never
  * a sum of the page.
  */
 import type { components, operations } from "@/api/generated/schema";
@@ -122,7 +122,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
       label: "trackedScope",
       format: "text",
       width: 112,
-      // The server sorts neither by the scope, nor by the reason, nor by the columns kept (#292).
+      sortBy: "in_tracked_scope",
       value: (line) => String(line.is_in_tracked_scope),
       render: (line) => <ScopeCell tracked={line.is_in_tracked_scope} />,
     },
@@ -131,6 +131,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
       label: "excludedReason",
       format: "text",
       width: 200,
+      sortBy: "excluded_reason",
       value: (line) => line.excluded_reason,
     },
     {

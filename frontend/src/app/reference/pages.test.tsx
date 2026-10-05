@@ -207,6 +207,17 @@ describe("the settings of the risks and of the indicators", () => {
     ]);
   });
 
+  it("present the zone of each cell of the risk matrix, placed by probability then severity, the highest probability at the top", async () => {
+    const page = rendered(await RiskSettingsPage());
+    expect(rows(page, "Zones de la matrice de risques")).toEqual([
+      "Probabilité, puis gravité Gravité, niveau 1 Gravité, niveau 2 Gravité, niveau 3 Gravité, niveau 4",
+      "Probabilité, niveau 4 Vigilance Vigilance Alerte Alerte",
+      "Probabilité, niveau 3 Nominal Vigilance Vigilance Alerte",
+      "Probabilité, niveau 2 Nominal Nominal Vigilance Vigilance",
+      "Probabilité, niveau 1 Nominal Nominal Nominal Vigilance",
+    ]);
+  });
+
   it("present the thresholds of the two indices and the delay between two reviews", async () => {
     const page = rendered(await IndicatorSettingsPage());
     expect(rows(page, "Seuils d’alerte des indices")).toEqual([

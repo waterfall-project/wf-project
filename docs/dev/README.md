@@ -317,7 +317,10 @@ période des pièces, qui n'écrivent que l'adresse, sous les noms du contrat, e
 première page ; la grille dense en lecture (`cost-grid.tsx`), sans recherche — l'opération n'en
 a pas : une configuration la retire par `searched: false` —, chaque ligne avec son sous-projet
 nommé par le serveur, son périmètre en mots et les colonnes conservées du fichier telles
-qu'importées ; et le journal des imports, paginé à part (`imports_offset`). Un tri ou une
+qu'importées, chaque colonne triée par le serveur sauf ces dernières, que le contrat ne trie pas ;
+et le journal des imports, paginé à part (`imports_offset`). Des filtres que le serveur refuse
+(422 : une période qui finit avant de commencer, un sous-projet que le projet n'a pas) se disent à
+la place des lignes, les filtres gardés pour être changés. Un tri ou une
 recherche changés ramènent toute liste paginée à sa première page (`sortHref`, `searchHref`).
 Un lien de page, comme le libellé d'un risque, part de la dernière adresse demandée
 (`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
@@ -334,7 +337,8 @@ saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platfor
 les natures et les catégories de coût — l'écran ne remplit la fenêtre qu'à partir de la grande
 largeur (`Screen`, `fillWide`) : en fenêtre étroite, la grille et les listes s'empilent et la page
 défile ; les paramètres de ressources présentent l'organisation,
-les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice, ceux
+les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice et la
+zone de chaque case, placée par son rang dans l'ordre du contrat, ceux
 des indicateurs les seuils des indices et le délai entre deux revues. Un objet rattaché se nomme
 par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
 listes dans le front ; une section se nomme par `aria-label` (#251).
@@ -350,7 +354,8 @@ sans aucune commande. Une liste que le serveur pagine — comptes, sauvegardes �
 porte et mène aux pages voisines par `offset` (`ListPages`, `offsetOf`), sans jamais montrer une
 page pour le tout ; elle ne se dit vide que si elle ne tient rien (`meta.total`), et une page
 demandée au-delà de sa fin le dit et ramène à la dernière. L'heure d'une sauvegarde planifiée
-s'affiche telle quelle, « heure de la plateforme », le contrat n'en disant pas le fuseau.
+s'affiche telle quelle, en UTC, comme le contrat la donne : une heure du jour n'a pas de date d'où
+tirer le décalage d'un fuseau à heure d'été.
 
 L'écran des imports et exports, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
 US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte, comme
@@ -372,8 +377,10 @@ réels par `import_actual_costs` du projet, les autres par la commande `edit_*` 
 cours (#318). La liste des imports, paginée par le serveur (`offset`, `ListPages`), mène au compte
 rendu de chacun ; la demande d'export part pour la révision lue — l'image de l'arborescence au
 niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en a un : le serveur
-de Next le lit (`getBackgroundTaskResult`) et le transmet en pièce jointe, sans sa longueur, que
-`fetch` a décodée, à la route `/tasks/[taskId]/result` (#323).
+de Next le lit (`getBackgroundTaskResult`) et le transmet, à la route `/tasks/[taskId]/result`,
+avec le type de sa nature et la pièce jointe nommée que le contrat promet (`Content-Disposition`),
+sans sa longueur, que `fetch` a décodée ; une réponse qui ne nomme pas le fichier est une mauvaise
+passerelle (502).
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
 hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
