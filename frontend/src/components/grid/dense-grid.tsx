@@ -132,7 +132,8 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly preferences: GridPreferences | undefined;
   /**
    * How to ask the server what the value of a computed cell depends on, once an entry is tried
-   * on it (WF-IHM-0030); none, and the refusal says only that the value is computed.
+   * on it (WF-IHM-0030); none, and the refusal names only what the row itself says it depends on
+   * (`dependsOn`), if anything.
    */
   readonly dependencies?: DependencyReader<Row> | undefined;
   /**

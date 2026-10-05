@@ -19,7 +19,7 @@ import type { Outcome } from "@/api/problem";
 import { Button } from "@/components/ui/button";
 import { formatLocale } from "@/i18n/format";
 
-import type { CommandOffer } from "./offer";
+import { type CommandOffer, UNAVAILABLE, unmetId } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
 
 /** A command, what it is called, and what it does. */
@@ -54,17 +54,6 @@ export interface Disclosure {
   readonly toggle: () => void;
   /** The button, which takes the focus back once what it opened has closed. */
   readonly ref?: Ref<HTMLButtonElement> | undefined;
-}
-
-/** The look of a command unavailable: greyed out, its cursor saying it does nothing. */
-export const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
-
-/**
- * The identifier of the text that names what an offer lacks, from that of its command; none when
- * the command is available, or lacks nothing the server names.
- */
-export function unmetId(offer: CommandOffer, id: string): string | undefined {
-  return offer.is_available || offer.missing_conditions.length === 0 ? undefined : `${id}-unmet`;
 }
 
 /**

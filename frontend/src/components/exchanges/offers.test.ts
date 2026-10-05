@@ -44,7 +44,7 @@ describe("the imports a project offers", () => {
       estimate: {
         command: "import_estimate",
         is_available: false,
-        missing_conditions: ["can_create_revision"],
+        missing_conditions: ["may_create_revision"],
       },
       remaining: undefined,
       actual_costs: undefined,
@@ -63,16 +63,23 @@ describe("the exports a revision offers", () => {
     expect(exportOffers(revision("revision_marked")).estimate?.is_available).toBe(true);
   });
 
-  it("leave out what the server does not list, and are none without a revision", () => {
+  it("are those of what the caller reads, a reader who modifies nothing included", () => {
     expect(exportOffers(revision("revision_estimator"))).toEqual({
       ms_project_schedule: undefined,
       estimate: available("export_estimate"),
-      remaining: undefined,
+      remaining: available("export_remaining"),
       task_tree_image: undefined,
     });
-    for (const offers of [exportOffers(revision("revision_reader")), exportOffers(undefined)]) {
-      expect(Object.values(offers)).toEqual([undefined, undefined, undefined, undefined]);
-    }
+    expect(exportOffers(revision("revision_reader"))).toEqual(exportOffers(revision("revision")));
+  });
+
+  it("are none without a revision", () => {
+    expect(Object.values(exportOffers(undefined))).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 });
 

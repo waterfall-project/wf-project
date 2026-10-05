@@ -147,11 +147,11 @@ describe("the screen of the imports and exports", () => {
     ]);
   });
 
-  it("offers no export the revision read does not offer", async () => {
+  it("offers a reader who modifies nothing the exports of what it reads", async () => {
     server.answers = { ...server.answers, [GET_REVISION]: "revision_reader" };
     const page = await exchangesAt();
-    expect(buttons(page)).not.toContain("Request the export");
-    expect(text(page)).toContain("No export is offered to you on this revision.");
+    expect(buttons(page)).toContain("Request the export");
+    expect(text(page)).not.toContain("No export is offered to you on this revision.");
   });
 
   it("shows the report of the import the address names, its context kept, the import marked in the list", async () => {
@@ -247,10 +247,12 @@ describe("the screen of the imports and exports", () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": { example: "project_pricing_estimator", status: 200 },
+      [GET_REVISION]: "revision_estimator",
     };
     const page = await exchangesAt();
     expect(buttons(page)).toEqual(["Import an estimate", "Request the export"]);
-    expect(text(page)).toContain("being allowed to create a revision");
+    expect(text(page)).toContain("holding the permission to create a revision");
+    expect(text(page)).toContain("Estimate Estimate to complete");
   });
 
   it("is not found when the import the address names is not", async () => {

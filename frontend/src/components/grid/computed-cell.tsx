@@ -85,7 +85,8 @@ function useDependencies<Row>(
     answer.field === field &&
     (answer.outcome.kind === "done" || answer.opening === opening);
   const shown = kept ? answer.outcome : undefined;
-  // A value the contract names no field for is not asked about: the refusal says it is computed.
+  // A value with no field of a node to ask about is not asked: the refusal says it is computed,
+  // and what its row says it depends on, if anything.
   const asking = open && dependencies !== undefined && field !== undefined && shown === undefined;
   const reader = asking ? dependencies : undefined;
   useEffect(() => {
@@ -163,7 +164,10 @@ export interface ComputedRefusalProps<Row, Sort extends string, Totals> {
   readonly column: ComputedColumn<Row, Sort, Totals>;
   /** The row whose value was tried. */
   readonly row: Row;
-  /** How to ask the server what the value depends on; none, and the refusal says no more. */
+  /**
+   * How to ask the server what the value depends on; none, and the refusal names only what the
+   * row itself says (`dependsOn`), if anything.
+   */
   readonly dependencies: DependencyReader<Row> | undefined;
   /** Whether the refusal shows: the server is asked while it does, and only then. */
   readonly open: boolean;

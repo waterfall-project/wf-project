@@ -4,8 +4,9 @@
  * The request of an export (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120): the kind of
  * file chosen among those the revision read offers to export (WF-IHM-0090) — and, for the image
  * of the tree of tasks, the level it stops at, if the user gives one —, asked by a server action.
- * A kind the server lists unavailable stays in the list, and the request names what it lacks;
- * a kind it does not list is not offered. The API gives the hand back at once with a background
+ * An export is present or absent — the permission to read its kind guards it, and it lacks no
+ * condition, a terminal project included (WF-CYC-0110) —: a kind the revision does not list is
+ * not offered; one it would list unavailable would stay, the request naming what it lacks. The API gives the hand back at once with a background
  * task (WF-ARC-0090), handed to the tracker of the shell with the request itself, which runs it
  * again if it fails; its result, a file made on demand and not kept (WF-DAT-0120), is downloaded
  * from the tracker once the task has succeeded. A refusal is told under the form
@@ -19,7 +20,8 @@ import { type SubmitEvent, useId, useState, useTransition } from "react";
 
 import { type ExportRequest, requestFileExport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
-import { UNAVAILABLE, UnmetConditions, unmetId } from "@/components/commands/command";
+import { UnmetConditions } from "@/components/commands/command";
+import { UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";

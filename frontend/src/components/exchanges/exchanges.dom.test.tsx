@@ -148,7 +148,7 @@ describe("the first step of an import", () => {
     expect(screen.getAllByRole("button")).toEqual([estimate]);
     expect(estimate).toHaveAttribute("aria-disabled", "true");
     expect(estimate).toHaveAccessibleDescription(
-      "Condition non remplie\u00A0: pouvoir créer une révision.",
+      "Condition non remplie\u00A0: avoir la permission de créer une révision.",
     );
     await userEvent.click(estimate);
     expect(screen.queryByRole("form")).toBeNull();
@@ -521,7 +521,7 @@ describe("the request of an export", () => {
       within(kinds)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["Devis"]);
+    ).toEqual(["Devis", "Reste à engager"]);
     await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
     await settled(form);
     expect(client.calls.map((call) => call.body)).toEqual([
@@ -532,34 +532,9 @@ describe("the request of an export", () => {
     );
   });
 
-  it("presents an export the revision lists unavailable, naming what it lacks, and asks nothing", async () => {
-    const client = serve({});
-    const unavailable = { is_available: false, missing_conditions: ["revision_draft" as const] };
-    const { container } = open(
-      <ExportForm
-        projectId={PROJECT}
-        revisionId={REVISION}
-        offers={{
-          ms_project_schedule: unavailable,
-          estimate: undefined,
-          remaining: undefined,
-          task_tree_image: undefined,
-        }}
-      />,
-    );
-    const request = screen.getByRole("button", { name: "Demander l’export" });
-    expect(request).toHaveAttribute("aria-disabled", "true");
-    expect(request).toHaveAccessibleDescription(
-      "Condition non remplie\u00A0: révision en cours d’élaboration.",
-    );
-    await userEvent.click(request);
-    expect(client.calls).toEqual([]);
-    await expectAccessible(container);
-  });
-
-  it("says no export is offered when the revision read offers none", () => {
+  it("says no export is offered without a revision that offers one", () => {
     serve({});
-    open(exportForm("revision_reader"));
+    open(<ExportForm projectId={PROJECT} revisionId={REVISION} offers={exportOffers(undefined)} />);
     expect(screen.queryByRole("form")).toBeNull();
     expect(screen.getByText("Aucun export ne vous est offert sur cette révision.")).toBeVisible();
   });

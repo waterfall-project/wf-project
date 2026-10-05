@@ -1372,7 +1372,7 @@
       "task_not_completed": "task not completed",
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
-      "can_create_revision": "being allowed to create a revision"
+      "may_create_revision": "holding the permission to create a revision"
     },
     "ProjectExit": {
       "to_state": {

@@ -376,8 +376,8 @@ révision en cours — sans elle, qui ne peut pas créer la révision voit l'imp
 `may_create_revision` nommée. Un projet sans révision n'a toutefois pas encore d'adresse qui mène
 à l'écran, de portée révision (#332). La liste des imports, paginée par le serveur (`offset`,
 `ListPages`), mène au compte rendu de chacun ; la demande d'export n'offre que les natures que la
-révision lue offre d'exporter (`exportOffers`, `export_*`), une nature indisponible nommant ce qui
-lui manque, et part pour cette révision — l'image de l'arborescence au niveau demandé —, et le
+révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
+consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de l'arborescence au niveau demandé —, et le
 suivi offre de télécharger le résultat d'une tâche qui en a un : le serveur
 de Next le lit (`getBackgroundTaskResult`) et le transmet en pièce jointe, sans sa longueur, que
 `fetch` a décodée, à la route `/tasks/[taskId]/result` (#323).

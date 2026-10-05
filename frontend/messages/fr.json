@@ -1372,7 +1372,7 @@
       "task_not_completed": "tâche non terminée",
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
-      "can_create_revision": "pouvoir créer une révision"
+      "may_create_revision": "avoir la permission de créer une révision"
     },
     "ProjectExit": {
       "to_state": {
