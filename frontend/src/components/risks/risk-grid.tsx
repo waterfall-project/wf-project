@@ -9,9 +9,10 @@
  *
  * Each column but the cell of the matrix sorts by the column of the contract of the same name, the
  * server sorting (WF-IHM-0130). The severity and the provision are computed (WF-RIS-0010,
- * WF-IHM-0030): columns computed whole, Σ in their header and in each cell, never entered; the
- * contract names no field of a node for them, so that their refusal says they are computed and no
- * more. The totals row shows the general total of the provisions the server gives, never a sum.
+ * WF-IHM-0030): columns computed whole, Σ in their header and in each cell, never entered; their
+ * refusal names what they depend on as the risk itself says it (`computed_fields`), without asking
+ * the server. The totals row shows the general total of the provisions the server gives, never a
+ * sum.
  */
 import { Grid2x2 } from "lucide-react";
 
@@ -41,6 +42,7 @@ export const RISK_FIELDS = [
   "state",
   "last_review_on",
   "matrix_cell",
+  "computed_fields",
 ] as const satisfies readonly (keyof Risk)[];
 
 /** A risk as the grid reads it. */
@@ -57,7 +59,7 @@ export interface RiskRows {
  * audit do not cross to the browser with the rows.
  */
 export function riskRow(risk: Risk): RiskRow {
-  const { risk_id, label, probability, severity, provision_amount, state } = risk;
+  const { risk_id, label, probability, severity, provision_amount, state, computed_fields } = risk;
   return {
     risk_id,
     label,
@@ -65,17 +67,27 @@ export function riskRow(risk: Risk): RiskRow {
     severity,
     provision_amount,
     state,
+    computed_fields,
     ...(risk.last_review_on === undefined ? {} : { last_review_on: risk.last_review_on }),
     ...(risk.matrix_cell === undefined ? {} : { matrix_cell: risk.matrix_cell }),
   };
 }
 
-/** A value the server computes in every risk, for which the contract names no field of a node. */
-const COMPUTED_IN_EVERY_RISK: ComputedCells<RiskRow> = {
-  whole: true,
-  in: () => true,
-  field: () => undefined,
-};
+/** A field of a risk the server computes, as the risk names it with what it depends on. */
+type RiskComputedField = components["schemas"]["RiskComputedField"]["field"];
+
+/**
+ * A value the server computes in every risk: no field of a node to ask about, the rules it depends
+ * on read from the risk itself.
+ */
+function computedInEveryRisk(field: RiskComputedField): ComputedCells<RiskRow> {
+  return {
+    whole: true,
+    in: () => true,
+    field: () => undefined,
+    dependsOn: (risk) => risk.computed_fields.find((entry) => entry.field === field)?.dependencies,
+  };
+}
 
 /** The grid of the risks. */
 export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
@@ -107,7 +119,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       label: "severity",
       format: "money",
       width: 120,
-      computed: COMPUTED_IN_EVERY_RISK,
+      computed: computedInEveryRisk("severity"),
       sortBy: "severity",
       value: (risk) => risk.severity,
     },
@@ -116,7 +128,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       label: "provisionAmount",
       format: "money",
       width: 120,
-      computed: COMPUTED_IN_EVERY_RISK,
+      computed: computedInEveryRisk("provision_amount"),
       sortBy: "provision_amount",
       value: (risk) => risk.provision_amount,
       total: (totals) => totals.total,

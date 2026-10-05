@@ -1362,7 +1362,10 @@
       "edit_risks": "Edit the risks",
       "declare_risk_occurrence": "Declare that a risk has occurred",
       "import_actual_costs": "Import actual costs",
-      "exclude_cost_lines": "Exclude cost lines"
+      "exclude_cost_lines": "Exclude cost lines",
+      "import_planning": "Import an MS Project schedule",
+      "import_estimate": "Import an estimate",
+      "import_remaining": "Import an estimate to complete"
     },
     "CommandCondition": {
       "is_contributor": "being a contributor to the project",
@@ -1381,7 +1384,8 @@
       "unmerged_amendment_exists": "an unmerged amendment",
       "task_not_completed": "task not completed",
       "hourly_rates_set": "hourly rates set",
-      "no_background_task_running": "no background task running on the object"
+      "no_background_task_running": "no background task running on the object",
+      "may_create_revision": "holding the permission to create a revision"
     },
     "ProjectExit": {
       "to_state": {
@@ -1406,7 +1410,11 @@
       "merge_structure": "Merge a structure",
       "mark": "Mark the revision",
       "designate_reference": "Designate as reference",
-      "abandon": "Abandon the revision"
+      "abandon": "Abandon the revision",
+      "export_planning": "Export the MS Project schedule",
+      "export_estimate": "Export the estimate",
+      "export_remaining": "Export the estimate to complete",
+      "export_task_tree_image": "Export the task tree image"
     },
     "RateUpdateProposal": {
       "categories": {
@@ -1590,7 +1598,9 @@
       "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
-      "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate."
+      "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate.",
+      "own_estimate": "The severity of a risk is the total of its own estimate.",
+      "severity_and_probability": "The provision of a risk is its severity weighted by its probability."
     },
     "ProgressUpdate": {
       "progress": {
@@ -1638,6 +1648,12 @@
       "identified": "Identified",
       "occurred": "Occurred",
       "dismissed": "Dismissed"
+    },
+    "RiskComputedField": {
+      "field": {
+        "severity": "Severity",
+        "provision_amount": "Provision"
+      }
     },
     "RiskReviewWrite": {
       "state": {
@@ -1785,7 +1801,8 @@
       "title": "Request an export",
       "kind": "File to export",
       "request": "Request the export",
-      "depth": "Level of the tree"
+      "depth": "Level of the tree",
+      "none": "No export is offered to you on this revision."
     }
   }
 }

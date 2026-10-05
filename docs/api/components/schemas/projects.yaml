@@ -51,7 +51,10 @@ Project:
       description: >-
         Commandes du projet que l'appelant a la permission d'exercer, chacune
         disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une
-        commande absente de la liste n'est pas présentée.
+        commande absente de la liste n'est pas présentée. Seule exception, décidée par
+        l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un
+        devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas
+        celle de créer une révision, indisponible, `may_create_revision` manquante.
       items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -66,11 +69,16 @@ CommandCondition:
     `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet
     — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que
     soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
-    Pendant le marquage d'une révision, ce sont toutes ses commandes : la saisie du
-    planning, du devis et du reste à engager, l'ouverture d'un différentiel, sa fusion, le
-    marquage, la désignation de la référence et l'abandon ; pendant une survenance ou un
-    import, la déclaration d'une survenance et l'import des coûts réels du projet
-    (WF-IHM-0080, WF-ARC-0090).
+    Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la
+    saisie du planning, du devis et du reste à engager, l'ouverture d'un différentiel, sa
+    fusion, le marquage, la désignation de la référence et l'abandon, et les imports du
+    projet qui y écriraient — ses exports, qui la lisent, restent disponibles ; pendant une
+    survenance ou un
+    import, la déclaration d'une survenance et les imports du projet (WF-IHM-0080,
+    WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
+    cours, aux imports d'un planning, d'un devis ou d'un reste à engager de qui n'a pas la
+    permission de créer une révision (`revisions.write`) : l'import la créerait
+    (WF-INTF-0090).
   enum:
     - is_contributor
     - is_project_manager
@@ -89,6 +97,7 @@ CommandCondition:
     - task_not_completed
     - hourly_rates_set
     - no_background_task_running
+    - may_create_revision
 
 ProjectCommand:
   type: string
@@ -103,11 +112,19 @@ ProjectCommand:
     - declare_risk_occurrence
     - import_actual_costs
     - exclude_cost_lines
+    - import_planning
+    - import_estimate
+    - import_remaining
   description: >-
     Commandes portées par le projet : modifier ses paramètres, ses contributeurs,
     ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer
     et réexaminer les risques, déclarer un risque survenu (WF-RIS-0060) ; importer les
-    coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030). Une commande
+    coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un
+    planning MS Project, un devis, un reste à engager — une commande par nature, chacune
+    gardée par sa permission —, que l'import applique à la révision en cours et crée au
+    besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de
+    révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer.
+    Une commande
     que refuse l'état d'un objet particulier — un risque déjà survenu — l'est par
     son code d'erreur.
 

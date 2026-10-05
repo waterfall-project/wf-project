@@ -1362,7 +1362,10 @@
       "edit_risks": "Modifier les risques",
       "declare_risk_occurrence": "Déclarer la survenance d’un risque",
       "import_actual_costs": "Importer les coûts réels",
-      "exclude_cost_lines": "Exclure des lignes de coût"
+      "exclude_cost_lines": "Exclure des lignes de coût",
+      "import_planning": "Importer un planning MS Project",
+      "import_estimate": "Importer un devis",
+      "import_remaining": "Importer un reste à engager"
     },
     "CommandCondition": {
       "is_contributor": "être contributeur du projet",
@@ -1381,7 +1384,8 @@
       "unmerged_amendment_exists": "un avenant non fusionné",
       "task_not_completed": "tâche non terminée",
       "hourly_rates_set": "taux horaires renseignés",
-      "no_background_task_running": "aucun traitement de fond en cours sur l’objet"
+      "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
+      "may_create_revision": "avoir la permission de créer une révision"
     },
     "ProjectExit": {
       "to_state": {
@@ -1406,7 +1410,11 @@
       "merge_structure": "Fusionner une structure",
       "mark": "Marquer la révision",
       "designate_reference": "Désigner comme référence",
-      "abandon": "Abandonner la révision"
+      "abandon": "Abandonner la révision",
+      "export_planning": "Exporter le planning MS Project",
+      "export_estimate": "Exporter le devis",
+      "export_remaining": "Exporter le reste à engager",
+      "export_task_tree_image": "Exporter l’image de l’arborescence de tâches"
     },
     "RateUpdateProposal": {
       "categories": {
@@ -1590,7 +1598,9 @@
       "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
-      "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet."
+      "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet.",
+      "own_estimate": "La gravité d’un risque est le total de son devis propre.",
+      "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité."
     },
     "ProgressUpdate": {
       "progress": {
@@ -1638,6 +1648,12 @@
       "identified": "Identifié",
       "occurred": "Survenu",
       "dismissed": "Écarté"
+    },
+    "RiskComputedField": {
+      "field": {
+        "severity": "Gravité",
+        "provision_amount": "Provision"
+      }
     },
     "RiskReviewWrite": {
       "state": {
@@ -1785,7 +1801,8 @@
       "title": "Demander un export",
       "kind": "Fichier à exporter",
       "request": "Demander l’export",
-      "depth": "Niveau de l’arborescence"
+      "depth": "Niveau de l’arborescence",
+      "none": "Aucun export ne vous est offert sur cette révision."
     }
   }
 }

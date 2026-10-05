@@ -66,6 +66,26 @@
             "missing_conditions": [
               "revision_draft"
             ]
+          },
+          {
+            "command": "export_planning",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_estimate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_remaining",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_task_tree_image",
+            "is_available": true,
+            "missing_conditions": []
           }
         ],
         "audit": {
@@ -148,6 +168,26 @@
             "missing_conditions": [
               "revision_draft"
             ]
+          },
+          {
+            "command": "export_planning",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_estimate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_remaining",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "export_task_tree_image",
+            "is_available": true,
+            "missing_conditions": []
           }
         ],
         "audit": {

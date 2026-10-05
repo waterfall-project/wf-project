@@ -8,7 +8,9 @@
  * says it once asked (`getComputedValueDependencies`): the rules that compute it, and the rows it
  * is drawn from — their number and their label —, all of them, whatever the search or the filters
  * of the grid retained. Until the server answers, the refusal says it is reading; a refusal of the
- * server, or the API out of reach, it tells as every screen does (`OutcomeNotice`).
+ * server, or the API out of reach, it tells as every screen does (`OutcomeNotice`). A row that
+ * says itself what the value depends on — a risk, its severity and its provision — has its rules
+ * named at once, and nothing asked.
  *
  * The cell is one of the grid, which the keyboard reaches as any other (`useGridKeyboard`): an entry
  * tried on it from the keyboard, or a click, opens its refusal, which the grid holds. Its popover
@@ -33,6 +35,7 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import {
   type ComputedCells,
   type ComputedDependencies,
+  type ComputedDependency,
   type ComputedValueField,
   type DependencyReader,
   type GridColumn,
@@ -82,7 +85,8 @@ function useDependencies<Row>(
     answer.field === field &&
     (answer.outcome.kind === "done" || answer.opening === opening);
   const shown = kept ? answer.outcome : undefined;
-  // A value the contract names no field for is not asked about: the refusal says it is computed.
+  // A value with no field of a node to ask about is not asked: the refusal says it is computed,
+  // and what its row says it depends on, if anything.
   const asking = open && dependencies !== undefined && field !== undefined && shown === undefined;
   const reader = asking ? dependencies : undefined;
   useEffect(() => {
@@ -113,17 +117,23 @@ function keep() {
   return undefined;
 }
 
+/** The rules that compute a value, each in a sentence, in the order to say them. */
+function Rules({ codes }: { readonly codes: readonly ComputedDependency[] }) {
+  const t = useTranslations("enums.ComputedDependency");
+  return codes.map((code) => (
+    <p key={code} className="text-muted-foreground">
+      {t(code)}
+    </p>
+  ));
+}
+
 /** What the server said a value depends on: its rules, and the rows it is drawn from. */
 function Dependencies({ dependencies }: { readonly dependencies: ComputedDependencies }) {
   const t = useTranslations();
   const listed = useId();
   return (
     <>
-      {dependencies.depends_on.map((code) => (
-        <p key={code} className="text-muted-foreground">
-          {t(`enums.ComputedDependency.${code}`)}
-        </p>
-      ))}
+      <Rules codes={dependencies.depends_on} />
       {dependencies.rows.length === 0 ? null : (
         <>
           <p id={listed} className="font-medium">
@@ -154,7 +164,10 @@ export interface ComputedRefusalProps<Row, Sort extends string, Totals> {
   readonly column: ComputedColumn<Row, Sort, Totals>;
   /** The row whose value was tried. */
   readonly row: Row;
-  /** How to ask the server what the value depends on; none, and the refusal says no more. */
+  /**
+   * How to ask the server what the value depends on; none, and the refusal names only what the
+   * row itself says (`dependsOn`), if anything.
+   */
   readonly dependencies: DependencyReader<Row> | undefined;
   /** Whether the refusal shows: the server is asked while it does, and only then. */
   readonly open: boolean;
@@ -183,6 +196,7 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
   const columns = useTranslations("grid.columns");
   const title = useId();
   const field = column.computed.field(row);
+  const stated = column.computed.dependsOn?.(row);
   const { answer, reading } = useDependencies(dependencies, row, field, opening, open);
   return (
     <PopoverContent aria-labelledby={title} className="w-80 space-y-1.5 text-xs" {...closing}>
@@ -194,6 +208,7 @@ export function ComputedRefusal<Row, Sort extends string, Totals>({
       {/* One region, in place as the refusal opens: what it reads, then what the server said. */}
       <div role="status" aria-live="polite" aria-busy={reading} className="space-y-1.5">
         {reading ? <p className="text-muted-foreground">{t("pending")}</p> : null}
+        {stated === undefined ? null : <Rules codes={stated} />}
         {answer?.kind === "done" ? <Dependencies dependencies={answer.data} /> : null}
         <OutcomeNotice outcome={answer} onClear={keep} />
       </div>

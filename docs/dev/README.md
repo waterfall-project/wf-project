@@ -242,7 +242,10 @@ l'ouverture suivante, seule une réponse est gardée. Dans une seule région ann
 (`role="status"`, `aria-live="polite"`), présente dès l'ouverture et `aria-busy` pendant la
 lecture, il dit qu'il la lit, puis les règles qui la calculent (`enums.ComputedDependency.*`) et
 les lignes dont elle vient, nommées par leur numéro et leur libellé, que la grille les montre ou
-non ; un refus du serveur, ou l'API injoignable, se disent par `OutcomeNotice`. Le front ne lit aucune règle du
+non ; un refus du serveur, ou l'API injoignable, se disent par `OutcomeNotice`. Une ligne qui dit
+elle-même ce dont sa valeur dépend — un risque, sa gravité et sa provision (`Risk.computed_fields`)
+— le donne à sa colonne (`dependsOn`), et le refus en nomme les règles d'emblée, sans rien
+demander. Le front ne lit aucune règle du
 noyau. Le Popover ne se monte
 qu'au premier essai : une racine de Radix par cellule calculée alourdirait l'hydratation du
 premier écran. La grille de planning
@@ -310,9 +313,9 @@ ses opérations dans la révision de sa route (`revision_id`) : les totaux des p
 risques retenus, par état et le total général, tels que le serveur les rend ; le filtre par
 état, des boutons pressés qui n'écrivent que l'adresse (`states`, sous le nom et la forme du
 contrat) ; la grille dense, une configuration de plus (`risk-grid.tsx`), en lecture, où la
-gravité et la provision sont des colonnes calculées entières — le contrat ne leur nomme aucun
-champ de nœud, et leur refus dit seulement que la valeur est calculée (`field` rend `undefined`,
-constat de l'EPIC) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés
+gravité et la provision sont des colonnes calculées entières — aucun champ de nœud à demander
+(`field` rend `undefined`), leur refus nomme les règles que le risque porte pour chacune
+(`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice, ses axes nommés
 par les bornes que rend le serveur, chaque case par son signal et son nombre de risques ; et,
 quand l'adresse nomme un risque (`risk`), son détail : notes, ligne de provision présente ou
 retirée à la survenance, historique des réexamens. Le libellé d'un risque est un lien hors de la
@@ -384,15 +387,19 @@ et leur motif, rendu comme un refus depuis son code et ses paramètres (`problem
 dans l'ordre reçu. Les commandes d'un compte rendu sont les siennes : un autre import montré les
 remplace. L'application n'est offerte qu'à un import analysé, et ne part qu'une fois confirmée dans
 la page ; sa tâche va au suivi. L'abandon ramène à l'adresse de départ, si l'écran montre encore cet
-import. Les imports sont offerts comme le serveur offre leur commande (`importOffers`) : les coûts
-réels par `import_actual_costs` du projet, les autres par la commande `edit_*` de la révision en
-cours (#318). La liste des imports, paginée par le serveur (`offset`, `ListPages`), mène au compte
-rendu de chacun ; la demande d'export part pour la révision lue — l'image de l'arborescence au
-niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en a un : le serveur
-de Next le lit (`getBackgroundTaskResult`) et le transmet, à la route `/tasks/[taskId]/result`,
-avec le type de sa nature et la pièce jointe nommée que le contrat promet (`Content-Disposition`),
-sans sa longueur, que `fetch` a décodée ; une réponse qui ne nomme pas le fichier, ou pas son type,
-est une mauvaise passerelle (502).
+import. Chaque import est offert comme le projet offre sa commande (`importOffers`) :
+`import_planning`, `import_estimate`, `import_remaining`, `import_actual_costs`, avec ou sans
+révision en cours — sans elle, qui ne peut pas créer la révision voit l'import indisponible,
+`may_create_revision` nommée. Un projet sans révision n'a toutefois pas encore d'adresse qui mène
+à l'écran, de portée révision (#332). La liste des imports, paginée par le serveur (`offset`,
+`ListPages`), mène au compte rendu de chacun ; la demande d'export n'offre que les natures que la
+révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
+consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
+l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
+a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet, à la route
+`/tasks/[taskId]/result`, avec le type de sa nature et la pièce jointe nommée que le contrat promet
+(`Content-Disposition`), sans sa longueur, que `fetch` a décodée ; une réponse qui ne nomme pas le
+fichier, ou pas son type, est une mauvaise passerelle (502).
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
 hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
@@ -461,13 +468,17 @@ navigateur.
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
 celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission
-garde quelle commande —, présente et disponible, ou présente et indisponible, marquée
+garde quelle commande ; seule exception, décidée par l'utilisateur le 2026-10-05, un import
+sans révision en cours que l'appelant ne pourrait pas créer, listé indisponible,
+`may_create_revision` manquante —, présente et disponible, ou présente et indisponible, marquée
 `aria-disabled` et décrite par le texte visible des conditions qui lui manquent
 (`enums.CommandCondition.*`). `LifecycleCommands` rend, dans l'ordre du serveur, les sorties
 du cycle de vie d'un projet — les autres commandes du projet appartiennent aux formulaires de
-leur domaine —, et `RevisionCommands` toutes celles d'une révision, chacune selon son
+leur domaine —, et `RevisionCommands` celles d'une révision, chacune selon son
 `is_available` et ses conditions — une révision marquée les liste indisponibles, faute d'être
-en cours d'élaboration — ; `findOffer` en tire une seule. Hors projet — comptes, rôles, référentiel,
+en cours d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre
+(`ExportForm`) ; `findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à
+l'offre d'un formulaire qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel,
 sauvegarde —, `platformOffer` suit la permission de modification d'une fonction de portée
 `platform` (`PlatformFunction`) dans `Session.permissions`, ou `platform_restore` pour la
 restauration. Griser n'est qu'une

@@ -1,5 +1,5 @@
 {
-  "summary": "La révision courante, en brouillon, lue par un chiffreur : il peut saisir le devis, et n'a la permission d'exercer aucune autre de ses commandes.",
+  "summary": "La révision courante, en brouillon, lue par un chiffreur : il peut saisir le devis, exporter le devis et le reste à engager qu'il lit, et n'a la permission d'exercer aucune autre de ses commandes.",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000102",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -11,6 +11,16 @@
     "available_commands": [
       {
         "command": "edit_estimate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "export_estimate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "export_remaining",
         "is_available": true,
         "missing_conditions": []
       }

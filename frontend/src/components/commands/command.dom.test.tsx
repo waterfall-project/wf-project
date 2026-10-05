@@ -88,7 +88,7 @@ describe("a command of a screen", () => {
     await expectAccessible(container);
   });
 
-  it("lists the commands in the order of the server, within a region named for them", () => {
+  it("lists the commands in the order of the server, within a region named for them, its exports left to the screen of the exchanges", () => {
     french(revisionCommands("revision"));
     const region = screen.getByRole("region", { name: "Commandes" });
     expect(

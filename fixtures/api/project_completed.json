@@ -82,6 +82,27 @@
         "missing_conditions": [
           "project_not_terminal"
         ]
+      },
+      {
+        "command": "import_planning",
+        "is_available": false,
+        "missing_conditions": [
+          "project_not_terminal"
+        ]
+      },
+      {
+        "command": "import_estimate",
+        "is_available": false,
+        "missing_conditions": [
+          "project_not_terminal"
+        ]
+      },
+      {
+        "command": "import_remaining",
+        "is_available": false,
+        "missing_conditions": [
+          "project_not_terminal"
+        ]
       }
     ],
     "audit": {
