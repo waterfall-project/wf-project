@@ -98,34 +98,38 @@ def test_a_line_amount_is_exact(items: list[Node]) -> None:
     rates = {line.category: line.rate for line in mockstructure.LINE_KINDS if line.rate}
     for node in lines(items):
         line = node["estimate_line"]
-        assert MONEY.match(line["budgeted_amount"])
-        assert line["budgeted_amount"] == line["reestimated_amount"]
+        assert MONEY.match(line["base_amount"])
+        assert line["base_amount"] == line["budgeted_amount"] == line["reestimated_amount"]
         if line["hours"] is None:
             expected = Decimal(line["quantity"]) * Decimal(line["unit_disbursement"])
         else:
             assert line["resource_role_id"] is not None
             expected = Decimal(line["hours"]) * rates[line["cost_category_id"]]
-        assert Decimal(line["budgeted_amount"]) == expected
+        assert Decimal(line["base_amount"]) == expected
 
 
+@pytest.mark.parametrize(
+    "amount", ["base_amount", "budgeted_amount", "reestimated_amount", "inflated_amount"]
+)
 def test_a_task_sums_the_lines_under_it_and_the_totals_all_of_them(
-    answer: dict[str, Any], items: list[Node]
+    answer: dict[str, Any], items: list[Node], amount: str
 ) -> None:
+    # Each amount of a task and of the totals, the one corrected for inflation among them
+    # (WF-DEV-0050): the sum of the same amount of the lines.
     nodes = by_id(items)
     sums: dict[str, Decimal] = dict.fromkeys(nodes, Decimal(0))
     for node in lines(items):
-        amount = Decimal(node["estimate_line"]["budgeted_amount"])
+        value = Decimal(node["estimate_line"][amount])
         parent = node["parent_id"]
         while parent is not None:
-            sums[parent] += amount
+            sums[parent] += value
             parent = nodes[parent]["parent_id"]
     for node in tasks(items):
-        assert Decimal(node["task"]["budgeted_amount"]) == sums[node["node_id"]]
+        assert Decimal(node["task"][amount]) == sums[node["node_id"]]
     totals = answer["totals"]
-    amounts = [Decimal(node["estimate_line"]["budgeted_amount"]) for node in lines(items)]
+    amounts = [Decimal(node["estimate_line"][amount]) for node in lines(items)]
     hours = [Decimal(node["estimate_line"]["hours"] or 0) for node in lines(items)]
-    assert Decimal(totals["budgeted_amount"]) == sum(amounts)
-    assert Decimal(totals["reestimated_amount"]) == sum(amounts)
+    assert Decimal(totals[amount]) == sum(amounts)
     assert Decimal(totals["hours"]) == sum(hours)
 
 
@@ -232,7 +236,7 @@ def test_a_line_is_projected_on_the_year_its_task_starts(items: list[Node]) -> N
     }
     for row, (year, amount, inflated) in projected.items():
         line = items[row - 1]["estimate_line"]
-        assert (line["consumption_year"], line["budgeted_amount"]) == (year, amount)
+        assert (line["consumption_year"], line["base_amount"]) == (year, amount)
         assert line["inflated_amount"] == inflated
 
 
@@ -255,6 +259,24 @@ def test_the_structure_stays_in_the_universe_of_the_examples(items: list[Node]) 
     assert subprojects == {mockstructure.SUBPROJECT_CONTROL, mockstructure.SUBPROJECT_TESTS}
     assert all(subproject in known for subproject in subprojects)
     assert items[0]["task"]["label"] == "Études"
+
+
+def test_a_line_names_its_category_role_and_subproject_as_the_universe_does(
+    items: list[Node],
+) -> None:
+    # The labels the server resolves at the reading (#305): those of the categories the fake back
+    # lists, of the roles and the subprojects of the witness.
+    categories = cast("list[dict[str, str]]", mockdata.categories())
+    names = {category["cost_category_id"]: category["label"] for category in categories}
+    roles = mockstructure.fixture("resource_roles")
+    names.update((role["resource_role_id"], role["label"]) for role in roles)
+    subprojects = mockstructure.fixture("subprojects")
+    names.update((entry["subproject_id"], entry["label"]) for entry in subprojects)
+    for node in lines(items):
+        line = node["estimate_line"]
+        for key in ("cost_category", "resource_role", "subproject"):
+            identifier = line[f"{key}_id"]
+            assert line[f"{key}_label"] == (None if identifier is None else names[identifier])
 
 
 def test_schedule_dates_a_small_network_by_hand() -> None:
@@ -282,8 +304,10 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "task_count": 1_000,
         "estimate_line_count": 5_000,
         "hours": "116348",
+        "base_amount": "60553621.36",
         "budgeted_amount": "60553621.36",
         "reestimated_amount": "60553621.36",
+        "inflated_amount": "62862868.14",
     }
     assert len(items) == 6_000
     assert all(node["row_number"] == rank for rank, node in enumerate(items, start=1))
@@ -310,6 +334,10 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert row(4)["kind"] == "estimate_line"
     assert row(4)["estimate_line"]["label"] == "Heures d'ingénierie"
     assert row(4)["estimate_line"]["resource_role_id"] is not None
+    assert (
+        row(4)["estimate_line"]["cost_category_label"],
+        row(4)["estimate_line"]["resource_role_label"],
+    ) == ("Ingénierie électrique", "Ingénieur électricien")
     assert row(4)["estimate_line"]["hours"].isdigit()
     assert row(4)["computed_fields"] == []
     # A labour line takes its role and its hours, never a unit disbursement nor a payment

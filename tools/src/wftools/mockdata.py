@@ -57,6 +57,7 @@ from wftools.mockportfolio import (
     portfolio_value,
 )
 from wftools.mockstructure import (
+    CATEGORY_LABELS,
     COMMISSIONING,
     ELECTRICAL_ENGINEERING,
     ELECTRICAL_RATE,
@@ -134,14 +135,17 @@ _PURCHASES = (
 def categories() -> list[JsonValue]:
     """Return the answer of listCostCategories: the labour categories first, then the others."""
     labor = [
-        (ELECTRICAL_ENGINEERING, "Ingénierie électrique"),
-        (COMMISSIONING, "Mise en service"),
+        (ELECTRICAL_ENGINEERING, CATEGORY_LABELS[ELECTRICAL_ENGINEERING]),
+        (COMMISSIONING, CATEGORY_LABELS[COMMISSIONING]),
     ]
     labor.extend(
         (identifier(_CATEGORY, n), f"{_TRADES[n % len(_TRADES)]} — niveau {n // len(_TRADES) + 1}")
         for n in range(LABOR_CATEGORY_COUNT - len(labor))
     )
-    non_labor = [(SUBCONTRACTING, "Sous-traitance"), (EQUIPMENT, "Matériel électrique")]
+    non_labor = [
+        (SUBCONTRACTING, CATEGORY_LABELS[SUBCONTRACTING]),
+        (EQUIPMENT, CATEGORY_LABELS[EQUIPMENT]),
+    ]
     others = CATEGORY_COUNT - LABOR_CATEGORY_COUNT - 1
     non_labor.extend(
         (
@@ -156,7 +160,10 @@ def categories() -> list[JsonValue]:
         *_categories(labor, "MO", "641", (LABOR, natures[LABOR])),
         *_categories(non_labor, "ACH", "604", (NON_LABOR, natures[NON_LABOR])),
         *_categories(
-            [(PROVISIONS, "Provisions pour risques")], "PRV", "681", (PROVISION, natures[PROVISION])
+            [(PROVISIONS, CATEGORY_LABELS[PROVISIONS])],
+            "PRV",
+            "681",
+            (PROVISION, natures[PROVISION]),
         ),
     ]
 

@@ -14,11 +14,15 @@
         "estimate_line": {
           "label": "Heures de câblage et repérage",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+          "cost_category_label": "Ingénierie électrique",
           "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+          "resource_role_label": "Ingénieur électricien",
           "quantity": "1",
           "hours": "33",
           "unit_disbursement": null,
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "subproject_label": "Poste de commande",
+          "base_amount": "2640.00",
           "budgeted_amount": "2640.00",
           "reestimated_amount": "2640.00",
           "inflated_amount": "2640.00",
@@ -54,11 +58,15 @@
         "estimate_line": {
           "label": "Heures d'essais",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000405",
+          "cost_category_label": "Mise en service",
           "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+          "resource_role_label": "Technicien de mise en service",
           "quantity": "1",
           "hours": "74.5",
           "unit_disbursement": null,
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "subproject_label": "Poste de commande",
+          "base_amount": "5587.50",
           "budgeted_amount": "5587.50",
           "reestimated_amount": "5587.50",
           "inflated_amount": "5587.50",
@@ -94,11 +102,15 @@
         "estimate_line": {
           "label": "Matériel de câblage",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+          "cost_category_label": "Matériel électrique",
           "resource_role_id": null,
+          "resource_role_label": null,
           "quantity": "24",
           "hours": null,
           "unit_disbursement": "1082.72",
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "subproject_label": "Poste de commande",
+          "base_amount": "25985.28",
           "budgeted_amount": "17323.52",
           "reestimated_amount": "25985.28",
           "inflated_amount": "25985.28",
@@ -152,8 +164,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "5564371.76",
           "budgeted_amount": "5555710.00",
-          "reestimated_amount": "5564371.76"
+          "reestimated_amount": "5564371.76",
+          "inflated_amount": "5564371.76"
         },
         "computed_fields": [
           "task.duration",
@@ -194,8 +208,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "1969505.61",
           "budgeted_amount": "1960843.85",
-          "reestimated_amount": "1969505.61"
+          "reestimated_amount": "1969505.61",
+          "inflated_amount": "1969505.61"
         },
         "computed_fields": [
           "task.duration",
@@ -238,8 +254,10 @@
           "completed_on": "2026-03-13",
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "44871.01",
           "budgeted_amount": "36209.25",
           "reestimated_amount": "44871.01",
+          "inflated_amount": "44871.01",
           "total_float": {
             "value": "31",
             "unit": "d"
@@ -260,12 +278,15 @@
       }
     ],
     "rescheduled": [],
+    "reinflated": [],
     "totals": {
       "task_count": 1000,
       "estimate_line_count": 5000,
       "hours": "116348",
+      "base_amount": "60562283.12",
       "budgeted_amount": "60553621.36",
-      "reestimated_amount": "60562283.12"
+      "reestimated_amount": "60562283.12",
+      "inflated_amount": "62871529.90"
     },
     "structure_lock_version": 2
   }
