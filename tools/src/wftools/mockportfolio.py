@@ -103,6 +103,7 @@ def portfolio() -> JsonObject:
             "from": None,
             "to": None,
             "org_node_id": None,
+            "org_node_label": None,
             "project_count": PROJECT_COUNT,
         },
         "items": rows,
@@ -296,6 +297,7 @@ def _scope(rows: list[JsonObject], states: list[JsonValue], *, period: bool) -> 
         "from": PERIOD_FROM.isoformat() if period else None,
         "to": AS_OF.isoformat() if period else None,
         "org_node_id": None,
+        "org_node_label": None,
         "project_count": sum(1 for row in rows if row["state"] in states),
     }
 

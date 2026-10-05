@@ -4,14 +4,15 @@
  * The report of an import, as `getImport` gives it (WF-INTF-0080): the file, its kind and where
  * the import stands, when it was opened and until when its report applies; then, once analysed,
  * the lines read, the reasons that ask for an explicit confirmation, each line rejected by its
- * place in the file and its motive, and each difference with the existing data. Every sentence
+ * place in the file and its motive, and each difference with the existing data, with the fields it
+ * changes named as the columns of their grid. Every sentence
  * is the catalogue's, written from the codes the API gives (WF-ARC-0110): a motive from its code
  * and parameters, as a refusal is; the label of a line, which comes from the file or the project,
  * as it is. The front counts, sorts and filters nothing: the lists are in the order received.
  * Under it, its application and its abandonment (`ReportCommands`).
  */
 import { FileSpreadsheet } from "lucide-react";
-import { useLocale, useMessages, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
@@ -26,6 +27,22 @@ import { ReportCommands } from "./report-commands";
 
 type Import = components["schemas"]["Import"];
 type Report = components["schemas"]["ImportReport"];
+type ActualCostColumn = components["schemas"]["ActualCostColumn"];
+type Difference = Report["differences"][number];
+type DifferenceField = NonNullable<Difference["fields"]>[number];
+
+/** The columns of a line of actual cost, every one of them, which its own catalogue names. */
+const ACTUAL_COST_COLUMNS = {
+  document_date: true,
+  document_number: true,
+  amount: true,
+  subproject: true,
+} as const satisfies Record<ActualCostColumn, true>;
+
+/** Whether a field of a difference is a column of a line of actual cost. */
+function isActualCostColumn(field: DifferenceField): field is ActualCostColumn {
+  return Object.hasOwn(ACTUAL_COST_COLUMNS, field);
+}
 
 const HEADING = "text-sm font-semibold";
 const MUTED = "text-sm text-muted-foreground";
@@ -54,9 +71,27 @@ function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
   );
 }
 
-/** The differences with the existing data, each by its change, its object and its label. */
+/**
+ * The differences with the existing data, each by its change, its object, its label and the fields
+ * it changes, named by the catalogue of their columns (WF-ARC-0110), in the order received.
+ */
 function Differences({ differences }: { readonly differences: Report["differences"] }) {
   const t = useTranslations();
+  const format = useFormatter();
+  // A field is named by the catalogue of the columns of its object: a line of actual cost by its
+  // own, a task, a line of the estimate or a link by the columns of the structure — `subproject`
+  // is a column of both. A field the object does not have is left unnamed, never guessed.
+  const fieldName = (target: Difference["target"], field: DifferenceField) => {
+    if (target === "actual_cost_line") {
+      return isActualCostColumn(field) ? t(`enums.ActualCostColumn.${field}`) : undefined;
+    }
+    if (field === "subproject") {
+      return t("enums.NodeColumn.subproject");
+    }
+    return isActualCostColumn(field) ? undefined : t(`enums.NodeColumn.${field}`);
+  };
+  const fieldsOf = (difference: Difference) =>
+    (difference.fields ?? []).flatMap((field) => fieldName(difference.target, field) ?? []);
   return (
     <div className="space-y-1">
       <h3 className={HEADING}>
@@ -69,6 +104,7 @@ function Differences({ differences }: { readonly differences: Report["difference
             t("exchanges.report.change"),
             t("exchanges.report.target"),
             t("exchanges.report.label"),
+            t("exchanges.report.fields"),
           ]}
         >
           {differences.map((difference, index) => (
@@ -81,6 +117,9 @@ function Differences({ differences }: { readonly differences: Report["difference
               </TableCell>
               <TableCell className={CELL}>
                 {difference.label ?? t("exchanges.report.unnamed")}
+              </TableCell>
+              <TableCell className={CELL}>
+                {format.list(fieldsOf(difference), { type: "conjunction" })}
               </TableCell>
             </TableRow>
           ))}

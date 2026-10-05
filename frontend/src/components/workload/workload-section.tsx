@@ -24,6 +24,7 @@ import type { ReactNode } from "react";
 import type { components } from "@/api/generated/schema";
 import type { ReadOrRefused } from "@/api/problem";
 import type { ChartProvenance } from "@/components/chart/chart";
+import { treeLabel } from "@/components/reference/org-tree";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -207,15 +208,16 @@ function WorkloadChoices({
           ))}
         </Choice>
       ) : null}
-      {/* The nodes in the order of the API, each with the label of its parent: the tree is not
-          drawn (#297). */}
+      {/* The nodes in the order of the tree the API gives, each set in by its depth; a node retains
+          the roles of its descendants too. */}
       <Choice label={t("workload.orgNode")} name="org_node_id" selected={asked.orgNode ?? ""}>
         <option value="">{t("workload.allOrgNodes")}</option>
         {orgNodes.map((node) => (
           <option key={node.org_node_id} value={node.org_node_id}>
-            {node.parent_label === null
-              ? node.label
-              : t("workload.orgNodeIn", { node: node.label, parent: node.parent_label })}
+            {treeLabel(
+              node.level,
+              t("reference.orgNodes.choice", { code: node.code, label: node.label }),
+            )}
           </option>
         ))}
       </Choice>

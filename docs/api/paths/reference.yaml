@@ -66,13 +66,19 @@
     operationId: listOrgNodes
     tags: [reference]
     summary: Arbre d'organisation
-    description: Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070).
+    description: >-
+      Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070). Les
+      nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses
+      descendants, les enfants d'un même parent — les racines entre elles aussi — triés
+      par libellé, comparé caractère par caractère dans l'ordre des points de code
+      Unicode, sans égard à la langue du lecteur ; chacun dit sa profondeur (`level`). Une recherche rend les nœuds
+      retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou.
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
     responses:
       '200':
-        description: Nœuds, sans limite de profondeur.
+        description: Nœuds, sans limite de profondeur, dans l'ordre de l'arbre.
         content:
           application/json:
             schema:
@@ -86,7 +92,9 @@
     operationId: createOrgNode
     summary: Créer un nœud d'organisation
     description: >-
-      Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070).
+      Le nœud prend place sous son parent dans l'arbre d'organisation (WF-REF-0070). Son
+      code est unique : un code déjà porté par un autre nœud, actif ou désactivé, est
+      refusé par 409, `ALREADY_EXISTS`.
     tags: [reference]
     requestBody:
       required: true
@@ -101,6 +109,7 @@
             schema: { $ref: ../components/schemas/reference.yaml#/OrgNode }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
 
 /reference/org-nodes/{org_node_id}:
@@ -109,7 +118,8 @@
     summary: Modifier un nœud d'organisation
     description: >-
       La modification vaut pour la suite et ne retouche aucune révision marquée
-      (WF-REF-0070, WF-REF-0130).
+      (WF-REF-0070, WF-REF-0130). Un code déjà porté par un autre nœud est refusé par 409,
+      `ALREADY_EXISTS`.
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/OrgNodeId
@@ -127,6 +137,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
 
 /reference/org-nodes/{org_node_id}/activation:
@@ -185,6 +196,9 @@
       - $ref: ../components/parameters.yaml#/Search
       - name: org_node_id
         in: query
+        description: >-
+          Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses
+          descendants (WF-REF-0070).
         schema: { $ref: ../components/common.yaml#/Uuid }
     responses:
       '200':

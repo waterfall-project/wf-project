@@ -20,7 +20,7 @@ import { CELL, ListTable } from "@/components/projects/project-tables";
 import { RiskMatrixView } from "@/components/risks/risk-matrix";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { formatDecimal, formatMonth, formatPercent } from "@/i18n/format";
+import { formatDecimal, formatMonth, formatPercent, formatPlanningDate } from "@/i18n/format";
 
 import { ComputableValue, Figure, ViewSection } from "./portfolio-value";
 
@@ -249,9 +249,6 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
 export function WorkloadView({ workload }: { readonly workload: Schemas["PortfolioWorkload"] }) {
   const t = useTranslations("portfolio.workload");
   const locale = useLocale();
-  // The months of the first role head the columns: the contract does not say that every role has
-  // the same months (#326).
-  const months = workload.roles[0]?.months.map((month) => month.month) ?? [];
   if (workload.roles.length === 0) {
     return <p className="text-sm text-muted-foreground">{t("none")}</p>;
   }
@@ -259,7 +256,12 @@ export function WorkloadView({ workload }: { readonly workload: Schemas["Portfol
     <div className="overflow-x-auto">
       <ListTable
         label={t("title")}
-        columns={[t("role"), t("capacity"), ...months.map((month) => formatMonth(month, locale))]}
+        columns={[
+          t("role"),
+          t("capacity"),
+          // The months of the horizon head the columns; each role has one for each, in order.
+          ...workload.months.map((month) => formatMonth(month, locale)),
+        ]}
       >
         {workload.roles.map((role) => (
           <TableRow key={role.resource_role_id}>
@@ -290,6 +292,34 @@ export function WorkloadView({ workload }: { readonly workload: Schemas["Portfol
   );
 }
 
+/** A signal of the health of the steering. */
+type PilotSignal = Schemas["PilotHealth"]["signals"][number];
+
+/**
+ * What a signal names besides its project, as the server gives it: the weeks since the last marked
+ * revision, the milestone overdue and its date of reference; nothing for a signal that names none.
+ */
+function SignalDetail({ signal }: { readonly signal: PilotSignal }) {
+  const t = useTranslations("portfolio.pilotHealth.detail");
+  const locale = useLocale();
+  const params = signal.params ?? {};
+  const { weeks_since_last_mark: weeks, milestone_label: milestone } = params;
+  const date = params.reference_date;
+  if (signal.code === "review_overdue" && weeks !== undefined) {
+    return <span className="block text-muted-foreground">{t("reviewOverdue", { weeks })}</span>;
+  }
+  if (signal.code === "contractual_milestone_overdue" && milestone !== undefined) {
+    return (
+      <span className="block text-muted-foreground">
+        {date === undefined
+          ? milestone
+          : t("milestoneOverdue", { milestone, date: formatPlanningDate(date, locale) })}
+      </span>
+    );
+  }
+  return null;
+}
+
 /** Render the signals of the health of the steering, each with its project, which it opens. */
 export function PilotHealthView({ health }: { readonly health: Schemas["PilotHealth"] }) {
   const t = useTranslations();
@@ -314,6 +344,7 @@ export function PilotHealthView({ health }: { readonly health: Schemas["PilotHea
           </TableCell>
           <TableCell className={CELL}>
             {t(`enums.PilotHealth.signals.code.${signal.code}`)}
+            <SignalDetail signal={signal} />
           </TableCell>
           <TableCell className={CELL}>
             <Signal zone={signal.zone} />

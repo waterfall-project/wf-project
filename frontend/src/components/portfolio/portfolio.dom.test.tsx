@@ -122,7 +122,8 @@ function cellsOf(code: string): HTMLElement[] {
 const NODES: readonly NodeChoice[] = (example("org_nodes") as Schemas["OrgNode"][]).map((node) => ({
   id: node.org_node_id,
   label: node.label,
-  parent: node.parent_label,
+  code: node.code,
+  level: node.level,
 }));
 const DESIGN_OFFICE = "01926f3a-7c00-7000-8000-000000000471";
 
@@ -319,28 +320,28 @@ describe("the perimeter of a view of the portfolio", () => {
 
   it("keeps shown a node the address filters on when no node can be read, to be cleared", async () => {
     render(perimeterBar(`org_node_id=${DESIGN_OFFICE}`, { period: false, node: true }, []));
-    const node = screen.getByLabelText("Nœud d’organisation");
+    const node = screen.getByLabelText("Nœud d’organisation et ses descendants");
     expect(node).toHaveValue(DESIGN_OFFICE);
     await userEvent.selectOptions(node, "Tous les nœuds");
     expect(await lastAddress()).toBe(PATHNAME);
   });
 
-  it("restricts the labour to a node of organisation, named with its parent; the date alone where the view takes no period", async () => {
+  it("restricts the labour to a node of organisation and its descendants, offered as the tree; the date alone where the view takes no period", async () => {
     render(perimeterBar("", { period: false, node: true }));
     expect(screen.queryByLabelText("Du")).toBeNull();
-    const node = screen.getByLabelText("Nœud d’organisation");
+    const node = screen.getByLabelText("Nœud d’organisation et ses descendants");
     expect(
       within(node)
         .getAllByRole("option")
         .map((option) => option.textContent),
     ).toEqual([
       "Tous les nœuds",
-      "Direction technique",
-      "Bureau d'études électricité (Direction technique)",
-      "Atelier de câblage (Bureau d'études électricité)",
-      "Service des achats (Direction technique)",
+      "DT · Direction technique",
+      "\u2003BE-ELEC · Bureau d'études électricité",
+      "\u2003\u2003AT-CABL · Atelier de câblage",
+      "\u2003ACHATS · Service des achats",
     ]);
-    await userEvent.selectOptions(node, "Bureau d'études électricité (Direction technique)");
+    await userEvent.selectOptions(node, "\u2003BE-ELEC · Bureau d'études électricité");
     expect(await lastAddress()).toBe(`${PATHNAME}?org_node_id=${DESIGN_OFFICE}`);
   });
 

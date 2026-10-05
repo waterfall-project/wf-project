@@ -2,7 +2,7 @@
   "summary": "La performance des projets en cours du portefeuille du §4.6.2 au 16 mars 2026 : chaque indice est le rapport des sommes de leurs valeurs acquises, coûts réels et valeurs planifiées, la répartition compte chaque projet dans la zone de chacun de ses indices, et l'évolution court sur quatre trimestres, le premier non calculable, rien n'ayant encore été dépensé ni planifié (WF-PTF-0070).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "scope": {"states":["in_progress"],"as_of":"2026-03-16","from":null,"to":null,"org_node_id":null,"project_count":269},
+    "scope": {"states":["in_progress"],"as_of":"2026-03-16","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":269},
     "reference_budget": "2597289500.00",
     "cost_index": {"value":{"is_computable":true,"value":"0.94","reason":null},"zone":"nominal"},
     "schedule_index": {"value":{"is_computable":true,"value":"0.91","reason":null},"zone":"nominal"},

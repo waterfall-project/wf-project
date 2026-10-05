@@ -162,15 +162,17 @@ describe("the settings of the costs", () => {
 });
 
 describe("the settings of the resources", () => {
-  it("present the organisation, each node with the one it is attached to", async () => {
+  it("present the organisation as the tree the server orders, each node by its code and its depth", async () => {
     const page = rendered(await ResourceSettingsPage());
     expect(rows(page, "Arbre d’organisation")).toEqual([
-      "Libellé Rattaché à État",
-      "Direction technique Racine de l’arbre Actif",
-      "Bureau d'études électricité Direction technique Actif",
-      "Atelier de câblage Bureau d'études électricité Actif",
-      "Service des achats Direction technique Actif",
+      "Code Libellé Niveau État",
+      "DT Direction technique 1 Actif",
+      "BE-ELEC Bureau d'études électricité 2 Actif",
+      "AT-CABL Atelier de câblage 3 Actif",
+      "ACHATS Service des achats 2 Actif",
     ]);
+    // Each label set in under its parent by its depth.
+    expect(page).toContain('style="padding-inline-start:2.5rem"');
   });
 
   it("present each role with its node, its category, its calendar and its capacity, named as the server resolves them — a calendar deactivated, which the list of the calendars does not hold, included", async () => {

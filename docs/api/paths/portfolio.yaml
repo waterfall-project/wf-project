@@ -125,6 +125,7 @@
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioWorkload }
             examples:
               witness: { $ref: ../../../fixtures/api/portfolio_workload.json }
+              org_node: { $ref: ../../../fixtures/api/portfolio_workload_org_node.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

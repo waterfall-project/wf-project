@@ -44,6 +44,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const REVISION_ROUTE = "GET /projects/{project_id}/revisions/{revision_id}";
 const MARKED = "01926f3a-7c00-7000-8000-000000000101";
+const OFFER = "01926f3a-7c00-7000-8000-000000000100";
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 type Indicators = components["schemas"]["ProjectIndicators"];
 type History = components["schemas"]["IndexHistory"];
@@ -200,7 +201,7 @@ describe("the screen of the indicators of a project", () => {
     );
     server.clients = [];
     await IndicatorsPage(at());
-    expect(queryOf("GET /projects/{project_id}/indicators")).toEqual({});
+    expect(queryOf("GET /projects/{project_id}/indicators")).toEqual({ revision_id: REVISION });
   });
 
   it("draws the evolution of each index with the values of each point", async () => {
@@ -210,18 +211,24 @@ describe("the screen of the indicators of a project", () => {
     expect(page).toContain("Whole project Current revision");
   });
 
-  it("says at its head that its figures are computed on another revision than the one its banner names, and which [WF-IHM-0020-A]", async () => {
-    // The reference, marked, is read; the API computes on the revision under way (#247), which
-    // the screen reads then by its identifier — once, though the indicators and the evolution
-    // of the indices both name it.
+  it("reads the indicators and the curves of a marked revision, as its marking kept them, and says the evolution of the indices computed on the revision under way [WF-IHM-0020-A]", async () => {
+    // The reference, marked, is read: its indicators are its own; the evolution of the indices,
+    // computed today, is on the revision under way, which the screen reads then by its identifier.
     server.answers = {
       ...server.answers,
       [REVISION_ROUTE]: ["revision_marked", "revision"],
+      "GET /projects/{project_id}/indicators": "project_indicators_marked",
     };
     const page = text(html(await IndicatorsPage(at({}, MARKED))));
+    for (const route of ["", "/cost-curve", "/earned-value-curves"]) {
+      expect(queryOf(`GET /projects/{project_id}/indicators${route}`)).toEqual({
+        revision_id: MARKED,
+      });
+    }
     expect(page).toContain(
-      "Project indicators Indicators of another revision These indicators are computed on the revision “Current revision”, not on the one the banner names. Financial progress",
+      "Project indicators Computed on another revision The evolution of the indices is computed on the revision “Current revision”, not on the one the banner names. Financial progress",
     );
+    expect(page).not.toContain("These indicators are computed");
     expect(page).toMatch(/Revision Référence/);
     expect(pathsOf(REVISION_ROUTE)).toEqual([
       `/projects/${PROJECT}/revisions/${MARKED}`,
@@ -229,20 +236,38 @@ describe("the screen of the indicators of a project", () => {
     ]);
   });
 
+  it("says at its head that the indicators of a date are computed on another revision than the one its banner names, and which, once each [WF-IHM-0020-A]", async () => {
+    // A date chooses the revision itself: the API computes on the revision under way, which the
+    // screen reads once, though the indicators and the evolution of the indices both name it.
+    server.answers = { ...server.answers, [REVISION_ROUTE]: ["revision_marked", "revision"] };
+    const page = text(html(await IndicatorsPage(at({ as_of: "2026-03-16" }, MARKED))));
+    // The date alone chooses the revision, of the indicators as of the curves: never with it.
+    for (const route of ["", "/cost-curve", "/earned-value-curves"]) {
+      expect(queryOf(`GET /projects/{project_id}/indicators${route}`)).toEqual({
+        as_of: "2026-03-16",
+      });
+    }
+    expect(page).toContain(
+      "Computed on another revision These indicators are computed on the revision “Current revision”, not on the one the banner names. The evolution of the indices is computed on the revision “Current revision”, not on the one the banner names. Financial progress",
+    );
+    expect(pathsOf(REVISION_ROUTE)).toHaveLength(2);
+  });
+
   it("says unnamed a revision of the calculation the API does not find, and stays [WF-IHM-0020-A]", async () => {
     server.answers = {
       ...server.answers,
       [REVISION_ROUTE]: ["revision_marked", NOT_FOUND],
+      "GET /projects/{project_id}/indicators": "project_indicators_marked",
     };
     const page = text(html(await IndicatorsPage(at({}, MARKED))));
     expect(page).toContain(
-      "These indicators are computed on the revision “unnamed”, not on the one the banner names. Financial progress",
+      "The evolution of the indices is computed on the revision “unnamed”, not on the one the banner names. Financial progress",
     );
   });
 
   it("says nothing of another revision when its figures are computed on its own, nor reads the revisions", async () => {
     const page = text(html(await IndicatorsPage(at())));
-    expect(page).not.toContain("Indicators of another revision");
+    expect(page).not.toContain("Computed on another revision");
     expect(pathsOf(REVISION_ROUTE)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}`]);
   });
 
@@ -266,6 +291,25 @@ describe("the screen of the indicators of a project", () => {
     expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toBeUndefined();
     expect(page).not.toContain("Cumulative costs");
     expect(page).toContain("Milestone tracking Time/time diagram");
+  });
+
+  it("says the indicators unavailable on an offer marked before the state In progress, which kept none, with no notice of another revision [WF-IND-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [REVISION_ROUTE]: ["revision_offer", "revision"],
+      // The refusal of the contract for a revision marked before the state In progress.
+      "GET /projects/{project_id}/indicators": {
+        problem: { code: "STATE_FORBIDS_OPERATION", status: 409 },
+      },
+    };
+    const page = text(html(await IndicatorsPage(at({}, OFFER))));
+    expect(queryOf("GET /projects/{project_id}/indicators")).toEqual({ revision_id: OFFER });
+    expect(page).toContain(
+      "Indicators unavailable The indicators of a project are computed from the In progress state",
+    );
+    expect(page).not.toContain("Computed on another revision");
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toBeUndefined();
+    expect(queryOf("GET /projects/{project_id}/indicators/index-history")).toBeUndefined();
   });
 
   it("does not take a refusal of the same status for another reason as the state of the project", async () => {
@@ -328,7 +372,9 @@ describe("the curves and the milestones of the screen", () => {
 
   it("shifts the cumulative costs by the payment delays when the address asks it, and names them as the API says [WF-IND-0100-A]", async () => {
     let page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
-    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({});
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      revision_id: REVISION,
+    });
     // The command keeps the other parameters of the address.
     expect(page).toContain(
       `href="/projects/${PROJECT}/revisions/${REVISION}/indicators?subproject_id=${SUBPROJECT}&amp;payment_delays=true"`,
@@ -342,6 +388,7 @@ describe("the curves and the milestones of the screen", () => {
     };
     page = html(await IndicatorsPage(at({ payment_delays: "true" })));
     expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      revision_id: REVISION,
       payment_delays: "true",
     });
     expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/indicators"`);

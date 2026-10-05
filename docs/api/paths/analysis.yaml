@@ -83,6 +83,9 @@
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: org_node_id
         in: query
+        description: >-
+          Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses
+          descendants (WF-DEV-0070, WF-REF-0070).
         schema: { $ref: ../components/common.yaml#/Uuid }
     responses:
       '200':
@@ -179,9 +182,11 @@
       Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager,
       avancements, indices avec leur zone, écarts et trois projections. Calculés à partir
       de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les
-      valeurs conservées de la dernière révision marquée antérieure (WF-DAT-0040).
+      valeurs conservées de la dernière révision marquée antérieure ; pour une révision
+      marquée nommée, celles de son marquage (WF-DAT-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/IndicatorsRevision
       - $ref: ../components/parameters.yaml#/AsOf
       - $ref: ../components/parameters.yaml#/Scope
     responses:
@@ -192,17 +197,28 @@
             schema: { $ref: ../components/schemas/indicators.yaml#/ProjectIndicators }
             examples:
               witness: { $ref: ../../../fixtures/api/project_indicators.json }
+              marked: { $ref: ../../../fixtures/api/project_indicators_marked.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Projet antérieur à l'état En cours : seuls les indicateurs de devis existent
-          (WF-IND-0010). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet.
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant
+          l'état du projet ; ou révision nommée par `revision_id` marquée avant lui, sans
+          `params.state`, le projet étant en cours. Dans les deux cas, seuls les indicateurs de
+          devis existent (WF-IND-0010, WF-DAT-0040).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_in_progress: { $ref: ../../../fixtures/api/project_indicators_not_in_progress.json }
+              offer: { $ref: ../../../fixtures/api/project_indicators_offer.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre
+          choisissant la révision du calcul ; `fields` désigne `/query/revision_id`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/indicators/milestone-tracking:
   get:
@@ -240,9 +256,11 @@
       paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date
       de la tâche qui les porte : la courbe présente alors les décaissements, passés et
       à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des
-      décaissements à venir égale le reste à engager (WF-IND-0100).
+      décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision
+      marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/IndicatorsRevision
       - $ref: ../components/parameters.yaml#/AsOf
       - name: payment_delays
         in: query
@@ -262,6 +280,23 @@
               amendment: { $ref: ../../../fixtures/api/cost_curve_amendment.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée
+          par `revision_id` marquée avant lui — seuls les indicateurs de devis existent
+          (WF-IND-0010, WF-DAT-0040).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              offer: { $ref: ../../../fixtures/api/project_indicators_offer.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre
+          choisissant la révision du calcul ; `fields` désigne `/query/revision_id`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/indicators/earned-value-curves:
   get:
@@ -270,9 +305,11 @@
     summary: Courbes de valeur acquise
     description: >-
       Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon
-      les dates de pièce (WF-IND-0110).
+      les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes
+      recalculées à la date de son marquage (`revision_id`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/IndicatorsRevision
       - $ref: ../components/parameters.yaml#/AsOf
       - $ref: ../components/parameters.yaml#/Scope
     responses:
@@ -285,6 +322,23 @@
               witness: { $ref: ../../../fixtures/api/earned_value_curves.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée
+          par `revision_id` marquée avant lui — seuls les indicateurs de devis existent
+          (WF-IND-0010, WF-DAT-0040).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              offer: { $ref: ../../../fixtures/api/project_indicators_offer.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre
+          choisissant la révision du calcul ; `fields` désigne `/query/revision_id`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/indicators/index-history:
   get:

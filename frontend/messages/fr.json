@@ -351,9 +351,8 @@
       "to": "Au",
       "asOf": "Calculé au",
       "apply": "Appliquer",
-      "orgNode": "Nœud d’organisation",
+      "orgNode": "Nœud d’organisation et ses descendants",
       "everyNode": "Tous les nœuds",
-      "nodeChoice": "{label} ({parent})",
       "byDefault": "Par défaut",
       "horizon": "Horizon",
       "months": "{months} mois",
@@ -363,7 +362,8 @@
       "noPeriod": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · calculé au {asOf}",
       "period": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période du {from} au {to} · calculé au {asOf}",
       "since": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période à partir du {from} · calculé au {asOf}",
-      "until": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période jusqu’au {to} · calculé au {asOf}"
+      "until": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · période jusqu’au {to} · calculé au {asOf}",
+      "node": "Main-d’œuvre de {node} et de ses descendants"
     },
     "projects": {
       "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
@@ -436,7 +436,11 @@
       "signals": "Signaux de santé du pilotage",
       "project": "Projet",
       "signal": "Signal",
-      "zone": "Zone"
+      "zone": "Zone",
+      "detail": {
+        "reviewOverdue": "{weeks, plural, one {# semaine} other {# semaines}} depuis la dernière révision marquée",
+        "milestoneOverdue": "{milestone}, date de référence du {date}"
+      }
     },
     "cashOut": {
       "chartTitle": "Décaissements par mois",
@@ -512,8 +516,9 @@
       "explanation": "Les indicateurs du projet se calculent à partir de l’état En cours ; avant, seuls les indicateurs du devis existent."
     },
     "elsewhere": {
-      "title": "Indicateurs d’une autre révision",
-      "explanation": "Ces indicateurs sont calculés sur la révision « {revision} », et non sur celle que nomme le bandeau.",
+      "title": "Calculé sur une autre révision",
+      "indicators": "Ces indicateurs sont calculés sur la révision « {revision} », et non sur celle que nomme le bandeau.",
+      "history": "L’évolution des indices est calculée sur la révision « {revision} », et non sur celle que nomme le bandeau.",
       "unknown": "sans nom"
     },
     "financial": {
@@ -613,9 +618,8 @@
     "basis": "Base",
     "markedRevision": "Révision marquée",
     "unnamedRevision": "Révision marquée sans nom",
-    "orgNode": "Nœud d’organisation",
+    "orgNode": "Nœud d’organisation et ses descendants",
     "allOrgNodes": "Tous les nœuds",
-    "orgNodeIn": "{node} ({parent})",
     "unknownOrgNode": "nœud inconnu",
     "show": "Afficher",
     "reading": "Base : {basis} — révision « {revision} »",
@@ -628,14 +632,14 @@
     "capacityOf": "Capacité — {role}",
     "noLoad": "Aucune charge",
     "none": "Aucun rôle n’a de charge sur cette base.",
-    "noneInNode": "Aucun rôle du nœud « {node} » n’a de charge sur cette base.",
+    "noneInNode": "Aucun rôle du nœud « {node} » ni de ses descendants n’a de charge sur cette base.",
     "refused": {
       "noReference": "Le plan de charge n’est pas disponible sur cette base : le projet n’a pas de révision de référence, seule la révision en cours en est une.",
       "markedRevision": "Le plan de charge n’est pas disponible sur cette base : la révision marquée demandée manque, ou n’est pas marquée.",
       "orgNode": "Le plan de charge n’est pas disponible : le nœud d’organisation demandé n’existe pas.",
       "invalid": "Le plan de charge n’est pas disponible : l’API refuse ce qui est demandé."
     },
-    "exportDetail": "Base : {basis} · Nœud d’organisation : {node}",
+    "exportDetail": "Base : {basis} · Nœud d’organisation et ses descendants : {node}",
     "file": "plan-de-charge"
   },
   "commands": {
@@ -861,8 +865,8 @@
     },
     "orgNodes": {
       "title": "Arbre d’organisation",
-      "parent": "Rattaché à",
-      "root": "Racine de l’arbre",
+      "level": "Niveau",
+      "choice": "{code} · {label}",
       "none": "Aucun nœud d’organisation."
     },
     "resourceRoles": {
@@ -970,6 +974,7 @@
       "storage": "Espace de stockage",
       "used": "Utilisé",
       "free": "Disponible",
+      "storageDetail": "{used} employés, {available} libres",
       "operations": "Dernières opérations",
       "operation": "Opération",
       "at": "Date",
@@ -1223,16 +1228,14 @@
     "all_projects_read": "Consulter tous les projets"
   },
   "enums": {
-    "ComponentHealth": {
-      "component": {
-        "api": "Service d’API",
-        "worker": "Traitements de fond",
-        "database": "Base de données",
-        "cache": "Cache",
-        "object_storage": "Stockage des fichiers",
-        "directory": "Annuaire",
-        "metrics": "Métriques"
-      }
+    "PlatformComponent": {
+      "api": "Service d’API",
+      "worker": "Traitements de fond",
+      "database": "Base de données",
+      "cache": "Cache",
+      "object_storage": "Stockage des fichiers",
+      "directory": "Annuaire",
+      "metrics": "Métriques"
     },
     "AlertZone": {
       "nominal": "Nominal",
@@ -1684,6 +1687,12 @@
         "actual_cost_line": "Ligne de coût réel"
       }
     },
+    "ActualCostColumn": {
+      "document_date": "Date de pièce",
+      "document_number": "N° de pièce",
+      "amount": "Montant",
+      "subproject": "Sous-projet"
+    },
     "ImportReport": {
       "requires_confirmation_reasons": {
         "date_or_duration_mismatch": "Dates ou durées différentes de celles que Waterfall recalcule",
@@ -1781,6 +1790,7 @@
       "change": "Changement",
       "target": "Objet",
       "label": "Libellé",
+      "fields": "Champs",
       "unnamed": "Sans libellé",
       "apply": "Appliquer l’import",
       "abandon": "Abandonner l’import",

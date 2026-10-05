@@ -64,7 +64,7 @@ const DETAILS: readonly Reader[] = [
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,
   ({ component }, label) => {
-    const name = label("enums.ComponentHealth.component", component);
+    const name = label("enums.PlatformComponent", component);
     return name === undefined ? undefined : ["component", { component: name }];
   },
   ({ expected_format }, label) => {

@@ -1,8 +1,8 @@
 {
-  "summary": "La deuxième page de 50 projets de la liste du portefeuille du §4.6.2, lue page par page : les projets 51 à 100 sur 300 (WF-PTF-0040).",
+  "summary": "La deuxième page de 50 projets de la liste du portefeuille du §4.6.2, les projets en cours et, ajoutés par la requête au périmètre par défaut (WF-PTF-0010), ceux en chiffrage, lue page par page : les projets 51 à 100 sur 300 (WF-PTF-0040).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "scope": {"states":["in_progress","pricing"],"as_of":"2026-03-16","from":null,"to":null,"org_node_id":null,"project_count":300},
+    "scope": {"states":["in_progress","pricing"],"as_of":"2026-03-16","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":300},
     "items": [
       {"project_id":"01926f3a-7c00-7000-8000-000300000051","label":"Extension du système de supervision — Lyon","code":"PRJ-051","state":"in_progress","reference_budget":"14582600.00","current_estimate":null,"win_probability":"1","project_manager_projection":"13999296.00","delta_to_reference":"-583304.00","cost_index":{"value":{"is_computable":true,"value":"1.06","reason":null},"zone":"nominal"},"schedule_index":{"value":{"is_computable":true,"value":"1.14","reason":null},"zone":"nominal"},"last_marked_at":"2026-02-15T17:00:00Z"},
       {"project_id":"01926f3a-7c00-7000-8000-000300000052","label":"Rénovation du système de supervision — Lyon","code":"PRJ-052","state":"in_progress","reference_budget":"17080200.00","current_estimate":null,"win_probability":"1","project_manager_projection":"17251002.00","delta_to_reference":"170802.00","cost_index":{"value":{"is_computable":true,"value":"1.18","reason":null},"zone":"nominal"},"schedule_index":{"value":{"is_computable":true,"value":"0.77","reason":null},"zone":"alert"},"last_marked_at":"2026-02-26T17:00:00Z"},

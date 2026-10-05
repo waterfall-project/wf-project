@@ -90,6 +90,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/revision.json }
               marked: { $ref: ../../../fixtures/api/revision_marked.json }
+              offer: { $ref: ../../../fixtures/api/revision_offer.json }
               reader: { $ref: ../../../fixtures/api/revision_reader.json }
               estimator: { $ref: ../../../fixtures/api/revision_estimator.json }
               marking: { $ref: ../../../fixtures/api/revision_marking.json }

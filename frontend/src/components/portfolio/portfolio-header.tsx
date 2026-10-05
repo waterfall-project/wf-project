@@ -3,7 +3,8 @@
 /**
  * The header of a view of the portfolio: the title of its function, and under it the perimeter
  * the server retained for it (WF-PTF-0010) — the states, the number of projects, the period when
- * there is one — and the date it is computed at, which every figure of the view carries
+ * there is one, the node of organisation, named by the server, whose labour it retains — and the
+ * date it is computed at, which every figure of the view carries
  * (WF-IHM-0020): a view of the portfolio is computed at a date, `scope.as_of`, as the server gives
  * it, a date of planning shown without time zone. Nothing of it is deduced from the address.
  */
@@ -60,6 +61,14 @@ function ScopeLine({ scope }: { readonly scope: PortfolioScope }) {
   return t("portfolio.scope.noPeriod", { states, count, asOf });
 }
 
+/** The node of organisation the server retained, by the label it gives; nothing without one. */
+function NodeLine({ scope }: { readonly scope: PortfolioScope }) {
+  const t = useTranslations("portfolio.scope");
+  return scope.org_node_label === null ? null : (
+    <span className="block">{t("node", { node: scope.org_node_label })}</span>
+  );
+}
+
 /** Render the header of a view of the portfolio, the perimeter and the date under its title. */
 export function PortfolioHeader({
   fn,
@@ -74,7 +83,12 @@ export function PortfolioHeader({
       title={t(LABELS[fn])}
       icon={FUNCTION_ICONS[fn]}
       density={FUNCTION_DENSITY[fn]}
-      subtitle={<ScopeLine scope={scope} />}
+      subtitle={
+        <>
+          <ScopeLine scope={scope} />
+          <NodeLine scope={scope} />
+        </>
+      }
     />
   );
 }

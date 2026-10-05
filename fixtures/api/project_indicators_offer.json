@@ -1,0 +1,8 @@
+{
+  "summary": "Les indicateurs du projet demandés sur l'offre v1.0, marquée pendant le chiffrage : son marquage n'a conservé que le total du devis, sans aucun indicateur projet, et la lecture est refusée comme pour un projet qui n'est pas en cours (WF-DAT-0040, WF-IND-0010).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000921"
+  }
+}

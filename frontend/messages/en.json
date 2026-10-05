@@ -351,9 +351,8 @@
       "to": "To",
       "asOf": "Calculated on",
       "apply": "Apply",
-      "orgNode": "Organisation node",
+      "orgNode": "Organisation node and its descendants",
       "everyNode": "All nodes",
-      "nodeChoice": "{label} ({parent})",
       "byDefault": "Default",
       "horizon": "Horizon",
       "months": "{months} months",
@@ -363,7 +362,8 @@
       "noPeriod": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · calculated on {asOf}",
       "period": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period from {from} to {to} · calculated on {asOf}",
       "since": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period from {from} · calculated on {asOf}",
-      "until": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period up to {to} · calculated on {asOf}"
+      "until": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · period up to {to} · calculated on {asOf}",
+      "node": "Labour of {node} and of its descendants"
     },
     "projects": {
       "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
@@ -436,7 +436,11 @@
       "signals": "Project control health signals",
       "project": "Project",
       "signal": "Signal",
-      "zone": "Zone"
+      "zone": "Zone",
+      "detail": {
+        "reviewOverdue": "{weeks, plural, one {# week} other {# weeks}} since the last marked revision",
+        "milestoneOverdue": "{milestone}, reference date {date}"
+      }
     },
     "cashOut": {
       "chartTitle": "Cash-out by month",
@@ -512,8 +516,9 @@
       "explanation": "The indicators of a project are computed from the In progress state; before, only the indicators of the estimate exist."
     },
     "elsewhere": {
-      "title": "Indicators of another revision",
-      "explanation": "These indicators are computed on the revision “{revision}”, not on the one the banner names.",
+      "title": "Computed on another revision",
+      "indicators": "These indicators are computed on the revision “{revision}”, not on the one the banner names.",
+      "history": "The evolution of the indices is computed on the revision “{revision}”, not on the one the banner names.",
       "unknown": "unnamed"
     },
     "financial": {
@@ -613,9 +618,8 @@
     "basis": "Basis",
     "markedRevision": "Marked revision",
     "unnamedRevision": "Unnamed marked revision",
-    "orgNode": "Organisation node",
+    "orgNode": "Organisation node and its descendants",
     "allOrgNodes": "All nodes",
-    "orgNodeIn": "{node} ({parent})",
     "unknownOrgNode": "unknown node",
     "show": "Show",
     "reading": "Basis: {basis} — revision “{revision}”",
@@ -628,14 +632,14 @@
     "capacityOf": "Capacity — {role}",
     "noLoad": "No load",
     "none": "No role has a load on this basis.",
-    "noneInNode": "No role of the node “{node}” has a load on this basis.",
+    "noneInNode": "No role of the node “{node}” or of its descendants has a load on this basis.",
     "refused": {
       "noReference": "The workload is not available on this basis: the project has no reference revision, and only the current revision is one.",
       "markedRevision": "The workload is not available on this basis: the marked revision asked for is missing, or is not marked.",
       "orgNode": "The workload is not available: the organisation node asked for does not exist.",
       "invalid": "The workload is not available: the API refuses what is asked."
     },
-    "exportDetail": "Basis: {basis} · Organisation node: {node}",
+    "exportDetail": "Basis: {basis} · Organisation node and its descendants: {node}",
     "file": "workload"
   },
   "commands": {
@@ -861,8 +865,8 @@
     },
     "orgNodes": {
       "title": "Organisation tree",
-      "parent": "Attached to",
-      "root": "Root of the tree",
+      "level": "Level",
+      "choice": "{code} · {label}",
       "none": "No organisation node."
     },
     "resourceRoles": {
@@ -970,6 +974,7 @@
       "storage": "Storage",
       "used": "Used",
       "free": "Available",
+      "storageDetail": "{used} used, {available} free",
       "operations": "Last operations",
       "operation": "Operation",
       "at": "Date",
@@ -1223,16 +1228,14 @@
     "all_projects_read": "View every project"
   },
   "enums": {
-    "ComponentHealth": {
-      "component": {
-        "api": "API service",
-        "worker": "Background worker",
-        "database": "Database",
-        "cache": "Cache",
-        "object_storage": "File storage",
-        "directory": "Directory",
-        "metrics": "Metrics"
-      }
+    "PlatformComponent": {
+      "api": "API service",
+      "worker": "Background worker",
+      "database": "Database",
+      "cache": "Cache",
+      "object_storage": "File storage",
+      "directory": "Directory",
+      "metrics": "Metrics"
     },
     "AlertZone": {
       "nominal": "Nominal",
@@ -1684,6 +1687,12 @@
         "actual_cost_line": "Actual cost line"
       }
     },
+    "ActualCostColumn": {
+      "document_date": "Document date",
+      "document_number": "Document no.",
+      "amount": "Amount",
+      "subproject": "Subproject"
+    },
     "ImportReport": {
       "requires_confirmation_reasons": {
         "date_or_duration_mismatch": "Dates or durations differ from those Waterfall recalculates",
@@ -1781,6 +1790,7 @@
       "change": "Change",
       "target": "Object",
       "label": "Label",
+      "fields": "Fields",
       "unnamed": "No label",
       "apply": "Apply the import",
       "abandon": "Abandon the import",

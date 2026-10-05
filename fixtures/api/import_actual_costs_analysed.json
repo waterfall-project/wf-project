@@ -1,0 +1,38 @@
+{
+  "summary": "Une nouvelle extraction d'avril, déposée le 2 juin 2026 à 9 h et analysée à 9 h 01, pas encore appliquée : deux lignes lues, déjà importées par leur numéro de pièce ; l'avoir est inchangé, la facture FA-2026-0412, dont l'ERP porte désormais 1 850 au lieu de 1 800, serait mise à jour sur son montant, son exclusion préservée (WF-INTF-0140, WF-INTF-0080).",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a12",
+    "kind": "actual_costs",
+    "filename": "couts-reels-2026-04-correction.xlsx",
+    "status": "analysed",
+    "created_at": "2026-06-02T09:00:05Z",
+    "expires_at": "2026-06-03T09:01:00Z",
+    "report": {
+      "format_version": "1",
+      "read_count": 2,
+      "rejected": [],
+      "differences": [
+        {
+          "change": "updated",
+          "target": "actual_cost_line",
+          "lineage_id": null,
+          "label": "FA-2026-0412",
+          "fields": [
+            "amount"
+          ]
+        }
+      ],
+      "requires_confirmation_reasons": []
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000920",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-02T09:00:05Z",
+      "finished_at": "2026-06-02T09:01:00Z",
+      "problem": null,
+      "result_url": null
+    }
+  }
+}
