@@ -132,13 +132,13 @@ async function bodyOf(request: Request): Promise<unknown> {
   return type.startsWith("multipart/form-data") ? request.formData() : request.blob();
 }
 
-/** Make the response of one answer, an example as the test amends it. */
-function respond(answer: AnyAnswer, amend: (value: unknown) => unknown): Response {
+/** Make the response of one answer. */
+function respond(answer: AnyAnswer): Response {
   if (typeof answer === "string") {
-    return Response.json(amend(example(answer)));
+    return Response.json(example(answer));
   }
   if ("example" in answer) {
-    return Response.json(amend(example(answer.example)), { status: answer.status });
+    return Response.json(example(answer.example), { status: answer.status });
   }
   if ("problem" in answer) {
     const headers = { "content-type": "application/problem+json" };
@@ -163,7 +163,7 @@ function refuse(request: Request): Promise<Response> {
   );
 }
 
-/** How a fake client answers besides what: when, and what a test lays over an example. */
+/** How a fake client answers besides what: when. */
 export interface FakeTiming {
   /**
    * Hold the answer to a call until the promise given settles — two calls in flight, the
@@ -171,11 +171,6 @@ export interface FakeTiming {
    * before it is held; `index` counts the calls of its route, from 0.
    */
   readonly hold?: (route: string, index: number) => Promise<unknown> | undefined;
-  /**
-   * The example a call of a route is answered with, amended — what no example of the contract
-   * shows, laid over one that the test names —; nothing, and the example as it is.
-   */
-  readonly amend?: (route: string, value: unknown) => unknown;
 }
 
 /**
@@ -216,7 +211,7 @@ export function fakeClient<const A extends FakeAnswers>(
       calls.push(call);
       call.body = await bodyOf(request);
       await timing.hold?.(route, index);
-      return respond(answer, (value) => timing.amend?.(route, value) ?? value);
+      return respond(answer);
     },
   });
 

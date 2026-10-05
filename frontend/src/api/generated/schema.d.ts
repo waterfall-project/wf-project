@@ -7557,7 +7557,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés, les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique déplace — et les totaux de la structure (`NodesWritten`, WF-PLA-0020). */
+            /** @description Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés, les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique déplace —, le montant corrigé des lignes et des tâches qu'elle déplace d'une année à l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040). */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -382,6 +382,59 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert {node["task"]["scheduling_mode"] for node in tasks(items)} == {"automatic"}
 
 
+def test_a_duration_lengthened_pushes_a_successor_into_the_next_year(
+    answer: dict[str, Any], items: list[Node]
+) -> None:
+    # What updateTaskFacet answers (task_lengthened.json): the task written, its successor moved
+    # into 2027 and its lines corrected anew, the summaries above and the totals summed again
+    # from the same lines, the amounts at the year of reference unchanged (WF-DEV-0040).
+    written = cast("dict[str, Any]", json.loads(json.dumps(mockstructure.task_lengthened())))
+    before = by_id(items)
+    [task] = written["nodes"]
+    old = before[task["node_id"]]["task"]
+    assert task["task"]["label"] == mockstructure.LENGTHENED
+    assert int(task["task"]["duration"]["value"]) == (
+        int(old["duration"]["value"]) + mockstructure.LENGTHENED_BY
+    )
+    assert task["task"]["finish"]["date"] == "2026-12-31"
+    assert task["lock_version"] == 2
+    moved = {entry["node_id"]: entry for entry in written["rescheduled"]}
+    [successor] = [entry for entry in moved.values() if entry["start"]["date"] >= "2027"]
+    assert before[successor["node_id"]]["task"]["start"]["date"] == "2026-12-30"
+    # Within the float: the dates of no other task move, their float alone.
+    for node_id, entry in moved.items():
+        if node_id != successor["node_id"]:
+            assert entry["start"] == before[node_id]["task"]["start"]
+            assert entry["finish"] == before[node_id]["task"]["finish"]
+    # The lines of the successor, consumed in 2027, and the successor itself, which sums them.
+    lines_of = [node for node in items if node["parent_id"] == successor["node_id"]]
+    amounts = {entry["node_id"]: entry for entry in written["reinflated"]}
+    assert list(amounts) == [successor["node_id"], *(node["node_id"] for node in lines_of)]
+    delta = Decimal(0)
+    for node in lines_of:
+        line = node["estimate_line"]
+        entry = amounts[node["node_id"]]
+        assert entry["consumption_year"] == 2027
+        assert Decimal(entry["inflated_amount"]) == mockstructure.inflated(
+            Decimal(line["base_amount"]), 2027
+        )
+        delta += Decimal(entry["inflated_amount"]) - Decimal(line["inflated_amount"])
+    total = sum(Decimal(amounts[node["node_id"]]["inflated_amount"]) for node in lines_of)
+    assert amounts[successor["node_id"]]["consumption_year"] is None
+    assert Decimal(amounts[successor["node_id"]]["inflated_amount"]) == total
+    # The summaries above, whole, and the totals: the corrected amounts move by the same delta.
+    assert [node["task"]["is_summary"] for node in written["ancestors"]] == [True, True]
+    for node in written["ancestors"]:
+        was = before[node["node_id"]]["task"]
+        assert Decimal(node["task"]["inflated_amount"]) == Decimal(was["inflated_amount"]) + delta
+        assert node["task"]["base_amount"] == was["base_amount"]
+    totals = answer["totals"]
+    assert Decimal(written["totals"]["inflated_amount"]) == (
+        Decimal(totals["inflated_amount"]) + delta
+    )
+    assert written["totals"]["base_amount"] == totals["base_amount"]
+
+
 def test_a_breakdown_gives_what_rounding_leaves_to_the_largest_part() -> None:
     parts = mockstructure.breakdown(
         [("a", Decimal(1)), ("b", Decimal(1)), (None, Decimal(1))],

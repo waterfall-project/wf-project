@@ -28,7 +28,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from wftools import REPOSITORY
 
@@ -380,10 +380,21 @@ class Structure:
 
 def structure() -> Structure:
     """Plan, date and number the structure of a thousand tasks, and make its nodes."""
+    roots, _ = _planned()
+    return _emitted(roots)
+
+
+def _planned() -> tuple[list[Task], list[Task]]:
+    """Plan, date and number the structure: its phases, and its work tasks and milestones."""
     roots, activities = plan()
     schedule(roots, activities)
     spread_lines(activities)
     number(roots)
+    return roots, activities
+
+
+def _emitted(roots: list[Task]) -> Structure:
+    """Make the nodes of a structure planned, and its totals."""
     emitter = _Emitter(_labels())
     for position, root in enumerate(roots):
         emitter.task(root, _Place(None, position, 1))
@@ -401,6 +412,97 @@ def structure() -> Structure:
         },
     }
     return Structure(answer, totals)
+
+
+# --- A write of the planning that moves lines into the next year ----------------------------
+
+LENGTHENED = "Revue 3.1.27"
+"""The work task whose duration the example lengthens: it finishes on 29 December 2026, with
+33 working days of float, and its one successor in its chain, « Reprise 3.1.30 », starts the
+next day."""
+
+LENGTHENED_BY = 2
+"""The working days the duration grows by: the task finishes on 31 December, and its successor
+starts on the first working day of 2027 — its lines are consumed a year later, corrected anew at
+the inflation of the witness project (WF-DEV-0040) —, within the float: the milestone of the lot
+does not move, nor anything after it."""
+
+_SCHEDULE = ("start", "finish", "total_float", "is_critical", "finish_overdue")
+"""The fields of a task a write may reschedule without writing it (`NodeSchedule`)."""
+
+
+def task_lengthened() -> JsonObject:
+    """Return what updateTaskFacet answers when the duration of LENGTHENED grows by its days.
+
+    The task written, whole; its successors rescheduled, by their schedule (`rescheduled`); the
+    lines and the tasks, not summaries, whose amount corrected for inflation changed, by their
+    amounts (`reinflated`); the summaries above the task and its successors, whole (`ancestors`);
+    the totals of the whole structure, and the version the structure moved on to (WF-PLA-0020,
+    WF-DEV-0040, WF-DEV-0050).
+    """
+    roots, activities = _planned()
+    before = _by_id(_emitted(roots).nodes)
+    task = next(each for each in activities if each.label == LENGTHENED)
+    task.duration += LENGTHENED_BY
+    schedule(roots, activities)
+    built = _emitted(roots)
+    after = _by_id(built.nodes)
+    written = identifier(_NODE, task.row)
+    nodes = [{**after[written], "lock_version": 2}]
+    moved = [
+        node_id
+        for node_id, node in after.items()
+        if node_id != written
+        and node["kind"] == "task"
+        and not node["task"]["is_summary"]
+        and any(node["task"].get(key) != before[node_id]["task"].get(key) for key in _SCHEDULE)
+    ]
+    above = _ancestors(after, [written, *moved])
+    reinflated: list[JsonValue] = []
+    for node_id, node in after.items():
+        if node_id == written or node_id in above:
+            continue
+        facet = node.get("estimate_line") or node["task"]
+        old = before[node_id].get("estimate_line") or before[node_id]["task"]
+        line = node["kind"] == "estimate_line"
+        if facet["inflated_amount"] != old["inflated_amount"] or (
+            line and facet["consumption_year"] != old["consumption_year"]
+        ):
+            reinflated.append(
+                {
+                    "node_id": node_id,
+                    "inflated_amount": facet["inflated_amount"],
+                    "consumption_year": facet["consumption_year"] if line else None,
+                }
+            )
+    return {
+        "nodes": cast("list[JsonValue]", nodes),
+        "ancestors": [after[node_id] for node_id in after if node_id in above],
+        "rescheduled": [
+            {"node_id": node_id, **{key: after[node_id]["task"].get(key) for key in _SCHEDULE}}
+            for node_id in moved
+        ],
+        "reinflated": reinflated,
+        "totals": built.nodes["totals"],
+        "structure_lock_version": 2,
+    }
+
+
+def _by_id(answer: JsonObject) -> dict[str, dict[str, Any]]:
+    """Return the nodes of an answer by their identifier, in the order of the plan."""
+    items = cast("list[dict[str, Any]]", answer["items"])
+    return {item["node_id"]: item for item in items}
+
+
+def _ancestors(nodes: Mapping[str, dict[str, Any]], of: Sequence[str]) -> set[str]:
+    """Return the ancestors of some nodes, each once."""
+    found: set[str] = set()
+    for node_id in of:
+        parent = nodes[node_id]["parent_id"]
+        while parent is not None:
+            found.add(parent)
+            parent = nodes[parent]["parent_id"]
+    return found
 
 
 def _labels() -> dict[str, str]:

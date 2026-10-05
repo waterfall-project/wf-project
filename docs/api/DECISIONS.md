@@ -814,12 +814,17 @@ chaîne de mille tâches et de leurs cinq mille lignes reste légère. Une tâch
 `rescheduled` et dans `reinflated` : chaque projection pose ses seuls champs, et la grille les
 compose. Le montant à l'année de référence ne dépend pas des dates : il n'y est pas. Écarté : le
 montant corrigé d'une tâche dans `NodeSchedule`, qui aurait mêlé les montants au calendrier et
-laissé sans projection une tâche dont les lignes bougent sans qu'elle soit redatée. Les exemples
-rendent tous une liste vide : aucune écriture qu'ils montrent ne change l'année d'une ligne de
-l'univers. En montrer une demanderait une écriture nouvelle qui pousse une tâche du volume
-au-delà d'un changement d'année, avec toute la chaîne qu'elle redate et le chemin critique
-recalculé — un exemple qui ne se tire d'aucun de ceux de l'univers ; les tests du front composent
-la projection sur l'exemple du devis témoin.
+laissé sans projection une tâche dont les lignes bougent sans qu'elle soit redatée. L'exemple
+`task_lengthened` (`updateTaskFacet`), engendré dans le volume par `make mock-data`, le montre :
+la durée de « Revue 3.1.27 » allongée de deux jours ouvrés, dans sa marge, pousse « Reprise
+3.1.30 » au premier jour ouvré de 2027 ; elle est dans `rescheduled` avec les tâches de sa chaîne
+dont la marge diminue, ses lignes et elle-même dans `reinflated`, les deux récapitulatives au-dessus
+dans `ancestors`, et les totaux suivent. Les autres exemples rendent une liste vide. L'univers
+n'offre aucune écriture du devis qui redate : ses deux rôles actifs sont sur le même calendrier,
+le calendrier par défaut, et le seul rôle sur un autre est désactivé — un changement de rôle ne
+change donc le calendrier d'aucune tâche (WF-PLA-0010). La projection est éprouvée sur l'exemple
+du planning appliqué aux lignes du devis ; le chemin de la grille de devis le sera quand l'univers
+aura une telle écriture (#287).
 
 **Les exemples de dépendance d'un montant suivent** : `dependencies_labour` et
 `dependencies_task_amount` disent désormais ce dont dépend le montant à l'année de référence d'une
