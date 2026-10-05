@@ -1,5 +1,5 @@
 {
-  "summary": "Un devis d'une ligne de chaque nature : sous une tâche qui s'achève le 30 juin, une ligne de main-d'œuvre, un débours de 1 234,56 et la provision de 500 du risque de reprise du câblage, identifié, que la ligne porte pour montant budgété et que le budget de référence ne compte pas (WF-RIS-0050) ; le jalon de réception, le 30 juin (WF-INTF-0180, WF-DAT-0100).",
+  "summary": "Un devis d'une ligne de chaque nature : sous une tâche qui s'achève le 30 juin, une ligne de main-d'œuvre, un débours de 1 234,56 et la ligne de provision de 500 du risque de reprise du câblage ; le jalon de réception, le 30 juin (WF-INTF-0180, WF-DAT-0100).",
   "value": {
     "items": [
       {

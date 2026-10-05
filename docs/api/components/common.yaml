@@ -121,7 +121,8 @@ Problem:
         `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une
         récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
         calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030),
-        `missing_prerequisites` (WF-CYC-0120),
+        `missing_prerequisites` (WF-CYC-0120), `state` (l'état de l'objet qui interdit
+        l'opération, `STATE_FORBIDS_OPERATION` ; un `ProjectState` pour un projet),
         `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,

@@ -321,7 +321,7 @@ HourlyRateWrite:
 
 Installation:
   type: object
-  required: [default_language, avatar_max_bytes]
+  required: [default_language, avatar_max_bytes, external_backup_max_bytes]
   description: >-
     Paramètres de l'installation lisibles sans session : ce que le front doit savoir avant
     d'ouvrir une session, ou pour régler ce qu'il laisse passer.
@@ -338,6 +338,14 @@ Installation:
         (8 388 608 octets) : le front règle d'avance la taille de corps qu'il laisse passer
         au-dessus de ce maximum, l'enveloppe du formulaire comprise, pour que le refus d'une
         image trop lourde vienne de l'API et se dise par son code.
+    external_backup_max_bytes:
+      type: integer
+      minimum: 1
+      description: >-
+        La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée
+        pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un
+        réglage de l'installation, la spécification ne fixant pas la taille d'une
+        sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`.
 
 ReferenceSettings:
   type: object
@@ -397,8 +405,9 @@ RiskMatrixSettings:
       maxItems: 16
       description: >-
         La zone de chaque case, rangée par niveau de probabilité puis par niveau de
-        gravité, l'un et l'autre du plus bas au plus haut : la case de probabilité p et de gravité g, de 1 à 4, est la zone de rang
-        4 × (p − 1) + (g − 1), en comptant depuis zéro.
+        gravité, l'un et l'autre du plus bas au plus haut : la case de probabilité p et
+        de gravité g, de 1 à 4, est la zone de rang 4 × (p − 1) + (g − 1), en comptant
+        depuis zéro.
       items: { $ref: '#/AlertZone' }
 
 IndexThresholds:

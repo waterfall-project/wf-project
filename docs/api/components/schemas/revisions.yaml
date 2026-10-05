@@ -469,8 +469,9 @@ NodeTotals:
     montants et les heures sont ceux des seules lignes de devis retenues par les
     filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —,
     et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre.
-    `budgeted_amount` somme les montants budgétés des lignes, provisions des risques
-    identifiés comprises : ce n'est pas le budget de référence (WF-RIS-0050).
+    `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de provision
+    comprises : ce n'est pas le budget de référence, diminué des provisions selon
+    WF-RIS-0050.
   properties:
     task_count: { type: integer, minimum: 0 }
     estimate_line_count: { type: integer, minimum: 0 }
@@ -742,11 +743,11 @@ EstimateLineFacet:
     budgeted_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020). La ligne de
-        provision d'un risque identifié ou écarté porte sa provision, qui n'entre pas dans
-        le budget de référence tant qu'un risque du projet est identifié (WF-RIS-0050) : le
-        serveur l'en exclut par l'état du risque, sans que la ligne change. Le budget de
-        référence se lit dans les indicateurs, jamais en sommant ces montants.
+        Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020) : une ligne de
+        provision présente dans la révision de référence porte la provision qu'elle y avait.
+        Le budget de référence est la somme des montants budgétés des lignes de la révision
+        de référence, diminuée des provisions selon les règles de WF-RIS-0050 (glossaire) :
+        il se lit dans les indicateurs, jamais en sommant ces montants.
     reestimated_amount: { $ref: ../common.yaml#/Money }
     inflated_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]

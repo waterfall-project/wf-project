@@ -144,7 +144,9 @@ RestoreRequest:
     backup_id: { $ref: ../common.yaml#/Uuid }
     external_backup_upload_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
-      description: Sauvegarde copiée hors de la plateforme, déposée au préalable (WF-ADM-0160).
+      description: >-
+        Sauvegarde copiée hors de la plateforme, déposée au préalable pour une restauration
+        (`FileUploadPurpose`, `external_backup`, WF-ADM-0160).
     acknowledged_backup_taken_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-

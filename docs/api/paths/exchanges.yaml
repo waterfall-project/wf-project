@@ -9,15 +9,22 @@
     description: >-
       Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import :
       il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120).
+      Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse
+      pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des
+      imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration
+      désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413,
+      `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration
+      que sur un dépôt de sauvegarde.
     requestBody:
       required: true
       content:
         multipart/form-data:
           schema:
             type: object
-            required: [file]
+            required: [file, purpose]
             properties:
               file: { type: string, format: binary }
+              purpose: { $ref: ../components/schemas/exchanges.yaml#/FileUploadPurpose }
     responses:
       '201':
         description: Fichier déposé.

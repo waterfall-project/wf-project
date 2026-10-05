@@ -2310,7 +2310,7 @@ export interface paths {
         put?: never;
         /**
          * Déposer un fichier
-         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120).
+         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde.
          */
         post: operations["uploadFile"];
         delete?: never;
@@ -2588,7 +2588,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION` ; un `ProjectState` pour un projet), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070). */
             params?: {
                 [key: string]: unknown;
             };
@@ -2655,6 +2655,8 @@ export interface components {
             default_language: components["schemas"]["Language"];
             /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi. Le réglage ne dépasse pas 8 Mio (8 388 608 octets) : le front règle d'avance la taille de corps qu'il laisse passer au-dessus de ce maximum, l'enveloppe du formulaire comprise, pour que le refus d'une image trop lourde vienne de l'API et se dise par son code. */
             avatar_max_bytes: number;
+            /** @description La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un réglage de l'installation, la spécification ne fixant pas la taille d'une sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. */
+            external_backup_max_bytes: number;
         };
         /**
          * @description Où en est une tâche de fond : en file, en cours, aboutie ou échouée (WF-ARC-0090, WF-IHM-0080). Nommée pour filtrer la liste des tâches de l'appelant.
@@ -2898,7 +2900,7 @@ export interface components {
         /** @description Restauration : elle remplace l'intégralité de la base, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). */
         RestoreRequest: {
             backup_id?: components["schemas"]["Uuid"];
-            /** @description Sauvegarde copiée hors de la plateforme, déposée au préalable (WF-ADM-0160). */
+            /** @description Sauvegarde copiée hors de la plateforme, déposée au préalable pour une restauration (`FileUploadPurpose`, `external_backup`, WF-ADM-0160). */
             external_backup_upload_id?: components["schemas"]["Uuid"];
             /** @description Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160). */
             acknowledged_backup_taken_at: components["schemas"]["Timestamp"];
@@ -3541,7 +3543,7 @@ export interface components {
             payment_delay_days?: number | null;
             /** @description Sous-projet facultatif ; sans lui, la ligne relève de « hors sous-projet » (WF-IND-0020). */
             subproject_id?: components["schemas"]["Uuid"] | null;
-            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020). La ligne de provision d'un risque identifié ou écarté porte sa provision, qui n'entre pas dans le budget de référence tant qu'un risque du projet est identifié (WF-RIS-0050) : le serveur l'en exclut par l'état du risque, sans que la ligne change. Le budget de référence se lit dans les indicateurs, jamais en sommant ces montants. */
+            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020) : une ligne de provision présente dans la révision de référence porte la provision qu'elle y avait. Le budget de référence est la somme des montants budgétés des lignes de la révision de référence, diminuée des provisions selon les règles de WF-RIS-0050 (glossaire) : il se lit dans les indicateurs, jamais en sommant ces montants. */
             budgeted_amount: components["schemas"]["Money"];
             reestimated_amount: components["schemas"]["Money"];
             /** @description Montant corrigé de l'inflation, calculé : le montant de la ligne projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant. */
@@ -3611,7 +3613,7 @@ export interface components {
             editable_fields: components["schemas"]["EditableField"][];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. `budgeted_amount` somme les montants budgétés des lignes, provisions des risques identifiés comprises : ce n'est pas le budget de référence (WF-RIS-0050). */
+        /** @description Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les montants et les heures sont ceux des seules lignes de devis retenues par les filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —, et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de provision comprises : ce n'est pas le budget de référence, diminué des provisions selon WF-RIS-0050. */
         NodeTotals: {
             task_count: number;
             estimate_line_count: number;
@@ -4113,9 +4115,15 @@ export interface components {
             updated_count: number;
             ignored_count: number;
         };
+        /**
+         * @description L'usage d'un dépôt, qui le borne (`uploadFile`) : le fichier d'un import, au plus 10 Mio (§4.6.2) ; une sauvegarde copiée hors de la plateforme, à restaurer (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), au plus `Installation.external_backup_max_bytes`.
+         * @enum {string}
+         */
+        FileUploadPurpose: "import" | "external_backup";
         /** @description Fichier déposé, en transit. Il est supprimé dès que l'import est appliqué, abandonné ou expiré (WF-DAT-0120, WF-ARC-0100). */
         FileUpload: {
             upload_id: components["schemas"]["Uuid"];
+            purpose: components["schemas"]["FileUploadPurpose"];
             filename: string;
             size_bytes: number;
             uploaded_at: components["schemas"]["Timestamp"];
@@ -4167,6 +4175,7 @@ export interface components {
         /** @description Ouvre un import : l'analyse lit le fichier, contrôle son format et sa version, compare aux données existantes et produit un compte rendu, sans rien modifier (WF-ARC-0100, WF-INTF-0070, WF-INTF-0080). L'import s'applique à la révision en cours, créée au besoin (WF-INTF-0090). */
         ImportRequest: {
             kind: components["schemas"]["ExchangeKind"];
+            /** @description Un dépôt fait pour un import (`FileUploadPurpose`, `import`). */
             upload_id: components["schemas"]["Uuid"];
             /** @description Structure visée ; la structure principale par défaut. */
             structure_id?: components["schemas"]["Uuid"] | null;
@@ -4619,16 +4628,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportRequest.kind`) : un planning MS Project en XML (`application/xml`, `.xml`), un devis ou un reste à engager en classeur Excel (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `.xlsx`), l'image de l'arborescence en PNG (`image/png`, `.png`) (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120). */
+            /** @description Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportRequest.kind`) : un devis ou un reste à engager en classeur Excel (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `.xlsx`), un planning MS Project en XML (`application/xml`, `.xml`), l'image de l'arborescence en PNG (`image/png`, `.png`) (WF-INTF-0110, WF-INTF-0130, WF-INTF-0050, WF-PLA-0120). */
             200: {
                 headers: {
-                    /** @description `attachment`, et le nom du fichier que le serveur lui donne (`filename`), avec l'extension de sa nature. */
+                    /** @description `attachment`, et le nom du fichier que le serveur lui donne (`filename`), avec l'extension de sa nature. Un nom qui n'est pas en ASCII s'écrit aussi en `filename*`, en UTF-8 encodé en pourcentage (RFC 6266, RFC 8187), `filename` portant alors son équivalent ASCII. */
                     "Content-Disposition": string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/xml": string;
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    "application/xml": string;
                     "image/png": string;
                 };
             };
@@ -8040,7 +8049,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070). */
+            /** @description Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8140,7 +8149,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Projet antérieur à l'état En cours : seuls les indicateurs de devis existent (WF-IND-0010). `STATE_FORBIDS_OPERATION`. */
+            /** @description Projet antérieur à l'état En cours : seuls les indicateurs de devis existent (WF-IND-0010). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8522,8 +8531,8 @@ export interface operations {
                 from?: components["schemas"]["PlanningDate"];
                 to?: components["schemas"]["PlanningDate"];
                 in_tracked_scope?: boolean;
-                /** @description Colonne du tri ; absente, les pièces les plus récentes d'abord. Le périmètre suivi et le motif d'exclusion se trient comme les autres (WF-IHM-0060) : `in_tracked_scope` range dans l'ordre croissant les lignes exclues avant les lignes suivies, `excluded_reason` range par motif d'exclusion. */
-                sort_by?: "document_date" | "document_number" | "amount" | "subproject" | "in_tracked_scope" | "excluded_reason";
+                /** @description Colonne du tri ; absente, les pièces les plus récentes d'abord. Chaque colonne de la grille se trie (WF-IHM-0060). `in_tracked_scope` range dans l'ordre croissant les lignes exclues avant les lignes suivies. `excluded_reason` range par motif, et `passthrough.<colonne>` par la valeur d'une colonne conservée du fichier, nommée comme `passthrough` la nomme : l'un et l'autre comparés en texte, caractère par caractère dans l'ordre des points de code Unicode, sans lire un nombre ni une date qu'ils écriraient ; une ligne sans valeur — suivie, donc sans motif, ou sans cette colonne — vient après les autres dans l'ordre croissant, avant dans le décroissant. */
+                sort_by?: ("document_date" | "document_number" | "amount" | "subproject" | "in_tracked_scope" | "excluded_reason") | string;
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
             };
@@ -8634,6 +8643,7 @@ export interface operations {
                 "multipart/form-data": {
                     /** Format: binary */
                     file: string;
+                    purpose: components["schemas"]["FileUploadPurpose"];
                 };
             };
         };

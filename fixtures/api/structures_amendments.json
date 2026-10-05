@@ -1,5 +1,5 @@
 {
-  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre de chacun des trois risques de `risks` — la reprise du câblage, le retard de livraison des armoires, dont la provision était retenue à cette révision et qui n'est survenu qu'après elle, et l'indisponibilité de l'automaticien —, aucun fusionné (WF-REV-0100, WF-RIS-0030).",
+  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre de chacun des trois risques de `risks` — la reprise du câblage, le retard de livraison des armoires et l'indisponibilité de l'automaticien (WF-REV-0100, WF-RIS-0030).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000211",
