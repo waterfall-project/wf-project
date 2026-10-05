@@ -551,7 +551,8 @@ retouche pas — la structure de mille tâches et de cinq mille lignes, premier 
 sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même
 total ; ce dont dépend la date de fin de sa première récapitulative, ses subordonnées directes
 nommées de la même structure, premier exemple de `getComputedValueDependencies`, que le refus
-d'une saisie lit dans les parcours ; les trois cents projets de `getPortfolioProjects`, et les vues
+d'une saisie lit dans les parcours ; une durée allongée qui pousse une tâche en 2027, ses lignes et
+elle-même corrigées à nouveau (`task_lengthened`, réponse de `updateTaskFacet`) ; les trois cents projets de `getPortfolioProjects`, et les vues
 du portefeuille qui se somment de leurs lignes — la valeur, la performance, la structure des coûts et
 les risques —, les deux cents catégories de
 `listCostCategories`, quinze ans de taux de `listHourlyRates` et la grille des taux horaires de

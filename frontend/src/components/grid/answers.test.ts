@@ -25,11 +25,6 @@ const REVIEW = "01926f3a-7c00-7000-8000-000000000524";
 const ACCEPTANCE = "01926f3a-7c00-7000-8000-000000000525";
 const DESIGN_FILE = "01926f3a-7c00-7000-8000-000000000526";
 const SUMMARY = "01926f3a-7c00-7000-8000-000000000521";
-// A task of the witness estimate, and the labour, disbursement and provision lines it bears.
-const TASK = "01926f3a-7c00-7000-8000-000000000522";
-const LABOUR = "01926f3a-7c00-7000-8000-000000000523";
-const DISBURSEMENT = "01926f3a-7c00-7000-8000-000000000524";
-const PROVISION = "01926f3a-7c00-7000-8000-000000000525";
 
 /** The rows of the witness planning, as the grid of the planning reads them. */
 const rows = projectNodes(planning, PLANNING_FIELDS).items;
@@ -73,45 +68,27 @@ describe("what a write answers, as a grid reads it", () => {
     expect(written.totals).toBeUndefined();
   });
 
-  // A write that moves a task in time without writing it — a link written in the planning that
-  // takes « Câblage des armoires » of the witness estimate two years later, its summary
-  // recalculated whole aside —: the task rescheduled, its three lines corrected anew on the year
-  // they are now consumed, at 3 % a year over two years, and the task itself, which sums them.
-  const schedule = {
-    node_id: TASK,
-    start: { date: "2028-05-04", hours: "0" },
-    finish: { date: "2028-06-30", hours: "8" },
-    total_float: null,
-    is_critical: false,
-    finish_overdue: false,
-  };
-  const taskAmount = { node_id: TASK, inflated_amount: "2901.09", consumption_year: null };
-  const lineAmounts = [
-    { node_id: LABOUR, inflated_amount: "1060.90", consumption_year: 2028 },
-    { node_id: DISBURSEMENT, inflated_amount: "1309.74", consumption_year: 2028 },
-    { node_id: PROVISION, inflated_amount: "530.45", consumption_year: 2028 },
-  ];
-  const moved: NodesWritten = {
-    ...(example("estimate_line_updated") as NodesWritten),
-    nodes: [],
-    ancestors: [],
-    rescheduled: [schedule],
-    reinflated: [taskAmount, ...lineAmounts],
-  };
-  /** The witness estimate, as the grid of the estimate reads it. */
-  const estimateRows = projectNodes(example("nodes_estimate") as NodeList, ESTIMATE_FIELDS).items;
+  // A duration lengthened in the planning of the volume (`task_lengthened`): « Revue 3.1.27 »
+  // finishes on 31 December 2026, and « Reprise 3.1.30 », which follows it, is pushed into 2027 —
+  // rescheduled, its lines corrected anew on the year they are now consumed, and the task itself,
+  // which sums them.
+  const volume = example("volume/nodes_thousand") as NodeList;
+  const lengthened = example("volume/task_lengthened") as NodesWritten;
+  const SUCCESSOR = "01926f3a-7c00-7000-8000-000100001387";
+  const amountOf = new Map(lengthened.reinflated.map((each) => [each.node_id, each]));
 
-  it("lays the amounts the server answered over the lines and the task a write moved in time, the rest of each as it was", () => {
-    const written = nodesWritten(moved, ESTIMATE_FIELDS, true);
-    // The grid of the estimate reads no date: the schedule of the task is not laid.
-    expect(written.parts.map((part) => part.key)).toEqual([TASK, LABOUR, DISBURSEMENT, PROVISION]);
-    const amounts = new Map(moved.reinflated.map((each) => [each.node_id, each.inflated_amount]));
+  it("lays the amounts the server answered over the lines and the task a write moved into the next year, the rest of each as it was", () => {
+    const rows = projectNodes(volume, ESTIMATE_FIELDS).items;
+    const written = nodesWritten(lengthened, ESTIMATE_FIELDS, true);
+    // The grid of the estimate reads no date: the amounts alone, the successor and its lines.
+    expect(written.parts.map((part) => part.key)).toEqual([...amountOf.keys()]);
+    expect(written.parts[0]?.key).toBe(SUCCESSOR);
     for (const part of written.parts) {
-      const before = estimateRows.find((node) => node.node_id === part.key);
+      const before = rows.find((node) => node.node_id === part.key);
       if (before === undefined) {
-        throw new Error(`no node ${part.key} in the witness estimate`);
+        throw new Error(`no node ${part.key} in the volume`);
       }
-      const inflated_amount = amounts.get(part.key);
+      const inflated_amount = amountOf.get(part.key)?.inflated_amount;
       expect(part.change(before)).toEqual(
         before.task === undefined || before.task === null
           ? { ...before, estimate_line: { ...before.estimate_line, inflated_amount } }
@@ -121,8 +98,10 @@ describe("what a write answers, as a grid reads it", () => {
   });
 
   it("gives no amounts to a grid that reads none", () => {
-    const parts = nodesWritten(moved, PLANNING_FIELDS, true).parts;
-    expect(parts.map((part) => part.key)).toEqual([TASK]);
+    const parts = nodesWritten(lengthened, PLANNING_FIELDS, true).parts;
+    expect(parts.map((part) => part.key)).toEqual(
+      lengthened.rescheduled.map((each) => each.node_id),
+    );
   });
 
   // A grid that reads both the schedule of a task and its amount corrected for inflation.
@@ -131,44 +110,37 @@ describe("what a write answers, as a grid reads it", () => {
     task: ["start", "finish", "inflated_amount"],
     line: ["inflated_amount"],
   } as const satisfies AnyNodeFields;
-  const bothRows = projectNodes(example("nodes_estimate") as NodeList, BOTH).items;
-  const shownTask = (answers: ReturnType<typeof answersOf<(typeof bothRows)[number], unknown>>) =>
-    shownRow(answers, nodeKey, TASK)?.task;
+  const bothRows = projectNodes(volume, BOTH).items;
+  type BothRow = (typeof bothRows)[number];
+  const moved = { start: { date: "2027-01-01", hours: "0" }, inflated_amount: "87891.73" };
 
   it("lays both the schedule and the amount of a task one write answers in both lists", () => {
-    const written = nodesWritten(moved, BOTH, true);
+    const written = nodesWritten(lengthened, BOTH, true);
     // One part by row, the schedule and the amount composed.
-    expect(written.parts.map((part) => part.key)).toEqual([TASK, LABOUR, DISBURSEMENT, PROVISION]);
-    const answers = answersOf<(typeof bothRows)[number], unknown>(bothRows);
+    const keys = written.parts.map((part) => part.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    const answers = answersOf<BothRow, unknown>(bothRows);
     take(answers, written, nodeKey);
-    expect(shownTask(answers)).toMatchObject({
-      start: schedule.start,
-      finish: schedule.finish,
-      inflated_amount: "2901.09",
-    });
+    expect(shownRow(answers, nodeKey, SUCCESSOR)?.task).toMatchObject(moved);
   });
 
   it("lays both the schedule and the amount of a task two writes answer one after the other, whatever the order they come back in", () => {
-    const dated: NodesWritten = { ...moved, reinflated: [] };
-    const priced: NodesWritten = { ...moved, rescheduled: [], reinflated: [taskAmount] };
+    const dated = nodesWritten({ ...lengthened, reinflated: [] }, BOTH, true);
+    const priced = nodesWritten({ ...lengthened, rescheduled: [] }, BOTH, true);
     for (const [first, second] of [
       [
-        { ...nodesWritten(dated, BOTH, true), order: 2 },
-        { ...nodesWritten(priced, BOTH, true), order: 3 },
+        { ...dated, order: 2 },
+        { ...priced, order: 3 },
       ],
       [
-        { ...nodesWritten(priced, BOTH, true), order: 3 },
-        { ...nodesWritten(dated, BOTH, true), order: 2 },
+        { ...priced, order: 3 },
+        { ...dated, order: 2 },
       ],
     ] as const) {
-      const answers = answersOf<(typeof bothRows)[number], unknown>(bothRows);
+      const answers = answersOf<BothRow, unknown>(bothRows);
       take(answers, first, nodeKey);
       take(answers, second, nodeKey);
-      expect(shownTask(answers)).toMatchObject({
-        start: schedule.start,
-        finish: schedule.finish,
-        inflated_amount: "2901.09",
-      });
+      expect(shownRow(answers, nodeKey, SUCCESSOR)?.task).toMatchObject(moved);
     }
   });
 });
