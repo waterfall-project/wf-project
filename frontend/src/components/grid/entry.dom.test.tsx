@@ -257,7 +257,12 @@ describe("the keyboard of a grid", () => {
     const offered = within(screen.getByRole("combobox", { name: "Rôle" }))
       .getAllByRole("option")
       .map((option) => option.textContent);
-    expect(offered).toEqual(["Aucun", "Ingénieur électricien", "Technicien de mise en service"]);
+    expect(offered).toEqual([
+      "Aucun",
+      "Ingénieur électricien",
+      "Technicien de mise en service",
+      "Monteur câbleur",
+    ]);
     // The line that bears it: shown, offered, kept.
     await userEvent.keyboard("{Escape}");
     rerender(grid("fr", read));

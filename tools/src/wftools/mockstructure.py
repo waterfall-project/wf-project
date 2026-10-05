@@ -24,28 +24,31 @@ version of Python. ``wftools.mockdata`` writes it.
 from __future__ import annotations
 
 import hashlib
-import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY
+from wftools.mockcalendar import decimal
+from wftools.mockwitness import (
+    COMMISSIONING_TECHNICIAN,
+    ELECTRICAL_ENGINEERING,
+    ENGINEER,
+    EQUIPMENT,
+    LINEAGES,
+    NODES,
+    PROVISIONS,
+    SUBCONTRACTING,
+    SUBPROJECT_CONTROL,
+    fixture,
+    identifier,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
 type JsonValue = str | int | bool | list[JsonValue] | dict[str, JsonValue] | None
 type JsonObject = dict[str, JsonValue]
-
-FIXTURES = REPOSITORY / "fixtures" / "api"
-"""Where the examples of the contract live, those of the universe by their name."""
-
-
-def fixture(name: str) -> Any:
-    """Return the value of an example of the universe, from its fixture."""
-    return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))["value"]
-
 
 SEED = "waterfall-4.6.2"
 """The seed every drawn value is hashed with: changing it changes every volume."""
@@ -78,15 +81,8 @@ REFERENCE_YEAR = 2026
 """The reference year of the witness estimate: an amount of that year is not projected."""
 
 # The universe of the other examples of the contract.
-SUBPROJECT_CONTROL = "01926f3a-7c00-7000-8000-000000000801"
 SUBPROJECT_TESTS = "01926f3a-7c00-7000-8000-000000000802"
-SUBCONTRACTING = "01926f3a-7c00-7000-8000-000000000401"
-ELECTRICAL_ENGINEERING = "01926f3a-7c00-7000-8000-000000000402"
-EQUIPMENT = "01926f3a-7c00-7000-8000-000000000403"
-PROVISIONS = "01926f3a-7c00-7000-8000-000000000404"
 COMMISSIONING = "01926f3a-7c00-7000-8000-000000000405"
-ENGINEER = "01926f3a-7c00-7000-8000-000000000451"
-COMMISSIONING_TECHNICIAN = "01926f3a-7c00-7000-8000-000000000452"
 LABOR = "01926f3a-7c00-7000-8000-000000000461"
 NON_LABOR = "01926f3a-7c00-7000-8000-000000000462"
 PROVISION = "01926f3a-7c00-7000-8000-000000000463"
@@ -100,19 +96,11 @@ CATEGORY_LABELS = {
 }
 """The labels of the categories of the universe, which wftools.mockdata lists among the others."""
 
-# The families of the identifiers of the nodes; wftools.mockdata numbers the others from 3.
-_NODE, _LINEAGE = 1, 2
-
 
 def draw(key: str, low: int, high: int) -> int:
     """Return an integer of [low, high], fixed by the seed and by the key it describes."""
     digest = hashlib.sha256(f"{SEED}/{key}".encode()).digest()
     return low + int.from_bytes(digest[:8]) % (high - low + 1)
-
-
-def identifier(family: int, number: int) -> str:
-    """Return the identifier of a generated object, apart from those of the universe."""
-    return f"01926f3a-7c00-7000-8000-{family:04d}{number:08d}"
 
 
 def working_day(offset: int) -> date:
@@ -147,12 +135,6 @@ def work_instant(offset: int, hours: Decimal) -> JsonObject:
     Its date, and the hours of work elapsed that day (WF-DAT-0100).
     """
     return {"date": working_day(offset).isoformat(), "hours": decimal(hours)}
-
-
-def decimal(value: Decimal) -> str:
-    """Return an exact decimal without trailing zeros: 12.5, 40."""
-    text = format(value, "f")
-    return text.rstrip("0").rstrip(".") if "." in text else text
 
 
 # --- The structure of a thousand tasks --------------------------------------------------
@@ -447,7 +429,7 @@ def task_lengthened() -> JsonObject:
     schedule(roots, activities)
     built = _emitted(roots)
     after = _by_id(built.nodes)
-    written = identifier(_NODE, task.row)
+    written = identifier(NODES, task.row)
     nodes = [{**after[written], "lock_version": 2}]
     moved = [
         node_id
@@ -537,7 +519,7 @@ class _Emitter:
         if task.predecessors:
             node["predecessors"] = [
                 {
-                    "predecessor_node_id": identifier(_NODE, before.row),
+                    "predecessor_node_id": identifier(NODES, before.row),
                     "predecessor_row_number": before.row,
                     "link_type": "finish_to_start",
                     "lag": {"value": "0", "unit": "d"},
@@ -592,10 +574,10 @@ class _Fields:
 
 def _node(row: int, place: _Place, kind: str, facet: JsonObject, fields: _Fields) -> JsonObject:
     return {
-        "node_id": identifier(_NODE, row),
-        "lineage_id": identifier(_LINEAGE, row),
+        "node_id": identifier(NODES, row),
+        "lineage_id": identifier(LINEAGES, row),
         "kind": kind,
-        "parent_id": None if place.parent is None else identifier(_NODE, place.parent.row),
+        "parent_id": None if place.parent is None else identifier(NODES, place.parent.row),
         "position": place.position,
         "row_number": row,
         "level": place.level,

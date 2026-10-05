@@ -395,6 +395,7 @@ describe("the witness path", () => {
     ).toEqual([
       "Ingénieur électricien: true",
       "Technicien de mise en service: true",
+      "Monteur câbleur: true",
       "Automaticien: false",
     ]);
     expect(grid?.reference.categories).toHaveLength(200);

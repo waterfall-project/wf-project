@@ -1,5 +1,5 @@
 {
-  "summary": "Les rôles de ressources de l'installation, chacun nommant son nœud, sa catégorie et son calendrier : l'ingénieur électricien et le technicien de mise en service, que portent les lignes de main-d'œuvre des exemples, et l'automaticien, désactivé, rattaché à la semaine de trente-neuf heures, désactivée elle aussi, que la liste des calendriers ne rend pas (WF-REF-0090, WF-REF-0100, WF-REF-0150).",
+  "summary": "Les rôles de ressources de l'installation, chacun nommant son nœud, sa catégorie et son calendrier : l'ingénieur électricien et le technicien de mise en service, sur la semaine standard, et le monteur câbleur de l'atelier de câblage, sur la semaine de quatre jours de dix heures, que portent les lignes de main-d'œuvre des exemples, et l'automaticien, désactivé, rattaché à la semaine de trente-neuf heures, désactivée elle aussi, que la liste des calendriers ne rend pas (WF-REF-0090, WF-REF-0100, WF-REF-0150).",
   "value": [
     {
       "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
@@ -43,6 +43,36 @@
       "capacity": {
         "monthly_hours": "151.67",
         "headcount": "4"
+      },
+      "is_active": true,
+      "audit": {
+        "created_at": "2026-01-05T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "resource_role_id": "01926f3a-7c00-7000-8000-000000000454",
+      "label": "Monteur câbleur",
+      "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+      "org_node_label": "Atelier de câblage",
+      "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+      "cost_category_label": "Ingénierie électrique",
+      "calendar_id": "01926f3a-7c00-7000-8000-000000000482",
+      "calendar_label": "Semaine de quatre jours",
+      "capacity": {
+        "monthly_hours": "173.33",
+        "headcount": "3"
       },
       "is_active": true,
       "audit": {

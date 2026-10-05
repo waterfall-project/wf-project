@@ -1,0 +1,390 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""The witness project the examples of the contract describe, said once (#287).
+
+PRJ-001, « Modernisation du poste de commande », at one instant, today: its chronology, the
+families of the identifiers of the universe, the roles its lines employ and their calendars,
+and the readable core of its structure — the tasks and the lines whose identifiers and
+figures are fixed, which the structure of a thousand tasks is to carry before the tasks
+it draws, linked to them (EP-02/L27, #376). The other examples of the contract are read
+from this: another reading of the same state, an earlier instant of the same chronology, the
+immediate sequel of a write made today, or a counterfactual variant declared as such.
+
+What the reference data says — the labels and calendars of the roles, the hours of the
+calendars — is read from its fixtures (``resource_roles``, ``calendars``), written by hand:
+this module names the roles the witness employs, it does not copy them.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from typing import Any
+
+from wftools import REPOSITORY
+from wftools.mockcalendar import Calendar
+
+FIXTURES = REPOSITORY / "fixtures" / "api"
+"""Where the examples of the contract live, those of the universe by their name."""
+
+
+def fixture(name: str) -> Any:
+    """Return the value of an example of the universe, from its fixture."""
+    return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))["value"]
+
+
+# --- Today and the chronology -----------------------------------------------------------------
+
+TODAY = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
+"""The instant every first example describes (decision of the user of 2026-10-05)."""
+
+
+@dataclass(frozen=True, slots=True)
+class Event:
+    """A dated event of the life of the witness project, in universal time."""
+
+    on: date
+    what: str
+
+
+INSTALLED = Event(date(2025, 9, 1), "Installation, référentiel et comptes")
+CREATED = Event(date(2025, 10, 6), "PRJ-001 créé, à l'état Créé")
+OFFER_OPENED = Event(date(2025, 11, 3), "Ouverture de l'offre 100, passage en Chiffrage")
+OFFER_MARKED = Event(date(2025, 12, 15), "Offre v1.0 marquée")
+RISKS_IDENTIFIED = Event(date(2026, 1, 12), "Risques 751, 752 et 753 identifiés")
+ORDER_RECEIVED = Event(
+    date(2026, 1, 15), "Commande reçue ; l'offre 100 désignée référence, passage En cours"
+)
+AMENDMENT_MERGED = Event(
+    date(2026, 2, 1), "Avenant 1 fusionné ; la révision 101 « Référence » marquée, référence"
+)
+RISK_751_REVIEWED = Event(date(2026, 2, 2), "Réexamen de 751 : gravité portée à 1 250")
+RISK_752_OCCURRED = Event(
+    date(2026, 2, 20), "Survenance de 752 : la révision 103 marquée devient la référence"
+)
+STUDIES_STARTED = Event(
+    date(2026, 3, 2), "Ouverture de la révision courante 102 ; 751 à 40 % ; début des études"
+)
+COST_IMPORTS = tuple(
+    Event(day, "Import de coûts réels")
+    for day in (
+        date(2026, 4, 3),
+        date(2026, 5, 4),
+        date(2026, 5, 6),
+        date(2026, 5, 11),
+        date(2026, 6, 3),
+    )
+)
+PLANNING_IMPORT_ABANDONED = Event(date(2026, 5, 20), "Import de planning, abandonné")
+ESTIMATE_IMPORT_ANALYSED = Event(
+    date(2026, 6, 1), "Import du devis analysé, en attente de confirmation"
+)
+APRIL_EXTRACTION_REPLAYED = Event(date(2026, 6, 2), "Extraction d'avril rejouée et analysée")
+
+CHRONOLOGY = tuple(
+    sorted(
+        (
+            INSTALLED,
+            CREATED,
+            OFFER_OPENED,
+            OFFER_MARKED,
+            RISKS_IDENTIFIED,
+            ORDER_RECEIVED,
+            AMENDMENT_MERGED,
+            RISK_751_REVIEWED,
+            RISK_752_OCCURRED,
+            STUDIES_STARTED,
+            *COST_IMPORTS,
+            PLANNING_IMPORT_ABANDONED,
+            ESTIMATE_IMPORT_ANALYSED,
+            APRIL_EXTRACTION_REPLAYED,
+        ),
+        key=lambda event: event.on,
+    )
+)
+"""The events up to today, in their order; what follows today is the sequel of a write."""
+
+# --- The families of the identifiers ----------------------------------------------------------
+
+PREFIX = "01926f3a-7c00-7000-8000-"
+
+
+def identifier(family: int, number: int) -> str:
+    """Return an identifier of a family: 0 for those written by hand, the others generated."""
+    return f"{PREFIX}{family:04d}{number:08d}"
+
+
+def universe(number: int) -> str:
+    """Return an identifier the examples write by hand: 01926f3a-…-000000000521."""
+    return identifier(0, number)
+
+
+@dataclass(frozen=True, slots=True)
+class Family:
+    """A family of identifiers: a range of those written by hand, or a generated family."""
+
+    what: str
+    first: int
+    last: int
+    generated: int = 0
+
+    def holds(self, value: str) -> bool:
+        """Whether an identifier is of the family."""
+        if not value.startswith(PREFIX):
+            return False
+        tail = value.removeprefix(PREFIX)
+        return int(tail[:4]) == self.generated and self.first <= int(tail[4:]) <= self.last
+
+
+NODES, LINEAGES, PROJECTS, CATEGORIES, RISKS = 1, 2, 3, 4, 5
+"""The generated families: the nodes of the structure of a thousand tasks and their lineages; the
+projects of the portfolio, the categories of the grid of rates and the risks of
+the portfolio."""
+
+_GENERATED = 99_999_999
+
+IDENTIFIERS = (
+    Family("projets", 1, 99),
+    Family("révisions", 100, 199),
+    Family("structures", 200, 299),
+    Family("comptes", 300, 399),
+    Family("catégories de coût", 400, 449),
+    Family("rôles de ressources", 450, 459),
+    Family("natures de coût", 460, 469),
+    Family("nœuds d'organisation", 470, 479),
+    Family("calendriers", 480, 499),
+    Family("nœuds de la structure", 500, 599),
+    Family("lignées, celle du nœud 5nn en 6nn", 600, 699),
+    Family("rôles d'habilitation", 700, 709),
+    Family("postes du lotissement", 710, 749),
+    Family("risques", 750, 799),
+    Family("sous-projets", 800, 899),
+    Family("sauvegardes", 900, 919),
+    Family("tâches de fond", 920, 959),
+    Family("collages et corrélations", 960, 999),
+    Family("nœuds engendrés", 1, _GENERATED, NODES),
+    Family("lignées engendrées", 1, _GENERATED, LINEAGES),
+    Family("projets du portefeuille", 1, _GENERATED, PROJECTS),
+    Family("catégories de la grille des taux", 0, _GENERATED, CATEGORIES),
+    Family("risques du portefeuille", 1, _GENERATED, RISKS),
+)
+"""Every family of identifier, on disjoint ranges: an identifier names one kind of object.
+
+The examples written by hand do not all keep to it yet: the order item 701 and the background
+tasks 901 to 905 are on the ranges of the access roles and the backups (#287, C16), until the
+examples that carry them are moved.
+"""
+
+# --- The roles, their calendars ---------------------------------------------------------------
+
+ENGINEER = universe(451)
+COMMISSIONING_TECHNICIAN = universe(452)
+CABLE_FITTER = universe(454)
+"""The roles the lines of the witness employ: the electrical engineer and the commissioning
+technician, on the standard week, and the cable fitter, on the week of four days of ten hours —
+all three active (``resource_roles``)."""
+
+STANDARD_WEEK = universe(481)
+FOUR_DAY_WEEK = universe(482)
+
+
+def calendars() -> dict[str, Calendar]:
+    """Return the active calendars of the installation, by identifier (``calendars``)."""
+    days = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+    return {
+        entry["calendar_id"]: Calendar(
+            entry["calendar_id"], tuple(Decimal(entry["weekly_hours"][day]) for day in days)
+        )
+        for entry in fixture("calendars")
+    }
+
+
+def default_calendar() -> Calendar:
+    """Return the calendar of a task without labour lines (WF-REF-0120)."""
+    [default] = [entry for entry in fixture("calendars") if entry["is_default"]]
+    return calendars()[default["calendar_id"]]
+
+
+def role_calendars() -> dict[str, Calendar]:
+    """Return the calendar of each active role, by identifier of the role (WF-PLA-0010)."""
+    known = calendars()
+    return {
+        role["resource_role_id"]: known[role["calendar_id"]]
+        for role in fixture("resource_roles")
+        if role["is_active"]
+    }
+
+
+# --- The readable core of the structure -------------------------------------------------------
+
+SUBPROJECT_CONTROL = universe(801)
+SUBCONTRACTING = universe(401)
+ELECTRICAL_ENGINEERING = universe(402)
+EQUIPMENT = universe(403)
+PROVISIONS = universe(404)
+
+
+@dataclass(frozen=True, slots=True)
+class Link:
+    """A link of a task of the core to its predecessor, by the predecessor's number."""
+
+    predecessor: int
+    link_type: str = "finish_to_start"
+    lag: int = 0
+    unit: str = "d"
+
+
+@dataclass(frozen=True, slots=True)
+class Line:
+    """A line of the core: its node is its number, 5nn, its lineage 6nn.
+
+    A labour line has its hours and its role, at the rate of its category; another its
+    quantity and its unit disbursement. Its budget is its amount, but where the reference
+    revision gives it another (WF-RIS-0060).
+    """
+
+    number: int
+    label: str
+    category: str
+    hours: Decimal | None = None
+    role: str | None = None
+    unit: Decimal | None = None
+    subproject: str | None = None
+    budgeted: Decimal | None = None
+    is_provision: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class Task:
+    """A task of the core: its node is its number, 5nn, its lineage 6nn.
+
+    Its duration in working days, its links, its lines and its subordinates. A task in manual
+    mode carries the dates its user entered, and the progress its user declared.
+    """
+
+    number: int
+    label: str
+    days: int = 0
+    is_milestone: bool = False
+    links: tuple[Link, ...] = ()
+    lines: tuple[Line, ...] = ()
+    children: tuple[Task, ...] = ()
+    manual: tuple[date, date] | None = None
+    progress: str | None = None
+
+
+STUDIES = Task(
+    521,
+    "Études",
+    children=(
+        Task(
+            522,
+            "Études de détail",
+            days=30,
+            lines=(Line(527, "Ingénierie de détail", SUBCONTRACTING, unit=Decimal("100000.00")),),
+        ),
+        Task(
+            523,
+            "Pupitres opérateurs",
+            days=40,
+            manual=(date(2026, 3, 2), date(2026, 4, 24)),
+            progress="started",
+        ),
+        Task(524, "Revue de conception", days=10, links=(Link(522),)),
+        Task(
+            525,
+            "Réception des études",
+            is_milestone=True,
+            links=(Link(524), Link(523, "start_to_start", 1, "w")),
+        ),
+        Task(526, "Dossier de conception", days=5, links=(Link(522, lag=-2),)),
+    ),
+)
+"""The studies: the detailed studies, completed; the operator desks, in manual mode, started
+and past their finish; the design review after them, the reception of the studies at its end,
+also a week after the desks started; and the design file, two days before the detailed studies
+finish, with float (WF-PLA-0030, WF-PLA-0080, WF-PLA-0100)."""
+
+CONTROL_STATION = Task(
+    551,
+    "Poste de commande",
+    children=(
+        Task(
+            552,
+            "Câblage des armoires",
+            days=42,
+            links=(Link(525, lag=1, unit="w"),),
+            lines=(
+                Line(
+                    553,
+                    "Raccordement des borniers",
+                    ELECTRICAL_ENGINEERING,
+                    hours=Decimal("12.5"),
+                    role=ENGINEER,
+                    subproject=SUBPROJECT_CONTROL,
+                ),
+                Line(
+                    554,
+                    "Borniers",
+                    EQUIPMENT,
+                    unit=Decimal("1234.56"),
+                    subproject=SUBPROJECT_CONTROL,
+                ),
+                Line(
+                    555,
+                    "Provision — risque de reprise du câblage",
+                    PROVISIONS,
+                    unit=Decimal("500.00"),
+                    is_provision=True,
+                ),
+            ),
+        ),
+        Task(
+            541,
+            "Risque survenu — Retard de livraison des armoires",
+            children=(
+                Task(
+                    542,
+                    "Relance du fournisseur",
+                    days=5,
+                    links=(Link(552, "start_to_start"),),
+                    lines=(
+                        Line(
+                            543,
+                            "Frais de relance",
+                            EQUIPMENT,
+                            unit=Decimal("120.00"),
+                            budgeted=Decimal("36.00"),
+                        ),
+                    ),
+                ),
+                Task(
+                    544,
+                    "Transport exceptionnel",
+                    days=5,
+                    links=(Link(542),),
+                    lines=(
+                        Line(
+                            545,
+                            "Affrètement",
+                            EQUIPMENT,
+                            unit=Decimal("80.00"),
+                            budgeted=Decimal("24.00"),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        Task(556, "Réception usine", is_milestone=True, links=(Link(552),)),
+    ),
+)
+"""The lot of the control station: the wiring of the cabinets a week after the reception of the
+studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of 500
+of the risk 751 (WF-INTF-0180); the subtree merged by the occurrence of the risk 752, its lines of
+120 and 80 budgeted 36 and 24 at the reference revision 103 (WF-RIS-0060); and the factory
+acceptance at the end of the wiring."""
+
+CORE = (STUDIES, CONTROL_STATION)
+"""The readable core, to be the first roots of the structure, its rows its first rows (#376)."""
