@@ -523,7 +523,7 @@
       pour que la grille montre juste et que le collage suivant porte le bon compteur
       (WF-IHM-0110). Les liaisons emportées peuvent redater les successeurs de la tâche et
       déplacer le chemin critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020,
-      WF-PLA-0100).
+      WF-PLA-0100), et leurs montants corrigés dans `reinflated` (WF-DEV-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -620,12 +620,14 @@
         description: >-
           Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés,
           les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique
-          déplace — et les totaux de la structure (`NodesWritten`, WF-PLA-0020).
+          déplace —, le montant corrigé des lignes et des tâches qu'elle déplace d'une année à
+          l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               renamed: { $ref: ../../../fixtures/api/task_renamed.json }
+              lengthened: { $ref: ../../../fixtures/api/volume/task_lengthened.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -639,11 +641,15 @@
     tags: [estimate]
     summary: Modifier la facette argent d'une ligne de devis
     description: >-
-      Les deux montants sont calculés et non saisissables : le budgété par la référence,
-      le réestimé par les revues (WF-DEV-0020, WF-DEV-0030). Une ligne de provision est
-      calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est exigé : seul ce
-      qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte
-      (`editable_fields`).
+      Les montants sont calculés et non saisissables : celui à l'année de référence par la
+      ligne, le budgété par la référence, le réestimé par les revues, le corrigé de
+      l'inflation par l'année de consommation (WF-DEV-0020, WF-DEV-0030, WF-DEV-0040). Une
+      ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est
+      exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte
+      (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates
+      (WF-PLA-0010) : ses successeurs redatés sont rendus dans `rescheduled`, et dans `reinflated`
+      chaque ligne ou tâche non récapitulative dont le montant corrigé change — les autres lignes
+      qu'elle porte, celles des successeurs qui changent d'année, et leurs tâches.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -830,7 +836,8 @@
       est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de
       tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de
       l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont
-      rendues dans `rescheduled` (WF-PLA-0020).
+      rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated`
+      (WF-DEV-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

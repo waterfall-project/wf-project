@@ -67,6 +67,14 @@ const DETAILS: readonly Reader[] = [
     const name = label("enums.PlatformComponent", component);
     return name === undefined ? undefined : ["component", { component: name }];
   },
+  ({ expected_format }, label) => {
+    const format = label("enums.ExchangeKind", expected_format);
+    return format === undefined ? undefined : ["expected_format", { format }];
+  },
+  ({ expected_version }) =>
+    typeof expected_version === "string"
+      ? ["expected_version", { version: expected_version }]
+      : undefined,
 ];
 
 /** Whether a value is a node of the catalogue that holds others. */

@@ -1,5 +1,5 @@
 {
-  "summary": "La planification des sauvegardes : chaque nuit à une heure, sept conservées (WF-ADM-0170).",
+  "summary": "La planification des sauvegardes : chaque nuit à une heure en temps universel, l'heure des sauvegardes de `backups`, sept conservées (WF-ADM-0170).",
   "value": {
     "is_enabled": true,
     "frequency": "daily",

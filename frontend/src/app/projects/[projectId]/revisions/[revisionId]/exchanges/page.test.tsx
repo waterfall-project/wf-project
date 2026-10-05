@@ -124,7 +124,7 @@ describe("the screen of the imports and exports", () => {
       "Request the export",
     ]);
     expect(calls(GET_IMPORT)).toEqual([]);
-    // The revision read is the current one: it says which imports into it are offered, read once.
+    // The revision read says which exports it offers, read once; the project, which imports.
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}?`]);
     expect(calls(IMPORTS)).toEqual([`/projects/${PROJECT}/imports?limit=20`]);
     expect(text(page)).toContain(
@@ -134,13 +134,24 @@ describe("the screen of the imports and exports", () => {
     expect(text(page)).toContain("planning-poste-de-commande.xml MS Project schedule Abandoned");
   });
 
-  it("reads the current revision, which an import writes into, when the screen reads another", async () => {
+  it("reads no revision but the one of its route, whose exports it offers, the imports being the project's", async () => {
     server.answers = { ...server.answers, [GET_REVISION]: "revision_marked" };
-    await exchangesAt({}, "en", MARKED);
-    expect(calls(GET_REVISION)).toEqual([
-      `/projects/${PROJECT}/revisions/${MARKED}?`,
-      `/projects/${PROJECT}/revisions/${REVISION}?`,
+    const page = await exchangesAt({}, "en", MARKED);
+    expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${MARKED}?`]);
+    expect(buttons(page)).toEqual([
+      "Import an MS Project schedule",
+      "Import an estimate",
+      "Import an estimate to complete",
+      "Import actual costs",
+      "Request the export",
     ]);
+  });
+
+  it("offers a reader who modifies nothing the exports of what it reads", async () => {
+    server.answers = { ...server.answers, [GET_REVISION]: "revision_reader" };
+    const page = await exchangesAt();
+    expect(buttons(page)).toContain("Request the export");
+    expect(text(page)).not.toContain("No export is offered to you on this revision.");
   });
 
   it("shows the report of the import the address names, its context kept, the import marked in the list", async () => {
@@ -236,16 +247,33 @@ describe("the screen of the imports and exports", () => {
     );
   });
 
-  it("offers no import into a revision to a project without a current revision, and reads none", async () => {
+  it("offers the imports of a project without a current revision, which the import creates", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": { example: "project_pricing", status: 200 },
       [IMPORTS]: { example: "imports_empty", status: 200 },
     };
     const page = await exchangesAt();
-    expect(buttons(page)).toEqual(["Import actual costs", "Request the export"]);
-    expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${REVISION}?`]);
+    expect(buttons(page)).toEqual([
+      "Import an MS Project schedule",
+      "Import an estimate",
+      "Import an estimate to complete",
+      "Import actual costs",
+      "Request the export",
+    ]);
     expect(text(page)).toContain("No import has been opened on this project yet.");
+  });
+
+  it("names the permission to create the revision an import would create, when the caller lacks it", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": { example: "project_pricing_estimator", status: 200 },
+      [GET_REVISION]: "revision_estimator",
+    };
+    const page = await exchangesAt();
+    expect(buttons(page)).toEqual(["Import an estimate", "Request the export"]);
+    expect(text(page)).toContain("holding the permission to create a revision");
+    expect(text(page)).toContain("Estimate Estimate to complete");
   });
 
   it("is not found when the import the address names is not", async () => {

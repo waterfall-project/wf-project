@@ -14,11 +14,15 @@
         "estimate_line": {
           "label": "Heures de câblage",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+          "cost_category_label": "Ingénierie électrique",
           "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
+          "resource_role_label": "Ingénieur électricien",
           "quantity": "1",
           "hours": "33",
           "unit_disbursement": null,
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+          "subproject_label": "Poste de commande",
+          "base_amount": "2640.00",
           "budgeted_amount": "2640.00",
           "reestimated_amount": "2640.00",
           "inflated_amount": "2640.00",
@@ -72,8 +76,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "5555710.00",
           "budgeted_amount": "5555710.00",
-          "reestimated_amount": "5555710.00"
+          "reestimated_amount": "5555710.00",
+          "inflated_amount": "5555710.00"
         },
         "computed_fields": [
           "task.duration",
@@ -114,8 +120,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "1960843.85",
           "budgeted_amount": "1960843.85",
-          "reestimated_amount": "1960843.85"
+          "reestimated_amount": "1960843.85",
+          "inflated_amount": "1960843.85"
         },
         "computed_fields": [
           "task.duration",
@@ -158,8 +166,10 @@
           "completed_on": "2026-03-13",
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "36209.25",
           "budgeted_amount": "36209.25",
           "reestimated_amount": "36209.25",
+          "inflated_amount": "36209.25",
           "total_float": {
             "value": "31",
             "unit": "d"
@@ -180,12 +190,15 @@
       }
     ],
     "rescheduled": [],
+    "reinflated": [],
     "totals": {
       "task_count": 1000,
       "estimate_line_count": 5000,
       "hours": "116348",
+      "base_amount": "60553621.36",
       "budgeted_amount": "60553621.36",
-      "reestimated_amount": "60553621.36"
+      "reestimated_amount": "60553621.36",
+      "inflated_amount": "62862868.14"
     },
     "structure_lock_version": 3
   }

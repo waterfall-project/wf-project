@@ -17,6 +17,20 @@
       "zone": "nominal"
     },
     "last_review_on": "2026-02-20",
+    "computed_fields": [
+      {
+        "field": "severity",
+        "dependencies": [
+          "own_estimate"
+        ]
+      },
+      {
+        "field": "provision_amount",
+        "dependencies": [
+          "severity_and_probability"
+        ]
+      }
+    ],
     "audit": {
       "created_at": "2026-01-12T10:30:00Z",
       "created_by": {

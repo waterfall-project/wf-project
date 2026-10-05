@@ -54,7 +54,7 @@ export interface Examples {
     200: "projects" | "projects_empty";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_pricing";
+    200: "project" | "project_pricing" | "project_pricing_estimator";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
@@ -192,7 +192,7 @@ export interface Examples {
     200: "estimate_line_entered" | "estimate_line_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
-    200: "task_renamed";
+    200: "task_renamed" | "volume/task_lengthened";
   };
   "POST /file-uploads": {
     201: "file_upload";

@@ -51,12 +51,14 @@ export async function openFileImport(
   if (!(file instanceof Blob)) {
     throw new TypeError("an import opens on a file");
   }
+  // A deposit says what it is for, which bounds it: the file of an import (`IMPORT_MAX_BYTES`).
   const upload = new FormData();
   upload.set("file", file);
+  upload.set("purpose", "import");
   const deposited = await decode(() =>
     serverClient().POST("/file-uploads", {
       // The contract types the part of a file as a string: the form goes as it is, multipart.
-      body: upload as unknown as { file: string },
+      body: upload as unknown as { file: string; purpose: "import" },
     }),
   );
   if (deposited.kind !== "done") {

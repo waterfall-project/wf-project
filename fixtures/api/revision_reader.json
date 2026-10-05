@@ -1,5 +1,5 @@
 {
-  "summary": "La révision courante, en brouillon, lue par un appelant qui n'a la permission d'exercer aucune de ses commandes.",
+  "summary": "La révision courante, en brouillon, lue par un appelant qui consulte tout sans rien pouvoir modifier : il n'exerce que ses exports, ceux de ce qu'il lit — le planning et son arborescence, le devis, le reste à engager.",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000102",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -8,7 +8,28 @@
     "status": "draft",
     "marked_at": null,
     "is_reference": false,
-    "available_commands": [],
+    "available_commands": [
+      {
+        "command": "export_planning",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "export_estimate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "export_remaining",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "export_task_tree_image",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
     "audit": {
       "created_at": "2026-03-02T08:30:00Z",
       "created_by": {

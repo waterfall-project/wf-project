@@ -385,7 +385,13 @@ CurveSeries:
         required: [date, amount, cause]
         properties:
           date: { $ref: ../common.yaml#/PlanningDate }
-          amount: { $ref: ../common.yaml#/Money }
+          amount:
+            allOf: [{ $ref: ../common.yaml#/Money }]
+            description: >-
+              Le montant de la marche, signé : ce dont le budget de référence change à sa
+              date — l'avenant contractualisé, la provision du risque survenu, celles des
+              risques écartés —, pas le budget après elle, que porte la série
+              `reference_budget`.
           cause:
             type: string
             enum: [amendment, risk_occurred, last_risk_dismissed]

@@ -131,8 +131,16 @@ BackupSchedule:
     at_time:
       type: string
       pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+      description: >-
+        Heure de la sauvegarde, en temps universel (UTC), comme les horodatages de la
+        plateforme (`Timestamp`, WF-DAT-0100) : `01:00` est prise à `01:00Z`, quel que
+        soit le fuseau du poste qui la lit.
     weekday:
       anyOf: [{ type: integer, minimum: 1, maximum: 7 }, { type: 'null' }]
+      description: >-
+        Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le
+        dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une
+        sauvegarde quotidienne.
     retained_count: { type: integer, minimum: 1, maximum: 365 }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -151,7 +159,9 @@ RestoreRequest:
     backup_id: { $ref: ../common.yaml#/Uuid }
     external_backup_upload_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
-      description: Sauvegarde copiée hors de la plateforme, déposée au préalable (WF-ADM-0160).
+      description: >-
+        Sauvegarde copiée hors de la plateforme, déposée au préalable pour une restauration
+        (`FileUploadPurpose`, `external_backup`, WF-ADM-0160).
     acknowledged_backup_taken_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-

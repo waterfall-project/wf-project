@@ -20,8 +20,11 @@ import type { GridNode } from "./nodes";
 /** A field of a node that an entry writes and the server may compute for this node alone. */
 type ComputedField = components["schemas"]["ComputedField"];
 
-/** An amount of a node, which the server computes for a task as for a line. */
-type Amount = "budgeted_amount" | "reestimated_amount";
+/**
+ * An amount of a node, which the server computes for a task — the sum of its subtree — as for a
+ * line: at the year of reference, or corrected for inflation (WF-DEV-0050).
+ */
+type Amount = "base_amount" | "budgeted_amount" | "reestimated_amount" | "inflated_amount";
 
 /**
  * The cells of a field an entry writes, computed in the rows whose node names it among its
@@ -52,14 +55,4 @@ export const COMPUTED_FLOAT: ComputedCells<GridNode> = {
   whole: true,
   in: (node) => node.task !== undefined && node.task !== null,
   field: () => "task.total_float",
-};
-
-/**
- * The cells of the amount corrected for inflation, computed in every line: a task bears none
- * (WF-DEV-0040, WF-DEV-0050).
- */
-export const COMPUTED_INFLATED: ComputedCells<GridNode> = {
-  whole: true,
-  in: (node) => node.estimate_line !== undefined && node.estimate_line !== null,
-  field: () => "estimate_line.inflated_amount",
 };

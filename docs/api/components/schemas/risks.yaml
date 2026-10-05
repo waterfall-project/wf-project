@@ -17,12 +17,13 @@ Risk:
     - provision_amount
     - state
     - structure_id
+    - computed_fields
     - audit
     - lock_version
   description: >-
     La gravité est le total de la structure propre du risque et la provision cette
     gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies
-    (WF-RIS-0010).
+    (WF-RIS-0010), et le risque nomme ce dont elles dépendent (`computed_fields`).
   properties:
     risk_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -49,8 +50,33 @@ Risk:
     matrix_cell: { $ref: '#/RiskMatrixCell' }
     last_review_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+    computed_fields:
+      type: array
+      description: >-
+        Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le
+        refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre,
+        pour tout risque. Constants — les règles du calcul, pas les lignes du devis propre —,
+        ils se lisent avec le risque, sans appel au refus.
+      minItems: 2
+      maxItems: 2
+      items: { $ref: '#/RiskComputedField' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskComputedField:
+  type: object
+  required: [field, dependencies]
+  description: Un champ calculé d'un risque, et ce dont il dépend (WF-IHM-0030).
+  properties:
+    field:
+      type: string
+      enum: [severity, provision_amount]
+    dependencies:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      description: Chaque règle une fois, dans l'ordre où la dire.
+      items: { $ref: revisions.yaml#/ComputedDependency }
 
 RiskWrite:
   type: object

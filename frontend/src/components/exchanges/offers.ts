@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What the screen of the imports and exports offers, which both its server and its client parts read: the
- * import of each kind of file, as the server offers its command (WF-IHM-0090); what an import
- * still lets the user do, by its status; and the address of the report of an import.
+ * import and the export of each kind of file, as the server offers its command (WF-IHM-0090); what
+ * an import still lets the user do, by its status; and the address of the report of an import.
  *
- * The contract names one command of import, that of the actual costs, on the project
- * (`import_actual_costs`). A planning, an estimate, a remaining are imported into the current
- * revision (WF-INTF-0090): their import is offered as the command that modifies the same content
- * of that revision — `edit_planning`, `edit_estimate`, `edit_remaining` —, and not without a
- * current revision, until the contract says it (#318). The front deduces nothing from a
- * permission.
+ * An import is a command of the project — `import_planning`, `import_estimate`,
+ * `import_remaining`, `import_actual_costs` —, offered with or without a current revision, which
+ * the import writes into or creates (WF-INTF-0090); an export, a command of the revision it reads
+ * — `export_planning`, `export_estimate`, `export_remaining`, `export_task_tree_image`. The front
+ * deduces nothing from a permission, nor from the entry of the revision.
  */
 import type { components } from "@/api/generated/schema";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
@@ -19,7 +18,9 @@ import type { Revision } from "@/components/context/read-only";
 import { OFFSET } from "@/components/grid/query";
 
 type ExchangeKind = components["schemas"]["ExchangeKind"];
+type ExportKind = components["schemas"]["ExportRequest"]["kind"];
 type ImportStatus = components["schemas"]["Import"]["status"];
+type ProjectCommand = components["schemas"]["ProjectCommand"];
 type RevisionCommand = components["schemas"]["RevisionCommand"];
 
 /** The kinds of file an import reads, in the order of the flows (FLX-01 to FLX-07). */
@@ -30,30 +31,58 @@ export const EXCHANGE_KINDS: readonly ExchangeKind[] = [
   "actual_costs",
 ];
 
-/** A kind of file an import writes into the current revision. */
-type RevisionKind = Exclude<ExchangeKind, "actual_costs">;
+/** The kinds of file an export makes, in the order of the contract. */
+export const EXPORT_KINDS: readonly ExportKind[] = [
+  "ms_project_schedule",
+  "estimate",
+  "remaining",
+  "task_tree_image",
+];
 
-/** The command of the current revision that modifies what an import of a kind writes. */
-const REVISION_COMMAND: Readonly<Record<RevisionKind, RevisionCommand>> = {
-  ms_project_schedule: "edit_planning",
-  estimate: "edit_estimate",
-  remaining: "edit_remaining",
+/** The command of the project that imports each kind of file. */
+export const IMPORT_COMMAND: Readonly<Record<ExchangeKind, ProjectCommand>> = {
+  ms_project_schedule: "import_planning",
+  estimate: "import_estimate",
+  remaining: "import_remaining",
+  actual_costs: "import_actual_costs",
+};
+
+/** The command of the revision that exports each kind of file. */
+const EXPORT_COMMAND: Readonly<Record<ExportKind, RevisionCommand>> = {
+  ms_project_schedule: "export_planning",
+  estimate: "export_estimate",
+  remaining: "export_remaining",
+  task_tree_image: "export_task_tree_image",
 };
 
 /** The import of each kind, as the server offers it; `undefined` where it is not offered. */
 export type ImportOffers = Readonly<Record<ExchangeKind, CommandOffer | undefined>>;
 
-/** What the project and its current revision, when it has one, offer of each import. */
-export function importOffers(project: Project, current: Revision | undefined): ImportOffers {
-  const ofRevision = (kind: RevisionKind) =>
-    current === undefined
-      ? undefined
-      : findOffer(current.available_commands, REVISION_COMMAND[kind]);
+/** The export of each kind, as the server offers it; `undefined` where it is not offered. */
+export type ExportOffers = Readonly<Record<ExportKind, CommandOffer | undefined>>;
+
+/** What the project offers of each import, whether it has a current revision or not. */
+export function importOffers(project: Project): ImportOffers {
+  const offer = (kind: ExchangeKind) => findOffer(project.available_commands, IMPORT_COMMAND[kind]);
   return {
-    ms_project_schedule: ofRevision("ms_project_schedule"),
-    estimate: ofRevision("estimate"),
-    remaining: ofRevision("remaining"),
-    actual_costs: findOffer(project.available_commands, "import_actual_costs"),
+    ms_project_schedule: offer("ms_project_schedule"),
+    estimate: offer("estimate"),
+    remaining: offer("remaining"),
+    actual_costs: offer("actual_costs"),
+  };
+}
+
+/** What the revision read offers of each export; none without a revision. */
+export function exportOffers(revision: Revision | undefined): ExportOffers {
+  const offer = (kind: ExportKind) =>
+    revision === undefined
+      ? undefined
+      : findOffer(revision.available_commands, EXPORT_COMMAND[kind]);
+  return {
+    ms_project_schedule: offer("ms_project_schedule"),
+    estimate: offer("estimate"),
+    remaining: offer("remaining"),
+    task_tree_image: offer("task_tree_image"),
   };
 }
 
@@ -78,9 +107,9 @@ export const IMPORT_STEPS: Readonly<
 export const MEBIBYTE = 1024 * 1024;
 
 /**
- * The largest file an import takes: that of an MS Project file, the largest the volumes of
- * §4.6.2 name, ten megabytes. The contract does not bound a file deposited yet (#324); the bound
- * of the server actions of Next (`next.config.ts`) is set a little above it.
+ * The largest file an import takes, as the contract bounds a deposit for an import (`uploadFile`,
+ * `purpose: import`): 10 MiB, an MS Project file, the largest the volumes of §4.6.2 name. The
+ * bound of the server actions of Next (`next.config.ts`) is set a little above it.
  */
 export const IMPORT_MAX_BYTES = 10 * MEBIBYTE;
 

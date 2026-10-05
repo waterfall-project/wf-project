@@ -93,6 +93,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/project.json }
               pricing: { $ref: ../../../fixtures/api/project_pricing.json }
+              pricing_estimator: { $ref: ../../../fixtures/api/project_pricing_estimator.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   patch:

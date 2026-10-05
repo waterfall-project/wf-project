@@ -163,15 +163,15 @@ Le contrat cite **181 des 208 exigences** de la spécification.
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-REV-0050, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-RAE-0050 |
-| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-IHM-0110, WF-PLA-0020, WF-PLA-0070, WF-PLA-0100 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0070, WF-PLA-0100 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies` | Ce dont dépend une valeur calculée | WF-IHM-0030, WF-PLA-0040 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-IHM-0040, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160 |
-| PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-IHM-0040, WF-RIS-0010 |
+| PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-DEV-0040, WF-IHM-0040, WF-PLA-0010, WF-RIS-0010 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors` | Remplacer les prédécesseurs d'une tâche | WF-PLA-0030, WF-PLA-0040, WF-PLA-0160 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Démarrer ou terminer une tâche | WF-IND-0030, WF-PLA-0040, WF-RAE-0030 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Réestimer une ligne | WF-RAE-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking` | Inscrire ou retirer une tâche des suivis | WF-PLA-0060 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-PLA-0020, WF-PLA-0040 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-DEV-0040, WF-PLA-0020, WF-PLA-0040 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview` | Aperçu d'un collage depuis un tableur | WF-DEV-0050, WF-IHM-0050, WF-PLA-0080 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste` | Appliquer un collage | WF-IHM-0050, WF-IHM-0110 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/undo` | Annuler la dernière modification | WF-IHM-0110 |
@@ -226,7 +226,7 @@ Le contrat cite **181 des 208 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| POST | `/file-uploads` | Déposer un fichier | WF-DAT-0120 |
+| POST | `/file-uploads` | Déposer un fichier | WF-ADM-0160, WF-DAT-0120 |
 | GET | `/projects/{project_id}/imports` | Imports du projet | WF-ARC-0100, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140 |
 | GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-INTF-0080 |

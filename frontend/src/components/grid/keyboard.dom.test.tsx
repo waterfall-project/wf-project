@@ -213,7 +213,7 @@ describe("the keyboard of a grid", () => {
     );
     await userEvent.keyboard("{ArrowLeft} ");
     expect(router.push).toHaveBeenLastCalledWith(
-      "/projects/p/revisions/r/estimate?sort_by=reestimated_amount&sort_order=asc",
+      "/projects/p/revisions/r/estimate?sort_by=base_amount&sort_order=asc",
       { scroll: false },
     );
     // Shift and the arrows widen the column of the header, as its handle does.
@@ -224,8 +224,8 @@ describe("the keyboard of a grid", () => {
     expect(header(/année de réf/)).toHaveFocus();
     // Down goes back to the rows, in the same column.
     await userEvent.keyboard("{ArrowDown}");
-    expect(cell(0, "reestimated_amount")).toHaveFocus();
-    expect(stops()).toEqual([cell(0, "reestimated_amount")]);
+    expect(cell(0, "base_amount")).toHaveFocus();
+    expect(stops()).toEqual([cell(0, "base_amount")]);
   });
 
   it("keeps its one stop of the tabulation in the header when the answer has no row", () => {
@@ -278,7 +278,7 @@ describe("the keyboard of a grid", () => {
   it("scrolls nothing on Space, whatever the cell", () => {
     serve();
     renderGrid();
-    for (const target of [cell(LABOUR, "hours"), cell(LABOUR, "reestimated_amount")]) {
+    for (const target of [cell(LABOUR, "hours"), cell(LABOUR, "base_amount")]) {
       const space = createEvent.keyDown(target, { key: " " });
       fireEvent(target, space);
       expect(space.defaultPrevented).toBe(true);
@@ -291,9 +291,9 @@ describe("the keyboard of a grid", () => {
     // Scrolled down by fourteen rows: the refusal opens on a row in view, below the first.
     scrollTo(14);
     await vi.waitFor(() => {
-      expect(queryCell(20, "reestimated_amount")).not.toBeNull();
+      expect(queryCell(20, "base_amount")).not.toBeNull();
     });
-    cell(20, "reestimated_amount").focus();
+    cell(20, "base_amount").focus();
     await userEvent.keyboard("{Enter}");
     expect(refusal()).not.toBeNull();
     const scroller = screen.getByRole("grid").parentElement;
@@ -303,13 +303,13 @@ describe("the keyboard of a grid", () => {
     expect(scroller?.scrollTop).toBe(14 * ROW_HEIGHT);
     expect(cell(18, "label")).toHaveFocus();
     expect(cell(18, "label")).toHaveAttribute("tabindex", "0");
-    expect(cell(20, "reestimated_amount")).toHaveAttribute("aria-expanded", "false");
+    expect(cell(20, "base_amount")).toHaveAttribute("aria-expanded", "false");
   });
 
   it("closes a refusal whose row a reading anew no longer holds, and never opens it again by itself", async () => {
     const client = serve();
     const { rerender } = renderGrid();
-    cell(LABOUR, "reestimated_amount").focus();
+    cell(LABOUR, "base_amount").focus();
     await userEvent.keyboard("{Enter}");
     expect(await screen.findByRole("dialog", { name: "Valeur calculée" })).toBeInTheDocument();
     rerender(gridOf(without(estimate, LABOUR)));
@@ -317,19 +317,19 @@ describe("the keyboard of a grid", () => {
     // A later reading brings the row back: the refusal stays closed, and asks nothing more.
     rerender(gridOf(structuredClone(estimate)));
     expect(refusal()).toBeNull();
-    expect(cell(LABOUR, "reestimated_amount")).toHaveAttribute("aria-expanded", "false");
+    expect(cell(LABOUR, "base_amount")).toHaveAttribute("aria-expanded", "false");
     expect(client.calls.filter((call) => call.route === DEPENDENCIES)).toHaveLength(1);
   });
 
   it("closes a refusal on a click on its own cell, rather than opening it again", async () => {
     serve();
     renderGrid();
-    await userEvent.click(cell(PROVISION, "reestimated_amount"));
+    await userEvent.click(cell(PROVISION, "base_amount"));
     expect(refusal()).not.toBeNull();
-    await userEvent.click(cell(PROVISION, "reestimated_amount"));
+    await userEvent.click(cell(PROVISION, "base_amount"));
     expect(refusal()).toBeNull();
-    expect(cell(PROVISION, "reestimated_amount")).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(cell(PROVISION, "reestimated_amount"));
+    expect(cell(PROVISION, "base_amount")).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(cell(PROVISION, "base_amount"));
     expect(refusal()).not.toBeNull();
   });
 });
@@ -373,20 +373,20 @@ describe("the keyboard of a grid of a thousand rows", () => {
   it("closes a refusal whose row is scrolled out of view, and never opens it again by itself", async () => {
     const client = serve();
     renderGrid(thousandRows());
-    cell(LABOUR, "reestimated_amount").focus();
+    cell(LABOUR, "base_amount").focus();
     await userEvent.keyboard("{Enter}");
     expect(await screen.findByRole("dialog", { name: "Valeur calculée" })).toBeInTheDocument();
     scrollTo(900);
     await vi.waitFor(() => {
       expect(refusal()).toBeNull();
     });
-    expect(cell(LABOUR, "reestimated_amount")).toHaveFocus();
+    expect(cell(LABOUR, "base_amount")).toHaveFocus();
     scrollTo(0);
     await vi.waitFor(() => {
       expect(queryCell(DISBURSEMENT, "label")).not.toBeNull();
     });
     expect(refusal()).toBeNull();
-    expect(cell(LABOUR, "reestimated_amount")).toHaveAttribute("aria-expanded", "false");
+    expect(cell(LABOUR, "base_amount")).toHaveAttribute("aria-expanded", "false");
     expect(client.calls.filter((call) => call.route === DEPENDENCIES)).toHaveLength(1);
   });
 });

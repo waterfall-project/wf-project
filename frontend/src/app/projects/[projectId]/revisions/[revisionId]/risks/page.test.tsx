@@ -145,6 +145,7 @@ describe("the screen of the risks", () => {
       "severity",
       "provision_amount",
       "state",
+      "computed_fields",
       "last_review_on",
       "matrix_cell",
     ]);

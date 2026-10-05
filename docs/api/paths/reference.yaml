@@ -751,4 +751,15 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412':
+        description: >-
+          La version envoyée n'est plus celle du taux de l'année : il a été corrigé depuis
+          sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` la version courante ; le taux, sans identifiant
+          propre, est celui que nomment la catégorie et l'année du chemin.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/hourly_rate_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

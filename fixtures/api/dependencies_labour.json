@@ -1,11 +1,10 @@
 {
-  "summary": "Ce dont dépend le montant budgété de la ligne de main-d'œuvre du devis : le taux horaire de sa catégorie, et la révision de référence qui l'a fixé ; aucune ligne (WF-IHM-0030, WF-DEV-0020, WF-DEV-0030).",
+  "summary": "Ce dont dépend le montant à l'année de référence de la ligne de main-d'œuvre du devis : le taux horaire de sa catégorie pour l'année de référence ; aucune ligne (WF-IHM-0030, WF-DEV-0030, WF-DEV-0050).",
   "value": {
     "node_id": "01926f3a-7c00-7000-8000-000000000523",
-    "field": "estimate_line.budgeted_amount",
+    "field": "estimate_line.base_amount",
     "depends_on": [
-      "hourly_rate",
-      "reference_revision"
+      "hourly_rate"
     ],
     "rows": []
   }

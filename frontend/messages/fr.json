@@ -169,7 +169,6 @@
       "lastMarkedAt": "Dernière révision marquée"
     },
     "computed": "Calculé",
-    "unknown": "Référence inconnue",
     "entry": {
       "none": "Aucun",
       "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
@@ -274,6 +273,11 @@
   },
   "actualCosts": {
     "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
+    "refused": {
+      "period": "Les coûts réels ne se lisent pas sur cette période : sa fin précède son début.",
+      "subproject": "Les coûts réels ne se lisent pas : le sous-projet demandé n’existe pas.",
+      "invalid": "Les coûts réels ne se lisent pas : l’API refuse les filtres demandés."
+    },
     "generalTotal": "Total général des lignes retenues",
     "totals": {
       "title": "Totaux des lignes retenues",
@@ -600,6 +604,7 @@
       "amount": "Montant",
       "steps": "Marches du budget de référence",
       "cause": "Motif",
+      "stepAmount": "Montant de la marche",
       "cashOut": "Décaissements par mois",
       "month": "Mois",
       "past": "Décaissé",
@@ -903,6 +908,12 @@
       "probability": "Probabilité",
       "severity": "Gravité, en pourcentage du budget de référence"
     },
+    "riskZones": {
+      "title": "Zones de la matrice de risques",
+      "axes": "Probabilité, puis gravité",
+      "probability": "Probabilité, niveau {level}",
+      "severity": "Gravité, niveau {level}"
+    },
     "indices": {
       "title": "Seuils d’alerte des indices",
       "index": "Indice",
@@ -1000,7 +1011,7 @@
       "frequency": "Fréquence",
       "weekday": "Jour",
       "at": "Heure",
-      "platformTime": "{time}, heure de la plateforme",
+      "universalTime": "{time} UTC",
       "retained": "Rétention",
       "count": "{count, plural, one {# sauvegarde conservée} other {# sauvegardes conservées}}",
       "weekdays": {
@@ -1107,7 +1118,9 @@
     "missing_condition": "Condition non remplie : {condition}.",
     "missing_prerequisites": "À compléter : {prerequisites}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
-    "component": "Composant indisponible : {component}."
+    "component": "Composant indisponible : {component}.",
+    "expected_format": "Format attendu : {format}.",
+    "expected_version": "Version attendue : {version}."
   },
   "permissions": {
     "users": {
@@ -1352,7 +1365,10 @@
       "edit_risks": "Modifier les risques",
       "declare_risk_occurrence": "Déclarer la survenance d’un risque",
       "import_actual_costs": "Importer les coûts réels",
-      "exclude_cost_lines": "Exclure des lignes de coût"
+      "exclude_cost_lines": "Exclure des lignes de coût",
+      "import_planning": "Importer un planning MS Project",
+      "import_estimate": "Importer un devis",
+      "import_remaining": "Importer un reste à engager"
     },
     "CommandCondition": {
       "is_contributor": "être contributeur du projet",
@@ -1371,7 +1387,8 @@
       "unmerged_amendment_exists": "un avenant non fusionné",
       "task_not_completed": "tâche non terminée",
       "hourly_rates_set": "taux horaires renseignés",
-      "no_background_task_running": "aucun traitement de fond en cours sur l’objet"
+      "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
+      "may_create_revision": "avoir la permission de créer une révision"
     },
     "ProjectExit": {
       "to_state": {
@@ -1396,7 +1413,11 @@
       "merge_structure": "Fusionner une structure",
       "mark": "Marquer la révision",
       "designate_reference": "Désigner comme référence",
-      "abandon": "Abandonner la révision"
+      "abandon": "Abandonner la révision",
+      "export_planning": "Exporter le planning MS Project",
+      "export_estimate": "Exporter le devis",
+      "export_remaining": "Exporter le reste à engager",
+      "export_task_tree_image": "Exporter l’image de l’arborescence de tâches"
     },
     "RateUpdateProposal": {
       "categories": {
@@ -1539,6 +1560,7 @@
       "subproject": "Sous-projet",
       "payment_delay_days": "Délai de paiement",
       "consumption_year": "Année de consommation",
+      "base_amount": "Montant à l’année de référence",
       "budgeted_amount": "Montant budgété",
       "reestimated_amount": "Montant réestimé",
       "inflated_amount": "Montant corrigé de l’inflation",
@@ -1552,13 +1574,16 @@
         "progress": "Avancement de la tâche",
         "physical_progress": "Avancement physique de la tâche",
         "total_float": "Marge totale de la tâche",
+        "base_amount": "Montant à l’année de référence de la tâche",
         "budgeted_amount": "Montant budgété de la tâche",
-        "reestimated_amount": "Montant réestimé de la tâche"
+        "reestimated_amount": "Montant réestimé de la tâche",
+        "inflated_amount": "Montant corrigé de l’inflation de la tâche"
       },
       "estimate_line": {
         "quantity": "Quantité de la ligne",
         "hours": "Charge de la ligne",
         "unit_disbursement": "Débours unitaire de la ligne",
+        "base_amount": "Montant à l’année de référence de la ligne",
         "budgeted_amount": "Montant budgété de la ligne",
         "reestimated_amount": "Montant réestimé de la ligne",
         "previous_reestimated_amount": "Montant réestimé précédent de la ligne",
@@ -1571,12 +1596,14 @@
       "scheduling": "Une tâche en mode automatique tient ses dates de sa durée, de ses liaisons et du calendrier.",
       "float_dates": "La marge totale d’une tâche est l’écart entre ses dates au plus tôt et au plus tard.",
       "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
-      "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
-      "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
+      "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
+      "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire.",
       "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
-      "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet."
+      "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet.",
+      "own_estimate": "La gravité d’un risque est le total de son devis propre.",
+      "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité."
     },
     "ProgressUpdate": {
       "progress": {
@@ -1625,6 +1652,12 @@
       "occurred": "Survenu",
       "dismissed": "Écarté"
     },
+    "RiskComputedField": {
+      "field": {
+        "severity": "Gravité",
+        "provision_amount": "Provision"
+      }
+    },
     "RiskReviewWrite": {
       "state": {
         "identified": "Identifié",
@@ -1636,6 +1669,10 @@
       "estimate": "Devis",
       "remaining": "Reste à engager",
       "actual_costs": "Coûts réels"
+    },
+    "FileUploadPurpose": {
+      "import": "Import",
+      "external_backup": "Sauvegarde externe à restaurer"
     },
     "ImportDifference": {
       "change": {
@@ -1774,7 +1811,8 @@
       "title": "Demander un export",
       "kind": "Fichier à exporter",
       "request": "Demander l’export",
-      "depth": "Niveau de l’arborescence"
+      "depth": "Niveau de l’arborescence",
+      "none": "Aucun export ne vous est offert sur cette révision."
     }
   }
 }

@@ -8,16 +8,17 @@
  * another configuration, read only — the actual costs are imported and excluded by the epic of the
  * actual costs (EP-09). Every value is entered by the ERP, none computed here.
  *
- * The number, the date, the amount and the sub-project sort by the columns of the contract of the
- * same name, the server sorting — the most recent documents first when none is asked —; the
- * contract sorts by no other (#292). The server searches nothing, and the bar of the grid offers
- * no search. The totals row shows the general total of the lines retained the server gives, never
- * a sum of the page.
+ * Each column kept from the file is a column of its own, headed by the name the file gives it, as
+ * the lines of the page carry them (`costGrid`). Every column sorts by the column of the contract
+ * of the same name — a column kept by `passthrough.<its name>` —, the server sorting, the most
+ * recent documents first when none is asked. The server searches nothing, and the bar of the grid
+ * offers no search. The totals row shows the general total of the lines retained the server
+ * gives, never a sum of the page.
  */
 import type { components, operations } from "@/api/generated/schema";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
 
-import { PassthroughCell, ScopeCell, SubprojectCell } from "./cost-cells";
+import { ScopeCell, SubprojectCell } from "./cost-cells";
 
 /** A line of actual cost, as the contract gives it. */
 type ActualCostLine = components["schemas"]["ActualCostLine"];
@@ -122,7 +123,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
       label: "trackedScope",
       format: "text",
       width: 112,
-      // The server sorts neither by the scope, nor by the reason, nor by the columns kept (#292).
+      sortBy: "in_tracked_scope",
       value: (line) => String(line.is_in_tracked_scope),
       render: (line) => <ScopeCell tracked={line.is_in_tracked_scope} />,
     },
@@ -131,18 +132,51 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
       label: "excludedReason",
       format: "text",
       width: 200,
+      sortBy: "excluded_reason",
       value: (line) => line.excluded_reason,
-    },
-    {
-      key: "passthrough",
-      label: "passthrough",
-      format: "text",
-      width: 360,
-      value: () => undefined,
-      render: (line) => <PassthroughCell line={line} />,
     },
   ],
 };
 
-/** The columns of the contract the grid of the actual costs sorts by. */
+/** The columns of the contract the grid of the actual costs sorts by, but the columns kept. */
 export const COST_SORT_COLUMNS = sortColumns(COST_GRID);
+
+/** How the contract names the sort by a column kept from the file: `passthrough.<its name>`. */
+const KEPT = "passthrough.";
+
+/** Whether a sort names a column kept from the file, as the contract names it. */
+export function isKeptSort(column: string | null | undefined): column is CostSortColumn {
+  return column !== null && column !== undefined && column.startsWith(KEPT) && column !== KEPT;
+}
+
+/**
+ * The names of the columns kept from the file the lines of a page carry, in the order they first
+ * come: the lines of one file carry the same, those of two files may differ.
+ */
+export function keptColumns(lines: readonly CostRow[]): readonly string[] {
+  return [...new Set(lines.flatMap((line) => Object.keys(line.passthrough ?? {})))];
+}
+
+/**
+ * The grid of the actual costs for the columns kept from the file a page carries: each its own
+ * column, headed by its name as the file gives it, its values as imported, sorted by the server.
+ */
+export function costGrid(
+  kept: readonly string[],
+): GridConfig<CostRow, CostSortColumn, ActualCostTotals> {
+  return {
+    ...COST_GRID,
+    columns: [
+      ...COST_GRID.columns,
+      ...kept.map((name) => ({
+        key: `${KEPT}${name}`,
+        label: "passthrough" as const,
+        heading: name,
+        format: "text" as const,
+        width: 160,
+        sortBy: `${KEPT}${name}`,
+        value: (line: CostRow) => line.passthrough?.[name],
+      })),
+    ],
+  };
+}

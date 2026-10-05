@@ -139,7 +139,10 @@ EP-02). Chacune dit si elle est disponible et, sinon, les conditions qui lui man
 nommées par un catalogue (`CommandCondition`) que le front rend en phrase. Le serveur ne
 liste que les commandes que l'appelant a la permission d'exercer : une commande absente de
 la liste n'est pas présentée, et le front n'a pas à savoir quelle permission garde quelle
-commande — ce serait une règle recopiée. Les autres fonctions — comptes, rôles,
+commande — ce serait une règle recopiée. Une exception, décidée par l'utilisateur le
+2026-10-05 : sans révision en cours, un import que l'appelant a la permission d'exercer mais
+qui créerait une révision qu'il n'a pas la permission de créer est listé indisponible, la
+condition `may_create_revision` manquante (EP-02/L17). Les autres fonctions — comptes, rôles,
 référentiel, sauvegarde — n'ont pas de conditions à nommer : leurs commandes suivent la
 permission de modification de la fonction, que la session porte, et la restauration sa
 permission propre ; c'est la règle même du catalogue. La saisie d'une révision est trois commandes —
@@ -501,7 +504,8 @@ fin, sa marge totale, nulle en mode manuel, sa criticité et sa fin dépassée �
 une chaîne de mille tâches reste légère, et le recalcul tient dans la seconde du §4.6.2. Les
 montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation —
 n'y sont pas : ils se lisent dans la grille de devis, écran distinct qui relit la structure à son
-ouverture. L'exemple `predecessor_set` lie la revue de conception du planning témoin au dossier
+ouverture — EP-02/L16 les rend à part, pour les lignes et les tâches non récapitulatives
+(`reinflated`). L'exemple `predecessor_set` lie la revue de conception du planning témoin au dossier
 de conception : la revue, écrite, et la réception des études qui la suit glissent au 29 avril, et
 le dossier, dont les dates ne bougent pas, passe sur le chemin critique. Écartés : des `Node`
 entiers, qui pourraient porter la moitié du plan, facettes de devis comprises ; une relecture de
@@ -776,6 +780,261 @@ coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cas
 avant ses factures, que l'import de janvier apporte au 16 mars — : un décaissement est un `Money`
 signé, comme le coût réel dont il vient.
 
+## Les précisions du contrat (EP-02/L15)
+
+Ce que le contrat taisait, sur la décision de l'utilisateur du 2026-10-05 de regrouper les issues
+du contrat par nature. Chaque précision suit la spécification, une convention déjà prise ou ce
+que les exemples disaient déjà ; trois suivent une décision de l'utilisateur du même jour, dite à
+leur place (#324, #292, #236).
+
+**L'heure d'une sauvegarde planifiée est en temps universel** (`BackupSchedule.at_time`, #316),
+comme tout instant de la plateforme (`Timestamp`, WF-DAT-0100) et comme le disaient les
+exemples : la planification de `backup_schedule` à 01:00 et les sauvegardes de `backups` prises à
+`01:00Z`. Le jour d'une planification hebdomadaire s'entend de même, numéroté comme ISO 8601, 1
+le lundi (`weekday`, #314), ce que l'exemple `backup_schedule_weekly` faisait déjà du dimanche,
+7. Écarté : le fuseau de l'installation, qu'aucun paramètre ne porte. Une sauvegarde à heure fixe
+en UTC se décale donc d'une heure en heure locale aux changements d'heure — 02:00 l'hiver, 03:00
+l'été à Paris pour 01:00 UTC — : c'est assumé. L'écran dit l'heure en UTC, sans la convertir :
+une heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été. Le sens du
+403 de `listBackups`, relevé avec #316, est suivi en #348.
+
+**Les imports se lisent du plus récent au plus ancien** (`listImports`, #320), par leur ouverture,
+comme le journal des imports de coûts réels, les révisions et les tâches de l'appelant ; l'exemple
+`imports` les rangeait déjà ainsi.
+
+**Les zones de la matrice se rangent par probabilité puis par gravité** (`RiskMatrixSettings.zones`,
+#298), chaque axe du plus bas au plus haut, l'ordre où `reference_settings` les donnait déjà,
+celui des cases de `risk_matrix`.
+
+**La borne d'un avatar ne dépasse pas 8 Mio** (`Installation.avatar_max_bytes`, `maximum`, #233).
+La spécification dit seulement que « la taille d'un avatar est bornée par l'application »
+(§4.4.1) ; 8 Mio est le
+plafond technique proposé par la revue d'EP-02/L13 : le front règle d'avance, par un réglage
+statique de Next, la taille de corps de ses actions serveur (`bodySizeLimit`), et ne peut la
+régler qu'au-dessus d'un maximum déclaré, l'enveloppe du formulaire comprise. Huit mébioctets
+restent sous cette borne, et la taille admise reste un réglage de l'installation sous ce maximum.
+
+**Un dépôt dit son usage, qui le borne** (`uploadFile`, `purpose`, `FileUploadPurpose`, #324 ;
+décision de l'utilisateur du 2026-10-05, « une borne par usage »). `uploadFile` reçoit le fichier
+d'un import et la sauvegarde copiée hors de la plateforme qu'une restauration désigne
+(WF-ADM-0160) : un seul maximum aurait refusé l'une ou laissé passer l'autre. Le fichier d'un
+import (`import`) ne dépasse pas 10 Mio, un fichier MS Project, le plus lourd des imports du
+§4.6.2 ; une sauvegarde à restaurer (`external_backup`) ne dépasse pas
+`Installation.external_backup_max_bytes`, un réglage de l'installation, sur le modèle
+d'`avatar_max_bytes`, la spécification ne fixant pas la taille d'une sauvegarde. Au-delà, 413,
+`FILE_TOO_LARGE`. `FileUpload.purpose` redit l'usage ; un import ne s'ouvre que sur un dépôt
+d'import, une restauration que sur un dépôt de sauvegarde. Le front règle sa borne sur celle des
+imports (`IMPORT_MAX_BYTES`, `bodySizeLimit`). Exemples : `file_upload` (un import),
+`installation` (vingt gigaoctets).
+
+**Un paramètre de requête refusé se désigne par `/query/<nom>`** (`FieldProblem.pointer`, #307).
+Le pointeur JSON ne désigne que le corps ; un paramètre de requête a désormais sa forme, préfixée,
+qu'aucun champ du corps ne peut prendre, et que le front compare entière. Écarté : `/revision_id`,
+qu'une opération à corps et à paramètres aurait rendu ambigu. L'exemple
+`workload_revision_refused` (`getProjectWorkload`) la montre.
+
+**`listActualCosts` refuse un filtre qu'il ne peut appliquer** (422, `VALIDATION_FAILED`, #293),
+comme `getProjectWorkload` refuse une révision ou un nœud d'organisation : une période dont la fin
+précède le début (`/query/to`, `VALUE_OUT_OF_RANGE`), une date mal formée (`DATE_INVALID`), un
+sous-projet que le projet n'a pas ou un identifiant mal formé (`/query/subproject_id`,
+`UNKNOWN_SUBPROJECT`) ; exemples `actual_costs_period_inverted` et
+`actual_costs_subproject_unknown`. Un refus par champ plutôt que `MALFORMED_REQUEST` (400) : la
+valeur vient d'un filtre que l'utilisateur a saisi, et l'écran doit dire lequel corriger, ce que
+`fields` porte et que le 400 du catalogue ne porte pas ; une date mal formée est de même un motif
+par champ du catalogue (`DATE_INVALID`). Écarté aussi : une liste vide, qui dirait « aucune
+ligne » d'une demande que le serveur n'a pas comprise.
+
+**Chaque colonne des coûts réels se trie** (`sort_by` de `listActualCosts`, #292), comme toute
+colonne de grille (WF-IHM-0060) : le périmètre suivi (`in_tracked_scope`, les lignes exclues
+avant les suivies dans l'ordre croissant), le motif (`excluded_reason`) et, sur la décision de
+l'utilisateur du 2026-10-05, chaque colonne conservée du fichier, `passthrough.<colonne>`, nommée
+comme `passthrough` la nomme. Le motif et les colonnes conservées se comparent en texte, caractère
+par caractère dans l'ordre des points de code Unicode — une valeur importée n'a pas de type que
+le serveur pourrait lire —, une ligne sans valeur après les autres dans l'ordre croissant. La
+grille présente chaque colonne conservée comme une colonne, sous le nom que le fichier lui donne.
+
+**Le 412 de `setHourlyRate` est déclaré** (#296), comme celui de toute écriture qui porte une
+version : `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante ; un taux n'a
+pas d'identifiant propre, la catégorie et l'année du chemin le nomment. Exemple
+`hourly_rate_stale`, la correction de `hourly_rate_corrected` envoyée avec la version d'avant.
+
+**Le 409 d'une lecture que l'état du projet interdit est `STATE_FORBIDS_OPERATION`** (#248), par
+la convention du catalogue (`ErrorCode` : « 409 — l'état courant interdit l'opération ; `params`
+nomme l'objet ou l'état ») : celui de `getProjectIndicators`, avant l'état En cours, et celui de
+`getProjectWorkload`, sans révision de référence, que l'écran attendait de même. `params.state`
+nomme l'état du projet. Exemples `project_indicators_not_in_progress` et `workload_no_reference`,
+le projet en chiffrage de `project_pricing`.
+
+**Le résultat d'une tâche se télécharge nommé et typé** (`getBackgroundTaskResult`, #323) :
+`Content-Disposition` exigé, `attachment` et le nom que le serveur donne au fichier — un nom qui
+n'est pas en ASCII aussi en `filename*` (RFC 6266) —, et le type de média de la nature de
+l'export — classeur Excel pour un devis ou un reste à engager (WF-INTF-0110, WF-INTF-0130 ;
+`.xlsx`, comme les fichiers des exemples), XML pour un planning MS Project (WF-INTF-0050), PNG
+pour l'arborescence (WF-PLA-0120) — au lieu de `application/octet-stream`. Le classeur vient en
+premier, celui que le faux back sert, comme l'exemple de l'en-tête (`task_result_disposition`),
+le devis de `task_export_succeeded`.
+
+**`FILE_FORMAT_UNREADABLE` nomme le format et la version attendus** (`params.expected_format`, un
+`ExchangeKind`, et `params.expected_version`, #321), ce que WF-INTF-0070 et la description
+d'`openImport` promettaient ; exemple `import_format_unreadable`. Le format est nommé par la
+nature de l'import, que le front rend par son catalogue.
+
+**Le montant budgété d'une ligne est celui que la révision de référence a fixé** (#245) : une
+ligne de provision présente dans la révision de référence porte la provision qu'elle y avait, et
+le budget de référence est, comme le dit le glossaire, « la somme des montants budgétés des lignes
+de la révision de référence, diminuée des provisions selon les règles de WF-RIS-0050 ». Il se lit
+dans les indicateurs, jamais en sommant les montants des lignes : le montant budgété d'une tâche
+et `NodeTotals.budgeted_amount` comptent les lignes de provision. Ce que porte la ligne de
+provision d'un risque écarté, ou identifié après la référence, est l'issue de spécification #347.
+
+**Une marche de la courbe porte son montant** (`CurveSeries.steps[].amount`, #285), signé, ce dont
+le budget de référence change à sa date, et non le budget après elle, que la série
+`reference_budget` porte ; c'est ce que `cost_curve_amendment` montrait. Le nom reste.
+
+**Les structures des risques témoins ont leurs exemples** (#252) : `structures_amendments` porte
+les devis propres du retard de livraison des armoires et de l'indisponibilité de l'automaticien,
+nommés par `risks`. La chronologie des risques témoins et des révisions — quand le retard est
+survenu, quelle révision sa survenance a produite — n'est pas tenue par les exemples : elle est
+suivie dans #287.
+
+**Un recalcul ne fait avancer le compteur d'aucun nœud** (`LockVersion`, `NodeSchedule`,
+`NodesWritten.rescheduled`, #236 ; décision de l'utilisateur du 2026-10-05). Le compteur suit les
+écritures de l'utilisateur : les dates que le serveur recalcule — les successeurs d'une liaison ou
+d'une durée, ce que le chemin critique déplace — et ce qu'il recalcule d'une récapitulative ne le
+font pas avancer. Sans cela, la saisie suivante d'une tâche redatée partirait de la version lue
+et recevrait un 412 que personne n'a provoqué. `NodeSchedule` ne porte donc pas `lock_version`,
+et les ancêtres rendus entiers gardent le leur, ce que les exemples (`predecessor_set`,
+`estimate_line_updated`) montraient déjà ; le compteur de la structure, lui, avance à chaque
+écriture dans son arbre (`structure_lock_version`). Le front garde la version lue d'une tâche
+redatée et n'en prend que le calendrier (`rescheduled()` de
+`frontend/src/components/grid/nodes.tsx`).
+
+## Les montants et les libellés de la structure (EP-02/L16)
+
+**La grille de devis lit un montant nommé à l'année de référence** (`base_amount`, #235, décision
+de l'utilisateur du 2026-10-05). WF-DEV-0050 veut, pour chaque ligne, son montant à l'année de
+référence et son montant corrigé de l'inflation, et jamais le montant budgété ni le montant
+réestimé ; le contrat ne nommait pas le premier, et la grille lisait `reestimated_amount` à sa
+place (#216). `base_amount` est le montant de la ligne telle qu'elle est chiffrée — quantité ×
+charge × taux de l'année de référence, ou quantité × débours (WF-DEV-0030) —, sur la ligne, sur la
+tâche (somme de son sous-arbre, récapitulative comprise) et dans `NodeTotals` ; la colonne et le
+champ calculé suivent (`NodeColumn.base_amount`, rangé avant les montants budgété et réestimé de
+la grille de reste à engager ; `ComputedValueField` `task.base_amount`, `estimate_line.base_amount`).
+Les montants budgété et réestimé sont, eux aussi, à l'année de référence (sous-décision du même
+jour) : seul `inflated_amount` porte l'inflation, et les descriptions le disent. La colonne de la grille
+change de clé avec son champ (`reestimated_amount` → `base_amount`) : une largeur, un masquage ou un
+tri gardés sous l'ancienne clé dans les préférences d'affichage ne s'appliquent plus, et la colonne
+revient à son réglage par défaut.
+
+**Le montant corrigé de l'inflation remonte à la tâche et aux totaux** (`TaskFacet.inflated_amount`,
+`NodeTotals.inflated_amount`, `ComputedValueField` `task.inflated_amount`). Une récapitulative et le
+total n'avaient pas de montant corrigé, et la grille montrait une cellule vide ; ils portent la
+somme des montants corrigés de leurs lignes, que le front ne calcule pas.
+
+**Après une écriture qui déplace des nœuds dans le temps, leurs montants corrigés en projection
+légère** (`NodesWritten.reinflated`, `NodeInflation`, exigé ; décisions de l'utilisateur du
+2026-10-05). Un rôle changé dans la grille de devis change le calendrier de la tâche
+(WF-PLA-0010), donc ses dates et l'année de consommation de ses autres lignes (WF-DEV-0040) ; une
+durée ou une liaison écrite au planning déplace de même les lignes des tâches qu'elle redate. Leur
+montant corrigé, et celui des tâches non récapitulatives qui les portent — redatées
+(`rescheduled`) ou non —, serait resté périmé dans la grille même. `reinflated` rend chaque nœud
+dont le montant corrigé a changé sans être écrit, lignes et tâches non récapitulatives, hors ceux
+que `ancestors` rend entiers, où restent les récapitulatives ; chacun une fois, dans l'ordre du
+plan, vide quand aucun n'a bougé, sur le modèle de `rescheduled` : le nœud, son montant corrigé et
+l'année de consommation d'une ligne, nulle pour une tâche, dont la facette n'en porte pas — une
+chaîne de mille tâches et de leurs cinq mille lignes reste légère. Une tâche peut ainsi être dans
+`rescheduled` et dans `reinflated` : chaque projection pose ses seuls champs, et la grille les
+compose. Comme `NodeSchedule`, `NodeInflation` ne porte pas `lock_version` : un recalcul ne
+fait pas avancer le compteur du nœud (EP-02/L15, `LockVersion`). Le montant à l'année de
+référence ne dépend pas des dates : il n'y est pas. Écarté : le
+montant corrigé d'une tâche dans `NodeSchedule`, qui aurait mêlé les montants au calendrier et
+laissé sans projection une tâche dont les lignes bougent sans qu'elle soit redatée. L'exemple
+`task_lengthened` (`updateTaskFacet`), engendré dans le volume par `make mock-data`, le montre :
+la durée de « Revue 3.1.27 » allongée de deux jours ouvrés, dans sa marge, pousse « Reprise
+3.1.30 » au premier jour ouvré de 2027 ; elle est dans `rescheduled` avec les tâches de sa chaîne
+dont la marge diminue, ses lignes et elle-même dans `reinflated`, les deux récapitulatives au-dessus
+dans `ancestors`, et les totaux suivent. Les autres exemples rendent une liste vide. L'univers
+n'offre aucune écriture du devis qui redate : ses deux rôles actifs sont sur le même calendrier,
+le calendrier par défaut, et le seul rôle sur un autre est désactivé — un changement de rôle ne
+change donc le calendrier d'aucune tâche (WF-PLA-0010). La projection est éprouvée sur l'exemple
+du planning appliqué aux lignes du devis ; le chemin de la grille de devis le sera quand l'univers
+aura une telle écriture (#287).
+
+**Les exemples de dépendance d'un montant suivent** : `dependencies_labour` et
+`dependencies_task_amount` disent désormais ce dont dépend le montant à l'année de référence d'une
+ligne et d'une tâche — le taux horaire ; les lignes portées —, celui dont la grille de devis
+demande la raison au refus d'une saisie.
+
+**`paste_too_wide` dit la largeur de la ligne de devis** : `base_amount` porte à quatorze les
+colonnes de sa facette à partir du libellé (`NodeColumn`) ; l'exemple disait huit, largeur
+antérieure à EP-02/L8, et dit désormais quatorze pour un bloc de quinze.
+
+**La ligne de devis nomme sa catégorie, son rôle et son sous-projet** (`cost_category_label`,
+`resource_role_label`, `subproject_label`, #305, décision de l'utilisateur du 2026-10-05). La
+grille les nommait en rapprochant `listCostCategories` et `listResourceRoles` dans le front, ce que
+WF-ARC-0020 exclut, et disait inconnu un objet désactivé mais employé, que ces listes ne rendent
+pas sans `include_inactive` (WF-REF-0150). Les trois libellés sont exigés, résolus par le serveur à
+la lecture, l'objet actif ou désactivé, nuls sans objet — le rôle d'une ligne hors main-d'œuvre, le
+sous-projet d'une ligne hors sous-projet —, comme ceux d'un rôle de ressource (US-0250/L1). Ils
+pèsent sur six mille nœuds : `fields` ne les rend qu'à la grille qui les lit, celle du devis, qui ne
+présente pas encore de sous-projet et ne demande donc pas `subproject_label`. Les listes du
+référentiel restent lues par l'écran, pour offrir le choix d'une saisie.
+
+## Ce que l'écran offre : échanges et dépendances d'un risque (EP-02/L17)
+
+Décisions de l'utilisateur du 2026-10-05, consignées sur #318 et #250.
+
+**Les imports sont des commandes du projet, les exports des commandes de la révision** (#318).
+Seul l'import des coûts réels avait sa commande (`import_actual_costs`) : rien ne disait quand un
+planning, un devis ou un reste à engager s'importe, ni s'il s'importe sans révision en cours, ni
+quand un export est disponible, et l'écran déduisait les uns de la saisie de la révision en cours
+(`edit_*`) et offrait l'autre à qui le lisait. `ProjectCommand` gagne `import_planning`,
+`import_estimate` et `import_remaining`, à côté de `import_actual_costs` : l'import écrit dans la
+révision en cours et la crée quand il n'y en a pas (WF-INTF-0090), il se dit donc du projet, avec
+ou sans révision en cours. Chacune est gardée par sa permission, comme la saisie : un chiffreur
+importe un devis sans pouvoir importer un planning. `RevisionCommand` gagne une commande par
+nature d'export (`ExportRequest.kind`) : `export_planning`, `export_estimate`,
+`export_remaining`, `export_task_tree_image`. Écartés : une commande `request_export` unique, qui
+ne dirait pas qu'un chiffreur exporte le devis et pas le planning ; les imports sur la révision,
+qui ne se diraient pas sans révision en cours.
+
+**Sans révision en cours, l'import exige aussi la permission de créer une révision**
+(`revisions.write`), et le dit par une condition : la commande est listée indisponible,
+`may_create_revision` manquante, plutôt qu'absente (exemple `project_pricing_estimator`). C'est
+la réponse de l'utilisateur du 2026-10-05 à la sous-question de #318, et la seule exception à la
+règle qui ne liste que les commandes que l'appelant a la permission d'exercer (« Le projet et la
+révision portent leurs commandes disponibles », plus haut) : elle tend contre WF-IHM-0090, qui
+veut qu'une commande que les habilitations ne permettent pas ne soit pas présentée — une
+habilitation manquante ne se lève pas par l'utilisateur. Elle est soumise à l'utilisateur à son
+retour ; d'ici là, elle tient comme décidée.
+
+**Un export relève de la consultation** : il est gardé par la permission de consulter la
+fonction de sa nature — le planning et l'image de l'arborescence par celle du planning (FBS-4.3),
+le devis par celle du devis (FBS-4.4), le reste à engager par celle du reste à engager (FBS-4.5) —,
+deux niveaux par fonction (WF-ADM-0100). WF-CYC-0110 range les exports dans ce qui reste
+consultable d'un projet terminal (« ses exports aboutissent ; seules les modifications sont
+refusées ») : un export ne manque d'aucune condition, ni sur une révision marquée, ni pendant un
+marquage, ni sur un projet terminal. Il est présent ou absent. Les exemples le suivent : tous les
+exports sur les révisions lues avec toutes les permissions et sur `revision_reader`, qui lit tout
+sans rien modifier ; le devis et le reste à engager pour le chiffreur (`revision_estimator`), qui
+les lit sans lire le planning. Les imports sont disponibles sur le projet témoin et sur le projet
+en chiffrage sans révision, indisponibles sur le projet terminé (`project_not_terminal`).
+
+**Le risque porte ses dépendances** (`Risk.computed_fields`, #250). WF-IHM-0030 veut que le refus
+d'une saisie sur la gravité ou la provision d'un risque nomme ce dont elles dépendent, et
+`getComputedValueDependencies` ne connaît que les champs d'un nœud. Chaque risque rend, pour sa
+gravité et sa provision, dans cet ordre, les règles qui les calculent : `own_estimate`, la
+gravité, total de son devis propre, et `severity_and_probability`, la provision, cette gravité
+pondérée par la probabilité (WF-RIS-0010), deux codes ajoutés à `ComputedDependency`. Ce sont des
+constantes, légères : aucun appel au refus, et aucune ligne nommée — le devis propre est une
+structure à part, que la grille des risques ne montre pas. Écarté : étendre
+`getComputedValueDependencies` aux risques, un appel de plus pour dire deux phrases fixes.
+
+**Ce qui reste ouvert.** `ExportRequest.revision_id` reste facultatif, la révision prise par le
+serveur quand il est nul : la commande qui dit l'export disponible est celle de la révision lue,
+et le contrat ne dit pas laquelle juge un export demandé sans révision — suivi en #359. Les
+commandes d'un risque (`Risk.available_commands`, #244) sont décidées et réalisées avec EP-08.
+
 ## Ce que les lectures nomment (EP-02/L18)
 
 Décisions de l'utilisateur du 2026-10-05, consignées sur #311, #297, #247, #326, #319 et #327.
@@ -811,7 +1070,9 @@ de son marquage — les indicateurs conservés à son marquage (WF-DAT-0040), `i
 courbes, que rien ne conserve, recalculées à cette date, `is_stored` faux. Une révision marquée
 avant l'état En cours n'a conservé que le total de son devis, « sans aucun indicateur projet »
 (Vérif de WF-DAT-0040) : les trois lectures la refusent par 409, `STATE_FORBIDS_OPERATION`, comme
-un projet qui n'est pas en cours (exemple `project_indicators_offer`). `as_of` choisit déjà la
+un projet qui n'est pas en cours (exemple `project_indicators_offer`), mais sans `params.state` :
+celui-ci dit l'état du projet qui interdit l'opération (EP-02/L15), et le projet est ici en cours,
+c'est la révision qui est antérieure (décision de l'utilisateur, 2026-10-05). `as_of` choisit déjà la
 révision par sa date : les deux ensemble sont refusés par 422, `VALIDATION_FAILED`, `fields` sur
 `/query/revision_id`. **Point ouvert, à décider par l'utilisateur** : recalculées, les courbes
 d'une révision marquée peuvent s'écarter de ses indicateurs conservés — une pièce importée après

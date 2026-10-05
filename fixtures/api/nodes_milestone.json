@@ -30,8 +30,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "0.00",
           "budgeted_amount": "0.00",
-          "reestimated_amount": "0.00"
+          "reestimated_amount": "0.00",
+          "inflated_amount": "0.00"
         },
         "computed_fields": [
           "task.duration",
@@ -72,8 +74,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": true,
+          "base_amount": "0.00",
           "budgeted_amount": "0.00",
-          "reestimated_amount": "0.00"
+          "reestimated_amount": "0.00",
+          "inflated_amount": "0.00"
         },
         "computed_fields": [
           "task.start",
@@ -91,8 +95,10 @@
       "task_count": 2,
       "estimate_line_count": 0,
       "hours": "0",
+      "base_amount": "0.00",
       "budgeted_amount": "0.00",
-      "reestimated_amount": "0.00"
+      "reestimated_amount": "0.00",
+      "inflated_amount": "0.00"
     }
   }
 }

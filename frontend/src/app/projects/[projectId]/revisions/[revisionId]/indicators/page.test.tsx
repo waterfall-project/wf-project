@@ -8,7 +8,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SignedOut, UnexpectedAnswer } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { components } from "@/api/generated/schema";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import IndicatorsPage, { generateMetadata } from "./page";
 
@@ -269,7 +275,8 @@ describe("the screen of the indicators of a project", () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/indicators": {
-        problem: { code: "STATE_FORBIDS_OPERATION", status: 409 },
+        // The refusal the contract gives as its example: a project in pricing.
+        problem: example("project_indicators_not_in_progress") as Problem & { status: 409 },
       },
     };
     const page = text(html(await IndicatorsPage(at())));

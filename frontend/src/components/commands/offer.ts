@@ -7,7 +7,9 @@
  * On a project and a revision, the server says it: `available_commands` lists only the
  * commands the caller has the permission to exercise, each with the conditions it lacks — the
  * front does not know which permission guards which command, and deduces none of it
- * (WF-ARC-0020). Elsewhere — accounts, roles, reference data, backups — the commands of a
+ * (WF-ARC-0020). One exception, decided by the user on 2026-10-05: without a current revision,
+ * an import the caller may exercise but whose revision they may not create is listed
+ * unavailable, lacking `may_create_revision`. Elsewhere — accounts, roles, reference data, backups — the commands of a
  * function follow its permission of modification in the session, and the restoration its own,
  * `platform_restore`: the rule of the catalogue itself (WF-ADM-0100), with no condition to
  * name.
@@ -43,6 +45,17 @@ export function findOffer<C extends string>(
   command: C,
 ): ListedCommand<C> | undefined {
   return listed.find((offer) => offer.command === command);
+}
+
+/** The look of a command unavailable: greyed out, its cursor saying it does nothing. */
+export const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
+
+/**
+ * The identifier of the text that names what an offer lacks, from that of its command; none when
+ * the command is available, or lacks nothing the server names.
+ */
+export function unmetId(offer: CommandOffer, id: string): string | undefined {
+  return offer.is_available || offer.missing_conditions.length === 0 ? undefined : `${id}-unmet`;
 }
 
 /** A command a function outside any project offers: available, with nothing lacking. */

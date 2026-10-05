@@ -165,7 +165,7 @@ describe("the grid of the risks", () => {
     expect(followed).toHaveBeenCalledTimes(1);
   });
 
-  it("presents the severity and the provision of a risk as computed, and takes no entry of them [WF-IHM-0030-A]", async () => {
+  it("presents the severity and the provision of a risk as computed, and takes no entry of them, naming what they depend on [WF-IHM-0030-A]", async () => {
     renderRisks();
     for (const name of [/^Calculé\s*Gravité/, /^Calculé\s*Provision/]) {
       expect(within(grid()).getByRole("columnheader", { name })).toBeVisible();
@@ -175,13 +175,14 @@ describe("the grid of the risks", () => {
     expect(severity).toHaveAccessibleName(/^Calculé/);
     expect(provision).toHaveAccessibleName(/^Calculé/);
 
-    // Typed into, from the keyboard: refused, the value computed, nothing entered.
+    // Typed into, from the keyboard: refused, naming what the value depends on, nothing entered.
     severity.focus();
     await userEvent.keyboard("9");
     const refusal = screen.getByRole("dialog", { name: "Valeur calculée" });
     expect([...refusal.querySelectorAll("p")].map((p) => p.textContent)).toEqual([
       "Valeur calculée",
       `Gravité ne se saisit pas${NBSP}: Waterfall calcule cette valeur.`,
+      "La gravité d’un risque est le total de son devis propre.",
     ]);
     expect(screen.queryByRole("textbox")).toBeNull();
     await userEvent.keyboard("{Escape}");
@@ -189,10 +190,11 @@ describe("the grid of the risks", () => {
     // Double-clicked: refused as well, never an entry.
     await userEvent.dblClick(provision);
     expect(screen.getByRole("dialog", { name: "Valeur calculée" })).toHaveTextContent(
-      "Provision ne se saisit pas : Waterfall calcule cette valeur.",
+      "Provision ne se saisit pas : Waterfall calcule cette valeur." +
+        "La provision d’un risque est sa gravité pondérée par sa probabilité.",
     );
     expect(screen.queryByRole("textbox")).toBeNull();
-    // Nothing is asked of the server: the contract names no field of a node for a risk.
+    // Nothing is asked of the server: the risk names itself what they depend on.
     expect((server.client as FakeClient).calls).toEqual([]);
   });
 
