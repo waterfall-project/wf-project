@@ -188,9 +188,29 @@
       - $ref: ../components/parameters.yaml#/TaskId
     responses:
       '200':
-        description: Contenu du résultat.
+        description: >-
+          Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportRequest.kind`) :
+          un devis ou un reste à engager en classeur Excel
+          (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `.xlsx`), un
+          planning MS Project en XML (`application/xml`, `.xml`), l'image de l'arborescence en
+          PNG (`image/png`, `.png`) (WF-INTF-0110, WF-INTF-0130, WF-INTF-0050, WF-PLA-0120).
+        headers:
+          Content-Disposition:
+            required: true
+            description: >-
+              `attachment`, et le nom du fichier que le serveur lui donne (`filename`), avec
+              l'extension de sa nature. Un nom qui n'est pas en ASCII s'écrit aussi en
+              `filename*`, en UTF-8 encodé en pourcentage (RFC 6266, RFC 8187), `filename`
+              portant alors son équivalent ASCII.
+            schema: { type: string }
+            examples:
+              estimate: { $ref: ../../../fixtures/api/task_result_disposition.json }
         content:
-          application/octet-stream:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema: { type: string, format: binary }
+          application/xml:
+            schema: { type: string, format: binary }
+          image/png:
             schema: { type: string, format: binary }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

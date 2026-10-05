@@ -11,14 +11,16 @@
  * project (FBS-4.3.4), where the actual costs are imported, in the same context. The actual costs
  * belong to the project, not to a revision: the revision of the route is the reading context of
  * the banner alone. Every figure as the API gives it: the front computes, sorts, filters and pages
- * nothing. A read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
+ * nothing. Filters the API refuses (422) — a period that ends before it starts, a sub-project the
+ * project does not have — are said in place of the lines, the filters kept to be changed; any
+ * other read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { readOrFail } from "@/api/problem";
+import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { askSubprojects, readProjectContext } from "@/components/context/reading";
@@ -36,6 +38,7 @@ import {
   COST_SORT_COLUMNS,
   costRow,
   type CostSortColumn,
+  isKeptSort,
 } from "@/components/costs/cost-grid";
 import { ListPages } from "@/components/costs/cost-pages";
 import { CostSummary } from "@/components/costs/cost-totals";
@@ -56,6 +59,30 @@ import type { RevisionParams } from "../page";
 
 /** The lines of the journal a page holds: an import a month, a year and some. */
 const IMPORTS_LIMIT = 12;
+
+/** The refusal of filters the server cannot apply (`listActualCosts`, 422). */
+const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
+
+/** Why the screen reads no line: the key of its sentence in the catalogue. */
+type CostsRefusal = "period" | "subproject" | "invalid";
+
+/**
+ * Why the API refused the filters, by the parameters its envelope points at (`/query/<name>`): a
+ * period that ends before it starts, a sub-project the project does not have; a reason that names
+ * none when the envelope points at none of them, or at both.
+ */
+function costsRefusal(fields: readonly { pointer: string; code: string }[]): CostsRefusal {
+  const named = new Set(
+    fields.flatMap(({ pointer, code }): CostsRefusal[] => {
+      if (pointer === "/query/to" && code === "VALUE_OUT_OF_RANGE") {
+        return ["period"];
+      }
+      return pointer === "/query/subproject_id" ? ["subproject"] : [];
+    }),
+  );
+  const [only] = named;
+  return named.size === 1 && only !== undefined ? only : "invalid";
+}
 
 /** Title the tab with the function, and with the project. */
 export async function generateMetadata({
@@ -80,7 +107,7 @@ async function readCosts(
   const subproject = context.parameters.get("subproject_id");
   const scope = scopeParameter(filters.scope);
   const offset = readPage(address, COSTS_PAGE);
-  const answer = await readOrFail("listActualCosts", () =>
+  const read = await readOrRefused("listActualCosts", FILTERS_REFUSED, () =>
     serverClient().GET("/projects/{project_id}/actual-costs", {
       params: {
         path: { project_id: revision.projectId },
@@ -95,6 +122,10 @@ async function readCosts(
       },
     }),
   );
+  if (read.kind === "refused") {
+    return { refused: costsRefusal(read.problem.fields ?? []) } as const;
+  }
+  const answer = read.data;
   return {
     costs: { items: answer.items.map(costRow), totals: answer.totals },
     lastImport: answer.last_import_at,
@@ -138,7 +169,7 @@ function CostsHeader({
   count,
   exchanges,
 }: {
-  readonly count: number;
+  readonly count: number | undefined;
   readonly exchanges: string | undefined;
 }) {
   const t = useTranslations();
@@ -147,7 +178,7 @@ function CostsHeader({
       title={t("functions.actualCosts")}
       icon={FUNCTION_ICONS.actual_costs}
       density={FUNCTION_DENSITY.actual_costs}
-      subtitle={t("actualCosts.summary", { count })}
+      subtitle={count === undefined ? undefined : t("actualCosts.summary", { count })}
       actions={
         exchanges === undefined ? undefined : (
           <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -158,6 +189,12 @@ function CostsHeader({
       }
     />
   );
+}
+
+/** Why the screen reads no line, in place of the lines: the filters above stay to be changed. */
+function CostsRefused({ reason }: { readonly reason: CostsRefusal }) {
+  const t = useTranslations("actualCosts.refused");
+  return <p className="text-sm text-muted-foreground">{t(reason)}</p>;
 }
 
 /** Render the actual costs of a project: their totals, their filters, their grid, their imports. */
@@ -174,7 +211,11 @@ export default async function ActualCostsPage({
   const settings = requestSession().then(
     (session) => session?.user.display_preferences?.grids?.[COST_GRID.key] ?? undefined,
   );
-  const asked = settings.then((kept) => readGridQuery(at.address, COST_SORT_COLUMNS, kept?.sort));
+  // A column kept from the file sorts by its name, which no list of the screen knows beforehand.
+  const asked = settings.then((kept) => {
+    const named = [at.address.get("sort_by"), kept?.sort?.column].filter(isKeptSort);
+    return readGridQuery(at.address, [...COST_SORT_COLUMNS, ...named], kept?.sort);
+  });
   const [reading, costs, imports, subprojects, preferences, query] = await Promise.all([
     readProjectContext(at.pathname, at.context),
     readCosts(at, filters, asked),
@@ -192,8 +233,13 @@ export default async function ActualCostsPage({
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress>
         <Screen density={FUNCTION_DENSITY.actual_costs} fill>
-          <CostsHeader count={costs.page.total} exchanges={functionHref(EXCHANGES, at.context)} />
-          <CostSummary totals={costs.costs.totals} lastImport={costs.lastImport} />
+          <CostsHeader
+            count={"refused" in costs ? undefined : costs.page.total}
+            exchanges={functionHref(EXCHANGES, at.context)}
+          />
+          {"refused" in costs ? null : (
+            <CostSummary totals={costs.costs.totals} lastImport={costs.lastImport} />
+          )}
           <CostFilterBar
             filters={filters}
             subproject={at.context.parameters.get("subproject_id") ?? undefined}
@@ -201,8 +247,14 @@ export default async function ActualCostsPage({
           />
           <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-              <CostsGrid costs={costs.costs} query={query} preferences={preferences} />
-              <ListPages list="costs" page={costs.page} shown={costs.costs.items.length} />
+              {"refused" in costs ? (
+                <CostsRefused reason={costs.refused} />
+              ) : (
+                <>
+                  <CostsGrid costs={costs.costs} query={query} preferences={preferences} />
+                  <ListPages list="costs" page={costs.page} shown={costs.costs.items.length} />
+                </>
+              )}
             </div>
             <aside className="flex shrink-0 flex-col gap-4 lg:w-[28rem] lg:overflow-y-auto">
               <ImportJournal imports={imports.items} page={imports.meta} />

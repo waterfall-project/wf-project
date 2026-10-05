@@ -14,7 +14,7 @@ describe("fakeClient, under a document", () => {
     // A File, as an <input type="file"> gives it: happy-dom drops the name given with a Blob.
     form.append("file", new File(["a;b"], "costs.csv", { type: "text/csv" }));
     const { error } = await client.POST("/file-uploads", {
-      body: { file: "costs.csv" },
+      body: { file: "costs.csv", purpose: "import" },
       bodySerializer: () => form,
     });
     expect(error).toEqual({ code: "FILE_TOO_LARGE", status: 413 });

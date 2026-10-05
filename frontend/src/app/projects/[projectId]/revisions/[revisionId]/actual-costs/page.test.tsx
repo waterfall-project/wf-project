@@ -8,7 +8,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CostsGridProps } from "@/components/costs/costs-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 
 import ActualCostsPage, { generateMetadata } from "./page";
 
@@ -185,8 +191,17 @@ describe("the screen of the actual costs", () => {
     expect(grids.costs[0]?.query.sort).toEqual({ column: "amount", order: "desc" });
   });
 
+  it("asks the server to sort by a column kept from the file, by its name in the file [WF-IHM-0060-A]", async () => {
+    await costsAt({ sort_by: "passthrough.Fournisseur", sort_order: "desc" });
+    expect(queryOf(COSTS)).toEqual({ sort_by: "passthrough.Fournisseur", sort_order: "desc" });
+    expect(grids.costs[0]?.query.sort).toEqual({
+      column: "passthrough.Fournisseur",
+      order: "desc",
+    });
+  });
+
   it("asks nothing the contract would refuse: a sort by a column it does not sort by, a page that is no place", async () => {
-    await costsAt({ sort_by: "tracked_scope", offset: "-3", in_tracked_scope: "maybe" });
+    await costsAt({ sort_by: "passthrough.", offset: "-3", in_tracked_scope: "maybe" });
     expect(queryOf(COSTS)).toEqual({});
   });
 
@@ -218,6 +233,65 @@ describe("the screen of the actual costs", () => {
     expect(said).toContain("No row matches the request.");
     expect(said).toContain("Journal of the imports No actual cost has been imported yet.");
   });
+
+  it.each([
+    [
+      "actual_costs_period_inverted",
+      "The actual costs cannot be read over this period: its end precedes its start.",
+    ],
+    [
+      "actual_costs_subproject_unknown",
+      "The actual costs cannot be read: the sub-project asked for does not exist.",
+    ],
+  ])(
+    "says filters the API refuses in place of the lines, the filters kept to be changed: %s",
+    async (refusal, sentence) => {
+      server.answers = {
+        ...server.answers,
+        [COSTS]: { problem: example(refusal) as Problem & { status: 422 } },
+      };
+      const markup = await costsAt({ from: "2026-04-30", to: "2026-03-01" });
+      const said = text(markup);
+      expect(said).toContain(sentence);
+      // The period refused stays in the bar, to be changed.
+      expect(markup).toMatch(/<input[^>]*type="date"[^>]*value="2026-04-30"/);
+      expect(markup).toMatch(/<input[^>]*type="date"[^>]*value="2026-03-01"/);
+      expect(said).not.toContain("General total");
+      expect(said).toContain("Journal of the imports");
+      expect(grids.costs).toEqual([]);
+    },
+  );
+
+  it.each([
+    [
+      "two parameters at once",
+      [
+        { pointer: "/query/to", code: "VALUE_OUT_OF_RANGE" as const },
+        { pointer: "/query/subproject_id", code: "UNKNOWN_SUBPROJECT" as const },
+      ],
+    ],
+    [
+      "a parameter it does not know",
+      [{ pointer: "/query/in_tracked_scope", code: "VALUE_OUT_OF_RANGE" as const }],
+    ],
+  ])(
+    "says the filters refused without naming one, when the envelope points at %s",
+    async (_, fields) => {
+      server.answers = {
+        ...server.answers,
+        [COSTS]: {
+          problem: {
+            code: "VALIDATION_FAILED",
+            status: 422,
+            fields,
+          },
+        },
+      };
+      expect(text(await costsAt())).toContain(
+        "The actual costs cannot be read: the API refuses the filters asked for.",
+      );
+    },
+  );
 
   it("is not found when the API does not find the project", async () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": NOT_FOUND };

@@ -226,7 +226,7 @@ Le contrat cite **181 des 208 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| POST | `/file-uploads` | Déposer un fichier | WF-DAT-0120 |
+| POST | `/file-uploads` | Déposer un fichier | WF-ADM-0160, WF-DAT-0120 |
 | GET | `/projects/{project_id}/imports` | Imports du projet | WF-ARC-0100, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140 |
 | GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-INTF-0080 |

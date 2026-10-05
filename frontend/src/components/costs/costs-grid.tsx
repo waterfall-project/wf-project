@@ -10,12 +10,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 
-import { COST_GRID, type CostRows, type CostSortColumn } from "./cost-grid";
+import { costGrid, type CostRows, type CostSortColumn, keptColumns } from "./cost-grid";
 
 /** What the grid of the actual costs shows. */
 export interface CostsGridProps {
@@ -28,9 +29,13 @@ export interface CostsGridProps {
 /** Render the grid of the actual costs, its totals row the general total of the lines retained. */
 export function CostsGrid({ costs, query, preferences }: CostsGridProps) {
   const t = useTranslations("actualCosts");
+  // A column for each column kept from the file the lines carry: the same configuration as long
+  // as the page carries the same.
+  const kept = keptColumns(costs.items).join("\u0000");
+  const config = useMemo(() => costGrid(kept === "" ? [] : kept.split("\u0000")), [kept]);
   return (
     <DenseGrid
-      config={COST_GRID}
+      config={config}
       rows={costs.items}
       totals={costs.totals}
       totalsCaption={() => t("generalTotal")}

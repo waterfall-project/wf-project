@@ -8,8 +8,10 @@
  * motive of a failure; the alerts under way, each with its zone, by `Signal`. The backups
  * (WF-ADM-0150): each with its date, its size, its verification, whether it was taken by hand or
  * on schedule, and whether it is marked to be kept; and their schedule and retention
- * (WF-ADM-0170). Read only: neither a backup nor a restoration is started here — the commands
- * belong to the epic of the operation of the platform.
+ * (WF-ADM-0170), its time said in universal time as the contract gives it, unconverted: a time
+ * of day has no date to take the offset of a zone with summer time from. Read only: neither a
+ * backup nor a restoration is started here — the commands belong to the epic of the operation of
+ * the platform.
  */
 import {
   Archive,
@@ -41,7 +43,7 @@ type Alert = components["schemas"]["Alert"];
 type Backup = components["schemas"]["Backup"];
 type BackupSchedule = components["schemas"]["BackupSchedule"];
 
-/** The days of the week of a weekly schedule, from 1, Monday, as ISO 8601 numbers them. */
+/** The days of a weekly schedule, from 1, Monday, as the contract numbers them (ISO 8601). */
 const WEEKDAYS = [
   "monday",
   "tuesday",
@@ -279,7 +281,7 @@ export function BackupScheduleFacts({ schedule }: { readonly schedule: BackupSch
       facts.push([t("weekday"), t(`weekdays.${weekday}`)]);
     }
     if (schedule.at_time !== undefined) {
-      facts.push([t("at"), t("platformTime", { time: schedule.at_time })]);
+      facts.push([t("at"), t("universalTime", { time: schedule.at_time })]);
     }
   }
   facts.push([t("retained"), t("count", { count: schedule.retained_count })]);

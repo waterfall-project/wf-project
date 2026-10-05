@@ -482,8 +482,11 @@ NodeTotals:
     montants et les heures sont ceux des seules lignes de devis retenues par les
     filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —,
     et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre.
-    Chaque montant est la somme du montant de même nom des lignes (`EstimateLineFacet`) : à
-    l'année de référence, sauf le montant corrigé de l'inflation (WF-DEV-0050).
+    Chaque montant est la somme du montant de même nom des lignes retenues
+    (`EstimateLineFacet`) : à l'année de référence, sauf le montant corrigé de l'inflation
+    (WF-DEV-0050). `budgeted_amount` somme les montants budgétés des lignes retenues, lignes de
+    provision comprises : ce n'est pas le budget de référence, diminué des provisions selon
+    WF-RIS-0050.
   properties:
     task_count: { type: integer, minimum: 0 }
     estimate_line_count: { type: integer, minimum: 0 }
@@ -529,8 +532,9 @@ NodesWritten:
         WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre
         n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de
         mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans
-        `ancestors`. Les montants qui dépendent des dates n'y sont pas : ils sont dans
-        `reinflated`.
+        `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que
+        les écritures (`LockVersion`). Les montants qui dépendent des dates — le montant corrigé de
+        l'inflation, l'année de consommation — n'y sont pas : ils sont dans `reinflated`.
       items: { $ref: '#/NodeSchedule' }
     reinflated:
       type: array
@@ -564,7 +568,9 @@ NodeSchedule:
     (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque
     modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le
     chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la
-    facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas.
+    facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. Sans
+    `lock_version` : un recalcul ne fait pas avancer le compteur de la tâche, qui reste
+    celui que la grille a lu (`LockVersion`).
   properties:
     node_id: { $ref: ../common.yaml#/Uuid }
     start: { $ref: ../common.yaml#/WorkInstant }
@@ -593,7 +599,9 @@ NodeInflation:
     Les montants d'une ligne de devis ou d'une tâche non récapitulative qu'une écriture a
     déplacée dans le temps sans l'écrire (`NodesWritten.reinflated`) : ceux qui dépendent des
     dates, sous la forme des champs de même nom de sa facette (`EstimateLineFacet`,
-    `TaskFacet`), que la grille de devis présente (WF-DEV-0040, WF-DEV-0050).
+    `TaskFacet`), que la grille de devis présente (WF-DEV-0040, WF-DEV-0050). Sans
+    `lock_version`, comme `NodeSchedule` : un recalcul ne fait pas avancer le compteur du nœud
+    (`LockVersion`).
   properties:
     node_id: { $ref: ../common.yaml#/Uuid }
     inflated_amount:
@@ -825,7 +833,12 @@ EstimateLineFacet:
         celui que la grille de devis présente (WF-DEV-0050).
     budgeted_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
-      description: Montant budgété, à l'année de référence.
+      description: >-
+        Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de
+        référence : une ligne de provision présente dans la révision de référence porte la
+        provision qu'elle y avait. Le budget de référence est la somme des montants budgétés
+        des lignes de la révision de référence, diminuée des provisions selon les règles de
+        WF-RIS-0050 (glossaire) : il se lit dans les indicateurs, jamais en sommant ces montants.
     reestimated_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: Montant réestimé, à l'année de référence.

@@ -1,7 +1,8 @@
 {
-  "summary": "Une installation dont la langue par défaut est l'anglais, et qui borne un avatar à deux mégaoctets.",
+  "summary": "Une installation dont la langue par défaut est l'anglais, qui borne un avatar à deux mégaoctets et une sauvegarde déposée pour une restauration à vingt gigaoctets.",
   "value": {
     "default_language": "en",
-    "avatar_max_bytes": 2097152
+    "avatar_max_bytes": 2097152,
+    "external_backup_max_bytes": 21474836480
   }
 }

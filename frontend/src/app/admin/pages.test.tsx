@@ -269,7 +269,7 @@ describe("the backups", () => {
   it("present their schedule and retention, and start neither a backup nor a restoration", async () => {
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
-      "Planification État Active Fréquence Quotidienne Heure 01:00, heure de la plateforme Rétention 7 sauvegardes conservées",
+      "Planification État Active Fréquence Quotidienne Heure 01:00 UTC Rétention 7 sauvegardes conservées",
     );
     expect(buttons(page)).toEqual([]);
     expect(links(page)).toEqual([]);
@@ -279,7 +279,7 @@ describe("the backups", () => {
     server.answers = { ...server.answers, "GET /backup-schedule": "backup_schedule_weekly" };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
-      "Fréquence Hebdomadaire Jour Dimanche Heure 02:30, heure de la plateforme Rétention 4 sauvegardes conservées",
+      "Fréquence Hebdomadaire Jour Dimanche Heure 02:30 UTC Rétention 4 sauvegardes conservées",
     );
   });
 
