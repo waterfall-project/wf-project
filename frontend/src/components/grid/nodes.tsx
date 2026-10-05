@@ -31,13 +31,17 @@ export type LineField = keyof EstimateLineFacet;
 export type NodeTotals = components["schemas"]["NodeTotals"];
 
 /**
- * What the API answers a write of a grid with: the nodes written, the tasks it rescheduled, the
- * ancestors of both recalculated, the totals of the structure and the version it moved on to.
+ * What the API answers a write of a grid with: the nodes written, the tasks it rescheduled and the
+ * lines it moved in time, the ancestors of all recalculated, the totals of the structure and the
+ * version it moved on to.
  */
 export type NodesWritten = components["schemas"]["NodesWritten"];
 
 /** The schedule of a task a write rescheduled without writing it. */
 type NodeSchedule = components["schemas"]["NodeSchedule"];
+
+/** The amounts of a line a write moved in time without writing it. */
+type NodeInflation = components["schemas"]["NodeInflation"];
 
 /** A column of a grid of a structure, as the contract names it. */
 export type NodeColumn = components["schemas"]["NodeColumn"];
@@ -233,11 +237,35 @@ function rescheduled<
 }
 
 /**
+ * The fields of a line a write may move in time without writing it (`NodesWritten.reinflated`),
+ * under their names on the line.
+ */
+const INFLATION = ["inflated_amount", "consumption_year"] as const;
+
+/**
+ * A row a write moved in time: the fields of its amounts the grid reads, as the server answered
+ * them, the others as they were — a grid that shows no amount takes nothing of it.
+ */
+function reinflated<
+  N extends NodeField,
+  T extends keyof TaskFacet,
+  L extends keyof EstimateLineFacet,
+>(row: NodeRow<N, T, L>, inflation: NodeInflation): NodeRow<N, T, L> {
+  const { estimate_line: line } = row;
+  if (line === undefined || line === null) {
+    return row;
+  }
+  const read = INFLATION.filter((field) => field in line);
+  return read.length === 0 ? row : { ...row, estimate_line: { ...line, ...pick(inflation, read) } };
+}
+
+/**
  * What a write of a grid answered, as the grid reads it (#218): the nodes written, each ancestor
  * recalculated whole, each task rescheduled by the part of its schedule the grid reads — none for
- * a grid that reads no date —, the totals of the structure when the grid reads it whole — a
- * filtered grid reads its own anew (`GridConfig.retotal`) —, in the order of the version the
- * structure moved on to, which each write moves on.
+ * a grid that reads no date —, each line moved in time by the part of its amounts the grid reads —
+ * none for a grid that reads none (#235) —, the totals of the structure when the grid reads it
+ * whole — a filtered grid reads its own anew (`GridConfig.retotal`) —, in the order of the version
+ * the structure moved on to, which each write moves on.
  */
 export function nodesWritten<
   N extends NodeField,
@@ -250,15 +278,25 @@ export function nodesWritten<
 ): RowsWritten<NodeRow<N, T, L>, NodeTotals> {
   const schedule = new Set<string>(SCHEDULE);
   const dated = fields.task.some((field) => schedule.has(field));
+  const inflation = new Set<string>(INFLATION);
+  const priced = fields.line.some((field) => inflation.has(field));
   return {
     rows: written.nodes.map((node) => projectNode(node, fields)),
     changed: written.ancestors.map((node) => projectNode(node, fields)),
-    parts: dated
-      ? written.rescheduled.map((schedule) => ({
-          key: schedule.node_id,
-          change: (row: NodeRow<N, T, L>) => rescheduled(row, schedule),
-        }))
-      : [],
+    parts: [
+      ...(dated
+        ? written.rescheduled.map((schedule) => ({
+            key: schedule.node_id,
+            change: (row: NodeRow<N, T, L>) => rescheduled(row, schedule),
+          }))
+        : []),
+      ...(priced
+        ? written.reinflated.map((amounts) => ({
+            key: amounts.node_id,
+            change: (row: NodeRow<N, T, L>) => reinflated(row, amounts),
+          }))
+        : []),
+    ],
     totals: whole ? written.totals : undefined,
     order: written.structure_lock_version,
   };
@@ -289,6 +327,7 @@ export const NODE_COLUMNS = [
   "subproject",
   "payment_delay_days",
   "consumption_year",
+  "base_amount",
   "budgeted_amount",
   "reestimated_amount",
   "inflated_amount",

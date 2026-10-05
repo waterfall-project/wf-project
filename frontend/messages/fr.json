@@ -169,7 +169,6 @@
       "lastMarkedAt": "Dernière révision marquée"
     },
     "computed": "Calculé",
-    "unknown": "Référence inconnue",
     "entry": {
       "none": "Aucun",
       "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
@@ -1536,6 +1535,7 @@
       "subproject": "Sous-projet",
       "payment_delay_days": "Délai de paiement",
       "consumption_year": "Année de consommation",
+      "base_amount": "Montant à l’année de référence",
       "budgeted_amount": "Montant budgété",
       "reestimated_amount": "Montant réestimé",
       "inflated_amount": "Montant corrigé de l’inflation",
@@ -1549,13 +1549,16 @@
         "progress": "Avancement de la tâche",
         "physical_progress": "Avancement physique de la tâche",
         "total_float": "Marge totale de la tâche",
+        "base_amount": "Montant à l’année de référence de la tâche",
         "budgeted_amount": "Montant budgété de la tâche",
-        "reestimated_amount": "Montant réestimé de la tâche"
+        "reestimated_amount": "Montant réestimé de la tâche",
+        "inflated_amount": "Montant corrigé de l’inflation de la tâche"
       },
       "estimate_line": {
         "quantity": "Quantité de la ligne",
         "hours": "Charge de la ligne",
         "unit_disbursement": "Débours unitaire de la ligne",
+        "base_amount": "Montant à l’année de référence de la ligne",
         "budgeted_amount": "Montant budgété de la ligne",
         "reestimated_amount": "Montant réestimé de la ligne",
         "previous_reestimated_amount": "Montant réestimé précédent de la ligne",
@@ -1568,7 +1571,7 @@
       "scheduling": "Une tâche en mode automatique tient ses dates de sa durée, de ses liaisons et du calendrier.",
       "float_dates": "La marge totale d’une tâche est l’écart entre ses dates au plus tôt et au plus tard.",
       "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
-      "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
+      "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
       "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
       "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",

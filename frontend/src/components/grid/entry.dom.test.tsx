@@ -187,7 +187,7 @@ describe("the keyboard of a grid", () => {
       expect(cell(LABOUR, "hours")).toHaveTextContent(/^14$/);
     });
     expect(cell(LABOUR, "label")).toHaveTextContent("Raccordement des borniers");
-    expect(cell(LABOUR, "reestimated_amount")).toHaveTextContent(/1\s120,00$/);
+    expect(cell(LABOUR, "base_amount")).toHaveTextContent(/1\s120,00$/);
     expect(cell(LABOUR, "inflated_amount")).toHaveTextContent(/1\s120,00$/);
   });
 
@@ -246,7 +246,9 @@ describe("the keyboard of a grid", () => {
     const read = structuredClone(estimate);
     const labour = read.items[LABOUR]?.estimate_line;
     if (labour !== undefined && labour !== null) {
+      // The server names the role it bears, deactivated as it is (#305).
       labour.resource_role_id = AUTOMATION_ENGINEER;
+      labour.resource_role_label = "Automaticien";
     }
     // A line that does not bear it: the deactivated role is not offered.
     const { rerender } = render(grid());
@@ -307,7 +309,7 @@ describe("the keyboard of a grid", () => {
     expect(written(client)[0]?.body).toMatchObject({ resource_role_id: null });
   });
 
-  it("shows an identifier the list does not know as unknown, and offers no entry for it", async () => {
+  it("shows a category the list does not know by the label the server gives, and offers no entry for it", async () => {
     serve();
     const read = structuredClone(estimate);
     const labour = read.items[LABOUR]?.estimate_line;
@@ -315,20 +317,53 @@ describe("the keyboard of a grid", () => {
       labour.cost_category_id = "01926f3a-7c00-7000-8000-000000009999";
     }
     render(grid("fr", read));
-    expect(cell(LABOUR, "cost_category")).toHaveTextContent("Référence inconnue");
+    expect(cell(LABOUR, "cost_category")).toHaveTextContent(/^Ingénierie électrique$/);
     expect(cell(LABOUR, "cost_category")).toHaveAttribute("aria-readonly", "true");
     cell(LABOUR, "cost_category").focus();
     await userEvent.keyboard("{Enter}M");
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
-  it("shows a role it could not read as unknown, never as an empty cell, and offers no entry for it", async () => {
+  it("shows a deactivated role a line bears by the label the server gives, never as unknown, though the list does not hold it, and offers no entry for it", async () => {
+    serve();
+    // The list of the roles as the page reads it, the active ones alone (WF-REF-0150); the line
+    // bears a deactivated one, which the server names (#305).
+    const reference = estimateReference();
+    const read = structuredClone(estimate);
+    const labour = read.items[LABOUR]?.estimate_line;
+    if (labour !== undefined && labour !== null) {
+      labour.resource_role_id = AUTOMATION_ENGINEER;
+      labour.resource_role_label = "Automaticien";
+      labour.uses_inactive_object = true;
+    }
+    render(
+      grid(
+        "fr",
+        read,
+        true,
+        true,
+        NO_QUERY,
+        {},
+        {
+          ...reference,
+          roles: reference.roles?.filter((role) => role.active),
+        },
+      ),
+    );
+    expect(cell(LABOUR, "resource_role")).toHaveTextContent(/^Automaticien$/);
+    expect(cell(LABOUR, "resource_role")).toHaveAttribute("aria-readonly", "true");
+    cell(LABOUR, "resource_role").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
+  it("shows a role by the label the server gives when the list could not be read, and offers no entry for it", async () => {
     serve();
     // The API refused the list of the roles (#195, #198): the line of labour bears one all the same.
     render(
       grid("fr", estimate, true, true, NO_QUERY, {}, { ...estimateReference(), roles: undefined }),
     );
-    expect(cell(LABOUR, "resource_role")).toHaveTextContent("Référence inconnue");
+    expect(cell(LABOUR, "resource_role")).toHaveTextContent(/^Ingénieur électricien$/);
     expect(cell(LABOUR, "resource_role")).toHaveAttribute("aria-readonly", "true");
     // A line that bears no role shows none.
     expect(cell(DISBURSEMENT, "resource_role")).toHaveTextContent(/^$/);
@@ -337,7 +372,7 @@ describe("the keyboard of a grid", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
-  it("shows a category it could not read as unknown, never as an empty cell, and offers no entry for it", async () => {
+  it("shows a category by the label the server gives when the list could not be read, and offers no entry for it", async () => {
     serve();
     render(
       grid(
@@ -350,7 +385,7 @@ describe("the keyboard of a grid", () => {
         { ...estimateReference(), categories: undefined },
       ),
     );
-    expect(cell(LABOUR, "cost_category")).toHaveTextContent("Référence inconnue");
+    expect(cell(LABOUR, "cost_category")).toHaveTextContent(/^Ingénierie électrique$/);
     expect(cell(LABOUR, "cost_category")).toHaveAttribute("aria-readonly", "true");
     // A task bears no category: it shows none.
     expect(cell(TASK_ROW, "cost_category")).toHaveTextContent(/^$/);
@@ -725,15 +760,18 @@ describe("what a write answers besides the row written", () => {
       "12,5",
       "",
       "2\u202f734,56",
-      "",
+      "2\u202f734,56",
     ]);
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
-    // The amount of each summary follows that of its subordinates, as the server answers it.
+    // The amounts of each summary follow those of its subordinates, as the server answers them,
+    // at the year of reference and corrected for inflation.
     await vi.waitFor(() => {
-      expect(cell(0, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+      expect(cell(0, "base_amount")).toHaveTextContent(/2\s854,56$/);
     });
-    expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(0, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(TASK_ROW, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals().slice(1)).toEqual([
       "Total — 3 tâches, 3 lignes",
       "",
@@ -742,7 +780,7 @@ describe("what a write answers besides the row written", () => {
       "14",
       "",
       "2\u202f854,56",
-      "",
+      "2\u202f854,56",
     ]);
   });
 
@@ -757,7 +795,7 @@ describe("what a write answers besides the row written", () => {
     await vi.waitFor(() => {
       expect(totals()[1]).toBe("Total — 3 tâches, 1 ligne");
     });
-    expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals()[5]).toBe("0");
     expect(totals()[7]).toBe("100\u202f000,00");
     // The same search, after the write, each node asked by its identifier alone.
@@ -809,7 +847,7 @@ describe("what a write answers besides the row written", () => {
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent("Vous devez vous connecter.");
-    expect(cell(TASK_ROW, "reestimated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals()[5]).toBe("12,5");
   });
 

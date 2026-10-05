@@ -220,8 +220,8 @@ champs calculés, numéro, niveau, nature, libellé) et ceux de ses colonnes, qu
 configuration (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). La page les demande à `listNodes`
 (`fields`, `nodeFieldNames` : un champ d'une facette sous son nom, `task.label`) et les projette
 encore (`projectNodes`) : un serveur peut rendre plus qu'on ne lui demande — le faux back rend
-son exemple entier —, et les six mille nœuds entiers pèsent quatre mégaoctets dans la page,
-projetés, environ la moitié ; la lecture de l'écran (`readGridScreen`) ne rend que les lignes
+son exemple entier —, et les six mille nœuds entiers pèsent six mégaoctets et demi dans la page,
+projetés, de quarante-cinq à soixante pour cent ; la lecture de l'écran (`readGridScreen`) ne rend que les lignes
 projetées et les totaux, jamais la réponse entière. Une colonne qui lit un champ nouveau l'ajoute à cette liste : le
 typage de la ligne le demande, et `projection.test.tsx` vérifie que la grille lit la même chose
 de la ligne projetée que du nœud entier, et que la page demande ce qu'elle projette. Le calculé
@@ -249,7 +249,15 @@ premier écran. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
 `estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
 lecture de la structure principale (`grid-screen.ts`) ; le planning demande au serveur les
-seules tâches (`kinds=task`). Le mode de planification et l'avancement s'y montrent par une
+seules tâches (`kinds=task`). Le devis présente, d'une ligne comme d'une tâche, récapitulative
+comprise, et en total, le montant à l'année de référence (`base_amount`) et le montant corrigé de
+l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il
+nomme la catégorie et le rôle d'une ligne par les libellés que le serveur résout, l'objet actif ou
+désactivé (`cost_category_label`, `resource_role_label`, #305) — les listes du référentiel ne
+servent qu'au choix d'une saisie, offerte seulement sur un objet qu'elles connaissent. Ce qu'une
+écriture rend se lit comme la grille le lit (`nodesWritten`) : les nœuds écrits et leurs ancêtres
+entiers, des tâches redatées la part de leur calendrier qu'elle montre (`rescheduled`), des lignes
+déplacées dans le temps la part de leurs montants qu'elle montre (`reinflated`). Le mode de planification et l'avancement s'y montrent par une
 icône nommée, le chemin critique par une icône et le gras sur la marge, jamais par la seule
 couleur ; une date se montre dans sa forme courte. Le tri et la
 recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`, `search`,

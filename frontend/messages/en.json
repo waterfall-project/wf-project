@@ -169,7 +169,6 @@
       "lastMarkedAt": "Last marked revision"
     },
     "computed": "Computed",
-    "unknown": "Unknown reference",
     "entry": {
       "none": "None",
       "notANumber": "This is not a number: enter it as {example}.",
@@ -1536,6 +1535,7 @@
       "subproject": "Subproject",
       "payment_delay_days": "Payment delay",
       "consumption_year": "Consumption year",
+      "base_amount": "Amount at the reference year",
       "budgeted_amount": "Budgeted amount",
       "reestimated_amount": "Re-estimated amount",
       "inflated_amount": "Inflation-corrected amount",
@@ -1549,13 +1549,16 @@
         "progress": "Progress of the task",
         "physical_progress": "Physical progress of the task",
         "total_float": "Total float of the task",
+        "base_amount": "Amount at the reference year of the task",
         "budgeted_amount": "Budgeted amount of the task",
-        "reestimated_amount": "Re-estimated amount of the task"
+        "reestimated_amount": "Re-estimated amount of the task",
+        "inflated_amount": "Inflation-corrected amount of the task"
       },
       "estimate_line": {
         "quantity": "Quantity of the line",
         "hours": "Effort of the line",
         "unit_disbursement": "Unit disbursement of the line",
+        "base_amount": "Amount at the reference year of the line",
         "budgeted_amount": "Budgeted amount of the line",
         "reestimated_amount": "Re-estimated amount of the line",
         "previous_reestimated_amount": "Previous re-estimated amount of the line",
@@ -1568,7 +1571,7 @@
       "scheduling": "A task in automatic mode takes its dates from its duration, its links and the calendar.",
       "float_dates": "The total float of a task is the gap between its earliest and latest dates.",
       "manual_mode": "A task in manual mode bears no float.",
-      "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year, projected onto its year of consumption.",
+      "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year.",
       "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement, projected onto its year of consumption.",
       "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",

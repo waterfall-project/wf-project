@@ -189,10 +189,10 @@ test("asks the server for the sort of a column clicked, both ways, by the parame
   const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
   await expect(header).not.toHaveAttribute("aria-sort");
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=reestimated_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`);
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=reestimated_amount&sort_order=desc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=desc`);
   await expect(header).toHaveAttribute("aria-sort", "descending");
   await expect(grid(page)).toHaveAttribute("aria-busy", "false");
   // The rows are those of the answer, in its order: the fake back serves the same example
@@ -219,7 +219,7 @@ test("shows the sort asked without waiting for the server actions of the page, i
   await page.goto(GRID);
   const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=reestimated_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`);
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
 });
@@ -251,7 +251,7 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
   await retotal;
   const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?search=revue&sort_by=reestimated_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${GRID}?search=revue&sort_by=base_amount&sort_order=asc`);
   await expect(header).toHaveAttribute("aria-sort", "ascending");
 });
 

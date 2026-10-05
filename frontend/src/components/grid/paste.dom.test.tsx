@@ -122,7 +122,7 @@ function labels(): string[] {
 
 /** The amounts at the year of reference of rows, by their index, without the mark Σ. */
 function amounts(rows: readonly number[]): string[] {
-  return rows.map((row) => cell(row, "reestimated_amount").textContent.replace(/^Calculé/, ""));
+  return rows.map((row) => cell(row, "base_amount").textContent.replace(/^Calculé/, ""));
 }
 
 /** The total amount at the year of reference, at the foot of the grid. */
@@ -194,7 +194,7 @@ describe("a block pasted from a spreadsheet", () => {
       "Matériel de câblage",
     ]);
     expect(cell(FIRST + 2, "quantity")).toHaveTextContent("24");
-    expect(cell(FIRST + 2, "reestimated_amount")).toHaveTextContent(/^25\s985,28/);
+    expect(cell(FIRST + 2, "base_amount")).toHaveTextContent(/^25\s985,28/);
     expect(cell(FIRST + 2, "inflated_amount")).toHaveTextContent(/^25\s985,28/);
     // The tasks above them, recalculated, and the totals of the structure, as the server answered.
     expect(amounts([0, 1, 2])).toEqual([
@@ -258,10 +258,10 @@ describe("a block pasted from a spreadsheet", () => {
   it("wider than the grid from its cell is refused, saying so, and nothing is asked [WF-IHM-0050-A]", async () => {
     const client = serve();
     renderGrid();
-    // Fourteen columns from the label, where a line has thirteen in the contract (#223). The
+    // Fifteen columns from the label, where a line has fourteen in the contract (#223). The
     // browser aims the event at the text of the cell a click left the caret in, the cell keeping
     // the focus.
-    const wide = BLOCK.map((row) => [...row, ...Array.from({ length: 10 }, () => "")]);
+    const wide = BLOCK.map((row) => [...row, ...Array.from({ length: 11 }, () => "")]);
     const label = cell(FIRST, "label");
     label.focus();
     const text = label.querySelector(".truncate") ?? label;
@@ -269,7 +269,7 @@ describe("a block pasted from a spreadsheet", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Les données collées ont plus de colonnes que la grille.");
     expect(alert).toHaveTextContent(
-      "La grille accepte au plus 13 colonnes à partir de cette cellule.",
+      "La grille accepte au plus 14 colonnes à partir de cette cellule.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
