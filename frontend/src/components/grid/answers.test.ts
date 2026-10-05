@@ -18,8 +18,11 @@ const REVIEW = "01926f3a-7c00-7000-8000-000000000524";
 const ACCEPTANCE = "01926f3a-7c00-7000-8000-000000000525";
 const DESIGN_FILE = "01926f3a-7c00-7000-8000-000000000526";
 const SUMMARY = "01926f3a-7c00-7000-8000-000000000521";
-// The disbursement line of the witness estimate.
+// A task of the witness estimate, and the labour, disbursement and provision lines it bears.
+const TASK = "01926f3a-7c00-7000-8000-000000000522";
+const LABOUR = "01926f3a-7c00-7000-8000-000000000523";
 const DISBURSEMENT = "01926f3a-7c00-7000-8000-000000000524";
+const PROVISION = "01926f3a-7c00-7000-8000-000000000525";
 
 /** The rows of the witness planning, as the grid of the planning reads them. */
 const rows = projectNodes(planning, PLANNING_FIELDS).items;
@@ -63,23 +66,38 @@ describe("what a write answers, as a grid reads it", () => {
     expect(written.totals).toBeUndefined();
   });
 
-  // A write that moves a line in time without writing it: the hours of the labour line of the
-  // witness estimate written, its task taken two years later, the disbursement line beside it
-  // corrected anew — 1 234,56 at 3 % a year over two years — on the year it is now consumed.
+  // A write that moves a task in time without writing it — a link written in the planning that
+  // takes « Câblage des armoires » of the witness estimate two years later, its summary
+  // recalculated whole aside —: its three lines corrected anew on the year they are now consumed,
+  // at 3 % a year over two years, and the task itself, which sums them (#235).
   const moved: NodesWritten = {
     ...(example("estimate_line_updated") as NodesWritten),
-    reinflated: [{ node_id: DISBURSEMENT, inflated_amount: "1309.74", consumption_year: 2028 }],
+    nodes: [],
+    ancestors: [],
+    reinflated: [
+      { node_id: TASK, inflated_amount: "2901.09", consumption_year: null },
+      { node_id: LABOUR, inflated_amount: "1060.90", consumption_year: 2028 },
+      { node_id: DISBURSEMENT, inflated_amount: "1309.74", consumption_year: 2028 },
+      { node_id: PROVISION, inflated_amount: "530.45", consumption_year: 2028 },
+    ],
   };
 
-  it("lays the amounts the server answered over a line a write moved in time, the rest of it as it was [WF-DEV-0050-A]", () => {
-    const lines = projectNodes(example("nodes_estimate") as NodeList, ESTIMATE_FIELDS).items;
-    const before = lines.find((node) => node.node_id === DISBURSEMENT);
+  it("lays the amounts the server answered over the lines and the task a write moved in time, the rest of each as it was [WF-DEV-0050-A]", () => {
+    const shown = projectNodes(example("nodes_estimate") as NodeList, ESTIMATE_FIELDS).items;
+    const before = (id: string) => shown.find((node) => node.node_id === id);
     const written = nodesWritten(moved, ESTIMATE_FIELDS, true);
-    expect(written.parts.map((part) => part.key)).toEqual([DISBURSEMENT]);
-    const after = before === undefined ? undefined : written.parts[0]?.change(before);
-    expect(after).toEqual({
-      ...before,
-      estimate_line: { ...before?.estimate_line, inflated_amount: "1309.74" },
+    expect(written.parts.map((part) => part.key)).toEqual([TASK, LABOUR, DISBURSEMENT, PROVISION]);
+    const after = (index: number, id: string) => {
+      const row = before(id);
+      return row === undefined ? undefined : written.parts[index]?.change(row);
+    };
+    expect(after(0, TASK)).toEqual({
+      ...before(TASK),
+      task: { ...before(TASK)?.task, inflated_amount: "2901.09" },
+    });
+    expect(after(2, DISBURSEMENT)).toEqual({
+      ...before(DISBURSEMENT),
+      estimate_line: { ...before(DISBURSEMENT)?.estimate_line, inflated_amount: "1309.74" },
     });
   });
 

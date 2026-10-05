@@ -257,7 +257,8 @@ désactivé (`cost_category_label`, `resource_role_label`, #305) — les listes 
 servent qu'au choix d'une saisie, offerte seulement sur un objet qu'elles connaissent. Ce qu'une
 écriture rend se lit comme la grille le lit (`nodesWritten`) : les nœuds écrits et leurs ancêtres
 entiers, des tâches redatées la part de leur calendrier qu'elle montre (`rescheduled`), des lignes
-déplacées dans le temps la part de leurs montants qu'elle montre (`reinflated`). Le mode de planification et l'avancement s'y montrent par une
+et des tâches déplacées dans le temps la part de leurs montants qu'elle montre (`reinflated`).
+Le mode de planification et l'avancement s'y montrent par une
 icône nommée, le chemin critique par une icône et le gras sur la marge, jamais par la seule
 couleur ; une date se montre dans sa forme courte. Le tri et la
 recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`, `search`,

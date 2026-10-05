@@ -10,7 +10,7 @@
  * settings the session read. A computed cell asks the server what its value depends on, by the
  * structure and its node; a cell entered is written by the structure and its node too; a block
  * pasted, by the structure and the version read of it. What a write answers — the nodes written,
- * the ancestors recalculated, the tasks rescheduled, the lines moved in time, the totals of the
+ * the ancestors recalculated, the tasks rescheduled, the lines and tasks moved in time, the totals of the
  * structure — is read as the
  * grid reads it (`nodesWritten`, #218), the totals taken only by a grid read without a search nor
  * a filter, whose totals are those of the structure; a grid read with either reads its own anew by

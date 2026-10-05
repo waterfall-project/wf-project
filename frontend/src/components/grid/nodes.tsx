@@ -242,27 +242,37 @@ function rescheduled<
  */
 const INFLATION = ["inflated_amount", "consumption_year"] as const;
 
+/** The field of a task, not a summary, a write may move in time without writing it. */
+const TASK_INFLATION = ["inflated_amount"] as const;
+
 /**
- * A row a write moved in time: the fields of its amounts the grid reads, as the server answered
- * them, the others as they were — a grid that shows no amount takes nothing of it.
+ * A row a write moved in time — a line, or a task its lines moved —: the fields of its amounts the
+ * grid reads, as the server answered them, the others as they were — a grid that shows no amount
+ * takes nothing of it.
  */
 function reinflated<
   N extends NodeField,
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
 >(row: NodeRow<N, T, L>, inflation: NodeInflation): NodeRow<N, T, L> {
-  const { estimate_line: line } = row;
-  if (line === undefined || line === null) {
-    return row;
+  const { task, estimate_line: line } = row;
+  if (line !== undefined && line !== null) {
+    const read = INFLATION.filter((field) => field in line);
+    return read.length === 0
+      ? row
+      : { ...row, estimate_line: { ...line, ...pick(inflation, read) } };
   }
-  const read = INFLATION.filter((field) => field in line);
-  return read.length === 0 ? row : { ...row, estimate_line: { ...line, ...pick(inflation, read) } };
+  if (task !== undefined && task !== null) {
+    const read = TASK_INFLATION.filter((field) => field in task);
+    return read.length === 0 ? row : { ...row, task: { ...task, ...pick(inflation, read) } };
+  }
+  return row;
 }
 
 /**
  * What a write of a grid answered, as the grid reads it (#218): the nodes written, each ancestor
  * recalculated whole, each task rescheduled by the part of its schedule the grid reads — none for
- * a grid that reads no date —, each line moved in time by the part of its amounts the grid reads —
+ * a grid that reads no date —, each line or task moved in time by the part of its amounts the grid reads —
  * none for a grid that reads none (#235) —, the totals of the structure when the grid reads it
  * whole — a filtered grid reads its own anew (`GridConfig.retotal`) —, in the order of the version
  * the structure moved on to, which each write moves on.
@@ -279,7 +289,7 @@ export function nodesWritten<
   const schedule = new Set<string>(SCHEDULE);
   const dated = fields.task.some((field) => schedule.has(field));
   const inflation = new Set<string>(INFLATION);
-  const priced = fields.line.some((field) => inflation.has(field));
+  const priced = [...fields.line, ...fields.task].some((field) => inflation.has(field));
   return {
     rows: written.nodes.map((node) => projectNode(node, fields)),
     changed: written.ancestors.map((node) => projectNode(node, fields)),
