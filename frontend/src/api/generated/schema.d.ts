@@ -1659,7 +1659,7 @@ export interface paths {
         post?: never;
         /**
          * Supprimer un nœud
-         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une écriture de grille comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110). Les liaisons emportées peuvent redater les successeurs de la tâche et déplacer le chemin critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020, WF-PLA-0100), et leurs lignes dans `reinflated` (WF-DEV-0040).
+         * @description La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090). Refusée sur une tâche portant un coût réel ou déjà démarrée, selon WF-PLA-0070. Une écriture de grille comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon compteur (WF-IHM-0110). Les liaisons emportées peuvent redater les successeurs de la tâche et déplacer le chemin critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020, WF-PLA-0100), et leurs montants corrigés dans `reinflated` (WF-DEV-0040).
          */
         delete: operations["deleteNode"];
         options?: never;
@@ -1722,7 +1722,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier la facette argent d'une ligne de devis
-         * @description Les montants sont calculés et non saisissables : celui à l'année de référence par la ligne, le budgété par la référence, le réestimé par les revues, le corrigé de l'inflation par l'année de consommation (WF-DEV-0020, WF-DEV-0030, WF-DEV-0040). Une ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010) : les autres lignes qu'elle porte sont rendues dans `reinflated`.
+         * @description Les montants sont calculés et non saisissables : celui à l'année de référence par la ligne, le budgété par la référence, le réestimé par les revues, le corrigé de l'inflation par l'année de consommation (WF-DEV-0020, WF-DEV-0030, WF-DEV-0040). Une ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010) : les autres lignes qu'elle porte, et ses successeurs redatés, sont rendus dans `reinflated` avec leur montant corrigé.
          */
         patch: operations["updateEstimateLine"];
         trace?: never;
@@ -1818,7 +1818,7 @@ export interface paths {
         put?: never;
         /**
          * Déplacer des nœuds dans l'arbre
-         * @description Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont rendues dans `rescheduled` (WF-PLA-0020), et leurs lignes dans `reinflated` (WF-DEV-0040).
+         * @description Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated` (WF-DEV-0040).
          */
         post: operations["moveNodes"];
         delete?: never;
@@ -3670,23 +3670,23 @@ export interface components {
             /** @description Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`. */
             finish_overdue: boolean;
         };
-        /** @description Les montants d'une ligne de devis qu'une écriture a déplacée dans le temps sans l'écrire (`NodesWritten.reinflated`) : ceux qui dépendent des dates de sa tâche, sous la forme des champs de même nom de la facette argent (`EstimateLineFacet`), que la grille de devis présente (WF-DEV-0040, WF-DEV-0050). */
+        /** @description Les montants d'une ligne de devis ou d'une tâche non récapitulative qu'une écriture a déplacée dans le temps sans l'écrire (`NodesWritten.reinflated`) : ceux qui dépendent des dates, sous la forme des champs de même nom de sa facette (`EstimateLineFacet`, `TaskFacet`), que la grille de devis présente (WF-DEV-0040, WF-DEV-0050). */
         NodeInflation: {
             node_id: components["schemas"]["Uuid"];
-            /** @description Le montant corrigé de l'inflation, comme `EstimateLineFacet.inflated_amount`. */
+            /** @description Le montant corrigé de l'inflation, comme `EstimateLineFacet.inflated_amount` pour une ligne et `TaskFacet.inflated_amount` pour une tâche — la somme de ses lignes. */
             inflated_amount: components["schemas"]["Money"];
-            /** @description L'année de consommation, comme `EstimateLineFacet.consumption_year`. */
+            /** @description L'année de consommation d'une ligne, comme `EstimateLineFacet.consumption_year` ; nulle pour une tâche, dont la facette n'en porte pas. */
             consumption_year: components["schemas"]["Year"] | null;
         };
-        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que l'écriture a redatées, le montant corrigé des autres lignes qu'elle a déplacées dans le temps, les récapitulatives recalculées au-dessus des uns et des autres, et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
+        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que l'écriture a redatées, le montant corrigé des autres lignes et tâches qu'elle a déplacées dans le temps, les récapitulatives recalculées au-dessus des uns et des autres, et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
         NodesWritten: {
             /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre. */
             nodes: components["schemas"]["Node"][];
             /** @description Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`) — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. */
             ancestors: components["schemas"]["Node"][];
-            /** @description Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Les montants qui dépendent des dates n'y sont pas : ceux des lignes sont dans `reinflated`. */
+            /** @description Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Les montants qui dépendent des dates n'y sont pas : ils sont dans `reinflated`. */
             rescheduled: components["schemas"]["NodeSchedule"][];
-            /** @description Les lignes de devis dont l'année de consommation ou le montant corrigé de l'inflation ont changé par l'écriture sans être écrites — les lignes d'une tâche écrite ou redatée, dont les dates ont bougé : un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010, WF-DEV-0040) —, chacune une fois, dans l'ordre du plan ; vide quand aucune n'a bougé. Une projection de leurs montants, non le nœud entier, comme `rescheduled` : leur montant à l'année de référence ne dépend pas des dates et ne change pas. */
+            /** @description Chaque nœud dont le montant corrigé de l'inflation, ou l'année de consommation d'une ligne, a changé par l'écriture sans qu'il soit écrit : les lignes de devis d'une tâche écrite ou redatée, dont les dates ont bougé — un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010, WF-DEV-0040) —, et les tâches non récapitulatives dont ces lignes changent le montant corrigé, redatées (`rescheduled`) ou non, hors celles que `ancestors` rend entières. Les récapitulatives restent dans `ancestors`. Chacun une fois, dans l'ordre du plan ; vide quand aucun n'a bougé. Une projection de leurs montants, non le nœud entier, comme `rescheduled` : le montant à l'année de référence ne dépend pas des dates et ne change pas. */
             reinflated: components["schemas"]["NodeInflation"][];
             /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
             totals: components["schemas"]["NodeTotals"];
