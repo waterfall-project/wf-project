@@ -9,7 +9,7 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 
-import type { GridColumn, GridTree, RowsWritten } from "./columns";
+import type { GridColumn, GridTree, RowPart, RowsWritten } from "./columns";
 import { rowNature, RowNatureIcon } from "./row-nature";
 
 /** A node of a structure, as the API reads it. */
@@ -31,16 +31,16 @@ export type LineField = keyof EstimateLineFacet;
 export type NodeTotals = components["schemas"]["NodeTotals"];
 
 /**
- * What the API answers a write of a grid with: the nodes written, the tasks it rescheduled and the
- * lines it moved in time, the ancestors of all recalculated, the totals of the structure and the
- * version it moved on to.
+ * What the API answers a write of a grid with: the nodes written, the tasks it rescheduled, the
+ * lines and the tasks it moved in time, the ancestors of all recalculated, the totals of the
+ * structure and the version it moved on to.
  */
 export type NodesWritten = components["schemas"]["NodesWritten"];
 
 /** The schedule of a task a write rescheduled without writing it. */
 type NodeSchedule = components["schemas"]["NodeSchedule"];
 
-/** The amounts of a line a write moved in time without writing it. */
+/** The amounts of a line, or of a task, a write moved in time without writing it. */
 type NodeInflation = components["schemas"]["NodeInflation"];
 
 /** A column of a grid of a structure, as the contract names it. */
@@ -270,6 +270,19 @@ function reinflated<
 }
 
 /**
+ * The parts of rows a write answered, one by row: those of a same row — a task both rescheduled and
+ * moved in time — laid one over the other, each setting its own fields.
+ */
+function composed<Row>(parts: readonly RowPart<Row>[]): RowPart<Row>[] {
+  const byKey = new Map<string, RowPart<Row>["change"]>();
+  for (const { key, change } of parts) {
+    const before = byKey.get(key);
+    byKey.set(key, before === undefined ? change : (row) => change(before(row)));
+  }
+  return [...byKey].map(([key, change]) => ({ key, change }));
+}
+
+/**
  * What a write of a grid answered, as the grid reads it (#218): the nodes written, each ancestor
  * recalculated whole, each task rescheduled by the part of its schedule the grid reads — none for
  * a grid that reads no date —, each line or task moved in time by the part of its amounts the grid reads —
@@ -293,7 +306,7 @@ export function nodesWritten<
   return {
     rows: written.nodes.map((node) => projectNode(node, fields)),
     changed: written.ancestors.map((node) => projectNode(node, fields)),
-    parts: [
+    parts: composed([
       ...(dated
         ? written.rescheduled.map((schedule) => ({
             key: schedule.node_id,
@@ -306,7 +319,7 @@ export function nodesWritten<
             change: (row: NodeRow<N, T, L>) => reinflated(row, amounts),
           }))
         : []),
-    ],
+    ]),
     totals: whole ? written.totals : undefined,
     order: written.structure_lock_version,
   };

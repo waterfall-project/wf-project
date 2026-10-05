@@ -21,7 +21,7 @@ import { estimateReference } from "@/test/reference";
 
 import type { EstimateReference } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
-import type { NodeFilters, NodeList, NodeSortColumn } from "./nodes";
+import type { NodeFilters, NodeList, NodesWritten, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
@@ -326,8 +326,8 @@ describe("the keyboard of a grid", () => {
 
   it("shows a deactivated role a line bears by the label the server gives, never as unknown, though the list does not hold it, and offers no entry for it", async () => {
     serve();
-    // The list of the roles as the page reads it, the active ones alone (WF-REF-0150); the line
-    // bears a deactivated one, which the server names (#305).
+    // A list of the roles that does not hold the deactivated one the line bears, which the server
+    // names (#305).
     const reference = estimateReference();
     const read = structuredClone(estimate);
     const labour = read.items[LABOUR]?.estimate_line;
@@ -749,6 +749,42 @@ describe("a write the server answers otherwise", () => {
 });
 
 describe("what a write answers besides the row written", () => {
+  it("shows the amounts corrected for inflation the server answered for a line and a task the write moved in time without writing them, their amounts at the year of reference unchanged", async () => {
+    // The first fifteen rows of the volume: the task « Conception 1.1.2 », row 9, and its five
+    // lines, rows 10 to 14, after the line of labour written, row 4.
+    const volume = example("volume/nodes_thousand") as NodeList;
+    const read: NodeList = { ...volume, items: volume.items.slice(0, 15) };
+    // The write answers as if it had moved « Conception 1.1.2 » into 2027, the year after the
+    // year of reference: its lines corrected anew at 3 %, and the task, which sums them.
+    const id = (row: number) => read.items[row - 1]?.node_id ?? "";
+    const reinflated: NodesWritten["reinflated"] = [
+      { node_id: id(9), inflated_amount: "25702.33", consumption_year: null },
+      { node_id: id(10), inflated_amount: "5603.20", consumption_year: 2027 },
+      { node_id: id(11), inflated_amount: "4094.25", consumption_year: 2027 },
+      { node_id: id(12), inflated_amount: "5538.27", consumption_year: 2027 },
+      { node_id: id(13), inflated_amount: "8530.21", consumption_year: 2027 },
+      { node_id: id(14), inflated_amount: "1936.40", consumption_year: 2027 },
+    ];
+    server.client = fakeClient(
+      { [LINE]: "estimate_line_entered" },
+      {
+        amend: (route, value) =>
+          route === LINE ? { ...(value as NodesWritten), reinflated } : value,
+      },
+    );
+    render(grid("fr", read));
+    expect(cell(8, "inflated_amount")).toHaveTextContent(/24\s953,72$/);
+    cell(3, "hours").focus();
+    await userEvent.keyboard("14{Enter}");
+    await vi.waitFor(() => {
+      expect(cell(8, "inflated_amount")).toHaveTextContent(/25\s702,33$/);
+    });
+    expect(cell(9, "inflated_amount")).toHaveTextContent(/5\s603,20$/);
+    // Their amounts at the year of reference do not depend on the dates: as read.
+    expect(cell(8, "base_amount")).toHaveTextContent(/24\s953,72$/);
+    expect(cell(9, "base_amount")).toHaveTextContent(/5\s440,00$/);
+  });
+
   it("shows the amounts the server recalculated on the tasks above it, and the totals of the structure, summing nothing [WF-DEV-0050-A]", async () => {
     serve();
     render(grid());

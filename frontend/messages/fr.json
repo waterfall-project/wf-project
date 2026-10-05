@@ -1572,7 +1572,7 @@
       "float_dates": "La marge totale d’une tâche est l’écart entre ses dates au plus tôt et au plus tard.",
       "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
       "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
-      "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
+      "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire.",
       "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",

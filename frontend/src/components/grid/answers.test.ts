@@ -6,7 +6,14 @@ import { example } from "@/test/fixtures";
 
 import { answersOf, shownRow, take } from "./answers";
 import { ESTIMATE_FIELDS } from "./estimate";
-import { type NodeList, type NodesWritten, nodeKey, nodesWritten, projectNodes } from "./nodes";
+import {
+  type AnyNodeFields,
+  type NodeList,
+  type NodesWritten,
+  nodeKey,
+  nodesWritten,
+  projectNodes,
+} from "./nodes";
 import { PLANNING_FIELDS, type PlanningNode } from "./planning";
 
 // The witness planning, and the link that reschedules two of its tasks (`predecessor_set`): the
@@ -68,41 +75,101 @@ describe("what a write answers, as a grid reads it", () => {
 
   // A write that moves a task in time without writing it — a link written in the planning that
   // takes « Câblage des armoires » of the witness estimate two years later, its summary
-  // recalculated whole aside —: its three lines corrected anew on the year they are now consumed,
-  // at 3 % a year over two years, and the task itself, which sums them (#235).
+  // recalculated whole aside —: the task rescheduled, its three lines corrected anew on the year
+  // they are now consumed, at 3 % a year over two years, and the task itself, which sums them.
+  const schedule = {
+    node_id: TASK,
+    start: { date: "2028-05-04", hours: "0" },
+    finish: { date: "2028-06-30", hours: "8" },
+    total_float: null,
+    is_critical: false,
+    finish_overdue: false,
+  };
+  const taskAmount = { node_id: TASK, inflated_amount: "2901.09", consumption_year: null };
+  const lineAmounts = [
+    { node_id: LABOUR, inflated_amount: "1060.90", consumption_year: 2028 },
+    { node_id: DISBURSEMENT, inflated_amount: "1309.74", consumption_year: 2028 },
+    { node_id: PROVISION, inflated_amount: "530.45", consumption_year: 2028 },
+  ];
   const moved: NodesWritten = {
     ...(example("estimate_line_updated") as NodesWritten),
     nodes: [],
     ancestors: [],
-    reinflated: [
-      { node_id: TASK, inflated_amount: "2901.09", consumption_year: null },
-      { node_id: LABOUR, inflated_amount: "1060.90", consumption_year: 2028 },
-      { node_id: DISBURSEMENT, inflated_amount: "1309.74", consumption_year: 2028 },
-      { node_id: PROVISION, inflated_amount: "530.45", consumption_year: 2028 },
-    ],
+    rescheduled: [schedule],
+    reinflated: [taskAmount, ...lineAmounts],
   };
+  /** The witness estimate, as the grid of the estimate reads it. */
+  const estimateRows = projectNodes(example("nodes_estimate") as NodeList, ESTIMATE_FIELDS).items;
 
-  it("lays the amounts the server answered over the lines and the task a write moved in time, the rest of each as it was [WF-DEV-0050-A]", () => {
-    const shown = projectNodes(example("nodes_estimate") as NodeList, ESTIMATE_FIELDS).items;
-    const before = (id: string) => shown.find((node) => node.node_id === id);
+  it("lays the amounts the server answered over the lines and the task a write moved in time, the rest of each as it was", () => {
     const written = nodesWritten(moved, ESTIMATE_FIELDS, true);
+    // The grid of the estimate reads no date: the schedule of the task is not laid.
     expect(written.parts.map((part) => part.key)).toEqual([TASK, LABOUR, DISBURSEMENT, PROVISION]);
-    const after = (index: number, id: string) => {
-      const row = before(id);
-      return row === undefined ? undefined : written.parts[index]?.change(row);
-    };
-    expect(after(0, TASK)).toEqual({
-      ...before(TASK),
-      task: { ...before(TASK)?.task, inflated_amount: "2901.09" },
-    });
-    expect(after(2, DISBURSEMENT)).toEqual({
-      ...before(DISBURSEMENT),
-      estimate_line: { ...before(DISBURSEMENT)?.estimate_line, inflated_amount: "1309.74" },
-    });
+    const amounts = new Map(moved.reinflated.map((each) => [each.node_id, each.inflated_amount]));
+    for (const part of written.parts) {
+      const before = estimateRows.find((node) => node.node_id === part.key);
+      if (before === undefined) {
+        throw new Error(`no node ${part.key} in the witness estimate`);
+      }
+      const inflated_amount = amounts.get(part.key);
+      expect(part.change(before)).toEqual(
+        before.task === undefined || before.task === null
+          ? { ...before, estimate_line: { ...before.estimate_line, inflated_amount } }
+          : { ...before, task: { ...before.task, inflated_amount } },
+      );
+    }
   });
 
   it("gives no amounts to a grid that reads none", () => {
-    expect(nodesWritten(moved, PLANNING_FIELDS, true).parts).toEqual([]);
+    const parts = nodesWritten(moved, PLANNING_FIELDS, true).parts;
+    expect(parts.map((part) => part.key)).toEqual([TASK]);
+  });
+
+  // A grid that reads both the schedule of a task and its amount corrected for inflation.
+  const BOTH = {
+    node: [],
+    task: ["start", "finish", "inflated_amount"],
+    line: ["inflated_amount"],
+  } as const satisfies AnyNodeFields;
+  const bothRows = projectNodes(example("nodes_estimate") as NodeList, BOTH).items;
+  const shownTask = (answers: ReturnType<typeof answersOf<(typeof bothRows)[number], unknown>>) =>
+    shownRow(answers, nodeKey, TASK)?.task;
+
+  it("lays both the schedule and the amount of a task one write answers in both lists", () => {
+    const written = nodesWritten(moved, BOTH, true);
+    // One part by row, the schedule and the amount composed.
+    expect(written.parts.map((part) => part.key)).toEqual([TASK, LABOUR, DISBURSEMENT, PROVISION]);
+    const answers = answersOf<(typeof bothRows)[number], unknown>(bothRows);
+    take(answers, written, nodeKey);
+    expect(shownTask(answers)).toMatchObject({
+      start: schedule.start,
+      finish: schedule.finish,
+      inflated_amount: "2901.09",
+    });
+  });
+
+  it("lays both the schedule and the amount of a task two writes answer one after the other, whatever the order they come back in", () => {
+    const dated: NodesWritten = { ...moved, reinflated: [] };
+    const priced: NodesWritten = { ...moved, rescheduled: [], reinflated: [taskAmount] };
+    for (const [first, second] of [
+      [
+        { ...nodesWritten(dated, BOTH, true), order: 2 },
+        { ...nodesWritten(priced, BOTH, true), order: 3 },
+      ],
+      [
+        { ...nodesWritten(priced, BOTH, true), order: 3 },
+        { ...nodesWritten(dated, BOTH, true), order: 2 },
+      ],
+    ] as const) {
+      const answers = answersOf<(typeof bothRows)[number], unknown>(bothRows);
+      take(answers, first, nodeKey);
+      take(answers, second, nodeKey);
+      expect(shownTask(answers)).toMatchObject({
+        start: schedule.start,
+        finish: schedule.finish,
+        inflated_amount: "2901.09",
+      });
+    }
   });
 });
 

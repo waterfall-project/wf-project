@@ -131,6 +131,12 @@ function totalAmount(): string | null | undefined {
   return row?.querySelectorAll("td")[7]?.textContent;
 }
 
+/** The total amount corrected for inflation, at the foot of the grid. */
+function totalInflated(): string | null | undefined {
+  const row = screen.getByRole("grid", { hidden: true }).querySelector("tfoot tr");
+  return row?.querySelectorAll("td")[8]?.textContent;
+}
+
 /** Paste a block on a cell, as the browser hands it at the event `paste`. */
 async function pasteOn(target: HTMLElement, text: string): Promise<void> {
   target.focus();
@@ -203,6 +209,8 @@ describe("a block pasted from a spreadsheet", () => {
       "44\u202f871,01",
     ]);
     expect(totalAmount()).toBe("60\u202f562\u202f283,12");
+    // The total corrected for inflation, as the server answered it: lines of later years in it.
+    expect(totalInflated()).toBe("62\u202f871\u202f529,90");
     expect(screen.queryByRole("alert")).toBeNull();
     await vi.waitFor(() => {
       expect(cell(FIRST, "label")).toHaveFocus();

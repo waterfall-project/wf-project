@@ -1572,7 +1572,7 @@
       "float_dates": "The total float of a task is the gap between its earliest and latest dates.",
       "manual_mode": "A task in manual mode bears no float.",
       "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year.",
-      "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement, projected onto its year of consumption.",
+      "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement.",
       "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
