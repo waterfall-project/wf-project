@@ -54,7 +54,7 @@ export interface Examples {
     200: "projects" | "projects_empty";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_pricing";
+    200: "project" | "project_pricing" | "project_pricing_estimator";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";

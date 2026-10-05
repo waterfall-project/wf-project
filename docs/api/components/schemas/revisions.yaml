@@ -53,12 +53,21 @@ RevisionCommand:
     - mark
     - designate_reference
     - abandon
+    - export_planning
+    - export_estimate
+    - export_remaining
+    - export_task_tree_image
   description: >-
     Commandes portées par la révision : saisir le planning, le devis, le reste à
     engager — une commande par fonction, chacune gardée par sa permission
     (WF-ADM-0100) —, ouvrir et fusionner un différentiel (WF-REV-0050, WF-REV-0100),
     la marquer, la désigner comme référence, l'abandonner (WF-REV-0010, WF-REV-0020,
-    WF-REV-0040).
+    WF-REV-0040) ; en exporter le planning MS Project, le devis, le reste à engager ou
+    l'image de l'arborescence de tâches — une commande par nature d'export
+    (`ExportRequest.kind`), dans l'ordre de l'énumération (WF-INTF-0050, WF-INTF-0110,
+    WF-INTF-0130, WF-PLA-0120). Un export se dit de la révision qu'il lit, marquée
+    comme en cours ; un import, qui écrit dans la révision en cours ou la crée, est une
+    commande du projet (`ProjectCommand`).
 
 RevisionCommandAvailability:
   type: object
@@ -402,7 +411,9 @@ ComputedDependency:
     (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du
     reste à engager (WF-RAE-0040) ; `inflation`, le montant corrigé de l'inflation, du
     montant de la ligne, du taux d'inflation du projet et de son année de consommation
-    (WF-DEV-0040, WF-DEV-0050).
+    (WF-DEV-0040, WF-DEV-0050) ; `own_estimate`, la gravité d'un risque, total de son devis
+    propre, et `severity_and_probability`, sa provision, cette gravité pondérée par sa
+    probabilité (WF-RIS-0010) — que le risque nomme lui-même (`Risk.computed_fields`).
   enum:
     - subordinates
     - lines_and_subordinates
@@ -415,6 +426,8 @@ ComputedDependency:
     - reference_revision
     - remaining_reviews
     - inflation
+    - own_estimate
+    - severity_and_probability
 
 DependencyRow:
   type: object

@@ -776,6 +776,48 @@ coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cas
 avant ses factures, que l'import de janvier apporte au 16 mars — : un décaissement est un `Money`
 signé, comme le coût réel dont il vient.
 
+## Ce que l'écran offre : échanges et dépendances d'un risque (EP-02/L17)
+
+Décisions de l'utilisateur du 2026-10-05, consignées sur #318 et #250.
+
+**Les imports sont des commandes du projet, les exports des commandes de la révision** (#318).
+Seul l'import des coûts réels avait sa commande (`import_actual_costs`) : rien ne disait quand un
+planning, un devis ou un reste à engager s'importe, ni s'il s'importe sans révision en cours, ni
+quand un export est disponible, et l'écran déduisait les uns de la saisie de la révision en cours
+(`edit_*`) et offrait l'autre à qui le lisait. `ProjectCommand` gagne `import_planning`,
+`import_estimate` et `import_remaining`, à côté de `import_actual_costs` : l'import écrit dans la
+révision en cours et la crée quand il n'y en a pas (WF-INTF-0090), il se dit donc du projet, avec
+ou sans révision en cours. Chacune est gardée par sa permission, comme la saisie : un chiffreur
+importe un devis sans pouvoir importer un planning. **Sans révision en cours, l'import exige aussi
+la permission de créer une révision** (`revisions.write`) : la commande est alors listée
+indisponible, la condition `can_create_revision` manquante, plutôt qu'absente — l'utilisateur
+apprend que l'import lui est ouvert dès qu'une révision existe (exemple
+`project_pricing_estimator`). `RevisionCommand` gagne une commande par nature d'export
+(`ExportRequest.kind`) : `export_planning`, `export_estimate`, `export_remaining`,
+`export_task_tree_image` — l'export lit une révision, marquée comme en cours, et reste disponible
+pendant son marquage. Les exemples portent les nouvelles commandes : disponibles sur le projet
+témoin et sur le projet en chiffrage sans révision, indisponibles sur le projet terminé
+(`project_not_terminal`) ; tous les exports sur les révisions lues avec toutes les permissions,
+l'export du devis seul pour le chiffreur (`revision_estimator`), aucun pour `revision_reader`.
+Écartés : une commande `request_export` unique, qui ne dirait pas qu'un chiffreur exporte le
+devis et pas le planning ; les imports sur la révision, qui ne se diraient pas sans révision en
+cours.
+
+**Le risque porte ses dépendances** (`Risk.computed_fields`, #250). WF-IHM-0030 veut que le refus
+d'une saisie sur la gravité ou la provision d'un risque nomme ce dont elles dépendent, et
+`getComputedValueDependencies` ne connaît que les champs d'un nœud. Chaque risque rend, pour sa
+gravité et sa provision, dans cet ordre, les règles qui les calculent : `own_estimate`, la gravité
+total du devis propre, et `severity_and_probability`, la provision cette gravité pondérée par la
+probabilité (WF-RIS-0010), deux codes ajoutés à `ComputedDependency`. Ce sont des constantes,
+légères : aucun appel au refus, et aucune ligne nommée — le devis propre est une structure à part,
+que la grille des risques ne montre pas. Écarté : étendre `getComputedValueDependencies` aux
+risques, un appel de plus pour dire deux phrases fixes.
+
+**Ce qui reste ouvert.** `ExportRequest.revision_id` reste facultatif, la révision prise par le
+serveur quand il est nul : la commande qui dit l'export disponible est celle de la révision lue,
+et le contrat ne dit pas laquelle juge un export demandé sans révision. Les commandes d'un risque
+(`Risk.available_commands`, #244) sont décidées et réalisées avec EP-08.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

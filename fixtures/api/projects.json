@@ -67,6 +67,21 @@
             "command": "exclude_cost_lines",
             "is_available": true,
             "missing_conditions": []
+          },
+          {
+            "command": "import_planning",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "import_estimate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "import_remaining",
+            "is_available": true,
+            "missing_conditions": []
           }
         ],
         "audit": {
@@ -154,6 +169,21 @@
             "missing_conditions": [
               "project_in_progress"
             ]
+          },
+          {
+            "command": "import_planning",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "import_estimate",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "import_remaining",
+            "is_available": true,
+            "missing_conditions": []
           }
         ],
         "audit": {

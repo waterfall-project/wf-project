@@ -1,5 +1,5 @@
 {
-  "summary": "Un projet en chiffrage, sans révision : sa terminaison est indisponible tant qu'il n'est pas en cours.",
+  "summary": "Un projet en chiffrage, sans révision : sa terminaison est indisponible tant qu'il n'est pas en cours ; un planning, un devis, un reste à engager s'y importent, l'import créant la révision (WF-INTF-0090).",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000002",
     "label": "Extension de la ligne d'essais",
@@ -69,6 +69,21 @@
         "missing_conditions": [
           "project_in_progress"
         ]
+      },
+      {
+        "command": "import_planning",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "import_estimate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "import_remaining",
+        "is_available": true,
+        "missing_conditions": []
       }
     ],
     "audit": {
