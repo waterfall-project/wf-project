@@ -501,7 +501,8 @@ fin, sa marge totale, nulle en mode manuel, sa criticité et sa fin dépassée �
 une chaîne de mille tâches reste légère, et le recalcul tient dans la seconde du §4.6.2. Les
 montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation —
 n'y sont pas : ils se lisent dans la grille de devis, écran distinct qui relit la structure à son
-ouverture — EP-02/L16 rend ceux des lignes à part (`reinflated`). L'exemple `predecessor_set` lie la revue de conception du planning témoin au dossier
+ouverture — EP-02/L16 les rend à part, pour les lignes et les tâches non récapitulatives
+(`reinflated`). L'exemple `predecessor_set` lie la revue de conception du planning témoin au dossier
 de conception : la revue, écrite, et la réception des études qui la suit glissent au 29 avril, et
 le dossier, dont les dates ne bougent pas, passe sur le chemin critique. Écartés : des `Node`
 entiers, qui pourraient porter la moitié du plan, facettes de devis comprises ; une relecture de
@@ -788,39 +789,42 @@ tâche (somme de son sous-arbre, récapitulative comprise) et dans `NodeTotals` 
 champ calculé suivent (`NodeColumn.base_amount`, rangé avant les montants budgété et réestimé de
 la grille de reste à engager ; `ComputedValueField` `task.base_amount`, `estimate_line.base_amount`).
 Les montants budgété et réestimé sont, eux aussi, à l'année de référence (sous-décision du même
-jour) : seul `inflated_amount` porte l'inflation, et les descriptions le disent.
+jour) : seul `inflated_amount` porte l'inflation, et les descriptions le disent. La colonne de la grille
+change de clé avec son champ (`reestimated_amount` → `base_amount`) : une largeur, un masquage ou un
+tri gardés sous l'ancienne clé dans les préférences d'affichage ne s'appliquent plus, et la colonne
+revient à son réglage par défaut.
 
 **Le montant corrigé de l'inflation remonte à la tâche et aux totaux** (`TaskFacet.inflated_amount`,
 `NodeTotals.inflated_amount`, `ComputedValueField` `task.inflated_amount`). Une récapitulative et le
 total n'avaient pas de montant corrigé, et la grille montrait une cellule vide ; ils portent la
 somme des montants corrigés de leurs lignes, que le front ne calcule pas.
 
-**Après une écriture qui déplace des lignes dans le temps, leurs montants et ceux de leurs tâches en
-projection légère** (`NodesWritten.reinflated`, `NodeInflation`, exigé). Un rôle changé dans la grille de devis change
-le calendrier de la tâche (WF-PLA-0010), donc ses dates et l'année de consommation de ses autres
-lignes (WF-DEV-0040), dont le montant corrigé serait resté périmé dans la grille même ; une durée
-ou une liaison écrite au planning déplace de même les lignes des tâches qu'elle redate.
-`reinflated` rend ces lignes, ni écrites ni rendues entières, chacune une fois, dans l'ordre du
-plan, vide quand aucune n'a bougé, sur le modèle de `rescheduled` : le nœud, son montant corrigé
-et son année de consommation, sous les noms de la facette — une chaîne de mille tâches et de leurs
-cinq mille lignes reste légère. Le montant à l'année de référence ne dépend pas des dates : il n'y
-est pas. Les exemples rendent tous une liste vide : aucune écriture qu'ils montrent ne change
-l'année d'une ligne de l'univers. En montrer une demanderait une écriture nouvelle qui pousse une
-tâche du volume au-delà d'un changement d'année, avec toute la chaîne qu'elle redate et le chemin
-critique recalculé — un exemple qui ne se tire d'aucun de ceux de l'univers ; les tests du front
-composent la projection sur l'exemple du devis témoin. Les exemples de `getComputedValueDependencies` pour un
-montant, `dependencies_labour` et `dependencies_task_amount`, disent désormais ce dont dépend le
-montant à l'année de référence d'une ligne et d'une tâche — le taux horaire ; les lignes portées —,
-celui dont la grille de devis demande la raison au refus d'une saisie.
+**Après une écriture qui déplace des nœuds dans le temps, leurs montants corrigés en projection
+légère** (`NodesWritten.reinflated`, `NodeInflation`, exigé ; décisions de l'utilisateur du
+2026-10-05). Un rôle changé dans la grille de devis change le calendrier de la tâche
+(WF-PLA-0010), donc ses dates et l'année de consommation de ses autres lignes (WF-DEV-0040) ; une
+durée ou une liaison écrite au planning déplace de même les lignes des tâches qu'elle redate. Leur
+montant corrigé, et celui des tâches non récapitulatives qui les portent — redatées
+(`rescheduled`) ou non —, serait resté périmé dans la grille même. `reinflated` rend chaque nœud
+dont le montant corrigé a changé sans être écrit, lignes et tâches non récapitulatives, hors ceux
+que `ancestors` rend entiers, où restent les récapitulatives ; chacun une fois, dans l'ordre du
+plan, vide quand aucun n'a bougé, sur le modèle de `rescheduled` : le nœud, son montant corrigé et
+l'année de consommation d'une ligne, nulle pour une tâche, dont la facette n'en porte pas — une
+chaîne de mille tâches et de leurs cinq mille lignes reste légère. Une tâche peut ainsi être dans
+`rescheduled` et dans `reinflated` : chaque projection pose ses seuls champs, et la grille les
+compose. Le montant à l'année de référence ne dépend pas des dates : il n'y est pas. Écarté : le
+montant corrigé d'une tâche dans `NodeSchedule`, qui aurait mêlé les montants au calendrier et
+laissé sans projection une tâche dont les lignes bougent sans qu'elle soit redatée. Les exemples
+rendent tous une liste vide : aucune écriture qu'ils montrent ne change l'année d'une ligne de
+l'univers. En montrer une demanderait une écriture nouvelle qui pousse une tâche du volume
+au-delà d'un changement d'année, avec toute la chaîne qu'elle redate et le chemin critique
+recalculé — un exemple qui ne se tire d'aucun de ceux de l'univers ; les tests du front composent
+la projection sur l'exemple du devis témoin.
 
-**Les tâches aussi dans `reinflated`** (décision de l'utilisateur du 2026-10-05). Une tâche non
-récapitulative porte désormais un montant corrigé (`TaskFacet.inflated_amount`), qui change avec
-l'année de ses lignes, qu'elle soit redatée (`rescheduled`) ou non ; `NodeSchedule` reste le seul
-calendrier. `reinflated` rend donc chaque nœud dont le montant corrigé a changé sans être écrit —
-lignes et tâches non récapitulatives —, hors ceux que `ancestors` rend entiers, où restent les
-récapitulatives ; l'année de consommation d'une tâche est nulle, sa facette n'en portant pas.
-Écarté : le montant corrigé dans `NodeSchedule`, qui aurait mêlé les montants au calendrier et
-laissé sans projection une tâche dont les lignes bougent sans qu'elle soit redatée.
+**Les exemples de dépendance d'un montant suivent** : `dependencies_labour` et
+`dependencies_task_amount` disent désormais ce dont dépend le montant à l'année de référence d'une
+ligne et d'une tâche — le taux horaire ; les lignes portées —, celui dont la grille de devis
+demande la raison au refus d'une saisie.
 
 **`paste_too_wide` dit la largeur de la ligne de devis** : `base_amount` porte à quatorze les
 colonnes de sa facette à partir du libellé (`NodeColumn`) ; l'exemple disait huit, largeur
