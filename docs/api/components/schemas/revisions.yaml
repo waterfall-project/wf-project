@@ -513,7 +513,8 @@ NodesWritten:
         WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre
         n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de
         mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans
-        `ancestors`. Les montants qui dépendent des dates — le montant corrigé de
+        `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que
+        les écritures (`LockVersion`). Les montants qui dépendent des dates — le montant corrigé de
         l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de
         devis, qui relit la structure à son ouverture.
       items: { $ref: '#/NodeSchedule' }
@@ -536,7 +537,9 @@ NodeSchedule:
     (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque
     modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le
     chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la
-    facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas.
+    facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. Sans
+    `lock_version` : un recalcul ne fait pas avancer le compteur de la tâche, qui reste
+    celui que la grille a lu (`LockVersion`).
   properties:
     node_id: { $ref: ../common.yaml#/Uuid }
     start: { $ref: ../common.yaml#/WorkInstant }

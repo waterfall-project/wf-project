@@ -2714,7 +2714,7 @@ export interface components {
             updated_at: components["schemas"]["Timestamp"];
             updated_by: components["schemas"]["ActorRef"];
         };
-        /** @description Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). */
+        /** @description Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). Il suit les écritures de l'utilisateur : ce que le serveur recalcule sans que personne ne l'écrive — les dates des successeurs d'une liaison ou d'une durée, ce que le chemin critique déplace, les montants et les dates d'une récapitulative — ne fait avancer le compteur d'aucun nœud. */
         LockVersion: number;
         User: {
             user_id: components["schemas"]["Uuid"];
@@ -3646,7 +3646,7 @@ export interface components {
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
         };
-        /** @description Le calendrier d'une tâche non récapitulative qu'une écriture a redatée sans l'écrire (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. */
+        /** @description Le calendrier d'une tâche non récapitulative qu'une écriture a redatée sans l'écrire (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. Sans `lock_version` : un recalcul ne fait pas avancer le compteur de la tâche, qui reste celui que la grille a lu (`LockVersion`). */
         NodeSchedule: {
             node_id: components["schemas"]["Uuid"];
             start: components["schemas"]["WorkInstant"];
@@ -3664,7 +3664,7 @@ export interface components {
             nodes: components["schemas"]["Node"][];
             /** @description Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`) — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. */
             ancestors: components["schemas"]["Node"][];
-            /** @description Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Les montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de devis, qui relit la structure à son ouverture. */
+            /** @description Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`). Les montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation — n'y sont pas : ils se lisent dans la grille de devis, qui relit la structure à son ouverture. */
             rescheduled: components["schemas"]["NodeSchedule"][];
             /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
             totals: components["schemas"]["NodeTotals"];

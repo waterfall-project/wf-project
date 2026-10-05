@@ -862,6 +862,17 @@ les devis propres du retard de livraison des armoires et de l'indisponibilité d
 nommés par `risks`, non fusionnés à la révision de référence — le premier n'est survenu qu'après
 elle, sa provision y étant retenue.
 
+**Un recalcul ne fait avancer le compteur d'aucun nœud** (`LockVersion`, `NodeSchedule`,
+`NodesWritten.rescheduled`, #236 ; décision de l'utilisateur du 2026-10-05). Le compteur suit les
+écritures de l'utilisateur : les dates que le serveur recalcule — les successeurs d'une liaison ou
+d'une durée, ce que le chemin critique déplace — et ce qu'il recalcule d'une récapitulative ne le
+font pas avancer. Sans cela, la saisie suivante d'une tâche redatée partirait de la version lue
+et recevrait un 412 que personne n'a provoqué. `NodeSchedule` ne porte donc pas `lock_version`,
+et les ancêtres rendus entiers gardent le leur, ce que les exemples (`predecessor_set`,
+`estimate_line_updated`) montraient déjà ; le compteur de la structure, lui, avance à chaque
+écriture dans son arbre (`structure_lock_version`). Le front garde la version lue d'une tâche
+redatée et n'en prend que le calendrier (`rescheduled()` de `frontend/src/components/grid/nodes.tsx`).
+
 **Non tranché : la borne d'un fichier déposé** (`uploadFile`, #324). Le §4.6.2 fixe un fichier MS
 Project à 10 Mo, mais `uploadFile` reçoit aussi la sauvegarde copiée hors de la plateforme qu'une
 restauration désigne (`RestoreRequest.external_backup_upload_id`, WF-ADM-0160), bien plus lourde :
