@@ -169,7 +169,6 @@
       "lastMarkedAt": "Dernière révision marquée"
     },
     "computed": "Calculé",
-    "unknown": "Référence inconnue",
     "entry": {
       "none": "Aucun",
       "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
@@ -274,6 +273,11 @@
   },
   "actualCosts": {
     "summary": "{count, plural, =0 {aucune ligne retenue} one {# ligne retenue} other {# lignes retenues}}",
+    "refused": {
+      "period": "Les coûts réels ne se lisent pas sur cette période : sa fin précède son début.",
+      "subproject": "Les coûts réels ne se lisent pas : le sous-projet demandé n’existe pas.",
+      "invalid": "Les coûts réels ne se lisent pas : l’API refuse les filtres demandés."
+    },
     "generalTotal": "Total général des lignes retenues",
     "totals": {
       "title": "Totaux des lignes retenues",
@@ -595,6 +599,7 @@
       "amount": "Montant",
       "steps": "Marches du budget de référence",
       "cause": "Motif",
+      "stepAmount": "Montant de la marche",
       "cashOut": "Décaissements par mois",
       "month": "Mois",
       "past": "Décaissé",
@@ -899,6 +904,12 @@
       "probability": "Probabilité",
       "severity": "Gravité, en pourcentage du budget de référence"
     },
+    "riskZones": {
+      "title": "Zones de la matrice de risques",
+      "axes": "Probabilité, puis gravité",
+      "probability": "Probabilité, niveau {level}",
+      "severity": "Gravité, niveau {level}"
+    },
     "indices": {
       "title": "Seuils d’alerte des indices",
       "index": "Indice",
@@ -995,7 +1006,7 @@
       "frequency": "Fréquence",
       "weekday": "Jour",
       "at": "Heure",
-      "platformTime": "{time}, heure de la plateforme",
+      "universalTime": "{time} UTC",
       "retained": "Rétention",
       "count": "{count, plural, one {# sauvegarde conservée} other {# sauvegardes conservées}}",
       "weekdays": {
@@ -1102,7 +1113,9 @@
     "missing_condition": "Condition non remplie : {condition}.",
     "missing_prerequisites": "À compléter : {prerequisites}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
-    "component": "Composant indisponible : {component}."
+    "component": "Composant indisponible : {component}.",
+    "expected_format": "Format attendu : {format}.",
+    "expected_version": "Version attendue : {version}."
   },
   "permissions": {
     "users": {
@@ -1544,6 +1557,7 @@
       "subproject": "Sous-projet",
       "payment_delay_days": "Délai de paiement",
       "consumption_year": "Année de consommation",
+      "base_amount": "Montant à l’année de référence",
       "budgeted_amount": "Montant budgété",
       "reestimated_amount": "Montant réestimé",
       "inflated_amount": "Montant corrigé de l’inflation",
@@ -1557,13 +1571,16 @@
         "progress": "Avancement de la tâche",
         "physical_progress": "Avancement physique de la tâche",
         "total_float": "Marge totale de la tâche",
+        "base_amount": "Montant à l’année de référence de la tâche",
         "budgeted_amount": "Montant budgété de la tâche",
-        "reestimated_amount": "Montant réestimé de la tâche"
+        "reestimated_amount": "Montant réestimé de la tâche",
+        "inflated_amount": "Montant corrigé de l’inflation de la tâche"
       },
       "estimate_line": {
         "quantity": "Quantité de la ligne",
         "hours": "Charge de la ligne",
         "unit_disbursement": "Débours unitaire de la ligne",
+        "base_amount": "Montant à l’année de référence de la ligne",
         "budgeted_amount": "Montant budgété de la ligne",
         "reestimated_amount": "Montant réestimé de la ligne",
         "previous_reestimated_amount": "Montant réestimé précédent de la ligne",
@@ -1576,8 +1593,8 @@
       "scheduling": "Une tâche en mode automatique tient ses dates de sa durée, de ses liaisons et du calendrier.",
       "float_dates": "La marge totale d’une tâche est l’écart entre ses dates au plus tôt et au plus tard.",
       "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
-      "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
-      "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire, projeté sur son année de consommation.",
+      "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
+      "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire.",
       "risk": "Une ligne de provision tient ses grandeurs de son risque : sa gravité pondérée par sa probabilité.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
@@ -1649,6 +1666,10 @@
       "estimate": "Devis",
       "remaining": "Reste à engager",
       "actual_costs": "Coûts réels"
+    },
+    "FileUploadPurpose": {
+      "import": "Import",
+      "external_backup": "Sauvegarde externe à restaurer"
     },
     "ImportDifference": {
       "change": {

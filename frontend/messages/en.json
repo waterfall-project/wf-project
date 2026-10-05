@@ -169,7 +169,6 @@
       "lastMarkedAt": "Last marked revision"
     },
     "computed": "Computed",
-    "unknown": "Unknown reference",
     "entry": {
       "none": "None",
       "notANumber": "This is not a number: enter it as {example}.",
@@ -274,6 +273,11 @@
   },
   "actualCosts": {
     "summary": "{count, plural, =0 {no line retained} one {# line retained} other {# lines retained}}",
+    "refused": {
+      "period": "The actual costs cannot be read over this period: its end precedes its start.",
+      "subproject": "The actual costs cannot be read: the sub-project asked for does not exist.",
+      "invalid": "The actual costs cannot be read: the API refuses the filters asked for."
+    },
     "generalTotal": "General total of the lines retained",
     "totals": {
       "title": "Totals of the lines retained",
@@ -595,6 +599,7 @@
       "amount": "Amount",
       "steps": "Steps of the reference budget",
       "cause": "Cause",
+      "stepAmount": "Amount of the step",
       "cashOut": "Cash out by month",
       "month": "Month",
       "past": "Paid out",
@@ -899,6 +904,12 @@
       "probability": "Probability",
       "severity": "Severity, as a percentage of the reference budget"
     },
+    "riskZones": {
+      "title": "Zones of the risk matrix",
+      "axes": "Probability, then severity",
+      "probability": "Probability, level {level}",
+      "severity": "Severity, level {level}"
+    },
     "indices": {
       "title": "Alert thresholds of the indices",
       "index": "Index",
@@ -995,7 +1006,7 @@
       "frequency": "Frequency",
       "weekday": "Day",
       "at": "Time",
-      "platformTime": "{time}, platform time",
+      "universalTime": "{time} UTC",
       "retained": "Retention",
       "count": "{count, plural, one {# backup kept} other {# backups kept}}",
       "weekdays": {
@@ -1102,7 +1113,9 @@
     "missing_condition": "Unmet condition: {condition}.",
     "missing_prerequisites": "Still missing: {prerequisites}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
-    "component": "Unavailable component: {component}."
+    "component": "Unavailable component: {component}.",
+    "expected_format": "Expected format: {format}.",
+    "expected_version": "Expected version: {version}."
   },
   "permissions": {
     "users": {
@@ -1544,6 +1557,7 @@
       "subproject": "Subproject",
       "payment_delay_days": "Payment delay",
       "consumption_year": "Consumption year",
+      "base_amount": "Amount at the reference year",
       "budgeted_amount": "Budgeted amount",
       "reestimated_amount": "Re-estimated amount",
       "inflated_amount": "Inflation-corrected amount",
@@ -1557,13 +1571,16 @@
         "progress": "Progress of the task",
         "physical_progress": "Physical progress of the task",
         "total_float": "Total float of the task",
+        "base_amount": "Amount at the reference year of the task",
         "budgeted_amount": "Budgeted amount of the task",
-        "reestimated_amount": "Re-estimated amount of the task"
+        "reestimated_amount": "Re-estimated amount of the task",
+        "inflated_amount": "Inflation-corrected amount of the task"
       },
       "estimate_line": {
         "quantity": "Quantity of the line",
         "hours": "Effort of the line",
         "unit_disbursement": "Unit disbursement of the line",
+        "base_amount": "Amount at the reference year of the line",
         "budgeted_amount": "Budgeted amount of the line",
         "reestimated_amount": "Re-estimated amount of the line",
         "previous_reestimated_amount": "Previous re-estimated amount of the line",
@@ -1576,8 +1593,8 @@
       "scheduling": "A task in automatic mode takes its dates from its duration, its links and the calendar.",
       "float_dates": "The total float of a task is the gap between its earliest and latest dates.",
       "manual_mode": "A task in manual mode bears no float.",
-      "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year, projected onto its year of consumption.",
-      "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement, projected onto its year of consumption.",
+      "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year.",
+      "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement.",
       "risk": "A provision line takes its figures from its risk: its severity weighted by its probability.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
@@ -1649,6 +1666,10 @@
       "estimate": "Estimate",
       "remaining": "Estimate to complete",
       "actual_costs": "Actual costs"
+    },
+    "FileUploadPurpose": {
+      "import": "Import",
+      "external_backup": "External backup to restore"
     },
     "ImportDifference": {
       "change": {

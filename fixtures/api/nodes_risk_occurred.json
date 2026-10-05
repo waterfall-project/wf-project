@@ -30,8 +30,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "200.00",
           "budgeted_amount": "60.00",
-          "reestimated_amount": "200.00"
+          "reestimated_amount": "200.00",
+          "inflated_amount": "200.00"
         },
         "computed_fields": [
           "task.duration",
@@ -72,8 +74,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "120.00",
           "budgeted_amount": "36.00",
           "reestimated_amount": "120.00",
+          "inflated_amount": "120.00",
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -104,11 +108,15 @@
         "estimate_line": {
           "label": "Frais de relance",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+          "cost_category_label": "Matériel électrique",
           "quantity": "1",
           "resource_role_id": null,
+          "resource_role_label": null,
           "hours": null,
           "unit_disbursement": "120.00",
           "subproject_id": null,
+          "subproject_label": null,
+          "base_amount": "120.00",
           "budgeted_amount": "36.00",
           "reestimated_amount": "120.00",
           "inflated_amount": "120.00",
@@ -159,8 +167,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "80.00",
           "budgeted_amount": "24.00",
           "reestimated_amount": "80.00",
+          "inflated_amount": "80.00",
           "total_float": {
             "value": "0",
             "unit": "d"
@@ -202,11 +212,15 @@
         "estimate_line": {
           "label": "Affrètement",
           "cost_category_id": "01926f3a-7c00-7000-8000-000000000403",
+          "cost_category_label": "Matériel électrique",
           "quantity": "1",
           "resource_role_id": null,
+          "resource_role_label": null,
           "hours": null,
           "unit_disbursement": "80.00",
           "subproject_id": null,
+          "subproject_label": null,
+          "base_amount": "80.00",
           "budgeted_amount": "24.00",
           "reestimated_amount": "80.00",
           "inflated_amount": "80.00",
@@ -234,8 +248,10 @@
       "task_count": 3,
       "estimate_line_count": 2,
       "hours": "0",
+      "base_amount": "200.00",
       "budgeted_amount": "60.00",
-      "reestimated_amount": "200.00"
+      "reestimated_amount": "200.00",
+      "inflated_amount": "200.00"
     }
   }
 }

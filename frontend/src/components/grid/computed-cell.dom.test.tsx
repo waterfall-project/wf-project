@@ -202,15 +202,14 @@ describe("a value of a grid the server computes", () => {
       paragraphs: [
         "Valeur calculée",
         "Montant (année de réf.) ne se saisit pas : Waterfall calcule cette valeur.",
-        "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence, projeté sur son année de consommation.",
-        "Le montant budgété est celui que la révision de référence a fixé.",
+        "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
       ],
       rows: [],
     });
     expect(asked(client)).toEqual([
       [
         `${STRUCTURE_PATH}/nodes/01926f3a-7c00-7000-8000-000000000523/dependencies`,
-        "estimate_line.reestimated_amount",
+        "estimate_line.base_amount",
       ],
     ]);
     expect(screen.queryByRole("textbox")).toBeNull();
@@ -344,10 +343,12 @@ describe("a value of a grid the server computes", () => {
     );
     const { rerender } = renderGrid("planning");
     await userEvent.click(cell("Études", FINISH));
-    expect(await within(refusal()).findByText(/^Le montant budgété/)).toBeInTheDocument();
+    expect(
+      await within(refusal()).findByText(/^Le montant d’une ligne de main-d’œuvre/),
+    ).toBeInTheDocument();
     rerender(planningOf(withSummaryChanged()));
     expect(within(refusal()).getByRole("status")).toHaveTextContent(PENDING);
-    expect(within(refusal()).queryByText(/^Le montant budgété/)).toBeNull();
+    expect(within(refusal()).queryByText(/^Le montant d’une ligne de main-d’œuvre/)).toBeNull();
     answer();
     expect(await within(refusal()).findByRole("list")).toBeInTheDocument();
     expect(asked(client)).toHaveLength(2);
@@ -367,7 +368,7 @@ describe("a value of a grid the server computes", () => {
     answer();
     const { paragraphs } = await said();
     expect(paragraphs).not.toContain(
-      "Le montant budgété est celui que la révision de référence a fixé.",
+      "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
     );
     expect(paragraphs).toContain(
       "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
@@ -434,7 +435,7 @@ describe("a value of a grid the server computes", () => {
       "4Borniers",
       "5Provision — risque de reprise du câblage",
     ]);
-    expect(asked(client).map(([, field]) => field)).toEqual(["task.reestimated_amount"]);
+    expect(asked(client).map(([, field]) => field)).toEqual(["task.base_amount"]);
   });
 
   it("says a task in manual mode bears no float", async () => {

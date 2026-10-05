@@ -97,11 +97,24 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: 'Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070).'
+        description: >-
+          Projet sans révision de référence : seule la révision en cours est une base
+          (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+            examples:
+              no_reference: { $ref: ../../../fixtures/api/workload_no_reference.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : `marked_remaining` sans révision marquée — `revision_id`
+          absent, inconnu ou non marqué —, ou un nœud d'organisation inconnu ; `fields`
+          désigne le paramètre refusé, `/query/revision_id` ou `/query/org_node_id`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_refused: { $ref: ../../../fixtures/api/workload_revision_refused.json }
 
 /projects/{project_id}/remaining-indicators:
   get:
@@ -182,10 +195,14 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: 'Projet antérieur à l''état En cours : seuls les indicateurs de devis existent (WF-IND-0010).'
+        description: >-
+          Projet antérieur à l'état En cours : seuls les indicateurs de devis existent
+          (WF-IND-0010). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_in_progress: { $ref: ../../../fixtures/api/project_indicators_not_in_progress.json }
 
 /projects/{project_id}/indicators/milestone-tracking:
   get:

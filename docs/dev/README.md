@@ -220,8 +220,8 @@ champs calculés, numéro, niveau, nature, libellé) et ceux de ses colonnes, qu
 configuration (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). La page les demande à `listNodes`
 (`fields`, `nodeFieldNames` : un champ d'une facette sous son nom, `task.label`) et les projette
 encore (`projectNodes`) : un serveur peut rendre plus qu'on ne lui demande — le faux back rend
-son exemple entier —, et les six mille nœuds entiers pèsent quatre mégaoctets dans la page,
-projetés, environ la moitié ; la lecture de l'écran (`readGridScreen`) ne rend que les lignes
+son exemple entier —, et les six mille nœuds entiers pèsent six mégaoctets et demi dans la page,
+projetés, de quarante-cinq à soixante pour cent ; la lecture de l'écran (`readGridScreen`) ne rend que les lignes
 projetées et les totaux, jamais la réponse entière. Une colonne qui lit un champ nouveau l'ajoute à cette liste : le
 typage de la ligne le demande, et `projection.test.tsx` vérifie que la grille lit la même chose
 de la ligne projetée que du nœud entier, et que la page demande ce qu'elle projette. Le calculé
@@ -252,7 +252,18 @@ premier écran. La grille de planning
 et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
 `estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
 lecture de la structure principale (`grid-screen.ts`) ; le planning demande au serveur les
-seules tâches (`kinds=task`). Le mode de planification et l'avancement s'y montrent par une
+seules tâches (`kinds=task`). Le devis présente, d'une ligne comme d'une tâche, récapitulative
+comprise, et en total, le montant à l'année de référence (`base_amount`) et le montant corrigé de
+l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il
+nomme la catégorie et le rôle d'une ligne par les libellés que le serveur résout, l'objet actif ou
+désactivé (`cost_category_label`, `resource_role_label`, #305) — les listes du référentiel ne
+servent qu'au choix d'une saisie, offerte seulement sur un objet qu'elles connaissent. Ce qu'une
+écriture rend se lit comme la grille le lit (`nodesWritten`) : les nœuds écrits et leurs ancêtres
+entiers, des tâches redatées la part de leur calendrier qu'elle montre (`rescheduled`), des lignes
+et des tâches déplacées dans le temps la part de leurs montants qu'elle montre (`reinflated`) —
+chaque part ne pose que ses champs : celles d'une même ligne, d'une écriture ou de plusieurs, se
+posent l'une sur l'autre dans l'ordre des réponses (`answers.ts`).
+Le mode de planification et l'avancement s'y montrent par une
 icône nommée, le chemin critique par une icône et le gras sur la marge, jamais par la seule
 couleur ; une date se montre dans sa forme courte. Le tri et la
 recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`, `search`,
@@ -319,8 +330,11 @@ filtres par périmètre, par sous-projet — celui du contexte de lecture, `subp
 période des pièces, qui n'écrivent que l'adresse, sous les noms du contrat, et ramènent à la
 première page ; la grille dense en lecture (`cost-grid.tsx`), sans recherche — l'opération n'en
 a pas : une configuration la retire par `searched: false` —, chaque ligne avec son sous-projet
-nommé par le serveur, son périmètre en mots et les colonnes conservées du fichier telles
-qu'importées ; et le journal des imports, paginé à part (`imports_offset`). Un tri ou une
+nommé par le serveur, son périmètre en mots et chaque colonne conservée du fichier comme une
+colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
+(`passthrough.<colonne>`), chaque colonne triée par le serveur ; et le journal des imports, paginé à part (`imports_offset`). Des filtres que le serveur refuse
+(422 : une période qui finit avant de commencer, un sous-projet que le projet n'a pas) se disent à
+la place des lignes, les filtres gardés pour être changés. Un tri ou une
 recherche changés ramènent toute liste paginée à sa première page (`sortHref`, `searchHref`).
 Un lien de page, comme le libellé d'un risque, part de la dernière adresse demandée
 (`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
@@ -337,7 +351,8 @@ saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platfor
 les natures et les catégories de coût — l'écran ne remplit la fenêtre qu'à partir de la grande
 largeur (`Screen`, `fillWide`) : en fenêtre étroite, la grille et les listes s'empilent et la page
 défile ; les paramètres de ressources présentent l'organisation,
-les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice, ceux
+les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice et la
+zone de chaque case, placée par son rang dans l'ordre du contrat, ceux
 des indicateurs les seuils des indices et le délai entre deux revues. Un objet rattaché se nomme
 par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
 listes dans le front ; une section se nomme par `aria-label` (#251).
@@ -353,7 +368,8 @@ sans aucune commande. Une liste que le serveur pagine — comptes, sauvegardes �
 porte et mène aux pages voisines par `offset` (`ListPages`, `offsetOf`), sans jamais montrer une
 page pour le tout ; elle ne se dit vide que si elle ne tient rien (`meta.total`), et une page
 demandée au-delà de sa fin le dit et ramène à la dernière. L'heure d'une sauvegarde planifiée
-s'affiche telle quelle, « heure de la plateforme », le contrat n'en disant pas le fuseau.
+s'affiche telle quelle, en UTC, comme le contrat la donne : une heure du jour n'a pas de date d'où
+tirer le décalage d'un fuseau à heure d'été.
 
 L'écran des imports et exports, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
 US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte, comme
@@ -361,9 +377,10 @@ celui de l'écran des coûts réels ; un
 import s'applique pourtant à la révision en cours, créée au besoin (WF-INTF-0090), quelle que soit
 la révision lue. Un import se fait en deux temps (WF-ARC-0100) : la commande de sa nature ouvre dans
 la page le choix du fichier — et, pour une extraction de coûts réels, la période qu'elle couvre —,
-qu'une action serveur dépose (`uploadFile`) puis analyse (`openImport`) ; un fichier de plus de
-10 Mio, la plus grande taille d'import du §4.6.2, est refusé dans la page, et la borne des actions
-serveur de Next est réglée un peu au-dessus (`next.config.ts`, #324). La tâche de l'analyse va au
+qu'une action serveur dépose pour un import (`uploadFile`, `purpose: import`) puis analyse
+(`openImport`) ; un fichier de plus de 10 Mio, la borne que le contrat donne au dépôt d'un import,
+est refusé dans la page, et la borne des actions serveur de Next est réglée un peu au-dessus
+(`next.config.ts`). La tâche de l'analyse va au
 suivi de la coquille, et l'adresse nomme l'import (`import`, un identifiant ou rien), dont la page lit
 le compte rendu (`getImport`) — lignes lues, motifs de confirmation, lignes rejetées par leur place
 et leur motif, rendu comme un refus depuis son code et ses paramètres (`problemMessage`), écarts —,
@@ -377,10 +394,12 @@ révision en cours — sans elle, qui ne peut pas créer la révision voit l'imp
 à l'écran, de portée révision (#332). La liste des imports, paginée par le serveur (`offset`,
 `ListPages`), mène au compte rendu de chacun ; la demande d'export n'offre que les natures que la
 révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
-consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de l'arborescence au niveau demandé —, et le
-suivi offre de télécharger le résultat d'une tâche qui en a un : le serveur
-de Next le lit (`getBackgroundTaskResult`) et le transmet en pièce jointe, sans sa longueur, que
-`fetch` a décodée, à la route `/tasks/[taskId]/result` (#323).
+consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
+l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
+a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet, à la route
+`/tasks/[taskId]/result`, avec le type de sa nature et la pièce jointe nommée que le contrat promet
+(`Content-Disposition`), sans sa longueur, que `fetch` a décodée ; une réponse qui ne nomme pas le
+fichier, ou pas son type, est une mauvaise passerelle (502).
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
 hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
@@ -551,7 +570,8 @@ retouche pas — la structure de mille tâches et de cinq mille lignes, premier 
 sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même
 total ; ce dont dépend la date de fin de sa première récapitulative, ses subordonnées directes
 nommées de la même structure, premier exemple de `getComputedValueDependencies`, que le refus
-d'une saisie lit dans les parcours ; les trois cents projets de `getPortfolioProjects`, et les vues
+d'une saisie lit dans les parcours ; une durée allongée qui pousse une tâche en 2027, ses lignes et
+elle-même corrigées à nouveau (`task_lengthened`, réponse de `updateTaskFacet`) ; les trois cents projets de `getPortfolioProjects`, et les vues
 du portefeuille qui se somment de leurs lignes — la valeur, la performance, la structure des coûts et
 les risques —, les deux cents catégories de
 `listCostCategories`, quinze ans de taux de `listHourlyRates` et la grille des taux horaires de

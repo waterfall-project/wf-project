@@ -192,7 +192,7 @@ export interface Examples {
     200: "estimate_line_entered" | "estimate_line_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
-    200: "task_renamed";
+    200: "task_renamed" | "volume/task_lengthened";
   };
   "POST /file-uploads": {
     201: "file_upload";

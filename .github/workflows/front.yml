@@ -19,7 +19,9 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # The front check runs lint, types, unit tests, build and the end-to-end paths: about
+    # 8 to 10 minutes on a hosted runner by October 2026, so 10 cancelled it (#354).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

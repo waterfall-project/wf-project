@@ -3,7 +3,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
-import { type FakeAnswers, type FakeClient, fakeClient, unreachable } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  unreachable,
+} from "@/test/fixtures";
 
 import { GET } from "./route";
 
@@ -13,6 +19,7 @@ vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 
 const TASK = "01926f3a-7c00-7000-8000-000000000905";
 const RESULT = "GET /tasks/{task_id}/result";
+const SHEET = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {
@@ -44,31 +51,41 @@ beforeEach(() => {
 });
 
 describe("the result of a task, downloaded", () => {
-  it("is the file the API gives, handed on as it comes, an attachment never sniffed", async () => {
+  it("is the file the API gives, handed on as it comes, the attachment it names, never sniffed", async () => {
+    const disposition = example("task_result_disposition") as string;
     const client = serve({
-      [RESULT]: { body: new Blob(["<Project/>"]), type: "application/octet-stream", status: 200 },
+      [RESULT]: {
+        body: new Blob(["devis"]),
+        type: SHEET,
+        status: 200,
+        headers: { "Content-Disposition": disposition },
+      },
     });
     const response = await download();
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("application/octet-stream");
-    expect(response.headers.get("content-disposition")).toBe("attachment");
+    expect(response.headers.get("content-type")).toBe(SHEET);
+    expect(response.headers.get("content-disposition")).toBe(disposition);
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(await response.text()).toBe("<Project/>");
+    expect(await response.text()).toBe("devis");
     expect(client.calls.map((call) => call.path)).toEqual([`/tasks/${TASK}/result`]);
   });
 
-  it("keeps the name the API gives the file", async () => {
-    const disposition = 'attachment; filename="devis.xlsx"';
-    answering("devis", {
-      "content-type": "application/octet-stream",
-      "content-disposition": disposition,
+  it.each([
+    ["names no file", { "content-type": SHEET }],
+    ["says no media type", { "content-disposition": 'attachment; filename="devis.xlsx"' }],
+  ])("answers a bad gateway when the API %s, which the contract promises", async (_, headers) => {
+    server.client = createApiClient({
+      address: "http://fake.invalid",
+      fetch: () => Promise.resolve(new Response(new Blob(["devis"]), { status: 200, headers })),
     });
-    expect((await download()).headers.get("content-disposition")).toBe(disposition);
+    const response = await download();
+    expect([response.status, await response.text()]).toEqual([502, ""]);
   });
 
   it("hands on the whole of a file the API sent compressed, without the length it had then", async () => {
     answering("<Project><Tasks/></Project>", {
-      "content-type": "application/octet-stream",
+      "content-type": "application/xml",
+      "content-disposition": 'attachment; filename="planning.xml"',
       "content-encoding": "gzip",
       "content-length": "12",
     });

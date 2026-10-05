@@ -96,7 +96,8 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
             <tr>
               <th scope="col">{t("projectIndicators.curves.date")}</th>
               <th scope="col">{t("projectIndicators.curves.cause")}</th>
-              <th scope="col">{t("projectIndicators.curves.amount")}</th>
+              {/* The amount of the step, signed: what the budget changes by, not the budget after. */}
+              <th scope="col">{t("projectIndicators.curves.stepAmount")}</th>
             </tr>
           </thead>
           <tbody>

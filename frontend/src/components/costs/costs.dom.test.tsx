@@ -117,7 +117,9 @@ describe("the grid of the actual costs", () => {
       "Sous-projet",
       "Périmètre suivi",
       "Motif de l’exclusion",
-      "Colonnes conservées du fichier",
+      "Fournisseur",
+      "Texte de commande",
+      "Élément d'OTP",
     ]);
     const cells = cellsOf("FA-2026-0412");
     expect(cells.slice(0, 5).map((each) => each.textContent)).toEqual([
@@ -127,11 +129,12 @@ describe("the grid of the actual costs", () => {
       "Hors sous-projet",
       "Suivie",
     ]);
-    const kept = within(cells[6] ?? document.body);
-    expect(kept.getByText("Fournisseur")).toBeVisible();
-    expect(kept.getByText("Câbles du Rhône")).toBeVisible();
-    expect(kept.getByText("Élément d'OTP")).toBeVisible();
-    expect(kept.getByText("WF.PRJ-001/SP-CAB")).toBeVisible();
+    // Each column kept from the file, under the name the file gives it, as imported.
+    expect(cells.slice(6, 9).map((each) => each.textContent)).toEqual([
+      "Câbles du Rhône",
+      "Câbles de commande du pupitre",
+      "WF.PRJ-001/SP-CAB",
+    ]);
     await expectAccessible(container);
   });
 
@@ -175,6 +178,24 @@ describe("the grid of the actual costs", () => {
         scroll: false,
       });
     });
+  });
+
+  it("asks the server to sort by each column, the scope, the reason and each column kept from the file, in both directions [WF-IHM-0060-A]", async () => {
+    const { rerender } = render(costsGrid(costsOf("actual_costs")));
+    const sortBy = async (name: string, asked: string) => {
+      const heading = within(grid()).getByRole("columnheader", { name: new RegExp(name) });
+      await userEvent.click(within(heading).getByRole("button"));
+      await waitFor(() => {
+        expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?${asked}`, { scroll: false });
+      });
+    };
+    await sortBy("Périmètre suivi", "sort_by=in_tracked_scope&sort_order=asc");
+    await sortBy("Motif de l’exclusion", "sort_by=excluded_reason&sort_order=asc");
+    await sortBy("Fournisseur", "sort_by=passthrough.Fournisseur&sort_order=asc");
+    // Sorted ascending by a column kept, the address asks it descending.
+    const ascending = { column: "passthrough.Élément d'OTP", order: "asc" } as const;
+    rerender(costsGrid(costsOf("actual_costs"), { sort: ascending, search: undefined }));
+    await sortBy("Élément d'OTP", "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=desc");
   });
 
   it("is named and headed in English too", () => {

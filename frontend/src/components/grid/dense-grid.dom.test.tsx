@@ -248,7 +248,7 @@ describe("the dense grid, on a thousand rows", () => {
       "0",
       "",
       "100\u202f000,00",
-      "",
+      "100\u202f000,00",
     ]);
     for (const cell of totals?.querySelectorAll("td") ?? []) {
       expect(cell).toHaveClass("sticky", "bottom-0");
@@ -475,9 +475,9 @@ describe("the sort, the search and the totals, asked of the server", () => {
       "aria-sort",
       "descending",
     );
-    // The amounts of the tasks and of the line add up to 300 000; the total of the answer,
-    // that of its lines alone, is 100 000.
-    expect(texts(rowAt(6)).slice(-2)).toEqual(["100\u202f000,00", ""]);
+    // The amounts of the tasks and of the line add up to 300 000; the totals of the answer,
+    // those of its lines alone, are 100 000.
+    expect(texts(rowAt(6)).slice(-2)).toEqual(["100\u202f000,00", "100\u202f000,00"]);
   });
 
   it("asks the server for the rows a search retains, and for all of them once it is emptied", async () => {
@@ -649,7 +649,7 @@ describe("the columns and their widths, a display preference of the account", ()
       expect(recorded(client)).toEqual([
         {
           grids: {
-            estimate: { hidden_columns: [], column_widths: { reestimated_amount: 144 } },
+            estimate: { hidden_columns: [], column_widths: { base_amount: 144 } },
           },
         },
       ]);
@@ -889,10 +889,10 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1,234.56",
       "1,234.56",
     ]);
-    // The total of the project is the one the server gave, 2734.56, in either language; the
-    // contract totals no amount corrected for inflation.
-    expect(french.totals.slice(-2)).toEqual(["2 734,56", ""]);
-    expect(english.totals.slice(-2)).toEqual(["2,734.56", ""]);
+    // The totals of the project are those the server gave, 2734.56 at the year of reference and
+    // corrected for inflation, every line being of that year, in either language.
+    expect(french.totals.slice(-2)).toEqual(["2 734,56", "2 734,56"]);
+    expect(english.totals.slice(-2)).toEqual(["2,734.56", "2,734.56"]);
     expect(english.totals[1]).toBe("Total — 3 tasks, 3 lines");
   });
 

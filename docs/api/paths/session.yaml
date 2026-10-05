@@ -245,7 +245,8 @@
       L'avatar est propre à l'utilisateur, qui le gère seul, et il est conservé en base
       avec le compte (WF-ADM-0080, §4.4.1). Sa taille est bornée par l'installation :
       `Installation.avatar_max_bytes` (`getInstallation`, lisible sans session) dit la borne,
-      au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE`.
+      au-delà de laquelle l'image est refusée par 413, `FILE_TOO_LARGE` ; elle ne dépasse
+      jamais 8 Mio.
     requestBody:
       required: true
       content:

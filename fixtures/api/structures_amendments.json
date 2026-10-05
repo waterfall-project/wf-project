@@ -1,5 +1,5 @@
 {
-  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre du risque de reprise du câblage (WF-REV-0100).",
+  "summary": "Les structures de la révision de référence : la principale, l'avenant 1, dont la fusion l'a produite, l'avenant 2, qui coexiste et n'est pas fusionné, et le devis propre de chacun des trois risques de `risks` — la reprise du câblage, le retard de livraison des armoires et l'indisponibilité de l'automaticien (WF-REV-0100, WF-RIS-0030).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000211",
@@ -31,6 +31,24 @@
       "kind": "risk",
       "label": "Risque de reprise du câblage",
       "risk_id": "01926f3a-7c00-7000-8000-000000000751",
+      "is_merged": false,
+      "lock_version": 1
+    },
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000215",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+      "kind": "risk",
+      "label": "Retard de livraison des armoires",
+      "risk_id": "01926f3a-7c00-7000-8000-000000000752",
+      "is_merged": false,
+      "lock_version": 1
+    },
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000216",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000101",
+      "kind": "risk",
+      "label": "Indisponibilité de l'automaticien",
+      "risk_id": "01926f3a-7c00-7000-8000-000000000753",
       "is_merged": false,
       "lock_version": 1
     }

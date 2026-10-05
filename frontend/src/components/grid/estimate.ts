@@ -4,17 +4,17 @@
  * The configuration of the grid of the estimate (WF-DEV-0050): the common tree of a structure
  * (`listNodes`), its tasks and the lines they bear, each row numbered and marked by the icon of
  * its nature; the label, the quantity, the effort, the unit disbursement, and the two amounts the
- * server computes and never lets anyone enter — the amount at the year of reference, the current
- * one of the line or the task as the server gives it, and the amount corrected for inflation,
- * that of the line projected on its year of consumption (WF-DEV-0040) —, never the budgeted nor
- * the re-estimated amount by name (#216). The figures of a provision are computed too, from its
- * risk, which its node says (`computed_fields`, WF-IHM-0030). The totals are those of the answer:
- * the hours and the amount of the lines retained, never the amounts of the tasks, which would
- * count them twice; the contract gives no total corrected for inflation, and none is shown.
+ * server computes and never lets anyone enter, of a line as of a task, summary included — the
+ * amount at the year of reference (`base_amount`, WF-DEV-0030) and the amount corrected for
+ * inflation, projected on the year of consumption (WF-DEV-0040) —, never the budgeted nor the
+ * re-estimated amount (#235). The figures of a provision are computed too, from its risk, which
+ * its node says (`computed_fields`, WF-IHM-0030). The totals are those of the answer: the hours
+ * and the two amounts of the lines retained, never the amounts of the tasks, which would count
+ * them twice.
  *
  * Each column sorts by the column of the contract of the same name. The category and the role of
- * a line, which the answer names by identifier only, are named by the reference data the page
- * reads with it (`listCostCategories`, `listResourceRoles`).
+ * a line are named by the labels the server resolves, the object active or deactivated (#305) —
+ * never by bringing the lists of the reference data together here (WF-ARC-0020).
  *
  * A line is entered whole from the keyboard (WF-IHM-0040): its label, its category and its role,
  * chosen from their lists, its quantity, its effort and its unit disbursement, each written alone
@@ -37,7 +37,7 @@ import {
   type RowsWritten,
   sortColumns,
 } from "./columns";
-import { COMPUTED_INFLATED, computedAmount, computedWhereNamed } from "./computed-nodes";
+import { computedAmount, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
   type GridNode,
@@ -51,19 +51,23 @@ import {
 } from "./nodes";
 
 /**
- * What the columns of the estimate read of a node, beyond what every grid reads: the amount of a
- * task, the figures of a line, its amounts and its category. The page hands the grid these alone
- * (`projectNodes`).
+ * What the columns of the estimate read of a node, beyond what every grid reads: the amounts of a
+ * task, the figures of a line, its amounts, the labels of its category and its role, and the
+ * identifier of its category, which an entry starts from. The page asks for these alone
+ * (`fields`) — the label of a sub-project, which no column shows, is not asked — and hands the
+ * grid these alone (`projectNodes`).
  */
 export const ESTIMATE_FIELDS = {
   node: [],
-  task: ["reestimated_amount"],
+  task: ["base_amount", "inflated_amount"],
   line: [
     "cost_category_id",
+    "cost_category_label",
+    "resource_role_label",
     "quantity",
     "hours",
     "unit_disbursement",
-    "reestimated_amount",
+    "base_amount",
     "inflated_amount",
   ],
 } as const satisfies AnyNodeFields;
@@ -81,15 +85,15 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
   tree: NODE_TREE,
   columns: [
     LABEL_COLUMN,
-    // A category and a role are named by the reference data (`estimateGrid`), their identifier
-    // alone otherwise.
+    // A category and a role are named by the label the server resolves; an entry starts from
+    // their identifier (`estimateGrid`).
     {
       key: "cost_category",
       label: "category",
       format: "text",
       width: 160,
       sortBy: "cost_category",
-      value: (node) => node.estimate_line?.cost_category_id,
+      value: (node) => node.estimate_line?.cost_category_label,
     },
     {
       key: "resource_role",
@@ -97,7 +101,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       format: "text",
       width: 160,
       sortBy: "resource_role",
-      value: (node) => node.estimate_line?.resource_role_id,
+      value: (node) => node.estimate_line?.resource_role_label,
     },
     {
       key: "quantity",
@@ -127,26 +131,27 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       sortBy: "unit_disbursement",
       value: (node) => node.estimate_line?.unit_disbursement,
     },
-    // The amount at the year of reference is the current one the server gives the node
-    // (WF-DEV-0050), whatever the reference fixed or the reviews changed.
+    // The two amounts of WF-DEV-0050, of a line, of a task — the sum of its subtree — and of the
+    // totals, as the server gives them.
     {
-      key: "reestimated_amount",
+      key: "base_amount",
       label: "referenceAmount",
       format: "money",
       width: 128,
-      computed: computedAmount("reestimated_amount"),
-      sortBy: "reestimated_amount",
-      value: (node) => node.task?.reestimated_amount ?? node.estimate_line?.reestimated_amount,
-      total: (totals) => totals.reestimated_amount,
+      computed: computedAmount("base_amount"),
+      sortBy: "base_amount",
+      value: (node) => node.task?.base_amount ?? node.estimate_line?.base_amount,
+      total: (totals) => totals.base_amount,
     },
     {
       key: "inflated_amount",
       label: "inflatedAmount",
       format: "money",
       width: 128,
-      computed: COMPUTED_INFLATED,
+      computed: computedAmount("inflated_amount"),
       sortBy: "inflated_amount",
-      value: (node) => node.estimate_line?.inflated_amount,
+      value: (node) => node.task?.inflated_amount ?? node.estimate_line?.inflated_amount,
+      total: (totals) => totals.inflated_amount,
     },
   ],
 };
@@ -181,8 +186,8 @@ export interface EstimateWrites {
 }
 
 /**
- * The reference data the grid names the categories and the roles of the lines by, and offers to
- * choose from; a list the API refused is none — its column is neither named nor entered.
+ * The reference data the grid offers the categories and the roles of the lines from; a list the
+ * API refused is none — its column is not entered, and still named by the server.
  */
 export interface EstimateReference {
   readonly categories: readonly Choice[] | undefined;
@@ -287,19 +292,6 @@ function bearsLine(node: GridNode): boolean {
 }
 
 /**
- * The name of a choice, by its identifier: `unknown` for one the list does not know, or that a
- * list the API refused leaves unread — never an empty cell for a reference the grid could not
- * read (#198); nothing for no identifier.
- */
-function namer(
-  choices: readonly Choice[] | undefined,
-  unknown: string,
-): (id: CellValue) => CellValue {
-  const names = new Map(choices?.map((choice) => [choice.id, choice.label]));
-  return (id) => (id === null || id === undefined ? id : (names.get(id) ?? unknown));
-}
-
-/**
  * Whether the cell of a column takes an entry in a row: the node accepts the field it writes —
  * which the node says, never the grid by the nature of its category (#219) —, and, for the label
  * of a task, the planning may be entered.
@@ -337,34 +329,22 @@ function entered(
 }
 
 /**
- * The grid of the estimate: its categories and roles named by the reference data — `unknown` for
- * an identifier the list does not know, or that a list the API refused leaves unread —, its cells entered and a block pasted through `writes`;
- * none, and the grid is read only, taking neither entry nor paste. A line takes its label,
- * category, role, quantity, effort and unit disbursement, where its node accepts the field and the
- * server does not compute it; a task, its label, where its node accepts it and the planning is
- * entered.
+ * The grid of the estimate: its cells entered and a block pasted through `writes`; none, and the
+ * grid is read only, taking neither entry nor paste. A line takes its label, category, role,
+ * quantity, effort and unit disbursement, where its node accepts the field and the server does not
+ * compute it — a category or a role from the lists of the reference data, which must know the one
+ * the line bears, a deactivated one included —; a task, its label, where its node accepts it and
+ * the planning is entered.
  */
 export function estimateGrid(
   reference: EstimateReference,
-  unknown: string,
   writes?: EstimateWrites,
 ): GridConfig<EstimateNode, NodeSortColumn, NodeTotals> {
   const specs = enteredColumns(reference);
-  const names: Readonly<Record<string, (id: CellValue) => CellValue>> = {
-    cost_category: namer(reference.categories, unknown),
-    resource_role: namer(reference.roles, unknown),
-  };
   return {
     ...ESTIMATE_GRID,
     paste: writes?.paste,
     retotal: writes?.totals,
-    columns: ESTIMATE_GRID.columns.map((column) => {
-      const name = names[column.key];
-      const named =
-        name === undefined
-          ? column
-          : { ...column, value: (node: EstimateNode) => name(column.value(node)) };
-      return entered(named, specs[column.key], writes);
-    }),
+    columns: ESTIMATE_GRID.columns.map((column) => entered(column, specs[column.key], writes)),
   };
 }

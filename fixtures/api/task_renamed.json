@@ -30,8 +30,10 @@
           "finish_overdue": false,
           "is_summary": false,
           "is_milestone": false,
+          "base_amount": "2734.56",
           "budgeted_amount": "2734.56",
-          "reestimated_amount": "2734.56"
+          "reestimated_amount": "2734.56",
+          "inflated_amount": "2734.56"
         },
         "computed_fields": [
           "task.start",
@@ -75,8 +77,10 @@
           "finish_overdue": false,
           "is_summary": true,
           "is_milestone": false,
+          "base_amount": "2734.56",
           "budgeted_amount": "2734.56",
-          "reestimated_amount": "2734.56"
+          "reestimated_amount": "2734.56",
+          "inflated_amount": "2734.56"
         },
         "computed_fields": [
           "task.duration",
@@ -91,12 +95,15 @@
       }
     ],
     "rescheduled": [],
+    "reinflated": [],
     "totals": {
       "task_count": 3,
       "estimate_line_count": 3,
       "hours": "12.5",
+      "base_amount": "2734.56",
       "budgeted_amount": "2734.56",
-      "reestimated_amount": "2734.56"
+      "reestimated_amount": "2734.56",
+      "inflated_amount": "2734.56"
     },
     "structure_lock_version": 2
   }
