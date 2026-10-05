@@ -761,7 +761,7 @@ export interface paths {
         };
         /**
          * Arbre d'organisation
-         * @description Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070). Les nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses descendants, les enfants d'un même parent — les racines entre elles aussi — triés par libellé ; chacun dit sa profondeur (`level`). Une recherche rend les nœuds retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou.
+         * @description Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070). Les nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses descendants, les enfants d'un même parent — les racines entre elles aussi — triés par libellé, comparé caractère par caractère dans l'ordre des points de code Unicode, sans égard à la langue du lecteur ; chacun dit sa profondeur (`level`). Une recherche rend les nœuds retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou.
          */
         get: operations["listOrgNodes"];
         put?: never;
@@ -2076,7 +2076,7 @@ export interface paths {
         };
         /**
          * Courbe de coûts cumulés
-         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision marquée nommée, la courbe à la date de son marquage, comme ses indicateurs.
+         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`).
          */
         get: operations["getCostCurve"];
         put?: never;
@@ -2096,7 +2096,7 @@ export interface paths {
         };
         /**
          * Courbes de valeur acquise
-         * @description Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes à la date de son marquage, comme ses indicateurs.
+         * @description Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes recalculées à la date de son marquage (`revision_id`).
          */
         get: operations["getEarnedValueCurves"];
         put?: never;
@@ -2588,7 +2588,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `max_columns` (collage trop large, WF-IHM-0050), `component` (un `PlatformComponent`, WF-EXP-0040). */
             params?: {
                 [key: string]: unknown;
             };
@@ -4443,7 +4443,7 @@ export interface components {
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
         /** @description Base du plan de charge : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la révision en cours (WF-DEV-0070). */
         WorkloadBasis: "reference_budget" | "marked_remaining" | "current_remaining";
-        /** @description La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ; une révision marquée, les valeurs calculées à son marquage et conservées (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+        /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
         IndicatorsRevision: components["schemas"]["Uuid"];
         /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
         AsOf: components["schemas"]["PlanningDate"];
@@ -8123,7 +8123,7 @@ export interface operations {
     getProjectIndicators: {
         parameters: {
             query?: {
-                /** @description La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ; une révision marquée, les valeurs calculées à son marquage et conservées (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
                 revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
@@ -8149,7 +8149,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Projet antérieur à l'état En cours : seuls les indicateurs de devis existent (WF-IND-0010). */
+            /** @description `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée par `revision_id` marquée avant lui — seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8196,7 +8196,7 @@ export interface operations {
     getCostCurve: {
         parameters: {
             query?: {
-                /** @description La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ; une révision marquée, les valeurs calculées à son marquage et conservées (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
                 revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
@@ -8222,6 +8222,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée par `revision_id` marquée avant lui — seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul ; `fields` désigne `/query/revision_id`. */
             422: {
                 headers: {
@@ -8236,7 +8245,7 @@ export interface operations {
     getEarnedValueCurves: {
         parameters: {
             query?: {
-                /** @description La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ; une révision marquée, les valeurs calculées à son marquage et conservées (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
                 revision_id?: components["parameters"]["IndicatorsRevision"];
                 /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
@@ -8262,6 +8271,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée par `revision_id` marquée avant lui — seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre choisissant la révision du calcul ; `fields` désigne `/query/revision_id`. */
             422: {
                 headers: {

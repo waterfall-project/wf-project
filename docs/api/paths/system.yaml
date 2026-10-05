@@ -98,6 +98,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/system_status.json }
               backup_failed: { $ref: ../../../fixtures/api/system_status_backup_failed.json }
+              storage_full: { $ref: ../../../fixtures/api/system_status_storage_full.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

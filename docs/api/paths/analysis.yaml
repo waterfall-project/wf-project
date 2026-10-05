@@ -188,10 +188,15 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: 'Projet antérieur à l''état En cours : seuls les indicateurs de devis existent (WF-IND-0010).'
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée
+          par `revision_id` marquée avant lui — seuls les indicateurs de devis existent
+          (WF-IND-0010, WF-DAT-0040).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              offer: { $ref: ../../../fixtures/api/project_indicators_offer.json }
       '422':
         description: >-
           `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre
@@ -237,7 +242,7 @@
       de la tâche qui les porte : la courbe présente alors les décaissements, passés et
       à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des
       décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision
-      marquée nommée, la courbe à la date de son marquage, comme ses indicateurs.
+      marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -260,6 +265,16 @@
               amendment: { $ref: ../../../fixtures/api/cost_curve_amendment.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée
+          par `revision_id` marquée avant lui — seuls les indicateurs de devis existent
+          (WF-IND-0010, WF-DAT-0040).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              offer: { $ref: ../../../fixtures/api/project_indicators_offer.json }
       '422':
         description: >-
           `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre
@@ -275,8 +290,8 @@
     summary: Courbes de valeur acquise
     description: >-
       Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon
-      les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes à
-      la date de son marquage, comme ses indicateurs.
+      les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes
+      recalculées à la date de son marquage (`revision_id`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -292,6 +307,16 @@
               witness: { $ref: ../../../fixtures/api/earned_value_curves.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, ou révision nommée
+          par `revision_id` marquée avant lui — seuls les indicateurs de devis existent
+          (WF-IND-0010, WF-DAT-0040).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              offer: { $ref: ../../../fixtures/api/project_indicators_offer.json }
       '422':
         description: >-
           `VALIDATION_FAILED` : `revision_id` et `as_of` ensemble, l'un et l'autre

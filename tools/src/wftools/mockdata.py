@@ -281,8 +281,9 @@ def volumes() -> dict[str, JsonObject]:
         ),
         "portfolio_projects_page.json": _example(
             f"La deuxième page de {_count(PAGE)} projets de la liste du portefeuille du §4.6.2, "
-            f"en cours et en chiffrage, lue page par page : les projets {_count(PAGE + 1)} à "
-            f"{_count(2 * PAGE)} sur {_count(PROJECT_COUNT)} (WF-PTF-0040).",
+            f"les projets en cours et, ajoutés par la requête au périmètre par défaut "
+            f"(WF-PTF-0010), ceux en chiffrage, lue page par page : les projets "
+            f"{_count(PAGE + 1)} à {_count(2 * PAGE)} sur {_count(PROJECT_COUNT)} (WF-PTF-0040).",
             portfolio_page(projects),
         ),
         "portfolio_value.json": _example(

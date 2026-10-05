@@ -118,7 +118,8 @@ Problem:
         récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
         calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030),
         `missing_prerequisites` (WF-CYC-0120),
-        `max_columns` (collage trop large, WF-IHM-0050), `component` (WF-EXP-0040).
+        `max_columns` (collage trop large, WF-IHM-0050), `component` (un `PlatformComponent`,
+        WF-EXP-0040).
     fields:
       type: array
       description: Erreurs par champ, pour une entité refusée à la validation.

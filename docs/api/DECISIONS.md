@@ -787,7 +787,8 @@ propriétés facultatives typées, et leur description dit lesquelles chaque cod
 `weeks_since_last_mark` pour `review_overdue` ; `lineage_id`, `milestone_label` et
 `reference_date` pour `contractual_milestone_overdue` — le libellé du jalon le nomme, l'écran n'a
 pas à le chercher ; `component` pour `component_unavailable`, `used_bytes` et `available_bytes`
-pour `storage_nearly_full`. Les autres codes ne portent rien. Le composant est nommé
+pour `storage_nearly_full`. Les autres codes ne portent rien. Exemple : `system_status_storage_full`, le stockage presque
+plein, en vigilance, l'alerte disant l'espace employé et l'espace libre. Le composant est nommé
 (`PlatformComponent`), que `ComponentHealth.component` emploie aussi : un seul jeu de libellés.
 Écarté : une union discriminée par code, plus lourde à engendrer pour le même contrôle.
 
@@ -796,7 +797,8 @@ pour `storage_nearly_full`. Les autres codes ne portent rien. Le composant est n
 modification (`OrgNodeWrite`), un code déjà porté, désactivés compris, est refusé par 409,
 `ALREADY_EXISTS`. `OrgNode.level` est résolu à la lecture, 1 pour une racine. `listOrgNodes` rend
 l'arbre en ordre de profondeur — chaque nœud suivi de ses descendants —, les frères triés par
-libellé ; une recherche rend aussi les ancêtres des nœuds retenus, pour que l'arbre se lise sans
+libellé, comparé dans l'ordre des points de code Unicode — le plus simple, et le même pour
+tout lecteur ; une recherche rend aussi les ancêtres des nœuds retenus, pour que l'arbre se lise sans
 trou. **Relever d'un nœud, c'est relever de lui ou de l'un de ses descendants**, pour les quatre
 filtres `org_node_id` : `getProjectWorkload`, `listResourceRoles`, `listUsers` et le portefeuille
 (`PortfolioOrgNode`), comme WF-DEV-0070 l'entend (« les rôles qui en relèvent »). L'exemple
@@ -804,11 +806,18 @@ filtres `org_node_id` : `getProjectWorkload`, `listResourceRoles`, `listUsers` e
 
 **Les indicateurs et les courbes se lisent pour une révision** (#247). `getProjectIndicators`,
 `getCostCurve` et `getEarnedValueCurves` prennent `revision_id`, comme les indicateurs de devis :
-absent, ou la révision en cours, le calcul du jour ; une révision marquée, les indicateurs
-conservés à son marquage (WF-DAT-0040), `is_stored` vrai, et les courbes à la même date, pour
-qu'un écran ne montre pas des indicateurs et des courbes de deux instants. `as_of` choisit déjà la
+absent, ou la révision en cours, le calcul du jour ; une révision marquée, le calcul à la date
+de son marquage — les indicateurs conservés à son marquage (WF-DAT-0040), `is_stored` vrai, les
+courbes, que rien ne conserve, recalculées à cette date, `is_stored` faux. Une révision marquée
+avant l'état En cours n'a conservé que le total de son devis, « sans aucun indicateur projet »
+(Vérif de WF-DAT-0040) : les trois lectures la refusent par 409, `STATE_FORBIDS_OPERATION`, comme
+un projet qui n'est pas en cours (exemple `project_indicators_offer`). `as_of` choisit déjà la
 révision par sa date : les deux ensemble sont refusés par 422, `VALIDATION_FAILED`, `fields` sur
-`/query/revision_id`. Exemple : `project_indicators_marked`, la référence marquée le 1er février
+`/query/revision_id`. **Point ouvert, à décider par l'utilisateur** : recalculées, les courbes
+d'une révision marquée peuvent s'écarter de ses indicateurs conservés — une pièce importée après
+le marquage, datée d'avant lui, compte dans le coût réel de la courbe et non dans les indicateurs.
+Le contrat le dit tel quel, sans trancher entre des courbes conservées au marquage et des courbes
+recalculées. Exemple : `project_indicators_marked`, la référence marquée le 1er février
 2026, avant que rien ne soit planifié ni dépensé — ni indice de coût ni indice de délai — : sur
 l'écran de cette révision, les indicateurs sont les siens, et l'évolution des indices, toujours
 calculée au jour sur la révision en cours, l'est sur une autre.
@@ -823,7 +832,11 @@ champs d'un écart `updated` comme les colonnes de leur grille, que le front ren
 (WF-ARC-0110) : `NodeColumn` pour une tâche, une ligne de devis ou une liaison — une liaison changée
 de type ou de décalage par `predecessors`, la colonne qui la présente —, et `ActualCostColumn`,
 nommée comme le tri de `listActualCosts`, pour une ligne de coût réel : sa date et son numéro de
-pièce, son montant, son sous-projet, les quatre attributs que porte le fichier (WF-CRE-0010).
+pièce, son montant, son sous-projet, les quatre attributs que porte le fichier (WF-CRE-0010). Le
+catalogue d'un champ se choisit par l'objet de l'écart (`target`). Exemple :
+`import_actual_costs_analysed`, une extraction d'avril rejouée le 2 juin, dont la facture
+FA-2026-0412 passe de 1 800 à 1 850 — mise à jour sur son montant, son exclusion préservée
+(WF-INTF-0140).
 
 **Le périmètre d'une vue du portefeuille nomme son nœud** (#327). `PortfolioScope.org_node_label`,
 exigé, nul sans nœud, résolu à la lecture, désactivé compris (WF-REF-0150) : l'en-tête d'une vue

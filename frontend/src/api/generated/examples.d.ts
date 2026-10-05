@@ -75,7 +75,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_analysed" | "import_analysing" | "import_planning_mismatch";
+    200: "import_actual_costs_analysed" | "import_analysed" | "import_analysing" | "import_planning_mismatch";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked";
@@ -102,7 +102,7 @@ export interface Examples {
     200: "comparison" | "comparison_identical";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
-    200: "revision" | "revision_estimator" | "revision_marked" | "revision_marking" | "revision_reader";
+    200: "revision" | "revision_estimator" | "revision_marked" | "revision_marking" | "revision_offer" | "revision_reader";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
     200: "rate_update" | "rate_update_none";
@@ -174,7 +174,7 @@ export interface Examples {
     200: "auth_providers" | "auth_providers_local";
   };
   "GET /system/status": {
-    200: "system_status" | "system_status_backup_failed";
+    200: "system_status" | "system_status_backup_failed" | "system_status_storage_full";
   };
   "GET /tasks": {
     200: "tasks_none" | "tasks_running";

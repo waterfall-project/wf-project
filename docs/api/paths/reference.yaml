@@ -70,7 +70,8 @@
       Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070). Les
       nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses
       descendants, les enfants d'un même parent — les racines entre elles aussi — triés
-      par libellé ; chacun dit sa profondeur (`level`). Une recherche rend les nœuds
+      par libellé, comparé caractère par caractère dans l'ordre des points de code
+      Unicode, sans égard à la langue du lecteur ; chacun dit sa profondeur (`level`). Une recherche rend les nœuds
       retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou.
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive

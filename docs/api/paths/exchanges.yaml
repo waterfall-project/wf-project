@@ -123,6 +123,7 @@
               analysed: { $ref: ../../../fixtures/api/import_analysed.json }
               analysing: { $ref: ../../../fixtures/api/import_analysing.json }
               planning_mismatch: { $ref: ../../../fixtures/api/import_planning_mismatch.json }
+              actual_costs_analysed: { $ref: ../../../fixtures/api/import_actual_costs_analysed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:

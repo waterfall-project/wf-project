@@ -168,10 +168,14 @@ IndicatorsRevision:
   name: revision_id
   in: query
   description: >-
-    La révision du calcul : absente, ou la révision en cours, celle-ci au jour courant ;
-    une révision marquée, les valeurs calculées à son marquage et conservées
-    (WF-DAT-0040), `CalculationContext.is_stored` vrai. Avec `as_of`, qui choisit déjà la
-    révision par sa date, refusée par 422, `VALIDATION_FAILED`.
+    La révision du calcul, pour les indicateurs du projet comme pour les courbes :
+    absente, ou la révision en cours, le calcul au jour courant ; une révision marquée,
+    le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage
+    a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien
+    ne conserve, sont recalculées à cette date, `is_stored` faux. Une révision marquée
+    avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur
+    projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui
+    choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`.
   schema: { $ref: common.yaml#/Uuid }
 
 AsOf:

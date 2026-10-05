@@ -1,5 +1,5 @@
 {
-  "summary": "La santé du pilotage au 1er juin 2026, sur les projets en cours : le projet témoin n'a pas été revu depuis onze semaines, au-delà du délai du référentiel, en vigilance, et la réception des études, jalon contractuel attendu le 24 avril par la référence, est dépassée sans être terminée, en alerte (WF-PTF-0110, WF-IHM-0070).",
+  "summary": "La santé du pilotage au 1er juin 2026, sur les projets en cours : le projet témoin n'a pas été revu depuis dix-sept semaines — sa dernière révision marquée, la référence, l'a été le 1er février —, au-delà du délai du référentiel, en vigilance, et la réception des études, jalon contractuel attendu le 24 avril par la référence, est dépassée sans être terminée, en alerte (WF-PTF-0110, WF-IHM-0070).",
   "value": {
     "scope": {
       "states": [
@@ -19,7 +19,7 @@
         "zone": "watch",
         "code": "review_overdue",
         "params": {
-          "weeks_since_last_mark": 11
+          "weeks_since_last_mark": 17
         }
       },
       {
