@@ -7,6 +7,11 @@
       "sentence": "Un fichier XML produit par MS Project 2013 est importé sans erreur."
     },
     {
+      "key": "WF-INTF-0040-A#144393ff59c5",
+      "requirement": "WF-INTF-0040-A",
+      "sentence": "Après import, les tâches et leurs liaisons de prédécesseur — type FD, DD, FF ou DF, et décalage — sont identiques à celles du fichier source ; une tâche en mode manuel du fichier est en mode manuel aux mêmes dates ; une tâche portant une contrainte « Pas avant le » est en mode manuel et signalée ; une tâche à 50 % d'avancement est importée non démarrée ; aucune ressource et aucun calendrier présents dans le fichier n'a été créé dans Waterfall, et l'utilisateur est informé que ces éléments ont été ignorés."
+    },
+    {
       "key": "WF-INTF-0180-A#ade0abdb1ba2",
       "requirement": "WF-INTF-0180-A",
       "sentence": "Le même montant s'affiche « 1 234,56 » en français et « 1,234.56 » en anglais, et le total du projet est le même."
@@ -57,9 +62,9 @@
       "sentence": "Un mois à 120 % de la capacité est signalé."
     },
     {
-      "key": "WF-PTF-0100-A#ef1e23bc6126",
+      "key": "WF-PTF-0100-A#b4875ef04969",
       "requirement": "WF-PTF-0100-A",
-      "sentence": "Un projet en chiffrage à 40 % contribue pour 40 % de sa projection lorsqu'il est inclus."
+      "sentence": "Un projet en chiffrage à 40 % contribue pour 40 % de ses courbes lorsqu'il est inclus."
     },
     {
       "key": "WF-REF-0170-A#828c34614a3f",
@@ -70,6 +75,21 @@
       "key": "WF-REV-0050-A#1779578395bf",
       "requirement": "WF-REV-0050-A",
       "sentence": "Une ligne réestimée à 140 pour un montant budgété de 100, non désignée par le différentiel, porte toujours 100 et 140 après la fusion."
+    },
+    {
+      "key": "WF-REV-0060-A#e0a3eb570e51",
+      "requirement": "WF-REV-0060-A",
+      "sentence": "Une révision créée en 2027 porte l'année de référence 2027."
+    },
+    {
+      "key": "WF-REV-0060-A#a31bf69eb132",
+      "requirement": "WF-REV-0060-A",
+      "sentence": "À sa création, lorsque la précédente portait 2026, l'écart est présenté catégorie par catégorie et la mise à jour peut être refusée."
+    },
+    {
+      "key": "WF-REV-0060-A#586554e118d8",
+      "requirement": "WF-REV-0060-A",
+      "sentence": "Une catégorie refusée ou sans taux pour 2027 est chiffrée au taux de 2026 corrigé d'une année d'inflation."
     },
     {
       "key": "WF-PRJ-0090-A#0600dd236bf1",
@@ -102,14 +122,29 @@
       "sentence": "Un décalage de 2 ej placé un vendredi soir fait commencer le successeur le dimanche soir."
     },
     {
+      "key": "WF-PLA-0040-A#4b10e3009332",
+      "requirement": "WF-PLA-0040-A",
+      "sentence": "Une récapitulative dont toutes les subordonnées sont terminées et dont une ligne propre porte un reste à engager de 500 est démarrée et signalée ; la saisie d'un reste nul sur cette ligne la termine."
+    },
+    {
       "key": "WF-PLA-0110-A#7e0f932d2ca2",
       "requirement": "WF-PLA-0110-A",
       "sentence": "Sur un planning de quatre niveaux, l'affichage demandé au niveau 2 ne représente que les récapitulatives des deux premiers niveaux, sous le nœud du projet."
     },
     {
-      "key": "WF-DEV-0050-A#7fc49e5bd099",
+      "key": "WF-DEV-0020-A#b8f2f6425ad4",
+      "requirement": "WF-DEV-0020-A",
+      "sentence": "La saisie d'une charge de 80 heures sur une ligne budgétée à 100 heures donne un montant réestimé de 80 fois le taux et laisse le montant budgété inchangé."
+    },
+    {
+      "key": "WF-DEV-0060-A#f30914d8d893",
+      "requirement": "WF-DEV-0060-A",
+      "sentence": "Sur un planning importé dont aucune récapitulative n'est rattachée à un poste, les totaux par poste sont absents plutôt que nuls ; après rattachement d'une récapitulative au poste 1, son total apparaît."
+    },
+    {
+      "key": "WF-DEV-0050-A#d7cf1e3e5408",
       "requirement": "WF-DEV-0050-A",
-      "sentence": "La grille de devis ne présente ni montant budgété ni montant réestimé ; une ligne dont la tâche se place deux ans après l'année de référence, avec une inflation de 2 %, affiche un montant corrigé supérieur de 4,04 % à son montant."
+      "sentence": "La grille de devis ne présente pas le montant budgété ; une ligne dont la tâche se place deux ans après l'année de référence, avec une inflation de 2 %, affiche un montant corrigé supérieur de 4,04 % à son montant."
     },
     {
       "key": "WF-DEV-0030-A#e6c446928b5b",
@@ -122,29 +157,34 @@
       "sentence": "Sur un projet dont le budget de référence est de 1 000, la valeur planifiée vaut 1 000 à la date de fin de la dernière tâche de la référence, et 0 avant le début de la première."
     },
     {
-      "key": "WF-RIS-0050-A#19d3e61e84c3",
-      "requirement": "WF-RIS-0050-A",
-      "sentence": "Sur un projet chiffré à 1 000 portant un risque de gravité 200 à 30 %, le devis totalise 1 060 et le budget de référence 1 000."
+      "key": "WF-RAE-0010-A#1dfcd306dada",
+      "requirement": "WF-RAE-0010-A",
+      "sentence": "Écarter un risque de provision 40 diminue le reste à engager de 40 ; en identifier un nouveau l'augmente de sa provision."
     },
     {
-      "key": "WF-RIS-0050-A#e680f33961d7",
-      "requirement": "WF-RIS-0050-A",
-      "sentence": "Après survenance du risque, réévalué à 250 par le reste à engager, le budget de référence vaut 1 060 et l'écart de 190 apparaît comme une dérive."
+      "key": "WF-RAE-0040-A#262ac669ff37",
+      "requirement": "WF-RAE-0040-A",
+      "sentence": "La saisie d'une charge de 80 heures sur une ligne budgétée à 100 heures donne un montant réestimé de 80 fois le taux ; le montant n'est pas saisissable."
     },
     {
-      "key": "WF-RIS-0050-A#f1eeb908b16f",
+      "key": "WF-RIS-0050-A#ba9e53e8bcb3",
       "requirement": "WF-RIS-0050-A",
-      "sentence": "Si un second risque de provision 40 est ensuite écarté alors qu'aucun autre risque n'est identifié, le budget de référence passe à 1 100."
+      "sentence": "Sur un projet chiffré à 1 000 portant un risque de gravité 200 à 30 %, le devis totalise 1 060, le budget de référence 1 000 et la réserve 60."
     },
     {
-      "key": "WF-RIS-0060-A#7e4be2e49569",
+      "key": "WF-RIS-0050-A#d9bf56aa80e3",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Après survenance, réévalué à 250, le budget de référence vaut toujours 1 000, les provisions restantes 0, le coût des survenus 250, et l'écart de couverture −190."
+    },
+    {
+      "key": "WF-RIS-0050-A#c8bb59ef0f7d",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Un second risque de provision 40, écarté, fait passer les provisions restantes de 40 à 0 sans toucher le budget de référence ; un risque identifié après la référence, de provision 30, porte les provisions restantes à 30 et l'écart de couverture à −30."
+    },
+    {
+      "key": "WF-RIS-0060-A#474d7bce167a",
       "requirement": "WF-RIS-0060-A",
-      "sentence": "Après déclaration de survenance d'un risque de gravité 200 à 30 %, dont le devis propre porte deux lignes de 120 et 80, les tâches du devis propre figurent dans la structure principale, la révision produite est la référence, les lignes fusionnées portent des montants budgétés de 36 et 24 et des montants réestimés de 120 et 80, et la ligne de provision a disparu."
-    },
-    {
-      "key": "WF-RIS-0060-A#c5fd9864348d",
-      "requirement": "WF-RIS-0060-A",
-      "sentence": "La valeur acquise augmente de 36 à la terminaison de la première tâche."
+      "sentence": "Après déclaration de survenance d'un risque dont le devis propre porte deux lignes de 120 et 80, ces lignes figurent dans la structure principale de la révision en cours avec des montants budgétés nuls et des montants réestimés de 120 et 80 ; la ligne de provision a disparu ; le budget de référence et la révision de référence sont inchangés ; le reste à engager a augmenté de 200 moins la provision retirée ; la terminaison de ces tâches n'acquiert aucune valeur."
     },
     {
       "key": "WF-IND-0030-A#c3aebc79b97d",
