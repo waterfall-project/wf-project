@@ -60,7 +60,7 @@ test("reads the settings of the reference data outside any project, and enters a
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de ressources");
   await expect(
     page.getByRole("table", { name: "Rôles de ressources" }).getByRole("row"),
-  ).toHaveCount(4);
+  ).toHaveCount(5);
   await expect(page.getByRole("table", { name: "Calendriers" }).getByRole("row")).toHaveCount(3);
 
   await page.goto("/reference/risks");

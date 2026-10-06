@@ -25,19 +25,15 @@ from wftools.mockstructure import (
     JsonValue,
     decimal,
     draw,
-    fixture,
-    identifier,
     money,
 )
+from wftools.mockwitness import PROJECTS, RISKS, fixture, identifier
 
 PROJECT_COUNT = 300
 
 WATCH_THRESHOLD = Decimal("0.9")
 ALERT_THRESHOLD = Decimal("0.8")
 """The thresholds of the zones of an index, those of the Vérif of WF-REF-0170-A."""
-
-# The families of the identifiers made here; those of the nodes are 1 and 2, of the categories 4.
-_PROJECT, _RISK = 3, 5
 
 
 # --- The portfolio of three hundred projects -------------------------------------------
@@ -173,7 +169,7 @@ def universe_rows() -> list[JsonObject]:
 def _portfolio_row(n: int, label: str) -> JsonObject:
     amount = Decimal(draw(f"amount/{n}", 2_000, 200_000)) * 100
     row: JsonObject = {
-        "project_id": identifier(_PROJECT, n),
+        "project_id": identifier(PROJECTS, n),
         "label": label,
         "code": f"PRJ-{n:03d}",
     }
@@ -532,7 +528,7 @@ def identified_risks(rows: list[JsonObject]) -> list[Risk]:
             risks.append(
                 Risk(
                     row=row,
-                    risk_id=identifier(_RISK, len(risks) + 1),
+                    risk_id=identifier(RISKS, len(risks) + 1),
                     label=_RISK_SUBJECTS[draw(f"{key}/subject", 0, len(_RISK_SUBJECTS) - 1)],
                     probability=probability,
                     severity=severity,

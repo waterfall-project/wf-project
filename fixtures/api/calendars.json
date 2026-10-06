@@ -1,5 +1,5 @@
 {
-  "summary": "Les calendriers de l'installation : la semaine standard de cinq jours de huit heures, par défaut, que portent les rôles des exemples, et une semaine de quatre jours de dix heures (WF-REF-0110, WF-REF-0120).",
+  "summary": "Les calendriers de l'installation : la semaine standard de cinq jours de huit heures, par défaut, celle de l'ingénieur électricien et du technicien de mise en service, et la semaine de quatre jours de dix heures du monteur câbleur (WF-REF-0110, WF-REF-0120).",
   "value": [
     {
       "calendar_id": "01926f3a-7c00-7000-8000-000000000481",

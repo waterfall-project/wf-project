@@ -664,9 +664,9 @@ un autre champ le dit dans sa description, comme la grille des taux sur le code.
 **Exemples**, dans l'univers des autres : `reference_settings` (l'euro, le français, les bornes
 de la matrice et les zones de `risk_matrix`, les seuils 0,9 et 0,8 d'`index_history`, huit
 semaines entre deux revues, que dépasse le projet témoin de `pilot_health`), `cost_types` (les
-trois natures que ventilent les indicateurs de devis), `org_nodes` (trois niveaux, le nœud des
-rôles de `resource_roles` au deuxième, un service sans rôle), `calendars` (le calendrier par
-défaut de ces rôles, et un second ; l'automaticien désactivé de `resource_roles` est rattaché à un
+trois natures que ventilent les indicateurs de devis), `org_nodes` (trois niveaux, les nœuds des
+rôles de `resource_roles` au deuxième et au troisième, un service sans rôle), `calendars` (le
+calendrier par défaut, et la semaine de quatre jours du monteur câbleur, EP-02/L20 ; l'automaticien désactivé de `resource_roles` est rattaché à un
 troisième, désactivé, que la liste ne rend pas et que son libellé nomme), et, pour `setHourlyRate`, `hourly_rate_entered` — le premier taux 2015 d'une catégorie
 qui n'en avait pas dans la grille des volumes — et `hourly_rate_corrected` — le taux 2016 de la
 même catégorie corrigé, sa version avancée. La catégorie n'est employée par aucun devis des
@@ -954,11 +954,12 @@ la durée de « Revue 3.1.27 » allongée de deux jours ouvrés, dans sa marge, 
 3.1.30 » au premier jour ouvré de 2027 ; elle est dans `rescheduled` avec les tâches de sa chaîne
 dont la marge diminue, ses lignes et elle-même dans `reinflated`, les deux récapitulatives au-dessus
 dans `ancestors`, et les totaux suivent. Les autres exemples rendent une liste vide. L'univers
-n'offre aucune écriture du devis qui redate : ses deux rôles actifs sont sur le même calendrier,
-le calendrier par défaut, et le seul rôle sur un autre est désactivé — un changement de rôle ne
-change donc le calendrier d'aucune tâche (WF-PLA-0010). La projection est éprouvée sur l'exemple
-du planning appliqué aux lignes du devis ; le chemin de la grille de devis le sera quand l'univers
-aura une telle écriture (#287).
+n'offrait aucune écriture du devis qui redate : ses deux rôles actifs étaient sur le même
+calendrier, le calendrier par défaut, et le seul rôle sur un autre était désactivé — un changement de
+rôle ne changeait donc le calendrier d'aucune tâche (WF-PLA-0010). Le monteur câbleur, actif sur la
+semaine de quatre jours, le permet depuis EP-02/L20 ; la projection est éprouvée sur l'exemple du
+planning appliqué aux lignes du devis, et le chemin de la grille de devis le sera avec l'écriture
+qui redate (EP-02/L22, #287).
 
 **Les exemples de dépendance d'un montant suivent** : `dependencies_labour` et
 `dependencies_task_amount` disent désormais ce dont dépend le montant à l'année de référence d'une
@@ -1108,6 +1109,45 @@ aussi les projets en chiffrage disent que la requête les a ajoutés au périmè
 projets en cours (WF-PTF-0010), qui reste celui du contrat. `CashOutMonth` dit enfin ce que montrait
 `portfolio_cash_out` : un mois qui précède celui de la date de calcul ne porte que le passé, un mois
 qui le suit que l'avenir, et le mois de la date de calcul les deux.
+
+## L'univers témoin : le socle (EP-02/L20)
+
+**Le témoin se décrit une fois** (#287, décisions de l'utilisateur du 2026-10-05). Les premiers
+exemples décrivent un seul projet, PRJ-001, à un seul instant, aujourd'hui : le 3 juin 2026 à
+14 h 05 UTC. `wftools.mockwitness` en est la source unique : cet instant, la chronologie du projet
+(de l'installation au 1er septembre 2025 aux imports de coûts du jour), les rôles qu'emploient ses
+lignes et leurs calendriers — lus dans `resource_roles` et `calendars`, écrits à la main, jamais
+recopiés —, et son cœur lisible : le groupe « Études », le lot « Poste de commande » et le
+sous-arbre fusionné par la survenance de 752, aux identifiants fixes (le nœud 5nn, sa lignée 6nn)
+et aux chiffres des Vérif — 12,5 h × 80 = 1 000, 1 234,56, la provision de 500 de 751, des
+lignes de 120 et 80 budgétées 36 et 24 (WF-RIS-0060). Un autre exemple nommé est une autre lecture
+de cet état, un instant antérieur de la même chronologie, la suite d'une écriture faite
+aujourd'hui, ou une variante contrefactuelle déclarée.
+
+**Une famille d'identifiants par nature d'objet, sur des plages disjointes**
+(`mockwitness.IDENTIFIERS`, C16) : les identifiants écrits à la main par centaines — projets,
+révisions, structures, comptes, référentiel, nœuds et lignées, rôles d'habilitation, postes du
+lotissement, risques, sous-projets, sauvegardes, tâches de fond, collages et corrélations —, ceux
+qu'ils écrivent en hexadécimal — imports et téléversements (…0a01), lignes de coût réel (…0c01),
+imports de coûts réels (…0c11) — et les familles engendrées, dont le générateur tire désormais
+ses numéros. Un test confronte chaque identifiant de `fixtures/api` à la famille de sa clé
+(`node_id`, `backup_id`…) ; les empiètements d'aujourd'hui y sont déclarés, et leur liste ne
+fera que décroître : le poste 701 sur les rôles d'habilitation ; les tâches de fond 901 à 905,
+les collages 911 et 912 et la corrélation 913 sur les sauvegardes ; les corrélations 921 à 927
+sur les tâches de fond. Ils seront ramenés sur leur plage avec leurs exemples (L24, L25).
+
+**Les dates se calculent en heures de travail sur le calendrier applicable**
+(`wftools.mockcalendar`, WF-PLA-0010, WF-PLA-0160) : une durée et un décalage convertis en heures
+se placent heure après heure, chaque jour selon le moins généreux des calendriers des rôles d'une
+tâche. **Le rôle actif 454 « Monteur câbleur »**, de l'atelier de câblage, catégorie Ingénierie
+électrique, est sur la semaine de quatre jours de dix heures (482) : l'univers a désormais deux
+calendriers employés, et un changement de rôle peut redater une tâche.
+
+**La structure suit en EP-02/L27** (#376) : la structure de mille tâches datée en heures, le cœur
+en tête, ses compteurs du §4.6.2 gardés, puis EP-02/L21 à L26. Deux décisions de l'utilisateur
+la cadrent déjà : le cœur lisible est **relié au réseau engendré**, pour que ses marges et le
+chemin critique aient un sens ; la **réception usine reste au 30 juin 2026** (C13). Jusque-là,
+la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 mars.
 
 ## Collage et annulation
 

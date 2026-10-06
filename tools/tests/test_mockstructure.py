@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockdata, mockstructure
+from wftools import REPOSITORY, mockdata, mockstructure, mockwitness
 from wftools.mockstructure import Task
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
@@ -244,7 +244,7 @@ def test_a_provision_is_computed_and_outside_the_subprojects(items: list[Node]) 
     provisions = [node for node in lines(items) if node["estimate_line"]["is_computed"]]
     assert len(provisions) == 350
     for node in provisions:
-        assert node["estimate_line"]["cost_category_id"] == mockstructure.PROVISIONS
+        assert node["estimate_line"]["cost_category_id"] == mockwitness.PROVISIONS
         assert node["estimate_line"]["subproject_id"] is None
         assert node["computed_fields"] == [
             "estimate_line.quantity",
@@ -256,7 +256,7 @@ def test_the_structure_stays_in_the_universe_of_the_examples(items: list[Node]) 
     fixtures = REPOSITORY / "fixtures" / "api"
     known = (fixtures / "subprojects.json").read_text(encoding="utf-8")
     subprojects = {node["estimate_line"]["subproject_id"] for node in lines(items)} - {None}
-    assert subprojects == {mockstructure.SUBPROJECT_CONTROL, mockstructure.SUBPROJECT_TESTS}
+    assert subprojects == {mockwitness.SUBPROJECT_CONTROL, mockstructure.SUBPROJECT_TESTS}
     assert all(subproject in known for subproject in subprojects)
     assert items[0]["task"]["label"] == "Études"
 
@@ -268,9 +268,9 @@ def test_a_line_names_its_category_role_and_subproject_as_the_universe_does(
     # lists, of the roles and the subprojects of the witness.
     categories = cast("list[dict[str, str]]", mockdata.categories())
     names = {category["cost_category_id"]: category["label"] for category in categories}
-    roles = mockstructure.fixture("resource_roles")
+    roles = mockwitness.fixture("resource_roles")
     names.update((role["resource_role_id"], role["label"]) for role in roles)
-    subprojects = mockstructure.fixture("subprojects")
+    subprojects = mockwitness.fixture("subprojects")
     names.update((entry["subproject_id"], entry["label"]) for entry in subprojects)
     for node in lines(items):
         line = node["estimate_line"]

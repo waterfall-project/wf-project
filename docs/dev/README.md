@@ -584,7 +584,7 @@ Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summ
 ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
 
 Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`, le
-portefeuille dans `wftools.mockportfolio`, la structure dans `wftools.mockstructure`) les engendre dans `fixtures/api/volume/`, qu'on ne
+portefeuille dans `wftools.mockportfolio`, la structure dans `wftools.mockstructure`, le témoin décrit une fois dans `wftools.mockwitness` et ses heures de travail dans `wftools.mockcalendar`) les engendre dans `fixtures/api/volume/`, qu'on ne
 retouche pas — la structure de mille tâches et de cinq mille lignes, premier exemple de
 `listNodes`, et les indicateurs de son devis, premier exemple de `getEstimateIndicators`,
 sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même

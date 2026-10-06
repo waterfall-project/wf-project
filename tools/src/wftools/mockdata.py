@@ -62,25 +62,28 @@ from wftools.mockportfolio import (
 from wftools.mockstructure import (
     CATEGORY_LABELS,
     COMMISSIONING,
-    ELECTRICAL_ENGINEERING,
     ELECTRICAL_RATE,
-    EQUIPMENT,
-    FIXTURES,
     LABOR,
     LINES_PER_TASK,
     NON_LABOR,
     PROVISION,
-    PROVISIONS,
-    SUBCONTRACTING,
     JsonObject,
     JsonValue,
     draw,
     estimate_indicators,
-    fixture,
-    identifier,
     money,
     structure,
     task_lengthened,
+)
+from wftools.mockwitness import (
+    CATEGORIES,
+    ELECTRICAL_ENGINEERING,
+    EQUIPMENT,
+    FIXTURES,
+    PROVISIONS,
+    SUBCONTRACTING,
+    fixture,
+    identifier,
 )
 
 if TYPE_CHECKING:
@@ -98,8 +101,6 @@ RATE_YEARS = range(2012, 2027)
 
 USER = "01926f3a-7c00-7000-8000-000000000301"
 
-# The families of the identifiers made here; those of the nodes are 1 and 2.
-_CATEGORY = 4
 
 _AUDIT: JsonObject = {
     "created_at": "2026-01-05T09:00:00Z",
@@ -143,7 +144,7 @@ def categories() -> list[JsonValue]:
         (COMMISSIONING, CATEGORY_LABELS[COMMISSIONING]),
     ]
     labor.extend(
-        (identifier(_CATEGORY, n), f"{_TRADES[n % len(_TRADES)]} — niveau {n // len(_TRADES) + 1}")
+        (identifier(CATEGORIES, n), f"{_TRADES[n % len(_TRADES)]} — niveau {n // len(_TRADES) + 1}")
         for n in range(LABOR_CATEGORY_COUNT - len(labor))
     )
     non_labor = [
@@ -153,7 +154,7 @@ def categories() -> list[JsonValue]:
     others = CATEGORY_COUNT - LABOR_CATEGORY_COUNT - 1
     non_labor.extend(
         (
-            identifier(_CATEGORY, LABOR_CATEGORY_COUNT + n),
+            identifier(CATEGORIES, LABOR_CATEGORY_COUNT + n),
             f"{_PURCHASES[n % len(_PURCHASES)]} — lot {n // len(_PURCHASES) + 1}",
         )
         for n in range(others - len(non_labor))
