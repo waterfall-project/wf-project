@@ -1,6 +1,6 @@
 ---
 id: EP-08
-titre: Gérer les risques et leurs provisions, et déplacer la référence par avenant ou survenance
+titre: Gérer les risques, leurs provisions et la réserve, et déplacer la référence par avenant
 statut: à planifier
 depend_de: EP-09
 issue:
@@ -11,24 +11,26 @@ issue:
 ## Objet
 
 Les risques — attributs, états, réexamens datés, devis propre —, leur grille de suivi, et
-leurs provisions, hors du budget de référence jusqu'à la survenance ; les structures
-différentielles qui préparent un avenant ; la fusion d'un différentiel, qui marque la révision
-et en fait la référence ; la survenance d'un risque, qui fusionne son devis propre de la même
-façon.
+leurs provisions, qui n'entrent jamais au budget de référence, et la réserve pour risques de la
+révision de référence ; les structures différentielles qui préparent un avenant ; la fusion
+d'un différentiel, qui marque la révision et en fait la référence ; la survenance d'un risque,
+qui fusionne son devis propre dans la révision en cours, à montant budgété nul, sans toucher
+à la référence (#257).
 
-Un avenant et un risque survenu sont les deux seules façons de déplacer la référence une fois
-désignée : ils partagent la fusion, et donc cet EPIC. Il vient après le reste à engager, dont la
-fusion conserve les montants réestimés et qui réévalue le risque survenu. Les Vérif qui citent
+Un avenant est la seule façon de déplacer la référence une fois désignée ; la survenance d'un
+risque partage avec lui la mécanique de fusion, et donc cet EPIC. Il vient après le reste à
+engager, dont la fusion conserve les montants réestimés et qui porte les provisions des risques
+identifiés et la couverture des risques. Les Vérif qui citent
 la valeur acquise ou la dérive (WF-RIS-0050, WF-RIS-0060, WF-REV-0050) se closent en EP-10.
 
 ## Ce qui en fait partie
 
 - les attributs, les états et les réexamens d'un risque, et sa grille de suivi ;
 - le devis propre d'un risque, dans une structure qui lui est réservée ;
-- les provisions et leur place dans le devis et hors du budget de référence ;
+- les provisions, leur place dans le devis et le reste à engager, la réserve et la couverture des risques ;
 - les structures différentielles, leur coexistence, leur fusion ou leur abandon ;
-- la contractualisation d'un avenant et la survenance d'un risque, qui produisent la nouvelle
-  référence ;
+- la contractualisation d'un avenant, qui produit la nouvelle référence, et la survenance
+  d'un risque, qui fusionne son devis propre dans la révision en cours ;
 - les bornes de la correction manuelle d'une référence ;
 - la valeur planifiée recalculée sur la nouvelle référence ;
 - les écrans des risques de la maquette, branchés sur le service.
@@ -55,7 +57,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-RIS-0020-A` | États d’un risque | entière | — |
 | `WF-RIS-0030-A` | Devis propre d’un risque | entière | — |
 | `WF-RIS-0040-A` | Grille de suivi des risques | entière | — |
-| `WF-RIS-0050-A` | Provisions et budget de référence | début — close en EP-10 | — |
+| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-10 | — |
 | `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-10 | — |
 
 ## Opérations du contrat

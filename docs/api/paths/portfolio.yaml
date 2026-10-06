@@ -139,8 +139,9 @@
     summary: Risques du portefeuille
     description: >-
       Total des provisions identifiées, risques les plus lourds tous projets confondus,
-      matrice remplie, et provisions survenues face aux provisions écartées sur la
-      période (WF-PTF-0090).
+      matrice remplie, couverture des risques agrégée — somme des réserves de référence
+      face aux provisions restantes et au coût des risques survenus (WF-RIS-0050) —, et
+      provisions survenues face aux provisions écartées sur la période (WF-PTF-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -154,14 +155,40 @@
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioRisks }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
+/portfolio/cost-curve:
+  get:
+    operationId: getPortfolioCostCurve
+    tags: [portfolio]
+    summary: Courbe en S du portefeuille
+    description: >-
+      Somme, mois par mois, des courbes de coûts cumulés des projets (WF-IND-0100) :
+      budget de référence, coût réel jusqu'à la date de calcul, puis projection du chef
+      de projet ; un projet en chiffrage inclus contribue pondéré par sa probabilité de
+      gain. Rien n'y est recalculé, de sorte que le portefeuille et les projets racontent
+      la même histoire (WF-PTF-0100).
+    parameters:
+      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/AsOf
+      - name: horizon_months
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 240 }
+    responses:
+      '200':
+        description: Séries cumulées par mois.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostCurve }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
 /portfolio/cash-out:
   get:
     operationId: getPortfolioCashOut
     tags: [portfolio]
-    summary: Décaissements du portefeuille
+    summary: Courbe en S du portefeuille, lecture en décaissements
     description: >-
-      Somme des projections de décaissement des projets ; rien n'y est recalculé, de
-      sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
+      Le mode décaissement de la courbe en S du portefeuille : somme des décaissements
+      passés et à venir des projets, par la règle de WF-IND-0100 appliquée à chacun ;
+      rien n'y est recalculé (WF-PTF-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/AsOf

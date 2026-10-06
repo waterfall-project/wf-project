@@ -12,8 +12,8 @@ issue:
 
 La date et le périmètre de calcul, la granularité par sous-projet, la valeur acquise,
 l'avancement financier et physique, les projections à terminaison, les indices de coût et de
-délai et leurs seuils, le diagramme temps/temps, la courbe des coûts cumulés, les courbes de
-valeur acquise et les projections de décaissement. Les indicateurs d'une révision marquée sont
+délai et leurs seuils, le diagramme temps/temps, la courbe des coûts cumulés avec sa lecture
+en décaissements, et les courbes de valeur acquise. Les indicateurs d'une révision marquée sont
 calculés dans la transaction qui la marque et conservés ; ceux de la révision en cours sont
 calculés à la demande et mis en cache.
 
@@ -52,7 +52,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PLA-0130-A` | Attributs d’une tâche | fin — amorcée en EP-06 | — |
 | `WF-PLA-0060-A` | Inscription aux suivis | fin — amorcée en EP-06 | — |
 | `WF-RAE-0050-A` | Tâches ajoutées en cours d’exécution | fin — amorcée en EP-09 | — |
-| `WF-RIS-0050-A` | Provisions et budget de référence | fin — amorcée en EP-08 | — |
+| `WF-RIS-0050-A` | Réserve pour risques et couverture | fin — amorcée en EP-08 | — |
 | `WF-RIS-0060-A` | Survenance d’un risque | fin — amorcée en EP-08 | — |
 | `WF-IND-0010-A` | Date et périmètre de calcul | entière | — |
 | `WF-IND-0020-A` | Granularité des indicateurs | entière | — |
@@ -86,11 +86,11 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (11) :
 - `reference` : `getReferenceSettings`, `updateReferenceSettings` ;
 - `revisions` : `mergeCostStructure`, `createNode`, `setTaskProgress`, `setNodeTracking` ;
 - `analysis` : `getEstimateIndicators`, `getRemainingIndicators` ;
-- `risks` : `createRisk`, `reviewRisk`, `declareRiskOccurrence`.
+- `risks` : `createRisk`, `reviewRisk`, `declareRiskOccurrence`, `getProjectRiskCoverage`.
 
 ## Préalables
 
-EP-08 livré : le budget de référence dépend des provisions et des avenants.
+EP-08 livré : le budget de référence dépend des avenants, et la couverture des risques de la réserve et des provisions.
 
 ## Définition de fini
 

@@ -227,7 +227,7 @@
     description: >-
       Le passé par mois de date de pièce, l'avenir en étalant le reste à engager puis en
       décalant chaque part de son délai de paiement ; les provisions des risques
-      identifiés y figurent (WF-IND-0120).
+      identifiés y figurent : la lecture en décaissements de la courbe en S (WF-IND-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: horizon_months
