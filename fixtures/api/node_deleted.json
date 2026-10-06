@@ -1,15 +1,15 @@
 {
-  "summary": "La ligne de débours « Borniers », 1 234,56, supprimée du devis témoin : rien à rendre d'elle, sa tâche et la récapitulative au-dessus recalculées à 1 500,00, les totaux de la structure passés à deux lignes et 1 500,00, et le compteur de la structure, passé à 2 (WF-DEV-0050, WF-IHM-0110).",
+  "summary": "La ligne de débours « Borniers », 1 234,56, supprimée du devis du lot « Poste de commande » : rien à rendre d'elle, sa tâche « Câblage des armoires » recalculée à 1 500,00 et la récapitulative au-dessus à 1 700,00, les totaux de la structure passés à quatre lignes et 1 700,00, dont 1 250,00 budgétés, et le compteur de la structure, passé à 2 (WF-DEV-0050, WF-IHM-0110).",
   "value": {
     "nodes": [],
     "ancestors": [
       {
-        "node_id": "01926f3a-7c00-7000-8000-000000000521",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+        "node_id": "01926f3a-7c00-7000-8000-000000000551",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000651",
         "kind": "task",
         "parent_id": null,
-        "position": 0,
-        "row_number": 1,
+        "position": 1,
+        "row_number": 8,
         "level": 1,
         "lock_version": 1,
         "task": {
@@ -27,14 +27,20 @@
             "date": "2026-06-30",
             "hours": "8"
           },
-          "progress": "not_started",
+          "progress": "started",
           "finish_overdue": false,
+          "started_on": "2026-05-04",
           "is_summary": true,
           "is_milestone": false,
-          "base_amount": "1500.00",
-          "budgeted_amount": "1500.00",
-          "reestimated_amount": "1500.00",
-          "inflated_amount": "1500.00"
+          "base_amount": "1700.00",
+          "budgeted_amount": "1250.00",
+          "reestimated_amount": "1700.00",
+          "inflated_amount": "1700.00",
+          "physical_progress": {
+            "is_computable": true,
+            "value": "0",
+            "reason": null
+          }
         },
         "computed_fields": [
           "task.duration",
@@ -48,12 +54,12 @@
         ]
       },
       {
-        "node_id": "01926f3a-7c00-7000-8000-000000000522",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
+        "node_id": "01926f3a-7c00-7000-8000-000000000552",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000652",
         "kind": "task",
-        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000551",
         "position": 0,
-        "row_number": 2,
+        "row_number": 9,
         "level": 2,
         "lock_version": 1,
         "task": {
@@ -71,15 +77,32 @@
             "date": "2026-06-30",
             "hours": "8"
           },
-          "progress": "not_started",
+          "progress": "started",
           "finish_overdue": false,
+          "started_on": "2026-05-04",
           "is_summary": false,
           "is_milestone": false,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
+          "is_critical": true,
           "base_amount": "1500.00",
-          "budgeted_amount": "1500.00",
+          "budgeted_amount": "1250.00",
           "reestimated_amount": "1500.00",
           "inflated_amount": "1500.00"
         },
+        "predecessors": [
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000525",
+            "predecessor_row_number": 6,
+            "link_type": "finish_to_start",
+            "lag": {
+              "value": "1",
+              "unit": "w"
+            }
+          }
+        ],
         "computed_fields": [
           "task.start",
           "task.finish"
@@ -96,13 +119,13 @@
     "rescheduled": [],
     "reinflated": [],
     "totals": {
-      "task_count": 3,
-      "estimate_line_count": 2,
+      "task_count": 6,
+      "estimate_line_count": 4,
       "hours": "12.5",
-      "base_amount": "1500.00",
-      "budgeted_amount": "1500.00",
-      "reestimated_amount": "1500.00",
-      "inflated_amount": "1500.00"
+      "base_amount": "1700.00",
+      "budgeted_amount": "1250.00",
+      "reestimated_amount": "1700.00",
+      "inflated_amount": "1700.00"
     },
     "structure_lock_version": 2
   }

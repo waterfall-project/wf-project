@@ -56,12 +56,13 @@ const COMMISSIONING_TECHNICIAN = "01926f3a-7c00-7000-8000-000000000452";
 const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
 // The rows of the estimate, by their index: the summary, the task « Câblage des armoires », its
 // line of labour « Raccordement des borniers », its disbursement « Borniers », its provision,
-// whose quantity and unit disbursement the server computes, the milestone.
+// whose quantity and unit disbursement the server computes, then the subtree merged by the risk
+// that occurred, its summary first.
 const TASK_ROW = 1;
 const LABOUR = 2;
 const DISBURSEMENT = 3;
 const PROVISION = 4;
-const MILESTONE = 5;
+const OCCURRED = 5;
 const estimate = example("nodes_estimate") as NodeList;
 
 /** Serve the fake back, and give it back to read its calls. */
@@ -165,7 +166,7 @@ describe("the keyboard of a grid", () => {
     expect(cell(DISBURSEMENT, "label")).toHaveFocus();
     expect(screen.queryByRole("textbox")).toBeNull();
     // Each cell left alone, the second and the next carrying the version the server answered.
-    const node = `${NODES}/01926f3a-7c00-7000-8000-000000000523/estimate-line`;
+    const node = `${NODES}/01926f3a-7c00-7000-8000-000000000553/estimate-line`;
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(5);
     });
@@ -204,7 +205,7 @@ describe("the keyboard of a grid", () => {
     });
     expect(written(client, TASK)).toEqual([
       {
-        path: `${NODES}/01926f3a-7c00-7000-8000-000000000522/task`,
+        path: `${NODES}/01926f3a-7c00-7000-8000-000000000552/task`,
         body: { label: "Câblage des armoires et repérage", lock_version: 1 },
       },
     ]);
@@ -455,7 +456,7 @@ describe("the keyboard of a grid", () => {
     cell(PROVISION, "label").focus();
     await userEvent.keyboard("{Enter}{Tab}");
     // Nothing more to enter along the row: the next row, at the cell it was started from.
-    expect(cell(MILESTONE, "label")).toHaveFocus();
+    expect(cell(OCCURRED, "label")).toHaveFocus();
     // Nothing was changed, nothing written.
     expect(written(client)).toEqual([]);
 
@@ -758,39 +759,39 @@ describe("what a write answers besides the row written", () => {
     serve();
     render(grid());
     expect(totals().slice(1)).toEqual([
-      "Total — 3 tâches, 3 lignes",
+      "Total — 6 tâches, 5 lignes",
       "",
       "",
       "",
       "12,5",
       "",
-      "2\u202f734,56",
-      "2\u202f734,56",
+      "2\u202f934,56",
+      "2\u202f934,56",
     ]);
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     // The amounts of each summary follow those of its subordinates, as the server answers them,
     // at the year of reference and corrected for inflation.
     await vi.waitFor(() => {
-      expect(cell(0, "base_amount")).toHaveTextContent(/2\s854,56$/);
+      expect(cell(0, "base_amount")).toHaveTextContent(/3\s054,56$/);
     });
     expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
-    expect(cell(0, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(0, "inflated_amount")).toHaveTextContent(/3\s054,56$/);
     expect(cell(TASK_ROW, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals().slice(1)).toEqual([
-      "Total — 3 tâches, 3 lignes",
+      "Total — 6 tâches, 5 lignes",
       "",
       "",
       "",
       "14",
       "",
-      "2\u202f854,56",
-      "2\u202f854,56",
+      "3\u202f054,56",
+      "3\u202f054,56",
     ]);
   });
 
   it("reads anew the totals of a reading a search narrowed, by its own request, once its writes answered, never taking those of the structure [WF-ARC-0020-A]", async () => {
-    // The reading anew answers other totals than the reading: the example of another structure.
+    // The reading anew answers other totals than the reading: the example of another subtree.
     const client = serve({ [NODES_ROUTE]: "nodes" });
     const search = { sort: undefined, search: "borniers" };
     render(grid("fr", estimate, true, true, search, { search: "borniers" }));
@@ -798,7 +799,7 @@ describe("what a write answers besides the row written", () => {
     await userEvent.keyboard("14{Enter}");
     // The tasks above it as the write answered them; the totals as the reading anew gave them.
     await vi.waitFor(() => {
-      expect(totals()[1]).toBe("Total — 3 tâches, 1 ligne");
+      expect(totals()[1]).toBe("Total — 6 tâches, 1 ligne");
     });
     expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals()[5]).toBe("0");

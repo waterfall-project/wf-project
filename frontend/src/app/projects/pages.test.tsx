@@ -275,22 +275,31 @@ describe("the witness path", () => {
     expect(html).toMatch(
       /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Costing and estimate<\/h1>/,
     );
-    expect(text(html)).toContain("Structure principale · 3 tasks, 1 line");
+    expect(text(html)).toContain("Structure principale · 6 tasks, 1 line");
     expect(html).toMatch(
-      /<table[^>]*role="grid"[^>]*aria-label="Estimate grid"[^>]*aria-rowcount="6"/,
+      /<table[^>]*role="grid"[^>]*aria-label="Estimate grid"[^>]*aria-rowcount="9"/,
     );
-    // Each row shows the icon of its nature, named for it: a summary task, a task, a line.
+    // Each row shows the icon of its nature, named for it: a summary task, tasks, a line, the
+    // milestone of the studies.
     const natures = [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)]
       .map((match) => match[1])
       .filter((name) => name !== "Computed");
-    expect(natures).toEqual(["Summary task", "Task", "Disbursement line", "Task"]);
+    expect(natures).toEqual([
+      "Summary task",
+      "Task",
+      "Disbursement line",
+      "Task",
+      "Task",
+      "Milestone",
+      "Task",
+    ]);
     const labels = [...html.matchAll(/<span class="truncate">([^<]*)<\/span>/g)].map(
       (match) => match[1],
     );
     expect(labels).toEqual(
       expect.arrayContaining(["Études", "Études de détail", "Ingénierie de détail"]),
     );
-    expect(text(html)).toContain("Total — 3 tasks, 1 line");
+    expect(text(html)).toContain("Total — 6 tasks, 1 line");
   });
 
   it("asks the server for the sort, the search and the filtered sub-project the address holds, by the parameters of the contract", async () => {
@@ -343,7 +352,7 @@ describe("the witness path", () => {
         "nodes_estimate",
     });
     // The hours, the amount at the year of reference and the one corrected for inflation.
-    expect(text(html)).toMatch(/Total — 3 tasks, 3 lines 12\.5 2,734\.56 2,734\.56$/);
+    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 2,934\.56 2,934\.56$/);
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
@@ -687,7 +696,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 3 tasks, 1 line Workload Estimate indicators Computed on Estimate total 100,000.00 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Estimate indicators Computed on Estimate total 100,000.00 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
     expect(html).toMatch(

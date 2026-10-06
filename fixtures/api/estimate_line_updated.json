@@ -1,14 +1,14 @@
 {
-  "summary": "La ligne de main-d'œuvre du devis, « Raccordement des borniers », dont la charge passe de 12,5 à 14 h : le montant réestimé recalculé, 1 120,00, le budgété inchangé, fixé par la référence ; une version de plus. Avec elle, sa tâche et la récapitulative au-dessus, dont le montant réestimé passe à 2 854,56, et les totaux de la structure, 14 h et 2 854,56 réestimés (WF-DEV-0020, WF-DEV-0030, WF-DEV-0050).",
+  "summary": "La ligne de main-d'œuvre du devis, « Raccordement des borniers », dont la charge passe de 12,5 à 14 h : le montant réestimé recalculé, 1 120,00, le budgété inchangé, fixé par la référence ; une version de plus. Avec elle, sa tâche « Câblage des armoires », portée à 2 854,56, et la récapitulative « Poste de commande » au-dessus, à 3 054,56, et les totaux de la structure, 14 h et 3 054,56 réestimés, les 2 484,56 budgétés inchangés (WF-DEV-0020, WF-DEV-0030, WF-DEV-0050).",
   "value": {
     "nodes": [
       {
-        "node_id": "01926f3a-7c00-7000-8000-000000000523",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
+        "node_id": "01926f3a-7c00-7000-8000-000000000553",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000653",
         "kind": "estimate_line",
-        "parent_id": "01926f3a-7c00-7000-8000-000000000522",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000552",
         "position": 0,
-        "row_number": 3,
+        "row_number": 10,
         "level": 3,
         "lock_version": 2,
         "estimate_line": {
@@ -19,6 +19,7 @@
           "resource_role_label": "Ingénieur électricien",
           "quantity": "1",
           "hours": "14",
+          "unit_disbursement": null,
           "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
           "subproject_label": "Poste de commande",
           "base_amount": "1120.00",
@@ -26,6 +27,7 @@
           "reestimated_amount": "1120.00",
           "inflated_amount": "1120.00",
           "previous_reestimated_amount": null,
+          "consumption_year": 2026,
           "is_computed": false,
           "uses_inactive_object": false,
           "remaining_entry": {
@@ -46,12 +48,12 @@
     ],
     "ancestors": [
       {
-        "node_id": "01926f3a-7c00-7000-8000-000000000521",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+        "node_id": "01926f3a-7c00-7000-8000-000000000551",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000651",
         "kind": "task",
         "parent_id": null,
-        "position": 0,
-        "row_number": 1,
+        "position": 1,
+        "row_number": 8,
         "level": 1,
         "lock_version": 1,
         "task": {
@@ -69,14 +71,20 @@
             "date": "2026-06-30",
             "hours": "8"
           },
-          "progress": "not_started",
+          "progress": "started",
           "finish_overdue": false,
+          "started_on": "2026-05-04",
           "is_summary": true,
           "is_milestone": false,
-          "base_amount": "2854.56",
-          "budgeted_amount": "2734.56",
-          "reestimated_amount": "2854.56",
-          "inflated_amount": "2854.56"
+          "base_amount": "3054.56",
+          "budgeted_amount": "2484.56",
+          "reestimated_amount": "3054.56",
+          "inflated_amount": "3054.56",
+          "physical_progress": {
+            "is_computable": true,
+            "value": "0",
+            "reason": null
+          }
         },
         "computed_fields": [
           "task.duration",
@@ -90,12 +98,12 @@
         ]
       },
       {
-        "node_id": "01926f3a-7c00-7000-8000-000000000522",
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
+        "node_id": "01926f3a-7c00-7000-8000-000000000552",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000652",
         "kind": "task",
-        "parent_id": "01926f3a-7c00-7000-8000-000000000521",
+        "parent_id": "01926f3a-7c00-7000-8000-000000000551",
         "position": 0,
-        "row_number": 2,
+        "row_number": 9,
         "level": 2,
         "lock_version": 1,
         "task": {
@@ -113,15 +121,32 @@
             "date": "2026-06-30",
             "hours": "8"
           },
-          "progress": "not_started",
+          "progress": "started",
           "finish_overdue": false,
+          "started_on": "2026-05-04",
           "is_summary": false,
           "is_milestone": false,
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
+          "is_critical": true,
           "base_amount": "2854.56",
-          "budgeted_amount": "2734.56",
+          "budgeted_amount": "2484.56",
           "reestimated_amount": "2854.56",
           "inflated_amount": "2854.56"
         },
+        "predecessors": [
+          {
+            "predecessor_node_id": "01926f3a-7c00-7000-8000-000000000525",
+            "predecessor_row_number": 6,
+            "link_type": "finish_to_start",
+            "lag": {
+              "value": "1",
+              "unit": "w"
+            }
+          }
+        ],
         "computed_fields": [
           "task.start",
           "task.finish"
@@ -138,13 +163,13 @@
     "rescheduled": [],
     "reinflated": [],
     "totals": {
-      "task_count": 3,
-      "estimate_line_count": 3,
+      "task_count": 6,
+      "estimate_line_count": 5,
       "hours": "14",
-      "base_amount": "2854.56",
-      "budgeted_amount": "2734.56",
-      "reestimated_amount": "2854.56",
-      "inflated_amount": "2854.56"
+      "base_amount": "3054.56",
+      "budgeted_amount": "2484.56",
+      "reestimated_amount": "3054.56",
+      "inflated_amount": "3054.56"
     },
     "structure_lock_version": 2
   }

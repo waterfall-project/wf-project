@@ -9,9 +9,8 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockwitness
+from wftools import mockcore, mockwitness
 from wftools.mockcalendar import (
-    HOURS_PER_DAY,
     ORIGIN,
     START_TO_START,
     Calendar,
@@ -200,30 +199,8 @@ def test_a_calendar_without_any_hour_cannot_date_a_task() -> None:
 
 
 def _dates() -> dict[int, tuple[Instant, Instant]]:
-    """Date the tasks of the core from their links alone, in the order of their rows."""
-    roles, default = mockwitness.role_calendars(), mockwitness.default_calendar()
-    origin = Instant(mockwitness.STUDIES_STARTED.on)
-    dates: dict[int, tuple[Instant, Instant]] = {}
-
-    def walk(task: mockwitness.Task) -> None:
-        for child in task.children:
-            walk(child)
-        if task.children:
-            return
-        if task.manual is not None:
-            first, last = task.manual
-            dates[task.number] = (Instant(first), Instant(last, HOURS_PER_DAY))
-            return
-        calendar = applicable([roles[line.role] for line in task.lines if line.role], default)
-        predecessors = [
-            Predecessor(*dates[link.predecessor], link.link_type, to_hours(link.lag, link.unit))
-            for link in task.links
-        ]
-        dates[task.number] = follow(calendar, predecessors, to_hours(task.days, "d"), origin)
-
-    for root in mockwitness.CORE:
-        walk(root)
-    return dates
+    """Date the tasks of the core from their links alone, by number of task."""
+    return {number: (each.start, each.finish) for number, each in mockcore.schedule().items()}
 
 
 def _on(month: int, day: int, worked: int = 0) -> Instant:

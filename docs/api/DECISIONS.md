@@ -1164,6 +1164,55 @@ la cadrent déjà : le cœur lisible est **relié au réseau engendré**, pour q
 chemin critique aient un sens ; la **réception usine reste au 30 juin 2026** (C13). Jusque-là,
 la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 mars.
 
+## L'univers témoin : les lectures de la grille (EP-02/L21)
+
+**Les exemples nommés de `listNodes` sont des lectures d'un seul arbre, engendrées** (#287 ; C1,
+C14). `wftools.mockcore` date le cœur décrit dans `mockwitness` en heures de travail sur le
+calendrier de chaque tâche (`mockcalendar`), à partir du début des études (2 mars 2026) et de ses
+liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin la plus tardive que ses
+successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
+sa fin à cet instant, en jours ouvrés ; une tâche en mode manuel n'a ni marge ni criticité et
+n'impose rien à ses prédécesseurs. Les lignes sont chiffrées au taux de leur catégorie pour l'année
+de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; une tâche somme ses
+lignes et ses subordonnées ; l'avancement physique d'une récapitulative est le budget des lignes de
+ses tâches terminées sur celui de son sous-arbre, non calculable sans budget (`no_budgeted_amount`).
+L'avancement se lit aux dates à aujourd'hui, le 3 juin 2026 : les études sont terminées, les pupitres
+opérateurs en mode manuel démarrés et en dépassement de fin, le câblage des armoires en cours, la
+réception usine au 30 juin (C13). Les nœuds sont numérotés depuis la première ligne de la structure,
+où EP-02/L27 placera le cœur en tête (#376) ; jusque-là, marges et chemin critique sont ceux du cœur
+seul, et les mille tâches du volume restent datées au 16 mars.
+
+`make mock-data` écrit ces lectures sous `fixtures/api/`, par leur nom, à côté des volumes :
+`nodes`, le sous-arbre « Études » avec ses lignes (`subtree_of`) ; `nodes_planning`, le même sans ses
+lignes (`kinds=task`) ; `nodes_estimate`, le sous-arbre « Poste de commande », qui porte le sous-arbre
+fusionné par la survenance de 752 ; `nodes_milestone`, la recherche « Réception usine », dont la
+récapitulative est rendue pour la lisibilité et absente des totaux ; `nodes_risk_occurred`, le
+sous-arbre 541 seul ; et `dependencies_summary`, `dependencies_summary_moved`, `dependencies_labour`,
+`dependencies_task_amount`, `dependencies_provision`, `dependencies_manual_float`, ce dont dépendent
+les valeurs calculées des mêmes nœuds. `make mock-data-up-to-date` les vérifie comme les volumes,
+et `tools/paths.toml` les déclare engendrés. `dependencies_entered`, un refus sans nœud, reste écrit
+à la main. **Les totaux d'une lecture sont ceux des lignes qu'elle retient** (`NodeTotals`) : une
+lecture des tâches seules ne somme rien, là où l'exemple écrit à la main gardait les totaux de la
+structure.
+
+**La ligne de provision 555 est budgétée à la provision que la référence connaissait**, 250 — 751 à
+1 000 × 25 % le 1er février (`risk_reviews`) —, quand son montant d'aujourd'hui est 500 : ce budget
+compte à la réserve pour risques, jamais au budget de référence (WF-RIS-0050, `EstimateLineFacet`).
+Le devis du lot totalise donc 2 934,56, dont 2 484,56 budgétés. **C14 et C17 sont fermés, et C1 hors `comparison`, dont L23 (C12) porte les lignées** : les
+risques 751 (`risks`, `risk`) nomment leur ligne de provision 555, l'import du devis
+(`import_analysed`) les lignées 653 et 654 des mêmes lignes, et un test confronte tout
+`fixtures/api` — un nœud ou une lignée des familles 500–599 et 600–699 porte une seule nature et un
+seul libellé dans tout l'univers, les fixtures qui s'en écartent déclarées : `task_renamed`, qui
+renomme, et `comparison`.
+
+**Ce que ce lot laisse** : `comparison.json` compare deux révisions sur les lignées 622, 623, 625 et
+626 d'un autre découpage du témoin — une contradiction avec les lectures, déclarée, que L23 ferme
+avec C12 ; les écritures `estimate_line_updated`, `task_renamed` et `node_deleted`, que les tests de
+la grille combinent aux lectures, ont été reportées à la main sur les nœuds 553, 552 et 551 et aux
+totaux d'aujourd'hui, et `predecessor_set` reste une écriture d'avril (marge du dossier de
+conception à 7 jours quand les lectures la portent à 54, études sans dépassement de fin) : L22 les
+engendre toutes.
+
 ## Révision de la spécification du 2026-10-04 (PR #328, fusion du 2026-10-06)
 
 La seconde revue de la spécification (#211, #212, #253 à #283) change le modèle des provisions et

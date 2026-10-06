@@ -87,7 +87,21 @@ paths = ["fixtures/examples.json"]
 by = "make fixtures"
 
 [[generated]]
-paths = ["fixtures/api/volume/**"]
+# The volumes, and the named examples read from the core of the witness (wftools.mockcore).
+paths = [
+    "fixtures/api/volume/**",
+    "fixtures/api/nodes.json",
+    "fixtures/api/nodes_planning.json",
+    "fixtures/api/nodes_estimate.json",
+    "fixtures/api/nodes_milestone.json",
+    "fixtures/api/nodes_risk_occurred.json",
+    "fixtures/api/dependencies_summary.json",
+    "fixtures/api/dependencies_summary_moved.json",
+    "fixtures/api/dependencies_labour.json",
+    "fixtures/api/dependencies_task_amount.json",
+    "fixtures/api/dependencies_provision.json",
+    "fixtures/api/dependencies_manual_float.json",
+]
 by = "make mock-data"
 
 [tests]
