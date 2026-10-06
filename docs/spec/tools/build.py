@@ -56,9 +56,12 @@ RE_ANCHOR = re.compile(r'<span id="[^"]*" class="anchor"></span>')
 RE_CAPTION = re.compile(r"^(Figure|Tableau)\s*(\d+)?\s*[:–—-]?\s*(.*)$")
 RE_IMG = re.compile(r"^<img\s+(?P<attrs>.*?)\s*/?>$", re.DOTALL)
 RE_ATTR = re.compile(r'(\w+)="([^"]*)"')
-# A revision mark of Word: an insertion, a deletion, a move, or a change of properties.
+# A revision mark of Word: an insertion, a deletion, a move, a change of properties, or
+# the insertion, deletion or merge of a table cell — the requirement tables carry those.
 # The word boundary keeps w:delText and w:instrText out.
-RE_TRACKED_CHANGE = re.compile(r"<w:(?:ins|del|moveFrom|moveTo|\w+Change)\b")
+RE_TRACKED_CHANGE = re.compile(
+    r"<w:(?:ins|del|moveFrom|moveTo|cellIns|cellDel|cellMerge|\w+Change)\b"
+)
 RE_COMMENT_THREAD = re.compile(r"<w15:commentEx\b[^>]*>")
 PAIR = 2
 """A requirement table has two columns: the label, and the value."""
@@ -670,8 +673,18 @@ def main() -> int:
 
     notes = BuildNotes(verbose=arguments.verbose)
     config = load_figure_config(ROOT / arguments.config)
-    for message in pending_review_marks(docx):
+    marks = pending_review_marks(docx)
+    for message in marks:
         notes.warn(message)
+    if marks and arguments.strict:
+        # The previous projection stays as it is: it was built from an accepted document,
+        # and the one pandoc would build now would present as adopted what is not yet.
+        notes.report()
+        print(
+            f"{arguments.output} left untouched: the Word document is still under review",
+            file=sys.stderr,
+        )
+        return 1
 
     with tempfile.TemporaryDirectory() as temporary:
         readable = Path(temporary) / docx.name
