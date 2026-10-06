@@ -238,7 +238,15 @@
       "identified": "Risques identifiés",
       "occurred": "Risques survenus",
       "dismissed": "Risques écartés",
-      "total": "Total général"
+      "total": "Total général",
+      "reserve": "Réserve pour risques"
+    },
+    "coverage": {
+      "title": "Couverture des risques",
+      "reserve": "Réserve pour risques",
+      "remainingProvisions": "Provisions restantes",
+      "occurredCost": "Coût des risques survenus",
+      "coverageVariance": "Écart de couverture"
     },
     "matrix": {
       "title": "Matrice des risques",
@@ -422,7 +430,12 @@
       "heaviest": "Risques les plus lourds",
       "risk": "Risque",
       "project": "Projet",
-      "provision": "Provision"
+      "provision": "Provision",
+      "coverage": "Couverture des risques",
+      "reserve": "Réserve de référence",
+      "remainingProvisions": "Provisions restantes",
+      "occurredCost": "Coût des risques survenus",
+      "coverageVariance": "Écart de couverture"
     },
     "workload": {
       "title": "Charge par rôle et par mois",
@@ -442,9 +455,20 @@
         "milestoneOverdue": "{milestone}, date de référence du {date}"
       }
     },
+    "costCurve": {
+      "chartTitle": "Coûts cumulés du portefeuille",
+      "chartTitleDelayed": "Décaissements cumulés du portefeuille",
+      "description": "Courbes cumulées, mois par mois, du budget de référence des projets du périmètre, de leur coût réel jusqu’à la date de calcul, puis de la projection de leurs chefs de projet : chaque point est la somme des points des projets, telle que le serveur la calcule.",
+      "descriptionDelayed": "Les mêmes courbes, chaque projet décalé de ses délais de paiement et portant les provisions de ses risques identifiés : les décaissements cumulés du portefeuille, passés et à venir.",
+      "delay": "Lire en décaissements",
+      "undelay": "Revenir aux coûts cumulés",
+      "series": "Courbe",
+      "date": "Date",
+      "amount": "Montant"
+    },
     "cashOut": {
       "chartTitle": "Décaissements par mois",
-      "description": "Courbes des décaissements passés, sommes des coûts réels par mois de date de pièce, et des décaissements à venir, sommes des projections des projets, mois par mois.",
+      "description": "Lecture en décaissements de la courbe en S du portefeuille : les décaissements passés, sommes des coûts réels des projets par mois de date de pièce décalée, et les décaissements à venir, sommes de leurs projections décalées, mois par mois.",
       "month": "Mois",
       "past": "Décaissé",
       "forecast": "À décaisser"
@@ -1041,7 +1065,7 @@
     "portfolioPerformance": "Performance du portefeuille",
     "portfolioCostStructure": "Structure des coûts du portefeuille",
     "portfolioRisks": "Risques du portefeuille",
-    "portfolioCashOut": "Décaissements du portefeuille",
+    "portfolioCostCurve": "Courbe en S du portefeuille",
     "portfolioPilotHealth": "Santé du pilotage",
     "costSettings": "Paramètres de coûts",
     "resourceSettings": "Paramètres de ressources",
@@ -1159,9 +1183,9 @@
       "read": "Consulter les risques du portefeuille",
       "write": "Modifier les risques du portefeuille"
     },
-    "portfolio_cash_out": {
-      "read": "Consulter les décaissements du portefeuille",
-      "write": "Modifier les décaissements du portefeuille"
+    "portfolio_cost_curve": {
+      "read": "Consulter la courbe en S du portefeuille",
+      "write": "Modifier la courbe en S du portefeuille"
     },
     "portfolio_pilot_health": {
       "read": "Consulter la santé du pilotage",
@@ -1641,9 +1665,16 @@
       },
       "steps": {
         "cause": {
-          "amendment": "Avenant",
-          "risk_occurred": "Risque survenu",
-          "last_risk_dismissed": "Dernier risque écarté"
+          "amendment": "Avenant"
+        }
+      }
+    },
+    "PortfolioCostCurve": {
+      "series": {
+        "name": {
+          "reference_budget": "Budget de référence",
+          "actual_cost": "Coût réel",
+          "project_manager_projection": "Projection du chef de projet"
         }
       }
     },

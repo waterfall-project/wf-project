@@ -75,10 +75,10 @@
         },
         {
           "code": "FBS-2.6",
-          "label": "functions.portfolioCashOut",
-          "route": "/portfolio/cash-out",
+          "label": "functions.portfolioCostCurve",
+          "route": "/portfolio/cost-curve",
           "scope": "platform",
-          "permission": "portfolio_cash_out"
+          "permission": "portfolio_cost_curve"
         },
         {
           "code": "FBS-2.7",

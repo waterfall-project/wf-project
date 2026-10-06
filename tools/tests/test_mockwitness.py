@@ -254,14 +254,12 @@ def test_the_figures_of_the_core_are_those_of_the_other_examples() -> None:
         if isinstance(task, mockwitness.Task)
         for line in task.lines
     }
-    # The lines merged by the occurrence of 752, budgeted at its probability, summing to its
-    # provision of 200 at 0.3 (WF-RIS-0060); the occurrence before the current revision opened.
-    probability = Decimal(delay["probability"])
+    # The lines merged by the occurrence of 752 are budgeted nothing — the occurrence does not
+    # move the reference (WF-RIS-0060) —, and reestimated at their own estimate, 200 in all;
+    # the occurrence before the current revision opened.
     merged = [lines[543], lines[545]]
-    assert [line.budgeted for line in merged] == [
-        ((line.unit or Decimal(0)) * probability).quantize(Decimal("0.01")) for line in merged
-    ]
-    assert sum(line.budgeted or 0 for line in merged) == Decimal(delay["severity"]) * probability
+    assert [line.budgeted for line in merged] == [Decimal(0), Decimal(0)]
+    assert sum(line.unit or 0 for line in merged) == Decimal(delay["severity"])
     assert mockwitness.RISK_752_OCCURRED.on < mockwitness.STUDIES_STARTED.on
     # The provision of 751, its severity at its probability; the wiring at the rate of 2026.
     assert lines[555].unit == Decimal(rework["severity"]) * Decimal(rework["probability"])

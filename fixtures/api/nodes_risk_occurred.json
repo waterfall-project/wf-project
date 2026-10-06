@@ -1,5 +1,5 @@
 {
-  "summary": "Le sous-arbre fusionné dans la structure principale par la survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 % : ses deux tâches et leurs lignes de 120 et 80 y figurent, avec des montants budgétés de 36 et 24 — la provision de 60 répartie au prorata, arrondie au centime, le reste sur la dernière — et des montants réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative somme ses lignes (WF-RIS-0060, WF-RIS-0050).",
+  "summary": "Le sous-arbre fusionné dans la structure principale de la révision en cours par la survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 % : ses deux tâches et leurs lignes de 120 et 80 y figurent, avec des montants budgétés nuls — la survenance ne déplace pas la référence — et des montants réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative somme ses lignes (WF-RIS-0060, WF-RIS-0050).",
   "value": {
     "items": [
       {
@@ -31,7 +31,7 @@
           "is_summary": true,
           "is_milestone": false,
           "base_amount": "200.00",
-          "budgeted_amount": "60.00",
+          "budgeted_amount": "0.00",
           "reestimated_amount": "200.00",
           "inflated_amount": "200.00"
         },
@@ -75,7 +75,7 @@
           "is_summary": false,
           "is_milestone": false,
           "base_amount": "120.00",
-          "budgeted_amount": "36.00",
+          "budgeted_amount": "0.00",
           "reestimated_amount": "120.00",
           "inflated_amount": "120.00",
           "total_float": {
@@ -117,7 +117,7 @@
           "subproject_id": null,
           "subproject_label": null,
           "base_amount": "120.00",
-          "budgeted_amount": "36.00",
+          "budgeted_amount": "0.00",
           "reestimated_amount": "120.00",
           "inflated_amount": "120.00",
           "previous_reestimated_amount": null,
@@ -168,7 +168,7 @@
           "is_summary": false,
           "is_milestone": false,
           "base_amount": "80.00",
-          "budgeted_amount": "24.00",
+          "budgeted_amount": "0.00",
           "reestimated_amount": "80.00",
           "inflated_amount": "80.00",
           "total_float": {
@@ -221,7 +221,7 @@
           "subproject_id": null,
           "subproject_label": null,
           "base_amount": "80.00",
-          "budgeted_amount": "24.00",
+          "budgeted_amount": "0.00",
           "reestimated_amount": "80.00",
           "inflated_amount": "80.00",
           "previous_reestimated_amount": null,
@@ -249,7 +249,7 @@
       "estimate_line_count": 2,
       "hours": "0",
       "base_amount": "200.00",
-      "budgeted_amount": "60.00",
+      "budgeted_amount": "0.00",
       "reestimated_amount": "200.00",
       "inflated_amount": "200.00"
     }

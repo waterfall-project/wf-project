@@ -166,11 +166,17 @@ ComputableAmountByKey:
 
 RemainingIndicators:
   type: object
-  required: [context, total, by_cost_type, by_subproject]
-  description: Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010).
+  required: [context, total, by_cost_type, by_subproject, coverage]
+  description: >-
+    Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de
+    provision des risques identifiés comprises, ses ventilations, ses écarts et la
+    couverture des risques.
   properties:
     context: { $ref: '#/CalculationContext' }
     total: { $ref: ../common.yaml#/Money }
+    coverage:
+      allOf: [{ $ref: risks.yaml#/RiskCoverageTotals }]
+      description: La couverture des risques à la date de calcul (WF-RAE-0020, WF-RIS-0050).
     by_cost_type:
       type: array
       items: { $ref: '#/AmountByKey' }
@@ -379,7 +385,9 @@ CurveSeries:
                 amount: { $ref: ../common.yaml#/Money }
     steps:
       type: array
-      description: Marches du budget de référence, datées et motivées (WF-IND-0100).
+      description: >-
+        Marches du budget de référence, datées et motivées : seuls les avenants le
+        déplacent (WF-IND-0100, WF-RIS-0050).
       items:
         type: object
         required: [date, amount, cause]
@@ -389,12 +397,12 @@ CurveSeries:
             allOf: [{ $ref: ../common.yaml#/Money }]
             description: >-
               Le montant de la marche, signé : ce dont le budget de référence change à sa
-              date — l'avenant contractualisé, la provision du risque survenu, celles des
-              risques écartés —, pas le budget après elle, que porte la série
+              date — l'avenant contractualisé, seul événement qui le déplace (WF-REV-0040,
+              WF-RIS-0050) —, pas le budget après elle, que porte la série
               `reference_budget`.
           cause:
             type: string
-            enum: [amendment, risk_occurred, last_risk_dismissed]
+            enum: [amendment]
     cash_out_by_month:
       anyOf:
         - type: array

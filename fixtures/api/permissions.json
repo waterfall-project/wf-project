@@ -92,12 +92,12 @@
       "fbs_code": "FBS-2.5"
     },
     {
-      "code": "portfolio_cash_out.read",
+      "code": "portfolio_cost_curve.read",
       "kind": "function_read",
       "fbs_code": "FBS-2.6"
     },
     {
-      "code": "portfolio_cash_out.write",
+      "code": "portfolio_cost_curve.write",
       "kind": "function_write",
       "fbs_code": "FBS-2.6"
     },

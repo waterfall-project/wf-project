@@ -6,8 +6,8 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**156 opérations sur 121 chemins, dans 12 familles.**
-Le contrat cite **181 des 208 exigences** de la spécification.
+**157 opérations sur 122 chemins, dans 12 familles.**
+Le contrat cite **181 des 209 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -197,7 +197,7 @@ Le contrat cite **181 des 208 exigences** de la spécification.
 
 ## Risques et provisions
 
-`paths/risks.yaml` — 8 opérations
+`paths/risks.yaml` — 9 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -208,6 +208,7 @@ Le contrat cite **181 des 208 exigences** de la spécification.
 | GET | `/projects/{project_id}/risks/{risk_id}/reviews` | Historique des réexamens | WF-RIS-0010, WF-RIS-0030 |
 | POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Réexaminer un risque | WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
 | POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Déclarer un risque survenu | WF-ARC-0090, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
+| GET | `/projects/{project_id}/risks/coverage` | Couverture des risques | WF-RAE-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/matrix` | Matrice de risques du projet | WF-IHM-0070, WF-REF-0160, WF-RIS-0030, WF-RIS-0040 |
 
 ## Coûts réels
@@ -245,13 +246,13 @@ Le contrat cite **181 des 208 exigences** de la spécification.
 | GET | `/portfolio/workload` | Plan de charge agrégé | WF-PTF-0060 |
 | GET | `/portfolio/performance` | Indices, projections, répartition par zone et évolution trimestrielle | WF-PTF-0010, WF-PTF-0020, WF-PTF-0070 |
 | GET | `/portfolio/cost-structure` | Structure des coûts du portefeuille | WF-PTF-0080 |
-| GET | `/portfolio/risks` | Risques du portefeuille | WF-PTF-0090 |
-| GET | `/portfolio/cash-out` | Décaissements du portefeuille | WF-PTF-0100 |
+| GET | `/portfolio/risks` | Risques du portefeuille | WF-PTF-0090, WF-RIS-0050 |
+| GET | `/portfolio/cost-curve` | Courbe en S du portefeuille | WF-IND-0100, WF-PTF-0100 |
 | GET | `/portfolio/pilot-health` | Santé du pilotage | WF-PTF-0110, WF-REF-0180 |
 
 ## Exigences que le contrat ne cite pas
 
-27 sur 208. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+28 sur 209. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -260,6 +261,6 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | CMP | WF-CMP-0010, WF-CMP-0030 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010, WF-EXP-0020, WF-EXP-0030, WF-EXP-0050 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
-| IHM | WF-IHM-0010, WF-IHM-0100 | Invariants d'interface : navigation, accessibilité. Ils vivent dans le front. |
+| IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |

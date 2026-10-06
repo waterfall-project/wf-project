@@ -335,8 +335,9 @@ def volumes() -> dict[str, JsonObject]:
         "portfolio_risks.json": _example(
             "Les risques des projets en cours du portefeuille du §4.6.2 au 16 mars 2026 : le "
             "total des provisions identifiées, les dix risques les plus lourds avec leur projet, "
-            "la matrice remplie, et les provisions survenues et écartées sur l'année "
-            "(WF-PTF-0090).",
+            "la matrice remplie, la couverture des risques agrégée — la somme des réserves "
+            "de référence face aux provisions restantes et au coût des risques survenus —, et "
+            "les provisions survenues et écartées sur l'année (WF-PTF-0090, WF-RIS-0050).",
             portfolio_risks(rows),
         ),
         "cost_categories.json": _example(

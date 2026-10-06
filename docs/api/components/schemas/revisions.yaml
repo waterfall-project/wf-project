@@ -149,7 +149,7 @@ ReferenceDesignation:
   description: >-
     Désigne la révision de référence parmi les révisions marquées. Corrigible tant
     que le projet n'a ni coût réel ni révision marquée postérieure ; au-delà, la
-    référence ne se déplace plus que par avenant ou risque survenu (WF-REV-0040).
+    référence ne se déplace plus qu'à la contractualisation d'un avenant (WF-REV-0040).
   properties:
     revision_id: { $ref: ../common.yaml#/Uuid }
     confirmed:
@@ -853,10 +853,11 @@ EstimateLineFacet:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
         Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de
-        référence : une ligne de provision présente dans la révision de référence porte la
-        provision qu'elle y avait. Le budget de référence est la somme des montants budgétés
-        des lignes de la révision de référence, diminuée des provisions selon les règles de
-        WF-RIS-0050 (glossaire) : il se lit dans les indicateurs, jamais en sommant ces montants.
+        référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu. Une
+        ligne de provision porte la provision qu'elle avait dans la révision de référence :
+        ce montant compte à la réserve pour risques, jamais au budget de référence, qui est
+        la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et
+        se lit dans les indicateurs, jamais en sommant ces montants.
     reestimated_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: Montant réestimé, à l'année de référence.

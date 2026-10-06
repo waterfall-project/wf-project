@@ -5,12 +5,14 @@
  * (`functions.json`), each read for the revision of the route (`revision_id`), which fixes a
  * version of their own estimate, and so their severity, their provision and their cell
  * (WF-RIS-0030): the banner of the reading context (WF-IHM-0020); the totals of the provisions
- * of the risks retained, by state and their general total; the filter by state; the grid of the
- * risks, sorted, searched and filtered by the server as the address asks (`sort_by`, `search`,
- * `states`, under the names of the contract); the risk matrix of the revision; and, when the
- * address names one (`risk`), the detail of a risk — its notes, its provision line, the history of
- * its reviews. Every figure as the API gives it: the front computes, sorts and filters nothing.
- * A read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
+ * of the risks retained, by state and their general total, with the risk reserve of the reference
+ * revision; the coverage of the risks in the revision (`getProjectRiskCoverage`, WF-RIS-0050); the
+ * filter by state; the grid of the risks, sorted, searched and filtered by the server as the
+ * address asks (`sort_by`, `search`, `states`, under the names of the contract); the risk matrix
+ * of the revision; and, when the address names one (`risk`), the detail of a risk — its notes, its
+ * provision line, the history of its reviews. Every figure as the API gives it: the front
+ * computes, sorts and filters nothing. A read the API refuses, or cannot answer, is thrown for the
+ * pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -24,6 +26,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import { readRisk, readStates, type RiskState } from "@/components/risks/address";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
+import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { RiskDetail } from "@/components/risks/risk-detail";
 import {
   RISK_GRID,
@@ -81,6 +84,18 @@ async function readRisks(
   return { items: answer.items.map(riskRow), totals: answer.totals };
 }
 
+/** The coverage of the risks in the revision: the reserve against what the risks cost. */
+async function readCoverage({ revision }: GridAddress) {
+  return readOrFail("getProjectRiskCoverage", () =>
+    serverClient().GET("/projects/{project_id}/risks/coverage", {
+      params: {
+        path: { project_id: revision.projectId },
+        query: { revision_id: revision.revisionId },
+      },
+    }),
+  );
+}
+
 /** The risk matrix of the revision. */
 async function readMatrix({ revision }: GridAddress) {
   return readOrFail("getProjectRiskMatrix", () =>
@@ -135,7 +150,10 @@ function DetailHint() {
   return <p className="text-sm text-muted-foreground">{t("hint")}</p>;
 }
 
-/** Render the risks of a revision: their totals, their filter, their grid, their matrix. */
+/**
+ * Render the risks of a revision: their totals and their coverage, their filter, their grid, their
+ * matrix.
+ */
 export default async function RisksPage({
   params,
   searchParams,
@@ -150,9 +168,10 @@ export default async function RisksPage({
     (session) => session?.user.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
   );
   const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
-  const [reading, risks, matrix, detail, preferences, query] = await Promise.all([
+  const [reading, risks, coverage, matrix, detail, preferences, query] = await Promise.all([
     readProjectContext(at.pathname, at.context),
     readRisks(at, states, asked),
+    readCoverage(at),
     readMatrix(at),
     readDetail(at, readRisk(at.address)),
     settings,
@@ -169,7 +188,10 @@ export default async function RisksPage({
         <Screen density={FUNCTION_DENSITY.risks} fill>
           <RisksHeader count={risks.items.length} />
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-            <ProvisionSummary totals={risks.totals} />
+            <div className="flex flex-wrap gap-x-12 gap-y-3">
+              <ProvisionSummary totals={risks.totals} />
+              <RiskCoverageSummary coverage={coverage} />
+            </div>
             <RiskStateFilter states={states} />
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">

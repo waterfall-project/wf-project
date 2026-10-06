@@ -238,7 +238,15 @@
       "identified": "Identified risks",
       "occurred": "Occurred risks",
       "dismissed": "Dismissed risks",
-      "total": "General total"
+      "total": "General total",
+      "reserve": "Risk reserve"
+    },
+    "coverage": {
+      "title": "Risk coverage",
+      "reserve": "Risk reserve",
+      "remainingProvisions": "Remaining provisions",
+      "occurredCost": "Cost of the occurred risks",
+      "coverageVariance": "Coverage variance"
     },
     "matrix": {
       "title": "Risk matrix",
@@ -422,7 +430,12 @@
       "heaviest": "Heaviest risks",
       "risk": "Risk",
       "project": "Project",
-      "provision": "Provision"
+      "provision": "Provision",
+      "coverage": "Risk coverage",
+      "reserve": "Reference reserve",
+      "remainingProvisions": "Remaining provisions",
+      "occurredCost": "Cost of the occurred risks",
+      "coverageVariance": "Coverage variance"
     },
     "workload": {
       "title": "Load by role and by month",
@@ -442,9 +455,20 @@
         "milestoneOverdue": "{milestone}, reference date {date}"
       }
     },
+    "costCurve": {
+      "chartTitle": "Cumulative costs of the portfolio",
+      "chartTitleDelayed": "Cumulative cash-out of the portfolio",
+      "description": "Cumulative curves, month by month, of the reference budget of the projects of the perimeter, of their actual cost up to the calculation date, then of their project managers’ projection: each point is the sum of the points of the projects, as the server computes it.",
+      "descriptionDelayed": "The same curves, each project shifted by its payment delays and bearing the provisions of its identified risks: the cumulative cash-out of the portfolio, past and to come.",
+      "delay": "Read as cash-out",
+      "undelay": "Back to the cumulative costs",
+      "series": "Curve",
+      "date": "Date",
+      "amount": "Amount"
+    },
     "cashOut": {
       "chartTitle": "Cash-out by month",
-      "description": "Curves of the past cash-out, sums of the actual costs by month of document date, and of the cash-out to come, sums of the projections of the projects, month by month.",
+      "description": "The cash-out reading of the portfolio S-curve: the past cash-out, sums of the actual costs of the projects by month of shifted document date, and the cash-out to come, sums of their shifted projections, month by month.",
       "month": "Month",
       "past": "Paid out",
       "forecast": "To be paid out"
@@ -1041,7 +1065,7 @@
     "portfolioPerformance": "Portfolio performance",
     "portfolioCostStructure": "Portfolio cost structure",
     "portfolioRisks": "Portfolio risks",
-    "portfolioCashOut": "Portfolio cash-out",
+    "portfolioCostCurve": "Portfolio S-curve",
     "portfolioPilotHealth": "Project control health",
     "costSettings": "Cost settings",
     "resourceSettings": "Resource settings",
@@ -1159,9 +1183,9 @@
       "read": "View the portfolio risks",
       "write": "Edit the portfolio risks"
     },
-    "portfolio_cash_out": {
-      "read": "View the portfolio cash-out",
-      "write": "Edit the portfolio cash-out"
+    "portfolio_cost_curve": {
+      "read": "View the portfolio S-curve",
+      "write": "Edit the portfolio S-curve"
     },
     "portfolio_pilot_health": {
       "read": "View the project control health",
@@ -1641,9 +1665,16 @@
       },
       "steps": {
         "cause": {
-          "amendment": "Amendment",
-          "risk_occurred": "Risk occurred",
-          "last_risk_dismissed": "Last risk dismissed"
+          "amendment": "Amendment"
+        }
+      }
+    },
+    "PortfolioCostCurve": {
+      "series": {
+        "name": {
+          "reference_budget": "Reference budget",
+          "actual_cost": "Actual cost",
+          "project_manager_projection": "Project manager’s projection"
         }
       }
     },

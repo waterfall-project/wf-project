@@ -147,7 +147,8 @@
       "identified": "500.00",
       "occurred": "60.00",
       "dismissed": "600.00",
-      "total": "1160.00"
+      "total": "1160.00",
+      "reserve": "910.00"
     }
   }
 }

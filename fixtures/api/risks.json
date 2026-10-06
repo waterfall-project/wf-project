@@ -1,5 +1,5 @@
 {
-  "summary": "Le registre des risques de la révision courante, dans l'ordre de déclaration : le risque de reprise du câblage, identifié, porté au devis par sa ligne de provision de 500 ; le retard de livraison des armoires, survenu, sa provision de 60 retenue à la révision de référence et portée par les lignes fusionnées de son devis propre, sa ligne de provision retirée (WF-RIS-0060) ; l'indisponibilité de l'automaticien, écartée. Chacun dans sa case de matrice, et les trois totaux de provisions avec leur somme (WF-RIS-0040, WF-RIS-0050).",
+  "summary": "Le registre des risques de la révision courante, dans l'ordre de déclaration : le risque de reprise du câblage, identifié, porté au devis et au reste à engager par sa ligne de provision de 500 ; le retard de livraison des armoires, survenu, son devis propre fusionné dans la révision en cours à montant budgété nul et sa ligne de provision retirée (WF-RIS-0060) ; l'indisponibilité de l'automaticien, écartée. Chacun dans sa case de matrice, les trois totaux de provisions avec leur somme, et la réserve pour risques de la référence en regard (WF-RIS-0040, WF-RIS-0050).",
   "value": {
     "items": [
       {
@@ -148,7 +148,8 @@
       "identified": "500.00",
       "occurred": "60.00",
       "dismissed": "600.00",
-      "total": "1160.00"
+      "total": "1160.00",
+      "reserve": "910.00"
     }
   }
 }

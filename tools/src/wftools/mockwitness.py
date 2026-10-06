@@ -62,7 +62,9 @@ AMENDMENT_MERGED = Event(
 )
 RISK_751_REVIEWED = Event(date(2026, 2, 2), "Réexamen de 751 : gravité portée à 1 250")
 RISK_752_OCCURRED = Event(
-    date(2026, 2, 20), "Survenance de 752 : la révision 103 marquée devient la référence"
+    date(2026, 2, 20),
+    "Survenance de 752 : son devis propre fusionné dans la révision en cours, la référence 101 "
+    "inchangée",
 )
 STUDIES_STARTED = Event(
     date(2026, 3, 2), "Ouverture de la révision courante 102 ; 751 à 40 % ; début des études"
@@ -258,7 +260,8 @@ class Line:
 
     A labour line has its hours and its role, at the rate of its category; another its
     quantity and its unit disbursement. Its budget is its amount, but where the reference
-    revision gives it another (WF-RIS-0060).
+    revision gives it another: nothing for a line merged by the occurrence of a risk
+    (WF-RIS-0060) or added after the reference (WF-DEV-0020).
     """
 
     number: int
@@ -374,7 +377,7 @@ CONTROL_STATION = Task(
                             "Frais de relance",
                             EQUIPMENT,
                             unit=Decimal("120.00"),
-                            budgeted=Decimal("36.00"),
+                            budgeted=Decimal(0),
                         ),
                     ),
                 ),
@@ -389,7 +392,7 @@ CONTROL_STATION = Task(
                             "Affrètement",
                             EQUIPMENT,
                             unit=Decimal("80.00"),
-                            budgeted=Decimal("24.00"),
+                            budgeted=Decimal(0),
                         ),
                     ),
                 ),
@@ -400,9 +403,9 @@ CONTROL_STATION = Task(
 )
 """The lot of the control station: the wiring of the cabinets a week after the reception of the
 studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of 500
-of the risk 751; the subtree merged by the occurrence of the risk 752, its lines of
-120 and 80 budgeted 36 and 24 at the reference revision 103 (WF-RIS-0060); and the factory
-acceptance at the end of the wiring."""
+of the risk 751; the subtree merged into the current revision by the occurrence of the risk
+752, its lines of 120 and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at the
+end of the wiring."""
 
 CORE = (STUDIES, CONTROL_STATION)
 """The readable core, to be the first roots of the structure, its rows its first rows (#376)."""

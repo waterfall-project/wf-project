@@ -420,7 +420,7 @@
         <mxCell id="gVRlwLGwSYEDeYzQaK_8-6" value="FBS-2.5&#xa;Risques du portefeuille" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
           <mxGeometry x="120" y="2082" width="200" height="38" as="geometry" />
         </mxCell>
-        <mxCell id="gVRlwLGwSYEDeYzQaK_8-7" value="FBS-2.6&#xa;Décaissements du portefeuille" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+        <mxCell id="gVRlwLGwSYEDeYzQaK_8-7" value="FBS-2.6&#xa;Courbe en S du portefeuille" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
           <mxGeometry x="120" y="2162" width="200" height="38" as="geometry" />
         </mxCell>
         <mxCell id="gVRlwLGwSYEDeYzQaK_8-8" value="FBS-2.7&#xa;Santé du pilotage" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
@@ -905,7 +905,7 @@
         <mxCell id="6B8UxLb_9WXyIzn_eBGu-34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="6B8UxLb_9WXyIzn_eBGu-24" target="6B8UxLb_9WXyIzn_eBGu-23">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="6B8UxLb_9WXyIzn_eBGu-36" value="Avenant contractualisé ou&lt;div&gt;risque survenu&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" vertex="1" connectable="0" parent="6B8UxLb_9WXyIzn_eBGu-34">
+        <mxCell id="6B8UxLb_9WXyIzn_eBGu-36" value="Avenant contractualisé" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;" vertex="1" connectable="0" parent="6B8UxLb_9WXyIzn_eBGu-34">
           <mxGeometry x="-0.0245" relative="1" as="geometry">
             <mxPoint y="6" as="offset" />
           </mxGeometry>

@@ -27,7 +27,7 @@ const LABELS = {
   portfolio_performance: "functions.portfolioPerformance",
   portfolio_cost_structure: "functions.portfolioCostStructure",
   portfolio_risks: "functions.portfolioRisks",
-  portfolio_cash_out: "functions.portfolioCashOut",
+  portfolio_cost_curve: "functions.portfolioCostCurve",
   portfolio_pilot_health: "functions.portfolioPilotHealth",
 } as const satisfies Readonly<Record<PortfolioFunction, NavigationFunction["label"]>>;
 

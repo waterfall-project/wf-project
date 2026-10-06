@@ -172,8 +172,11 @@ PortfolioCostStructure:
 
 PortfolioRisks:
   type: object
-  required: [scope, identified_total, heaviest, matrix, period_outcome]
-  description: Risques tous projets confondus (WF-PTF-0090).
+  required: [scope, identified_total, heaviest, matrix, coverage, period_outcome]
+  description: >-
+    Risques tous projets confondus, avec la couverture des risques agrégée : chaque
+    montant est la somme de celui des projets en cours du périmètre (WF-PTF-0090,
+    WF-RIS-0050).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     identified_total: { $ref: ../common.yaml#/Money }
@@ -189,6 +192,13 @@ PortfolioRisks:
           project_label: { type: string }
           provision_amount: { $ref: ../common.yaml#/Money }
     matrix: { $ref: risks.yaml#/RiskMatrix }
+    coverage:
+      allOf: [{ $ref: risks.yaml#/RiskCoverageTotals }]
+      description: >-
+        Couverture des risques agrégée : la somme des réserves de référence des projets en
+        cours, face aux sommes de leurs provisions restantes et du coût de leurs risques
+        survenus, et l'écart de couverture agrégé, différence des sommes (WF-PTF-0090,
+        WF-RIS-0050).
     period_outcome:
       type: object
       required: [occurred_provisions, dismissed_provisions]
@@ -196,18 +206,48 @@ PortfolioRisks:
         occurred_provisions: { $ref: ../common.yaml#/Money }
         dismissed_provisions: { $ref: ../common.yaml#/Money }
 
-PortfolioCashOut:
+PortfolioCostCurve:
   type: object
-  required: [scope, months]
+  required: [scope, payment_delays, series, cash_out_by_month]
   description: >-
-    Somme, mois par mois, des décaissements des projets du périmètre, ceux que la courbe
-    de coûts cumulés de chacun rend avec les délais de paiement (WF-PTF-0100,
-    WF-IND-0100).
+    Courbe en S du portefeuille : somme, mois par mois, des trois courbes de coûts cumulés
+    des projets du périmètre (WF-IND-0100) — le budget de référence, le coût réel jusqu'à
+    la date de calcul, la projection du chef de projet au-delà. Demandée avec les délais de
+    paiement, elle somme les décaissements des projets et `cash_out_by_month` les détaille
+    par mois (WF-PTF-0100).
   properties:
     scope: { $ref: '#/PortfolioScope' }
-    months:
+    payment_delays:
+      type: boolean
+      description: >-
+        Vrai quand les séries sont celles des décaissements, chaque projet rendant les
+        siennes avec ses délais de paiement et les provisions de ses risques identifiés
+        (WF-IND-0100). Faux sinon.
+    series:
       type: array
-      items: { $ref: indicators.yaml#/CashOutMonth }
+      items:
+        type: object
+        required: [name, points]
+        properties:
+          name:
+            type: string
+            enum: [reference_budget, actual_cost, project_manager_projection]
+          points:
+            type: array
+            items:
+              type: object
+              required: [date, amount]
+              properties:
+                date: { $ref: ../common.yaml#/PlanningDate }
+                amount: { $ref: ../common.yaml#/Money }
+    cash_out_by_month:
+      anyOf:
+        - type: array
+          items: { $ref: indicators.yaml#/CashOutMonth }
+        - type: 'null'
+      description: >-
+        Les décaissements par mois, sommes de ceux des projets, rendus quand
+        `payment_delays` est vrai ; nul sinon (WF-PTF-0100).
 
 PilotHealth:
   type: object

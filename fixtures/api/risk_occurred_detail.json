@@ -1,5 +1,5 @@
 {
-  "summary": "Le retard de livraison des armoires, survenu : sa provision de 60, la gravité de 200 à 30 % retenue à la révision de référence, est portée par les lignes fusionnées de son devis propre, et sa ligne de provision est retirée de la structure principale (WF-RIS-0050, WF-RIS-0060).",
+  "summary": "Le retard de livraison des armoires, survenu : son devis propre est fusionné dans la structure principale de la révision en cours, ses lignes à montant budgété nul et réestimées à 120 et 80, et sa ligne de provision est retirée ; sa provision de 60 à la révision de référence reste comptée dans la réserve pour risques (WF-RIS-0050, WF-RIS-0060).",
   "value": {
     "risk_id": "01926f3a-7c00-7000-8000-000000000752",
     "label": "Retard de livraison des armoires",

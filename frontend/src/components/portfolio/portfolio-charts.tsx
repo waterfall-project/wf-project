@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two charts of the portfolio: the evolution of its two indices quarter by quarter, computed
- * at past dates by the server (WF-PTF-0070), and its cash-out month by month, the past and the
- * forecast (WF-PTF-0100). Each is a figure of `Chart`, named by a sentence, its values in a table
- * under it — the text alternative (WF-IHM-0100) —, drawn from the strings of the API as they are:
- * a value the server could not compute is a gap in its curve, and a row of the table that says
- * why. The date of calculation is the view's, under its title (`PortfolioHeader`).
+ * The charts of the portfolio: the evolution of its two indices quarter by quarter, computed at
+ * past dates by the server (WF-PTF-0070); its S-curve, the three cumulative curves of the projects
+ * of the perimeter summed month by month by the server (WF-PTF-0100, WF-IND-0100); and, when the
+ * S-curve is read as cash-out, its cash-out month by month, the past and the forecast. Each is a
+ * figure of `Chart`, named by a sentence, its values in a table under it — the text alternative
+ * (WF-IHM-0100) —, drawn from the strings of the API as they are: a value the server could not
+ * compute is a gap in its curve, and a row of the table that says why. The date of calculation is
+ * the view's, `scope.as_of`, under its title (`PortfolioHeader`).
  */
 "use client";
 
@@ -24,12 +26,19 @@ import {
   planningInstant,
   timeAxis,
 } from "@/components/chart/chart";
-import { formatDecimal, formatLocale, formatMoney, formatMonth } from "@/i18n/format";
+import {
+  formatDecimal,
+  formatLocale,
+  formatMoney,
+  formatMonth,
+  formatPlanningDate,
+} from "@/i18n/format";
 
 import { ComputableValue } from "./portfolio-value";
 
 type Quarter = components["schemas"]["PortfolioPerformance"]["quarterly"][number];
 type CashOutMonth = components["schemas"]["CashOutMonth"];
+type PortfolioCostCurve = components["schemas"]["PortfolioCostCurve"];
 type Computable = components["schemas"]["Computable"];
 
 /** The two indices a quarter gives, as the contract names them. */
@@ -132,6 +141,87 @@ export function QuarterlyChart({ quarters }: { readonly quarters: readonly Quart
   );
 }
 
+/**
+ * The series of the S-curve that cumulate dated events — the actual cost, at the date of each
+ * document —, drawn by steps; a cumulation spread over durations is a line (WF-IND-0100).
+ */
+const STEPPED: ReadonlySet<PortfolioCostCurve["series"][number]["name"]> = new Set(["actual_cost"]);
+
+/**
+ * Render the S-curve of the portfolio — the reference budget, the actual cost, the project
+ * managers' projection, each the sum of the curves of the projects, named at its end —, and the
+ * table of its points. Read as cash-out, the curves are those the server shifted: nothing is
+ * shifted here, and the figure is named as the server says the curves are.
+ */
+export function PortfolioCurveChart({ curves }: { readonly curves: PortfolioCostCurve }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const shifted = curves.payment_delays;
+  const option = useCallback(
+    (palette: ChartPalette): ChartOption => ({
+      // Its axis of time is in UTC, a date of planning having no time zone: its ticks too.
+      useUTC: true,
+      textStyle: { fontFamily: palette.font, color: palette.text },
+      // No legend: each curve is named at its end (`curve`).
+      grid: { left: 96, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
+      xAxis: timeAxis(
+        palette,
+        formatLocale(locale),
+        curves.series.flatMap((series) =>
+          series.points.map((point) => planningInstant(point.date)),
+        ),
+        true,
+      ),
+      yAxis: valueAxis(palette, formatLocale(locale), false),
+      series: curves.series.map((series, rank) => ({
+        name: t(`enums.PortfolioCostCurve.series.name.${series.name}`),
+        ...curve(
+          palette,
+          rank,
+          series.points.map((point) => [planningInstant(point.date), point.amount] as const),
+        ),
+        ...(STEPPED.has(series.name) ? { step: "end" as const } : {}),
+      })),
+    }),
+    [curves, locale, t],
+  );
+  return (
+    <Chart
+      title={
+        shifted ? t("portfolio.costCurve.chartTitleDelayed") : t("portfolio.costCurve.chartTitle")
+      }
+      description={
+        shifted ? t("portfolio.costCurve.descriptionDelayed") : t("portfolio.costCurve.description")
+      }
+      option={option}
+    >
+      <table className="w-full text-left">
+        <thead className="text-muted-foreground">
+          <tr>
+            <th scope="col">{t("portfolio.costCurve.series")}</th>
+            <th scope="col">{t("portfolio.costCurve.date")}</th>
+            <th scope="col">{t("portfolio.costCurve.amount")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {curves.series.flatMap((series) =>
+            // A date may come twice in a series: the server gives the points as they are.
+            series.points.map((point, index) => (
+              <tr key={`${series.name}-${point.date}-${String(index)}`}>
+                <th scope="row" className="font-normal">
+                  {t(`enums.PortfolioCostCurve.series.name.${series.name}`)}
+                </th>
+                <td>{formatPlanningDate(point.date, locale)}</td>
+                <td className="tabular-nums">{formatMoney(point.amount, locale)}</td>
+              </tr>
+            )),
+          )}
+        </tbody>
+      </table>
+    </Chart>
+  );
+}
+
 /** The two parts of a month of cash-out, as the contract names them. */
 const PARTS = ["past", "forecast"] as const;
 
@@ -147,7 +237,9 @@ export function monthAfter(month: string): string {
 }
 
 /**
- * Render the cash-out of the portfolio month by month, the past and the forecast, and its table.
+ * Render the cash-out of the portfolio month by month, the past and the forecast, and its table:
+ * the reading in cash-out of its S-curve, which the server details when asked with the payment
+ * delays (`cash_out_by_month`).
  */
 export function CashOutChart({ months }: { readonly months: readonly CashOutMonth[] }) {
   const t = useTranslations("portfolio.cashOut");

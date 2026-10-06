@@ -42,7 +42,7 @@ export const PLATFORM_FUNCTIONS = [
   "portfolio_performance",
   "portfolio_cost_structure",
   "portfolio_risks",
-  "portfolio_cash_out",
+  "portfolio_cost_curve",
   "portfolio_pilot_health",
   "cost_settings",
   "resource_settings",
