@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { refresh } from "next/cache";
 import { NextIntlClientProvider } from "next-intl";
@@ -156,8 +156,10 @@ describe("the exits of the lifecycle of a project", () => {
       { to_state: "completed", confirmed: true, reason: "Recette prononcée" },
     ]);
     // The page is rendered again, the confirmation closes, and the new state is said.
-    expect(refresh).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("form")).toBeNull();
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("form")).toBeNull();
+    });
     expect(complete).toHaveFocus();
     expect(said()).toEqual(["Le projet est passé à l’état «\u00A0Terminé\u00A0»."]);
   });
@@ -203,15 +205,23 @@ describe("the exits of the lifecycle of a project", () => {
     const view = open();
     await confirm("Terminer le projet");
     expect(exits(client)).toHaveLength(1);
-    expect(refresh).toHaveBeenCalledOnce();
-    expect(screen.getByRole("alert")).toHaveTextContent("Modernisation du poste de commande");
+    // The refusal is told once the server has answered: the page is read again, and the alert names
+    // the project the state of which forbids the exit.
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+      expect(screen.getByRole("alert")).toHaveTextContent("Modernisation du poste de commande");
+    });
     for (const status of screen.getAllByRole("status")) {
       expect(status).toBeEmptyDOMElement();
     }
 
-    // The page read again: the project was completed meanwhile.
+    // The page read again: the project was completed meanwhile. The exit withdrawn hides its form at
+    // once, but the confirmation is closed by an effect (`withdrawn` → `onClose`), a commit later:
+    // waited for, not assumed (one failure under a load of 7, #315).
     view.rerender(exitsOf("project_completed"));
-    expect(screen.queryByRole("form")).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByRole("form")).toBeNull();
+    });
     expect(screen.getByRole("alert")).toHaveTextContent("Modernisation du poste de commande");
     const complete = exit("Terminer le projet");
     expect(complete).toHaveFocus();
@@ -240,7 +250,10 @@ describe("the exits of the lifecycle of a project", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Modernisation du poste de commande",
     );
-    expect(screen.getByRole("button", { name: "Annuler" })).not.toHaveAttribute("aria-disabled");
+    // Cancel is offered again once the transition has settled, a commit after the refusal is shown.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Annuler" })).not.toHaveAttribute("aria-disabled");
+    });
   });
 
   it("says the permission the API finds missing, and reads nothing again", async () => {

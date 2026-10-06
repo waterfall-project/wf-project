@@ -15,6 +15,7 @@ import {
   planningInstant,
 } from "@/components/chart/chart";
 import { ListPages } from "@/components/costs/cost-pages";
+import { ROW_REM } from "@/components/grid/dense-grid";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
@@ -71,6 +72,8 @@ const LIST = example("volume/portfolio_projects") as ProjectList;
 /** Its second page of fifty, as the server pages it. */
 const PAGE = example("volume/portfolio_projects_page") as ProjectList;
 const NARROW = " ";
+/** The height of a row of the grid, as the grid computes it on the default font of the browsers. */
+const ROW_HEIGHT = ROW_REM * 16;
 /** The colours and the font a chart is drawn in, as the probes would read them. */
 const PALETTE: ChartPalette = {
   series: ["rgb(1, 1, 1)", "rgb(2, 2, 2)"],
@@ -215,16 +218,16 @@ describe("the list of the projects of the portfolio", () => {
     ).toHaveAttribute("href", "/projects/01926f3a-7c00-7000-8000-000000000001");
   });
 
-  it(
-    "says in its totals row how many projects the server retained, never a count of the page, and is accessible",
-    { timeout: 15_000 },
-    async () => {
-      const { container } = render(projectsGrid(PAGE));
-      expect(PAGE.items).toHaveLength(50);
-      expect(within(grid()).getAllByRole("row").at(-1)).toHaveTextContent("300 projets retenus");
-      await expectAccessible(container);
-    },
-  );
+  it("says in its totals row how many projects the server retained, never a count of the page, and is accessible", async () => {
+    // A window of two rows — some fourteen rendered, with the overscan of the grid —: the rules of
+    // axe hold for each row alike, and a screenful took as long to check as to render — past its
+    // time under load (#315).
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(2 * ROW_HEIGHT);
+    const { container } = render(projectsGrid(PAGE));
+    expect(PAGE.items).toHaveLength(50);
+    expect(within(grid()).getAllByRole("row").at(-1)).toHaveTextContent("300 projets retenus");
+    await expectAccessible(container);
+  });
 
   it("asks the server to sort by the cost index", async () => {
     render(projectsGrid());
