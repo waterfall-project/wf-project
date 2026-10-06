@@ -186,8 +186,9 @@
     summary: Risques du portefeuille
     description: >-
       Total des provisions identifiées, risques les plus lourds tous projets confondus,
-      matrice remplie, et provisions survenues face aux provisions écartées sur la
-      période (WF-PTF-0090).
+      matrice remplie, couverture des risques agrégée — somme des réserves de référence
+      face aux provisions restantes et au coût des risques survenus (WF-RIS-0050) —, et
+      provisions survenues face aux provisions écartées sur la période (WF-PTF-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -204,29 +205,42 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 
-/portfolio/cash-out:
+/portfolio/cost-curve:
   get:
-    operationId: getPortfolioCashOut
+    operationId: getPortfolioCostCurve
     tags: [portfolio]
-    summary: Décaissements du portefeuille
+    summary: Courbe en S du portefeuille
     description: >-
-      Somme des projections de décaissement des projets ; rien n'y est recalculé, de
-      sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
+      Somme, mois par mois, des courbes de coûts cumulés des projets du périmètre
+      (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis
+      projection du chef de projet ; un projet en chiffrage inclus contribue pondéré par sa
+      probabilité de gain. Sur demande (`payment_delays`), ce sont les décaissements que
+      chaque projet rend avec ses délais de paiement qui sont sommés, et la réponse les
+      détaille par mois (`cash_out_by_month`). Rien n'y est recalculé, de sorte que le
+      portefeuille et les projets racontent la même histoire (WF-PTF-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/AsOf
       - name: horizon_months
         in: query
         schema: { type: integer, minimum: 1, maximum: 240 }
+      - name: payment_delays
+        in: query
+        description: >-
+          Vrai, les séries sont celles des décaissements des projets, décalées des délais
+          de paiement et portant les provisions des risques identifiés (WF-IND-0100,
+          WF-PTF-0100).
+        schema: { type: boolean, default: false }
     responses:
       '200':
-        description: Décaissements par mois.
+        description: Séries cumulées par mois, décaissements par mois compris quand `payment_delays` est vrai.
         content:
           application/json:
-            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCashOut }
+            schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostCurve }
             examples:
-              witness: { $ref: ../../../fixtures/api/portfolio_cash_out.json }
-              credit: { $ref: ../../../fixtures/api/portfolio_cash_out_credit.json }
+              witness: { $ref: ../../../fixtures/api/portfolio_cost_curve.json }
+              payment_delays: { $ref: ../../../fixtures/api/portfolio_cost_curve_payment_delays.json }
+              credit: { $ref: ../../../fixtures/api/portfolio_cost_curve_credit.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

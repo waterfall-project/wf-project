@@ -318,9 +318,15 @@ def test_the_heaviest_risks_are_those_of_projects_of_the_list(volumes: dict[str,
         totals[name] for name in ("identified", "occurred", "dismissed")
     )
     assert len(risks["matrix"]["cells"]) == 16
+    coverage = risks["coverage"]
+    assert coverage["remaining_provisions"] == risks["identified_total"]
+    assert Decimal(coverage["coverage_variance"]) == Decimal(coverage["reserve"]) - Decimal(
+        coverage["remaining_provisions"]
+    ) - Decimal(coverage["occurred_cost"])
+    assert risks["matrix"]["totals"]["reserve"] == coverage["reserve"]
 
 
-@pytest.mark.parametrize("name", ["portfolio_workload", "portfolio_cash_out"])
+@pytest.mark.parametrize("name", ["portfolio_workload", "portfolio_cost_curve"])
 def test_a_view_written_by_hand_reads_the_portfolio_of_the_list(
     volumes: dict[str, Any], name: str
 ) -> None:

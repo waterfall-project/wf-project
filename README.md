@@ -35,10 +35,11 @@ changes, and a re-estimated amount, which each review updates. That is what stop
 amendment from silently rebasing the baseline onto the latest forecast — the defect that
 makes so many cost-control tools quietly optimistic.
 
-**Provisions stay outside the baseline** until the risk occurs. Covering a risk is not a
-budget for work you hope never to do. When a risk does occur, the baseline grows by the
-provision alone, never by what the risk actually cost: the gap shows up as drift, which is
-what it is.
+**Provisions never enter the baseline.** Covering a risk is not a budget for work you hope
+never to do. The baseline revision keeps its provisions apart, as a risk reserve; the
+estimate to complete carries those of the risks identified today, new ones included; a risk
+that occurs enters the project with a zero budgeted amount. Risk coverage compares the
+reserve with what the risks actually cost: the gap shows up as drift, which is what it is.
 
 **Earned value is measured, not declared.** A task is finished or it is not; its budgeted
 amount is earned on the day it finishes. No percentage is ever typed in, so progress cannot

@@ -7,7 +7,7 @@ classDiagram
 
     Projet "1" o-- "*" Risque : risques
     Risque "1" --> "1" Structure : devis propre
-    Risque "1" --> "1" LigneDevis : provision
+    Risque "1" --> "0..1" LigneDevis : provision
 
     style Projet fill:#eeeeee,stroke:#999999,color:#666666
     style Structure fill:#eeeeee,stroke:#999999,color:#666666

@@ -1,0 +1,16 @@
+{
+  "summary": "La couverture des risques du projet témoin au 16 mars 2026, dans la révision courante : la réserve pour risques de la référence 101, 910 — les provisions qu'elle portait au 1er février : 250 pour la reprise du câblage, 60 pour le retard des armoires, 600 pour l'indisponibilité de l'automaticien —, face aux 500 de provision du seul risque encore identifié et aux 200 réestimés des lignes fusionnées du risque survenu ; l'écart de couverture, 910 − 700, vaut +210 (WF-RIS-0050, WF-RAE-0020).",
+  "value": {
+    "context": {
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "revision_status": "draft",
+      "computed_at": "2026-03-16T14:05:00Z",
+      "scope": "project",
+      "is_stored": false
+    },
+    "reserve": "910.00",
+    "remaining_provisions": "500.00",
+    "occurred_cost": "200.00",
+    "coverage_variance": "210.00"
+  }
+}

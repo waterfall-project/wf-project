@@ -288,6 +288,8 @@ paths:
     $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1{risk_id}~1occurrence
   /projects/{project_id}/risks/matrix:
     $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1matrix
+  /projects/{project_id}/risks/coverage:
+    $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1coverage
   /projects/{project_id}/actual-costs:
     $ref: ./paths/costs.yaml#/~1projects~1{project_id}~1actual-costs
   /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope:
@@ -316,7 +318,7 @@ paths:
     $ref: ./paths/portfolio.yaml#/~1portfolio~1cost-structure
   /portfolio/risks:
     $ref: ./paths/portfolio.yaml#/~1portfolio~1risks
-  /portfolio/cash-out:
-    $ref: ./paths/portfolio.yaml#/~1portfolio~1cash-out
+  /portfolio/cost-curve:
+    $ref: ./paths/portfolio.yaml#/~1portfolio~1cost-curve
   /portfolio/pilot-health:
     $ref: ./paths/portfolio.yaml#/~1portfolio~1pilot-health

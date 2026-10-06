@@ -3,8 +3,9 @@
 /**
  * The figures and the tables of the views of the portfolio (FBS-2.2 to FBS-2.7), each as the server
  * computes it on the perimeter retained: its performance (WF-PTF-0070), the structure of its costs
- * (WF-PTF-0080), its risks (WF-PTF-0090), its aggregated workload (WF-PTF-0060) and the health of
- * its steering (WF-PTF-0110). Nothing is summed, averaged, divided, sorted nor filtered here
+ * (WF-PTF-0080), its risks and their coverage (WF-PTF-0090, WF-RIS-0050), its aggregated workload
+ * (WF-PTF-0060) and the health of its steering (WF-PTF-0110). Nothing is summed, averaged,
+ * divided, sorted nor filtered here
  * (WF-ARC-0020): a sum is marked computed, Σ (WF-IHM-0030), a value the server could not compute is
  * said so with its reason, never zero, and a zone is the one the server classes, shown by the one
  * signal (WF-IHM-0070). Every figure carries the date of calculation of its view, under its title
@@ -211,7 +212,20 @@ export function CostStructureView({
   );
 }
 
-/** Render the risks: their total, the heaviest with their project, the matrix, the period. */
+/** The four amounts of the coverage of the risks, as the contract names them, in its order. */
+const COVERAGE = [
+  ["reserve", "reserve"],
+  ["remaining_provisions", "remainingProvisions"],
+  ["occurred_cost", "occurredCost"],
+  ["coverage_variance", "coverageVariance"],
+] as const satisfies readonly (readonly [keyof Schemas["RiskCoverageTotals"], string])[];
+
+/**
+ * Render the risks: their total, the heaviest with their project, the coverage of the risks over
+ * the perimeter — the reference reserves against the remaining provisions and the cost of the
+ * risks occurred, and the signed variance, each a sum the server made (WF-PTF-0090) —, the matrix,
+ * the period.
+ */
 export function PortfolioRisksView({ risks }: { readonly risks: Schemas["PortfolioRisks"] }) {
   const t = useTranslations("portfolio.risks");
   return (
@@ -221,6 +235,13 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
         <ComputedTotal name={t("occurred")} amount={risks.period_outcome.occurred_provisions} />
         <ComputedTotal name={t("dismissed")} amount={risks.period_outcome.dismissed_provisions} />
       </dl>
+      <ViewSection title={t("coverage")}>
+        <dl className="flex flex-wrap gap-x-8 gap-y-2">
+          {COVERAGE.map(([field, name]) => (
+            <ComputedTotal key={field} name={t(name)} amount={risks.coverage[field]} />
+          ))}
+        </dl>
+      </ViewSection>
       <div className="space-y-6">
         <ViewSection title={t("heaviest")}>
           <ListTable label={t("heaviest")} columns={[t("risk"), t("project"), t("provision")]}>

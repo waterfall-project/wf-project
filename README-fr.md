@@ -37,10 +37,12 @@ change, et un montant réestimé, que chaque revue met à jour. C'est ce qui emp
 de rebaser silencieusement le budget de référence sur la dernière prévision — le défaut qui
 rend tant d'outils de contrôle des coûts discrètement optimistes.
 
-**Les provisions restent hors du budget** jusqu'à la survenance du risque. Couvrir un risque
-n'est pas se donner un budget pour un travail qu'on espère ne pas faire. À la survenance, le
-budget n'augmente que de la provision, jamais du coût réel du risque : l'écart apparaît
-comme une dérive, ce qu'il est.
+**Les provisions n'entrent jamais au budget.** Couvrir un risque n'est pas se donner un
+budget pour un travail qu'on espère ne pas faire. La révision de référence garde ses
+provisions à part, comme réserve pour risques ; le reste à engager porte celles des risques
+identifiés aujourd'hui, nouveaux compris ; un risque survenu entre dans le projet avec un
+montant budgété nul. La couverture des risques compare la réserve à ce qu'ils ont coûté :
+l'écart apparaît comme une dérive, ce qu'il est.
 
 **La valeur acquise se constate, elle ne se déclare pas.** Une tâche est terminée ou elle ne
 l'est pas ; son montant budgété est acquis le jour où elle se termine. Aucun pourcentage ne

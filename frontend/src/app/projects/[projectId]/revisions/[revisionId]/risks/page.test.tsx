@@ -56,6 +56,7 @@ const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const BANNER = '<section aria-label="Reading context"';
 const LIST = "GET /projects/{project_id}/risks";
 const MATRIX = "GET /projects/{project_id}/risks/matrix";
+const COVERAGE = "GET /projects/{project_id}/risks/coverage";
 const RISK = "GET /projects/{project_id}/risks/{risk_id}";
 const REVIEWS = "GET /projects/{project_id}/risks/{risk_id}/reviews";
 
@@ -103,6 +104,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     [LIST]: "risks",
     [MATRIX]: "risk_matrix",
+    [COVERAGE]: "risk_coverage",
     [RISK]: "risk",
     [REVIEWS]: "risk_reviews",
   };
@@ -191,6 +193,20 @@ describe("the screen of the risks", () => {
     expect(page).toContain('<section aria-label="Provisions of the risks retained"><dl');
   });
 
+  it("shows the risk reserve of the reference revision beside the totals of the provisions [WF-RIS-0050-A]", async () => {
+    const page = await risksAt();
+    expect(text(page)).toContain("General total 1,160.00 Risk reserve 910.00");
+  });
+
+  it("reads the coverage of the risks in the revision of its route, and shows its four amounts as the server computes them, the variance signed [WF-RIS-0050-A]", async () => {
+    const page = await risksAt();
+    expect(queryOf(COVERAGE)).toEqual({ revision_id: REVISION });
+    expect(page).toContain('<section aria-label="Risk coverage"><dl');
+    expect(text(page)).toContain(
+      "Risk reserve 910.00 Remaining provisions 500.00 Cost of the occurred risks 200.00 Coverage variance 210.00",
+    );
+  });
+
   it("names the axes of the matrix by their bounds, and each cell by its signal and its count [WF-IHM-0070-A]", async () => {
     const page = await risksAt();
     // The table of the matrix, named by its caption.
@@ -274,7 +290,7 @@ describe("the screen of the risks", () => {
     const page = await risksAt({ states: "occurred" });
     expect(text(page)).toContain("Risk management no risk retained");
     expect(text(page)).toContain(
-      "Identified risks 0.00 Occurred risks 0.00 Dismissed risks 0.00 General total 0.00",
+      "Identified risks 0.00 Occurred risks 0.00 Dismissed risks 0.00 General total 0.00 Risk reserve 0.00",
     );
     expect(text(page)).toContain("No row matches the request.");
   });

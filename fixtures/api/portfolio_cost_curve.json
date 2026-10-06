@@ -1,0 +1,139 @@
+{
+  "summary": "La courbe en S des projets en cours du portefeuille au 16 mars 2026, d'octobre 2025 à septembre 2026 : la somme des budgets de référence cumulés des 269 projets, celle de leurs coûts réels cumulés jusqu'au 16 mars, et celle de leurs projections au-delà — chaque point est la somme des points de ce mois sur les projets, rien n'est recalculé (WF-PTF-0100, WF-IND-0100).",
+  "value": {
+    "scope": {
+      "states": [
+        "in_progress"
+      ],
+      "as_of": "2026-03-16",
+      "from": null,
+      "to": null,
+      "org_node_id": null,
+      "org_node_label": null,
+      "project_count": 269
+    },
+    "payment_delays": false,
+    "series": [
+      {
+        "name": "reference_budget",
+        "points": [
+          {
+            "date": "2025-10-31",
+            "amount": "216440791.67"
+          },
+          {
+            "date": "2025-11-30",
+            "amount": "432881583.33"
+          },
+          {
+            "date": "2025-12-31",
+            "amount": "649322375.00"
+          },
+          {
+            "date": "2026-01-31",
+            "amount": "865763166.67"
+          },
+          {
+            "date": "2026-02-28",
+            "amount": "1082203958.33"
+          },
+          {
+            "date": "2026-03-31",
+            "amount": "1298644750.00"
+          },
+          {
+            "date": "2026-04-30",
+            "amount": "1515085541.67"
+          },
+          {
+            "date": "2026-05-31",
+            "amount": "1731526333.33"
+          },
+          {
+            "date": "2026-06-30",
+            "amount": "1947967125.00"
+          },
+          {
+            "date": "2026-07-31",
+            "amount": "2164407916.67"
+          },
+          {
+            "date": "2026-08-31",
+            "amount": "2380848708.33"
+          },
+          {
+            "date": "2026-09-30",
+            "amount": "2597289500.00"
+          }
+        ]
+      },
+      {
+        "name": "actual_cost",
+        "points": [
+          {
+            "date": "2025-10-31",
+            "amount": "61204380.15"
+          },
+          {
+            "date": "2025-11-30",
+            "amount": "126191892.55"
+          },
+          {
+            "date": "2025-12-31",
+            "amount": "184922107.40"
+          },
+          {
+            "date": "2026-01-31",
+            "amount": "251335014.70"
+          },
+          {
+            "date": "2026-02-28",
+            "amount": "320493355.45"
+          },
+          {
+            "date": "2026-03-16",
+            "amount": "352357560.55"
+          }
+        ]
+      },
+      {
+        "name": "project_manager_projection",
+        "points": [
+          {
+            "date": "2026-03-16",
+            "amount": "352357560.55"
+          },
+          {
+            "date": "2026-03-31",
+            "amount": "390573320.55"
+          },
+          {
+            "date": "2026-04-30",
+            "amount": "463033635.55"
+          },
+          {
+            "date": "2026-05-31",
+            "amount": "539013875.55"
+          },
+          {
+            "date": "2026-06-30",
+            "amount": "617326330.55"
+          },
+          {
+            "date": "2026-07-31",
+            "amount": "691432220.55"
+          },
+          {
+            "date": "2026-08-31",
+            "amount": "761976340.55"
+          },
+          {
+            "date": "2026-09-30",
+            "amount": "830906815.55"
+          }
+        ]
+      }
+    ],
+    "cash_out_by_month": null
+  }
+}

@@ -24,7 +24,7 @@ import { example, fakeClient } from "@/test/fixtures";
 import { type Perimeter, readPerimeter, type Takes } from "./address";
 
 import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter";
-import { CashOutChart, monthAfter, QuarterlyChart } from "./portfolio-charts";
+import { CashOutChart, monthAfter, PortfolioCurveChart, QuarterlyChart } from "./portfolio-charts";
 import type { ProjectPage, ProjectRow } from "./portfolio-grid";
 import { PortfolioValueView } from "./portfolio-value";
 import { ProjectsGrid } from "./projects-grid";
@@ -373,12 +373,46 @@ describe("the charts of the portfolio", () => {
     ]);
   });
 
+  it("lists the points of the three curves of the S-curve, as the server summed them [WF-PTF-0100-A]", () => {
+    const curves = example("portfolio_cost_curve") as Schemas["PortfolioCostCurve"];
+    charts.props = [];
+    render(inLanguage(<PortfolioCurveChart curves={curves} />));
+    const figure = screen.getByRole("figure", { name: "Coûts cumulés du portefeuille" });
+    const rows = within(figure).getAllByRole("row");
+    expect(rows[0]).toHaveTextContent("CourbeDateMontant");
+    expect(rows[1]).toHaveTextContent(
+      `Budget de référence31 oct. 2025216${NARROW}440${NARROW}791,67`,
+    );
+    expect(rows).toHaveLength(1 + 12 + 6 + 8);
+    expect(rows.at(-1)).toHaveTextContent(
+      `Projection du chef de projet30 sept. 2026830${NARROW}906${NARROW}815,55`,
+    );
+    // Three curves in the order of the API, the actual cost by steps, the others by lines; an axis
+    // of amounts that reaches down to the lowest value drawn.
+    const option = charts.props.at(-1)?.option(PALETTE);
+    const series = [option?.series].flat() as { name: string; step?: string }[];
+    expect(series.map((each) => [each.name, each.step])).toEqual([
+      ["Budget de référence", undefined],
+      ["Coût réel", "end"],
+      ["Projection du chef de projet", undefined],
+    ]);
+    expect(option?.yAxis).not.toHaveProperty("min");
+  });
+
+  it("names the S-curve read as cash-out as the server says it is", () => {
+    const curves = example("portfolio_cost_curve_payment_delays") as Schemas["PortfolioCostCurve"];
+    render(inLanguage(<PortfolioCurveChart curves={curves} />, "en"));
+    expect(
+      screen.getByRole("figure", { name: "Cumulative cash-out of the portfolio" }),
+    ).toBeInTheDocument();
+  });
+
   it("lists each month of cash-out, the past and the forecast", () => {
-    const cashOut = example("portfolio_cash_out") as Schemas["PortfolioCashOut"];
-    render(inLanguage(<CashOutChart months={cashOut.months} />));
+    const cashOut = example("portfolio_cost_curve_payment_delays") as Schemas["PortfolioCostCurve"];
+    render(inLanguage(<CashOutChart months={cashOut.cash_out_by_month ?? []} />));
     const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
     expect(within(figure).getByRole("row", { name: /mars 2026/ })).toHaveTextContent(
-      `mars 202631${NARROW}864${NARROW}205,1038${NARROW}215${NARROW}760,00`,
+      `mars 202669${NARROW}158${NARROW}340,750,00`,
     );
   });
 
@@ -388,31 +422,32 @@ describe("the charts of the portfolio", () => {
   });
 
   it("draws the last month of each part to the first of the next, unmarked, on an axis that runs there", () => {
-    const cashOut = example("portfolio_cash_out") as Schemas["PortfolioCashOut"];
+    const curves = example("portfolio_cost_curve_payment_delays") as Schemas["PortfolioCostCurve"];
+    const months = curves.cash_out_by_month ?? [];
     charts.props = [];
-    render(inLanguage(<CashOutChart months={cashOut.months} />));
+    render(inLanguage(<CashOutChart months={months} />));
     const option = charts.props.at(-1)?.option(PALETTE);
-    const last = cashOut.months.at(-1);
+    const last = months.at(-1);
     const series = [option?.series].flat() as { data: unknown[] }[];
     expect(series.map((each) => each.data.at(-1))).toEqual([
-      { value: ["2026-10-01T00:00:00Z", last?.past], symbol: "none" },
-      { value: ["2026-10-01T00:00:00Z", last?.forecast], symbol: "none" },
+      { value: ["2026-11-01T00:00:00Z", last?.past], symbol: "none" },
+      { value: ["2026-11-01T00:00:00Z", last?.forecast], symbol: "none" },
     ]);
     // The axis is that of the months alone, whose ticks run past the first of the month after
     // the latest already: the end of the last step is not added to them.
     const ticks = monthTicks(
-      cashOut.months.map((month) => planningInstant(month.month)),
+      months.map((month) => planningInstant(month.month)),
       true,
     );
     expect(option?.xAxis).toMatchObject({ min: ticks[0], max: ticks.at(-1) });
-    expect(ticks.at(-1)).toBeGreaterThanOrEqual(Date.UTC(2026, 9, 1));
+    expect(ticks.at(-1)).toBeGreaterThanOrEqual(Date.UTC(2026, 10, 1));
   });
 
   it("reaches down to a month of net negative cash-out, where the indices start from zero", () => {
-    const credit = example("portfolio_cash_out_credit") as Schemas["PortfolioCashOut"];
+    const credit = example("portfolio_cost_curve_credit") as Schemas["PortfolioCostCurve"];
     const performance = example("volume/portfolio_performance") as Schemas["PortfolioPerformance"];
     charts.props = [];
-    render(inLanguage(<CashOutChart months={credit.months} />));
+    render(inLanguage(<CashOutChart months={credit.cash_out_by_month ?? []} />));
     render(inLanguage(<QuarterlyChart quarters={performance.quarterly} />));
     const [cashOut, quarterly] = charts.props.map((props) => props.option(PALETTE));
     expect(cashOut?.yAxis).not.toHaveProperty("min");

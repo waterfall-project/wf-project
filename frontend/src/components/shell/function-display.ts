@@ -23,6 +23,7 @@ import {
   ChartColumnStacked,
   ChartGantt,
   ChartPie,
+  ChartSpline,
   Coins,
   DatabaseBackup,
   FolderKanban,
@@ -45,7 +46,6 @@ import {
   User,
   UserCog,
   Users,
-  Wallet,
   Wrench,
 } from "lucide-react";
 
@@ -65,7 +65,7 @@ export const FUNCTION_ICONS: Readonly<Record<FunctionPermission, LucideIcon>> = 
   portfolio_performance: TrendingUp,
   portfolio_cost_structure: ChartPie,
   portfolio_risks: TriangleAlert,
-  portfolio_cash_out: Wallet,
+  portfolio_cost_curve: ChartSpline,
   portfolio_pilot_health: HeartPulse,
   cost_settings: Coins,
   resource_settings: UserCog,
@@ -110,7 +110,7 @@ export const FUNCTION_DENSITY: Readonly<Record<FunctionPermission, Density>> = {
   portfolio_performance: "airy",
   portfolio_cost_structure: "airy",
   portfolio_risks: "dense",
-  portfolio_cash_out: "airy",
+  portfolio_cost_curve: "airy",
   portfolio_pilot_health: "airy",
   cost_settings: "dense",
   resource_settings: "dense",

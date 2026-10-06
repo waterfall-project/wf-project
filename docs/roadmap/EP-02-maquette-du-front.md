@@ -413,11 +413,25 @@ retirés (WF-IND-0100, WF-IND-0120 retirée) ; `getIndexHistory` (WF-IND-0130) ;
 transition (`StateTransition.reason`, #185) ; `inflated_amount` sur la ligne de devis
 (WF-DEV-0050), `finish_overdue` sur la tâche (WF-RAE-0040), `uses_inactive_object` sur la ligne
 (WF-REF-0010) ; la base du plan de charge (`basis`, WF-DEV-0070) ; la part de la provision sur
-les lignes fusionnées d'un risque survenu (WF-RIS-0060, exemple `nodes_risk_occurred`) ;
+les lignes fusionnées d'un risque survenu (WF-RIS-0060, exemple `nodes_risk_occurred` — abandonnée
+par la révision du 2026-10-04 : ces lignes sont budgétées à zéro, voir ci-dessous) ;
 `delta_to_reference` sur la ligne du portefeuille (WF-PTF-0040). Chaque forme est consignée
 dans `docs/api/DECISIONS.md`, « Révision de la spécification du 2026-10-03 ». Le front n'est
 touché que là où le client engendré ne compilait plus : la grille de planning écrit la durée
 par sa valeur et son unité, et les dates par leur date.
+
+**Révision de la spécification du 2026-10-04 (PR #328, fusionnée dans la branche le 2026-10-06).**
+Les provisions ne font jamais partie du budget de référence, la révision de référence conserve une
+réserve pour risques, la couverture des risques est une lecture (`getProjectRiskCoverage`,
+`RemainingIndicators.coverage`, `PortfolioRisks.coverage`, `ProvisionTotals.reserve`), la survenance
+d'un risque fusionne son devis propre dans la révision en cours à montant budgété nul sans
+marquage (`RiskOccurrence` sans `version_name`, `steps[].cause` à `amendment` seul) ; FBS-2.6
+devient la courbe en S du portefeuille, une seule opération `getPortfolioCostCurve` avec
+`payment_delays`, `getPortfolioCashOut` retirée, permission `portfolio_cost_curve`. Les exemples
+`nodes_risk_occurred`, `risks`, `risk_matrix`, `remaining_indicators*` et les volumes suivent ;
+l'univers témoin reste à refaire sur ce modèle (L20 à L27, #287). Ce que la révision demande et
+que le contrat ne porte pas est ouvert en constats #381 à #389. Chaque forme est consignée dans
+`docs/api/DECISIONS.md`, « Révision de la spécification du 2026-10-04 ».
 
 ### Constats sur le contrat
 
@@ -672,9 +686,14 @@ au serveur (décision du cadrage) : TanStack Table n'ordonne rien en local, et l
 front ne réordonne pas ce que le back ordonne » reste sans exception. Les réglages sont une
 préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les données.
 
-- écart : `WF-IHM-0060-A` — « Chaque colonne d'une grille se trie dans les deux sens. » : le
-  faux back rend toujours le même exemple, quel que soit le paramètre ; le réordonnancement
+- écart : `WF-IHM-0060-A` — « Chaque colonne d'une table plate se trie dans les deux sens. » :
+  le faux back rend toujours le même exemple, quel que soit le paramètre ; le réordonnancement
   effectif se constate en EP-03, sur la première grille servie par le vrai service.
+- écart : `WF-IHM-0060-A` — « Dans la grille de planning, aucun en-tête de colonne ne propose
+  de tri ; dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche
+  sans déplacer les tâches. » : l'absence de tri sur la grille de planning se constate dans la
+  maquette ; le réordonnancement des lignes sous chaque tâche demande le vrai service, qui
+  rend le devis ordonné — EP-03.
 - écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées
   à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres
   réglages. » : la conservation passe par `updateMyPreferences`, que le mock accepte sans
@@ -1071,7 +1090,7 @@ porte le cycle d'une revue mensuelle de bout en bout.
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getMilestoneTracking`, `getIndexHistory`, `getProjectWorkload`, `getPortfolioProjects`,
   `getPortfolioValue`, `getPortfolioPerformance`, `getPortfolioWorkload`,
-  `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCashOut`,
+  `getPortfolioCostStructure`, `getPortfolioRisks`, `getPortfolioCostCurve`,
   `getPortfolioPilotHealth`
 - **issue** : #88
 
@@ -1237,6 +1256,8 @@ mon bureau.
   s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures,
   à 1366 points de large. » : la version majeure précédente et le Safari réel ne se rejouent
   pas par l'outillage ; ils se constatent en recette, sur la plateforme déployée — EP-13.
+- écart : `WF-CMP-0010-A` — « Vérifiée en recette pour Safari et les terminaux mobiles. » : la
+  recette se tient sur la plateforme déployée, avec son procès-verbal — EP-13.
 
 **Notes de réalisation.** Le harnais d'EP-01 ne joue que Chromium : c'est cette US qui lui
 ajoute les quatre navigateurs — Chrome et Edge sont des canaux de Chromium dans Playwright,

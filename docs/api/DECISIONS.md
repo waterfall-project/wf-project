@@ -281,11 +281,13 @@ coûts, sauvegardes, réexamens) restent sans filtre : la spécification n'en no
 eux, et un filtre viendra avec l'écran qui le demande.
 
 **Les décaissements sont la courbe de coûts cumulés, décalée** (WF-IND-0100 ; WF-IND-0120
-retirée). `getProjectCashOut` et `CashOut` disparaissent : `getCostCurve` prend
-`payment_delays`, qui décale chaque montant du délai de paiement de sa ligne et ajoute les
-provisions des risques identifiés, et la réponse le dit (`payment_delays`) et détaille alors les
-mois (`cash_out_by_month`, nul sinon). Le mois de décaissement est un schéma partagé
-(`CashOutMonth`), que le décaissement du portefeuille réemploie (WF-PTF-0100) : le portefeuille
+n'a jamais existé, la révision de la spécification du 2026-10-04 l'a dit : la projection de
+décaissement est « la lecture en décaissements de la courbe en S »). `getProjectCashOut` et
+`CashOut` disparaissent : `getCostCurve` prend `payment_delays`, qui décale chaque montant du
+délai de paiement de sa ligne et ajoute les provisions des risques identifiés, et la réponse le
+dit (`payment_delays`) et détaille alors les mois (`cash_out_by_month`, nul sinon). Le mois de
+décaissement est un schéma partagé (`CashOutMonth`), que la courbe en S du portefeuille
+réemploie (WF-PTF-0100, voir « Révision de la spécification du 2026-10-04 ») : le portefeuille
 somme ce que les projets rendent.
 
 **L'évolution des indices est une lecture** (`getIndexHistory`, WF-IND-0130). Par maille — le
@@ -314,10 +316,13 @@ ligne si elle emploie un objet désactivé** (`uses_inactive_object`, WF-REF-001
 booléens calculés, que les grilles signalent sans recopier la règle — la date de calcul, le
 référentiel.
 
-**La survenance d'un risque répartit la provision** (WF-RIS-0060) : les descriptions de
-`declareRiskOccurrence` et de `RiskOccurrence` disent la part de chaque ligne fusionnée, et
-l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue — 36 et 24 pour 120
-et 80 à 30 %, la ligne de provision retirée.
+**La survenance d'un risque ne budgète rien** (WF-RIS-0060, révisée le 2026-10-04 ; la
+répartition de la provision au prorata, décidée ici le 2026-10-03, est abandonnée) : les
+descriptions de `declareRiskOccurrence` et de `RiskOccurrence` disent que le devis propre est
+fusionné dans la structure principale de la révision en cours, chaque ligne à montant budgété
+nul et réestimée à son montant, la ligne de provision retirée, sans marquage ni déplacement de
+la référence ; l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue — 0 et
+0 pour 120 et 80.
 
 **La liste des projets du portefeuille porte l'écart à la référence** (`delta_to_reference`,
 WF-PTF-0040), nul hors d'un projet en cours. La projection du chef de projet que la même
@@ -550,17 +555,21 @@ gravité en pourcentage du budget de référence, qui est celui de chaque projet
 portefeuille, qui reprend `RiskMatrix`, porte les mêmes bornes. Écarté : les montants des bornes
 de gravité, propres à un projet et faux pour le portefeuille.
 
-**Le total général des provisions est rendu** (`ProvisionTotals.total`). WF-RIS-0040 veut les
-trois totaux distincts et leur somme égale au total général : le front ne somme rien
-(WF-ARC-0020), le serveur rend donc le quatrième, sur les mêmes risques retenus que les trois
-autres.
+**Le total général des provisions est rendu, et la réserve en regard** (`ProvisionTotals.total`,
+`ProvisionTotals.reserve`). WF-RIS-0040 voulait les trois totaux distincts et leur somme ; sa
+révision du 2026-10-04 les veut « en regard de la réserve pour risques » (WF-RIS-0050) : le
+front ne somme rien (WF-ARC-0020), le serveur rend donc le total et la réserve de la révision
+de référence, sur les mêmes risques retenus que les trois autres (décision de l'auteur du
+2026-10-06 : le total reste).
 
 **Exemples** : `risks` (trois risques, un par état — le survenu est celui de
-`nodes_risk_occurred`, gravité 200 à 30 %, sa ligne de provision retirée — et les quatre
-totaux), `risks_empty`, `risk`, `risk_occurred_detail` (le risque survenu, sa ligne de provision
-retirée), `risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de 1 000 à 1 250) et
-`risk_matrix` (les seize cases, les bornes, les trois risques placés), dans l'univers des autres
-exemples.
+`nodes_risk_occurred`, gravité 200 à 30 %, son devis propre fusionné à budgété nul et sa ligne
+de provision retirée — les quatre totaux et la réserve de la référence, 910), `risks_empty`,
+`risk`, `risk_occurred_detail` (le risque survenu, sa ligne de provision retirée),
+`risk_reviews` (la probabilité passée de 25 à 40 %, la gravité de 1 000 à 1 250), `risk_matrix`
+(les seize cases, les bornes, les trois risques placés) et `risk_coverage` (la couverture du
+témoin : réserve 910, provisions restantes 500, coût des survenus 200, écart +210), dans
+l'univers des autres exemples.
 
 ## Les exemples des courbes (US-0240/L2)
 
@@ -754,8 +763,10 @@ probabilité (WF-RIS-0010) ; les dix plus lourds avec leur projet) ; et la deuxi
 projets de la liste (`portfolio_projects_page`).
 **Ce que la liste ne porte pas s'écrit à la main**, au même instant et sur le même périmètre :
 `portfolio_workload` (`getPortfolioWorkload` : deux rôles de `resource_roles` sur six mois, au
-seuil de 50 %, chaque mois avec sa zone) et `portfolio_cash_out` (`getPortfolioCashOut` :
-d'octobre 2025 à septembre 2026, mars portant le passé et l'avenir). `portfolio_projects_empty`
+seuil de 50 %, chaque mois avec sa zone) et `portfolio_cost_curve` (`getPortfolioCostCurve`,
+qui a remplacé `portfolio_cash_out` et `getPortfolioCashOut` le 2026-10-06 : d'octobre 2025 à
+septembre 2026, les trois courbes sommées, et en décaissements mars portant le passé et
+l'avenir). `portfolio_projects_empty`
 est la liste filtrée qui ne retient aucun projet. `pilot_health` reste au 1er juin, l'exemple de
 l'US-0160. Les montants des exemples écrits à la main ne sont pas tirés des trois cents projets :
 leur échelle se suit dans #287.
@@ -775,8 +786,8 @@ rend alors une période nulle.
 l'autorisation de l'utilisateur du 2026-10-04 (« ajouts de lecture inclus »). Facultatif, une réponse conforme pouvait l'omettre, et
 l'écran, qui montre le seuil retenu par le serveur quand l'adresse n'en nomme aucun, aurait dit
 « Par défaut » sans dire lequel (relevé par Copilot sur la PR #338), comme `last_import_at` des
-coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cash_out_credit`, calculé au
-31 décembre 2025, montre un mois de décaissements net négatif — les avoirs de décembre importés
+coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cost_curve_credit`, calculé au
+31 décembre 2025 en décaissements, montre un mois net négatif — les avoirs de décembre importés
 avant ses factures, que l'import de janvier apporte au 16 mars — : un décaissement est un `Money`
 signé, comme le coût réel dont il vient.
 
@@ -880,12 +891,15 @@ d'`openImport` promettaient ; exemple `import_format_unreadable`. Le format est 
 nature de l'import, que le front rend par son catalogue.
 
 **Le montant budgété d'une ligne est celui que la révision de référence a fixé** (#245) : une
-ligne de provision présente dans la révision de référence porte la provision qu'elle y avait, et
-le budget de référence est, comme le dit le glossaire, « la somme des montants budgétés des lignes
-de la révision de référence, diminuée des provisions selon les règles de WF-RIS-0050 ». Il se lit
-dans les indicateurs, jamais en sommant les montants des lignes : le montant budgété d'une tâche
-et `NodeTotals.budgeted_amount` comptent les lignes de provision. Ce que porte la ligne de
-provision d'un risque écarté, ou identifié après la référence, est l'issue de spécification #347.
+ligne de provision présente dans la révision de référence porte la provision qu'elle y avait,
+mais ce montant compte à la réserve pour risques, jamais au budget de référence, qui est « la
+somme des montants budgétés hors lignes de provision » (glossaire, WF-RIS-0050 révisée le
+2026-10-04). Il se lit dans les indicateurs, jamais en sommant les montants des lignes : le
+montant budgété d'une tâche et `NodeTotals.budgeted_amount` comptent les lignes de provision,
+les indicateurs les en retirent. Une ligne issue d'un risque survenu ou ajoutée après la
+référence est budgétée à zéro. #347 est close par la révision : la provision d'un risque écarté
+sort du reste à engager sans toucher la référence, celle d'un risque identifié après la
+référence n'a pas de part dans la réserve.
 
 **Une marche de la courbe porte son montant** (`CurveSeries.steps[].amount`, #285), signé, ce dont
 le budget de référence change à sa date, et non le budget après elle, que la série
@@ -894,8 +908,8 @@ le budget de référence change à sa date, et non le budget après elle, que la
 **Les structures des risques témoins ont leurs exemples** (#252) : `structures_amendments` porte
 les devis propres du retard de livraison des armoires et de l'indisponibilité de l'automaticien,
 nommés par `risks`. La chronologie des risques témoins et des révisions — quand le retard est
-survenu, quelle révision sa survenance a produite — n'est pas tenue par les exemples : elle est
-suivie dans #287.
+survenu, dans quelle révision en cours son devis propre a été fusionné — n'est pas tenue par
+les exemples : elle est suivie dans #287.
 
 **Un recalcul ne fait avancer le compteur d'aucun nœud** (`LockVersion`, `NodeSchedule`,
 `NodesWritten.rescheduled`, #236 ; décision de l'utilisateur du 2026-10-05). Le compteur suit les
@@ -1106,9 +1120,9 @@ dit le nœud retenu sans joindre `listOrgNodes` (WF-ARC-0020). Exemple :
 `portfolio_workload_org_node`, le plan de charge agrégé restreint à la direction technique, dont les
 deux rôles, du bureau d'études électricité, son descendant, restent retenus. Les résumés des exemples qui retiennent
 aussi les projets en chiffrage disent que la requête les a ajoutés au périmètre par défaut, les
-projets en cours (WF-PTF-0010), qui reste celui du contrat. `CashOutMonth` dit enfin ce que montrait
-`portfolio_cash_out` : un mois qui précède celui de la date de calcul ne porte que le passé, un mois
-qui le suit que l'avenir, et le mois de la date de calcul les deux.
+projets en cours (WF-PTF-0010), qui reste celui du contrat. `CashOutMonth` dit enfin ce que montre
+`portfolio_cost_curve_payment_delays` : un mois qui précède celui de la date de calcul ne porte que
+le passé, un mois qui le suit que l'avenir, et le mois de la date de calcul les deux.
 
 ## L'univers témoin : le socle (EP-02/L20)
 
@@ -1118,9 +1132,10 @@ exemples décrivent un seul projet, PRJ-001, à un seul instant, aujourd'hui : l
 (de l'installation au 1er septembre 2025 aux imports de coûts du jour), les rôles qu'emploient ses
 lignes et leurs calendriers — lus dans `resource_roles` et `calendars`, écrits à la main, jamais
 recopiés —, et son cœur lisible : le groupe « Études », le lot « Poste de commande » et le
-sous-arbre fusionné par la survenance de 752, aux identifiants fixes (le nœud 5nn, sa lignée 6nn)
-et aux chiffres des Vérif — 12,5 h × 80 = 1 000, 1 234,56, la provision de 500 de 751, des
-lignes de 120 et 80 budgétées 36 et 24 (WF-RIS-0060). Un autre exemple nommé est une autre lecture
+sous-arbre fusionné dans la révision en cours par la survenance de 752, aux identifiants fixes
+(le nœud 5nn, sa lignée 6nn) et aux chiffres des Vérif — 12,5 h × 80 = 1 000, 1 234,56, la
+provision de 500 de 751, des lignes de 120 et 80 budgétées à zéro (WF-RIS-0060 révisée ; la
+référence reste 101). Un autre exemple nommé est une autre lecture
 de cet état, un instant antérieur de la même chronologie, la suite d'une écriture faite
 aujourd'hui, ou une variante contrefactuelle déclarée.
 
@@ -1148,6 +1163,49 @@ en tête, ses compteurs du §4.6.2 gardés, puis EP-02/L21 à L26. Deux décisio
 la cadrent déjà : le cœur lisible est **relié au réseau engendré**, pour que ses marges et le
 chemin critique aient un sens ; la **réception usine reste au 30 juin 2026** (C13). Jusque-là,
 la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 mars.
+
+## Révision de la spécification du 2026-10-04 (PR #328, fusion du 2026-10-06)
+
+La seconde revue de la spécification (#211, #212, #253 à #283) change le modèle des provisions et
+quelques lectures ; le contrat suit, les décisions de l'auteur du 2026-10-06 tranchant ce que le
+texte laissait ouvert.
+
+**Les provisions ne font jamais partie du budget de référence** (WF-RIS-0050). La révision de
+référence conserve leur somme comme réserve pour risques, et la couverture des risques — la
+réserve face aux provisions des risques identifiés et au coût réestimé des lignes issues des
+risques survenus, écart signé — est une lecture : `RiskCoverageTotals` porte les quatre montants,
+`getProjectRiskCoverage` (`GET /projects/{p}/risks/coverage`, dans la révision nommée par
+`revision_id` comme les autres lectures des risques) les rend avec leur contexte (`RiskCoverage`),
+`RemainingIndicators.coverage` les répète pour l'écran du reste à engager (WF-RAE-0020), et
+`PortfolioRisks.coverage` les somme sur les projets en cours (WF-PTF-0090). `ProvisionTotals`
+porte la réserve en plus du total général. `CurveSeries.steps[].cause` ne connaît plus que
+`amendment` : seul l'avenant déplace la référence (WF-REV-0040), et `RiskOccurrence` n'a plus que
+`confirmed`, la survenance ne marquant aucune révision. `budget_change.cause` à `risk_occurred` et
+`last_risk_dismissed`, et `version_name` de la survenance, sont retirés.
+
+**La courbe en S du portefeuille est une seule opération** (WF-PTF-0100 ; FBS-2.6 renommée).
+`getPortfolioCostCurve` (`GET /portfolio/cost-curve`) rend `PortfolioCostCurve` : le périmètre,
+les trois séries cumulées sommées — `reference_budget`, `actual_cost`, `project_manager_projection`
+—, et, demandée avec `payment_delays` comme `getCostCurve` au niveau du projet, les décaissements
+que les projets rendent, détaillés par mois (`cash_out_by_month`, nul sinon). `getPortfolioCashOut`
+et `PortfolioCashOut` disparaissent ; la permission de FBS-2.6 s'appelle `portfolio_cost_curve`.
+Écarté : garder deux opérations, l'une pour les courbes, l'autre pour les décaissements — la vue du
+portefeuille a les mêmes modes que celle du projet, et le portefeuille somme sans recalculer.
+
+**Les codes d'états sont ceux de la spécification.** Elle donne désormais les codes des états d'un
+projet (WF-CYC-0010, tableau), d'une tâche, d'une révision et d'un compte ; les enums du contrat
+les portaient déjà. L'état d'un compte reste `User.is_active`, booléen documenté comme portant
+`active` et `deactivated` (décision de l'auteur : changer la forme coûte plus qu'elle n'apporte).
+Les risques, les natures, les types de liaison et les zones n'ont pas de code dans la
+spécification : ceux du contrat restent.
+
+**Ce que la révision demande et que le contrat ne porte pas encore** est ouvert en constats :
+l'année de référence d'une révision (#381), le rattachement d'une récapitulative à un poste ou à
+un lot (#382), le compte rendu d'import en aller-retour — conservés, ignorés, terminés,
+identifiant externe — (#383), trois permissions de WF-ADM-0100 (#384), la suppression d'une
+chronologie et d'un risque non cité (#385), le code de sous-projet d'une ligne de coût (#386), le
+tri des tables plates (#387), le lien de fixation du mot de passe remis par un administrateur
+(#388), et l'ouvrabilité d'un projet sur les lignes du portefeuille (#389).
 
 ## Collage et annulation
 

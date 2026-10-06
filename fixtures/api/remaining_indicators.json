@@ -49,6 +49,12 @@
       }
     ],
     "delta_to_reference": "0.00",
-    "delta_to_previous_revision": null
+    "delta_to_previous_revision": null,
+    "coverage": {
+      "reserve": "910.00",
+      "remaining_provisions": "500.00",
+      "occurred_cost": "200.00",
+      "coverage_variance": "210.00"
+    }
   }
 }

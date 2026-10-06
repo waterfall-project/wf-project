@@ -37,7 +37,10 @@ Risk:
       description: Calculée, jamais saisie (WF-RIS-0010).
     provision_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
-      description: Calculée ; celle retenue au budget est figée à la révision de référence (WF-RIS-0050).
+      description: >-
+        Calculée, gravité pondérée par la probabilité ; celle que portait la révision de
+        référence compte à la réserve pour risques, jamais au budget de référence
+        (WF-RIS-0050).
     state: { $ref: '#/RiskState' }
     structure_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
@@ -126,19 +129,17 @@ RiskReviewWrite:
 
 RiskOccurrence:
   type: object
-  required: [confirmed, version_name]
+  required: [confirmed]
   description: >-
     Déclare le risque survenu : fusionne son devis propre dans la structure
-    principale, chaque ligne fusionnée portant pour montant budgété sa part de la
-    provision — son montant multiplié par la probabilité du risque dans la révision de
-    référence, arrondi au centime, le reste sur la dernière — et pour montant réestimé
-    son montant ; la ligne de provision est retirée, et la révision marquée qui en
-    résulte devient la référence (WF-RIS-0060). Définitif.
+    principale de la révision en cours, les lignes fusionnées portant un montant
+    budgété nul et leur montant du devis propre en réestimé ; la ligne de provision
+    est retirée. Ne marque aucune révision et ne déplace pas la référence
+    (WF-RIS-0060). Définitif.
   properties:
     confirmed:
       type: boolean
       const: true
-    version_name: { type: string, minLength: 1, maxLength: 100 }
 
 RiskMatrixCell:
   type: object
@@ -200,12 +201,41 @@ RiskMatrix:
 
 ProvisionTotals:
   type: object
-  required: [identified, occurred, dismissed, total]
+  required: [identified, occurred, dismissed, total, reserve]
   description: >-
-    Les trois totaux de provisions, distincts, et le total général, leur somme
-    (WF-RIS-0040), calculés par le serveur sur les risques retenus.
+    Les trois totaux de provisions, distincts — les identifiés pour leur provision
+    courante, les survenus et les écartés pour celle qu'ils portaient dans la révision
+    de référence —, leur total général, et la réserve pour risques de la révision de
+    référence en regard (WF-RIS-0040, WF-RIS-0050), calculés par le serveur sur les
+    risques retenus.
   properties:
     total: { $ref: ../common.yaml#/Money }
     identified: { $ref: ../common.yaml#/Money }
     occurred: { $ref: ../common.yaml#/Money }
     dismissed: { $ref: ../common.yaml#/Money }
+    reserve: { $ref: ../common.yaml#/Money }
+
+RiskCoverageTotals:
+  type: object
+  required: [reserve, remaining_provisions, occurred_cost, coverage_variance]
+  description: >-
+    Les quatre montants de la couverture des risques : la réserve pour risques de la
+    révision de référence, la somme des provisions des risques identifiés dans la révision
+    courante, le montant réestimé des lignes issues des risques survenus, et l'écart de
+    couverture, signé, reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050).
+  properties:
+    reserve: { $ref: ../common.yaml#/Money }
+    remaining_provisions: { $ref: ../common.yaml#/Money }
+    occurred_cost: { $ref: ../common.yaml#/Money }
+    coverage_variance: { $ref: ../common.yaml#/Money }
+
+RiskCoverage:
+  allOf:
+    - $ref: '#/RiskCoverageTotals'
+    - type: object
+      required: [context]
+      properties:
+        context: { $ref: indicators.yaml#/CalculationContext }
+  description: >-
+    La couverture des risques d'un projet, à une date et dans une révision (WF-RIS-0050,
+    WF-RAE-0020).

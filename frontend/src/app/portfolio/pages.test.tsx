@@ -11,7 +11,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
-import CashOutPage, { generateMetadata as cashOutTitle } from "./cash-out/page";
+import CostCurvePage, { generateMetadata as costCurveTitle } from "./cost-curve/page";
 import CostStructurePage, { generateMetadata as costStructureTitle } from "./cost-structure/page";
 import PerformancePage, { generateMetadata as performanceTitle } from "./performance/page";
 import PilotHealthPage, { generateMetadata as pilotHealthTitle } from "./pilot-health/page";
@@ -100,7 +100,7 @@ beforeEach(() => {
     "GET /portfolio/cost-structure": "volume/portfolio_cost_structure",
     "GET /portfolio/risks": "volume/portfolio_risks",
     "GET /portfolio/workload": "portfolio_workload",
-    "GET /portfolio/cash-out": "portfolio_cash_out",
+    "GET /portfolio/cost-curve": "portfolio_cost_curve",
     "GET /portfolio/pilot-health": "pilot_health",
   };
 });
@@ -112,7 +112,7 @@ describe("the screens of the portfolio", () => {
     [performanceTitle, "Portfolio performance"],
     [costStructureTitle, "Portfolio cost structure"],
     [risksTitle, "Portfolio risks"],
-    [cashOutTitle, "Portfolio cash-out"],
+    [costCurveTitle, "Portfolio S-curve"],
     [pilotHealthTitle, "Project control health"],
   ])("titles the tab with the function", async (title: () => Promise<Metadata>, name) => {
     expect((await title()).title).toBe(`${name} — Waterfall`);
@@ -242,8 +242,8 @@ describe("the screens of the portfolio", () => {
   });
 
   it("asks any horizon the contract takes, and shows it chosen", async () => {
-    const markup = await render(CashOutPage, { horizon_months: "36" });
-    expect(queryOf("GET /portfolio/cash-out")).toEqual({ horizon_months: "36" });
+    const markup = await render(CostCurvePage, { horizon_months: "36" });
+    expect(queryOf("GET /portfolio/cost-curve")).toEqual({ horizon_months: "36" });
     expect(markup).toContain('<option value="36" selected="">36 months</option>');
   });
 
@@ -268,10 +268,45 @@ describe("the screens of the portfolio", () => {
     expect(markup).not.toContain("Organisation node");
   });
 
-  it("sends the horizon of the cash-out, and lists its months", async () => {
-    const page = text(await render(CashOutPage, { horizon_months: "24" }));
-    expect(queryOf("GET /portfolio/cash-out")).toEqual({ horizon_months: "24" });
-    expect(page).toContain("March 2026 31,864,205.10 38,215,760.00");
+  it("sends the horizon of the S-curve, lists the points of its three curves, and offers to read it as cash-out [WF-PTF-0100-A]", async () => {
+    const markup = await render(CostCurvePage, { horizon_months: "24" });
+    expect(queryOf("GET /portfolio/cost-curve")).toEqual({ horizon_months: "24" });
+    const page = text(markup);
+    expect(page).toContain("Cumulative costs of the portfolio");
+    expect(page).toContain("Reference budget 31 Oct 2025 216,440,791.67");
+    expect(page).toContain("Actual cost 16 Mar 2026 352,357,560.55");
+    expect(page).toContain("Project manager’s projection 30 Sept 2026 830,906,815.55");
+    // Without the payment delays, the server details no cash-out: no second chart.
+    expect(page).not.toContain("Cash-out by month");
+    expect(markup).toContain(
+      'href="/portfolio/cost-curve?horizon_months=24&amp;payment_delays=true"',
+    );
+    expect(page).toContain("Read as cash-out");
+  });
+
+  it("asks the S-curve as cash-out when the address says so, and lists the cash-out by month the server details [WF-PTF-0100-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /portfolio/cost-curve": "portfolio_cost_curve_payment_delays",
+    };
+    const markup = await render(CostCurvePage, { horizon_months: "24", payment_delays: "true" });
+    expect(queryOf("GET /portfolio/cost-curve")).toEqual({
+      horizon_months: "24",
+      payment_delays: "true",
+    });
+    const page = text(markup);
+    expect(page).toContain("Cumulative cash-out of the portfolio");
+    expect(page).toContain("Cash-out by month");
+    expect(page).toContain("March 2026 69,158,340.75 0.00");
+    expect(markup).toContain('href="/portfolio/cost-curve?horizon_months=24"');
+    expect(page).toContain("Back to the cumulative costs");
+  });
+
+  it("presents the coverage of the risks of the portfolio, each sum as the server made it, the variance signed [WF-PTF-0090-A]", async () => {
+    const page = text(await render(RisksPage));
+    expect(page).toContain(
+      "Risk coverage Reference reserve 95,348,910.00 Remaining provisions 103,826,197.03 Cost of the occurred risks 631,200.00 Coverage variance -9,108,487.03",
+    );
   });
 
   it("opens the project of each signal of the health of the steering, by its zone [WF-PTF-0030-A] [WF-IHM-0070-A]", async () => {
@@ -312,7 +347,7 @@ describe("the screens of the portfolio", () => {
       "GET /portfolio/workload",
       { ...DATE, ...NODE, horizon_months: "12", under_load_threshold: "0.4" },
     ],
-    ["cash-out", CashOutPage, "GET /portfolio/cash-out", { ...DATE, horizon_months: "12" }],
+    ["S-curve", CostCurvePage, "GET /portfolio/cost-curve", { ...DATE, horizon_months: "12" }],
     ["health of the steering", PilotHealthPage, "GET /portfolio/pilot-health", DATE],
   ] as const)(
     "sends of the perimeter what the %s takes, and that alone",

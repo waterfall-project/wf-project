@@ -560,6 +560,15 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
         (Decimal(risk["provision_amount"]) for risk in register if risk["state"] == "dismissed"),
         Decimal(draw("risks/dismissed", 2_000, 9_000) * 1_000),
     )
+    # The coverage of the risks (WF-RIS-0050), summed over the projects in progress: the
+    # witness brings its own, the others a drawn reserve that their identified provisions and
+    # the reestimated cost of their occurred risks eat into (WF-PTF-0090).
+    coverage = fixture("risk_coverage")
+    reserve = Decimal(coverage["reserve"]) + Decimal(draw("risks/reserve", 95_000, 125_000) * 1_000)
+    remaining = total
+    occurred_cost = Decimal(coverage["occurred_cost"]) + Decimal(
+        draw("risks/occurred_cost", 500, 2_500) * 1_000
+    )
     return {
         "scope": _scope(rows, ["in_progress"], period=True),
         "identified_total": money(total),
@@ -585,7 +594,14 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
                 "occurred": money(occurred),
                 "dismissed": money(dismissed),
                 "total": money(total + occurred + dismissed),
+                "reserve": money(reserve),
             },
+        },
+        "coverage": {
+            "reserve": money(reserve),
+            "remaining_provisions": money(remaining),
+            "occurred_cost": money(occurred_cost),
+            "coverage_variance": money(reserve - remaining - occurred_cost),
         },
         "period_outcome": {
             "occurred_provisions": money(occurred),

@@ -26,8 +26,8 @@ export interface Examples {
   "GET /permissions": {
     200: "permissions";
   };
-  "GET /portfolio/cash-out": {
-    200: "portfolio_cash_out" | "portfolio_cash_out_credit";
+  "GET /portfolio/cost-curve": {
+    200: "portfolio_cost_curve" | "portfolio_cost_curve_credit" | "portfolio_cost_curve_payment_delays";
   };
   "GET /portfolio/cost-structure": {
     200: "volume/portfolio_cost_structure";
@@ -118,6 +118,9 @@ export interface Examples {
   };
   "GET /projects/{project_id}/risks": {
     200: "risks" | "risks_empty";
+  };
+  "GET /projects/{project_id}/risks/coverage": {
+    200: "risk_coverage";
   };
   "GET /projects/{project_id}/risks/matrix": {
     200: "risk_matrix";

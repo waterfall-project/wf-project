@@ -160,8 +160,9 @@
     description: >-
       La confirmation sans modification produit un réexamen daté ; un risque identifié
       peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010,
-      WF-RIS-0020). Lorsque plus aucun risque n'est identifié, les provisions des
-      risques écartés entrent au budget de référence (WF-RIS-0050).
+      WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ;
+      la réserve pour risques de la révision de référence et le budget de référence
+      restent inchangés (WF-RIS-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -192,15 +193,12 @@
     tags: [risks]
     summary: Déclarer un risque survenu
     description: >-
-      Fusionne les tâches et les lignes du devis propre dans la structure principale.
-      Chaque ligne fusionnée porte, pour montant budgété, son montant dans le devis
-      propre multiplié par la probabilité du risque dans la révision de référence,
-      arrondi au centime, la dernière ligne portant le reste de sorte que leur somme
-      soit la provision ; pour montant réestimé, son montant dans le devis propre. La
-      ligne de provision est retirée de la structure principale, et la révision marquée
-      qui en résulte devient la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple
-      `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Définitif, confié au
-      worker, inscrit au journal d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
+      Fusionne les tâches et les lignes du devis propre dans la structure principale de
+      la révision en cours, avec un montant budgété nul, et retire la ligne de
+      provision ; ne marque aucune révision et ne déplace pas la référence
+      (WF-RIS-0060, WF-RIS-0050) : l'exemple `nodes_risk_occurred` de `listNodes`
+      montre la structure obtenue. Définitif, confié au worker, inscrit au journal
+      d'audit (WF-RIS-0020, WF-ARC-0090, WF-SEC-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -219,6 +217,30 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+
+/projects/{project_id}/risks/coverage:
+  get:
+    operationId: getProjectRiskCoverage
+    tags: [risks]
+    summary: Couverture des risques
+    description: >-
+      La réserve pour risques de la révision de référence, face aux provisions des
+      risques identifiés dans la révision courante et au coût réestimé des risques
+      survenus, et leur écart signé (WF-RIS-0050, WF-RAE-0020). Dans la révision nommée,
+      ou la révision courante.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskRevision
+    responses:
+      '200':
+        description: Couverture des risques du projet.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/RiskCoverage }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk_coverage.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
 
 /projects/{project_id}/risks/matrix:
   get:

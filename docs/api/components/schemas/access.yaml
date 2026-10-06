@@ -99,7 +99,11 @@ User:
       type: string
       format: email
       description: Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050).
-    is_active: { type: boolean }
+    is_active:
+      type: boolean
+      description: >-
+        L'état du compte (WF-ADM-0050) : vrai pour « actif » (`active`), faux pour
+        « désactivé » (`deactivated`). Un compte désactivé ne peut plus ouvrir de session.
     origin: { $ref: '#/UserOrigin' }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
@@ -252,8 +256,8 @@ PermissionCode:
     - portfolio_cost_structure.write
     - portfolio_risks.read
     - portfolio_risks.write
-    - portfolio_cash_out.read
-    - portfolio_cash_out.write
+    - portfolio_cost_curve.read
+    - portfolio_cost_curve.write
     - portfolio_pilot_health.read
     - portfolio_pilot_health.write
     # FBS-3 — Paramètres applicatifs.
