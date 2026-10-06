@@ -8,7 +8,8 @@
 # - `shared`: paths every family depends on; touching one runs them all.
 # - `generated`: paths a tool writes, with the command that writes them. They are left out
 #   of the size of a lot and of the size limit of a source file (US-0050, US-0310).
-# - `tests`: paths that hold tests, told apart from production code in the size of a lot.
+# - `tests`: paths that hold tests, by family, told apart from production code in the size
+#   of a lot; the coverage of requirements says which family cites each one (WF-QUA-0010).
 #
 # Patterns follow pathlib's full_match: `*` stays within a directory, `**` crosses them.
 
@@ -91,4 +92,11 @@ paths = ["fixtures/api/volume/**"]
 by = "make mock-data"
 
 [tests]
-paths = ["tools/tests/**", "backend/tests/**", "fixtures/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/e2e/**"]
+# One family per key, in the order the coverage report lists them. A path belongs to the
+# first family that matches it: the end-to-end paths live under frontend/, so they come
+# before the front's. The fixtures are the data every family reads; a script among them is
+# a tool. Nothing under docs/*/tools/ is a test.
+end-to-end = ["frontend/e2e/**"]
+front = ["frontend/**/*.test.ts", "frontend/**/*.test.tsx"]
+back = ["backend/tests/**"]
+tools = ["tools/tests/**", "fixtures/**"]
