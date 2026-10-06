@@ -635,11 +635,11 @@ soit constaté par la chaîne et non découvert à la recette.
 **Critères d'acceptation.**
 
 - `WF-QUA-0010-A` — « Le rapport de couverture cite chacune des exigences F0 du document,
-  avec les tests qui la couvrent. »
+  avec les tests ou le procès-verbal qui la couvrent. »
 - `WF-QUA-0010-A` — « Le retrait d'un test fait apparaître son exigence parmi les non
   couvertes. »
-- `WF-QUA-0010-A` — « Une tentative de publication avec une exigence F0 non couverte échoue
-  en la nommant. »
+- `WF-QUA-0010-A` — « Une tentative de publication avec une exigence F0 non couverte, ou dont
+  le procès-verbal est périmé, échoue en la nommant. »
 - propre à l'US : la couverture de code se mesure en lignes et en branches, pour le back et
   pour le front, hors code engendré ; au-dessous de 90 % des lignes ou de 85 % des branches,
   d'un côté ou de l'autre, la fusion échoue en nommant les fichiers les moins couverts ;
@@ -647,7 +647,7 @@ soit constaté par la chaîne et non découvert à la recette.
 
 **Notes de réalisation.** La liste des exigences se lit dans la projection Markdown, avec
 leur champ de flexibilité : le rapport n'a pas de liste à tenir à jour de son côté. Il porte
-sur les 195 exigences F0 ; les huit exigences F1 et F2 y figurent sans compter dans l'échec
+sur les 199 exigences F0 ; les dix exigences F1 et F2 y figurent sans compter dans l'échec
 (WF-QUA-0010). Tant qu'il n'y a pas de code métier, presque toutes sortent comme non
 couvertes — seules le sont celles que les tests d'EP-01 citent —, c'est le résultat attendu,
 et c'est ce qui décroît EPIC par EPIC. L'exemple du §1.3.1, `WF-EXAMP-0010-A`,

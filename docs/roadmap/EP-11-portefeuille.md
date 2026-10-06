@@ -29,7 +29,9 @@ sur un dépôt qui les porte tous (WF-ARC-0010).
 - les vues de FBS-2.1 à FBS-2.7, et le filtre par nœud d'organisation ;
 - la santé du pilotage, avec le délai maximal entre deux revues ;
 - les usages du manager sur le portefeuille (WF-INTF-0020) ;
-- les écrans du portefeuille de la maquette, branchés sur le service.
+- les écrans du portefeuille de la maquette, branchés sur le service ;
+- l'aide en ligne de chaque écran, infobulle de la colonne corrigée de l'inflation comprise
+  (WF-IHM-0140), parce que c'est ici que le dernier écran se branche.
 
 ## Ce qui n'en fait pas partie
 
@@ -61,6 +63,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-ARC-0010-A` | Un noyau, un service, un worker | fin — amorcée en EP-01 | — |
 | `WF-QUA-0020-A` | Les exemples chiffrés du document sont des cas de test | fin — amorcée en EP-01 | — |
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | entière | — |
+| `WF-IHM-0140-A` | Aide en ligne | entière | — |
 
 ## Opérations du contrat
 

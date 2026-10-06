@@ -468,9 +468,14 @@ au serveur (décision du cadrage) : TanStack Table n'ordonne rien en local, et l
 front ne réordonne pas ce que le back ordonne » reste sans exception. Les réglages sont une
 préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les données.
 
-- écart : `WF-IHM-0060-A` — « Chaque colonne d'une grille se trie dans les deux sens. » : le
-  faux back rend toujours le même exemple, quel que soit le paramètre ; le réordonnancement
+- écart : `WF-IHM-0060-A` — « Chaque colonne d'une table plate se trie dans les deux sens. » :
+  le faux back rend toujours le même exemple, quel que soit le paramètre ; le réordonnancement
   effectif se constate en EP-03, sur la première grille servie par le vrai service.
+- écart : `WF-IHM-0060-A` — « Dans la grille de planning, aucun en-tête de colonne ne propose
+  de tri ; dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche
+  sans déplacer les tâches. » : l'absence de tri sur la grille de planning se constate dans la
+  maquette ; le réordonnancement des lignes sous chaque tâche demande le vrai service, qui
+  rend le devis ordonné — EP-03.
 - écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées
   à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres
   réglages. » : la conservation passe par `updateMyPreferences`, que le mock accepte sans
@@ -957,6 +962,8 @@ mon bureau.
   s'utilisent sur chacun des quatre navigateurs, dans leurs deux dernières versions majeures,
   à 1366 points de large. » : la version majeure précédente et le Safari réel ne se rejouent
   pas par l'outillage ; ils se constatent en recette, sur la plateforme déployée — EP-13.
+- écart : `WF-CMP-0010-A` — « Vérifiée en recette pour Safari et les terminaux mobiles. » : la
+  recette se tient sur la plateforme déployée, avec son procès-verbal — EP-13.
 
 **Notes de réalisation.** Le harnais d'EP-01 ne joue que Chromium : c'est cette US qui lui
 ajoute les quatre navigateurs — Chrome et Edge sont des canaux de Chromium dans Playwright,
