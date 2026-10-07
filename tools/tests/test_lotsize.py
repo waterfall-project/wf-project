@@ -16,7 +16,8 @@ paths = ["**/uv.lock", "frontend/src/api/generated/**"]
 by = "tools"
 
 [tests]
-paths = ["tools/tests/**", "frontend/**/*.test.ts"]
+front = ["frontend/**/*.test.ts"]
+tools = ["tools/tests/**"]
 """
 )
 

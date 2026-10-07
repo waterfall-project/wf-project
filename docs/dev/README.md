@@ -866,11 +866,19 @@ Un test cite l'exigence dont il éprouve le Vérif, pas celle dont il parle. Un 
 couvre aucune exigence — un outil, un détail de réalisation — n'en cite aucune.
 
 *Contrôles* : `make requirements` lit les citations dans les fichiers de test, sans les
-lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent — dans le
-résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou d'un indice de
-révision que le document a dépassé, le fait échouer. `make requirements-release` échoue en
-plus sur toute exigence F0 non couverte, en la nommant : c'est la commande de la
-publication d'une version.
+lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur
+famille, celle que `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` :
+bout en bout (`frontend/e2e/**`, qui prime sur le reste de `frontend/`), front, back,
+outils — dans le résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou
+d'un indice de révision que le document a dépassé, le fait échouer. Les tests du front
+citent des exigences que d'autres EPIC clôturent, par la phrase du Vérif qu'ils éprouvent ;
+une exigence que seuls le front et le bout en bout citent, et qu'un EPIC autre que celui du
+front (EP-02, d'après la table « Exigences réalisées » de la roadmap) clôt, est comptée à
+part, « couverte par le front seul », et ne
+compte pas comme couverte. `make requirements-release` échoue en plus sur toute exigence F0
+non couverte, ou couverte par le front seul, en la nommant : c'est la commande de la
+publication d'une version. Une exigence dont le Vérif s'ouvre par « Vérifiée en recette »
+attend un procès-verbal, dont la forme n'est pas encore définie : le relevé le dit.
 
 ### Un parcours de bout en bout
 
