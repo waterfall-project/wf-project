@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The indicators of the remaining to commit (WF-RAE-0020), above its grid: its total — the lines
- * of provision of the risks identified included (WF-RAE-0010) —, its deviations from the
- * reference budget and from the previous marked revision, its totals by nature of cost and, for
+ * of provision of the risks identified included (WF-RAE-0010) —, its margin on the reference
+ * budget — the budget less the actual cost and the remaining, in the one sense of the balances of
+ * the sub-projects (#466) —, its deviation from the previous marked revision, its totals by nature of cost and, for
  * each sub-project — the whole « out of any sub-project » among them —, its remaining to commit and
- * the variance between its budget and its actual cost plus its remaining to commit, with the
+ * the margin between its budget and its actual cost plus its remaining to commit, with the
  * signal of an overrun in the zone the server classes it in, never one deduced here (`Signal`,
  * WF-IHM-0070); and the coverage of the
  * risks (`RiskCoverageSummary`, WF-RIS-0050). All with the date they are computed at

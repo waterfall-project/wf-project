@@ -168,7 +168,7 @@ describe("the screen of the remaining to commit", () => {
     const summary = section(await remainingAt(), "Remaining to commit indicators");
     expect(summary).toMatch(/Computed on <time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(summary)).toContain(
-      "Remaining to commit 21,534.56 Deviation from the reference budget -93,900.00 " +
+      "Remaining to commit 21,534.56 Margin on the reference budget 93,900.00 " +
         "Deviation from the previous review -100,210.00 By nature of cost",
     );
     // Each amount bears the one mark of a computed value.
@@ -187,12 +187,14 @@ describe("the screen of the remaining to commit", () => {
     server.answers = { ...server.answers, [INDICATORS]: "remaining_indicators_over_budget" };
     const markup = section(await remainingAt(), "Remaining to commit indicators");
     const summary = text(markup);
-    expect(summary).toContain("Poste de commande: 20,634.56, variance -2,200.00");
-    expect(summary).toContain("No subproject: 700.00, variance 96,300.00");
+    expect(summary).toContain("Poste de commande: 20,634.56, margin -2,200.00");
+    expect(summary).toContain("No subproject: 700.00, margin 96,300.00");
     // Each by the zone the server gives it, named.
     expect(
       [...markup.matchAll(/role="img" aria-label="(Alert|Nominal|Watch)"/g)].map((m) => m[1]),
     ).toEqual(["Alert", "Nominal", "Nominal"]);
+    // The margin on the reference budget, in the sense of the balances: 200 more of it.
+    expect(summary).toContain("Margin on the reference budget 94,100.00");
     expect(summary).toContain("Deviation from the previous review -100,410.00");
   });
 

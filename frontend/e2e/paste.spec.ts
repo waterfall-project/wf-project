@@ -181,16 +181,16 @@ test("a block whose cell names an unknown category is sent as copied for the ser
 test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
   const posted = actions(page);
   const { grid, at } = await openOnRow4(page);
-  // Fifteen columns from the label, where a line has fourteen in the contract (#223).
+  // Eighteen columns from the label, where a line has seventeen in the contract (#223, #424).
   await paste(
     page,
-    BLOCK.map((row) => [...row, ...Array.from({ length: 11 }, () => "")]),
+    BLOCK.map((row) => [...row, ...Array.from({ length: 14 }, () => "")]),
   );
 
   const alert = page.getByRole("main").getByRole("alert");
   await expect(alert).toContainText("Les données collées ont plus de colonnes que la grille.");
   await expect(alert).toContainText(
-    "La grille accepte au plus 14 colonnes à partir de cette cellule.",
+    "La grille accepte au plus 17 colonnes à partir de cette cellule.",
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(argumentsWith(posted, "target_column")).toBeUndefined();

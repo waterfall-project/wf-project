@@ -407,6 +407,9 @@ class _Emitter:
             "subproject_id": line.subproject,
             "subproject_label": None if line.subproject is None else self.labels[line.subproject],
             **amounts.rendered(),
+            "previous_quantity": None,
+            "previous_hours": None,
+            "previous_unit_disbursement": None,
             "previous_reestimated_amount": None,
             "consumption_year": year,
             "is_computed": line.is_provision,
@@ -587,14 +590,14 @@ def subtree(rows: list[Row], root: int, kinds: frozenset[str] | None = None) -> 
     """Return the reading of the subtree of a task, it included, restricted to some kinds.
 
     ``subtree_of``, then ``kinds``: the nodes under the task, in the order of the plan. The
-    totals are those of the lines retained: a reading of the tasks alone sums nothing.
+    totals are those of the subtree read, whatever ``kinds`` renders of it (#487).
     """
     below = {root}
     for row in rows:
         if row.parent in below:
             below.add(row.number)
-    retained = [row for row in rows if row.number in below and (kinds is None or row.kind in kinds)]
-    return _answer(retained, [])
+    retained = [row for row in rows if row.number in below]
+    return _answer(retained, [], kinds)
 
 
 def whole(rows: list[Row]) -> JsonObject:
@@ -620,11 +623,53 @@ def search(rows: list[Row], text: str) -> JsonObject:
     return _answer(retained, readable)
 
 
+def summaries(rows: list[Row], max_level: int) -> JsonObject:
+    """Return the reading of the task tree: the summaries down to a level (WF-PLA-0110).
+
+    ``kinds=task``, ``summaries_only``, ``max_level``: no leaf, no milestone, nothing deeper.
+    The ancestors of a summary are summaries of lower levels, retained already: the tree stays
+    whole. The totals are those of the tasks retained and the lines they bear, which ``kinds``
+    does not render (#487).
+    """
+    retained = [
+        row
+        for row in rows
+        if row.kind == TASK
+        and cast("JsonObject", row.node["task"])["is_summary"]
+        and cast("int", row.node["level"]) <= max_level
+    ]
+    return _answer(_with_lines(rows, retained), [], _TASK_ONLY)
+
+
+def timeline(rows: list[Row], timeline_id: str) -> JsonObject:
+    """Return the reading of a timeline: the tasks inscribed on it, in the order of the plan.
+
+    ``kinds=task``, ``timeline_id``: a timeline is no tree, and renders no ancestor of what is
+    inscribed on it (WF-PLA-0140). The totals are those of the tasks retained and the lines they
+    bear, which ``kinds`` does not render (#487).
+    """
+    retained = [
+        row for row in rows if row.kind == TASK and timeline_id in INSCRIBED.get(row.number, ())
+    ]
+    return _answer(_with_lines(rows, retained), [], _TASK_ONLY)
+
+
+_TASK_ONLY = frozenset({TASK})
+
+
+def _with_lines(rows: list[Row], tasks: list[Row]) -> list[Row]:
+    """Return tasks retained by a filter on a task, with the lines they bear, in plan order."""
+    kept = {row.number for row in tasks}
+    return [row for row in rows if row.number in kept or (row.kind != TASK and row.parent in kept)]
+
+
 def startable(rows: list[Row]) -> JsonObject:
     """Return the answer of listStartableTasks: the tasks of the Kanban (WF-RAE-0030).
 
-    The tasks not started whose predecessors are all completed, and the tasks started, in the
-    order of the plan; never a summary, whose progress derives from its subordinates.
+    The tasks by their state, each column in the order of the plan, never a summary, whose
+    progress derives from its subordinates: every task not started, saying whether its
+    predecessors are all completed — the milestones the Kanban signals —, the tasks started, and
+    the tasks completed, which the Kanban reopens (#425).
     """
     facets = {
         cast("str", row.node["node_id"]): cast("JsonObject", row.node["task"])
@@ -645,18 +690,29 @@ def startable(rows: list[Row]) -> JsonObject:
         )
 
     return {
-        "not_started": [node for node in leaves if progress(node) == "not_started" and ready(node)],
+        "not_started": [
+            {**node, "predecessors_completed": ready(node)}
+            for node in leaves
+            if progress(node) == "not_started"
+        ],
         "started": [node for node in leaves if progress(node) == "started"],
+        "completed": [node for node in leaves if progress(node) == "completed"],
     }
 
 
-def _answer(retained: list[Row], readable: list[Row]) -> JsonObject:
+def _answer(
+    retained: list[Row], readable: list[Row], kinds: frozenset[str] | None = None
+) -> JsonObject:
     """Return the answer of listNodes: the nodes in the order of the plan, and the totals.
 
     The totals count the retained nodes and sum the retained lines (`NodeTotals`), never the
-    amounts of the tasks, which would count the lines twice.
+    amounts of the tasks, which would count the lines twice. ``kinds`` chooses what is rendered,
+    never what is summed: a reading of the tasks alone has the totals of the full one (#487).
     """
-    shown = sorted([*retained, *readable], key=lambda row: row.row)
+    shown = sorted(
+        (row for row in [*retained, *readable] if kinds is None or row.kind in kinds),
+        key=lambda row: row.row,
+    )
     lines = [row for row in retained if row.kind == ESTIMATE_LINE]
     amounts = sum((row.amounts for row in lines), Amounts())
     return {

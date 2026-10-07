@@ -121,8 +121,10 @@ ImportReport:
       description: >-
         Les tâches que l'application de l'import termine, parce qu'il met à zéro le reste à
         engager de toutes leurs lignes (WF-INTF-0120, WF-RAE-0040), chacune nommée ; leur date
-        de terminaison est le jour de l'application (WF-PLA-0130). Vide pour les autres
-        natures d'import.
+        de terminaison est le jour de l'application (WF-PLA-0130). Une tâche non démarrée qui
+        n'est pas un jalon passe par l'état démarré : démarrée et terminée le jour de
+        l'application (`started_on` égal à `completed_on`), seul un jalon allant directement de
+        non démarré à terminé (WF-RAE-0030). Vide pour les autres natures d'import.
       items: { $ref: '#/ImportCompletedTask' }
     date_mismatches:
       type: array
@@ -181,7 +183,9 @@ ImportCompletedTask:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
         Le jour de l'application de l'import, la date de terminaison que la tâche prend
-        (WF-PLA-0130) ; nul tant que l'import n'est pas appliqué.
+        (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas
+        un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import n'est pas
+        appliqué.
 
 ImportDateMismatch:
   type: object

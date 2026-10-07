@@ -27,7 +27,7 @@
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/EstimateIndicators }
             examples:
-              volume: { $ref: ../../../fixtures/api/volume/estimate_indicators.json }
+              volume: { $ref: ../../../fixtures/api/volume/estimate_indicators_volume.json }
               witness: { $ref: ../../../fixtures/api/estimate_indicators.json }
               breakdown: { $ref: ../../../fixtures/api/estimate_indicators_breakdown.json }
               missing_rates: { $ref: ../../../fixtures/api/estimate_indicators_missing_rates.json }
@@ -105,7 +105,8 @@
       '409':
         description: >-
           Projet sans révision de référence : seule la révision en cours est une base
-          (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet.
+          (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet,
+          `params.state_enum` à `ProjectState`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -152,10 +153,17 @@
   get:
     operationId: listStartableTasks
     tags: [remaining]
-    summary: Tâches à démarrer, pour le Kanban
+    summary: Tâches du Kanban, par état
     description: >-
-      Les tâches non démarrées dont les prédécesseurs sont terminés, et les tâches
-      démarrées dont le reste à engager est à réestimer (WF-RAE-0030).
+      Les tâches de la structure principale de la révision courante, réparties selon leur
+      état — non démarrée, démarrée, terminée —, chaque colonne dans l'ordre du plan, jamais
+      une récapitulative, dont l'état dérive de ses subordonnées (WF-RAE-0030,
+      WF-PLA-0040). Toutes les tâches non démarrées, chacune disant si ses prédécesseurs
+      sont tous terminés (`predecessors_completed`) : le Kanban signale par lui les jalons à
+      terminer, et ne déduit rien des liaisons ; les tâches démarrées, dont le reste à
+      engager est à réestimer ; les tâches terminées, avec leur date de terminaison
+      (`task.completed_on`), que le Kanban rouvre en les repassant à l'état démarré
+      (`setTaskProgress`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
@@ -165,12 +173,15 @@
           application/json:
             schema:
               type: object
-              required: [not_started, started]
+              required: [not_started, started, completed]
               properties:
                 not_started:
                   type: array
-                  items: { $ref: ../components/schemas/revisions.yaml#/Node }
+                  items: { $ref: ../components/schemas/revisions.yaml#/NotStartedTask }
                 started:
+                  type: array
+                  items: { $ref: ../components/schemas/revisions.yaml#/Node }
+                completed:
                   type: array
                   items: { $ref: ../components/schemas/revisions.yaml#/Node }
             examples:
@@ -209,9 +220,9 @@
       '409':
         description: >-
           `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant
-          l'état du projet ; ou révision nommée par `revision_id` marquée avant lui, sans
-          `params.state`, le projet étant en cours. Dans les deux cas, seuls les indicateurs de
-          devis existent (WF-IND-0010, WF-DAT-0040).
+          l'état du projet et `params.state_enum` `ProjectState` ; ou révision nommée par
+          `revision_id` marquée avant lui, sans `params.state`, le projet étant en cours. Dans
+          les deux cas, seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

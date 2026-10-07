@@ -272,7 +272,13 @@ RiskCoverageTotals:
     reserve: { $ref: ../common.yaml#/Money }
     remaining_provisions: { $ref: ../common.yaml#/Money }
     occurred_cost: { $ref: ../common.yaml#/Money }
-    coverage_variance: { $ref: ../common.yaml#/Money }
+    coverage_variance:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        L'écart de couverture (WF-RIS-0050) : la réserve moins la somme des provisions restantes
+        et du coût des risques survenus, positif quand la réserve couvre encore, négatif quand
+        elle est dépassée — le sens de la marge du reste à engager
+        (`RemainingIndicators.delta_to_reference`).
 
 RiskCoverage:
   allOf:

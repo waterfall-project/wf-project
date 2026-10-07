@@ -373,20 +373,28 @@
       à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est
       la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme
       de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et
-      grille de devis (WF-DEV-0050).
+      grille de devis (WF-DEV-0050) — et des chronologies, qui n'en lisent que les tâches
+      inscrites (WF-PLA-0140).
 
       La structure est rendue entière, sans pagination : une révision porte au plus dix
       mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et
       les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien : le
       tri ordonne les nœuds frères entre eux sans défaire l'arbre. Un filtre sur une
-      tâche — avancement, criticité, sous-arbre — retient les tâches qui le satisfont
-      avec les lignes qu'elles portent ; un filtre sur une ligne — nature, catégorie,
-      rôle, sous-projet — retient les lignes qui le satisfont ; la recherche porte sur
-      les libellés des deux, et une tâche retenue par elle garde ses lignes. Les
-      filtres se combinent, et les ancêtres des nœuds retenus sont rendus pour que
-      l'arbre reste lisible. Les totaux sont ceux des lignes retenues. `kinds` n'est
-      pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les
-      lignes —, et les totaux ne changent pas avec lui.
+      tâche — avancement, criticité, sous-arbre, récapitulative, niveau, chronologie —
+      retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur
+      une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le
+      satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par
+      elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus
+      sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie
+      n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140).
+      Les totaux sont ceux des lignes retenues. `kinds` n'est pas un filtre : il choisit ce
+      que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent
+      pas avec lui.
+
+      L'arborescence de tâches lit `kinds=task`, `summaries_only` et `max_level` : les seules
+      récapitulatives, jusqu'au niveau demandé, sous le nœud du projet que le front dessine
+      (WF-PLA-0110) ; une chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le
+      front ne trie ni ne sélectionne rien de ce qu'il reçoit.
 
       `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du
       plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche
@@ -458,6 +466,28 @@
       - name: is_critical
         in: query
         schema: { type: boolean }
+      - name: summaries_only
+        in: query
+        description: >-
+          Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que
+          l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne
+          restreint rien.
+        schema: { type: boolean }
+      - name: max_level
+        in: query
+        description: >-
+          Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier
+          niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les
+          récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110).
+          Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau.
+        schema: { type: integer, minimum: 1 }
+      - name: timeline_id
+        in: query
+        description: >-
+          Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet
+          (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans
+          inscription, ou qui n'est pas une chronologie du projet, ne retient rien.
+        schema: { $ref: ../components/common.yaml#/Uuid }
       - name: sort_by
         in: query
         description: >-
@@ -501,6 +531,8 @@
               planning: { $ref: ../../../fixtures/api/nodes_planning.json }
               risk_occurred: { $ref: ../../../fixtures/api/nodes_risk_occurred.json }
               nested: { $ref: ../../../fixtures/api/nodes_nested.json }
+              summaries: { $ref: ../../../fixtures/api/nodes_summaries.json }
+              timeline: { $ref: ../../../fixtures/api/nodes_timeline.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -824,8 +856,10 @@
     summary: Réestimer une ligne
     description: >-
       Refusé sur une ligne d'une tâche terminée ; une tâche non démarrée se réestime
-      aussi, et un reste à engager nul pour toutes les lignes d'une tâche la termine
-      (WF-RAE-0040). La ligne dit elle-même si elle accepte la réestimation
+      aussi, et un reste à engager nul pour toutes les lignes d'une tâche la termine, à la
+      date demandée à la validation (`completed_on`, WF-RAE-0040, WF-PLA-0130) ; une tâche non
+      démarrée qui n'est pas un jalon passe par l'état démarré, démarrée et terminée à cette
+      même date (WF-RAE-0030). La ligne dit elle-même si elle accepte la réestimation
       (`remaining_entry`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -852,6 +886,16 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : une saisie qui termine la tâche sans date de terminaison —
+          motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id`
+          nommant la tâche (WF-RAE-0040, WF-PLA-0130) ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              completion_date_required: { $ref: ../../../fixtures/api/remaining_completion_date_required.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking:
   put:

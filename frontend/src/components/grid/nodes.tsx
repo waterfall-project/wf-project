@@ -391,6 +391,9 @@ export const NODE_COLUMNS = [
   "budgeted_amount",
   "reestimated_amount",
   "inflated_amount",
+  "previous_quantity",
+  "previous_hours",
+  "previous_unit_disbursement",
   "previous_reestimated_amount",
 ] as const satisfies readonly NodeColumn[];
 

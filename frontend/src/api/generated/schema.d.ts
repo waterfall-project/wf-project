@@ -1629,8 +1629,9 @@ export interface paths {
         };
         /**
          * Arbre commun de la structure
-         * @description Les mêmes tâches, vues du côté du temps ou du côté de l'argent : une tâche porte ses lignes de devis (§3.5.1, WF-DEV-0020). `row_number` et `level` sont calculés à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et grille de devis (WF-DEV-0050).
-         *     La structure est rendue entière, sans pagination : une révision porte au plus dix mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien : le tri ordonne les nœuds frères entre eux sans défaire l'arbre. Un filtre sur une tâche — avancement, criticité, sous-arbre — retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus sont rendus pour que l'arbre reste lisible. Les totaux sont ceux des lignes retenues. `kinds` n'est pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent pas avec lui.
+         * @description Les mêmes tâches, vues du côté du temps ou du côté de l'argent : une tâche porte ses lignes de devis (§3.5.1, WF-DEV-0020). `row_number` et `level` sont calculés à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et grille de devis (WF-DEV-0050) — et des chronologies, qui n'en lisent que les tâches inscrites (WF-PLA-0140).
+         *     La structure est rendue entière, sans pagination : une révision porte au plus dix mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien : le tri ordonne les nœuds frères entre eux sans défaire l'arbre. Un filtre sur une tâche — avancement, criticité, sous-arbre, récapitulative, niveau, chronologie — retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140). Les totaux sont ceux des lignes retenues. `kinds` n'est pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent pas avec lui.
+         *     L'arborescence de tâches lit `kinds=task`, `summaries_only` et `max_level` : les seules récapitulatives, jusqu'au niveau demandé, sous le nœud du projet que le front dessine (WF-PLA-0110) ; une chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le front ne trie ni ne sélectionne rien de ce qu'il reçoit.
          *     `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche et le tri, et un prédécesseur est nommé par le sien même quand la lecture ne le rend pas (`predecessor_row_number`, WF-PLA-0080).
          *     `fields` choisit ce que la lecture rend de chaque nœud : une grille n'en demande que ce qu'elle affiche, sans quoi six mille nœuds entiers pèsent plusieurs mégaoctets (§4.6.2). Chaque nom est une propriété de `Node` — une facette nommée ainsi est rendue entière — ou une propriété d'une facette, `task.<propriété>` ou `estimate_line.<propriété>`, qui rend la facette avec ses seules propriétés nommées ; `node_id`, `row_number`, `level` et `lock_version` sont toujours rendus. Une facette dont rien n'est nommé est omise. Sans `fields`, chaque nœud est rendu entier. Les propriétés que `Node` et ses facettes exigent le sont d'une lecture sans `fields` : une lecture qui en nomme ne rend que ce qu'elle nomme.
          */
@@ -1777,7 +1778,7 @@ export interface paths {
         get?: never;
         /**
          * Réestimer une ligne
-         * @description Refusé sur une ligne d'une tâche terminée ; une tâche non démarrée se réestime aussi, et un reste à engager nul pour toutes les lignes d'une tâche la termine (WF-RAE-0040). La ligne dit elle-même si elle accepte la réestimation (`remaining_entry`).
+         * @description Refusé sur une ligne d'une tâche terminée ; une tâche non démarrée se réestime aussi, et un reste à engager nul pour toutes les lignes d'une tâche la termine, à la date demandée à la validation (`completed_on`, WF-RAE-0040, WF-PLA-0130) ; une tâche non démarrée qui n'est pas un jalon passe par l'état démarré, démarrée et terminée à cette même date (WF-RAE-0030). La ligne dit elle-même si elle accepte la réestimation (`remaining_entry`).
          */
         put: operations["setLineRemaining"];
         post?: never;
@@ -2015,8 +2016,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Tâches à démarrer, pour le Kanban
-         * @description Les tâches non démarrées dont les prédécesseurs sont terminés, et les tâches démarrées dont le reste à engager est à réestimer (WF-RAE-0030).
+         * Tâches du Kanban, par état
+         * @description Les tâches de la structure principale de la révision courante, réparties selon leur état — non démarrée, démarrée, terminée —, chaque colonne dans l'ordre du plan, jamais une récapitulative, dont l'état dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040). Toutes les tâches non démarrées, chacune disant si ses prédécesseurs sont tous terminés (`predecessors_completed`) : le Kanban signale par lui les jalons à terminer, et ne déduit rien des liaisons ; les tâches démarrées, dont le reste à engager est à réestimer ; les tâches terminées, avec leur date de terminaison (`task.completed_on`), que le Kanban rouvre en les repassant à l'état démarré (`setTaskProgress`).
          */
         get: operations["listStartableTasks"];
         put?: never;
@@ -2272,7 +2273,7 @@ export interface paths {
         };
         /**
          * Coûts réels du projet
-         * @description Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes conservées du fichier sont restituées (WF-CRE-0010). Le tri et les filtres sont faits par le serveur, et les totaux sont ceux de toutes les lignes retenues, pas de la seule page rendue.
+         * @description Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes conservées du fichier sont restituées (WF-CRE-0010), ligne par ligne (`passthrough`), et leur union nommée une fois pour toute la lecture (`meta.passthrough_columns`) : la grille les présente toutes, à toutes les pages. Le tri et les filtres sont faits par le serveur, et les totaux comme cette union sont ceux de toutes les lignes retenues, pas de la seule page rendue.
          */
         get: operations["listActualCosts"];
         put?: never;
@@ -2599,7 +2600,12 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "PROVISION_CATEGORY_RESERVED" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        /**
+         * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
+         * @enum {string}
+         */
+        StateEnumeration: "ProjectState";
         FieldProblem: {
             /** @description Le champ en défaut. Dans le corps de la requête, son pointeur JSON (RFC 6901), `/label` ou `/lines/2/amount` ; un paramètre de requête, sous `/query` suivi de son nom, `/query/revision_id`. Aucun champ du corps ne se nomme `query`, et un pointeur ne désigne ainsi qu'un seul champ, quelle que soit l'opération. */
             pointer: string;
@@ -2612,8 +2618,10 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION` ; un `ProjectState` pour un projet), `max_columns` (collage trop large, WF-IHM-0050), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040). */
             params?: {
+                state_enum?: components["schemas"]["StateEnumeration"];
+            } & {
                 [key: string]: unknown;
             };
             /** @description Erreurs par champ, pour une entité refusée à la validation. */
@@ -3441,6 +3449,7 @@ export interface components {
                 key: string;
                 /** @description Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme. */
                 label: string | null;
+                /** @description L'écart de montant de la nature ou du sous-projet, à l'année de référence de chaque révision : la révision comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), positif quand la comparée porte davantage — le sens où une tâche est dite ajoutée, et celui du devis en cours moins le devis comparé (`EstimateIndicators.delta_to_reference`). */
                 delta: components["schemas"]["Money"];
             }[];
         };
@@ -3480,10 +3489,10 @@ export interface components {
          */
         TaskProgress: "not_started" | "started" | "completed";
         /**
-         * @description Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le poste ou le lot du lotissement auquel la tâche est rattachée (WF-PLA-0130) ; `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la grille de devis (WF-DEV-0050), les montants budgété et réestimé, que présente celle de reste à engager. C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050).
+         * @description Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le poste ou le lot du lotissement auquel la tâche est rattachée (WF-PLA-0130) ; `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la grille de devis (WF-DEV-0050), les montants budgété et réestimé, que présente celle de reste à engager, et, au reste à engager précédent, les grandeurs puis le montant réestimé (WF-RAE-0040). C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée (`PastePreview.target_column`, WF-IHM-0050).
          * @enum {string}
          */
-        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float" | "is_critical" | "predecessors" | "work_breakdown" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "base_amount" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_reestimated_amount";
+        NodeColumn: "label" | "description" | "scheduling_mode" | "duration" | "start" | "finish" | "progress" | "physical_progress" | "total_float" | "is_critical" | "predecessors" | "work_breakdown" | "cost_category" | "resource_role" | "quantity" | "hours" | "unit_disbursement" | "subproject" | "payment_delay_days" | "consumption_year" | "base_amount" | "budgeted_amount" | "reestimated_amount" | "inflated_amount" | "previous_quantity" | "previous_hours" | "previous_unit_disbursement" | "previous_reestimated_amount";
         /**
          * @description Mode de planification de la tâche : dates calculées depuis les liaisons, ou saisies (WF-PLA-0020).
          * @enum {string}
@@ -3610,7 +3619,13 @@ export interface components {
             reestimated_amount: components["schemas"]["Money"];
             /** @description Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant. */
             inflated_amount: components["schemas"]["Money"];
-            /** @description Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de reste à engager présente à côté du courant (WF-RAE-0040) ; nul avant la première revue. */
+            /** @description Quantité au reste à engager précédent, que la grille de reste à engager présente à côté de la courante (WF-RAE-0040), lue dans la ligne et non dans une autre révision (WF-ARC-0020) ; nulle avant la première revue. */
+            previous_quantity?: components["schemas"]["Decimal"] | null;
+            /** @description Charge au reste à engager précédent (WF-RAE-0040) ; nulle avant la première revue, et pour une ligne sans charge, comme `hours`. */
+            previous_hours?: components["schemas"]["Hours"] | null;
+            /** @description Débours unitaire au reste à engager précédent (WF-RAE-0040) ; nul avant la première revue, et pour une ligne de main-d'œuvre, comme `unit_disbursement`. */
+            previous_unit_disbursement?: components["schemas"]["Money"] | null;
+            /** @description Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ; nul avant la première revue. */
             previous_reestimated_amount?: components["schemas"]["Money"] | null;
             /** @description Année de consommation, déduite du planning (WF-DEV-0040). */
             consumption_year?: components["schemas"]["Year"] | null;
@@ -3814,7 +3829,7 @@ export interface components {
             occurred_on?: components["schemas"]["PlanningDate"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Réestime une ligne dont la tâche n'est pas terminée ; un reste à engager nul pour toutes les lignes d'une tâche la termine (WF-RAE-0040, WF-RAE-0010). */
+        /** @description Réestime une ligne dont la tâche n'est pas terminée ; un reste à engager nul pour toutes les lignes d'une tâche la termine, à la date portée par `completed_on` (WF-RAE-0040, WF-RAE-0010, WF-PLA-0130). Une tâche non démarrée qui n'est pas un jalon passe alors par l'état démarré, démarrée et terminée à cette même date : seul un jalon va directement de non démarré à terminé (WF-RAE-0030). */
         RemainingUpdate: {
             /** @description Les grandeurs saisies dont le montant réestimé est recalculé. */
             reestimated_amount_basis: {
@@ -3823,6 +3838,8 @@ export interface components {
                 unit_disbursement?: components["schemas"]["Money"] | null;
             };
             reason?: string | null;
+            /** @description Date de terminaison de la tâche, demandée à la validation quand la saisie la termine — la dernière de ses lignes encore ouvertes mise à zéro —, proposée par l'écran au jour courant et modifiable (WF-RAE-0040, WF-PLA-0130). Exigée dans ce cas : sans elle, la saisie est refusée par un motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id` nommant la tâche, et rien n'est écrit ; l'écran demande la date et rejoue la saisie. Pour une tâche non démarrée qui n'est pas un jalon, la même date est aussi celle de son démarrage (`started_on`) : la tâche passe par l'état démarré (WF-RAE-0030). Ignorée quand la saisie ne termine pas la tâche. */
+            completed_on?: components["schemas"]["PlanningDate"] | null;
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Déplacement de nœuds sous un parent. Un déplacement qui sortirait la tâche d'un lot du sous-arbre de la tâche de son poste rattaché — la tâche du lot, ou une tâche qui la contient — est refusé (WF-PLA-0130) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, `fields[].params.order_item_node_id` et `work_package_node_ids` nommant les tâches du poste et des lots. */
@@ -3912,9 +3929,9 @@ export interface components {
             /** @description Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche, récapitulative ou feuille, qui porte chacun — le total de son sous-arbre (WF-PLA-0130) ; nul quand le planning n'est pas structuré en postes — absents plutôt que nuls (WF-DEV-0060). */
             by_order_item: components["schemas"]["ComputableAmountByKey"][] | null;
             provisions_identified?: components["schemas"]["Money"];
-            /** @description L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) ; nul quand le projet n'a pas de révision de référence. */
+            /** @description L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) : le devis en cours moins celui de la référence, positif quand il le dépasse ; nul quand le projet n'a pas de révision de référence. */
             delta_to_reference: components["schemas"]["ComputableMoney"] | null;
-            /** @description L'écart avec la révision marquée précédente ; nul sans elle. */
+            /** @description L'écart avec la révision marquée précédente : le devis en cours moins le sien, positif quand il le dépasse ; nul sans elle. */
             delta_to_previous_revision?: components["schemas"]["ComputableMoney"] | null;
         };
         /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
@@ -3947,6 +3964,7 @@ export interface components {
             reserve: components["schemas"]["Money"];
             remaining_provisions: components["schemas"]["Money"];
             occurred_cost: components["schemas"]["Money"];
+            /** @description L'écart de couverture (WF-RIS-0050) : la réserve moins la somme des provisions restantes et du coût des risques survenus, positif quand la réserve couvre encore, négatif quand elle est dépassée — le sens de la marge du reste à engager (`RemainingIndicators.delta_to_reference`). */
             coverage_variance: components["schemas"]["Money"];
         };
         AmountByKey: {
@@ -3955,18 +3973,19 @@ export interface components {
             amount: components["schemas"]["Money"];
             share?: components["schemas"]["Percent"];
         };
-        /** @description Écart entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone. */
+        /** @description Marge entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone. */
         SubprojectBalance: {
             key: string;
             label?: string;
             budget: components["schemas"]["Money"];
             actual_cost: components["schemas"]["Money"];
             remaining: components["schemas"]["Money"];
+            /** @description La marge du sous-projet : son budget moins la somme de son coût réel et de son reste à engager, positive quand il en reste, négative quand le sous-projet dépasse son budget (WF-RAE-0020) — le sens de `RemainingIndicators.delta_to_reference`. */
             variance: components["schemas"]["Money"];
             is_over_budget: boolean;
             zone: components["schemas"]["AlertZone"];
         };
-        /** @description Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de provision des risques identifiés comprises, ses ventilations, ses écarts et la couverture des risques. */
+        /** @description Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de provision des risques identifiés comprises, ses ventilations, ses écarts et la couverture des risques. Le reste à engager parle de marge, au budget de référence (`delta_to_reference`) comme à celui d'un sous-projet (`SubprojectBalance.variance`) : le budget moins la somme du coût réel et du reste à engager, positive quand il en reste, négative au-delà du budget — le sens de l'écart de couverture des risques (`RiskCoverageTotals.coverage_variance`), qui garde son nom de la spécification. Le portefeuille et les projections parlent d'écart, positif au-delà du budget (`PortfolioProject.delta_to_reference`, `Projections`). */
         RemainingIndicators: {
             context: components["schemas"]["CalculationContext"];
             total: components["schemas"]["Money"];
@@ -3974,8 +3993,15 @@ export interface components {
             coverage: components["schemas"]["RiskCoverageTotals"];
             by_cost_type: components["schemas"]["AmountByKey"][];
             by_subproject: components["schemas"]["SubprojectBalance"][];
+            /** @description La marge sur le budget de référence (WF-RAE-0020) : le budget de référence moins la somme du coût réel et du reste à engager, positive quand il en reste, négative quand le projet dépasse son budget — budget 1 000, coût réel 500, reste à engager 550, marge -50 ; nulle quand le projet n'a pas de révision de référence. */
             delta_to_reference?: components["schemas"]["Money"] | null;
+            /** @description L'écart avec le reste à engager de la révision marquée précédente, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien, négatif quand il a diminué ; nul (`null`) sans revue précédente, et non zéro : l'écran l'omet alors (WF-RAE-0020). */
             delta_to_previous_revision?: components["schemas"]["Money"] | null;
+        };
+        /** @description Une tâche non démarrée du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et si tous ses prédécesseurs sont terminés. */
+        NotStartedTask: components["schemas"]["Node"] & {
+            /** @description Vrai quand tous les prédécesseurs de la tâche sont terminés, ou qu'elle n'en a aucun. C'est ce qui fait signaler un jalon, pour inviter à le terminer — rien ne se termine seul (WF-RAE-0030) ; ce n'est pas une condition du démarrage, dont WF-RAE-0030 ne fait pas dépendre les prédécesseurs. */
+            readonly predecessors_completed: boolean;
         };
         /** @description Indice et sa zone d'après les seuils du référentiel (WF-IND-0070, WF-IND-0080, WF-REF-0170). */
         IndexValue: {
@@ -3987,8 +4013,11 @@ export interface components {
             at_budget: components["schemas"]["Money"];
             project_manager: components["schemas"]["Money"];
             at_observed_rate: components["schemas"]["ComputableMoney"];
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`. */
             variance_at_budget?: components["schemas"]["Money"];
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`. */
             variance_project_manager?: components["schemas"]["Money"];
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference` ; nulle tant que la projection au rythme constaté ne se calcule pas. */
             variance_at_observed_rate?: components["schemas"]["Money"] | null;
         };
         /** @description Les indicateurs de valeur acquise. Calculés à partir de l'état En cours seulement ; avant, seuls les indicateurs de devis existent (WF-IND-0010). */
@@ -4008,7 +4037,9 @@ export interface components {
             physical_progress?: components["schemas"]["Computable"];
             cost_index: components["schemas"]["IndexValue"];
             schedule_index: components["schemas"]["IndexValue"];
+            /** @description L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire). */
             cost_variance?: components["schemas"]["Money"];
+            /** @description L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire). */
             schedule_variance?: components["schemas"]["Money"];
             projections: components["schemas"]["Projections"];
         };
@@ -4224,6 +4255,11 @@ export interface components {
             excluded: components["schemas"]["Money"];
             overall: components["schemas"]["Money"];
         };
+        /** @description La pagination de la consultation des coûts réels, et l'union des colonnes conservées des fichiers de toutes les lignes retenues par les filtres, et non de la seule page (WF-CRE-0010). */
+        ActualCostListMeta: components["schemas"]["PaginationMeta"] & {
+            /** @description Les colonnes conservées, nommées comme `passthrough` les nomme, chacune une fois : dans l'ordre où les imports les ont déclarées — les imports dans l'ordre où ils ont été appliqués, les colonnes d'un import dans l'ordre de son fichier, une colonne à sa première déclaration. Une ligne qui n'en porte pas l'une la présente vide ; vide quand aucune ligne n'est retenue. */
+            passthrough_columns: string[];
+        };
         /** @description Exclut ou réintègre une ligne. L'exclusion est conservée lors des imports ultérieurs, même quand les périodes se recouvrent (WF-CRE-0030). */
         ScopeExclusion: {
             is_in_tracked_scope: boolean;
@@ -4303,7 +4339,7 @@ export interface components {
         ImportCompletedTask: {
             lineage_id: components["schemas"]["Uuid"];
             label: string;
-            /** @description Le jour de l'application de l'import, la date de terminaison que la tâche prend (WF-PLA-0130) ; nul tant que l'import n'est pas appliqué. */
+            /** @description Le jour de l'application de l'import, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import n'est pas appliqué. */
             completed_on: components["schemas"]["PlanningDate"] | null;
         };
         /** @description Une tâche dont le fichier date ou dure autrement que Waterfall ne la recalcule (WF-INTF-0040) : la tâche, et les colonnes qui diffèrent. */
@@ -4322,7 +4358,7 @@ export interface components {
             differences: components["schemas"]["ImportDifference"][];
             /** @description Ce que l'import a lu sans l'importer, par nature, nommé quand il se nomme (WF-INTF-0040) : les ressources et les calendriers du fichier, gérés par Waterfall seul, l'avancement, les coûts, les champs personnalisés, et les contraintes de date des tâches importées en mode manuel aux dates du fichier. Vide pour un import Excel, qui ne lit que ses colonnes. */
             ignored: components["schemas"]["ImportIgnored"][];
-            /** @description Les tâches que l'application de l'import termine, parce qu'il met à zéro le reste à engager de toutes leurs lignes (WF-INTF-0120, WF-RAE-0040), chacune nommée ; leur date de terminaison est le jour de l'application (WF-PLA-0130). Vide pour les autres natures d'import. */
+            /** @description Les tâches que l'application de l'import termine, parce qu'il met à zéro le reste à engager de toutes leurs lignes (WF-INTF-0120, WF-RAE-0040), chacune nommée ; leur date de terminaison est le jour de l'application (WF-PLA-0130). Une tâche non démarrée qui n'est pas un jalon passe par l'état démarré : démarrée et terminée le jour de l'application (`started_on` égal à `completed_on`), seul un jalon allant directement de non démarré à terminé (WF-RAE-0030). Vide pour les autres natures d'import. */
             completed_tasks: components["schemas"]["ImportCompletedTask"][];
             /** @description Les tâches dont les dates ou la durée du fichier diffèrent de celles que Waterfall recalcule à partir des durées, des liaisons et des calendriers (WF-INTF-0040) : une information du compte rendu, pas un motif de confirmation — ce que Waterfall recalcule fait foi, et l'écart dit que les deux moteurs ne datent pas de même. Vide sur un aller-retour sans modification (WF-INTF-0060), et pour les imports Excel. */
             date_mismatches: components["schemas"]["ImportDateMismatch"][];
@@ -4433,7 +4469,9 @@ export interface components {
             reference_budget?: components["schemas"]["Money"];
             cost_index: components["schemas"]["IndexValue"];
             schedule_index: components["schemas"]["IndexValue"];
+            /** @description L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire), sommé sur le périmètre. */
             cost_variance?: components["schemas"]["Money"];
+            /** @description L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire), sommé sur le périmètre. */
             schedule_variance?: components["schemas"]["Money"];
             projections: components["schemas"]["Projections"];
             zone_distribution: {
@@ -7671,6 +7709,12 @@ export interface operations {
                 /** @description Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre par défaut que leurs lignes (WF-RAE-0040). */
                 progress?: components["schemas"]["TaskProgress"][];
                 is_critical?: boolean;
+                /** @description Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne restreint rien. */
+                summaries_only?: boolean;
+                /** @description Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110). Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau. */
+                max_level?: number;
+                /** @description Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans inscription, ou qui n'est pas une chronologie du projet, ne retient rien. */
+                timeline_id?: components["schemas"]["Uuid"];
                 /** @description Colonne du tri ; absente, l'ordre du plan. Chaque colonne d'une grille se trie dans les deux sens (WF-IHM-0060) : une colonne de grille qui manquerait ici est un constat sur le contrat. */
                 sort_by?: components["schemas"]["NodeColumn"];
                 /** @description Sens du tri demandé par `sort_by`. */
@@ -8009,6 +8053,15 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description `VALIDATION_FAILED` : une saisie qui termine la tâche sans date de terminaison — motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id` nommant la tâche (WF-RAE-0040, WF-PLA-0130) ; rien n'est écrit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     setNodeTracking: {
@@ -8342,7 +8395,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet. */
+            /** @description Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet, `params.state_enum` à `ProjectState`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8406,8 +8459,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        not_started: components["schemas"]["Node"][];
+                        not_started: components["schemas"]["NotStartedTask"][];
                         started: components["schemas"]["Node"][];
+                        completed: components["schemas"]["Node"][];
                     };
                 };
             };
@@ -8444,7 +8498,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant l'état du projet ; ou révision nommée par `revision_id` marquée avant lui, sans `params.state`, le projet étant en cours. Dans les deux cas, seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040). */
+            /** @description `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant l'état du projet et `params.state_enum` `ProjectState` ; ou révision nommée par `revision_id` marquée avant lui, sans `params.state`, le projet étant en cours. Dans les deux cas, seuls les indicateurs de devis existent (WF-IND-0010, WF-DAT-0040). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8958,7 +9012,7 @@ export interface operations {
                         items: components["schemas"]["ActualCostLine"][];
                         totals: components["schemas"]["ActualCostTotals"];
                         last_import_at: components["schemas"]["Timestamp"] | null;
-                        meta: components["schemas"]["PaginationMeta"];
+                        meta: components["schemas"]["ActualCostListMeta"];
                     };
                 };
             };

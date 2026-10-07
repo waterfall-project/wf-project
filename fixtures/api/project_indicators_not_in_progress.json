@@ -1,10 +1,11 @@
 {
-  "summary": "Les indicateurs de valeur acquise demandés pour l'extension de la ligne d'essais, en chiffrage, état que le refus nomme : ils ne se calculent qu'à partir de l'état En cours, seuls les indicateurs de devis existent (WF-IND-0010).",
+  "summary": "Les indicateurs de valeur acquise demandés pour l'extension de la ligne d'essais, en chiffrage, état que le refus nomme, avec son énumération : ils ne se calculent qu'à partir de l'état En cours, seuls les indicateurs de devis existent (WF-IND-0010).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,
     "params": {
-      "state": "pricing"
+      "state": "pricing",
+      "state_enum": "ProjectState"
     },
     "correlation_id": "01926f3a-7c00-7000-8000-000000000924"
   }

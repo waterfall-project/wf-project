@@ -364,12 +364,36 @@ def test_a_block_applied_writes_its_rows_and_their_amounts_climb_to_the_totals(
 def test_a_block_too_wide_is_refused_by_the_width_of_a_line_in_the_contract() -> None:
     columns = mockwrites.node_columns()
     assert (columns[0], columns[-1]) == ("label", "previous_reestimated_amount")
-    assert mockwrites.line_width(columns) == 14
-    assert mockwrites.paste_too_wide()["params"] == {"max_columns": 14}
+    # Its label and sixteen columns, the quantities of the previous review among them (#424).
+    assert mockwrites.line_width(columns) == 17
+    assert mockwrites.paste_too_wide()["params"] == {"max_columns": 17}
     text = "Other:\n  enum: [a]\nNodeColumn:\n  type: string\n  enum:\n    - label\n    - work\n"
     text += "    - cost_category\n    - hours\nNext:\n"
     assert mockwrites.node_columns(text) == ["label", "work", "cost_category", "hours"]
     assert mockwrites.line_width(mockwrites.node_columns(text)) == 3
+
+
+def test_a_re_estimate_that_completes_its_task_undated_is_refused_naming_the_task() -> None:
+    # #458: the date of completion the validation asks for, missing; the task named, by field.
+    refused = mockwrites.completion_date_required()
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == [
+        {
+            "pointer": "/completed_on",
+            "code": "COMPLETION_DATE_REQUIRED",
+            "params": {"task_node_id": universe(552)},
+        }
+    ]
+    # The task named is the one that bears the labour line set to nothing, the wiring.
+    labour = next(row for row in mockcore.core() if row.number == mockwitness.LABOUR)
+    assert labour.parent == 552
+    assert labour.node["parent_id"] == universe(552)
+    # The contract cites the example under the 422 of setLineRemaining.
+    paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    operation = paths[paths.index("operationId: setLineRemaining") :]
+    operation = operation[: operation.index("operationId:", len("operationId:"))]
+    refused = operation[operation.index("'422':") :]
+    assert "fixtures/api/remaining_completion_date_required.json" in refused
 
 
 def test_every_write_is_an_example_the_contract_cites() -> None:

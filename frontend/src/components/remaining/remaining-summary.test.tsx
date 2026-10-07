@@ -18,10 +18,10 @@ function text(markup: string): string {
     .trim();
 }
 
-/** The summary of the remaining to commit on an answer of the API, in English. */
-function renderSummary(indicators: RemainingIndicators): string {
+/** The summary of the remaining to commit on an answer of the API, in English by default. */
+function renderSummary(indicators: RemainingIndicators, locale: "en" | "fr" = "en"): string {
   return renderToStaticMarkup(
-    <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
+    <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <RemainingSummary indicators={indicators} />
     </NextIntlClientProvider>,
   );
@@ -33,8 +33,17 @@ describe("the summary of the remaining to commit", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary({ ...indicators, delta_to_previous_revision: null }));
     expect(html).toContain(
-      "Remaining to commit 21,534.56 Deviation from the reference budget -93,900.00 By nature of cost",
+      "Remaining to commit 21,534.56 Margin on the reference budget 93,900.00 By nature of cost",
     );
     expect(html).not.toContain("previous review");
+  });
+
+  it("names the gap to the reference budget a margin, positive while some is left, in French too [WF-RAE-0020-A]", () => {
+    // Les écarts sont présents et signés : le reste à engager parle de marge (#466).
+    const indicators = example("remaining_indicators") as RemainingIndicators;
+    const html = text(renderSummary(indicators, "fr"));
+    expect(html).toMatch(/Marge sur le budget de référence 93\s900,00/);
+    expect(html).toMatch(/Poste de commande\s: 20\s834,56, marge -2\s400,00/);
+    expect(html).not.toContain("Écart au budget");
   });
 });

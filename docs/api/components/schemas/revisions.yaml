@@ -348,6 +348,24 @@ Node:
       items: { $ref: '#/EditableField' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+NotStartedTask:
+  description: >-
+    Une tâche non démarrée du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et si
+    tous ses prédécesseurs sont terminés.
+  allOf:
+    - $ref: '#/Node'
+    - type: object
+      required: [predecessors_completed]
+      properties:
+        predecessors_completed:
+          type: boolean
+          readOnly: true
+          description: >-
+            Vrai quand tous les prédécesseurs de la tâche sont terminés, ou qu'elle n'en a
+            aucun. C'est ce qui fait signaler un jalon, pour inviter à le terminer — rien ne se
+            termine seul (WF-RAE-0030) ; ce n'est pas une condition du démarrage, dont
+            WF-RAE-0030 ne fait pas dépendre les prédécesseurs.
+
 ComputedField:
   type: string
   enum:
@@ -398,8 +416,9 @@ NodeColumn:
     `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à
     l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la
     grille de devis (WF-DEV-0050), les montants budgété et réestimé, que présente celle de reste à
-    engager. C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée
-    (`PastePreview.target_column`, WF-IHM-0050).
+    engager, et, au reste à engager précédent, les grandeurs puis le montant réestimé
+    (WF-RAE-0040). C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la
+    colonne visée (`PastePreview.target_column`, WF-IHM-0050).
   enum:
     - label
     - description
@@ -425,6 +444,9 @@ NodeColumn:
     - budgeted_amount
     - reestimated_amount
     - inflated_amount
+    - previous_quantity
+    - previous_hours
+    - previous_unit_disbursement
     - previous_reestimated_amount
 
 ComputedValueField:
@@ -961,11 +983,29 @@ EstimateLineFacet:
         cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050).
         Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte
         supérieur de 4,04 % à son montant.
+    previous_quantity:
+      anyOf: [{ $ref: ../common.yaml#/Decimal }, { type: 'null' }]
+      description: >-
+        Quantité au reste à engager précédent, que la grille de reste à engager présente à côté
+        de la courante (WF-RAE-0040), lue dans la ligne et non dans une autre révision
+        (WF-ARC-0020) ; nulle avant la première revue.
+    previous_hours:
+      anyOf: [{ $ref: ../common.yaml#/Hours }, { type: 'null' }]
+      description: >-
+        Charge au reste à engager précédent (WF-RAE-0040) ; nulle avant la première revue, et
+        pour une ligne sans charge, comme `hours`.
+    previous_unit_disbursement:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        Débours unitaire au reste à engager précédent (WF-RAE-0040) ; nul avant la première
+        revue, et pour une ligne de main-d'œuvre, comme `unit_disbursement`.
     previous_reestimated_amount:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
         Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de
-        reste à engager présente à côté du courant (WF-RAE-0040) ; nul avant la première revue.
+        reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il
+        a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ;
+        nul avant la première revue.
     consumption_year:
       anyOf: [{ $ref: ../common.yaml#/Year }, { type: 'null' }]
       description: Année de consommation, déduite du planning (WF-DEV-0040).
@@ -1223,7 +1263,10 @@ RemainingUpdate:
   required: [reestimated_amount_basis, lock_version]
   description: >-
     Réestime une ligne dont la tâche n'est pas terminée ; un reste à engager nul pour
-    toutes les lignes d'une tâche la termine (WF-RAE-0040, WF-RAE-0010).
+    toutes les lignes d'une tâche la termine, à la date portée par `completed_on`
+    (WF-RAE-0040, WF-RAE-0010, WF-PLA-0130). Une tâche non démarrée qui n'est pas un jalon
+    passe alors par l'état démarré, démarrée et terminée à cette même date : seul un jalon
+    va directement de non démarré à terminé (WF-RAE-0030).
   properties:
     reestimated_amount_basis:
       type: object
@@ -1236,6 +1279,17 @@ RemainingUpdate:
           anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
+    completed_on:
+      anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: >-
+        Date de terminaison de la tâche, demandée à la validation quand la saisie la termine —
+        la dernière de ses lignes encore ouvertes mise à zéro —, proposée par l'écran au jour
+        courant et modifiable (WF-RAE-0040, WF-PLA-0130). Exigée dans ce cas : sans elle, la
+        saisie est refusée par un motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`,
+        `fields[].params.task_node_id` nommant la tâche, et rien n'est écrit ; l'écran demande
+        la date et rejoue la saisie. Pour une tâche non démarrée qui n'est pas un jalon, la
+        même date est aussi celle de son démarrage (`started_on`) : la tâche passe par l'état
+        démarré (WF-RAE-0030). Ignorée quand la saisie ne termine pas la tâche.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UndoResult:
@@ -1378,7 +1432,14 @@ RevisionComparison:
           label:
             anyOf: [{ type: string }, { type: 'null' }]
             description: Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme.
-          delta: { $ref: ../common.yaml#/Money }
+          delta:
+            allOf: [{ $ref: ../common.yaml#/Money }]
+            description: >-
+              L'écart de montant de la nature ou du sous-projet, à l'année de référence de chaque
+              révision : la révision comparée (`to_revision_id`) moins la révision de base
+              (`from_revision_id`), positif quand la comparée porte davantage — le sens où une
+              tâche est dite ajoutée, et celui du devis en cours moins le devis comparé
+              (`EstimateIndicators.delta_to_reference`).
 
 ComparedNode:
   type: object

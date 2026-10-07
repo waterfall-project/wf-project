@@ -266,10 +266,10 @@ describe("a block pasted from a spreadsheet", () => {
   it("wider than the grid from its cell is refused, saying so, and nothing is asked [WF-IHM-0050-A]", async () => {
     const client = serve();
     renderGrid();
-    // Fifteen columns from the label, where a line has fourteen in the contract (#223). The
+    // Eighteen columns from the label, where a line has seventeen in the contract (#223, #424). The
     // browser aims the event at the text of the cell a click left the caret in, the cell keeping
     // the focus.
-    const wide = BLOCK.map((row) => [...row, ...Array.from({ length: 11 }, () => "")]);
+    const wide = BLOCK.map((row) => [...row, ...Array.from({ length: 14 }, () => "")]);
     const label = cell(FIRST, "label");
     label.focus();
     const text = label.querySelector(".truncate") ?? label;
@@ -277,7 +277,7 @@ describe("a block pasted from a spreadsheet", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Les données collées ont plus de colonnes que la grille.");
     expect(alert).toHaveTextContent(
-      "La grille accepte au plus 14 colonnes à partir de cette cellule.",
+      "La grille accepte au plus 17 colonnes à partir de cette cellule.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);

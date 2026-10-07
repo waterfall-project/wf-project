@@ -1,5 +1,5 @@
 {
-  "summary": "Le reste à engager juste après la réestimation du raccordement des borniers à 10 h, faite aujourd'hui (remaining_reestimated) : 21 334,56 ; le poste de commande dépasse encore son budget, de 2 200,00, en alerte, les autres sous-projets restent nominaux ; les écarts, signés, au budget de référence, -94 100,00, et à la référence, -100 410,00 (WF-RAE-0020, WF-IHM-0070).",
+  "summary": "Le reste à engager juste après la réestimation du raccordement des borniers à 10 h, faite aujourd'hui (remaining_reestimated) : 21 334,56 ; le poste de commande dépasse encore son budget, de 2 200,00, en alerte, les autres sous-projets restent nominaux ; la marge sur le budget de référence, 94 100,00 ; l'écart à la revue précédente, -100 410,00 (WF-RAE-0020, WF-IHM-0070).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
@@ -14,7 +14,7 @@
       {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","budget":"0.00","actual_cost":"0.00","remaining":"0.00","variance":"0.00","is_over_budget":false,"zone":"nominal"},
       {"key":"unassigned","budget":"100000.00","actual_cost":"3000.00","remaining":"700.00","variance":"96300.00","is_over_budget":false,"zone":"nominal"}
     ],
-    "delta_to_reference": "-94100.00",
+    "delta_to_reference": "94100.00",
     "delta_to_previous_revision": "-100410.00",
     "coverage": {"reserve":"910.00","remaining_provisions":"500.00","occurred_cost":"200.00","coverage_variance":"210.00"}
   }

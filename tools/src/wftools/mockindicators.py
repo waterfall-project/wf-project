@@ -626,9 +626,10 @@ def remaining_indicators(
     """Return the indicators of the remaining to commit (`RemainingIndicators`, WF-RAE-0020).
 
     Its total, by nature and by subproject, each subproject balanced against its budget; its gap
-    to the reference budget — the actual cost and the remaining, less the budget —, and to the
-    remaining of the previous marked revision at its marking, absent without one; the coverage
-    of the risks (WF-RIS-0050).
+    to the reference budget — the budget less the actual cost and the remaining, positive while
+    a margin is left, in the one sense of the balances of the subprojects (#466) —, and to the
+    remaining of the previous marked revision at its marking — the remaining less that one —,
+    absent without one; the coverage of the risks (WF-RIS-0050).
     """
     total = remaining(reading)
     by_nature = [
@@ -653,7 +654,7 @@ def remaining_indicators(
         "by_subproject": [
             balance(reading, base, costs, scope, label) for scope, label in scopes()[1:]
         ],
-        "delta_to_reference": money(actual(costs, reading.day) + total - budget(base)),
+        "delta_to_reference": money(budget(base) - actual(costs, reading.day) - total),
         "delta_to_previous_revision": None
         if previous is None
         else money(total - remaining(previous)),

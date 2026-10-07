@@ -163,7 +163,7 @@
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
       "projectManagerProjection": "Projection du chef de projet",
-      "deltaToReference": "Écart au budget",
+      "deltaToReference": "Écart à la référence",
       "costIndex": "Indice de coût",
       "scheduleIndex": "Indice de délai",
       "lastMarkedAt": "Dernière révision marquée",
@@ -537,16 +537,16 @@
     "unavailable": "Les indicateurs du reste à engager sont indisponibles.",
     "unnamed": "Sans nom",
     "total": "Reste à engager",
-    "deltaToReference": "Écart au budget de référence",
+    "deltaToReference": "Marge sur le budget de référence",
     "deltaToPrevious": "Écart à la revue précédente",
     "byCostType": "Par nature de coût",
-    "bySubproject": "Reste à engager par sous-projet, et écart au budget",
+    "bySubproject": "Reste à engager par sous-projet, et marge sur le budget",
     "amount": "{name} : {amount}",
     "amountShare": "{name} : {amount} ({share})",
-    "balance": "{name} : {remaining}, écart {variance}"
+    "balance": "{name} : {remaining}, marge {variance}"
   },
   "kanban": {
-    "summary": "Les tâches de la révision en cours non démarrées dont les prédécesseurs sont terminés, et celles démarrées. Une tâche est démarrée ou ne l’est pas : aucun pourcentage ne se saisit.",
+    "summary": "Les tâches de la révision en cours, non démarrées et démarrées. Une tâche est démarrée ou ne l’est pas : aucun pourcentage ne se saisit.",
     "inProgressOnly": "Le Kanban présente les tâches de la révision en cours d’élaboration : une révision marquée n’en a aucune à démarrer.",
     "notStarted": "Non démarrées",
     "started": "Démarrées",
@@ -1196,6 +1196,7 @@
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
+    "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
@@ -1441,6 +1442,9 @@
       "non_labor": "Hors main-d’œuvre",
       "provision": "Provision"
     },
+    "StateEnumeration": {
+      "ProjectState": "État du projet"
+    },
     "ProjectState": {
       "created": "Créé",
       "pricing": "Chiffrage",
@@ -1665,6 +1669,9 @@
       "budgeted_amount": "Montant budgété",
       "reestimated_amount": "Montant réestimé",
       "inflated_amount": "Montant corrigé de l’inflation",
+      "previous_quantity": "Quantité précédente",
+      "previous_hours": "Charge précédente",
+      "previous_unit_disbursement": "Débours unitaire précédent",
       "previous_reestimated_amount": "Montant réestimé précédent"
     },
     "ComputedValueField": {

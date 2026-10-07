@@ -43,7 +43,12 @@
     "meta": {
       "limit": 50,
       "offset": 0,
-      "total": 1
+      "total": 1,
+      "passthrough_columns": [
+        "Fournisseur",
+        "Texte de commande",
+        "Élément d'OTP"
+      ]
     }
   }
 }
