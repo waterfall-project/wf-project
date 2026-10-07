@@ -15,7 +15,6 @@
 import { FolderSearch, GitBranch, Inbox, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { buttonVariants } from "@/components/ui/button";
@@ -98,13 +97,12 @@ export interface ReferenceIncompleteProps {
  */
 export function ReferenceIncomplete({ readiness, permissions }: ReferenceIncompleteProps) {
   const t = useTranslations();
-  const title = useId();
   if (readiness.is_complete) {
     return null;
   }
   return (
-    <section aria-labelledby={title} className="space-y-2 border-b pb-4 text-sm">
-      <h2 id={title} className="flex items-center gap-2 text-base font-semibold">
+    <section aria-label={t("referenceReadiness.title")} className="space-y-2 border-b pb-4 text-sm">
+      <h2 className="flex items-center gap-2 text-base font-semibold">
         <TriangleAlert aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         {t("referenceReadiness.title")}
       </h2>

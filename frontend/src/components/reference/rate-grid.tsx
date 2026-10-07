@@ -93,7 +93,9 @@ function yearColumn(
           value: rate,
           write: async (row, value): Promise<Outcome<RowsWritten<RateRow, null>>> => {
             if (value === null) {
-              // The entry of an amount required never validates an empty cell (`cell-values.ts`).
+              // The entry of an amount required never validates an empty cell (`cell-values.ts`):
+              // a defect of the front, which the grid tells as the unexpected error, never as the
+              // API out of reach (`rejected`, #304).
               throw new Error("an hourly rate is never emptied");
             }
             const read = row.cells[index];

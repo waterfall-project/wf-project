@@ -226,9 +226,10 @@ describe("the screen of the indicators of a project", () => {
       });
     }
     expect(page).toContain(
-      "Project indicators Computed on another revision The evolution of the indices is computed on the revision “Current revision”, not on the one the banner names. Financial progress",
+      "Project indicators Computed on another revision The evolution of the indices is computed on the revision “Current revision”, not on the one of the indicators. Financial progress",
     );
-    expect(page).not.toContain("These indicators are computed");
+    // The indicators are those of the revision shown: the banner names no other revision.
+    expect(page).not.toContain("Revision of the calculation");
     expect(page).toMatch(/Revision Référence/);
     expect(pathsOf(REVISION_ROUTE)).toEqual([
       `/projects/${PROJECT}/revisions/${MARKED}`,
@@ -236,9 +237,10 @@ describe("the screen of the indicators of a project", () => {
     ]);
   });
 
-  it("says at its head that the indicators of a date are computed on another revision than the one its banner names, and which, once each [WF-IHM-0020-A]", async () => {
+  it("names in its banner the revision the indicators of a date are computed on, read once, and no other at its head when the evolution of the indices shares it [WF-IHM-0020-A]", async () => {
     // A date chooses the revision itself: the API computes on the revision under way, which the
-    // screen reads once, though the indicators and the evolution of the indices both name it.
+    // screen reads once, though the indicators and the evolution of the indices both name it. The
+    // banner names the revision of the calculation, not the one of the address alone (#363).
     server.answers = { ...server.answers, [REVISION_ROUTE]: ["revision_marked", "revision"] };
     const page = text(html(await IndicatorsPage(at({ as_of: "2026-03-16" }, MARKED))));
     // The date alone chooses the revision, of the indicators as of the curves: never with it.
@@ -248,8 +250,11 @@ describe("the screen of the indicators of a project", () => {
       });
     }
     expect(page).toContain(
-      "Computed on another revision These indicators are computed on the revision “Current revision”, not on the one the banner names. The evolution of the indices is computed on the revision “Current revision”, not on the one the banner names. Financial progress",
+      "Revision Référence Marked Reference revision Revision of the calculation Current revision",
     );
+    // The evolution of the indices is computed on the revision of the indicators, which the banner
+    // names: the head of the screen says nothing that would contradict it.
+    expect(page).not.toContain("Computed on another revision");
     expect(pathsOf(REVISION_ROUTE)).toHaveLength(2);
   });
 
@@ -261,7 +266,7 @@ describe("the screen of the indicators of a project", () => {
     };
     const page = text(html(await IndicatorsPage(at({}, MARKED))));
     expect(page).toContain(
-      "The evolution of the indices is computed on the revision “unnamed”, not on the one the banner names. Financial progress",
+      "The evolution of the indices is computed on the revision “unnamed”, not on the one of the indicators. Financial progress",
     );
   });
 
@@ -293,13 +298,13 @@ describe("the screen of the indicators of a project", () => {
     expect(page).toContain("Milestone tracking Time/time diagram");
   });
 
-  it("says the indicators unavailable on an offer marked before the state In progress, which kept none, with no notice of another revision [WF-IND-0010-A]", async () => {
+  it("says the indicators unavailable on an offer marked before the state In progress, which kept none, with no notice of another revision [WF-DAT-0040-A]", async () => {
     server.answers = {
       ...server.answers,
       [REVISION_ROUTE]: ["revision_offer", "revision"],
       // The refusal of the contract for a revision marked before the state In progress.
       "GET /projects/{project_id}/indicators": {
-        problem: { code: "STATE_FORBIDS_OPERATION", status: 409 },
+        problem: example("project_indicators_offer") as Problem & { status: 409 },
       },
     };
     const page = text(html(await IndicatorsPage(at({}, OFFER))));

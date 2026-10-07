@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 
-import { ListPages, ProjectList } from "./project-list";
+import { ProjectListPages, ProjectList } from "./project-list";
 
 /** Render in English, as the shell hands its texts to a screen. */
 function html(children: ReactNode): string {
@@ -38,14 +38,14 @@ describe("the pages of the list of projects", () => {
   it("leads to the pages before and after the one shown, the filter kept, and says how many projects the list holds", () => {
     // The second page of a hundred and twenty projects, as `PaginationMeta` gives it.
     const page = { limit: 50, offset: 50, total: 120 };
-    const filtered = html(<ListPages page={page} shown={50} filtered />);
+    const filtered = html(<ProjectListPages page={page} shown={50} filtered />);
     expect(filtered).toContain("120 projects");
     expect(filtered).toMatch(/<nav[^>]*aria-label="Pages of the list"/);
     expect(links(filtered)).toEqual([
       ["/", "Previous projects"],
       ["/?offset=100", "Next projects"],
     ]);
-    const lifted = html(<ListPages page={page} shown={50} filtered={false} />);
+    const lifted = html(<ProjectListPages page={page} shown={50} filtered={false} />);
     expect(links(lifted)).toEqual([
       ["/?is_contributor=false", "Previous projects"],
       ["/?is_contributor=false&offset=100", "Next projects"],
@@ -54,7 +54,7 @@ describe("the pages of the list of projects", () => {
 
   it("offers no page after the last one", () => {
     const page = { limit: 50, offset: 100, total: 120 };
-    expect(links(html(<ListPages page={page} shown={20} filtered />))).toEqual([
+    expect(links(html(<ProjectListPages page={page} shown={20} filtered />))).toEqual([
       ["/?offset=50", "Previous projects"],
     ]);
   });

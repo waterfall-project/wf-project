@@ -13,6 +13,10 @@
  * (`getEarnedValueCurves`, WF-IND-0110) — each of the three exported as
  * a PNG image that names the project, the revision of its calculation and its date (WF-IHM-0130).
  *
+ * When a date `as_of` computes the indicators on another revision than the one the address names,
+ * the banner names the revision of the calculation (#363); the evolution of the indices, always
+ * computed on the revision under way, is said at the head of the screen.
+ *
  * The indicators of a project are computed from the state In progress only (WF-IND-0010): before,
  * the API refuses them (409, `STATE_FORBIDS_OPERATION`), and the screen says so rather than coming
  * down, the evolution of the indices and the cumulative curves left unasked. Any other answer
@@ -27,7 +31,7 @@ import { useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { ContextBanner } from "@/components/context/context-banner";
+import { type ComputedRevision, ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import {
   CostCurveSection,
@@ -154,39 +158,23 @@ async function readRevisionsOf(
 }
 
 /**
- * A figure of the screen computed on another revision than the one its banner names: the
- * indicators, which a date `as_of` computes on the last marked revision before it, or the evolution
- * of the indices, always computed today on the revision under way; and that revision, unnamed when
- * the API does not find it.
+ * What the screen says, at its head, when the evolution of the indices is computed on another
+ * revision than the indicators — always today, on the revision under way —: never in silence
+ * (WF-IHM-0020). The revision of the indicators is the one the banner names: the revision of the
+ * address, or the revision of the calculation a date `as_of` chose (`computedOn`, #363).
  */
-interface Elsewhere {
-  readonly figure: "indicators" | "history";
-  readonly revision: Revision | undefined;
-}
-
-/**
- * What the screen says, at its head, when its figures are computed on another revision than the
- * one its banner names: never in silence (WF-IHM-0020), each figure with its revision.
- */
-function ComputedElsewhere({ figures }: { readonly figures: readonly Elsewhere[] }) {
+function ComputedElsewhere({ history }: { readonly history: Revision | undefined }) {
   const t = useTranslations();
-  if (figures.length === 0) {
-    return null;
-  }
-  const name = (revision: Revision | undefined) =>
-    revision === undefined
-      ? t("projectIndicators.elsewhere.unknown")
-      : (revision.version_name ?? t("contextBanner.currentRevision"));
+  const revision =
+    history === undefined
+      ? t("contextBanner.unnamedRevision")
+      : (history.version_name ?? t("contextBanner.currentRevision"));
   return (
     <Alert>
       <Info aria-hidden="true" />
       <AlertTitle>{t("projectIndicators.elsewhere.title")}</AlertTitle>
       <AlertDescription>
-        {figures.map(({ figure, revision }) => (
-          <p key={figure}>
-            {t(`projectIndicators.elsewhere.${figure}`, { revision: name(revision) })}
-          </p>
-        ))}
+        <p>{t("projectIndicators.elsewhere.history", { revision })}</p>
       </AlertDescription>
     </Alert>
   );
@@ -197,7 +185,7 @@ function useRevisionLabel() {
   const t = useTranslations();
   return (name: string | null | undefined) =>
     name === undefined
-      ? t("projectIndicators.elsewhere.unknown")
+      ? t("contextBanner.unnamedRevision")
       : (name ?? t("contextBanner.currentRevision"));
 }
 
@@ -279,7 +267,7 @@ export default async function IndicatorsPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "indicators");
   const [reading, figures, milestones] = await Promise.all([
-    readProjectContext(at.pathname, at.context),
+    readProjectContext(at.pathname, at.context, ["subproject_id", "as_of"]),
     readIndicators(at),
     readMilestones(at),
   ]);
@@ -287,13 +275,8 @@ export default async function IndicatorsPage({
     notFound();
   }
   const shown = reading.revision;
-  const computedOn =
-    figures === undefined
-      ? []
-      : ([
-          ["indicators", figures.indicators.context.revision_id],
-          ["history", figures.history.context.revision_id],
-        ] as const);
+  const computedOn = figures?.indicators.context.revision_id;
+  const history = figures?.history.context.revision_id;
   const charted = [
     milestones.context.revision_id,
     ...(figures === undefined
@@ -301,20 +284,26 @@ export default async function IndicatorsPage({
       : [figures.costs.context.revision_id, figures.earnedValue.context.revision_id]),
   ];
   const named = await readRevisionsOf(revision.projectId, shown?.revision_id, [
-    ...computedOn.map(([, id]) => id),
+    ...(computedOn === undefined ? [] : [computedOn]),
+    ...(history === undefined ? [] : [history]),
     ...charted,
   ]);
-  const elsewhere = computedOn
-    .filter(([, id]) => id !== shown?.revision_id)
-    .map(([figure, id]): Elsewhere => ({ figure, revision: named.get(id) }));
   const nameOf: RevisionName = (id) =>
     id === shown?.revision_id ? shown.version_name : named.get(id)?.version_name;
+  // The banner names the revision the indicators are computed on when it is not the one shown;
+  // the evolution of the indices, computed on its own, is said at the head of the screen.
+  const indicatorsOn: ComputedRevision | undefined =
+    computedOn === undefined
+      ? undefined
+      : { revisionId: computedOn, versionName: nameOf(computedOn) };
   return (
     <>
-      <ContextBanner reading={reading} />
+      <ContextBanner reading={reading} computedOn={indicatorsOn} />
       <Screen density={FUNCTION_DENSITY.project_indicators}>
         <IndicatorsHeader />
-        <ComputedElsewhere figures={elsewhere} />
+        {history === undefined || history === (computedOn ?? shown?.revision_id) ? null : (
+          <ComputedElsewhere history={named.get(history)} />
+        )}
         {figures === undefined ? (
           <NotInProgress />
         ) : (

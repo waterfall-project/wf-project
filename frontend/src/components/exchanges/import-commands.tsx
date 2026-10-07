@@ -23,6 +23,7 @@ import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { rejected } from "@/components/commands/rejection";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
@@ -99,9 +100,6 @@ function PeriodFields({
 /** What the form says of the file chosen: none, or one past the largest size an import takes. */
 type FileProblem = "missing" | "tooLarge";
 
-/** The API out of reach: the server action itself did not answer. */
-const UNREACHABLE: Outcome<never> = { kind: "unreachable" };
-
 /** Ask the file to import, deposit it, open its analysis, and show the report of the import. */
 function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   const t = useTranslations("exchanges.import");
@@ -139,7 +137,7 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
         ? { kind, period_from: from === "" ? null : from, period_to: to === "" ? null : to }
         : { kind };
     startTransition(async () => {
-      const result = await openFileImport(projectId, asked, form).catch(() => UNREACHABLE);
+      const result = await openFileImport(projectId, asked, form).catch(rejected);
       if (result.kind !== "done") {
         setOutcome(result);
         return;

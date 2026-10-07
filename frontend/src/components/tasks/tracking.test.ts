@@ -60,6 +60,41 @@ describe("what the tracker follows", () => {
     expect(moved.tasks[0]?.task.status).toBe("succeeded");
   });
 
+  it("tells a refusal of the read before a download in place, and interrupts no follow-up", () => {
+    const refusal = {
+      kind: "refused",
+      problem: { code: "NOT_FOUND", status: 404 },
+      conflictingObjectId: null,
+    } as const;
+    const exported = "01926f3a-7c00-7000-8000-000000000905";
+    const before = following(task("task_export_succeeded"));
+    const after = tracking(before, {
+      type: "answer",
+      source: "download",
+      key: exported,
+      taskId: exported,
+      outcome: refusal,
+    });
+    expect(after.tasks[0]).toMatchObject({ outcome: refusal, interrupted: undefined });
+    // The end of the task was logged when it was handed over; the refusal adds no line.
+    expect(after.log).toEqual(before.log);
+  });
+
+  it("says the result no longer available when the read before a download finds none, and not after any other read", () => {
+    const exported = "01926f3a-7c00-7000-8000-000000000905";
+    const withoutResult = { ...task("task_export_succeeded"), result_url: null };
+    const answered = (source: "read" | "download") =>
+      tracking(following(task("task_export_succeeded")), {
+        type: "answer",
+        source,
+        key: exported,
+        taskId: exported,
+        outcome: { kind: "done", data: withoutResult },
+      }).tasks[0];
+    expect(answered("download")).toMatchObject({ resultUnavailable: true, task: withoutResult });
+    expect(answered("read")).toMatchObject({ resultUnavailable: false });
+  });
+
   it("drops the answer to a task dismissed since it was asked", () => {
     const dismissed = tracking(following(task("task_running")), { type: "dismiss", key: MARKING });
     const after = tracking(dismissed, {

@@ -16,6 +16,7 @@ import type { ContextFilter, Project, ProjectReading, Subproject } from "./readi
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+const MARKED = "01926f3a-7c00-7000-8000-000000000101";
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
 
@@ -137,6 +138,44 @@ describe("the banner of the reading context", () => {
       `Subproject: ${unknown}`,
       "Calculation date: 2026-02-30",
     ]);
+  });
+
+  it("names the revision the figures are computed on when it is not the one shown, unnamed when the API does not find it [WF-IHM-0020-A]", () => {
+    // Un indicateur affiché porte sa date de calcul — and the revision of its calculation, when a
+    // date `as_of` read another than the one of the address (#363).
+    const read = reading(`${REMAINING}?as_of=2026-05-31`, "revision_marked");
+    const { rerender } = render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <ContextBanner reading={read} computedOn={{ revisionId: REVISION, versionName: null }} />
+      </NextIntlClientProvider>,
+    );
+    const facts = () =>
+      screen
+        .getAllByRole("term")
+        .map((term) => `${term.textContent}: ${term.nextElementSibling?.textContent ?? ""}`);
+    expect(facts()).toContain("Révision du calcul: Révision en cours");
+    rerender(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <ContextBanner
+          reading={read}
+          computedOn={{
+            revisionId: "01926f3a-7c00-7000-8000-000000000199",
+            versionName: undefined,
+          }}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(facts()).toContain("Révision du calcul: sans nom");
+    // Computed on the revision shown: nothing more to name.
+    rerender(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <ContextBanner
+          reading={read}
+          computedOn={{ revisionId: MARKED, versionName: "Référence" }}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByText("Révision du calcul")).not.toBeInTheDocument();
   });
 
   it("shows the project alone, without chips, on a function of the project without a revision", () => {

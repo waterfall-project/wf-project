@@ -18,8 +18,9 @@ import { ContributorFilter, ProjectList } from "@/components/projects/project-li
 import { GROUP_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { ReferenceIncomplete } from "@/components/system/empty-states";
-import { offsetOf, type PageSearchParams, pageSearch } from "@/navigation/context";
+import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { isContributorFiltered } from "@/navigation/home";
+import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../title";
@@ -49,7 +50,7 @@ export default async function HomePage({
 }) {
   const search = pageSearch(await searchParams);
   const filtered = isContributorFiltered(search);
-  const offset = offsetOf(search.get("offset"));
+  const offset = offsetOf(search.get(OFFSET_PARAMETER));
   const client = serverClient();
   const [projects, readiness, session] = await Promise.all([
     readOrFail("listProjects", () =>

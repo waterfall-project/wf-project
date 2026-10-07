@@ -13,7 +13,7 @@
 import { Banknote } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId } from "react";
+import type { ReactNode } from "react";
 
 import type { ChartProvenance } from "@/components/chart/chart";
 import { buttonVariants } from "@/components/ui/button";
@@ -42,14 +42,11 @@ function addressWith(address: ScreenAddress, name: string, value: string | undef
   return text === "" ? address.pathname : `${address.pathname}?${text}`;
 }
 
-/** A section of the screen under its title. */
+/** A section of the screen under its title, named by it (`aria-label`, #251). */
 function Section({ title, children }: { readonly title: string; readonly children: ReactNode }) {
-  const id = useId();
   return (
-    <section aria-labelledby={id} className="space-y-2">
-      <h2 id={id} className="text-lg font-semibold">
-        {title}
-      </h2>
+    <section aria-label={title} className="space-y-2">
+      <h2 className="text-lg font-semibold">{title}</h2>
       {children}
     </section>
   );

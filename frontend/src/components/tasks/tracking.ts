@@ -3,7 +3,8 @@
 /**
  * What the tracker of the shell keeps of the background tasks it follows (WF-IHM-0080), and
  * how each event changes it: a task handed over with the command that started it, the answer
- * of a read of its progress, the answer of the command run again, the task dismissed.
+ * of a read of its progress — or of the read that checks its result is still there before it is
+ * downloaded (#329) —, the answer of the command run again, the task dismissed.
  *
  * The follow-up is one for every kind of task — a marking, an import, a merge, a backup… —:
  * nothing here knows which operation started a task, only how to start it again. An answer
@@ -72,6 +73,11 @@ export interface TrackedTask {
   readonly outcome: Outcome<unknown> | undefined;
   /** The refusal of the API to say where the task stands: its follow-up stops there. */
   readonly interrupted: Refusal | undefined;
+  /**
+   * Whether the read before a download found the task without a result (`result_url` none): the
+   * result is no longer available, which the entry says in place of the offer to download it.
+   */
+  readonly resultUnavailable?: boolean | undefined;
 }
 
 /** A line of the log of ends. */
@@ -104,8 +110,11 @@ export type TrackingEvent =
   | { readonly type: "found"; readonly tasks: readonly BackgroundTask[] }
   | {
       readonly type: "answer";
-      /** A read of the task's progress, or its command run again. */
-      readonly source: "read" | "relaunch";
+      /**
+       * A read of the task's progress; the read that checks its result before a download, whose
+       * refusal is told in place; or its command run again.
+       */
+      readonly source: "read" | "relaunch" | "download";
       readonly key: string;
       /** The task the answer was asked for. */
       readonly taskId: string;
@@ -154,10 +163,12 @@ function logEnd(log: readonly EndLine[], before: BackgroundTask, after: TrackedT
 /** The entry once an answer that is no task has come. */
 function refused(
   entry: TrackedTask,
-  source: "read" | "relaunch",
+  source: "read" | "relaunch" | "download",
   outcome: Exclude<Outcome<BackgroundTask>, { kind: "done" }>,
 ): TrackedTask {
-  if (outcome.kind === "unreachable") {
+  if (outcome.kind === "unreachable" || source === "download") {
+    // Told in place, by the notice of the entry: the follow-up of the task is not interrupted —
+    // a result gone, a session lost say nothing of a task that has ended.
     return { ...entry, outcome };
   }
   if (source === "read") {
@@ -195,7 +206,13 @@ function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" 
   }
   const next: TrackedTask =
     outcome.kind === "done"
-      ? { ...entry, task: outcome.data, outcome: undefined, interrupted: undefined }
+      ? {
+          ...entry,
+          task: outcome.data,
+          outcome: undefined,
+          interrupted: undefined,
+          resultUnavailable: source === "download" && outcome.data.result_url == null,
+        }
       : refused(entry, source, outcome);
   const tasks = state.tasks.map((tracked) => (tracked === entry ? next : tracked));
   if (next.interrupted !== undefined && entry.interrupted === undefined) {

@@ -12,7 +12,7 @@ import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
 import { AccessRoleList, PermissionMatrix, UserList } from "./account-lists";
-import { ListPages } from "./list-pages";
+import { AdminListPages } from "./list-pages";
 import {
   AlertList,
   BackupList,
@@ -72,12 +72,13 @@ describe("the matrix of the permissions", () => {
 });
 
 describe("the lists of the accounts and the roles", () => {
-  it("break no rule of accessibility", async () => {
+  it("break no rule of accessibility, the links of the pages keeping the rest of the address", async () => {
     const { container } = rendered(
       <>
         <UserList users={users.items} page={users.meta} />
-        <ListPages
+        <AdminListPages
           path="/admin/users"
+          query={new URLSearchParams("include_inactive=true&offset=2")}
           page={{ limit: 2, offset: 2, total: 5 }}
           shown={2}
           count="5"
@@ -87,19 +88,20 @@ describe("the lists of the accounts and the roles", () => {
     );
     expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
       "href",
-      "/admin/users",
+      "/admin/users?include_inactive=true",
     );
     expect(screen.getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
       "href",
-      "/admin/users?offset=4",
+      "/admin/users?include_inactive=true&offset=4",
     );
     await expectAccessible(container);
   });
 
   it("lead back to the last page from a page asked beyond the end", () => {
     rendered(
-      <ListPages
+      <AdminListPages
         path="/admin/backups"
+        query={new URLSearchParams("offset=8")}
         page={{ limit: 2, offset: 8, total: 5 }}
         shown={0}
         count="5"

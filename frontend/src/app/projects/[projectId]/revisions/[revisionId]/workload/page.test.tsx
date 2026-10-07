@@ -127,7 +127,12 @@ describe("the screen of the workload of a project", () => {
       revision_id: MARKED,
       org_node_id: ORG_NODE,
     });
-    expect(queryOf("GET /projects/{project_id}/revisions")).toEqual({ status: "marked" });
+    // Every marked revision is offered, whatever the server pages: the largest page, read whole.
+    expect(queryOf("GET /projects/{project_id}/revisions")).toEqual({
+      status: "marked",
+      limit: "500",
+      offset: "0",
+    });
     // The revision the API says it read, named from the marked revisions the screen read.
     expect(page).toContain("Basis: Remaining of a marked revision — revision “Référence”");
   });

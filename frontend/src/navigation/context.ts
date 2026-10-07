@@ -183,13 +183,16 @@ export function pageSearch(search: PageSearchParams): SearchParameters {
   };
 }
 
-/**
- * The offset of a page of a list the address asks for (`offset`), or none when it asks for none a
- * server could take.
- */
-export function offsetOf(value: string | null): number | undefined {
-  const offset = Number(value);
-  return value !== null && Number.isSafeInteger(offset) && offset > 0 ? offset : undefined;
+/** The search parameters of a page as a query, the first value of each: what a link keeps of them. */
+export function searchQuery(search: PageSearchParams): URLSearchParams {
+  const query = new URLSearchParams();
+  for (const [name, value] of Object.entries(search)) {
+    const first = typeof value === "string" ? value : value?.[0];
+    if (first !== undefined) {
+      query.set(name, first);
+    }
+  }
+  return query;
 }
 
 /**

@@ -12,7 +12,6 @@
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
 
 import { TasksButton } from "@/components/tasks/task-tracker";
 import { Input } from "@/components/ui/input";
@@ -24,6 +23,13 @@ import type { ThemePreference } from "@/theme/theme";
 import { AccountMenu, type MenuAccount } from "./account-menu";
 import { Breadcrumbs } from "./breadcrumbs";
 import { Logo } from "./logo";
+
+/**
+ * The identifier of the sentence that describes the search: the bar is rendered once, by the
+ * shell, and names it itself — never by `useId`, which a server component may share with a client
+ * one (#251).
+ */
+const SEARCH_HINT = "shell-search-hint";
 
 /** What the bar offers: the side bar to fold, and the account and its preferences. */
 export interface TopBarProps {
@@ -37,7 +43,6 @@ export interface TopBarProps {
 /** Render the bar of the shell. */
 export function TopBar({ navigable, account, language, theme }: TopBarProps) {
   const t = useTranslations();
-  const soon = useId();
   return (
     <header className="flex min-h-13 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2">
       {navigable ? (
@@ -56,11 +61,11 @@ export function TopBar({ navigable, account, language, theme }: TopBarProps) {
         <Input
           type="search"
           aria-label={t("search.label")}
-          aria-describedby={soon}
+          aria-describedby={SEARCH_HINT}
           placeholder={t("search.placeholder")}
           className="pl-8"
         />
-        <p id={soon} className="sr-only">
+        <p id={SEARCH_HINT} className="sr-only">
           {t("search.comingSoon")}
         </p>
       </div>

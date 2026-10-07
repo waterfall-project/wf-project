@@ -31,13 +31,11 @@ import type { RowData } from "@tanstack/react-table";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import { rejected } from "@/components/commands/rejection";
 
 import type { CellWrites } from "./cell-writes";
 import type { ColumnName, GridColumn, GridConfig, PastedBlock, PastePlan } from "./columns";
 import { type CellPosition, positionOf } from "./grid-keyboard";
-
-/** The API out of reach: the server action itself did not answer. */
-const UNREACHABLE: Outcome<never> = { kind: "unreachable" };
 
 /** A cell of a spreadsheet's copy: quoted, its quotes doubled within, or as it is. */
 const CELL = /"((?:[^"]|"")*)"(?=[\t\r\n]|$)|[^\t\r\n]*/y;
@@ -243,7 +241,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     setPasting({ block, width: widest(block), target, plan: undefined, applying: false });
     void asking
       .preview(row, named, block)
-      .catch(() => UNREACHABLE)
+      .catch(rejected)
       .then((answer) => {
         if (current.current !== asked) {
           return;
@@ -310,7 +308,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     setPasting({ ...pasting, applying: true });
     void paste
       .apply(plan)
-      .catch(() => UNREACHABLE)
+      .catch(rejected)
       .then((answer) => {
         if (answer.kind === "done") {
           writes.applied(answer.data);

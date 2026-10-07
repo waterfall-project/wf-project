@@ -194,6 +194,11 @@ describe("the list of the projects of the portfolio", () => {
     expect(witness[2]).toHaveTextContent("En cours");
     // The cost index of the witness is not computable, the schedule index in alert, by its shape.
     expect(witness[8]).toHaveTextContent("Non calculable — Aucun coût réel à la date de calcul.");
+    // Its reason seen, in a secondary text, and read once: no title would describe it again.
+    const reason = within(witness[8] ?? document.body).getByText(/Aucun coût réel/);
+    expect(reason).not.toHaveClass("sr-only");
+    expect(witness[8]?.querySelector("[title], [aria-describedby]")).toBeNull();
+    expect(witness[8]?.textContent.match(/Aucun coût réel/g)).toHaveLength(1);
     expect(within(witness[9] ?? document.body).getByRole("img", { name: "Alerte" })).toBeVisible();
     expect(witness[9]).toHaveTextContent("0");
   });

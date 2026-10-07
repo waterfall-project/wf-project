@@ -6,6 +6,11 @@
  * the revision the address names, the sub-project a filter restricts to. The banner shows it
  * (WF-IHM-0020), and a screen receives it as a prop, whether its revision is read only
  * included, rather than deducing any of it again.
+ *
+ * A screen declares the parameters of the context its reads take (`reads`), and the banner shows
+ * those filters alone (#302): the address carries `as_of` and `subproject_id` on to every screen
+ * of the project, but a workload, a lifecycle, a list of imports read neither, and a chip would say
+ * a figure filtered or dated that is not.
  */
 import "server-only";
 
@@ -62,7 +67,10 @@ export interface ProjectReading {
    * caller may modify nothing of it: what the notice of the banner says, and nothing more.
    */
   readonly readOnly: boolean;
-  /** The active filters, in the order of the parameters of the context. */
+  /**
+   * The active filters among those the screen reads, in the order of the parameters of the
+   * context.
+   */
   readonly filters: readonly ContextFilter[];
 }
 
@@ -137,10 +145,15 @@ async function filteredSubproject(
   return answer?.data?.find((subproject) => subproject.subproject_id === value);
 }
 
-/** The filters of a context, with what each restricts. */
-async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
-  const subprojectId = context.parameters.get("subproject_id");
-  const asOf = context.parameters.get("as_of");
+/** The filters of a context the screen reads, with what each restricts. */
+async function readFilters(
+  context: ProjectContext,
+  reads: readonly ContextParameter[],
+): Promise<ContextFilter[]> {
+  const read = (name: ContextParameter) =>
+    reads.includes(name) ? context.parameters.get(name) : null;
+  const subprojectId = read("subproject_id");
+  const asOf = read("as_of");
   const subproject =
     subprojectId === null ? undefined : await filteredSubproject(context.projectId, subprojectId);
   return [
@@ -152,7 +165,8 @@ async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
 }
 
 /**
- * Read what a screen of a project reads in, and say what the page is to do with it:
+ * Read what a screen of a project reads in — `reads` naming the parameters of the context its
+ * reads take, whose filters alone the banner shows —, and say what the page is to do with it:
  *
  * - `"not_found"` when the API finds neither the project nor the revision the address names
  *   — or does not let the user read them, which it answers alike (WF-ADM-0110): the page is
@@ -168,12 +182,13 @@ async function readFilters(context: ProjectContext): Promise<ContextFilter[]> {
 export async function readProjectContext(
   pathname: string,
   context: ProjectContext,
+  reads: readonly ContextParameter[],
 ): Promise<ProjectReading | "not_found"> {
   const { projectId, revisionId } = context;
   const [project, revision, filters] = await Promise.all([
     readProject(projectId),
     revisionId === undefined ? undefined : readRevision(projectId, revisionId),
-    readFilters(context),
+    readFilters(context, reads),
   ]);
   if (project?.response.status === 404 || revision?.response.status === 404) {
     return "not_found";
@@ -204,7 +219,8 @@ export async function readProjectContext(
 export async function readAddress(
   pathname: string,
   search: SearchParameters,
+  reads: readonly ContextParameter[],
 ): Promise<ProjectReading | "not_found"> {
   const context = readContext(pathname, search);
-  return context === undefined ? "not_found" : readProjectContext(pathname, context);
+  return context === undefined ? "not_found" : readProjectContext(pathname, context, reads);
 }

@@ -396,7 +396,8 @@ describe("the tracker of background tasks", () => {
 
   it("takes a server action that does not answer at all for the API out of reach", async () => {
     server.client = {
-      GET: () => Promise.reject(new Error("the server of Next cannot be reached")),
+      // The browser could not reach the server of Next: its `fetch` rejected (`rejected`).
+      GET: () => Promise.reject(new TypeError("Failed to fetch")),
     } as unknown as ApiClient;
     await started(task("task_mark_queued"));
     await tick();
@@ -503,7 +504,7 @@ describe("the tracker of background tasks", () => {
 
   it("says the API is out of reach when the relaunch does not answer at all", async () => {
     serve({ [TASK]: "task_failed" });
-    const command = () => Promise.reject(new Error("the server of Next cannot be reached"));
+    const command = () => Promise.reject(new TypeError("Failed to fetch"));
     await started(task("task_mark_queued"), { command });
     await tick();
     await userEvent.click(relaunchButton());
@@ -833,5 +834,114 @@ describe("the tracker as the page hydrates", () => {
       });
       container.remove();
     }
+  });
+});
+
+describe("the result of a task", () => {
+  const EXPORTED = "01926f3a-7c00-7000-8000-000000000905";
+
+  /**
+   * The browser following a link: the click the entry lets through replayed as the browser would,
+   * an event its handler may prevent; whether each click went on to the browser, recorded — and
+   * stopped there, happy-dom following no download.
+   */
+  function followedClicks(): {
+    readonly followed: boolean[];
+    readonly replayed: () => number;
+    readonly restore: () => void;
+  } {
+    const followed: boolean[] = [];
+    const record = (event: Event) => {
+      if (event.target instanceof HTMLAnchorElement) {
+        followed.push(!event.defaultPrevented);
+        event.preventDefault();
+      }
+    };
+    document.addEventListener("click", record);
+    const replay = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    return {
+      followed,
+      replayed: () => replay.mock.calls.length,
+      restore: () => {
+        document.removeEventListener("click", record);
+        replay.mockRestore();
+      },
+    };
+  }
+
+  it("is downloaded once the server says it is still there, each download read anew, and a refusal of the read is told in place, in a notice", async () => {
+    const client = serve({
+      [TASK]: [{ problem: { code: "NOT_FOUND", status: 404 } }, "task_export_succeeded"],
+    });
+    const browser = followedClicks();
+    await started(task("task_export_succeeded"));
+    const link = screen.getByRole("link", { name: /^Télécharger le résultat/ });
+    expect(link).toHaveAttribute("href", `/tasks/${EXPORTED}/result`);
+    // The task gone: the refusal is told by the notice of the entry, the follow-up not interrupted.
+    await userEvent.click(link);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès.",
+    );
+    expect(screen.queryByText("Suivi interrompu")).not.toBeInTheDocument();
+    expect(browser.followed).toEqual([false]);
+    // The result there: the click replayed goes on to the browser, and the notice goes.
+    await userEvent.click(link);
+    await vi.waitFor(() => {
+      expect(browser.followed).toEqual([false, false, true]);
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // A third download reads the task anew before it leaves.
+    await userEvent.click(link);
+    await vi.waitFor(() => {
+      expect(browser.followed).toEqual([false, false, true, false, true]);
+    });
+    expect(client.calls.map((call) => call.path)).toEqual([
+      `/tasks/${EXPORTED}`,
+      `/tasks/${EXPORTED}`,
+      `/tasks/${EXPORTED}`,
+    ]);
+    browser.restore();
+  });
+
+  it("says the result no longer available when the task read anew gives none, and offers no download", async () => {
+    // A task read without a result: the example of the contract is a marking, which made none.
+    serve({ [TASK]: "task_succeeded" });
+    const browser = followedClicks();
+    await started(task("task_export_succeeded"));
+    await userEvent.click(screen.getByRole("link", { name: /^Télécharger le résultat/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Le résultat de cette tâche n’est plus disponible.",
+    );
+    expect(
+      screen.queryByRole("link", { name: /^Télécharger le résultat/ }),
+    ).not.toBeInTheDocument();
+    expect(browser.followed).toEqual([false]);
+    browser.restore();
+  });
+
+  it("downloads nothing when the entry is dismissed while the task is read anew", async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.client = fakeClient(
+      { [TASK]: "task_export_succeeded" },
+      { hold: (route) => (route === TASK ? held : undefined) },
+    );
+    const browser = followedClicks();
+    await started(task("task_export_succeeded"));
+    await userEvent.click(screen.getByRole("link", { name: /^Télécharger le résultat/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Retirer du suivi/ }));
+    release();
+    await act(() => held);
+    await act(() => Promise.resolve());
+    // No click replayed: the entry gone, the download does not leave.
+    expect(browser.replayed()).toBe(0);
+    expect(browser.followed).toEqual([false]);
+    browser.restore();
   });
 });

@@ -15,7 +15,7 @@
 import { Calculator, ClipboardList, GitCompareArrows, type LucideIcon } from "lucide-react";
 import Form from "next/form";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useId } from "react";
+import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { CELL, ICON, ListSection, ListTable } from "@/components/projects/project-tables";
@@ -98,7 +98,8 @@ function RevisionSelect({
   readonly marked: readonly NamedRevision[];
   readonly selected: string | undefined;
 }) {
-  const id = useId();
+  // An identifier of its own, from the name of the field: never one of `useId` (#251).
+  const id = `comparison-${name}`;
   const revisionName = useRevisionName();
   return (
     <div className="flex flex-col gap-1.5">
@@ -161,12 +162,9 @@ function Part({
   readonly empty: string | undefined;
   readonly children: ReactNode;
 }) {
-  const id = useId();
   return (
-    <section aria-labelledby={id} className="space-y-1">
-      <h3 id={id} className="text-sm font-semibold">
-        {title}
-      </h3>
+    <section aria-label={title} className="space-y-1">
+      <h3 className="text-sm font-semibold">{title}</h3>
       {empty === undefined ? children : <p className="text-sm text-muted-foreground">{empty}</p>}
     </section>
   );

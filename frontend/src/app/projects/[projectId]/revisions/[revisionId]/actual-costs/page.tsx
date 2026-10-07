@@ -217,7 +217,8 @@ export default async function ActualCostsPage({
     return readGridQuery(at.address, [...COST_SORT_COLUMNS, ...named], kept?.sort);
   });
   const [reading, costs, imports, subprojects, preferences, query] = await Promise.all([
-    readProjectContext(at.pathname, at.context),
+    // The costs are read for the filtered sub-project alone (`listActualCosts`): no date (#302).
+    readProjectContext(at.pathname, at.context, ["subproject_id"]),
     readCosts(at, filters, asked),
     readImports(at),
     readSubprojects(at),

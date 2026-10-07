@@ -12,9 +12,8 @@ import { FolderOpen, GitBranch } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
 
-import { readOrFail } from "@/api/problem";
+import { readEveryPage } from "@/api/every-page";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { ProjectFacts } from "@/components/projects/project-facts";
@@ -55,10 +54,9 @@ function Revisions({
 }) {
   const t = useTranslations();
   const revisionName = useRevisionName();
-  const title = useId();
   return (
-    <section aria-labelledby={title} className="space-y-2">
-      <h2 id={title} className="flex items-center gap-2 text-base font-semibold">
+    <section aria-label={t("projectFacts.revisions")} className="space-y-2">
+      <h2 className="flex items-center gap-2 text-base font-semibold">
         <GitBranch aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         {t("projectFacts.revisions")}
       </h2>
@@ -86,9 +84,9 @@ function Revisions({
 export default async function ProjectPage(props: ProjectPageProps) {
   const address = await projectAddress(props);
   const [revisions, read, session] = await Promise.all([
-    readOrFail("listRevisions", () =>
+    readEveryPage("listRevisions", (page) =>
       serverClient().GET("/projects/{project_id}/revisions", {
-        params: { path: { project_id: address.projectId } },
+        params: { path: { project_id: address.projectId }, query: page },
       }),
     ),
     readProjectScreen(address),
@@ -105,7 +103,7 @@ export default async function ProjectPage(props: ProjectPageProps) {
         <ProjectFacts project={read.project} />
         <Revisions
           projectId={address.projectId}
-          revisions={revisions.items}
+          revisions={revisions}
           way={mayReadRevisions ? functionHref(functionOf("revisions"), read.context) : undefined}
         />
       </Screen>

@@ -34,12 +34,10 @@
 import { useMemo, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import { rejected } from "@/components/commands/rejection";
 
 import { type Answers, answersOf, retotalled, shownRow, shownRows, take } from "./answers";
 import type { CellEntry, RowsWritten } from "./columns";
-
-/** The API out of reach: the server action itself did not answer — the network is down. */
-const UNREACHABLE: Outcome<never> = { kind: "unreachable" };
 
 /**
  * The server answered another row than the one written: an unexpected error of the service, told
@@ -195,7 +193,7 @@ export function useCellWrites<Row, Totals>(
     retotals.current += 1;
     const asked = retotals.current;
     void retotal()
-      .catch(() => UNREACHABLE)
+      .catch(rejected)
       .then((answer) => {
         if (asked !== retotals.current) {
           return;
@@ -225,7 +223,7 @@ export function useCellWrites<Row, Totals>(
     current((before) => ({ ...before, pending: changed(before.pending, cell, showing) }));
     const queued = (queues.current.get(key) ?? Promise.resolve()).then(async () => {
       const from = shownRow(memory, rowKey, key) ?? row;
-      const answer = answering(key, await entry.write(from, value).catch(() => UNREACHABLE));
+      const answer = answering(key, await entry.write(from, value).catch(rejected));
       const stale = answer.kind !== "done" && born !== (pasted.current.get(key) ?? 0);
       const data = answer.kind === "done" ? answer.data : undefined;
       if (data !== undefined) {

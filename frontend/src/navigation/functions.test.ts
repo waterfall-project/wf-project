@@ -123,7 +123,7 @@ describe("the leaves of the table", () => {
       "/projects/[projectId]/revisions/[revisionId]/exchanges",
     );
     expect(leafOf("FBS-4.4.4").route).toBe("/projects/[projectId]/revisions/[revisionId]/workload");
-    expect(() => leafOf("FBS-4.4.9")).toThrow("no leaf of the table is FBS-4.4.9");
+    expect(() => leafOf("FBS-4.4.9")).toThrow("the table of functions has no leaf FBS-4.4.9");
   });
 
   it("are of the scope and the permission of their function, named in both catalogues, under its code", () => {
@@ -184,7 +184,7 @@ describe("the function of a permission", () => {
 
   it("is a defect of the table when no function reads with it", () => {
     expect(() => functionOf("platform_restore" as "users")).toThrow(
-      "no function of the table reads with platform_restore.read",
+      "the table of functions has no function reading with platform_restore.read",
     );
   });
 });

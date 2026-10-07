@@ -187,7 +187,7 @@ describe("the empty states of the home", () => {
     const html = await home({ is_contributor: "false" });
     // The heading of the screen first, then the notice of the reference under it.
     expect(html).toMatch(
-      new RegExp(`^<main class="${SCREEN.dense}">.*?</h1>.*?<section aria-labelledby="[^"]+"`),
+      new RegExp(`^<main class="${SCREEN.dense}">.*?</h1>.*?<section aria-label="[^"]+"`),
     );
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(text(html)).toBe(

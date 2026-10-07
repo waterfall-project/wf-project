@@ -53,9 +53,13 @@ export async function projectAddress(
   return { projectId, pathname, context };
 }
 
-/** The reading of a screen of a project, which its banner shows; not found as the others. */
+/**
+ * The reading of a screen of a project, which its banner shows; not found as the others. The
+ * screens of the project itself read neither a sub-project nor a date: their banner shows no
+ * filter, though the address carries them on (#302).
+ */
 export async function readProjectScreen(address: ProjectAddress): Promise<ProjectReading> {
-  const read = await readProjectContext(address.pathname, address.context);
+  const read = await readProjectContext(address.pathname, address.context, []);
   if (read === "not_found") {
     notFound();
   }

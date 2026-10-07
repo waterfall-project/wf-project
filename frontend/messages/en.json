@@ -512,6 +512,8 @@
     "subproject": "Subproject: {subproject}",
     "subprojectName": "{code} — {label}",
     "asOf": "Calculation date: {date}",
+    "computedOn": "Revision of the calculation",
+    "unnamedRevision": "unnamed",
     "removeFilter": "Remove the filter “{filter}”"
   },
   "indicator": {
@@ -541,9 +543,7 @@
     },
     "elsewhere": {
       "title": "Computed on another revision",
-      "indicators": "These indicators are computed on the revision “{revision}”, not on the one the banner names.",
-      "history": "The evolution of the indices is computed on the revision “{revision}”, not on the one the banner names.",
-      "unknown": "unnamed"
+      "history": "The evolution of the indices is computed on the revision “{revision}”, not on the one of the indicators."
     },
     "financial": {
       "title": "Financial progress"
@@ -693,7 +693,8 @@
     "toggle": "{count, plural, =0 {Background tasks} one {Background tasks: # followed} other {Background tasks: # followed}}",
     "none": "No background task followed.",
     "download": "Download the result",
-    "downloadLabel": "Download the result: {task}"
+    "downloadLabel": "Download the result: {task}",
+    "resultUnavailable": "The result of this task is no longer available."
   },
   "markRevision": {
     "versionName": "Version name",
@@ -769,7 +770,6 @@
     "history": {
       "title": "Revision history",
       "none": "This project has no revision.",
-      "truncated": "Only the {shown} most recent revisions are shown, of {total}.",
       "version": "Version",
       "status": "Status",
       "markedAt": "Marked on",

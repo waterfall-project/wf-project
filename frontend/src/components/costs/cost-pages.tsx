@@ -24,6 +24,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { pageOffsets } from "@/navigation/pages";
 
 import { COSTS_PAGE, IMPORTS_PAGE, pageHref, sameList } from "./address";
 import type { ListPage } from "./cost-grid";
@@ -82,7 +83,7 @@ function PageLink({
 
 /**
  * Render the links to the pages before and after the one shown, of `shown` rows; a page beyond
- * the end leads back to the last one.
+ * the end leads back to the last one (`pageOffsets`).
  */
 export function ListPages({
   list,
@@ -94,22 +95,19 @@ export function ListPages({
   readonly shown: number;
 }) {
   const t = useTranslations(PAGES[list].texts);
-  const beyond = shown === 0 && page.offset > 0 && page.offset >= page.total;
-  const before = page.offset > 0;
-  const after = page.offset + shown < page.total;
-  if (!before && !after) {
+  const { beyond, previous, next } = pageOffsets(page, shown);
+  if (previous === undefined && next === undefined) {
     return null;
   }
-  const previous = beyond
-    ? Math.floor(Math.max(0, page.total - 1) / page.limit) * page.limit
-    : Math.max(0, page.offset - page.limit);
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       {beyond ? <p>{t("beyond")}</p> : null}
       <Pagination aria-label={t("label")}>
         <PaginationContent>
-          {before ? <PageLink list={list} offset={previous} direction="previous" /> : null}
-          {after ? <PageLink list={list} offset={page.offset + shown} direction="next" /> : null}
+          {previous === undefined ? null : (
+            <PageLink list={list} offset={previous} direction="previous" />
+          )}
+          {next === undefined ? null : <PageLink list={list} offset={next} direction="next" />}
         </PaginationContent>
       </Pagination>
     </div>
