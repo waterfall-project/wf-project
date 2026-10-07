@@ -89,8 +89,9 @@ by = "make fixtures"
 
 [[generated]]
 # The volumes, the named examples read from the core of the witness (wftools.mockcore), the
-# answers of the writes of the grids (wftools.mockwrites), and the history of the witness — its
-# revisions compared and its risks (wftools.mockhistory).
+# answers of the writes of the grids (wftools.mockwrites), the history of the witness — its
+# revisions compared and its risks (wftools.mockhistory) —, and its indicators today
+# (wftools.mocktoday).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -128,6 +129,25 @@ paths = [
     "fixtures/api/risk_matrix.json",
     "fixtures/api/risk_reviews.json",
     "fixtures/api/risk_coverage.json",
+    "fixtures/api/estimate_indicators.json",
+    "fixtures/api/estimate_indicators_breakdown.json",
+    "fixtures/api/estimate_indicators_missing_rates.json",
+    "fixtures/api/missing_rates.json",
+    "fixtures/api/rate_update.json",
+    "fixtures/api/remaining_indicators.json",
+    "fixtures/api/remaining_indicators_over_budget.json",
+    "fixtures/api/project_indicators.json",
+    "fixtures/api/project_indicators_marked.json",
+    "fixtures/api/index_history.json",
+    "fixtures/api/milestone_tracking.json",
+    "fixtures/api/cost_curve.json",
+    "fixtures/api/cost_curve_payment_delays.json",
+    "fixtures/api/cost_curve_amendment.json",
+    "fixtures/api/earned_value_curves.json",
+    "fixtures/api/workload.json",
+    "fixtures/api/workload_reference_budget.json",
+    "fixtures/api/workload_marked_remaining.json",
+    "fixtures/api/workload_org_node.json",
 ]
 by = "make mock-data"
 

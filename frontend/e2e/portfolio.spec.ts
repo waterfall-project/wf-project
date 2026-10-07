@@ -50,8 +50,9 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   ]) {
     await expect(grid.getByRole("columnheader", { name })).toBeVisible();
   }
+  // The witness project, both its indices nominal, as the server classes them.
   const witness = grid.getByRole("row", { name: /Modernisation du poste de commande/ });
-  await expect(witness.getByRole("img", { name: "Alerte" })).toBeVisible();
+  await expect(witness.getByRole("img", { name: "Nominal" })).toHaveCount(2);
   // The grid holds in the window: its totals, the number of projects the server retained, in view.
   // Its cells stick to the foot of the grid, their row keeping its place in the table.
   const total = grid.getByRole("gridcell", { name: "300 projets retenus" });
@@ -85,10 +86,10 @@ test("paints the same zone of an index the same colour in the list of the projec
       .getByRole("gridcell")
       .nth(column)
       .getByRole("img", { name: zone });
-  // The schedule index of the witness project in alert, the cost indices of two others nominal
-  // and in watch: the colours of reference, read once shown.
+  // The schedule index of a project in alert, the cost indices of two others nominal and in
+  // watch: the colours of reference, read once shown.
   const zones = {
-    Alerte: signal("PRJ-001", SCHEDULE_INDEX, "Alerte"),
+    Alerte: signal("PRJ-003", SCHEDULE_INDEX, "Alerte"),
     Nominal: signal("PRJ-004", COST_INDEX, "Nominal"),
     Vigilance: signal("PRJ-003", COST_INDEX, "Vigilance"),
   };
@@ -107,7 +108,7 @@ test("paints the same zone of an index the same colour in the list of the projec
   await page.goto(PERFORMANCE);
   const distribution = page.getByRole("table", { name: "Répartition des projets par zone" });
   for (const [zone, count] of [
-    ["Nominal", 168],
+    ["Nominal", 169],
     ["Vigilance", 47],
     ["Alerte", 53],
   ] as const) {

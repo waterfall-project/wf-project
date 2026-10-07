@@ -209,8 +209,8 @@
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/RateUpdateProposal }
             examples:
-              witness: { $ref: ../../../fixtures/api/rate_update.json }
               none: { $ref: ../../../fixtures/api/rate_update_none.json }
+              reference_created: { $ref: ../../../fixtures/api/rate_update.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:

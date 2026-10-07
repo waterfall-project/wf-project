@@ -138,7 +138,7 @@ describe("the screen of the indicators of a project", () => {
     // chart below: the milestones, the cumulative costs, the earned value.
     expect(page.match(/Computed on/g)).toHaveLength(5 + 2 + 3);
     expect(page).toContain(
-      "Financial progress Computed on Financial progress 0% Budget consumption 0% Actual cost",
+      "Financial progress Computed on Financial progress 20.05% Budget consumption 4.47% Actual cost",
     );
     expect(page).toContain("Evolution of the cost index Computed on");
     expect(page).toContain("Evolution of the schedule index Computed on");
@@ -147,15 +147,20 @@ describe("the screen of the indicators of a project", () => {
   it("shows the amounts as the API gives them, nothing summed nor divided", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page).toContain(
-      "Actual cost 0.00 Remaining to commit 100,000.00 Reference budget 100,000.00",
+      "Actual cost 5,400.00 Remaining to commit 21,534.56 Reference budget 120,834.56",
     );
-    expect(page).toContain("At budget 100,000.00 0.00 Project manager’s 100,000.00 0.00");
+    expect(page).toContain("At budget 26,234.56 -94,600.00 Project manager’s 26,934.56 -93,900.00");
     expect(page).toContain(
-      "Schedule variance -33,333.33 Earned value 0.00 Planned value 33,333.33",
+      "Schedule variance -1,223.69 Earned value 100,000.00 Planned value 101,223.69",
     );
   });
 
   it("says an index the API cannot compute not computable, with its reason, never zero", async () => {
+    // The indicators the reference kept at its marking, before any actual cost.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators": "project_indicators_marked",
+    };
     const page = text(html(await IndicatorsPage(at())));
     expect(page).toContain("Cost index Not computable No actual cost at the calculation date.");
     expect(page).toContain(
@@ -163,19 +168,28 @@ describe("the screen of the indicators of a project", () => {
     );
   });
 
-  it("shows the zone of an index by the one signal, and none where the API gives none [WF-IHM-0070-A]", async () => {
+  it("shows the zone of an index by the one signal [WF-IHM-0070-A]", async () => {
     const page = html(await IndicatorsPage(at()));
-    const cost = page.slice(
-      page.indexOf("Cost performance index"),
-      page.indexOf("Schedule performance index"),
-    );
     const schedule = page.slice(
       page.indexOf("Schedule performance index"),
       page.indexOf("Evolution of the schedule index"),
     );
-    expect(text(schedule)).toContain("Schedule index 0 Alert Schedule variance");
+    expect(text(schedule)).toContain("Schedule index 0.9879 Nominal Schedule variance");
     expect(schedule).toMatch(
-      /class="[^"]*text-signal-alert[^"]*"><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg><span>Alert<\/span>/,
+      /class="[^"]*text-signal-nominal[^"]*"><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg><span>Nominal<\/span>/,
+    );
+  });
+
+  it("shows no zone where the API gives none [WF-IHM-0070-A]", async () => {
+    // The indicators the reference kept: an index not computable has no zone.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/indicators": "project_indicators_marked",
+    };
+    const page = html(await IndicatorsPage(at()));
+    const cost = page.slice(
+      page.indexOf("Cost performance index"),
+      page.indexOf("Schedule performance index"),
     );
     expect(cost.slice(0, cost.indexOf("Evolution"))).not.toContain("text-signal-");
   });

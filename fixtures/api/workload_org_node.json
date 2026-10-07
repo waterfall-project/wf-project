@@ -1,52 +1,13 @@
 {
-  "summary": "Le même plan de charge sur le reste à engager de la révision en cours, restreint à la direction technique (`org_node_id`) : l'ingénieur électricien et le technicien de mise en service relèvent du bureau d'études électricité, son descendant, et restent retenus avec les mêmes charges ; le plan nomme le nœud retenu, que l'en-tête affiche sans lire l'arbre d'organisation (WF-DEV-0070, WF-REF-0070, WF-ARC-0020).",
+  "summary": "Le même plan de charge sur le reste à engager de la révision en cours, restreint au nœud « Atelier de câblage » (`org_node_id`) et à ses descendants : le monteur câbleur, sans charge, avec sa capacité seule ; l'ingénieur électricien et le technicien de mise en service, d'autres nœuds, n'y figurent pas ; le plan nomme le nœud retenu, que l'en-tête affiche sans lire l'arbre d'organisation (WF-DEV-0070, WF-REF-0070, WF-ARC-0020).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "context": {
-      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
-      "revision_status": "draft",
-      "computed_at": "2026-03-16T14:05:00Z",
-      "scope": "project",
-      "is_stored": false
-    },
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
     "basis": "current_remaining",
-    "org_node_id": "01926f3a-7c00-7000-8000-000000000470",
-    "org_node_label": "Direction technique",
+    "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
+    "org_node_label": "Atelier de câblage",
     "roles": [
-      {
-        "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",
-        "label": "Ingénieur électricien",
-        "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
-        "capacity_monthly_hours": "910.02",
-        "months": [
-          {
-            "month": "2026-05",
-            "hours": "5.95",
-            "load_ratio": {
-              "is_computable": true,
-              "value": "0.0065",
-              "reason": null
-            },
-            "zone": "nominal"
-          },
-          {
-            "month": "2026-06",
-            "hours": "6.55",
-            "load_ratio": {
-              "is_computable": true,
-              "value": "0.0072",
-              "reason": null
-            },
-            "zone": "nominal"
-          }
-        ]
-      },
-      {
-        "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
-        "label": "Technicien de mise en service",
-        "org_node_id": "01926f3a-7c00-7000-8000-000000000471",
-        "capacity_monthly_hours": "606.68",
-        "months": []
-      }
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","org_node_id":"01926f3a-7c00-7000-8000-000000000472","capacity_monthly_hours":"519.99","months":[]}
     ]
   }
 }

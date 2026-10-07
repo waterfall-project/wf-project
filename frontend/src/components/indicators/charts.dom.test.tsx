@@ -94,17 +94,19 @@ describe("the evolution of an index", () => {
     ]);
     // No legend, which would overflow onto the plot: each curve is named at its end.
     expect(lastOption()?.legend).toBeUndefined();
-    // The sub-projects have no schedule index the API could compute: no point, no name drawn.
+    // The tests and commissioning have no schedule index the API could compute: no point, no
+    // name drawn.
     expect(series.slice(0, -1).map((curve) => curve.endLabel?.show)).toEqual([
       true,
-      false,
+      true,
       false,
       true,
     ]);
+    // A point for the reference, marked in progress, and one today: the offer, marked while
+    // pricing, kept no index (WF-DAT-0040, #468).
     expect(series[0]?.data).toEqual([
-      ["2025-12-15T16:00:00Z", "-"],
       ["2026-02-01T09:00:00Z", "-"],
-      ["2026-03-16T14:05:00Z", "0"],
+      ["2026-06-03T14:05:00Z", "0.9879"],
     ]);
   });
 
@@ -142,22 +144,22 @@ describe("the evolution of an index", () => {
   it("lists each point, its revision, its value or why it has none, and its zone by the one signal [WF-IHM-0070-A]", async () => {
     const { container } = english(<IndexChart kind="schedule" history={HISTORY} />);
     const rows = screen.getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(12);
-    const [first, , third] = rows;
-    if (first === undefined || third === undefined) {
+    expect(rows).toHaveLength(8);
+    const [first, second] = rows;
+    if (first === undefined || second === undefined) {
       throw new Error("The table lists no point");
     }
-    const current = within(third);
+    const current = within(second);
     expect(current.getByRole("rowheader")).toHaveTextContent("Whole project");
     expect(current.getByText("Current revision")).toBeInTheDocument();
-    expect(current.getByText("0")).toBeInTheDocument();
-    expect(current.getByText("Alert")).toBeInTheDocument();
-    const offer = within(first);
-    expect(offer.getByText("Offre v1.0")).toBeInTheDocument();
+    expect(current.getByText("0.9879")).toBeInTheDocument();
+    expect(current.getByText("Nominal")).toBeInTheDocument();
+    const marked = within(first);
+    expect(marked.getByText("Référence")).toBeInTheDocument();
     expect(
-      offer.getByText("Not computable — No planned value at the calculation date."),
+      marked.getByText("Not computable — No planned value at the calculation date."),
     ).toBeInTheDocument();
-    expect(offer.queryByText(/Nominal|Watch|Alert/)).toBeNull();
+    expect(marked.queryByText(/Nominal|Watch|Alert/)).toBeNull();
     await expectAccessible(container);
   });
 });
@@ -180,15 +182,19 @@ describe("the tracking of the milestones", () => {
       "Réception usine",
       "Equal dates",
     ]);
-    // A milestone that holds draws a horizontal line, one that slips climbs.
+    // A milestone that holds draws a horizontal line; one completed ends on the diagonal.
+    expect(series[0]?.data).toEqual([
+      ["2025-12-15T16:00:00Z", "2026-04-24T00:00:00Z"],
+      ["2026-02-01T09:00:00Z", "2026-04-24T00:00:00Z"],
+      ["2026-04-24T00:00:00Z", "2026-04-24T00:00:00Z"],
+    ]);
     expect(series[1]?.data).toEqual([
-      ["2025-12-15T16:00:00Z", "2026-06-30T00:00:00Z"],
       ["2026-02-01T09:00:00Z", "2026-06-30T00:00:00Z"],
-      ["2026-03-16T14:05:00Z", "2026-09-30T00:00:00Z"],
+      ["2026-06-03T14:05:00Z", "2026-06-30T00:00:00Z"],
     ]);
     expect(series[2]?.data).toEqual([
       ["2025-12-15T16:00:00Z", "2025-12-15T16:00:00Z"],
-      ["2026-03-16T14:05:00Z", "2026-03-16T14:05:00Z"],
+      ["2026-06-03T14:05:00Z", "2026-06-03T14:05:00Z"],
     ]);
     expect(series.map((each) => each.endLabel?.show)).toEqual([true, true, true]);
   });
@@ -197,12 +203,12 @@ describe("the tracking of the milestones", () => {
     const { container } = english(<MilestoneChart tracking={TRACKING} provenance={PROVENANCE} />);
     const rows = screen.getAllByRole("row").slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      expect.stringMatching(/^Réception des études.*10 Apr 2026Not completed$/),
-      expect.stringMatching(/^Réception des études.*24 Apr 2026Not completed$/),
-      expect.stringMatching(/^Réception des études.*24 Apr 2026Not completed$/),
+      // Completed on 24 April: its date of completion beside each forecast.
+      expect.stringMatching(/^Réception des études15 Dec 2025.*24 Apr 202624 Apr 2026$/),
+      expect.stringMatching(/^Réception des études1 Feb 2026.*24 Apr 202624 Apr 2026$/),
+      expect.stringMatching(/^Réception des études24 Apr 2026, 00:0024 Apr 202624 Apr 2026$/),
       expect.stringMatching(/^Réception usine.*30 Jun 2026Not completed$/),
       expect.stringMatching(/^Réception usine.*30 Jun 2026Not completed$/),
-      expect.stringMatching(/^Réception usine.*30 Sept 2026Not completed$/),
     ]);
     const figure = screen.getByRole("figure", { name: "Time/time diagram" });
     expect(figure.querySelector("time")).toHaveAttribute("datetime", TRACKING.context.computed_at);
@@ -210,8 +216,8 @@ describe("the tracking of the milestones", () => {
   });
 
   it("starts the diagonal at the earliest marking of any milestone, not at the first one listed [WF-IND-0090-A]", () => {
-    // The witness tracking, its first milestone marked from February only and its points in
-    // reverse: the earliest marking is the last point of the second.
+    // The witness tracking, its first milestone at its completion only and the points of the
+    // second in reverse: the earliest marking is the last point of the second.
     const [studies, factory] = TRACKING.milestones;
     if (studies === undefined || factory === undefined) {
       throw new Error("the example tracks two milestones");
@@ -219,7 +225,7 @@ describe("the tracking of the milestones", () => {
     const tracking = {
       ...TRACKING,
       milestones: [
-        { ...studies, points: studies.points.slice(1).reverse() },
+        { ...studies, points: studies.points.slice(2) },
         { ...factory, points: [...factory.points].reverse() },
       ],
     };
@@ -227,8 +233,8 @@ describe("the tracking of the milestones", () => {
     const diagonal = lastSeries().at(-1);
     expect(diagonal?.name).toBe("Equal dates");
     expect(diagonal?.data).toEqual([
-      ["2025-12-15T16:00:00Z", "2025-12-15T16:00:00Z"],
-      ["2026-03-16T14:05:00Z", "2026-03-16T14:05:00Z"],
+      ["2026-02-01T09:00:00Z", "2026-02-01T09:00:00Z"],
+      ["2026-06-03T14:05:00Z", "2026-06-03T14:05:00Z"],
     ]);
   });
 
@@ -238,8 +244,8 @@ describe("the tracking of the milestones", () => {
     expect(option?.useUTC).toBe(true);
     const yAxis = option?.yAxis as { axisLabel: { formatter: (value: number) => string } };
     expect(yAxis.axisLabel.formatter(Date.parse("2026-05-01T00:00:00Z"))).toBe("May 2026");
-    // The markings run from 15 December to 16 March: a tick on the first of each month, from
-    // December to April, in UTC.
+    // The markings run from 15 December to 3 June: a tick on the first of each month, from
+    // December to July, in UTC.
     const xAxis = option?.xAxis as { axisLabel: { customValues: number[] }; min: number };
     expect(xAxis.axisLabel.customValues.map((tick) => new Date(tick).toISOString())).toEqual([
       "2025-12-01T00:00:00.000Z",
@@ -247,6 +253,9 @@ describe("the tracking of the milestones", () => {
       "2026-02-01T00:00:00.000Z",
       "2026-03-01T00:00:00.000Z",
       "2026-04-01T00:00:00.000Z",
+      "2026-05-01T00:00:00.000Z",
+      "2026-06-01T00:00:00.000Z",
+      "2026-07-01T00:00:00.000Z",
     ]);
     expect(xAxis.min).toBe(Date.parse("2025-12-01T00:00:00Z"));
   });
@@ -277,16 +286,19 @@ describe("the cumulative curves", () => {
       "Reference budget",
       "Actual cost",
       "Project manager’s projection",
+      // The amendment 1, which made the revision « Référence » the reference.
+      "Steps of the reference budget",
     ]);
-    expect(series[1]?.data).toEqual([
-      ["2026-03-01T00:00:00Z", "0.00"],
-      ["2026-03-16T00:00:00Z", "0.00"],
+    expect(series[1]?.data?.slice(-2)).toEqual([
+      ["2026-05-18T00:00:00Z", "5400.00"],
+      ["2026-06-03T00:00:00Z", "5400.00"],
     ]);
-    expect(series[2]?.data?.[0]).toEqual(["2026-03-16T00:00:00Z", "0.00"]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2026-06-30T00:00:00Z", "100000.00"]);
+    expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "5400.00"]);
+    expect(series[2]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "26934.56"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "120834.56"]);
     // The actual cost cumulates dated documents: by steps; the budget and the projection, spread
     // over durations, by lines.
-    expect(series.map((each) => each.step)).toEqual([undefined, "end", undefined]);
+    expect(series.slice(0, 3).map((each) => each.step)).toEqual([undefined, "end", undefined]);
     // Dates of planning: the ticks are placed at midnight in UTC, as the points.
     expect(lastOption()?.useUTC).toBe(true);
   });
@@ -297,23 +309,24 @@ describe("the cumulative curves", () => {
     expect(steps?.data).toEqual([]);
     const marks = steps?.markLine?.data as { xAxis: string; name: string }[] | undefined;
     expect(marks?.map(({ xAxis, name }) => [name, xAxis])).toEqual([
+      ["Amendment", "2026-02-01T00:00:00Z"],
       ["Amendment", "2026-03-10T00:00:00Z"],
     ]);
     // The step is vertical: the curve bears the budget before and after it at its date.
-    expect(lastSeries()[0]?.data?.slice(2, 4)).toEqual([
+    expect(lastSeries()[0]?.data?.slice(3, 5)).toEqual([
       ["2026-03-10T00:00:00Z", "23333.33"],
-      ["2026-03-10T00:00:00Z", "38333.33"],
+      ["2026-03-10T00:00:00Z", "26833.33"],
     ]);
     // Its two rows in the table of the values are told apart by their heading (#290).
     expect(
       screen.getByRole("row", { name: "Reference budget, before the step 10 Mar 2026 23,333.33" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("row", { name: "Reference budget, after the step 10 Mar 2026 38,333.33" }),
+      screen.getByRole("row", { name: "Reference budget, after the step 10 Mar 2026 26,833.33" }),
     ).toBeVisible();
     expect(screen.queryAllByRole("row", { name: /^Reference budget 10 Mar 2026/ })).toHaveLength(0);
     const table = screen.getByRole("table", { name: "Steps of the reference budget" });
-    // The amount of the step, not the budget after it (38,333.33).
+    // The amount of the step, not the budget after it (26,833.33).
     expect(within(table).getByRole("columnheader", { name: "Amount of the step" })).toBeVisible();
     expect(
       within(table).getByRole("row", { name: "10 Mar 2026 Amendment 15,000.00" }),
@@ -322,19 +335,22 @@ describe("the cumulative curves", () => {
 
   it("lists the cash out by month the API gives with the payment delays, the shifted points as given [WF-IND-0100-A]", async () => {
     const { container, data } = curves("cost_curve_payment_delays");
-    expect(lastSeries()[0]?.data?.[0]).toEqual(["2026-03-31T00:00:00Z", "0.00"]);
+    // The studies, paid a month after their work: nothing paid out by the end of March.
+    expect(lastSeries()[0]?.data).toContainEqual(["2026-03-31T00:00:00Z", "0.00"]);
     const table = screen.getByRole("table", { name: "Cash out by month" });
     expect(
       within(table)
         .getAllByRole("row")
-        .map((row) => row.textContent),
+        .map((row) => row.textContent)
+        .slice(0, 5),
     ).toEqual([
       "MonthPaid outTo pay out",
-      "March 20260.000.00",
-      "April 20260.0060,000.00",
-      "May 20260.0040,000.00",
+      "March 20261,400.000.00",
+      "April 20261,600.000.00",
+      "May 20262,400.000.00",
+      "June 20260.001,700.00",
     ]);
-    expect(data.cash_out_by_month).toHaveLength(3);
+    expect(data.cash_out_by_month).toHaveLength(11);
     await expectAccessible(container);
   });
 
@@ -346,8 +362,8 @@ describe("the cumulative curves", () => {
       "Earned value",
       "Actual cost",
     ]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2026-06-30T00:00:00Z", "100000.00"]);
-    expect(series[1]?.data?.at(-1)).toEqual(["2026-03-16T00:00:00Z", "0.00"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "120834.56"]);
+    expect(series[1]?.data?.at(-1)).toEqual(["2026-06-03T00:00:00Z", "100000.00"]);
     // A task completed makes a step in the earned value at its date, as the actual cost at the
     // date of a document: both by steps, the planned value by a line.
     expect(series.map((each) => each.step)).toEqual([undefined, "end", "end"]);

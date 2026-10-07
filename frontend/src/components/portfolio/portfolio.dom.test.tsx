@@ -192,15 +192,33 @@ describe("the list of the projects of the portfolio", () => {
     ]);
     const witness = cellsOf("PRJ-001");
     expect(witness[2]).toHaveTextContent("En cours");
-    // The cost index of the witness is not computable, the schedule index in alert, by its shape.
+    // The indices of the witness, both nominal; the schedule index of another in alert, by its
+    // shape.
+    expect(within(witness[8] ?? document.body).getByRole("img", { name: "Nominal" })).toBeVisible();
+    expect(within(witness[9] ?? document.body).getByRole("img", { name: "Nominal" })).toBeVisible();
+    const lyon = cellsOf("PRJ-003");
+    expect(within(lyon[9] ?? document.body).getByRole("img", { name: "Alerte" })).toBeVisible();
+  });
+
+  it("says an index the API cannot compute not computable, its reason seen once", () => {
+    // The witness as its reference was marked, before any actual cost: its cost index not
+    // computable (project_indicators_marked).
+    const marked = example("project_indicators_marked") as Schemas["ProjectIndicators"];
+    render(
+      projectsGrid({
+        ...LIST,
+        items: LIST.items.map((project) =>
+          project.code === "PRJ-001" ? { ...project, cost_index: marked.cost_index } : project,
+        ),
+      }),
+    );
+    const witness = cellsOf("PRJ-001");
     expect(witness[8]).toHaveTextContent("Non calculable — Aucun coût réel à la date de calcul.");
     // Its reason seen, in a secondary text, and read once: no title would describe it again.
     const reason = within(witness[8] ?? document.body).getByText(/Aucun coût réel/);
     expect(reason).not.toHaveClass("sr-only");
     expect(witness[8]?.querySelector("[title], [aria-describedby]")).toBeNull();
     expect(witness[8]?.textContent.match(/Aucun coût réel/g)).toHaveLength(1);
-    expect(within(witness[9] ?? document.body).getByRole("img", { name: "Alerte" })).toBeVisible();
-    expect(witness[9]).toHaveTextContent("0");
   });
 
   it("shows the estimate and the probability of an offer where a project in progress shows its budget [WF-PTF-0040-A]", () => {

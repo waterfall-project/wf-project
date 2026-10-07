@@ -1,62 +1,20 @@
 {
-  "summary": "Les indicateurs du projet en cours au 16 mars 2026, sur sa révision courante : aucun coût réel encore, donc un indice de coût et une projection au rythme constaté non calculables (WF-IND-0010).",
+  "summary": "Les indicateurs du projet en cours au 3 juin 2026, sur sa révision courante : le budget de référence de 120 834,56, hors provisions ; la valeur planifiée de 101 223,69 sur les dates de la référence ; la valeur acquise de 100 000,00, celle des études de détail terminées, les tâches de la survenance n'en acquérant pas ; le coût réel de 5 400,00, les pièces du périmètre suivi ; le reste à engager de 21 534,56, provisions comprises ; d'où les avancements, les deux indices et leur zone, leurs écarts et les trois projections à terminaison (WF-IND-0010 à WF-IND-0080).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "context": {
-      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
-      "revision_status": "draft",
-      "computed_at": "2026-03-16T14:05:00Z",
-      "scope": "project",
-      "is_stored": false
-    },
-    "reference_budget": "100000.00",
-    "planned_value": "33333.33",
-    "earned_value": "0.00",
-    "actual_cost": "0.00",
-    "remaining": "100000.00",
-    "financial_progress": {
-      "is_computable": true,
-      "value": "0",
-      "reason": null
-    },
-    "budget_consumption": {
-      "is_computable": true,
-      "value": "0",
-      "reason": null
-    },
-    "physical_progress": {
-      "is_computable": true,
-      "value": "0",
-      "reason": null
-    },
-    "cost_index": {
-      "value": {
-        "is_computable": false,
-        "value": null,
-        "reason": "no_actual_cost"
-      },
-      "zone": null
-    },
-    "schedule_index": {
-      "value": {
-        "is_computable": true,
-        "value": "0",
-        "reason": null
-      },
-      "zone": "alert"
-    },
-    "cost_variance": "0.00",
-    "schedule_variance": "-33333.33",
-    "projections": {
-      "at_budget": "100000.00",
-      "project_manager": "100000.00",
-      "at_observed_rate": {
-        "is_computable": false,
-        "value": null,
-        "reason": "no_actual_cost"
-      },
-      "variance_at_budget": "0.00",
-      "variance_project_manager": "0.00",
-      "variance_at_observed_rate": null
-    }
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
+    "reference_budget": "120834.56",
+    "planned_value": "101223.69",
+    "earned_value": "100000.00",
+    "actual_cost": "5400.00",
+    "remaining": "21534.56",
+    "financial_progress": {"is_computable":true,"value":"0.2005","reason":null},
+    "budget_consumption": {"is_computable":true,"value":"0.0447","reason":null},
+    "physical_progress": {"is_computable":true,"value":"0.8276","reason":null},
+    "cost_index": {"value":{"is_computable":true,"value":"18.5185","reason":null},"zone":"nominal"},
+    "schedule_index": {"value":{"is_computable":true,"value":"0.9879","reason":null},"zone":"nominal"},
+    "cost_variance": "94600.00",
+    "schedule_variance": "-1223.69",
+    "projections": {"at_budget":"26234.56","project_manager":"26934.56","at_observed_rate":{"is_computable":true,"value":"6525.07","reason":null},"variance_at_budget":"-94600.00","variance_project_manager":"-93900.00","variance_at_observed_rate":"-114309.49"}
   }
 }

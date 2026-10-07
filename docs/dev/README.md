@@ -662,11 +662,13 @@ décrites depuis le cœur telles qu'elles furent marquées, et ses risques — l
 seul, la matrice, les réexamens, la couverture —, lus de leur description dans `mockwitness`. Les
 autres exemples qui datent le témoin (le projet, ses révisions, ses transitions d'état, le
 référentiel installé) restent écrits à la main, et `tools/tests/test_mockhistory.py` les confronte
-à sa chronologie. Les indicateurs du projet
-(`getProjectIndicators`) et la ligne du projet témoin dans le portefeuille restent ceux du
-témoin, que l'outil lit dans leurs fixtures : ils ne sont pas tirés du volume. Ce que la même
-commande engendre ne se relit jamais sur le disque : les risques du témoin, que le portefeuille
-somme, lui sont passés en mémoire (`mockhistory.readings`), pour qu'une seule exécution de
+à sa chronologie. Les indicateurs du témoin aujourd'hui (`wftools.mocktoday`) — devis, reste à
+engager, indicateurs du projet, évolution des indices, suivi des jalons, courbes, plan de charge,
+taux manquants et mise à jour des taux — se lisent des mêmes révisions (`wftools.mockindicators`,
+`wftools.mockcurves`) et des coûts réels écrits à la main (`actual_costs`,
+`actual_costs_subproject`). Ce que la même commande engendre ne se relit jamais sur le disque :
+les risques et les indicateurs du témoin, que le portefeuille somme, lui sont passés en mémoire
+(`mockhistory.readings`, `mocktoday.project_today`), pour qu'une seule exécution de
 `make mock-data` atteigne son point fixe. Les volumes
 restent dans l'univers des autres exemples — le projet, sa révision, ses sous-projets, ses
 catégories et ses rôles gardent leurs identifiants, et ce que disent le projet témoin, l'offre

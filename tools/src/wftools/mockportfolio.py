@@ -18,7 +18,7 @@ from decimal import Decimal
 from functools import cache
 from typing import Any, cast
 
-from wftools import mockhistory
+from wftools import mockhistory, mocktoday
 from wftools.mockstructure import (
     AS_OF,
     CENT,
@@ -138,11 +138,12 @@ def portfolio_page(answer: JsonObject) -> JsonObject:
 def universe_rows() -> list[JsonObject]:
     """Return the rows of the witness project and of the offer, from their fixtures.
 
-    The witness project shows the indicators of its own example, and the date its reference
+    The witness project shows its indicators today, read in memory (``mocktoday``), never from
+    the file the same command writes, and the date its reference
     revision was marked; the offer, without revision, has neither budget nor index.
     """
     project = fixture("project")
-    indicators = fixture("project_indicators")
+    indicators = cast("dict[str, Any]", mocktoday.project_today())
     offer = fixture("project_pricing")
     marked = next(
         revision["marked_at"]
@@ -266,7 +267,7 @@ class Earned:
 @cache
 def _witness() -> tuple[str, Earned]:
     """Return the witness project, and the values of earned value of its indicators."""
-    indicators = fixture("project_indicators")
+    indicators = cast("dict[str, Any]", mocktoday.project_today())
     return fixture("project")["project_id"], Earned(
         budget=Decimal(indicators["reference_budget"]),
         planned=Decimal(indicators["planned_value"]),
@@ -441,10 +442,7 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
     sums = _progressing(rows)
     budget = sum((each.budget for each in sums), Decimal(0))
     remaining = sum((each.remaining for each in sums), Decimal(0))
-    natures = [
-        (entry["key"], entry["label"])
-        for entry in fixture("estimate_indicators_breakdown")["by_cost_type"]
-    ]
+    natures = [(nature["cost_type_id"], nature["label"]) for nature in fixture("cost_types")]
     budgets = _parts(budget, (_LABOR_SHARE, _NON_LABOR_SHARE))
     org_node = fixture("resource_roles")[0]["org_node_id"]
     label = next(node["label"] for node in fixture("org_nodes") if node["org_node_id"] == org_node)

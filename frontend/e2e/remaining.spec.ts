@@ -28,13 +28,15 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
 
   // The indicators, dated, each figure as the server gives it, the coverage of the risks with them.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*100\s000,00/);
+  await expect(indicators).toContainText(/Reste à engager\s*21\s534,56/);
   await expect(indicators).toContainText("Calculé le");
   await expect(indicators.getByRole("region", { name: "Couverture des risques" })).toHaveText(
     /Réserve pour risques\s*910,00\s*Provisions restantes\s*500,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*210,00/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
-  await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(3);
+  // The control station over its budget, in alert; the two other sub-projects nominal.
+  await expect(indicators.getByRole("img", { name: "Alerte" })).toHaveCount(1);
+  await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(2);
 
   // The grid, its amounts computed, its totals those of the answer, in the window.
   const grid = page.getByRole("grid", { name: "Grille de reste à engager" });
@@ -57,7 +59,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     }),
   ).toBeVisible();
   await expect(
-    grid.getByRole("row", { name: /^22 .*Réalisation 1\.1\.4/ }).getByRole("img", {
+    grid.getByRole("row", { name: /^15 .*Revue 1\.1\.3/ }).getByRole("img", {
       name: "Démarrée",
     }),
   ).toBeVisible();
@@ -68,9 +70,12 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   );
 
   // The tasks not started, on demand: the address asks the server for them, the context kept.
+  // The address changes once the screen has read the grid anew, a thousand tasks: the bound of
+  // the screens of grids (#315), not the five seconds of an assertion.
   await page.getByRole("link", { name: "Montrer aussi les tâches non démarrées" }).click();
   await expect(page).toHaveURL(
     `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}&progress=not_started%2Cstarted`,
+    { timeout: 15_000 },
   );
   await expect(
     page.getByRole("link", { name: "Ne montrer que les tâches démarrées" }),
