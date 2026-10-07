@@ -152,8 +152,10 @@ conception :
 - les refus par champ des écritures d'un compte qui manquent : rôle ou nœud inconnu, nom
   d'un compte fédéré (#379) ;
 - les filtres qui manquent pour que chaque colonne des tables des comptes et des rôles se
-  filtre (WF-IHM-0130) : par rôle et par état sur `listUsers`, par nature sur
-  `listAccessRoles`.
+  filtre (WF-IHM-0130) : par rôle et par état sur `listUsers`, dont la recherche porte sur le
+  nom, le prénom et l'adresse, et non sur un libellé qu'un compte n'a pas ; par nature et par
+  la présence de porteurs sur `listAccessRoles`, avec le nombre de rôles retenus ; et, sur
+  les deux, un ordre de départage qui rend les pages stables.
 
 Servies ici pour la première fois, après cette modification (24) :
 
@@ -365,11 +367,20 @@ cessent d'être attribuables.
   l'exigence ; ici, un compte désactivé reste nommé partout où il est cité, dans les colonnes
   d'audit des comptes et des rôles qu'il a écrits.
 - `WF-ADM-0060-A` — « Un compte réactivé se connecte de nouveau avec ses rôles d’avant. »
-- propre à l'US : la table des comptes liste tous les comptes de l'installation, désactivés
-  compris, par pages, chacun avec son nom, son prénom, son adresse, son origine, son
-  rattachement, ses rôles d'habilitation nommés par le serveur et son état (WF-ADM-0050) ;
-  chaque colonne se trie dans les deux sens, par le serveur (`sort_by`, `sort_order`,
-  WF-IHM-0060).
+- propre à l'US : la table des comptes liste les comptes de l'installation, actifs et
+  désactivés, chacun avec son nom, son prénom, son adresse, son origine, son rattachement,
+  ses rôles d'habilitation nommés par le serveur et son état (WF-ADM-0050).
+- propre à l'US — **pagination** : la table se lit par pages de cinquante comptes, la taille
+  par défaut de `limit` ; elle annonce le nombre de comptes retenus (`meta.total`) et la page
+  lue, et mène à la précédente et à la suivante. Une page demandée au-delà de la dernière est
+  vide et annonce le même total. Changer le tri ou un filtre ramène à la première page.
+- propre à l'US — **tri** : chaque colonne se trie dans les deux sens, par le serveur
+  (`sort_by`, `sort_order`, WF-IHM-0060), une colonne à la fois ; sans tri choisi, le nom
+  puis le prénom, croissants. Les textes se comparent dans l'ordre des points de code
+  Unicode ; les rôles, par leurs libellés dans l'ordre où le compte les porte ; un compte sans
+  rattachement vient après les autres, et un compte désactivé après les actifs, dans l'ordre
+  croissant. À valeurs égales, l'ordre est le même d'une page à l'autre : aucun compte n'est
+  lu deux fois ni sauté en tournant les pages.
 - propre à l'US : la table des comptes est sa propre saisie, pour qui porte `users.write` —
   nom et prénom d'un compte local en champs, état sur un interrupteur, rôles dans une liste à
   choix multiple des rôles de l'installation — ; « Créer un compte local » est dans son
@@ -379,10 +390,14 @@ cessent d'être attribuables.
   retrait de son rôle au dernier administrateur y est refusé par `LAST_ADMINISTRATOR`
   (WF-ADM-0120) ; les rôles proposés sont ceux de l'installation, quel que soit le
   rattachement (WF-ADM-0030, #379).
-- propre à l'US : la table des comptes se filtre sur chacune de ses colonnes, par le serveur —
-  le nom, le prénom et l'adresse par la recherche, l'origine, les rôles, l'état, et le
-  rattachement à partir d'EP-05 —, et le nombre de comptes qu'elle annonce est celui que le
-  filtre retient (WF-IHM-0130).
+- propre à l'US — **filtres** : la table se filtre sur chacune de ses colonnes, par le
+  serveur (WF-IHM-0130) : le nom, le prénom et l'adresse par une recherche qui porte sur les
+  trois ; l'origine, les rôles et l'état par des choix multiples ; le rattachement à partir
+  d'EP-05. Les filtres se combinent entre eux et avec le tri ; le nombre de comptes annoncé
+  et les pages sont ceux que les filtres retiennent.
+- propre à l'US : le tri et les filtres choisis sont conservés comme préférence d'affichage
+  de la table, retrouvés à la réouverture et propres à chaque utilisateur (WF-IHM-0060,
+  constatée par US-0400).
 - écart : `WF-IHM-0130-A` — « La liste des projets filtrée sur un état ne compte que les projets de cet état dans ses totaux. » : la liste des projets arrive en EP-04 ; EP-11, qui clôt
   l'exigence, le constate.
 - écart : `WF-IHM-0130-A` — « Le plan de charge exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul. » : le plan de charge arrive en EP-07 ; l'export, en EP-11.
@@ -465,13 +480,22 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 - `WF-ADM-0120-A` — « Elle est acceptée dès qu’un second compte actif porte la permission. »
 - écart : `WF-INTF-0030-A` — « Un utilisateur porteur du rôle prédéfini « administrateur » crée un compte, lui affecte un rôle d’habilitation (FBS-1.1, FBS-1.2), ouvre l’écran d’état du système (FBS-1.3) et déclenche une sauvegarde (FBS-1.4). » : la création d'un compte et l'affectation d'un
   rôle sont ici ; l'écran d'état et la sauvegarde arrivent en EP-13, qui clôt l'exigence.
-- propre à l'US : chaque colonne de la table des rôles se trie dans les deux sens, par le
-  serveur (WF-IHM-0060) ; la matrice des permissions est le lieu de leur modification, une
-  case par permission et par rôle, et la création, le renommage et la suppression se font
-  dans la table (#380).
-- propre à l'US : la table des rôles se filtre sur chacune de ses colonnes, par le serveur —
-  le libellé par la recherche, la nature, et le nombre de porteurs — (WF-IHM-0130, constatée
-  par US-0360).
+- propre à l'US — **pagination** : la table des rôles n'est pas paginée — `listAccessRoles`
+  rend la liste entière, une installation comptant quelques dizaines de rôles — et elle
+  annonce le nombre de rôles retenus.
+- propre à l'US — **tri** : chaque colonne se trie dans les deux sens, par le serveur
+  (`sort_by`, `sort_order`, WF-IHM-0060) : le libellé, la nature — les prédéfinis avant les
+  composés dans l'ordre croissant — et le nombre de porteurs ; sans tri choisi, le libellé
+  croissant, dans l'ordre des points de code Unicode.
+- propre à l'US — **filtres** : la table se filtre sur chacune de ses colonnes, par le
+  serveur : le libellé par la recherche, la nature (prédéfini ou composé), et les porteurs
+  (rôles portés ou non par au moins un compte) ; les filtres se combinent avec le tri
+  (WF-IHM-0130, constatée par US-0360). Le tri et les filtres choisis sont conservés comme
+  préférence d'affichage de la table (WF-IHM-0060).
+- propre à l'US — **matrice** : la matrice des permissions est le lieu de leur
+  modification, une case par permission et par rôle ; ses lignes suivent l'ordre du catalogue,
+  groupées par fonction de second niveau, et ses colonnes les rôles que la table retient, dans
+  son ordre. La création, le renommage et la suppression se font dans la table (#380).
 - propre à l'US : un rôle supprimé n'est plus lu ni attribuable, et sa ligne est conservée,
   ce que le journal d'audit et les attributions passées citent (WF-DAT-0080, décision du
   cadrage).
