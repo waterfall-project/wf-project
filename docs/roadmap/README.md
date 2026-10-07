@@ -170,9 +170,12 @@ Un lot porte le titre `[US-nnnn/Ln] …` ; `Ln` numérote les lots d'une même U
 où ils se livrent, sans réemploi. Une US réalisée par un seul lot n'a qu'une issue, `[US-nnnn]`,
 qui est aussi celle du lot, et sa branche `lot/US-nnnn`. Les lots vivent sur GitHub et nulle
 part ailleurs : ils sont une façon de faire le travail, pas son intention, et le fichier de
-l'EPIC ne les recopie pas. Les lots `[EP-nn/Ln]` des EPIC déjà ouverts gardent leur titre.
+l'EPIC ne les recopie pas.
 
 ## Suivi sur GitHub
+
+Ce suivi vaut à partir d'EP-03 ; les issues d'EP-01 et d'EP-02 gardent leur forme, et leurs
+lots `[EP-nn/Ln]` leur titre.
 
 L'état d'un EPIC se lit en ouvrant une seule issue, la sienne, et la hiérarchie des
 sous-issues suit le découpage :
