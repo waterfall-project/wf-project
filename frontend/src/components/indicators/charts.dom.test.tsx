@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ChartOption, ChartPalette } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
@@ -202,14 +203,22 @@ describe("the tracking of the milestones", () => {
   it("lists each forecast as a date of planning, and whether its milestone is completed [WF-IND-0090-A]", async () => {
     const { container } = english(<MilestoneChart tracking={TRACKING} provenance={PROVENANCE} />);
     const rows = screen.getAllByRole("row").slice(1);
+    // The instant of a marking shows in the local time of the workstation (WF-INTF-0180), the
+    // day itself moving with it: 15 December at 16:00 UTC is 16 December in Tokyo. The instants
+    // are formatted as the screen formats them; the forecasts, dates of planning, are not.
+    const [studies, factory] = TRACKING.milestones;
+    const at = (point: { readonly marked_at: string } | undefined) =>
+      formatTimestamp(point?.marked_at ?? "", "en");
     expect(rows.map((row) => row.textContent)).toEqual([
       // Completed on 24 April: its date of completion beside each forecast.
-      expect.stringMatching(/^Réception des études15 Dec 2025.*24 Apr 202624 Apr 2026$/),
-      expect.stringMatching(/^Réception des études1 Feb 2026.*24 Apr 202624 Apr 2026$/),
-      expect.stringMatching(/^Réception des études24 Apr 2026, 00:0024 Apr 202624 Apr 2026$/),
-      expect.stringMatching(/^Réception usine.*30 Jun 2026Not completed$/),
-      expect.stringMatching(/^Réception usine.*30 Jun 2026Not completed$/),
+      ...(studies?.points ?? []).map(
+        (point) => `Réception des études${at(point)}24 Apr 202624 Apr 2026`,
+      ),
+      ...(factory?.points ?? []).map(
+        (point) => `Réception usine${at(point)}30 Jun 2026Not completed`,
+      ),
     ]);
+    expect(rows).toHaveLength(5);
     const figure = screen.getByRole("figure", { name: "Time/time diagram" });
     expect(figure.querySelector("time")).toHaveAttribute("datetime", TRACKING.context.computed_at);
     await expectAccessible(container);
