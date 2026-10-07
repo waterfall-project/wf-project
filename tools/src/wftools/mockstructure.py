@@ -380,7 +380,7 @@ def _planned() -> tuple[list[Task], list[Task]]:
 
 def _emitted(roots: list[Task]) -> Structure:
     """Make the nodes of a structure planned, and its totals."""
-    emitter = _Emitter(_labels())
+    emitter = _Emitter(labels())
     for position, root in enumerate(roots):
         emitter.task(root, _Place(None, position, 1))
     totals = emitter.totals
@@ -490,7 +490,7 @@ def _ancestors(nodes: Mapping[str, dict[str, Any]], of: Sequence[str]) -> set[st
     return found
 
 
-def _labels() -> dict[str, str]:
+def labels() -> dict[str, str]:
     """Return the labels of the categories, the roles and the subprojects of the universe."""
     labels = dict(CATEGORY_LABELS)
     labels.update((role["resource_role_id"], role["label"]) for role in fixture("resource_roles"))
@@ -518,7 +518,8 @@ class _Emitter:
     def task(self, task: Task, place: _Place) -> Amounts:
         """Append a task, its lines and its subordinates; return the amounts they carry."""
         facet = _task_facet(task)
-        node = _node(task.row, place, "task", facet, _task_fields(task))
+        fields = task_fields(is_summary=task.is_summary, is_milestone=task.is_milestone)
+        node = _node(task.row, place, "task", facet, fields)
         if task.predecessors:
             node["predecessors"] = [
                 {
@@ -545,9 +546,8 @@ class _Emitter:
         line, amounts, hours = _line(task, index, self.labels, completed=completed)
         kind = LINE_KINDS[index]
         place = _Place(task, index, level)
-        self.items.append(
-            _node(task.row + 1 + index, place, "estimate_line", line, _line_fields(kind))
-        )
+        fields = line_fields(is_labour=kind.rate is not None, is_provision=kind.is_provision)
+        self.items.append(_node(task.row + 1 + index, place, "estimate_line", line, fields))
         self.totals.add(kind, _subproject(task, kind), amounts, hours)
         return amounts
 
@@ -568,14 +568,14 @@ def _amounts(amounts: Amounts) -> JsonObject:
 
 
 @dataclass(frozen=True, slots=True)
-class _Fields:
+class Fields:
     """What a node says of the fields of its facet: those computed here, those it accepts."""
 
     computed: list[JsonValue]
     editable: list[JsonValue]
 
 
-def _node(row: int, place: _Place, kind: str, facet: JsonObject, fields: _Fields) -> JsonObject:
+def _node(row: int, place: _Place, kind: str, facet: JsonObject, fields: Fields) -> JsonObject:
     return {
         "node_id": identifier(NODES, row),
         "lineage_id": identifier(LINEAGES, row),
@@ -629,38 +629,41 @@ def _span(task: Task) -> JsonObject:
     return {"start": start, "finish": work_instant(task.end, HOURS_PER_DAY)}
 
 
-def _task_fields(task: Task) -> _Fields:
+def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False) -> Fields:
     """Return what a task computes and what it accepts (WF-PLA-0130).
 
-    The tasks are in automatic mode: their dates are computed, none is entered. A summary
-    computes its duration and its progress too, and accepts its label and description alone; a
-    milestone has no duration to enter.
+    A task in automatic mode computes its dates; one in manual mode enters them, and computes
+    nothing. A summary computes its duration and its progress too, and accepts its label and
+    description alone; a milestone has no duration to enter.
     """
     dates: list[JsonValue] = ["task.start", "task.finish"]
     editable: list[JsonValue] = ["task.label", "task.description"]
-    if task.is_summary:
-        return _Fields(["task.duration", *dates, "task.progress"], editable)
+    if is_summary:
+        return Fields(["task.duration", *dates, "task.progress"], editable)
     editable.append("task.scheduling_mode")
-    if not task.is_milestone:
+    if not is_milestone:
         editable.append("task.duration")
+    if is_manual:
+        editable.extend(dates)
+        dates = []
     editable.append("task.progress")
-    return _Fields(dates, editable)
+    return Fields(dates, editable)
 
 
-def _line_fields(kind: LineKind) -> _Fields:
+def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:
     """Return what a line computes and what it accepts (WF-DEV-0020).
 
     A labour line takes its role and its hours, and no payment delay, nil for labour (§3.2.5);
     another takes its unit disbursement and its payment delay; a provision computes its
     quantity and its unit disbursement from its risk, and takes neither, nor its category
-    (WF-RIS-0010).
+    (WF-RIS-0010): neither of its amounts, nor its nature, is ever entered.
     """
     editable: list[JsonValue] = ["estimate_line.label"]
-    if kind.is_provision:
+    if is_provision:
         editable.extend(["estimate_line.payment_delay_days", "estimate_line.subproject_id"])
-        return _Fields(["estimate_line.quantity", "estimate_line.unit_disbursement"], editable)
+        return Fields(["estimate_line.quantity", "estimate_line.unit_disbursement"], editable)
     editable.append("estimate_line.cost_category_id")
-    if kind.rate is not None:
+    if is_labour:
         editable.extend(
             ["estimate_line.resource_role_id", "estimate_line.quantity", "estimate_line.hours"]
         )
@@ -673,7 +676,7 @@ def _line_fields(kind: LineKind) -> _Fields:
             ]
         )
     editable.append("estimate_line.subproject_id")
-    return _Fields([], editable)
+    return Fields([], editable)
 
 
 def _line(

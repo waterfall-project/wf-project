@@ -261,6 +261,15 @@ verrou.
   parcours qui mesure la seconde. Le parcours témoin d'EP-01 garde son chemin, ses
   assertions sont réécrites. Écarté : des exemples de volume écrits à la main ; le mode
   dynamique de prism, qui tirerait d'autres nombres à chaque exécution.
+- **Les lectures du témoin** (#287, EP-02/L20 et L21) : le cœur lisible du projet témoin est
+  décrit une fois (`wftools.mockwitness`), daté en heures sur ses calendriers et chiffré
+  (`wftools.mockcore`), et les exemples nommés de `listNodes` — `nodes`, `nodes_planning`,
+  `nodes_estimate`, `nodes_milestone`, `nodes_risk_occurred` — comme les `dependencies_*`
+  sont des lectures de ce seul arbre, que `make mock-data` écrit sous `fixtures/api/` par
+  leur nom et que la chaîne vérifie à jour : un nœud y a un identifiant, une lignée et des
+  montants, quel que soit l'exemple (`docs/api/DECISIONS.md`, « L'univers témoin »).
+  Écarté : les écrire à la main, où deux exemples se contredisaient sur les mêmes
+  identifiants.
 
 ### Composants partagés (PBS-1.3)
 

@@ -208,7 +208,7 @@ describe("a value of a grid the server computes", () => {
     });
     expect(asked(client)).toEqual([
       [
-        `${STRUCTURE_PATH}/nodes/01926f3a-7c00-7000-8000-000000000523/dependencies`,
+        `${STRUCTURE_PATH}/nodes/01926f3a-7c00-7000-8000-000000000553/dependencies`,
         "estimate_line.base_amount",
       ],
     ]);
@@ -236,6 +236,7 @@ describe("a value of a grid the server computes", () => {
         "4Pupitres opérateurs",
         "5Revue de conception",
         "6Réception des études",
+        "7Dossier de conception",
       ],
     });
     expect(asked(client)).toEqual([
@@ -260,6 +261,7 @@ describe("a value of a grid the server computes", () => {
       "4Pupitres opérateurs",
       "5Revue de conception",
       "6Réception des études",
+      "7Dossier de conception",
     ]);
   });
 
@@ -312,6 +314,7 @@ describe("a value of a grid the server computes", () => {
       "5Pupitres opérateurs",
       "6Revue de conception",
       "7Réception des études",
+      "8Dossier de conception",
     ]);
     expect(asked(client)).toHaveLength(2);
   });
@@ -327,7 +330,7 @@ describe("a value of a grid the server computes", () => {
     await userEvent.keyboard("{Escape}");
     server.client = client;
     await userEvent.click(cell("Études", FINISH));
-    expect((await said()).rows).toHaveLength(4);
+    expect((await said()).rows).toHaveLength(5);
     expect(within(refusal()).queryByRole("alert")).toBeNull();
     expect(asked(client)).toHaveLength(1);
   });
@@ -431,9 +434,9 @@ describe("a value of a grid the server computes", () => {
     renderGrid("estimate");
     await userEvent.click(cell("Câblage des armoires", REFERENCE));
     expect((await said()).rows).toEqual([
-      "3Raccordement des borniers",
-      "4Borniers",
-      "5Provision — risque de reprise du câblage",
+      "10Raccordement des borniers",
+      "11Borniers",
+      "12Provision — risque de reprise du câblage",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["task.base_amount"]);
   });

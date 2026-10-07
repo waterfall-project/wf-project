@@ -29,13 +29,22 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
 - ``hourly_rate_grid.json``, ``getHourlyRateGrid``: the grid of hourly rates, the labour
   categories in rows and the fifteen years in columns, read in one call (#162).
 
+And the named examples of ``listNodes`` and of ``getComputedValueDependencies``, written under
+``fixtures/api/`` by their name — ``nodes``, ``nodes_planning``, ``nodes_estimate``,
+``nodes_milestone``, ``nodes_risk_occurred``, ``dependencies_summary``,
+``dependencies_summary_moved``, ``dependencies_labour``, ``dependencies_task_amount``,
+``dependencies_provision``, ``dependencies_manual_float`` —: readings of the readable core of the
+witness, described once in ``wftools.mockwitness`` and dated in ``wftools.mockcore``, so that
+every example names each node by one identifier, one lineage and one figure (EP-02/L21, #287).
+
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
 never copied here. Nothing here reads the clock or draws at random, so that two runs write
 the same bytes. Amounts are ``Decimal`` and travel as the strings of the contract.
 
-With ``--check``, nothing is written: the directory is compared with what the generator
-writes, and a file missing, outdated or unreadable, or any entry left over, fails.
+With ``--check``, nothing is written: the volumes directory is compared with what the
+generator writes, and a file missing, outdated or unreadable, or any entry left over, fails; a
+named example missing or outdated fails too.
 """
 
 from __future__ import annotations
@@ -47,6 +56,7 @@ from collections import Counter
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
+from wftools import REPOSITORY, mockcore, paths
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
     PAGE,
@@ -77,21 +87,26 @@ from wftools.mockstructure import (
 )
 from wftools.mockwitness import (
     CATEGORIES,
+    CONTROL_STATION,
     ELECTRICAL_ENGINEERING,
     EQUIPMENT,
     FIXTURES,
     PROVISIONS,
+    STUDIES,
     SUBCONTRACTING,
+    TODAY,
     fixture,
     identifier,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import date
     from pathlib import Path
 
-VOLUME = FIXTURES / "volume"
-"""Where the volumes are written: a directory the generator owns, entry by entry."""
+VOLUME = "volume"
+"""Where the volumes are written, under the fixtures: a directory the generator owns, entry by
+entry. The named examples of the witness are written beside it, file by file."""
 
 LABOR_CATEGORY_COUNT = 150
 CATEGORY_COUNT = 200
@@ -252,6 +267,139 @@ def hourly_rate_grid() -> JsonObject:
             }
         )
     return {"years": list(RATE_YEARS), "rows": rows}
+
+
+# --- The readings of the witness ------------------------------------------------------------
+
+_WIRING = 552
+_LABOUR, _PROVISION = 553, 555
+_DESKS = 523
+_RISK_OCCURRED = 541
+_MILESTONE = "Réception usine"
+"""The nodes of the core the readings and the dependencies are about (``mockwitness``)."""
+
+_TASKS = frozenset({mockcore.TASK})
+
+
+def readings() -> dict[str, JsonObject]:
+    """Return the named examples read from the core of the witness, by file name.
+
+    Each is a reading of the one tree at TODAY — a subtree, with or without its lines, a
+    search —, or what a computed value of one of its nodes depends on.
+    """
+    rows = mockcore.core()
+    day = _day(TODAY.date())
+    studies = mockcore.subtree(rows, STUDIES.number)
+    estimate = mockcore.subtree(rows, CONTROL_STATION.number)
+    total = cast("JsonObject", estimate["totals"])
+    return {
+        "nodes.json": _example(
+            f"Le sous-arbre « Études » du cœur du témoin, lu avec ses lignes (subtree_of) le "
+            f"{day} : la récapitulative, les études de détail terminées et leur ligne de "
+            f"sous-traitance de {_amount(Decimal(100_000))}, les pupitres opérateurs en mode "
+            f"manuel, démarrés et en dépassement de fin, la revue de conception, le jalon de "
+            f"réception des études et le dossier de conception. Les numéros de ligne sont ceux "
+            f"de toute la structure, où le cœur vient en tête (WF-PLA-0080, WF-DEV-0050).",
+            studies,
+        ),
+        "nodes_planning.json": _example(
+            f"Le planning du groupe « Études », lu sans ses lignes (subtree_of, kinds=task) le "
+            f"{day} : la récapitulative, les études de détail terminées et la revue de conception "
+            f"qui les suit, sur le chemin critique, les pupitres opérateurs en mode manuel, sans "
+            f"marge, démarrés et en dépassement de fin, le jalon de réception, lié en fin à début "
+            f"à la revue et en début à début aux pupitres avec une semaine de décalage, et le "
+            f"dossier de conception, lié avec deux jours d'avance, qui porte sa marge jusqu'à la "
+            f"fin du cœur (WF-PLA-0030, WF-PLA-0040, WF-PLA-0080, WF-PLA-0100). Les numéros "
+            f"de ligne sont ceux de toute la structure : la ligne des études de détail, que le "
+            f"planning ne rend pas, garde le numéro 3 ; les totaux sont ceux des lignes retenues, "
+            f"aucune.",
+            mockcore.subtree(rows, STUDIES.number, _TASKS),
+        ),
+        "nodes_estimate.json": _example(
+            f"Le devis du lot « Poste de commande », lu avec ses lignes (subtree_of) le {day} : "
+            f"sous le câblage des armoires, démarré le 4 mai et qui s'achève le 30 juin, une "
+            f"ligne de main-d'œuvre de 12,5 h à {_amount(ELECTRICAL_RATE)} — "
+            f"{_amount(Decimal(1_000))} —, un débours de {_amount(Decimal('1234.56'))} et la "
+            f"ligne de provision de {_amount(Decimal(500))} du risque de reprise du câblage, "
+            f"dont la grille ne saisit ni les grandeurs ni le montant ; le sous-arbre fusionné "
+            f"par la survenance du risque 752, ses lignes de 120 et 80 budgétées à zéro ; le "
+            f"jalon de réception usine, le 30 juin. Le devis totalise "
+            f"{_amount(Decimal(str(total['base_amount'])))}, dont "
+            f"{_amount(Decimal(str(total['budgeted_amount'])))} budgétés (WF-DEV-0020, "
+            f"WF-RIS-0060, WF-INTF-0180, WF-DAT-0100).",
+            estimate,
+        ),
+        "nodes_milestone.json": _example(
+            f"La recherche « {_MILESTONE} » dans la structure, le {day} : le jalon, tâche de durée "
+            f"nulle au 30 juin 2026, et la récapitulative qui le porte, rendue pour la lisibilité "
+            f"de l'arbre et absente des totaux (WF-PLA-0050, WF-PLA-0080).",
+            mockcore.search(rows, _MILESTONE),
+        ),
+        "nodes_risk_occurred.json": _example(
+            f"Le sous-arbre fusionné dans la structure principale de la révision en cours par la "
+            f"survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 %, lu "
+            f"seul (subtree_of) le {day} : ses deux tâches, terminées en mai, et leurs lignes de "
+            f"120 et 80, aux montants budgétés nuls — la survenance ne déplace pas la référence — "
+            f"et réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative "
+            f"somme ses lignes (WF-RIS-0060, WF-RIS-0050).",
+            mockcore.subtree(rows, _RISK_OCCURRED),
+        ),
+        "dependencies_summary.json": _example(
+            "Ce dont dépend la date de fin de la récapitulative « Études » du planning : ses cinq "
+            "subordonnées directes, nommées par leur numéro et leur libellé, que la grille les "
+            "montre ou non (WF-IHM-0030, WF-PLA-0040).",
+            mockcore.dependencies(rows, STUDIES.number, "task.finish"),
+        ),
+        "dependencies_summary_moved.json": _example(
+            "Ce dont dépend la date de fin de la récapitulative « Études », relue après "
+            "l'insertion d'une ligne au-dessus de ses subordonnées : les mêmes subordonnées "
+            "directes, sous leurs nouveaux numéros, la récapitulative elle-même inchangée "
+            "(WF-IHM-0030, WF-PLA-0040).",
+            mockcore.dependencies(rows, STUDIES.number, "task.finish", inserted_above=1),
+        ),
+        "dependencies_labour.json": _example(
+            "Ce dont dépend le montant à l'année de référence de la ligne de main-d'œuvre du "
+            "devis : le taux horaire de sa catégorie pour l'année de référence ; aucune ligne "
+            "(WF-IHM-0030, WF-DEV-0030, WF-DEV-0050).",
+            mockcore.dependencies(rows, _LABOUR, "estimate_line.base_amount"),
+        ),
+        "dependencies_task_amount.json": _example(
+            "Ce dont dépend le montant à l'année de référence de la tâche « Câblage des "
+            "armoires » : les trois lignes qu'elle porte (WF-IHM-0030, WF-DEV-0050).",
+            mockcore.dependencies(rows, _WIRING, "task.base_amount"),
+        ),
+        "dependencies_provision.json": _example(
+            "Ce dont dépend la quantité de la ligne de provision du devis : son risque "
+            "(WF-IHM-0030, WF-RIS-0010).",
+            mockcore.dependencies(rows, _PROVISION, "estimate_line.quantity"),
+        ),
+        "dependencies_manual_float.json": _example(
+            "Ce dont dépend la marge de la tâche en mode manuel du planning : son mode, qui ne "
+            "lui en donne aucune (WF-IHM-0030, WF-PLA-0100).",
+            mockcore.dependencies(rows, _DESKS, "task.total_float"),
+        ),
+    }
+
+
+_MONTHS = (
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+)
+
+
+def _day(day: date) -> str:
+    """Write a day as French does: 3 juin 2026."""
+    return f"{day.day} {_MONTHS[day.month - 1]} {day.year}"
 
 
 # --- Writing and checking ------------------------------------------------------------------
@@ -449,12 +597,15 @@ def _compact(value: JsonValue) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
-def write(directory: Path) -> list[Path]:
-    """Write every volume in the directory, removing a file it no longer makes.
+def write(fixtures: Path) -> list[Path]:
+    """Write the volumes under the fixtures, and the named examples of the witness among them.
 
-    A directory left in it is not removed: the check names it, to be removed by hand. The
-    text is written with plain line ends whatever the system, as the check reads it.
+    The volumes directory is owned: a file it no longer makes is removed, a directory left in it
+    is not — the check names it, to be removed by hand. The named examples are written file by
+    file beside the other examples. The text is written with plain line ends whatever the
+    system, as the check reads it.
     """
+    directory = fixtures / VOLUME
     directory.mkdir(parents=True, exist_ok=True)
     expected = {name: render(example) for name, example in volumes().items()}
     for stale in sorted(set(_entries(directory)) - expected.keys()):
@@ -462,30 +613,74 @@ def write(directory: Path) -> list[Path]:
             (directory / stale).unlink()
     written: list[Path] = []
     for name, text in expected.items():
-        path = directory / name
-        path.write_text(text, encoding="utf-8", newline="\n")
-        written.append(path)
+        written.append(_write(directory / name, text))
+    for name, example in readings().items():
+        written.append(_write(fixtures / name, render(example)))
     return written
 
 
-def check(directory: Path) -> list[str]:
-    """Return what differs between the directory and what the generator writes."""
+def _write(path: Path, text: str) -> Path:
+    path.write_text(text, encoding="utf-8", newline="\n")
+    return path
+
+
+def check(fixtures: Path, declared: Iterable[str] | None = None) -> list[str]:
+    """Return what differs between the fixtures and what the generator writes.
+
+    The named examples ``tools/paths.toml`` declares written by ``make mock-data`` — given
+    here, or read from it — must each be one the generator writes: a name declared and not
+    written would be left out of the size of a lot without being checked.
+    """
+    directory = fixtures / VOLUME
     expected = {name: render(example) for name, example in volumes().items()}
     present = _entries(directory)
     problems = [_left_over(directory / name) for name in sorted(set(present) - expected.keys())]
     for name, text in expected.items():
-        if name not in present:
-            problems.append(f"{name} is missing")
-        elif not _holds(directory / name, text):
-            problems.append(f"{name} is outdated")
+        problems.extend(_differences(directory / name, text, f"{VOLUME}/{name}"))
+    named = readings()
+    for name, example in named.items():
+        problems.extend(_differences(fixtures / name, render(example), name))
+    problems.extend(
+        f"{name} is declared generated by {BY}, which does not write it"
+        for name in (declared_names() if declared is None else declared)
+        if name not in named
+    )
     return problems
+
+
+BY = "make mock-data"
+"""The command ``tools/paths.toml`` names for what this module writes."""
+
+
+def declared_names() -> list[str]:
+    """Return the named examples ``tools/paths.toml`` declares written by this module.
+
+    The paths under the fixtures without a wildcard: the volumes directory is declared whole.
+    """
+    prefix = FIXTURES.relative_to(REPOSITORY).as_posix() + "/"
+    return [
+        path.removeprefix(prefix)
+        for entry in paths.read().generated
+        if entry.by == BY
+        for path in entry.paths
+        if path.startswith(prefix) and "*" not in path
+    ]
+
+
+def _differences(path: Path, text: str, name: str) -> list[str]:
+    """Name a file missing, or one that does not hold the text the generator writes."""
+    if not path.exists():
+        return [f"{name} is missing"]
+    if not _holds(path, text):
+        return [f"{name} is outdated"]
+    return []
 
 
 def _left_over(path: Path) -> str:
     """Name an entry the generator does not make: a directory, `write` does not remove."""
     if path.is_dir():
-        return f"{path.name} is a directory left over, {BY_HAND}"
-    return f"{path.name} is left over"
+        return f"{VOLUME}/{path.name} is a directory left over, {BY_HAND}"
+    return f"{VOLUME}/{path.name} is left over"
 
 
 BY_HAND = "remove it by hand"
@@ -506,7 +701,7 @@ def _holds(path: Path, text: str) -> bool:
         return False
 
 
-def main(arguments: list[str], directory: Path = VOLUME) -> int:
+def main(arguments: list[str], fixtures: Path = FIXTURES) -> int:
     """Write the volumes, or check that the versioned ones are what the generator writes."""
     parser = argparse.ArgumentParser(
         prog="wftools.mockdata", description="Generate the volumes the fake back serves."
@@ -514,12 +709,12 @@ def main(arguments: list[str], directory: Path = VOLUME) -> int:
     parser.add_argument("--check", action="store_true", help="compare, write nothing")
     options = parser.parse_args(arguments)
     if options.check:
-        problems = check(directory)
+        problems = check(fixtures)
         for problem in problems:
             remedy = "" if problem.endswith(BY_HAND) else ", run make mock-data"
-            print(f"  {directory}: {problem}{remedy}", file=sys.stderr)
+            print(f"  {fixtures}: {problem}{remedy}", file=sys.stderr)
         return 1 if problems else 0
-    for path in write(directory):
+    for path in write(fixtures):
         print(f"  -> {path} ({path.stat().st_size:,} bytes)")
     return 0
 

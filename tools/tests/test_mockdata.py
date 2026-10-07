@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockdata, mockportfolio, mockstructure, mockwitness
+from wftools import REPOSITORY, mockdata, mockportfolio, mockstructure, mockwitness, paths
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
 CONTRACT = REPOSITORY / "docs" / "api" / "paths"
@@ -559,9 +559,12 @@ def test_an_example_is_written_one_line_per_item() -> None:
     )
 
 
-def test_the_written_volumes_check_up_to_date(tmp_path: Path) -> None:
+def test_the_written_volumes_and_readings_check_up_to_date(tmp_path: Path) -> None:
     assert mockdata.main([], tmp_path) == 0
-    assert sorted(path.name for path in tmp_path.iterdir()) == sorted(mockdata.volumes())
+    volume = tmp_path / mockdata.VOLUME
+    assert sorted(path.name for path in volume.iterdir()) == sorted(mockdata.volumes())
+    named = sorted(path.name for path in tmp_path.iterdir() if path.is_file())
+    assert named == sorted(mockdata.readings())
     assert mockdata.main(["--check"], tmp_path) == 0
 
 
@@ -569,13 +572,20 @@ def test_an_outdated_missing_or_left_over_volume_fails_the_check(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     mockdata.write(tmp_path)
-    (tmp_path / "hourly_rates.json").write_text("{}\n", encoding="utf-8")
-    (tmp_path / "cost_categories.json").unlink()
-    (tmp_path / "old.json").write_text("{}\n", encoding="utf-8")
+    volume = tmp_path / mockdata.VOLUME
+    (volume / "hourly_rates.json").write_text("{}\n", encoding="utf-8")
+    (volume / "cost_categories.json").unlink()
+    (volume / "old.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "nodes_planning.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "dependencies_labour.json").unlink()
+    # A file beside the named examples is not the generator's: it is left alone.
+    (tmp_path / "project.json").write_text("{}\n", encoding="utf-8")
     assert mockdata.check(tmp_path) == [
-        "old.json is left over",
-        "cost_categories.json is missing",
-        "hourly_rates.json is outdated",
+        "volume/old.json is left over",
+        "volume/cost_categories.json is missing",
+        "volume/hourly_rates.json is outdated",
+        "nodes_planning.json is outdated",
+        "dependencies_labour.json is missing",
     ]
     assert mockdata.main(["--check"], tmp_path) == 1
     assert "run make mock-data" in capsys.readouterr().err
@@ -583,27 +593,33 @@ def test_an_outdated_missing_or_left_over_volume_fails_the_check(
 
 def test_any_entry_left_over_or_unreadable_fails_the_check(tmp_path: Path) -> None:
     mockdata.write(tmp_path)
-    (tmp_path / "old.txt").write_text("notes\n", encoding="utf-8")
-    (tmp_path / "archive").mkdir()
-    (tmp_path / "hourly_rates.json").write_bytes(b"\xff\xfe not utf-8")
-    (tmp_path / "cost_categories.json").unlink()
-    (tmp_path / "cost_categories.json").mkdir()
+    volume = tmp_path / mockdata.VOLUME
+    (volume / "old.txt").write_text("notes\n", encoding="utf-8")
+    (volume / "archive").mkdir()
+    (volume / "hourly_rates.json").write_bytes(b"\xff\xfe not utf-8")
+    (volume / "cost_categories.json").unlink()
+    (volume / "cost_categories.json").mkdir()
     assert mockdata.check(tmp_path) == [
-        "archive is a directory left over, remove it by hand",
-        "old.txt is left over",
-        "cost_categories.json is outdated",
-        "hourly_rates.json is outdated",
+        "volume/archive is a directory left over, remove it by hand",
+        "volume/old.txt is left over",
+        "volume/cost_categories.json is outdated",
+        "volume/hourly_rates.json is outdated",
     ]
 
 
 def test_writing_removes_a_file_the_generator_no_longer_makes(tmp_path: Path) -> None:
-    (tmp_path / "old.json").write_text("{}\n", encoding="utf-8")
-    (tmp_path / "archive").mkdir()
+    volume = tmp_path / mockdata.VOLUME
+    volume.mkdir()
+    (volume / "old.json").write_text("{}\n", encoding="utf-8")
+    (volume / "archive").mkdir()
     mockdata.write(tmp_path)
-    assert not (tmp_path / "old.json").exists()
-    assert mockdata.check(tmp_path) == ["archive is a directory left over, remove it by hand"]
+    assert not (volume / "old.json").exists()
+    assert mockdata.check(tmp_path) == [
+        "volume/archive is a directory left over, remove it by hand"
+    ]
     assert mockdata.check(tmp_path / "absent") == [
-        f"{name} is missing" for name in mockdata.volumes()
+        *(f"volume/{name} is missing" for name in mockdata.volumes()),
+        *(f"{name} is missing" for name in mockdata.readings()),
     ]
 
 
@@ -611,26 +627,40 @@ def test_a_directory_left_over_is_not_sent_to_make_mock_data(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     mockdata.write(tmp_path)
-    (tmp_path / "archive").mkdir()
+    (tmp_path / mockdata.VOLUME / "archive").mkdir()
     assert mockdata.main(["--check"], tmp_path) == 1
     err = capsys.readouterr().err
-    assert "archive is a directory left over, remove it by hand" in err
+    assert "volume/archive is a directory left over, remove it by hand" in err
     assert "run make mock-data" not in err
 
 
-def test_the_volumes_are_written_with_plain_line_ends_whatever_was_there(tmp_path: Path) -> None:
+def test_the_examples_are_written_with_plain_line_ends_whatever_was_there(tmp_path: Path) -> None:
+    volume = tmp_path / mockdata.VOLUME
+    volume.mkdir()
     for name, example in mockdata.volumes().items():
+        (volume / name).write_bytes(mockdata.render(example).replace("\n", "\r\n").encode())
+    for name, example in mockdata.readings().items():
         (tmp_path / name).write_bytes(mockdata.render(example).replace("\n", "\r\n").encode())
     assert mockdata.check(tmp_path) != []
     mockdata.write(tmp_path)
     assert mockdata.check(tmp_path) == []
-    assert all(b"\r\n" not in path.read_bytes() for path in tmp_path.iterdir())
+    assert all(b"\r\n" not in path.read_bytes() for path in tmp_path.rglob("*.json"))
 
 
 def test_the_contract_cites_every_volume_so_that_its_lint_checks_it() -> None:
     contract = "".join(path.read_text(encoding="utf-8") for path in CONTRACT.glob("*.yaml"))
     for name in mockdata.volumes():
         assert f"$ref: ../../../fixtures/api/volume/{name} }}" in contract
+    for name in mockdata.readings():
+        assert f"$ref: ../../../fixtures/api/{name} }}" in contract
+
+
+def test_the_readings_of_the_witness_are_declared_generated() -> None:
+    # Their size is not the lot's, and the chain checks them up to date (tools/paths.toml).
+    declared = paths.read()
+    for name in mockdata.readings():
+        assert declared.is_generated(f"fixtures/api/{name}"), name
+    assert not declared.is_generated("fixtures/api/project.json")
 
 
 def test_the_fake_back_serves_the_volumes_first() -> None:

@@ -17,9 +17,9 @@ describe("the cells of a structure the server computes", () => {
     const hours = computedWhereNamed("estimate_line.hours");
     const computed = (cells: typeof quantity) =>
       estimate.items.filter((node) => cells.in(node)).map((node) => node.row_number);
-    // The provision of row 5 alone: its quantity and its unit disbursement come from its risk.
-    expect(computed(quantity)).toEqual([5]);
-    expect(computed(disbursement)).toEqual([5]);
+    // The provision of row 12 alone: its quantity and its unit disbursement come from its risk.
+    expect(computed(quantity)).toEqual([12]);
+    expect(computed(disbursement)).toEqual([12]);
     expect(computed(hours)).toEqual([]);
     expect(quantity.whole).toBe(false);
 
@@ -44,6 +44,11 @@ describe("the cells of a structure the server computes", () => {
       "estimate_line.reestimated_amount",
       "estimate_line.reestimated_amount",
       "task.reestimated_amount",
+      "task.reestimated_amount",
+      "estimate_line.reestimated_amount",
+      "task.reestimated_amount",
+      "estimate_line.reestimated_amount",
+      "task.reestimated_amount",
     ]);
     expect(summary === undefined ? null : COMPUTED_FLOAT.field(summary)).toBe("task.total_float");
   });
@@ -55,6 +60,6 @@ describe("the cells of a structure the server computes", () => {
     expect(COMPUTED_FLOAT.whole).toBe(true);
     expect(
       estimate.items.filter((node) => COMPUTED_FLOAT.in(node)).map((node) => node.row_number),
-    ).toEqual([1, 2, 6]);
+    ).toEqual([8, 9, 13, 14, 16, 18]);
   });
 });

@@ -466,7 +466,10 @@ describe("the sort, the search and the totals, asked of the server", () => {
     const answer: NodeList = { ...witness, items: [...witness.items].reverse() };
     renderGrid(answer, { query: { sort: { column: "label", order: "desc" }, search: undefined } });
     expect(labels()).toEqual([
+      "Dossier de conception",
+      "Réception des études",
       "Revue de conception",
+      "Pupitres opérateurs",
       "Ingénierie de détail",
       "Études de détail",
       "Études",
@@ -477,7 +480,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
     );
     // The amounts of the tasks and of the line add up to 300 000; the totals of the answer,
     // those of its lines alone, are 100 000.
-    expect(texts(rowAt(6)).slice(-2)).toEqual(["100\u202f000,00", "100\u202f000,00"]);
+    expect(texts(rowAt(9)).slice(-2)).toEqual(["100\u202f000,00", "100\u202f000,00"]);
   });
 
   it("asks the server for the rows a search retains, and for all of them once it is emptied", async () => {
@@ -831,7 +834,7 @@ describe("a grid configured without its options", () => {
       [...grid().querySelectorAll<HTMLElement>("td, th")].filter((cell) => cell.style.left !== ""),
     ).toEqual([]);
     // Without row numbers, the label is the first column: the caption of the totals is its.
-    expect(texts(rowAt(6))[0]).toBe("—");
+    expect(texts(rowAt(9))[0]).toBe("—");
     // Every column may then be hidden.
     expect(screen.getAllByRole("separator")).toHaveLength(8);
   });
@@ -868,7 +871,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
     // Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
     // reference, amount corrected for inflation.
     expect(french.row).toEqual([
-      "4",
+      "11",
       "Borniers",
       "Matériel électrique",
       "",
@@ -879,7 +882,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1 234,56",
     ]);
     expect(english.row).toEqual([
-      "4",
+      "11",
       "Borniers",
       "Matériel électrique",
       "",
@@ -889,11 +892,11 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1,234.56",
       "1,234.56",
     ]);
-    // The totals of the project are those the server gave, 2734.56 at the year of reference and
+    // The totals of the lot are those the server gave, 2934.56 at the year of reference and
     // corrected for inflation, every line being of that year, in either language.
-    expect(french.totals.slice(-2)).toEqual(["2 734,56", "2 734,56"]);
-    expect(english.totals.slice(-2)).toEqual(["2,734.56", "2,734.56"]);
-    expect(english.totals[1]).toBe("Total — 3 tasks, 3 lines");
+    expect(french.totals.slice(-2)).toEqual(["2 934,56", "2 934,56"]);
+    expect(english.totals.slice(-2)).toEqual(["2,934.56", "2,934.56"]);
+    expect(english.totals[1]).toBe("Total — 6 tasks, 5 lines");
   });
 
   it("marks each row by the icon of its nature, named in the language of the interface", () => {
@@ -908,6 +911,11 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "Labour line",
       "Disbursement line",
       "Provision line",
+      "Summary task",
+      "Task",
+      "Disbursement line",
+      "Task",
+      "Disbursement line",
       "Milestone",
     ]);
   });
@@ -956,7 +964,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
           </NextIntlClientProvider>,
         );
         const milestone = bodyRows().find((row) => texts(row)[1] === "Réception usine");
-        expect(texts(milestone)).toEqual(["6", "Réception usine", "30/06/2026"]);
+        expect(texts(milestone)).toEqual(["18", "Réception usine", "30/06/2026"]);
         expect(screen.getByRole("columnheader", { name: "Fin" })).toBeInTheDocument();
       },
     );

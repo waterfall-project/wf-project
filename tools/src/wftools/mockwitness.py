@@ -237,6 +237,11 @@ def role_calendars() -> dict[str, Calendar]:
 
 # --- The readable core of the structure -------------------------------------------------------
 
+REFERENCE_PROVISION_751 = Decimal("250.00")
+"""The provision of the risk 751 when the reference 101 was marked, on 1 February 2026: its
+severity of 1,000 at 25 % (``risk_reviews``), before its review raised it to 1,250 at 40 %. The
+reserve for risks of the reference counts it (WF-RIS-0050); the line of provision is budgeted so."""
+
 SUBPROJECT_CONTROL = universe(801)
 SUBCONTRACTING = universe(401)
 ELECTRICAL_ENGINEERING = universe(402)
@@ -261,7 +266,9 @@ class Line:
     A labour line has its hours and its role, at the rate of its category; another its
     quantity and its unit disbursement. Its budget is its amount, but where the reference
     revision gives it another: nothing for a line merged by the occurrence of a risk
-    (WF-RIS-0060) or added after the reference (WF-DEV-0020).
+    (WF-RIS-0060) or added after the reference (WF-DEV-0020); for a provision, the provision
+    the risk had when the reference was marked, which counts to the reserve for risks, never
+    to the reference budget (WF-RIS-0050).
     """
 
     number: int
@@ -358,6 +365,7 @@ CONTROL_STATION = Task(
                     "Provision — risque de reprise du câblage",
                     PROVISIONS,
                     unit=Decimal("500.00"),
+                    budgeted=REFERENCE_PROVISION_751,
                     is_provision=True,
                 ),
             ),
@@ -403,9 +411,9 @@ CONTROL_STATION = Task(
 )
 """The lot of the control station: the wiring of the cabinets a week after the reception of the
 studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56 and the provision of 500
-of the risk 751; the subtree merged into the current revision by the occurrence of the risk
-752, its lines of 120 and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at the
-end of the wiring."""
+of the risk 751, budgeted at the 250 the reference knew; the subtree merged into the current
+revision by the occurrence of the risk 752, its lines of 120 and 80 budgeted nothing
+(WF-RIS-0060); and the factory acceptance at the end of the wiring."""
 
 CORE = (STUDIES, CONTROL_STATION)
 """The readable core, to be the first roots of the structure, its rows its first rows (#376)."""

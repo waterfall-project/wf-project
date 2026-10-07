@@ -595,8 +595,11 @@ elle-même corrigées à nouveau (`task_lengthened`, réponse de `updateTaskFace
 du portefeuille qui se somment de leurs lignes — la valeur, la performance, la structure des coûts et
 les risques —, les deux cents catégories de
 `listCostCategories`, quinze ans de taux de `listHourlyRates` et la grille des taux horaires de
-`getHourlyRateGrid`, cent cinquante catégories sur quinze ans. Les exemples nommés
-(`witness`…) restent pour les tests de composants. Les indicateurs du projet
+`getHourlyRateGrid`, cent cinquante catégories sur quinze ans. Les exemples nommés de `listNodes`
+et de `getComputedValueDependencies` (`witness`, `planning`, `estimate`, `milestone`,
+`risk_occurred`, `dependencies_*`), que lisent les tests de composants, sont des lectures du cœur
+du témoin (`wftools.mockcore`), écrites par la même commande sous `fixtures/api/` par leur nom et
+déclarées engendrées dans `tools/paths.toml`. Les indicateurs du projet
 (`getProjectIndicators`) et la ligne du projet témoin dans le portefeuille restent ceux du
 témoin, que l'outil lit dans leurs fixtures : ils ne sont pas tirés du volume. Les volumes
 restent dans l'univers des autres exemples — le projet, sa révision, ses sous-projets, ses

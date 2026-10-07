@@ -19,13 +19,26 @@ const [, milestone] = nodes("nodes_milestone");
 
 describe("the nature of a row", () => {
   it("is read from the kind of the node and the flags of its facet", () => {
-    expect(nodes("nodes").map(rowNature)).toEqual(["summary", "task", "disbursement", "task"]);
+    expect(nodes("nodes").map(rowNature)).toEqual([
+      "summary",
+      "task",
+      "disbursement",
+      "task",
+      "task",
+      "milestone",
+      "task",
+    ]);
     expect(nodes("nodes_estimate").map(rowNature)).toEqual([
       "summary",
       "task",
       "labour",
       "disbursement",
       "provision",
+      "summary",
+      "task",
+      "disbursement",
+      "task",
+      "disbursement",
       "milestone",
     ]);
   });

@@ -86,10 +86,10 @@ mock-spec: lint-openapi ## Derive from the contract the variant the fake back se
 	@cd $(API) && $(REDOCLY) bundle openapi.yaml --ext json -o $(abspath $(MOCK_SPEC)) >/dev/null
 	@$(WFTOOLS).mock $(MOCK_SPEC)
 
-mock-data: ## Regenerate the volumes of §4.6.2 the fake back serves, in fixtures/api/volume
+mock-data: ## Regenerate the volumes of §4.6.2 and the readings of the witness the fake back serves (fixtures/api)
 	@$(WFTOOLS).mockdata
 
-mock-data-up-to-date: ## The versioned volumes are the ones the generator writes
+mock-data-up-to-date: ## The versioned volumes and witness readings are the ones the generator writes
 	@$(WFTOOLS).mockdata --check
 
 mock: mock-spec ## Serve the fake back on http://localhost:4010 (MOCK_PORT), from the contract's examples

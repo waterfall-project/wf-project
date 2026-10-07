@@ -40,12 +40,12 @@ const STRUCTURE = {
 };
 // The rows of the estimate, by their index: the summary, the task « Câblage des armoires », its
 // line of labour, its disbursement, its provision — whose quantity and unit disbursement the
-// server computes —, the milestone.
+// server computes —, the subtree merged by the risk that occurred, and the milestone last.
 const TASK = 1;
 const LABOUR = 2;
 const DISBURSEMENT = 3;
 const PROVISION = 4;
-const MILESTONE = 5;
+const MILESTONE = 10;
 const estimate = example("nodes_estimate") as NodeList;
 // The height of a row at the default size of the root font.
 const ROW_HEIGHT = ROW_REM * 16;

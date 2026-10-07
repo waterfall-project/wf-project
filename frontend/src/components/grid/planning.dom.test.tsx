@@ -176,7 +176,7 @@ describe("the grid of the planning", () => {
         "09/04/2026",
         "15/04/2026",
         "",
-        days("7"),
+        days("54"),
         `2FD-${days("2")}`,
       ],
     ]);
@@ -197,7 +197,7 @@ describe("the grid of the planning", () => {
     expect(icons("Pupitres opérateurs")[2]).toEqual(["Manuel"]);
     expect(icons("Études de détail")[6]).toEqual(["Terminée"]);
     expect(icons("Réception des études")[1]).toEqual(["Jalon"]);
-    expect(icons("Réception des études")[6]).toEqual(["Non démarrée"]);
+    expect(icons("Réception des études")[6]).toEqual(["Terminée"]);
     expect(icons("Dossier de conception")[1]).toEqual(["Tâche"]);
     // Each shows its name on hover too, to whoever does not read the icon.
     const [, , manual] = cellsOf("Pupitres opérateurs");
@@ -251,7 +251,7 @@ describe("the grid of the planning", () => {
       "0",
       "2026-04-24",
       "2026-04-24",
-      "not_started",
+      "completed",
       "0",
     ]);
   });
@@ -319,7 +319,7 @@ describe("the grid of the planning", () => {
       "09/04/2026",
       "15/04/2026",
       "",
-      `7${NBSP}d`,
+      `54${NBSP}d`,
       `2FS-2${NBSP}d`,
     ]);
     expect(iconNames(cellsOf("Revue de conception")[7])).toEqual(["Computed", "Critical path"]);
