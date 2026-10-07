@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { ROW_REM } from "@/components/grid/dense-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
@@ -36,6 +37,13 @@ const RATE = "PUT /reference/cost-categories/{cost_category_id}/hourly-rates/{ye
 const grid = example("volume/hourly_rate_grid") as HourlyRateGrid;
 const MECHANICAL = 2;
 const MECHANICAL_ID = "01926f3a-7c00-7000-8000-000400000000";
+/** The height of a row of the grid, as the grid computes it on the default font of the browsers. */
+const ROW_HEIGHT = ROW_REM * 16;
+// The first rows of that grid, for the tests of the entry: a cell entered renders the rows in view
+// anew, a screenful of a hundred and fifty took each keystroke a third of a second under happy-dom,
+// and the test went past its time under load (#315). The volume is the first test's alone.
+const FIRST_ROWS = 8;
+const fewRows: HourlyRateGrid = { ...grid, rows: grid.rows.slice(0, FIRST_ROWS) };
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
@@ -44,12 +52,12 @@ function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
   return client;
 }
 
-/** The grid of the rates in a language, open to entry or not. */
-function rates(locale: Locale = "fr", editable = true) {
+/** The grid of the rates in a language, open to entry or not: its first rows unless the whole is asked. */
+function rates(locale: Locale = "fr", editable = true, rows: HourlyRateGrid = fewRows) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <RateGrid
-        grid={grid}
+        grid={rows}
         currency="EUR"
         editable={editable}
         query={{ sort: undefined, search: undefined }}
@@ -96,9 +104,9 @@ afterEach(() => {
 });
 
 describe("the grid of the hourly rates", () => {
-  it("is the dense grid: a hundred and fifty categories of labour over fifteen years, in the order of the server (US-0250)", async () => {
+  it("is the dense grid: a hundred and fifty categories of labour over fifteen years, in the order of the server (US-0250)", () => {
     serve();
-    const { container } = render(rates());
+    render(rates("fr", true, grid));
     const table = screen.getByRole("grid", { name: "Grille des taux horaires" });
     // The header, the hundred and fifty categories, the totals: a row count the window keeps.
     expect(table).toHaveAttribute("aria-rowcount", "152");
@@ -112,6 +120,15 @@ describe("the grid of the hourly rates", () => {
     // The totals row says the currency of the rates, and sums nothing.
     const totals = table.querySelector("tfoot tr");
     expect(totals?.textContent).toBe("Taux horaires en EUR");
+  });
+
+  it("breaks no rule of accessibility, a window of the hundred and fifty categories rendered", async () => {
+    serve();
+    // A window of two rows — some fourteen rendered, with the overscan of the grid —: the rules of
+    // axe hold for each row alike, and a screenful took as long to check as to render — past its
+    // time under load (#315).
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(2 * ROW_HEIGHT);
+    const { container } = render(rates("fr", true, grid));
     await expectAccessible(container);
   });
 

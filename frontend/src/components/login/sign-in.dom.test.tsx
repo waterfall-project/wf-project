@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -57,11 +57,17 @@ function inFrench(page: ReactNode) {
   );
 }
 
-/** Type credentials in the form, and submit them. */
-async function signInWith(email: string, password: string) {
-  await userEvent.type(screen.getByLabelText("Adresse électronique"), email);
-  await userEvent.type(screen.getByLabelText("Mot de passe"), password);
-  await userEvent.click(screen.getByRole("button", { name: "Se connecter" }));
+/** The gestures of a sign-in, of the direct user or of one a test set up on its own clock. */
+interface Gestures {
+  readonly type: (element: Element, text: string) => Promise<void>;
+  readonly click: (element: Element) => Promise<void>;
+}
+
+/** Type credentials in the form, and submit them — by the user given, when a test has its own. */
+async function signInWith(email: string, password: string, user: Gestures = userEvent) {
+  await user.type(screen.getByLabelText("Adresse électronique"), email);
+  await user.type(screen.getByLabelText("Mot de passe"), password);
+  await user.click(screen.getByRole("button", { name: "Se connecter" }));
 }
 
 /** Show an address, as a navigation of the browser would. */
@@ -115,12 +121,15 @@ describe("the form of the sign-in page", () => {
     // A refusal of the credentials, not a session to open: no way to the page it is on.
     expect(within(alert).queryByRole("link")).toBeNull();
     expect(loadDocument).not.toHaveBeenCalled();
-    // The focus stays on the button pressed, from which the refusal is read next.
+    // The focus stays on the button pressed, from which the refusal is read next; the button is
+    // offered again once the transition has settled — a commit after the refusal is shown.
     expect(screen.getByRole("button", { name: "Se connecter" })).toHaveFocus();
-    expect(screen.getByRole("button", { name: "Se connecter" })).not.toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Se connecter" })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
   });
 
   it("gives every field its name, and its button its icon", () => {
@@ -166,6 +175,9 @@ describe("a session that expires on the way", () => {
 
   it("follows on, once signed in again, the background tasks the lost session interrupted", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    // The user advances the fake clock between two keystrokes: left to the real one, each
+    // keystroke waited for the next tick of the clock, and a password took a second to type.
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync });
     const tick = () => act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     const screenAt = `/projects/${PROJECT}/revisions`;
     visit(screenAt, `revision_id=${REVISION}`);
@@ -195,7 +207,7 @@ describe("a session that expires on the way", () => {
         </TaskTracker>,
       );
     const view = render(shell(<Marking />));
-    await userEvent.click(screen.getByRole("button", { name: "Marquer" }));
+    await user.click(screen.getByRole("button", { name: "Marquer" }));
     await tick();
 
     // The read of the task found the session gone: its follow-up is interrupted, and leads to
@@ -207,7 +219,7 @@ describe("a session that expires on the way", () => {
 
     view.unmount();
     render(inFrench(<SignInForm target={target} />));
-    await signInWith("camille.martin@example.com", "mot de passe de Camille");
+    await signInWith("camille.martin@example.com", "mot de passe de Camille", user);
     expect(loadDocument).toHaveBeenCalledExactlyOnceWith(target);
 
     // The document loaded anew: the tracker finds the task the tab kept, and follows it on.
