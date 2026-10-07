@@ -61,6 +61,7 @@ from wftools.mockportfolio import (
     ALERT_THRESHOLD,
     PAGE,
     PROJECT_COUNT,
+    UNOPENABLE_EVERY,
     WATCH_THRESHOLD,
     portfolio,
     portfolio_cost_structure,
@@ -86,6 +87,7 @@ from wftools.mockstructure import (
     task_lengthened,
 )
 from wftools.mockwitness import (
+    ASSEMBLY,
     CATEGORIES,
     CONTROL_STATION,
     ELECTRICAL_ENGINEERING,
@@ -316,7 +318,9 @@ def readings() -> dict[str, JsonObject]:
             mockcore.subtree(rows, STUDIES.number, _TASKS),
         ),
         "nodes_estimate.json": _example(
-            f"Le devis du lot « Poste de commande », lu avec ses lignes (subtree_of) le {day} : "
+            f"Le devis du lot « Poste de commande », récapitulative rattachée au poste "
+            f"« {ASSEMBLY.label} » du lotissement (WF-PLA-0130), lu avec ses lignes (subtree_of) "
+            f"le {day} : "
             f"sous le câblage des armoires, démarré le 4 mai et qui s'achève le 30 juin, une "
             f"ligne de main-d'œuvre de 12,5 h à {_amount(ELECTRICAL_RATE)} — "
             f"{_amount(Decimal(1_000))} —, un débours de {_amount(Decimal('1234.56'))} et la "
@@ -446,7 +450,11 @@ def volumes() -> dict[str, JsonObject]:
             f"Les {_count(PROJECT_COUNT)} projets du portefeuille du §4.6.2, les projets en "
             f"cours et, ajoutés par la requête au périmètre par défaut (WF-PTF-0010), ceux en "
             f"chiffrage, le projet témoin et l'offre en tête ; indices classés par les seuils "
-            f"de {_amount(WATCH_THRESHOLD, 1)} et {_amount(ALERT_THRESHOLD, 1)}.",
+            f"de {_amount(WATCH_THRESHOLD, 1)} et {_amount(ALERT_THRESHOLD, 1)}. La liste est "
+            f"lue par un contributeur sans « consulter tous les projets » : chaque "
+            f"{_ordinal(UNOPENABLE_EVERY)} projet engendré, qu'il ne peut pas ouvrir, figure sous "
+            f"son libellé et son code, sans lien (can_open faux), et compte dans les totaux "
+            f"(WF-PTF-0030, WF-ADM-0110).",
             projects,
         ),
         "portfolio_projects_page.json": _example(
@@ -485,7 +493,9 @@ def volumes() -> dict[str, JsonObject]:
             "total des provisions identifiées, les dix risques les plus lourds avec leur projet, "
             "la matrice remplie, la couverture des risques agrégée — la somme des réserves "
             "de référence face aux provisions restantes et au coût des risques survenus —, et "
-            "les provisions survenues et écartées sur l'année (WF-PTF-0090, WF-RIS-0050).",
+            "les provisions survenues et écartées sur l'année (WF-PTF-0090, WF-RIS-0050). Un "
+            "risque dit si le lecteur peut ouvrir son projet, comme la ligne de ce projet dans "
+            "la liste (WF-PTF-0030).",
             portfolio_risks(rows),
         ),
         "cost_categories.json": _example(
@@ -554,6 +564,13 @@ def _structure_summary(answer: JsonObject) -> str:
         f"tâche : {LINES_PER_TASK} sur chaque tâche de travail, et une provision de plus sur "
         f"{_count(provisions)} d'entre elles."
     )
+
+
+_ORDINALS = {7: "septième", 9: "neuvième"}
+
+
+def _ordinal(value: int) -> str:
+    return _ORDINALS[value]
 
 
 def _count(value: int) -> str:

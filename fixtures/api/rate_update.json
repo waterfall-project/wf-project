@@ -1,5 +1,5 @@
 {
-  "summary": "La mise à jour des taux proposée pour 2026, catégorie par catégorie, sur les deux catégories de main-d'œuvre sans taux pour 2026 : l'ingénierie électrique à son taux précédent de 78,50 corrigé de l'inflation du projet, 3 %, soit 80,86, et la mise en service à 80,00, soit 82,40 (WF-REV-0060).",
+  "summary": "La mise à jour des taux proposée à la création de la révision courante, dont l'année de référence est 2026 quand celle de la révision copiée était 2025, catégorie par catégorie, sur les deux catégories de main-d'œuvre sans taux pour 2026 : l'ingénierie électrique à son taux précédent de 78,50 corrigé de l'inflation du projet, 3 %, soit 80,86, et la mise en service à 80,00, soit 82,40 (WF-REV-0060).",
   "value": {
     "target_year": 2026,
     "categories": [

@@ -421,6 +421,12 @@ class _Emitter:
             facet["completed_on"] = completed_on.isoformat()
         facet["is_summary"] = bool(task.children)
         facet["is_milestone"] = task.is_milestone
+        if task.order_item is not None:
+            # A summary bears its order item, named, that the grid shows without reading the
+            # work breakdown (WF-PLA-0130, WF-ARC-0020).
+            facet["order_item_id"] = task.order_item.identifier
+            facet["work_package_id"] = None
+            facet["work_breakdown_label"] = task.order_item.label
         if not task.children:
             total_float = placed.total_float
             facet["total_float"] = (

@@ -9,7 +9,7 @@
         "amount": "-200.00",
         "project_id": "01926f3a-7c00-7000-8000-000000000001",
         "subproject_id": null,
-        "subproject_code": null,
+        "subproject_code": "SP-CAB",
         "subproject_label": null,
         "is_in_tracked_scope": true,
         "excluded_reason": null,

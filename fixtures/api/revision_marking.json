@@ -8,6 +8,7 @@
     "status": "draft",
     "marked_at": null,
     "is_reference": false,
+    "reference_year": 2026,
     "available_commands": [
       {
         "command": "edit_planning",

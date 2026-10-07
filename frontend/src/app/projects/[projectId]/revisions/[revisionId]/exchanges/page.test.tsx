@@ -194,12 +194,10 @@ describe("the screen of the imports and exports", () => {
   it("names the reasons a report asks an explicit confirmation for", async () => {
     server.answers = {
       ...server.answers,
-      [GET_IMPORT]: { example: "import_planning_mismatch", status: 200 },
+      [GET_IMPORT]: { example: "import_actual_costs_analysed", status: 200 },
     };
     const page = text(await exchangesAt({ import: IMPORT }));
-    expect(page).toContain(
-      "Explicit confirmation required Dates or durations differ from those Waterfall recalculates",
-    );
+    expect(page).toContain("Explicit confirmation required Unknown subproject");
     expect(page).toContain("No line rejected");
   });
 
@@ -210,18 +208,20 @@ describe("the screen of the imports and exports", () => {
       ...server.answers,
       [GET_IMPORT]: { example: "import_actual_costs_analysed", status: 200 },
     };
-    // A line of actual cost already imported, its amount changed in the ERP, updated on it alone.
+    // Two lines of actual cost already imported: a credit note whose OTP element changed,
+    // charged anew on its sub-project; an invoice whose amount changed in the ERP.
     const english = text(await exchangesAt({ import: IMPORT }));
     expect(english).toContain(
-      "1 difference with the existing data Change Object Label Fields Updated Actual cost line FA-2026-0412 Amount",
+      "2 differences with the existing data Change Object Label Fields Updated Actual cost line AV-2026-0388 Subproject Updated Actual cost line FA-2026-0412 Amount",
     );
     server.answers = {
       ...server.answers,
       [GET_IMPORT]: { example: "import_planning_mismatch", status: 200 },
     };
-    expect(text(await exchangesAt({ import: IMPORT }))).toContain(
-      "Updated Task Études de détail Duration",
-    );
+    // A round trip: a task lengthened in the file, a started task the file no longer holds, kept.
+    const planning = text(await exchangesAt({ import: IMPORT }));
+    expect(planning).toContain("Updated Task Revue de conception Duration");
+    expect(planning).toContain("Kept Task Études de détail");
   });
 
   it("says the analysis under way, without a report, still abandonable but not applicable", async () => {

@@ -171,7 +171,7 @@ IDENTIFIERS = (
     Family("nœuds de la structure", 500, 599),
     Family("lignées, celle du nœud 5nn en 6nn", 600, 699),
     Family("rôles d'habilitation", 700, 709),
-    Family("postes du lotissement", 710, 749),
+    Family("postes et lots du lotissement", 710, 749),
     Family("risques", 750, 799),
     Family("sous-projets", 800, 899),
     Family("sauvegardes", 900, 919),
@@ -189,9 +189,10 @@ IDENTIFIERS = (
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 
 The examples written by hand do not all keep to it yet (#287, C16), until the examples that
-carry them are moved: the order item 701 is on the range of the access roles; the background
-tasks 901 to 905, the pastes 911 and 912 and the correlation 913 on that of the backups; the
-correlations 921 to 927 on that of the background tasks.
+carry them are moved: the background tasks 901 to 905, the pastes 911 and 912 and the
+correlation 913 are on the range of the backups; the correlations 921 to 927 on that of the
+background tasks. The order item 711, « Fourniture et montage des armoires », is the one order
+item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130).
 """
 
 # --- The roles, their calendars ---------------------------------------------------------------
@@ -290,6 +291,7 @@ class Task:
     converted into hours by ``mockcalendar.to_hours`` (WF-PLA-0160); its lines and its
     subordinates. The progress of a task in automatic mode is read from its dates at TODAY; a
     task in manual mode carries the dates its user entered, and the progress its user declared.
+    A summary may bear an order item of the work breakdown (WF-PLA-0130).
     """
 
     number: int
@@ -301,6 +303,20 @@ class Task:
     children: tuple[Task, ...] = ()
     manual: tuple[date, date] | None = None
     progress: str | None = None
+    order_item: OrderItem | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OrderItem:
+    """An order item of the work breakdown of the witness, which a summary bears."""
+
+    identifier: str
+    label: str
+
+
+ASSEMBLY = OrderItem(universe(711), "Fourniture et montage des armoires")
+"""The one order item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130),
+and whose total the estimate presents (`estimate_indicators_breakdown`, WF-DEV-0060)."""
 
 
 STUDIES = Task(
@@ -338,6 +354,7 @@ detailed studies finish, with float (WF-PLA-0030, WF-PLA-0080, WF-PLA-0100)."""
 CONTROL_STATION = Task(
     551,
     "Poste de commande",
+    order_item=ASSEMBLY,
     children=(
         Task(
             552,

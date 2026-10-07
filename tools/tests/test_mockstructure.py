@@ -353,7 +353,14 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert row(6)["estimate_line"]["label"] == "Matériel"
     assert "estimate_line.unit_disbursement" in row(6)["editable_fields"]
     assert "estimate_line.hours" not in row(6)["editable_fields"]
-    assert row(1)["editable_fields"] == ["task.label", "task.description"]
+    # A summary accepts its label, its description and its attachment to an order item or a
+    # work package of the work breakdown (WF-PLA-0130).
+    assert row(1)["editable_fields"] == [
+        "task.label",
+        "task.description",
+        "task.order_item_id",
+        "task.work_package_id",
+    ]
     subordinates = [node for node in items if node["parent_id"] == row(1)["node_id"]]
     assert [(node["row_number"], node["task"]["label"]) for node in subordinates] == [
         (2, "Études — Poste de commande"),

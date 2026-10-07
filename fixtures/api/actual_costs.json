@@ -1,5 +1,5 @@
 {
-  "summary": "Les coûts réels du projet au 4 mai 2026, après les imports de mars et d'avril, les pièces les plus récentes d'abord : trois lignes suivies, dont un avoir de -200, font les 3 000 de coût réel des indicateurs ; la réception du client, exclue du périmètre suivi, reste consultable. Les sous-projets de l'ERP ne sont pas ceux du projet : chaque ligne est imputée au seul projet, hors sous-projet (WF-CRE-0010, WF-CRE-0020, WF-CRE-0030, WF-CRE-0040, WF-CRE-0050).",
+  "summary": "Les coûts réels du projet au 4 mai 2026, après les imports de mars et d'avril, les pièces les plus récentes d'abord : trois lignes suivies, dont un avoir de -200, font les 3 000 de coût réel des indicateurs ; la réception du client, exclue du périmètre suivi, reste consultable. Les codes de sous-projet lus dans l'OTP — SP-CAB, SP-AUT, SP-REC — ne sont ceux d'aucun sous-projet du projet : chaque ligne est imputée au seul projet, hors sous-projet, et présentée avec son code (WF-CRE-0010, WF-CRE-0020, WF-CRE-0030, WF-CRE-0040, WF-CRE-0050).",
   "value": {
     "items": [
       {
@@ -9,7 +9,7 @@
         "amount": "1800.00",
         "project_id": "01926f3a-7c00-7000-8000-000000000001",
         "subproject_id": null,
-        "subproject_code": null,
+        "subproject_code": "SP-CAB",
         "subproject_label": null,
         "is_in_tracked_scope": true,
         "excluded_reason": null,
@@ -40,7 +40,7 @@
         "amount": "-200.00",
         "project_id": "01926f3a-7c00-7000-8000-000000000001",
         "subproject_id": null,
-        "subproject_code": null,
+        "subproject_code": "SP-CAB",
         "subproject_label": null,
         "is_in_tracked_scope": true,
         "excluded_reason": null,
@@ -71,7 +71,7 @@
         "amount": "1400.00",
         "project_id": "01926f3a-7c00-7000-8000-000000000001",
         "subproject_id": null,
-        "subproject_code": null,
+        "subproject_code": "SP-AUT",
         "subproject_label": null,
         "is_in_tracked_scope": true,
         "excluded_reason": null,
@@ -102,7 +102,7 @@
         "amount": "650.00",
         "project_id": "01926f3a-7c00-7000-8000-000000000001",
         "subproject_id": null,
-        "subproject_code": null,
+        "subproject_code": "SP-REC",
         "subproject_label": null,
         "is_in_tracked_scope": false,
         "excluded_reason": "Réception du client, non budgétée",

@@ -5,7 +5,8 @@
     summary: Comptes utilisateurs
     description: >-
       Les comptes de l'installation, avec leur état et leur rattachement à l'organisation
-      (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030).
+      (WF-ADM-0050, WF-ADM-0060, WF-ADM-0030). Une table plate : chaque colonne se trie dans
+      les deux sens, par le serveur (WF-IHM-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -24,6 +25,19 @@
           Restreint aux comptes qui relèvent de ce nœud d'organisation : rattachés à lui ou à
           l'un de ses descendants (WF-IHM-0130, WF-REF-0070).
         schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, le nom puis le prénom. Les colonnes de la table des comptes
+          (WF-ADM-0050) : le nom, le prénom, l'adresse, l'origine, les rôles — par leurs
+          libellés, dans l'ordre où le compte les porte —, le nœud d'organisation — par son
+          libellé, un compte sans rattachement après les autres dans l'ordre croissant — et
+          l'état, les comptes désactivés après les actifs dans l'ordre croissant. Les textes se
+          comparent dans l'ordre des points de code Unicode.
+        schema:
+          type: string
+          enum: [last_name, first_name, email, origin, access_roles, org_node, is_active]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Comptes, les désactivés restant lisibles (WF-ADM-0060).
@@ -49,8 +63,10 @@
     description: >-
       Il n'existe aucune inscription libre : un compte est créé ici, importé de
       l'annuaire, ou créé à sa première connexion par le fournisseur d'identité
-      (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180). Le mot de passe est fixé par
-      l'utilisateur au premier accès.
+      (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180). Un compte local naît sans mot de passe et ne
+      peut pas se connecter avant que son porteur n'en ait fixé un par le lien envoyé à son
+      adresse — ou remis par un utilisateur habilité, qui l'obtient de
+      `createPasswordSetupLink` (WF-ADM-0140).
     requestBody:
       required: true
       content:
@@ -180,6 +196,46 @@
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
 
+/users/{user_id}/password-link:
+  post:
+    operationId: createPasswordSetupLink
+    tags: [users]
+    summary: Obtenir le lien de fixation du mot de passe d'un compte
+    description: >-
+      Engendre, pour un compte local, le lien par lequel son porteur fixe ou réinitialise son
+      mot de passe, et le rend à l'appelant pour qu'il le remette par un autre canal
+      (WF-ADM-0140) : c'est ainsi que le premier administrateur fixe son mot de passe à
+      l'installation (WF-EXP-0020) et que la réinitialisation se fait sur une installation
+      sans messagerie (WF-CMP-0030). Le lien est celui que le courriel porterait — à usage
+      unique, valable une heure, vers `/login/reset` du front avec son jeton —, créé par le
+      fournisseur d'identité, et rendu une seule fois : un lien précédent du même compte cesse
+      de valoir. Sous la permission de modifier les comptes (`users.write`, WF-ADM-0100) ;
+      chaque demande est inscrite au journal d'audit, sans le jeton (WF-SEC-0030). Aucun écran
+      ne présente, ne demande ni ne saisit de mot de passe : ce lien est le seul élément
+      d'authentification que Waterfall montre (WF-ADM-0140).
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    responses:
+      '201':
+        description: Lien engendré, à remettre au porteur.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/access.yaml#/PasswordSetupLink }
+            examples:
+              witness: { $ref: ../../../fixtures/api/password_setup_link.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : le compte n'est pas local — un compte de l'annuaire ou du
+          fournisseur d'identité s'authentifie ailleurs et n'a pas de mot de passe ici — ou il
+          est désactivé (WF-ADM-0140, WF-ADM-0060).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
 /users/{user_id}/avatar:
   get:
     operationId: getUserAvatar
@@ -270,9 +326,20 @@
     summary: Rôles d'habilitation
     description: >-
       Les rôles d'habilitation, les prédéfinis comme ceux créés ensuite (WF-ADM-0010,
-      WF-ADM-0090).
+      WF-ADM-0090). Une table plate : chaque colonne se trie dans les deux sens, par le
+      serveur (WF-IHM-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/Search
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé,
+          la nature — les prédéfinis avant les composés dans l'ordre croissant — et le nombre de
+          porteurs.
+        schema:
+          type: string
+          enum: [label, is_predefined, holder_count]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Rôles, dont les trois prédéfinis (WF-ADM-0010).

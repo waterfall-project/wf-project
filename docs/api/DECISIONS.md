@@ -1248,13 +1248,157 @@ les portaient déjà. L'état d'un compte reste `User.is_active`, booléen docum
 Les risques, les natures, les types de liaison et les zones n'ont pas de code dans la
 spécification : ceux du contrat restent.
 
-**Ce que la révision demande et que le contrat ne porte pas encore** est ouvert en constats :
-l'année de référence d'une révision (#381), le rattachement d'une récapitulative à un poste ou à
-un lot (#382), le compte rendu d'import en aller-retour — conservés, ignorés, terminés,
-identifiant externe — (#383), trois permissions de WF-ADM-0100 (#384), la suppression d'une
-chronologie et d'un risque non cité (#385), le code de sous-projet d'une ligne de coût (#386), le
-tri des tables plates (#387), le lien de fixation du mot de passe remis par un administrateur
-(#388), et l'ouvrabilité d'un projet sur les lignes du portefeuille (#389).
+**Ce que la révision demande et que le contrat ne portait pas encore** a été ouvert en constats —
+#381 à #389 — et fermé par EP-02/L29, section suivante.
+
+## Ce que la révision de la spécification demande (EP-02/L29)
+
+Les neuf constats du bilan de la spécification révisée (#381 à #389, #392), chacun avec la forme
+retenue, l'option écartée et l'exigence qui le dicte. Une décision que ni la spécification ni le
+constat ne tranchaient est dite comme telle.
+
+**La révision porte son année de référence** (`Revision.reference_year`, #381 ; WF-REV-0060,
+WF-REV-0090, WF-DEV-0010). Un entier `Year`, exigé, en lecture seule : fixé par le serveur à la
+création à l'année courante, conservé par la révision et son instantané (WF-REV-0030), jamais
+saisi — `RevisionCreate` n'en porte pas. `getMissingRates`, `RateUpdateProposal.target_year` et le
+montant « à l'année de référence » de la grille de devis (`base_amount`) le citent. Les révisions
+de 2026 des exemples portent 2026 ; l'offre v1.0, marquée en décembre 2025, porte 2025. Écarté : un
+champ dans `RevisionSnapshot`, où il n'aurait été lu qu'avec l'instantané entier, quand
+l'historique des révisions le présente (WF-REV-0090).
+
+**Une récapitulative porte son poste ou son lot** (`TaskFacet.order_item_id`, `work_package_id`,
+`work_breakdown_label`, #382 ; WF-PLA-0130, WF-PLA-0040, WF-DEV-0060, WF-PRJ-0030). Les noms sont
+ceux du tableau de correspondance du §4.4.1 — `order_item`, `work_package` —, non `lot_id` que le
+constat écrivait. Deux identifiants nullables et exclusifs sur la facette de lecture, les mêmes sur
+`TaskFacetWrite` et `TaskFacetUpdate`, `null` retirant le rattachement ; le libellé du poste ou du
+lot porté, résolu à la lecture, pour que la grille ne lise pas le lotissement (WF-ARC-0020) ; une
+colonne `work_breakdown` de `NodeColumn`, dernière des colonnes de la tâche — après `predecessors`,
+pour ne déplacer aucune colonne de ligne dans l'ordre d'un collage (WF-IHM-0050) ; deux champs
+d'`EditableField`, que seules les récapitulatives nomment ; deux filtres de `listNodes`,
+`order_item_id` et `work_package_id`, qui retiennent le sous-arbre de la récapitulative rattachée ;
+`generatePlanningSkeleton` dit que ses récapitulatives sont rattachées (WF-PRJ-0030). Les refus
+sont des motifs par champ de `VALIDATION_FAILED`, dans la convention du catalogue : `SUMMARY_TASK_REQUIRED`,
+`UNKNOWN_WORK_BREAKDOWN_ITEM`, `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` et
+`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, celui-ci nommant la récapitulative qui porte déjà le poste
+(`fields[].params.attached_node_id`, exemple `task_attach_refused` de `updateTaskFacet`) — le Vérif de WF-PLA-0130. Les trois propriétés de lecture sont
+facultatives, comme `started_on` ou `calendar_id` sur la même facette, et non exigées : la facette
+n'exige que ce que toute tâche porte, et `fields` les laisse hors des lectures qui ne les
+affichent pas. Écartés : un 409 pour l'unicité, qui n'aurait pas désigné le champ ; une seule
+propriété `work_breakdown_item_id` sans dire si c'est un poste ou un lot. L'exemple : le lot
+« Poste de commande » du cœur (nœud 551) porte le poste unique du lotissement, « Fourniture et
+montage des armoires » (`mockwitness.ASSEMBLY`), dans `nodes_estimate`, engendré par `make
+mock-data` depuis le cœur (EP-02/L21), et dans les écritures écrites à la main qui le rendent en
+ancêtre (`estimate_line_updated`, `node_deleted`, `task_renamed`). Le poste passe sur sa plage
+d'identifiants (711, au lieu de 701, que les rôles d'habilitation occupent : l'empiètement C16
+disparaît), et les totaux par poste du devis le nomment ainsi ; les récapitulatives de tous les
+exemples et du volume nomment les deux champs parmi ceux qu'elles acceptent.
+
+**Le compte rendu d'import dit l'aller-retour** (#383 ; WF-INTF-0040, WF-INTF-0060, WF-INTF-0080,
+WF-INTF-0100, WF-INTF-0120, WF-PLA-0130). `ImportDifference.change` gagne `kept` : une tâche
+démarrée ou terminée que le fichier ne porte plus, ou une ligne d'une telle tâche, conservée et
+signalée, sans `fields`. `ImportReport` gagne trois tableaux exigés, vides quand il n'y a rien à
+dire — sur le modèle de `rescheduled`, pour que l'écran n'ait pas à distinguer l'absence du vide :
+`ignored`, ce que l'import a lu sans l'importer, par nature (`ImportIgnoredKind` : ressources,
+calendriers, avancement, coûts, champs personnalisés, contraintes de date), compté et nommé quand
+cela se nomme ; `completed_tasks`, les tâches qu'un import de reste à engager termine, nommées,
+leur date nulle tant que l'import n'est pas appliqué — c'est le jour de l'application (WF-PLA-0130)
+— ; `date_mismatches`, les tâches dont le fichier date ou dure autrement que Waterfall ne les
+recalcule, par leurs colonnes. L'écart de dates n'est plus un motif de confirmation :
+`date_or_duration_mismatch` quitte `requires_confirmation_reasons`, qui ne garde que les deux motifs
+des coûts réels, et un aller-retour sans modification rend `differences` et `date_mismatches`
+vides (WF-INTF-0060). `TaskFacet.external_id`, l'identifiant MS Project d'une tâche créée à
+l'import, nullable, jamais saisi. Sur un écart de liaison, `lineage_id` et `label` sont ceux du
+successeur, dont la colonne `predecessors` porte la liaison ; `predecessor_label` vient avec
+EP-02/L30 (#393), qui ferme #364.
+Écartés : une `difference` par tâche ignorée, qui aurait mêlé ce que l'import écrit et ce qu'il
+laisse ; un compte seul pour les éléments ignorés, qui n'aurait pas nommé la ressource que
+l'utilisateur cherche (Vérif de WF-INTF-0040). Exemples : `import_planning_mismatch`, réécrit en
+aller-retour sur les lignées du cœur — la « Revue de conception » (624) rallongée, sa fin
+recalculée en écart, les « Études de détail » (622), terminées, conservées, deux ressources, un
+calendrier et l'avancement ignorés — ; `import_remaining_analysed`, nouveau, un reste à engager
+du « Câblage des armoires » (652) qui réestime ses deux lignes à zéro sans le terminer : sa ligne
+de provision, calculée depuis le risque 751 toujours identifié, garde son reste (WF-RIS-0010,
+WF-RAE-0040), et `completed_tasks` est vide — aucune tâche démarrée du cœur n'est terminable par
+un import, et la liste non vide n'a pas d'exemple ; un test du cœur exige qu'un exemple écrit à
+la main nomme un libellé du cœur par l'identifiant et la lignée du cœur ;
+`import_actual_costs_analysed`, qui dit son motif de confirmation.
+
+**Les trois permissions de WF-ADM-0100 entrent au catalogue** (`project_create`,
+`revision_abandon`, `structure_merge`, #384). Les codes suivent ceux du catalogue — l'objet, puis
+l'action, comme `revision_mark` — et `structure_merge` est le nom que `BackgroundTaskRef.kind`
+donne déjà à la fusion. Abandonner et fusionner sont des actions irréversibles ; créer un projet
+est structurante, comme consulter tous les projets : l'énumération range les huit irréversibles
+dans l'ordre où WF-ADM-0100 les nomme, puis les deux structurantes, pour que la matrice des
+permissions les groupe par nature sans couper un groupe. `RevisionCommand` dit que `merge_structure`
+et `abandon` sont gardées par leur permission propre — « un rôle disposant du marquage mais non de
+la fusion refuse de fusionner un différentiel » —, et `ProjectCommand` que la survenance d'un
+risque emporte la fusion sans exiger `structure_merge`. Les rôles prédéfinis suivent : le chef de
+projet crée un projet, abandonne et fusionne ; les sessions qui portaient tout le catalogue le
+portent encore. Écarté : garder `revisions.write` pour l'abandon, ce que la révision de la
+spécification a précisément défait.
+
+**Un risque non cité se supprime** (`deleteRisk`, #385 ; WF-RIS-0020, WF-PLA-0140). `DELETE
+/projects/{p}/risks/{r}` sous `risks.write` et la commande `edit_risks`, 204 avec le devis propre
+et la ligne de provision ; refusé par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition`
+nommant `risk_not_cited`, condition nouvelle de `CommandCondition`, dès qu'une révision marquée cite
+le risque — il s'écarte alors par `reviewRisk`. `deleteTimeline` existait déjà (`paths/projects.yaml`,
+le constat le cherchait dans `revisions.yaml`) : rien à ajouter pour la chronologie. Le risque
+n'a pas d'`available_commands` (#244, EP-08) : la condition se dit par le refus, et
+`Risk.available_commands` n'est pas créé ici (EP-02/L30). Exemple : `risk_delete_cited`, le risque
+de reprise du câblage, cité par la référence.
+
+**La ligne de coût garde le code de sous-projet de son OTP** (`ActualCostLine.subproject_code`, #386 ;
+WF-CRE-0010, WF-CRE-0020). Il était résolu depuis le sous-projet imputé, donc nul dès que le code
+ne correspondait à rien — et perdu. Il est désormais le code lu dans l'élément d'OTP, conservé
+tel quel, toujours renseigné quand l'OTP en donne un, nul seulement sans partie sous-projet ;
+`subproject_id` et `subproject_label` restent nuls pour une ligne au code inconnu, imputée au seul
+projet. Le réimport qui change l'OTP recalcule l'imputation, et le compte rendu le dit par un
+écart `updated` sur la colonne `subproject` d'`ActualCostColumn` (WF-INTF-0140). Les lignes de
+`actual_costs` portent SP-CAB, SP-AUT et SP-REC, hors sous-projet ; `import_actual_costs_analysed`
+réimpute l'avoir au Poste de commande. La grille des coûts réels, qui déduisait « hors
+sous-projet » du code nul, le déduit du libellé nul et montre le code à côté.
+
+**Les tables plates se trient** (#387 ; WF-IHM-0060). `sort_by` et `sort_order` sur `listUsers`
+(nom, prénom, adresse, origine, rôles, nœud, état) et `listAccessRoles` (libellé, nature, porteurs),
+sur les colonnes que leurs écrans présentent, à la manière de la liste du portefeuille ; les quatre
+listes plates du référentiel qui n'en avaient pas les gagnent de même — `listResourceRoles`,
+`listCalendars`, `listCostTypes`, `listCostCategories`. Les textes se comparent dans l'ordre des
+points de code Unicode, et une valeur nulle vient après les autres dans l'ordre croissant, comme
+pour les coûts réels (EP-02/L15). Laissées sans tri : `listOrgNodes`, un arbre en ordre de
+profondeur (EP-02/L18) ; `getHourlyRateGrid`, une grille dense ; les listes d'un projet —
+sous-projets, contributeurs, chronologies —, hors du constat, à traiter avec leurs écrans.
+
+**Un administrateur obtient le lien de fixation du mot de passe** (`createPasswordSetupLink`,
+`POST /users/{id}/password-link`, `PasswordSetupLink`, #388 ; WF-ADM-0140, WF-EXP-0020,
+WF-CMP-0030). Un `POST` sur le compte, qui engendre un lien nouveau — à usage unique, valable une
+heure, le précédent cessant de valoir — et le rend une seule fois, avec son expiration ; 409 pour
+un compte qui n'est pas local ou désactivé, 503 quand le fournisseur d'identité ne répond pas.
+Sous `users.write` : WF-ADM-0100 fixe le catalogue et ne nomme pas cette action parmi celles à
+permission propre, et une permission nouvelle serait une modification de la spécification —
+écarté. Chaque demande est inscrite au journal d'audit, sans le jeton (WF-SEC-0030). Le lien vise
+l'adresse du front que #154 demandait de fixer : `<adresse publique du front>/login/reset?token=<jeton>`,
+celle que le front d'EP-02 a posée, l'adresse publique du front étant un paramètre de
+l'installation, fixé à son déploiement (WF-EXP-0020), que l'API ne sert pas ; la description de
+`requestPasswordReset` dit le même lien pour le courriel. Exemple : `password_setup_link`.
+
+**Les lignes du portefeuille disent si le projet s'ouvre** (`can_open`, #389 ; WF-PTF-0030,
+WF-ADM-0110) : un booléen exigé sur `PortfolioProjectRow`, sur les risques les plus lourds de
+`PortfolioRisks` et sur les signaux de `PilotHealth`, évalué par le serveur — la permission de
+consulter et la qualité de contributeur, ou « consulter tous les projets » — pour que le front
+retire le lien sans recopier la règle. Écarté : laisser le front le déduire des permissions de la
+session, qui ne connaît pas les contributeurs. Dans le volume (`make mock-data`), le témoin et
+l'offre s'ouvrent, et des trois cents projets engendrés chaque septième ne s'ouvre pas
+(`mockportfolio.UNOPENABLE_EVERY`), le rang choisi pour que l'un des dix risques les plus lourds
+soit d'un projet fermé : la liste est lue par un utilisateur sans « consulter tous les
+projets », contributeur des autres — une variante déclarée de la session de la maquette, qui a
+tout le catalogue, que le résumé de `portfolio_projects` dit ; les risques les plus lourds en
+héritent de leur projet, et `pilot_health`, écrit à la main, s'ouvre.
+
+**Ce qui n'est pas ici.** Les écrans qui consomment ces formes — la colonne et les filtres du
+lotissement, les sections nouvelles du compte rendu, le tri des tables, le lien sans `can_open`,
+le lien de fixation — sont à leurs lots ; le front n'a changé que là où le client engendré ou les
+exemples l'exigeaient : l'ordre des colonnes du contrat (`NODE_COLUMNS`), la cellule de sous-projet
+des coûts réels, et les tests qui lisent les exemples.
 
 ## Collage et annulation
 

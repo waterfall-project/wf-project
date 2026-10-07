@@ -200,6 +200,24 @@
           Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses
           descendants (WF-REF-0070).
         schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé,
+          le nœud d'organisation, la catégorie et le calendrier — par leurs libellés —, les
+          heures mensuelles et l'effectif de la capacité, et l'état, les rôles désactivés après
+          les actifs dans l'ordre croissant (WF-IHM-0060).
+        schema:
+          type: string
+          enum:
+            - label
+            - org_node
+            - cost_category
+            - calendar
+            - monthly_hours
+            - headcount
+            - is_active
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Rôles et leur capacité (WF-REF-0090, WF-REF-0100).
@@ -344,6 +362,16 @@
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, le libellé. Les colonnes de la table des calendriers : le
+          libellé, les heures de la semaine — leur somme —, le calendrier par défaut en premier
+          dans l'ordre croissant, et l'état, les désactivés après les actifs (WF-IHM-0060).
+        schema:
+          type: string
+          enum: [label, weekly_hours, is_default, is_active]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Calendriers, dont celui par défaut (WF-REF-0110, WF-REF-0120).
@@ -471,6 +499,16 @@
           type: array
           items: { $ref: ../components/schemas/reference.yaml#/CostTypeKind }
         explode: false
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, le code. Les colonnes de la table des natures : le code, le
+          libellé, le type et l'état, les natures désactivées après les actives dans l'ordre
+          croissant (WF-IHM-0060).
+        schema:
+          type: string
+          enum: [code, label, kind, is_active]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Natures et leur type (WF-REF-0030).
@@ -581,6 +619,17 @@
         in: query
         description: Restreint aux catégories d'une nature de coût (WF-IHM-0130).
         schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: sort_by
+        in: query
+        description: >-
+          Colonne du tri ; absente, le code. Les colonnes de la table des catégories : le code,
+          le libellé, la nature — par son libellé —, le code comptable — une catégorie sans code
+          après les autres dans l'ordre croissant — et l'état, les catégories désactivées après
+          les actives (WF-IHM-0060).
+        schema:
+          type: string
+          enum: [code, label, cost_type, accounting_code, is_active]
+      - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
         description: Catégories rattachées à leur nature (WF-REF-0040).

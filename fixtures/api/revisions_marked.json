@@ -10,6 +10,7 @@
         "status": "marked",
         "marked_at": "2026-02-01T09:00:00Z",
         "is_reference": true,
+        "reference_year": 2026,
         "available_commands": [
           {
             "command": "edit_planning",
@@ -112,6 +113,7 @@
         "status": "marked",
         "marked_at": "2025-12-15T16:00:00Z",
         "is_reference": false,
+        "reference_year": 2025,
         "available_commands": [
           {
             "command": "edit_planning",

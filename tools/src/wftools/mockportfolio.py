@@ -74,6 +74,19 @@ def zone(index: Decimal) -> str:
 
 _SITES = ("Lyon", "Grenoble", "Dunkerque", "Toulouse")
 
+UNOPENABLE_EVERY = 7
+"""Which generated projects the reader cannot open (WF-PTF-0030): every seventh, by its number.
+
+The list is read by a user without « consulter tous les projets », contributor of the witness,
+of the offer and of every other project but these: they count in the totals and show their
+label and code, without a link (WF-ADM-0110).
+"""
+
+
+def can_open(n: int) -> bool:
+    """Return whether the reader can open the n-th generated project of the portfolio."""
+    return n % UNOPENABLE_EVERY != 0
+
 
 def portfolio() -> JsonObject:
     """Return the answer of getPortfolioProjects: the witness and the offer, then the others."""
@@ -140,6 +153,7 @@ def universe_rows() -> list[JsonObject]:
         "label": project["label"],
         "code": project["code"],
         "state": project["state"],
+        "can_open": True,
         "reference_budget": indicators["reference_budget"],
         "current_estimate": None,
         "win_probability": project["win_probability"],
@@ -154,6 +168,7 @@ def universe_rows() -> list[JsonObject]:
         "label": offer["label"],
         "code": offer["code"],
         "state": offer["state"],
+        "can_open": True,
         "reference_budget": None,
         "current_estimate": None,
         "win_probability": offer["win_probability"],
@@ -172,6 +187,7 @@ def _portfolio_row(n: int, label: str) -> JsonObject:
         "project_id": identifier(PROJECTS, n),
         "label": label,
         "code": f"PRJ-{n:03d}",
+        "can_open": can_open(n),
     }
     if n % 10 == 0:
         pricing: JsonObject = {
@@ -578,6 +594,7 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
                 "label": risk.label,
                 "project_id": risk.row["project_id"],
                 "project_label": risk.row["label"],
+                "can_open": risk.row["can_open"],
                 "provision_amount": money(risk.provision),
             }
             for risk in heaviest

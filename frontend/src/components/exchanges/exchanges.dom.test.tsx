@@ -459,12 +459,9 @@ describe("the report of an import", () => {
   it("is rendered from the same codes in the language of its reader [WF-ARC-0110-A]", () => {
     serve({});
     open(report(example("import_planning_mismatch") as Import), "en");
-    expect(
-      screen.getByText("Dates or durations differ from those Waterfall recalculates"),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "Differences with the existing data" }),
-    ).toHaveTextContent("UpdatedTaskÉtudes de détail");
+    const differences = screen.getByRole("table", { name: "Differences with the existing data" });
+    expect(differences).toHaveTextContent("UpdatedTaskRevue de conceptionDuration");
+    expect(differences).toHaveTextContent("KeptTaskÉtudes de détail");
   });
 });
 

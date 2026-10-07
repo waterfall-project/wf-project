@@ -89,7 +89,9 @@
         ],
         "editable_fields": [
           "task.label",
-          "task.description"
+          "task.description",
+          "task.order_item_id",
+          "task.work_package_id"
         ]
       },
       {
@@ -133,7 +135,9 @@
         ],
         "editable_fields": [
           "task.label",
-          "task.description"
+          "task.description",
+          "task.order_item_id",
+          "task.work_package_id"
         ]
       },
       {

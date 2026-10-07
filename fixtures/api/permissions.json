@@ -1,5 +1,5 @@
 {
-  "summary": "Le catalogue des permissions, livré : la consultation et la modification de chacune des vingt-quatre fonctions de second niveau, dans l'ordre de l'arborescence, puis les six actions irréversibles et la consultation de tous les projets (WF-ADM-0100).",
+  "summary": "Le catalogue des permissions, livré : la consultation et la modification de chacune des vingt-quatre fonctions de second niveau, dans l'ordre de l'arborescence, puis les huit actions irréversibles — marquer, abandonner, désigner la référence, fusionner un différentiel, sortir du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer — et les deux permissions structurantes, créer un projet et consulter tous les projets (WF-ADM-0100).",
   "value": [
     {
       "code": "users.read",
@@ -247,7 +247,17 @@
       "fbs_code": null
     },
     {
+      "code": "revision_abandon",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
       "code": "reference_designate",
+      "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "structure_merge",
       "kind": "irreversible",
       "fbs_code": null
     },
@@ -269,6 +279,11 @@
     {
       "code": "platform_restore",
       "kind": "irreversible",
+      "fbs_code": null
+    },
+    {
+      "code": "project_create",
+      "kind": "structuring",
       "fbs_code": null
     },
     {

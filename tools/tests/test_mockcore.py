@@ -228,7 +228,14 @@ def test_a_summary_is_started_with_one_subordinate_and_completed_after_the_last(
             "task.finish",
             "task.progress",
         ]
-        assert summary["editable_fields"] == ["task.label", "task.description"]
+        # A summary accepts its label, its description and its attachment to the work
+        # breakdown (WF-PLA-0130).
+        assert summary["editable_fields"] == [
+            "task.label",
+            "task.description",
+            "task.order_item_id",
+            "task.work_package_id",
+        ]
         assert "total_float" not in facet(summary)
     # Its dates of progress are its subordinates': started with the first, completed with the
     # last — the studies are not completed, the occurrence is.
@@ -469,6 +476,33 @@ def test_a_node_or_a_lineage_of_the_core_bears_one_kind_and_one_label_in_the_who
     assert cited == {mockcore.lineage(LABOUR), mockcore.lineage(BLOCKS)}
 
 
+def test_an_example_that_names_a_label_of_the_core_names_it_by_the_core_identifiers(
+    rows: list[mockcore.Row],
+) -> None:
+    # The converse of the test above: an example written by hand that names a task or a line of
+    # the core by its label names it by the node or the lineage the core gives it, never by
+    # another number of the families of the structure (C1, #287).
+    by_label: dict[str, set[str]] = {}
+    for row in rows:
+        by_label.setdefault(row.label, set()).update(
+            {universe(row.number), mockcore.lineage(row.number)}
+        )
+    strays: list[tuple[str, str, str]] = []
+    for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        if path.name in _DECLARED:
+            continue
+        found: list[tuple[str, str, str]] = []
+        _named(json.loads(path.read_text(encoding="utf-8"))["value"], found)
+        strays.extend(
+            (path.name, identifier, label)
+            for identifier, _, label in found
+            if label in by_label
+            and (path.name, identifier) not in _RENAMED
+            and identifier not in by_label[label]
+        )
+    assert strays == []
+
+
 def test_a_name_declared_generated_that_the_generator_does_not_write_fails_the_check(
     tmp_path: Path,
 ) -> None:
@@ -509,3 +543,20 @@ def test_a_task_of_another_year_is_corrected_for_inflation() -> None:
         "106.09",
     )
     assert facet(task.node)["inflated_amount"] == "106.09"
+
+
+def test_the_lot_of_the_control_station_bears_the_one_order_item_of_the_witness(
+    readings: dict[str, Any],
+) -> None:
+    estimate = nodes(readings["nodes_estimate.json"])
+    planning = nodes(readings["nodes_planning.json"])
+    lot = facet(estimate[CONTROL_STATION])
+    assert lot["order_item_id"] == mockwitness.ASSEMBLY.identifier
+    assert lot["work_package_id"] is None
+    assert lot["work_breakdown_label"] == "Fourniture et montage des armoires"
+    # The same order item as the totals by order item of the estimate name (WF-DEV-0060).
+    breakdown = mockwitness.fixture("estimate_indicators_breakdown")["by_order_item"]
+    assert [entry["key"] for entry in breakdown] == [lot["order_item_id"]]
+    # Neither the studies nor the occurrence bear one: an order item is borne by one summary.
+    assert "order_item_id" not in facet(planning[STUDIES])
+    assert "order_item_id" not in facet(estimate[OCCURRED])

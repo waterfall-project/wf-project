@@ -1,0 +1,50 @@
+{
+  "summary": "L'import d'un reste à engager lu aujourd'hui à 9 h 30 et analysé à 9 h 31, une variante que imports ne reprend pas : trois lignes lues sous le « Câblage des armoires » du cœur, démarré le 4 mai. Le « Raccordement des borniers » est réestimé à zéro heure et les « Borniers » à une quantité nulle ; la ligne de provision du risque de reprise du câblage, que le fichier porte inchangée à 500, n'est pas réestimable — sa provision est calculée depuis le risque 751, toujours identifié (WF-RIS-0010) —, et la tâche, dont cette ligne garde un reste à engager, n'est pas terminée par l'import : aucune tâche terminée au compte rendu (WF-INTF-0120, WF-RAE-0040, WF-PLA-0130, WF-INTF-0080).",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a13",
+    "kind": "remaining",
+    "filename": "reste-a-engager-cablage.xlsx",
+    "status": "analysed",
+    "created_at": "2026-06-03T09:30:05Z",
+    "expires_at": "2026-06-04T09:31:00Z",
+    "report": {
+      "format_version": "1",
+      "read_count": 3,
+      "rejected": [],
+      "differences": [
+        {
+          "change": "updated",
+          "target": "estimate_line",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000653",
+          "label": "Raccordement des borniers",
+          "fields": [
+            "hours"
+          ]
+        },
+        {
+          "change": "updated",
+          "target": "estimate_line",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000654",
+          "label": "Borniers",
+          "fields": [
+            "quantity"
+          ]
+        }
+      ],
+      "ignored": [],
+      "completed_tasks": [],
+      "date_mismatches": [],
+      "requires_confirmation_reasons": []
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000930",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-03T09:30:05Z",
+      "finished_at": "2026-06-03T09:31:00Z",
+      "problem": null,
+      "result_url": null
+    }
+  }
+}

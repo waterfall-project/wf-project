@@ -1,5 +1,5 @@
 {
-  "summary": "L'offre v1.0 du projet, marquée le 15 décembre 2025 pendant le chiffrage, avant l'état En cours : son marquage n'a conservé que le total du devis (WF-REV-0020, WF-DAT-0040).",
+  "summary": "L'offre v1.0 du projet, marquée le 15 décembre 2025 pendant le chiffrage, avant l'état En cours : son marquage n'a conservé que le total du devis (WF-REV-0020, WF-DAT-0040) ; créée en 2025, elle porte l'année de référence 2025 (WF-REV-0060).",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000100",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -8,6 +8,7 @@
     "status": "marked",
     "marked_at": "2025-12-15T16:00:00Z",
     "is_reference": false,
+    "reference_year": 2025,
     "available_commands": [
       {
         "command": "edit_planning",

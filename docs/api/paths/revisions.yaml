@@ -4,8 +4,9 @@
     tags: [revisions]
     summary: Historique des révisions
     description: >-
-      Nom de version, description, date de marquage et caractère de référence ; chacune
-      est consultable dans son intégralité (WF-REV-0070).
+      Nom de version, description, état, date de marquage, année de référence et caractère
+      de référence — les attributs d'une révision (WF-REV-0090) ; chacune est consultable dans
+      son intégralité (WF-REV-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
@@ -47,8 +48,9 @@
     description: >-
       Un projet comporte au plus une révision en cours ; sa création copie les
       structures de la dernière révision marquée et les valeurs du référentiel
-      qu'elles emploient (WF-REV-0010, WF-DAT-0010). La mise à jour des taux est
-      proposée, jamais imposée (WF-REV-0060).
+      qu'elles emploient (WF-REV-0010, WF-DAT-0010). La révision retient pour année de
+      référence l'année courante (`reference_year`) ; quand elle diffère de celle de la
+      révision copiée, la mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -418,6 +420,20 @@
         in: query
         description: Restreint aux lignes d'une nature de coût (WF-DEV-0050).
         schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: order_item_id
+        in: query
+        description: >-
+          Restreint au sous-arbre de la récapitulative rattachée à ce poste du lotissement,
+          elle comprise (WF-PLA-0130, WF-DEV-0050) ; un poste qu'aucune récapitulative ne
+          porte ne retient rien.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: work_package_id
+        in: query
+        description: >-
+          Restreint au sous-arbre de la récapitulative rattachée à ce lot du lotissement, elle
+          comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
+          WF-RAE-0040, WF-PLA-0130) ; un lot qu'aucune récapitulative ne porte ne retient rien.
+        schema: { $ref: ../components/common.yaml#/Uuid }
       - name: cost_category_id
         in: query
         schema: { $ref: ../components/common.yaml#/Uuid }
@@ -634,7 +650,17 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
+          calculée (`COMPUTED_VALUE`, WF-IHM-0030), ou un rattachement au lotissement refusé —
+          tâche non récapitulative, poste ou lot inconnu, poste et lot ensemble, poste ou lot
+          déjà porté par une autre récapitulative (WF-PLA-0130, `TaskFacetUpdate`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line:
   patch:
@@ -1000,9 +1026,12 @@
     tags: [planning]
     summary: Engendrer le squelette de planning depuis le lotissement
     description: >-
-      Une récapitulative par poste et par lot, une feuille par livrable, un jalon de fin
-      par lot et par poste, avec leurs liaisons. Proposé seulement sur une structure
-      sans tâche, et sans créer de lien durable avec le lotissement (WF-PRJ-0030).
+      Une récapitulative par poste et par lot, chacune rattachée au poste ou au lot qu'elle
+      représente (`TaskFacet.order_item_id`, `work_package_id`, WF-PLA-0130), une feuille par
+      livrable, un jalon de fin par lot et par poste, avec leurs liaisons. Proposé seulement
+      sur une structure sans tâche, et sans créer d'autre lien avec le lotissement que ce
+      rattachement : modifier ensuite le lotissement ne déplace ni ne supprime aucune tâche
+      (WF-PRJ-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
