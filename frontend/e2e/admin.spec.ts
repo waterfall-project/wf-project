@@ -62,7 +62,7 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
-  await expect(matrix.getByRole("row")).toHaveCount(56);
+  await expect(matrix.getByRole("row")).toHaveCount(59);
   const restore = matrix.getByRole("row", { name: /^Restaurer la plateforme/ });
   await expect(restore.getByRole("cell")).toHaveText([
     "Accordée",
