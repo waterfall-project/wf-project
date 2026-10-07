@@ -40,7 +40,7 @@ reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["../docs/api/tools"]
+pythonpath = ["../docs/api/tools", "../docs/spec/tools"]
 addopts = ["--strict-markers", "--strict-config"]
 markers = ["requirement(identifier): the requirement this test covers, cited by its full identifier (WF-QUA-0010)"]
 xfail_strict = true
