@@ -464,6 +464,7 @@
               items: { $ref: ../components/schemas/revisions.yaml#/Timeline }
             examples:
               witness: { $ref: ../../../fixtures/api/timelines.json }
+              none: { $ref: ../../../fixtures/api/timelines_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:

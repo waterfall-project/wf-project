@@ -83,14 +83,22 @@ describe("the Kanban of the start of the tasks", () => {
     );
   });
 
-  it("presents the tasks not started and those started, each a card of its number, its label and its finish, the overdue marked", async () => {
+  it("presents every task not started, those started and those completed, each a card of its number, its label and its finish, the overdue marked, and no milestone signalled whose predecessors are not all completed [WF-RAE-0030-A]", async () => {
+    // Un jalon dont tous les prédécesseurs sont terminés est signalé et reste non démarré tant
+    // que personne ne le termine. Here the tasks of every state, none such a milestone: the
+    // factory acceptance waits for the wiring, and is not signalled.
     const page = await kanbanAt();
     expect(callsTo(STARTABLE).map((call) => call.path)).toEqual([
       `/projects/${PROJECT}/remaining-indicators/startable-tasks`,
     ]);
+    // The tasks not started whose predecessors are not completed too (#425): the assembly on site
+    // and the commissioning wait for the wiring, and are presented all the same.
     expect(text(page)).toContain(
       "Not started 18 Milestone Réception usine Finish on 30/06/2026 20 Montage des armoires sur site Finish on 18/12/2026 23 Mise en service Finish on 01/01/2027 " +
-        "Started 4 Pupitres opérateurs Finish on 24/04/2026 Finish overdue 9 Câblage des armoires Finish on 30/06/2026",
+        "Started 4 Pupitres opérateurs Finish on 24/04/2026 Finish overdue 9 Câblage des armoires Finish on 30/06/2026 " +
+        "Completed 2 Études de détail Completed on 10/04/2026 5 Revue de conception Completed on 24/04/2026 " +
+        "6 Milestone Réception des études Completed on 24/04/2026 7 Dossier de conception Completed on 15/04/2026 " +
+        "14 Relance du fournisseur Completed on 08/05/2026 16 Transport exceptionnel Completed on 15/05/2026",
     );
     // No milestone is signalled whose predecessors are not all completed: the factory acceptance
     // waits for the wiring.

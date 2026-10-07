@@ -4,12 +4,12 @@
  * The indicators of the remaining to commit (WF-RAE-0020), above its grid: its total — the lines
  * of provision of the risks identified included (WF-RAE-0010) —, its margin on the reference
  * budget — the budget less the actual cost and the remaining, in the one sense of the balances of
- * the sub-projects (#466) —, its deviation from the previous marked revision, its totals by nature of cost and, for
- * each sub-project — the whole « out of any sub-project » among them —, its remaining to commit and
- * the margin between its budget and its actual cost plus its remaining to commit, with the
- * signal of an overrun in the zone the server classes it in, never one deduced here (`Signal`,
- * WF-IHM-0070); and the coverage of the
- * risks (`RiskCoverageSummary`, WF-RIS-0050). All with the date they are computed at
+ * the sub-projects (#466) —, its deviation from the previous review — what the review changed,
+ * which is no margin —, its totals by nature of cost and, for each sub-project — the whole « out
+ * of any sub-project » among them —, its remaining to commit and its margin, its budget less its
+ * actual cost and its remaining to commit, with the signal of an overrun in the zone the server
+ * classes it in, never one deduced here (`Signal`, WF-IHM-0070); and the coverage of the risks
+ * (`RiskCoverageSummary`, WF-RIS-0050). All with the date they are computed at
  * (WF-IHM-0020), or said unavailable when the API did not give them.
  *
  * Every figure is the API's, formatted from its exact string: nothing is summed nor subtracted

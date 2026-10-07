@@ -8,8 +8,10 @@
  * another configuration, read only — the actual costs are imported and excluded by the epic of the
  * actual costs (EP-09). Every value is entered by the ERP, none computed here.
  *
- * Each column kept from the file is a column of its own, headed by the name the file gives it, as
- * the lines of the page carry them (`costGrid`). Every column sorts by the column of the contract
+ * Each column kept from the file is a column of its own, headed by the name the file gives it: the
+ * columns of every line the filters retain, in the order the imports declared them, as the server
+ * names them (`meta.passthrough_columns`, #414) — the same from one page to the next (`costGrid`).
+ * Every column sorts by the column of the contract
  * of the same name — a column kept by `passthrough.<its name>` —, the server sorting, the most
  * recent documents first when none is asked. The server searches nothing, and the bar of the grid
  * offers no search. The totals row shows the general total of the lines retained the server
@@ -17,8 +19,6 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
-import { formatLocale } from "@/i18n/format";
-import type { Locale } from "@/i18n/locale";
 
 import { ScopeCell, SubprojectCell } from "./cost-cells";
 
@@ -52,10 +52,14 @@ export const COST_FIELDS = [
 /** A line of actual cost as the grid reads it. */
 export type CostRow = Pick<ActualCostLine, (typeof COST_FIELDS)[number]>;
 
-/** What the server answers of a page of the actual costs, as the grid reads it. */
+/**
+ * What the server answers of a page of the actual costs, as the grid reads it: its lines, the
+ * totals of every line retained, and the columns kept from the files of every line retained.
+ */
 export interface CostRows {
   readonly items: readonly CostRow[];
   readonly totals: ActualCostTotals;
+  readonly kept: readonly string[];
 }
 
 /**
@@ -152,21 +156,9 @@ export function isKeptSort(column: string | null | undefined): column is CostSor
 }
 
 /**
- * The names of the columns kept from the file the lines of a page carry, in the alphabetical
- * order of the language of the interface, whatever the order of the lines and of their columns.
- * The lines of one file carry the same; a column of another file shows on the pages that carry
- * its lines alone, the contract naming no union of them (#353).
- */
-export function keptColumns(lines: readonly CostRow[], locale: Locale): readonly string[] {
-  const names = new Intl.Collator(formatLocale(locale), { sensitivity: "base", numeric: true });
-  return [...new Set(lines.flatMap((line) => Object.keys(line.passthrough ?? {})))].sort(
-    names.compare,
-  );
-}
-
-/**
- * The grid of the actual costs for the columns kept from the file a page carries: each its own
- * column, headed by its name as the file gives it, its values as imported, sorted by the server.
+ * The grid of the actual costs for the columns kept from the files of the lines retained, in the
+ * order the server gives them: each its own column, headed by its name as the file gives it, its
+ * values as imported, sorted by the server.
  */
 export function costGrid(
   kept: readonly string[],

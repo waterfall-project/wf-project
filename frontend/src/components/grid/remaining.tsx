@@ -6,17 +6,17 @@
  * icon of its nature; the progress of a task, an icon named for its state — a task is completed or
  * it is not, and no percentage is entered anywhere (US-0230) —, its finish, never entered here, and
  * the mark of a task started whose finish is past the date of calculation, which the server says
- * (`finish_overdue`); of a line, its budgeted amount, its amount re-estimated at the previous
- * remaining to commit, its figures — quantity, effort, unit disbursement — and its amount
- * re-estimated now, the three amounts computed by the server and never entered. The totals are
- * those of the answer: the hours and the amounts of the lines retained.
+ * (`finish_overdue`); of a line, its budgeted amount, its figures — quantity, effort, unit
+ * disbursement — and its amount re-estimated at the previous remaining to commit, and its figures
+ * and its amount re-estimated now (WF-RAE-0040, #424), the three amounts computed by the server
+ * and never entered, the figures at the previous remaining to commit kept by the server and never
+ * entered either — none before the first review. The totals are those of the answer: the hours and
+ * the amounts of the lines retained.
  *
  * The re-estimation is entered on the figures (WF-RAE-0040, WF-DEV-0020), each written alone by
  * `setLineRemaining`: where the node accepts the field (`editable_fields`) and does not compute it
  * (`computed_fields`), and where the line says it takes a re-estimation (`remaining_entry`) — the
- * lines of a task completed do not —, never deduced here from the progress of its task. The
- * contract gives the figures of a line once, those of now: the figures at the previous remaining
- * to commit are not presented (#424).
+ * lines of a task completed do not —, never deduced here from the progress of its task.
  */
 import { CalendarX2, Contrast } from "lucide-react";
 
@@ -61,6 +61,9 @@ export const REMAINING_FIELDS = {
     "unit_disbursement",
     "budgeted_amount",
     "reestimated_amount",
+    "previous_quantity",
+    "previous_hours",
+    "previous_unit_disbursement",
     "previous_reestimated_amount",
     "remaining_entry",
   ],
@@ -130,6 +133,32 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
       sortBy: "budgeted_amount",
       value: (node) => node.task?.budgeted_amount ?? node.estimate_line?.budgeted_amount,
       total: (totals) => totals.budgeted_amount,
+    },
+    // The figures at the previous remaining to commit, kept by the server and never entered; left
+    // out by the projection or null alike when the line has none.
+    {
+      key: "previous_quantity",
+      label: "previousQuantity",
+      format: "decimal",
+      width: 96,
+      sortBy: "previous_quantity",
+      value: (node) => node.estimate_line?.previous_quantity ?? null,
+    },
+    {
+      key: "previous_hours",
+      label: "previousHours",
+      format: "decimal",
+      width: 112,
+      sortBy: "previous_hours",
+      value: (node) => node.estimate_line?.previous_hours ?? null,
+    },
+    {
+      key: "previous_unit_disbursement",
+      label: "previousUnitDisbursement",
+      format: "money",
+      width: 128,
+      sortBy: "previous_unit_disbursement",
+      value: (node) => node.estimate_line?.previous_unit_disbursement ?? null,
     },
     {
       key: "previous_reestimated_amount",

@@ -343,9 +343,13 @@ tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree`
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
 (FBS-4.3.1, `…/timelines`), une par lien (`timeline`), leurs tâches sur l'axe qu'elles partagent,
-dessinées comme le Gantt. Faute d'un filtre de `listNodes`, l'arborescence garde des tâches rendues
-les récapitulatives dans la profondeur, et une chronologie les tâches qui la nomment (constat
-d'US-0220/L2).
+dessinées comme le Gantt. Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
+demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
+chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
+chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre
+idempotent, qui ne change rien contre un serveur qui les tient, écart temporaire d'EP-02 retiré
+avec le back d'EP-03. Le contrat ne disant pas jusqu'où vont les récapitulatives, l'arborescence
+offre les niveaux de la réponse, et le suivant quand une récapitulative est au niveau demandé.
 
 L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de
 ses opérations dans la révision de sa route (`revision_id`) : les totaux des provisions des
@@ -363,22 +367,28 @@ tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entré
 
 L'écran du reste à engager, `…/revisions/[r]/remaining` (`frontend/src/components/remaining/`,
 `remaining.tsx` de la grille), lit ses indicateurs dans la révision de sa route
-(`getRemainingIndicators`, `revision_id`) — le total, les écarts à la référence et à la revue
-précédente, absent plutôt que nul sans elle, les totaux par nature et, par sous-projet, le reste à
-engager et l'écart au budget avec le `Signal` de la zone que le serveur donne, et la couverture des
-risques (`RiskCoverageSummary`) —, ou les dit indisponibles quand l'API ne les trouve pas ; et la
+(`getRemainingIndicators`, `revision_id`) — le total, la marge sur le budget de référence et
+l'écart à la revue précédente, absent plutôt que nul sans elle, les totaux par nature et, par
+sous-projet, le reste à engager et la marge sur son budget avec le `Signal` de la zone que le
+serveur donne, et la couverture des risques (`RiskCoverageSummary`) —, ou les dit indisponibles
+quand l'API ne les trouve pas ; et la
 grille dense, une configuration de plus, sur les lignes des seules tâches démarrées, à moins que
 l'adresse ne demande aussi les non démarrées (`progress`, sous le nom et la forme du contrat, qu'un
-lien de son en-tête écrit). Le montant budgété, le réestimé précédent et le réestimé courant y sont
-des colonnes calculées ; les grandeurs d'une ligne se réestiment une par une par `setLineRemaining`,
+lien de son en-tête écrit). Le montant budgété, les grandeurs et le réestimé au reste à engager
+précédent, puis les grandeurs et le réestimé courants (WF-RAE-0040) ; les trois montants y sont des
+colonnes calculées, les grandeurs précédentes des valeurs conservées, jamais saisies ; les grandeurs
+d'une ligne se réestiment une par une par `setLineRemaining`,
 là où la ligne dit l'accepter (`remaining_entry`) et où son nœud accepte le champ — jamais d'après
 l'avancement de sa tâche —, la commande `edit_remaining` posant Annuler et Rétablir ; la fin d'une
 tâche s'y montre sans se saisir, et la fin dépassée par une marque propre, que le serveur dit
 (`finish_overdue`). Son bandeau ne montre que le sous-projet, seul paramètre de contexte que ses
-lectures prennent. Le Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
-`…/revisions/[r]/kanban`, où l'en-tête de la grille mène : les tâches non démarrées dont les prédécesseurs sont terminés et
-les démarrées, telles que les rend `listStartableTasks`, chacune une carte, un jalon non démarré
-signalé à terminer ; aucun pourcentage, aucune commande. L'opération lit la révision en cours : sur une
+lectures prennent, et dit qu'il ne restreint que la grille, ses indicateurs étant ceux du projet
+entier (`gridOnly` de `ContextBanner`, #459). Le Kanban du démarrage des tâches, FBS-4.5.3, est une
+feuille de la fonction, `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches
+non démarrées, les démarrées et les terminées avec leur date, telles que les rend
+`listStartableTasks`, chacune une carte, un jalon non démarré dont les prédécesseurs sont terminés
+signalé à terminer (`predecessors_completed`) ; aucun pourcentage, aucune commande. L'opération lit
+la révision en cours : sur une
 révision marquée, l'écran le dit et ne demande rien.
 
 L'écran des coûts réels, `…/revisions/[r]/actual-costs` (`frontend/src/components/costs/`), lit
@@ -392,9 +402,9 @@ a pas : une configuration la retire par `searched: false` —, chaque ligne avec
 nommé par le serveur, son périmètre en mots et chaque colonne conservée du fichier comme une
 colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
 (`passthrough.<colonne>`), chaque colonne triée par le serveur — les colonnes conservées sont
-celles des lignes de la page, dans l'ordre alphabétique de la langue de l'interface, quel que soit
-l'ordre des lignes : une colonne propre à un autre fichier ne paraît que sur les pages qui portent
-ses lignes, le contrat ne nommant pas leur union — ; et le journal des imports, paginé à part
+celles de toutes les lignes retenues, dans l'ordre où le serveur les nomme
+(`meta.passthrough_columns`, #414) : les mêmes d'une page à l'autre — ; et le journal des imports,
+paginé à part
 (`imports_offset`). Des filtres que le serveur refuse (422 : une période qui finit avant de
 commencer, un sous-projet que le projet n'a pas) se disent à la place des lignes, les filtres
 gardés pour être changés. Un tri ou une

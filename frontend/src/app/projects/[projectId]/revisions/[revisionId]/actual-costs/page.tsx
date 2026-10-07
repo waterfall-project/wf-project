@@ -96,7 +96,8 @@ export async function generateMetadata({
 
 /**
  * A page of the actual costs as the address asks it — sorted, filtered, from its place — and the
- * totals of every line retained; of each line, the fields the grid reads alone (`costRow`).
+ * totals and the columns kept from the files of every line retained; of each line, the fields the
+ * grid reads alone (`costRow`).
  */
 async function readCosts(
   { revision, address, context }: GridAddress,
@@ -127,7 +128,11 @@ async function readCosts(
   }
   const answer = read.data;
   return {
-    costs: { items: answer.items.map(costRow), totals: answer.totals },
+    costs: {
+      items: answer.items.map(costRow),
+      totals: answer.totals,
+      kept: answer.meta.passthrough_columns,
+    },
     lastImport: answer.last_import_at,
     page: answer.meta,
   };

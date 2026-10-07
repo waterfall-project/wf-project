@@ -122,15 +122,16 @@ describe("the screen of the remaining to commit", () => {
     );
   });
 
-  it("reads the lines of the tasks started alone, the fields its grid shows, for the sub-project its banner shows alone [WF-IHM-0020-A]", async () => {
+  it("reads the lines of the tasks started alone, the fields its grid shows, for the sub-project its banner shows alone, said to restrict the grid alone [WF-IHM-0020-A]", async () => {
     // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres — the sub-project, by
-    // which the nodes are read; the date, which no read of the screen takes, is not shown (#302).
+    // which the nodes are read and not the indicators, the chip saying so (#459); the date, which
+    // no read of the screen takes, is not shown (#302).
     const page = await remainingAt({ subproject_id: SUBPROJECT, as_of: "2026-05-31" });
     const { fields, ...query } = queryOf(NODES) ?? {};
     expect(query).toEqual({ progress: "started", subproject_id: SUBPROJECT });
     expect(fields?.split(",").sort()).toEqual(nodeFieldNames(REMAINING_FIELDS).sort());
     const banner = page.slice(0, page.indexOf("</section>"));
-    expect(text(banner)).toContain("Subproject: SP-CMD — Poste de commande");
+    expect(text(banner)).toContain("Subproject: SP-CMD — Poste de commande, on the grid only");
     expect(text(banner)).not.toContain("Calculation date");
     expect(queryOf(INDICATORS)).toEqual({ revision_id: REVISION });
   });

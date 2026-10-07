@@ -121,14 +121,18 @@ export const COMMON_FIELDS = {
 
 /**
  * The fields of a line a projection leaves out when they say nothing — null, or false for the
- * flag —, on six thousand lines of which most bear none (#349): a cell reads a field left out as
- * it reads a null one, empty.
+ * flag —, on six thousand lines of which most bear none (#349), or none before the first review
+ * of the remaining to commit, the figures at the previous one (#424): a cell reads a field left
+ * out as it reads a null one, empty.
  */
 export const SPARSE_LINE_FIELDS = [
   "payment_delay_days",
   "subproject_id",
   "subproject_label",
   "uses_inactive_object",
+  "previous_quantity",
+  "previous_hours",
+  "previous_unit_disbursement",
 ] as const;
 
 /** A field of a line a projection leaves out when it says nothing. */
