@@ -26,6 +26,7 @@ id: EP-09
 titre: Un EPIC d'essai
 statut: {status}
 depend_de: rien
+famille: {family}
 issue:
 ---
 
@@ -61,9 +62,11 @@ def epic(
     scope: str = "entière",
     cited: str = "`WF-QUA-0010-A`",
     text: str = EPIC,
+    family: str = "front, back",
 ) -> roadmap.Epic:
     """Read the sample epic, with some of its fields replaced."""
-    return roadmap.parse_epic("EP-09", text.format(status=status, scope=scope, cited=cited))
+    filled = text.format(status=status, scope=scope, cited=cited, family=family)
+    return roadmap.parse_epic("EP-09", filled)
 
 
 def problems(*epics: roadmap.Epic, identifiers: tuple[str, ...] = ("WF-QUA-0010-A",)) -> list[str]:
@@ -74,6 +77,7 @@ def problems(*epics: roadmap.Epic, identifiers: tuple[str, ...] = ("WF-QUA-0010-
 def test_an_epic_is_read() -> None:
     read = epic()
     assert (read.identifier, read.status) == ("EP-09", "en cours")
+    assert read.families == ("front", "back")
     assert read.rows == (roadmap.Row("WF-QUA-0010-A", closes=True),)
     assert [(s.identifier, s.requirements) for s in read.stories] == [
         ("US-0900", ("WF-QUA-0010-A",))
@@ -132,9 +136,34 @@ def test_a_requirement_closed_by_no_epic_or_by_two_fails(
 ) -> None:
     epics = [epic(scope=scope) for scope in scopes]
     epics = [
-        roadmap.Epic(f"EP-{9 + n:02d}", e.status, e.rows, e.stories) for n, e in enumerate(epics)
+        roadmap.Epic(f"EP-{9 + n:02d}", e.status, e.rows, e.stories, e.families)
+        for n, e in enumerate(epics)
     ]
     assert f"WF-QUA-0010-A: closed by {closers}, and by one epic only" in problems(*epics)
+
+
+@pytest.mark.parametrize("family", ["front", "back", "plateforme", "front, back, plateforme"])
+def test_an_epic_declares_one_family_or_several(family: str) -> None:
+    assert problems(epic(family=family)) == []
+
+
+@pytest.mark.parametrize(
+    ("family", "problem"),
+    [
+        ("", "EP-09: its front matter declares no famille (front, back, plateforme)"),
+        ("front, métier", "EP-09: famille « métier » is unknown (front, back, plateforme)"),
+        ("back, front, back", "EP-09: famille « back » is declared more than once"),
+    ],
+)
+def test_a_missing_unknown_or_repeated_family_fails(family: str, problem: str) -> None:
+    assert problems(epic(family=family)) == [problem]
+
+
+def test_an_epic_without_a_family_field_fails() -> None:
+    text = EPIC.replace("famille: {family}\n", "")
+    assert problems(epic(text=text)) == [
+        "EP-09: its front matter declares no famille (front, back, plateforme)"
+    ]
 
 
 def test_uncited_requirements_are_listed_without_failing() -> None:
@@ -221,7 +250,7 @@ def test_the_agents_of_the_repository_cite_existing_commands() -> None:
 
 
 def test_a_wrapped_requirements_field_is_read_whole() -> None:
-    text = EPIC.format(status="en cours", scope="entière", cited="x").replace(
+    text = EPIC.format(status="en cours", scope="entière", cited="x", family="back").replace(
         "- **exigences** : x",
         "- **exigences** : `WF-QUA-0010-A`,\n  `WF-QUA-0020-A`\n- **autre** : champ suivant",
     )

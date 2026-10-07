@@ -3,6 +3,7 @@ id: EP-11
 titre: Voir l'ensemble des projets : valeur, charge, performance, risques, courbe en S, santé
 statut: à planifier
 depend_de: EP-10
+famille: front, back
 issue:
 ---
 

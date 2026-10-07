@@ -3,6 +3,7 @@ id: EP-12
 titre: Échanger le planning avec MS Project, le devis et le reste à engager avec Excel
 statut: à planifier
 depend_de: EP-09
+famille: front, back
 issue:
 ---
 
