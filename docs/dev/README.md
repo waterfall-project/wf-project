@@ -629,9 +629,18 @@ et de `getComputedValueDependencies` (`witness`, `core`, `planning`, `estimate`,
 composants, sont des lectures du cœur du témoin (`wftools.mockcore`), écrites par la même commande sous `fixtures/api/`
 par leur nom et déclarées engendrées dans `tools/paths.toml` ; de même les réponses des écritures
 de grille (`task_renamed`, `estimate_line_*`, `node_deleted`, `predecessor_set`, `paste_*`), chacune
-la différence de deux lectures de la structure, avant et après l'écriture (`wftools.mockwrites`). Les indicateurs du projet
+la différence de deux lectures de la structure, avant et après l'écriture (`wftools.mockwrites`) ;
+et l'histoire du témoin (`wftools.mockhistory`) : la comparaison de l'offre et de la référence,
+décrites depuis le cœur telles qu'elles furent marquées, et ses risques — le registre, un risque
+seul, la matrice, les réexamens, la couverture —, lus de leur description dans `mockwitness`. Les
+autres exemples qui datent le témoin (le projet, ses révisions, ses transitions d'état, le
+référentiel installé) restent écrits à la main, et `tools/tests/test_mockhistory.py` les confronte
+à sa chronologie. Les indicateurs du projet
 (`getProjectIndicators`) et la ligne du projet témoin dans le portefeuille restent ceux du
-témoin, que l'outil lit dans leurs fixtures : ils ne sont pas tirés du volume. Les volumes
+témoin, que l'outil lit dans leurs fixtures : ils ne sont pas tirés du volume. Ce que la même
+commande engendre ne se relit jamais sur le disque : les risques du témoin, que le portefeuille
+somme, lui sont passés en mémoire (`mockhistory.readings`), pour qu'une seule exécution de
+`make mock-data` atteigne son point fixe. Les volumes
 restent dans l'univers des autres exemples — le projet, sa révision, ses sous-projets, ses
 catégories et ses rôles gardent leurs identifiants, et ce que disent le projet témoin, l'offre
 et les libellés de l'univers se lit dans leurs fixtures, jamais recopié —, et l'engendrement

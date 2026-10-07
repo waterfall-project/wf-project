@@ -1,5 +1,5 @@
 {
-  "summary": "Le projet terminé par sa sortie du cycle de vie : il passe en lecture seule, et aucune de ses commandes n'est plus disponible.",
+  "summary": "Le projet témoin terminé par sa sortie du cycle de vie, confirmée aujourd'hui à 14 h 05 : il passe en lecture seule, et aucune de ses commandes n'est plus disponible.",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
     "label": "Modernisation du poste de commande",
@@ -99,13 +99,13 @@
       }
     ],
     "audit": {
-      "created_at": "2026-03-02T08:30:00Z",
+      "created_at": "2025-10-06T09:00:00Z",
       "created_by": {
         "kind": "user",
         "user_id": "01926f3a-7c00-7000-8000-000000000301",
         "display_name": "Camille Martin"
       },
-      "updated_at": "2026-09-30T09:00:00Z",
+      "updated_at": "2026-06-03T14:05:00Z",
       "updated_by": {
         "kind": "user",
         "user_id": "01926f3a-7c00-7000-8000-000000000301",

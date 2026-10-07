@@ -233,10 +233,11 @@ def test_the_figures_of_the_core_are_those_of_the_other_examples() -> None:
     }
     # The lines merged by the occurrence of 752 are budgeted nothing — the occurrence does not
     # move the reference (WF-RIS-0060) —, and reestimated at their own estimate, 200 in all;
-    # the occurrence before the current revision opened.
+    # the occurrence merged into the current revision, opened on 2 February, before the studies.
     merged = [lines[543], lines[545]]
     assert [line.budgeted for line in merged] == [Decimal(0), Decimal(0)]
     assert sum(line.unit or 0 for line in merged) == Decimal(delay["severity"])
+    assert mockwitness.RISK_751_REVIEWED.on < mockwitness.RISK_752_OCCURRED.on
     assert mockwitness.RISK_752_OCCURRED.on < mockwitness.STUDIES_STARTED.on
     # The provision of 751, its severity at its probability; the wiring at the rate of 2026.
     assert lines[555].unit == Decimal(rework["severity"]) * Decimal(rework["probability"])

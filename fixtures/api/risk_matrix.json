@@ -1,154 +1,37 @@
 {
-  "summary": "La matrice des risques de la révision courante : quatre niveaux de probabilité bornés à 10, 30 et 60 %, quatre de gravité bornés à 1, 5 et 10 % du budget de référence ; chaque case avec sa zone et le nombre de ses risques — les trois du registre —, et les totaux de provisions (WF-RIS-0040, WF-REF-0160).",
+  "summary": "La matrice des risques de la révision courante : 4 niveaux de probabilité bornés à 10, 30 et 60 %, 4 de gravité bornés à 1, 5 et 10 % du budget de référence (`reference_settings`) ; chaque case avec sa zone et le nombre de ses risques — les 3 du registre, la gravité lue sur le budget de référence, 120 834,56 : 12 000,00 pour « Indisponibilité de l'automaticien », 9,93 %, au niveau 3 —, et les totaux de provisions (WF-RIS-0040, WF-REF-0160).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "probability_levels": [
-      {
-        "level": 1,
-        "lower": "0",
-        "upper": "0.1"
-      },
-      {
-        "level": 2,
-        "lower": "0.1",
-        "upper": "0.3"
-      },
-      {
-        "level": 3,
-        "lower": "0.3",
-        "upper": "0.6"
-      },
-      {
-        "level": 4,
-        "lower": "0.6",
-        "upper": null
-      }
+      {"level":1,"lower":"0","upper":"0.1"},
+      {"level":2,"lower":"0.1","upper":"0.3"},
+      {"level":3,"lower":"0.3","upper":"0.6"},
+      {"level":4,"lower":"0.6","upper":null}
     ],
     "severity_levels": [
-      {
-        "level": 1,
-        "lower": "0",
-        "upper": "0.01"
-      },
-      {
-        "level": 2,
-        "lower": "0.01",
-        "upper": "0.05"
-      },
-      {
-        "level": 3,
-        "lower": "0.05",
-        "upper": "0.1"
-      },
-      {
-        "level": 4,
-        "lower": "0.1",
-        "upper": null
-      }
+      {"level":1,"lower":"0","upper":"0.01"},
+      {"level":2,"lower":"0.01","upper":"0.05"},
+      {"level":3,"lower":"0.05","upper":"0.1"},
+      {"level":4,"lower":"0.1","upper":null}
     ],
     "cells": [
-      {
-        "probability_level": 1,
-        "severity_level": 1,
-        "count": 0,
-        "zone": "nominal"
-      },
-      {
-        "probability_level": 1,
-        "severity_level": 2,
-        "count": 0,
-        "zone": "nominal"
-      },
-      {
-        "probability_level": 1,
-        "severity_level": 3,
-        "count": 0,
-        "zone": "nominal"
-      },
-      {
-        "probability_level": 1,
-        "severity_level": 4,
-        "count": 1,
-        "zone": "watch"
-      },
-      {
-        "probability_level": 2,
-        "severity_level": 1,
-        "count": 0,
-        "zone": "nominal"
-      },
-      {
-        "probability_level": 2,
-        "severity_level": 2,
-        "count": 0,
-        "zone": "nominal"
-      },
-      {
-        "probability_level": 2,
-        "severity_level": 3,
-        "count": 0,
-        "zone": "watch"
-      },
-      {
-        "probability_level": 2,
-        "severity_level": 4,
-        "count": 0,
-        "zone": "watch"
-      },
-      {
-        "probability_level": 3,
-        "severity_level": 1,
-        "count": 1,
-        "zone": "nominal"
-      },
-      {
-        "probability_level": 3,
-        "severity_level": 2,
-        "count": 1,
-        "zone": "watch"
-      },
-      {
-        "probability_level": 3,
-        "severity_level": 3,
-        "count": 0,
-        "zone": "watch"
-      },
-      {
-        "probability_level": 3,
-        "severity_level": 4,
-        "count": 0,
-        "zone": "alert"
-      },
-      {
-        "probability_level": 4,
-        "severity_level": 1,
-        "count": 0,
-        "zone": "watch"
-      },
-      {
-        "probability_level": 4,
-        "severity_level": 2,
-        "count": 0,
-        "zone": "watch"
-      },
-      {
-        "probability_level": 4,
-        "severity_level": 3,
-        "count": 0,
-        "zone": "alert"
-      },
-      {
-        "probability_level": 4,
-        "severity_level": 4,
-        "count": 0,
-        "zone": "alert"
-      }
+      {"probability_level":1,"severity_level":1,"count":0,"zone":"nominal"},
+      {"probability_level":1,"severity_level":2,"count":0,"zone":"nominal"},
+      {"probability_level":1,"severity_level":3,"count":1,"zone":"nominal"},
+      {"probability_level":1,"severity_level":4,"count":0,"zone":"watch"},
+      {"probability_level":2,"severity_level":1,"count":0,"zone":"nominal"},
+      {"probability_level":2,"severity_level":2,"count":0,"zone":"nominal"},
+      {"probability_level":2,"severity_level":3,"count":0,"zone":"watch"},
+      {"probability_level":2,"severity_level":4,"count":0,"zone":"watch"},
+      {"probability_level":3,"severity_level":1,"count":1,"zone":"nominal"},
+      {"probability_level":3,"severity_level":2,"count":1,"zone":"watch"},
+      {"probability_level":3,"severity_level":3,"count":0,"zone":"watch"},
+      {"probability_level":3,"severity_level":4,"count":0,"zone":"alert"},
+      {"probability_level":4,"severity_level":1,"count":0,"zone":"watch"},
+      {"probability_level":4,"severity_level":2,"count":0,"zone":"watch"},
+      {"probability_level":4,"severity_level":3,"count":0,"zone":"alert"},
+      {"probability_level":4,"severity_level":4,"count":0,"zone":"alert"}
     ],
-    "totals": {
-      "identified": "500.00",
-      "occurred": "60.00",
-      "dismissed": "600.00",
-      "total": "1160.00",
-      "reserve": "910.00"
-    }
+    "totals": {"identified":"500.00","occurred":"60.00","dismissed":"600.00","total":"1160.00","reserve":"910.00"}
   }
 }

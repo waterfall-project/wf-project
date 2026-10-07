@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any
 
@@ -43,32 +43,56 @@ TODAY = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
 
 @dataclass(frozen=True, slots=True)
 class Event:
-    """A dated event of the life of the witness project, in universal time."""
+    """A dated event of the life of the witness project, in universal time.
+
+    Its hour is the one the examples write it at — the audit of what it creates or changes, the
+    transition it makes —, midnight for an event no example dates to the hour.
+    """
 
     on: date
     what: str
+    at: time = time(0, 0)
+
+    @property
+    def instant(self) -> datetime:
+        """Return the instant of the event, as an audit or a transition carries it."""
+        return datetime.combine(self.on, self.at, UTC)
 
 
-INSTALLED = Event(date(2025, 9, 1), "Installation, référentiel et comptes")
-CREATED = Event(date(2025, 10, 6), "PRJ-001 créé, à l'état Créé")
-OFFER_OPENED = Event(date(2025, 11, 3), "Ouverture de l'offre 100, passage en Chiffrage")
-OFFER_MARKED = Event(date(2025, 12, 15), "Offre v1.0 marquée")
-RISKS_IDENTIFIED = Event(date(2026, 1, 12), "Risques 751, 752 et 753 identifiés")
+INSTALLED = Event(date(2025, 9, 1), "Installation, référentiel et comptes", time(9, 0))
+CREATED = Event(date(2025, 10, 6), "PRJ-001 créé, à l'état Créé", time(9, 0))
+OFFER_OPENED = Event(
+    date(2025, 11, 3), "Ouverture de l'offre 100, passage en Chiffrage", time(8, 30)
+)
+OFFER_MARKED = Event(date(2025, 12, 15), "Offre v1.0 marquée", time(16, 0))
+RISKS_IDENTIFIED = Event(
+    date(2026, 1, 12),
+    "Risques 751, 752 et 753 identifiés ; la première saisie ouvre la révision 101",
+    time(10, 0),
+)
 ORDER_RECEIVED = Event(
-    date(2026, 1, 15), "Commande reçue ; l'offre 100 désignée référence, passage En cours"
+    date(2026, 1, 15),
+    "Commande reçue ; l'offre 100 désignée référence, passage En cours",
+    time(11, 0),
 )
 AMENDMENT_MERGED = Event(
-    date(2026, 2, 1), "Avenant 1 fusionné ; la révision 101 « Référence » marquée, référence"
+    date(2026, 2, 1),
+    "Avenant 1 fusionné ; la révision 101 « Référence » marquée, référence",
+    time(9, 0),
 )
-RISK_751_REVIEWED = Event(date(2026, 2, 2), "Réexamen de 751 : gravité portée à 1 250")
+RISK_751_REVIEWED = Event(
+    date(2026, 2, 2),
+    "Réexamen de 751 : gravité portée à 1 250 ; la saisie ouvre la révision courante 102 ; "
+    "753 écarté",
+    time(9, 0),
+)
 RISK_752_OCCURRED = Event(
     date(2026, 2, 20),
-    "Survenance de 752 : son devis propre fusionné dans la révision en cours, la référence 101 "
-    "inchangée",
+    "Survenance de 752 : son devis propre fusionné dans la révision en cours, 102, la référence "
+    "101 inchangée",
+    time(16, 0),
 )
-STUDIES_STARTED = Event(
-    date(2026, 3, 2), "Ouverture de la révision courante 102 ; 751 à 40 % ; début des études"
-)
+STUDIES_STARTED = Event(date(2026, 3, 2), "Réexamen de 751 à 40 % ; début des études", time(9, 15))
 COST_IMPORTS = tuple(
     Event(day, "Import de coûts réels")
     for day in (
@@ -491,3 +515,108 @@ starts and is consumed there (EP-02/L22)."""
 
 CORE = (STUDIES, CONTROL_STATION, INSTALLATION)
 """The readable core, to be the first roots of the structure, its rows its first rows (#376)."""
+
+# --- The risks ---------------------------------------------------------------------------------
+
+IDENTIFIED, OCCURRED, DISMISSED = "identified", "occurred", "dismissed"
+
+
+@dataclass(frozen=True, slots=True)
+class Review:
+    """A review of a risk: the instant it was made, the probability, severity and state retained.
+
+    The first review of a risk is its identification; the declaration of its occurrence is a
+    review too, the last (WF-RIS-0010, WF-RIS-0020).
+    """
+
+    at: datetime
+    probability: Decimal
+    severity: Decimal
+    state: str = IDENTIFIED
+
+
+@dataclass(frozen=True, slots=True)
+class Risk:
+    """A risk of the witness: what its user entered, its reviews, where its provision lies.
+
+    Its severity is the total of its own estimate, as its reviews retain it, and its provision
+    that severity at its probability: neither is entered (WF-RIS-0010). ``provision_line`` is
+    the line of provision it bears in the structure of the current revision, while identified;
+    ``reference_provision_line`` the one the reference revision bore, which the reserve for risks
+    counts (WF-RIS-0050) — none for a risk identified after the reference was marked;
+    ``own_structure`` its own cost structure in the current revision;
+    ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060).
+    """
+
+    number: int
+    label: str
+    description: str
+    mitigation_notes: str | None
+    own_structure: int
+    reviews: tuple[Review, ...]
+    reference_provision_line: int | None = None
+    provision_line: int | None = None
+    merged: int | None = None
+
+    @property
+    def last(self) -> Review:
+        """Return the last review of the risk, which says its probability, severity and state."""
+        return self.reviews[-1]
+
+    def known_on(self, day: date) -> Review | None:
+        """Return the last review of the risk made on a day or before, if any (WF-RIS-0010)."""
+        known = [review for review in self.reviews if review.at.date() <= day]
+        return known[-1] if known else None
+
+
+def _at(event: Event, hour: int, minute: int = 0) -> datetime:
+    return datetime.combine(event.on, time(hour, minute), UTC)
+
+
+REWORK = Risk(
+    751,
+    "Risque de reprise du câblage",
+    "Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre "
+    "sur site.",
+    "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
+    214,
+    (
+        Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00")),
+        Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00")),
+        Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00")),
+    ),
+    reference_provision_line=555,
+    provision_line=555,
+)
+DELIVERY_DELAY = Risk(
+    752,
+    "Retard de livraison des armoires",
+    "Le fournisseur des armoires annonce un retard de livraison possible.",
+    "Relance hebdomadaire du fournisseur ; transport exceptionnel réservé.",
+    215,
+    (
+        Review(_at(RISKS_IDENTIFIED, 10, 30), Decimal("0.3"), Decimal("200.00")),
+        Review(RISK_752_OCCURRED.instant, Decimal("0.3"), Decimal("200.00"), OCCURRED),
+    ),
+    reference_provision_line=557,
+    merged=541,
+)
+AUTOMATION_ENGINEER = Risk(
+    753,
+    "Indisponibilité de l'automaticien",
+    "L'automaticien du client pourrait ne pas être disponible pour la mise en service.",
+    None,
+    216,
+    (
+        Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00")),
+        Review(_at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00"), DISMISSED),
+    ),
+    reference_provision_line=567,
+)
+REGISTER = (REWORK, DELIVERY_DELAY, AUTOMATION_ENGINEER)
+"""The register of the witness, in the order of declaration: the rework of the wiring, still
+identified, its provision the line 555 of the core; the delay of the cabinets, occurred on
+20 February, its own estimate merged into the current revision (WF-RIS-0060) — the subtree 541
+of the core —; the unavailability of the automation engineer, dismissed on 2 February. All three
+identified on 12 January, before the reference 101 was marked, which bore their provisions: the
+lines 555, 557 and 567 of its structure (``mockhistory``)."""

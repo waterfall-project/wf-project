@@ -61,7 +61,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mocktext, mockwrites, paths
+from wftools import REPOSITORY, mockcore, mockhistory, mocktext, mockwrites, paths
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
     PAGE,
@@ -87,6 +87,7 @@ from wftools.mockstructure import (
     JsonValue,
     draw,
     estimate_indicators,
+    hourly_rate,
     money,
     structure,
 )
@@ -100,6 +101,7 @@ from wftools.mockwitness import (
     EQUIPMENT,
     FIXTURES,
     INSTALLATION,
+    INSTALLED,
     PROVISIONS,
     STUDIES,
     SUBCONTRACTING,
@@ -131,9 +133,9 @@ USER = "01926f3a-7c00-7000-8000-000000000301"
 
 
 _AUDIT: JsonObject = {
-    "created_at": "2026-01-05T09:00:00Z",
+    "created_at": mockhistory.stamp(INSTALLED.instant),
     "created_by": {"kind": "user", "user_id": USER, "display_name": "Camille Martin"},
-    "updated_at": "2026-01-05T09:00:00Z",
+    "updated_at": mockhistory.stamp(INSTALLED.instant),
     "updated_by": {"kind": "user", "user_id": USER, "display_name": "Camille Martin"},
 }
 
@@ -219,10 +221,6 @@ def _categories(
     ]
 
 
-# How much the rate grew each year, up to the reference year.
-_RATE_STEP = Decimal("1.50")
-
-
 def hourly_rates() -> list[JsonValue]:
     """Return the answer of listHourlyRates: the years of rates of the electrical engineering."""
     return [_rate(ELECTRICAL_ENGINEERING, ELECTRICAL_RATE, year) for year in RATE_YEARS]
@@ -233,7 +231,7 @@ def _rate(category: str, last_amount: Decimal, year: int) -> JsonObject:
     return {
         "cost_category_id": category,
         "year": year,
-        "amount": money(last_amount - _RATE_STEP * (RATE_YEARS[-1] - year)),
+        "amount": money(hourly_rate(last_amount, year)),
         "audit": _AUDIT,
         "lock_version": 1,
     }
@@ -291,8 +289,11 @@ _TASKS = frozenset({mockcore.TASK})
 
 
 def named() -> dict[str, JsonObject]:
-    """Return the named examples of the witness, by file name: its readings and its writes."""
-    return {**readings(), **mockwrites.writes()}
+    """Return the named examples of the witness, by file name.
+
+    Its readings, its writes, and its history — its revisions compared and its risks.
+    """
+    return {**readings(), **mockwrites.writes(), **mockhistory.examples()}
 
 
 def wiring_completed() -> tuple[Task, ...]:

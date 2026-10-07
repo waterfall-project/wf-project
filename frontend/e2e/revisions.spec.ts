@@ -38,14 +38,14 @@ test("the revisions of a project, their comparison as the API renders it, its st
   // The comparison asked of the server: what it answers is shown, nothing paired by the front.
   await main.getByRole("button", { name: "Comparer" }).click();
   await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/);
-  await expect(main.getByRole("table", { name: "Ajouts" }).getByRole("row")).toHaveCount(3);
+  await expect(main.getByRole("table", { name: "Ajouts" }).getByRole("row")).toHaveCount(6);
   await expect(main.getByRole("table", { name: "Retraits" })).toContainText(
     "Essais préliminaires sur site",
   );
   await expect(main.getByRole("table", { name: "Modifications" })).toContainText(
-    "Câblage des armoires",
+    "Dossier de conception",
   );
   const deltas = main.getByRole("table", { name: "Écarts de montants" });
   await expect(deltas.getByRole("row")).toHaveCount(6);
-  await expect(deltas.getByRole("row").nth(1)).toContainText("1 200,00");
+  await expect(deltas.getByRole("row").nth(1)).toContainText("3 515,00");
 });
