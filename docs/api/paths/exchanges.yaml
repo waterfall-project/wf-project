@@ -120,9 +120,10 @@
     tags: [exchanges]
     summary: Compte rendu d'un import
     description: >-
-      Lignes lues, lignes rejetées avec leur motif, et écarts avec les données
-      existantes. Le compte rendu est conservé sous forme de codes et rendu dans la
-      langue du lecteur (WF-INTF-0080, WF-ARC-0110).
+      Lignes lues, lignes rejetées avec leur motif, écarts avec les données existantes,
+      objets conservés et signalés, éléments ignorés, tâches terminées et écarts de dates
+      ou de durées constatés (WF-INTF-0080, WF-INTF-0040, WF-PLA-0130). Le compte rendu est
+      conservé sous forme de codes et rendu dans la langue du lecteur (WF-ARC-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
@@ -136,6 +137,7 @@
               analysed: { $ref: ../../../fixtures/api/import_analysed.json }
               analysing: { $ref: ../../../fixtures/api/import_analysing.json }
               planning_mismatch: { $ref: ../../../fixtures/api/import_planning_mismatch.json }
+              remaining_analysed: { $ref: ../../../fixtures/api/import_remaining_analysed.json }
               actual_costs_analysed: { $ref: ../../../fixtures/api/import_actual_costs_analysed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

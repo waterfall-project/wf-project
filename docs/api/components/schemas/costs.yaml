@@ -28,15 +28,26 @@ ActualCostLine:
     project_id: { $ref: ../common.yaml#/Uuid }
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Nul lorsque la ligne est imputée au seul projet, donc « hors sous-projet » (WF-CRE-0020).
-    subproject_code:
-      anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Code ERP du sous-projet imputé, résolu à la lecture ; nul hors sous-projet (WF-CRE-0020,
-        WF-PRJ-0050).
+        Le sous-projet imputé ; nul lorsque la ligne est imputée au seul projet, donc « hors
+        sous-projet » — sans partie sous-projet dans son élément d'OTP, ou avec un code qu'aucun
+        sous-projet du projet ne porte (WF-CRE-0020).
+    subproject_code:
+      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      description: >-
+        Le code de sous-projet lu dans l'élément d'OTP de la ligne, conservé tel quel, qu'il
+        corresponde ou non à un sous-projet déclaré (WF-CRE-0010) : toujours renseigné quand
+        l'OTP en donne un, nul seulement pour une ligne sans partie sous-projet. Une ligne au
+        code inconnu est imputée au seul projet (`subproject_id` nul) et présentée avec son code
+        (WF-CRE-0020) ; c'est par ce code que la création du sous-projet lui impute aussitôt les
+        lignes qui l'attendaient, et qu'un réimport qui change l'élément d'OTP recalcule son
+        imputation — un écart `updated` du compte rendu sur la colonne `subproject`
+        (`ActualCostColumn`, WF-INTF-0140).
     subproject_label:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Libellé du sous-projet imputé, résolu à la lecture ; nul hors sous-projet.
+      description: >-
+        Libellé du sous-projet imputé, résolu à la lecture ; nul pour une ligne hors
+        sous-projet, code inconnu compris.
     is_in_tracked_scope:
       type: boolean
       description: Faux pour une ligne exclue, qui reste consultable et n'entre dans aucun indicateur (WF-CRE-0030).

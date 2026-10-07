@@ -168,7 +168,8 @@ describe("the access roles", () => {
 
   it("present the permissions of the catalogue in its order, under the function of the second level each covers, and whether each role holds it", async () => {
     const matrix = rows(rendered(await AccessRolesPage()), "Permissions par fonction");
-    expect(matrix).toHaveLength(56);
+    // A header, forty-eight permissions of the functions, eight irreversible and two structuring.
+    expect(matrix).toHaveLength(59);
     expect(matrix.slice(0, 3)).toEqual([
       "Fonction Permission Administrateur Chef de projet Direction de projet Manager",
       "FBS-1.1 Gestion des utilisateurs Consulter les utilisateurs Accordée Non accordée Accordée Non accordée",
@@ -177,15 +178,18 @@ describe("the access roles", () => {
     expect(matrix).toContain(
       "FBS-3.1 Paramètres de coûts Consulter les paramètres de coûts Non accordée Accordée Accordée Accordée",
     );
-    expect(matrix.slice(-8)).toEqual([
+    expect(matrix.slice(-11)).toEqual([
       "Modifier le cycle de vie du projet Non accordée Accordée Accordée Non accordée",
       "Action irréversible Marquer une révision Non accordée Accordée Accordée Non accordée",
+      "Abandonner une révision en cours Non accordée Accordée Accordée Non accordée",
       "Désigner la révision de référence Non accordée Accordée Accordée Non accordée",
+      "Fusionner un différentiel Non accordée Accordée Accordée Non accordée",
       "Clore un projet : terminé, perdu ou abandonné Non accordée Accordée Accordée Non accordée",
       "Déclarer la survenance d’un risque Non accordée Accordée Accordée Non accordée",
       "Exclure des lignes de coût réel Non accordée Accordée Accordée Non accordée",
       "Restaurer la plateforme Accordée Non accordée Accordée Non accordée",
-      "Permission structurante Consulter tous les projets Non accordée Non accordée Accordée Accordée",
+      "Permission structurante Créer un projet Non accordée Accordée Accordée Non accordée",
+      "Consulter tous les projets Non accordée Non accordée Accordée Accordée",
     ]);
   });
 

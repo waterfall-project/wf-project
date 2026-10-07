@@ -146,7 +146,12 @@ describe("the columns of the contract", () => {
       "cost_category",
       "resource_role",
     ]);
-    expect(pasteSpan(task, "total_float")).toEqual(["total_float", "is_critical", "predecessors"]);
+    expect(pasteSpan(task, "total_float")).toEqual([
+      "total_float",
+      "is_critical",
+      "predecessors",
+      "work_breakdown",
+    ]);
     // A column out of the facet of the node: the contract does not range it, the server judges.
     expect(pasteSpan(summary, "quantity")).toBeUndefined();
   });

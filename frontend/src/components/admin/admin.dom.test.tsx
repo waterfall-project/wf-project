@@ -66,7 +66,7 @@ describe("the matrix of the permissions", () => {
     rendered(<PermissionMatrix permissions={permissions} roles={roles} />, "en");
     expect(screen.getByRole("rowheader", { name: "Irreversible action" })).toHaveAttribute(
       "rowspan",
-      "6",
+      "8",
     );
   });
 });

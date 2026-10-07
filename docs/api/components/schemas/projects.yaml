@@ -78,7 +78,9 @@ CommandCondition:
     WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
     cours, aux imports d'un planning, d'un devis ou d'un reste à engager de qui n'a pas la
     permission de créer une révision (`revisions.write`) : l'import la créerait
-    (WF-INTF-0090).
+    (WF-INTF-0090). `risk_not_cited` manque à la suppression d'un risque qu'une révision
+    marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme
+    dans son 409.
   enum:
     - is_contributor
     - is_project_manager
@@ -98,6 +100,7 @@ CommandCondition:
     - hourly_rates_set
     - no_background_task_running
     - may_create_revision
+    - risk_not_cited
 
 ProjectCommand:
   type: string
@@ -117,8 +120,11 @@ ProjectCommand:
     - import_remaining
   description: >-
     Commandes portées par le projet : modifier ses paramètres, ses contributeurs,
-    ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer
-    et réexaminer les risques, déclarer un risque survenu (WF-RIS-0060) ; importer les
+    ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer,
+    réexaminer et supprimer les risques (`edit_risks`, dont `deleteRisk` relève, WF-RIS-0020),
+    déclarer un risque survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la
+    survenance emporte la fusion qu'elle déclenche et n'exige pas la permission de fusionner,
+    `structure_merge` (WF-ADM-0100) ; importer les
     coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un
     planning MS Project, un devis, un reste à engager — une commande par nature, chacune
     gardée par sa permission —, que l'import applique à la révision en cours et crée au

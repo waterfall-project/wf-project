@@ -56,6 +56,26 @@ PasswordResetRequest:
   properties:
     email: { type: string, format: email }
 
+PasswordSetupLink:
+  type: object
+  required: [url, expires_at]
+  description: >-
+    Le lien par lequel le porteur d'un compte local fixe ou réinitialise son mot de passe,
+    rendu à l'utilisateur habilité qui l'a demandé pour le remettre par un autre canal
+    (WF-ADM-0140) : le même lien que le courriel porte, à usage unique et valable une heure,
+    vers l'adresse du front qui fixe le mot de passe — `<adresse publique du front>/login/reset?token=<jeton>`,
+    l'adresse publique du front étant un paramètre de l'installation, fixé à son déploiement
+    (WF-EXP-0020), comme pour `requestPasswordReset`. Il n'est rendu qu'une fois, jamais relu, et sa demande est
+    inscrite au journal d'audit (WF-SEC-0030) ; le jeton n'y figure pas.
+  properties:
+    url:
+      type: string
+      format: uri
+      description: Le lien entier, tel qu'il se remet.
+    expires_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140).
+
 PasswordResetConfirm:
   type: object
   required: [token, password]
@@ -231,10 +251,14 @@ PermissionCode:
     Code du catalogue, livré et non modifiable : deux permissions par fonction de
     second niveau, consulter et modifier, la permission d'une fonction couvrant ses
     sous-fonctions ; plus une permission propre par action irréversible ou
-    structurante, dont « consulter tous les projets », qui ouvre à la consultation les
-    projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060).
-    L'énumération est le catalogue : une permission nouvelle est une modification du
-    contrat.
+    structurante — créer un projet, marquer une révision, abandonner une révision en cours,
+    désigner la révision de référence, fusionner un différentiel, déclarer une sortie du
+    cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la
+    plateforme —, et « consulter tous les projets », qui ouvre à la consultation les
+    projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La
+    déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige
+    pas `structure_merge` (WF-ADM-0100). L'énumération est le catalogue : une permission
+    nouvelle est une modification du contrat.
   enum:
     # FBS-1 — Administration.
     - users.read
@@ -288,13 +312,17 @@ PermissionCode:
     - project_indicators.write
     - lifecycle.read
     - lifecycle.write
-    # Actions irréversibles ou structurantes.
+    # Actions irréversibles, dans l'ordre où WF-ADM-0100 les nomme, puis les permissions
+    # structurantes : créer un projet, consulter tous les projets.
     - revision_mark
+    - revision_abandon
     - reference_designate
+    - structure_merge
     - project_exit
     - risk_occurrence
     - cost_line_exclude
     - platform_restore
+    - project_create
     - all_projects_read
 
 Permission:
@@ -307,7 +335,7 @@ Permission:
       enum: [function_read, function_write, irreversible, structuring]
       description: >-
         Consultation ou modification d'une fonction, action irréversible, ou permission
-        structurante — consulter tous les projets (WF-ADM-0100).
+        structurante — créer un projet, consulter tous les projets (WF-ADM-0100).
     fbs_code:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Fonction de second niveau couverte, pour les deux premières natures.

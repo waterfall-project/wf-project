@@ -95,6 +95,9 @@
           "started_on": "2026-05-04",
           "is_summary": true,
           "is_milestone": false,
+          "order_item_id": "01926f3a-7c00-7000-8000-000000000711",
+          "work_package_id": null,
+          "work_breakdown_label": "Fourniture et montage des armoires",
           "base_amount": "2934.56",
           "budgeted_amount": "2484.56",
           "reestimated_amount": "2934.56",
@@ -113,7 +116,9 @@
         ],
         "editable_fields": [
           "task.label",
-          "task.description"
+          "task.description",
+          "task.order_item_id",
+          "task.work_package_id"
         ]
       }
     ],

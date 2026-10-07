@@ -41,7 +41,8 @@
     summary: Taux horaires manquants pour le calcul
     description: >-
       Les taux ne sont exigés que pour les catégories qu'un devis emploie réellement, et
-      pour son année de référence (WF-DEV-0010, WF-CYC-0120).
+      pour l'année de référence de sa révision (`Revision.reference_year`, WF-REV-0060 ;
+      WF-DEV-0010, WF-CYC-0120) : chaque catégorie sans taux pour cette année est nommée.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: revision_id

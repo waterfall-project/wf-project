@@ -342,6 +342,7 @@ export const NODE_COLUMNS = [
   "total_float",
   "is_critical",
   "predecessors",
+  "work_breakdown",
   "cost_category",
   "resource_role",
   "quantity",
@@ -357,10 +358,10 @@ export const NODE_COLUMNS = [
   "previous_reestimated_amount",
 ] as const satisfies readonly NodeColumn[];
 
-/** The columns of a task, from `label` to `predecessors`, as the contract ranges them. */
+/** The columns of a task, from `label` to `work_breakdown`, as the contract ranges them. */
 const TASK_COLUMNS: readonly NodeColumn[] = NODE_COLUMNS.slice(
   0,
-  NODE_COLUMNS.indexOf("predecessors") + 1,
+  NODE_COLUMNS.indexOf("work_breakdown") + 1,
 );
 
 /** The columns of a line of the estimate: `label`, then from `cost_category` to the last. */

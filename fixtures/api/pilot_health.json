@@ -1,5 +1,5 @@
 {
-  "summary": "La santé du pilotage au 1er juin 2026, sur les projets en cours : le projet témoin n'a pas été revu depuis dix-sept semaines — sa dernière révision marquée, la référence, l'a été le 1er février —, au-delà du délai du référentiel, en vigilance, et la réception des études, jalon contractuel attendu le 24 avril par la référence, est dépassée sans être terminée, en alerte (WF-PTF-0110, WF-IHM-0070).",
+  "summary": "La santé du pilotage au 1er juin 2026, sur les projets en cours : le projet témoin n'a pas été revu depuis dix-sept semaines — sa dernière révision marquée, la référence, l'a été le 1er février —, au-delà du délai du référentiel, en vigilance, et la réception des études, jalon contractuel attendu le 24 avril par la référence, est dépassée sans être terminée, en alerte (WF-PTF-0110, WF-IHM-0070) ; le lecteur, contributeur du projet, peut l'ouvrir depuis chaque signal (WF-PTF-0030).",
   "value": {
     "scope": {
       "states": [
@@ -16,6 +16,7 @@
       {
         "project_id": "01926f3a-7c00-7000-8000-000000000001",
         "project_label": "Modernisation du poste de commande",
+        "can_open": true,
         "zone": "watch",
         "code": "review_overdue",
         "params": {
@@ -25,6 +26,7 @@
       {
         "project_id": "01926f3a-7c00-7000-8000-000000000001",
         "project_label": "Modernisation du poste de commande",
+        "can_open": true,
         "zone": "alert",
         "code": "contractual_milestone_overdue",
         "params": {

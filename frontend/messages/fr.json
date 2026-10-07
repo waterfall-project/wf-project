@@ -1134,6 +1134,10 @@
     "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
+    "SUMMARY_TASK_REQUIRED": "Seule une tâche récapitulative peut être rattachée à un poste ou à un lot.",
+    "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche récapitulative porte un poste ou un lot, jamais les deux.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche récapitulative.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service."
   },
@@ -1243,8 +1247,11 @@
       "read": "Consulter le cycle de vie du projet",
       "write": "Modifier le cycle de vie du projet"
     },
+    "project_create": "Créer un projet",
     "revision_mark": "Marquer une révision",
+    "revision_abandon": "Abandonner une révision en cours",
     "reference_designate": "Désigner la révision de référence",
+    "structure_merge": "Fusionner un différentiel",
     "project_exit": "Clore un projet : terminé, perdu ou abandonné",
     "risk_occurrence": "Déclarer la survenance d’un risque",
     "cost_line_exclude": "Exclure des lignes de coût réel",
@@ -1412,7 +1419,8 @@
       "task_not_completed": "tâche non terminée",
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
-      "may_create_revision": "avoir la permission de créer une révision"
+      "may_create_revision": "avoir la permission de créer une révision",
+      "risk_not_cited": "risque cité par aucune révision marquée"
     },
     "ProjectExit": {
       "to_state": {
@@ -1551,7 +1559,9 @@
         "duration": "Durée de la tâche",
         "start": "Début de la tâche",
         "finish": "Fin de la tâche",
-        "progress": "Avancement de la tâche"
+        "progress": "Avancement de la tâche",
+        "order_item_id": "Poste de la tâche",
+        "work_package_id": "Lot de la tâche"
       },
       "estimate_line": {
         "label": "Libellé de la ligne",
@@ -1576,6 +1586,7 @@
       "total_float": "Marge totale",
       "is_critical": "Chemin critique",
       "predecessors": "Prédécesseurs",
+      "work_breakdown": "Poste ou lot",
       "cost_category": "Catégorie de coût",
       "resource_role": "Rôle de ressource",
       "quantity": "Quantité",
@@ -1709,7 +1720,8 @@
       "change": {
         "added": "Ajouté",
         "removed": "Retiré",
-        "updated": "Modifié"
+        "updated": "Modifié",
+        "kept": "Conservé"
       },
       "target": {
         "task": "Tâche",
@@ -1717,6 +1729,14 @@
         "link": "Liaison",
         "actual_cost_line": "Ligne de coût réel"
       }
+    },
+    "ImportIgnoredKind": {
+      "resources": "Ressources",
+      "calendars": "Calendriers",
+      "progress": "Avancement",
+      "costs": "Coûts",
+      "custom_fields": "Champs personnalisés",
+      "date_constraints": "Contraintes de date, tâches importées en mode manuel"
     },
     "ActualCostColumn": {
       "document_date": "Date de pièce",
@@ -1726,7 +1746,6 @@
     },
     "ImportReport": {
       "requires_confirmation_reasons": {
-        "date_or_duration_mismatch": "Dates ou durées différentes de celles que Waterfall recalcule",
         "lines_outside_project": "Lignes hors du projet",
         "unknown_subproject": "Sous-projet inconnu"
       }

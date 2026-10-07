@@ -8,6 +8,7 @@
     "status": "marked",
     "marked_at": "2026-02-01T09:00:00Z",
     "is_reference": true,
+    "reference_year": 2026,
     "available_commands": [
       {
         "command": "edit_planning",

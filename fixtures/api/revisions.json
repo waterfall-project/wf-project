@@ -1,5 +1,5 @@
 {
-  "summary": "La révision de référence, marquée, la révision courante, en brouillon, et l'offre v1.0, marquée avant elles.",
+  "summary": "La révision de référence, marquée, la révision courante, en brouillon, toutes deux créées en 2026 et portant cette année de référence, et l'offre v1.0, marquée avant elles, créée en 2025 et portant 2025 (WF-REV-0060, WF-REV-0090).",
   "value": {
     "items": [
       {
@@ -10,6 +10,7 @@
         "status": "marked",
         "marked_at": "2026-02-01T09:00:00Z",
         "is_reference": true,
+        "reference_year": 2026,
         "available_commands": [
           {
             "command": "edit_planning",
@@ -112,6 +113,7 @@
         "status": "draft",
         "marked_at": null,
         "is_reference": false,
+        "reference_year": 2026,
         "available_commands": [
           {
             "command": "edit_planning",
@@ -202,6 +204,7 @@
         "status": "marked",
         "marked_at": "2025-12-15T16:00:00Z",
         "is_reference": false,
+        "reference_year": 2025,
         "available_commands": [
           {
             "command": "edit_planning",

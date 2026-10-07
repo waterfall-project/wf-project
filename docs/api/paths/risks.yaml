@@ -126,6 +126,35 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+  delete:
+    operationId: deleteRisk
+    tags: [risks]
+    summary: Supprimer un risque
+    description: >-
+      Un risque qu'aucune révision marquée ne cite encore peut être supprimé, avec son devis
+      propre et sa ligne de provision ; au-delà, il s'écarte (WF-RIS-0020) : la suppression
+      d'un risque cité par une révision marquée est refusée par 409,
+      `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `risk_not_cited`, et c'est
+      le réexamen (`reviewRisk`) qui l'écarte. Relève de la saisie des risques
+      (`edit_risks`, `risks.write`), dans la révision en cours.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    responses:
+      '204':
+        description: Risque supprimé, son devis propre et sa ligne de provision avec lui.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_cited` : le risque
+          est cité par une révision marquée, il ne se supprime plus, il s'écarte (WF-RIS-0020).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              cited: { $ref: ../../../fixtures/api/risk_delete_cited.json }
 
 /projects/{project_id}/risks/{risk_id}/reviews:
   get:

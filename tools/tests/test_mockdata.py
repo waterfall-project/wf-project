@@ -326,6 +326,36 @@ def test_the_heaviest_risks_are_those_of_projects_of_the_list(volumes: dict[str,
     assert risks["matrix"]["totals"]["reserve"] == coverage["reserve"]
 
 
+def test_the_reader_opens_every_project_but_every_seventh_generated_one(
+    volumes: dict[str, Any],
+) -> None:
+    value = volumes["portfolio_projects.json"]["value"]
+    rows = value["items"]
+    witness, offer = rows[:2]
+    assert witness["can_open"] is True
+    assert offer["can_open"] is True
+    # The n-th project of the list is the n-th of the family of the portfolio's projects.
+    closed = [n for n, row in enumerate(rows, start=1) if not row["can_open"]]
+    assert closed == [n for n in range(3, 301) if n % mockportfolio.UNOPENABLE_EVERY == 0]
+    assert all(rows[n - 1]["code"] == f"PRJ-{n:03d}" for n in closed)
+    # A project the reader cannot open still counts: the list and its totals keep it.
+    assert value["meta"]["total"] == len(rows)
+    assert "septième projet engendré" in volumes["portfolio_projects.json"]["summary"]
+
+
+def test_a_heavy_risk_says_whether_its_project_opens_as_its_row_does(
+    volumes: dict[str, Any],
+) -> None:
+    opens = {
+        row["project_id"]: row["can_open"]
+        for row in volumes["portfolio_projects.json"]["value"]["items"]
+    }
+    heaviest = volumes["portfolio_risks.json"]["value"]["heaviest"]
+    assert all(risk["can_open"] is opens[risk["project_id"]] for risk in heaviest)
+    # One of them is of a project the reader cannot open: named, without a link.
+    assert any(not risk["can_open"] for risk in heaviest)
+
+
 @pytest.mark.parametrize("name", ["portfolio_workload", "portfolio_cost_curve"])
 def test_a_view_written_by_hand_reads_the_portfolio_of_the_list(
     volumes: dict[str, Any], name: str

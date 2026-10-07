@@ -47,6 +47,9 @@
           "fields": []
         }
       ],
+      "ignored": [],
+      "completed_tasks": [],
+      "date_mismatches": [],
       "requires_confirmation_reasons": []
     },
     "task": {

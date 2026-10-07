@@ -439,8 +439,12 @@ devient la courbe en S du portefeuille, une seule opération `getPortfolioCostCu
 `payment_delays`, `getPortfolioCashOut` retirée, permission `portfolio_cost_curve`. Les exemples
 `nodes_risk_occurred`, `risks`, `risk_matrix`, `remaining_indicators*` et les volumes suivent ;
 l'univers témoin reste à refaire sur ce modèle (L20 à L27, #287). Ce que la révision demande et
-que le contrat ne porte pas est ouvert en constats #381 à #389. Chaque forme est consignée dans
-`docs/api/DECISIONS.md`, « Révision de la spécification du 2026-10-04 ».
+que le contrat ne portait pas a été ouvert en constats #381 à #389, fermés par EP-02/L29 (#392) :
+l'année de référence d'une révision, le rattachement d'une récapitulative au lotissement, le compte
+rendu d'import en aller-retour, les trois permissions de WF-ADM-0100, `deleteRisk`, le code de
+sous-projet d'une ligne de coût, le tri des tables plates, le lien de fixation du mot de passe et
+`can_open`. Chaque forme est consignée dans `docs/api/DECISIONS.md`, « Révision de la
+spécification du 2026-10-04 » et « Ce que la révision de la spécification demande (EP-02/L29) ».
 
 ### Constats sur le contrat
 

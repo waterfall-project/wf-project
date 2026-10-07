@@ -29,14 +29,24 @@ PortfolioScope:
 
 PortfolioProjectRow:
   type: object
-  required: [project_id, label, state, last_marked_at]
-  description: Ligne de la liste des projets (WF-PTF-0040).
+  required: [project_id, label, state, can_open, last_marked_at]
+  description: >-
+    Ligne de la liste des projets (WF-PTF-0040). Un projet que l'appelant ne peut pas ouvrir y
+    figure sous son libellé et son code, compte dans les totaux, et `can_open` est faux
+    (WF-PTF-0030).
   properties:
     project_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string }
     code:
       anyOf: [{ type: string }, { type: 'null' }]
     state: { $ref: projects.yaml#/ProjectState }
+    can_open:
+      type: boolean
+      description: >-
+        Si l'appelant peut ouvrir le projet, évalué par le serveur selon WF-ADM-0110 : la
+        permission de consulter et la qualité de contributeur, ou la permission « consulter
+        tous les projets ». Faux, la ligne se présente sans lien (WF-PTF-0030) ; le front n'en
+        déduit rien des permissions de la session.
     reference_budget:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
     current_estimate:
@@ -184,12 +194,18 @@ PortfolioRisks:
       type: array
       items:
         type: object
-        required: [risk_id, label, project_id, project_label, provision_amount]
+        required: [risk_id, label, project_id, project_label, can_open, provision_amount]
         properties:
           risk_id: { $ref: ../common.yaml#/Uuid }
           label: { type: string }
           project_id: { $ref: ../common.yaml#/Uuid }
           project_label: { type: string }
+          can_open:
+            type: boolean
+            description: >-
+              Si l'appelant peut ouvrir le projet du risque (WF-ADM-0110), comme
+              `PortfolioProjectRow.can_open` ; faux, le risque est nommé avec son projet, sans
+              lien (WF-PTF-0030).
           provision_amount: { $ref: ../common.yaml#/Money }
     matrix: { $ref: risks.yaml#/RiskMatrix }
     coverage:
@@ -262,10 +278,16 @@ PilotHealth:
       type: array
       items:
         type: object
-        required: [project_id, project_label, code, zone]
+        required: [project_id, project_label, can_open, code, zone]
         properties:
           project_id: { $ref: ../common.yaml#/Uuid }
           project_label: { type: string }
+          can_open:
+            type: boolean
+            description: >-
+              Si l'appelant peut ouvrir le projet du signal (WF-ADM-0110), comme
+              `PortfolioProjectRow.can_open` ; faux, le signal nomme son projet sans lien
+              (WF-PTF-0030).
           zone: { $ref: reference.yaml#/AlertZone }
           code:
             type: string

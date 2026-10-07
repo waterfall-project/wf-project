@@ -269,8 +269,16 @@ _KEYS = {
     "access_role_ids": ("rôles d'habilitation",),
     "risk_id": ("risques", "risques du portefeuille"),
     "subproject_id": ("sous-projets",),
+    "order_item_id": ("postes et lots du lotissement",),
+    "attached_node_id": _STRUCTURE,
+    "work_package_id": ("postes et lots du lotissement",),
     "scope": ("sous-projets",),
-    "key": ("natures de coût", "sous-projets", "postes du lotissement", "nœuds d'organisation"),
+    "key": (
+        "natures de coût",
+        "sous-projets",
+        "postes et lots du lotissement",
+        "nœuds d'organisation",
+    ),
     "backup_id": ("sauvegardes",),
     "task_id": ("tâches de fond",),
     "paste_id": ("collages et corrélations",),
@@ -283,7 +291,6 @@ _KEYS = {
 """The families an identifier may be of, by the key that carries it."""
 
 _TRESPASSES = {
-    ("key", "000000000701"),
     *(("task_id", f"00000000090{n}") for n in range(1, 6)),
     ("paste_id", "000000000911"),
     ("paste_id", "000000000912"),

@@ -128,7 +128,9 @@ Problem:
         WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
-        WF-INTF-0070).
+        WF-INTF-0070). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi
+        `attached_node_id`, la récapitulative qui porte déjà le poste ou le lot qu'une autre
+        voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0130).
     fields:
       type: array
       description: Erreurs par champ, pour une entité refusée à la validation.
@@ -216,6 +218,12 @@ ErrorCode:
     - UNKNOWN_SUBPROJECT
     - UNKNOWN_TASK
     - INACTIVE_REFERENCE_OBJECT
+    # Motifs par champ du rattachement d'une récapitulative à un poste ou à un lot du
+    # lotissement (`TaskFacetUpdate`, WF-PLA-0130).
+    - SUMMARY_TASK_REQUIRED
+    - UNKNOWN_WORK_BREAKDOWN_ITEM
+    - WORK_BREAKDOWN_ITEMS_EXCLUSIVE
+    - WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED
     # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
     # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
     - COMPONENT_UNAVAILABLE

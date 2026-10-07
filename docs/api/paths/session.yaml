@@ -132,7 +132,11 @@
       Envoie un lien valable une heure et à usage unique, dans la langue que le compte a
       choisie, `fr` ou `en` ; si elle vaut `default`, dans la première langue offerte
       que demande la requête, et à défaut dans la langue par défaut de l'installation
-      (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe.
+      (WF-ADM-0140, WF-ARC-0110). La réponse ne révèle pas si l'adresse existe. Le lien est
+      `<adresse publique du front>/login/reset?token=<jeton>` : l'adresse publique du front
+      est un paramètre de l'installation, fixé à son déploiement (WF-EXP-0020), que l'API ne
+      sert pas ; le jeton se confirme par `confirmPasswordReset`. C'est le même lien que
+      `createPasswordSetupLink` remet à un utilisateur habilité (`PasswordSetupLink`).
     requestBody:
       required: true
       content:

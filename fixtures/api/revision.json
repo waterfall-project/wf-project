@@ -1,5 +1,5 @@
 {
-  "summary": "La révision courante du projet, en brouillon : toutes ses commandes de saisie sont disponibles.",
+  "summary": "La révision courante du projet, en brouillon, créée en 2026 et portant cette année de référence (WF-REV-0060) : toutes ses commandes de saisie sont disponibles.",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000102",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -8,6 +8,7 @@
     "status": "draft",
     "marked_at": null,
     "is_reference": false,
+    "reference_year": 2026,
     "available_commands": [
       {
         "command": "edit_planning",

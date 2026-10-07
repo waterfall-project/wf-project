@@ -126,7 +126,7 @@ describe("the grid of the actual costs", () => {
       "FA-2026-0412",
       "21/04/2026",
       `1${NARROW}800,00`,
-      "Hors sous-projet",
+      "Hors sous-projetSP-CAB",
       "Suivie",
     ]);
     // Each column kept from the file, under the name the file gives it, as imported.
@@ -143,10 +143,16 @@ describe("the grid of the actual costs", () => {
     expect(cellsOf("AV-2026-0388")[2]).toHaveTextContent("-200,00");
   });
 
-  it("shows a line whose sub-project is unknown as charged to the project alone [WF-CRE-0020-A]", () => {
+  it("shows a line whose sub-project is unknown as charged to the project alone, with the code its OTP element gave [WF-CRE-0020-A]", () => {
     render(costsGrid(costsOf("actual_costs")));
-    for (const number of ["FA-2026-0412", "AV-2026-0388", "FA-2026-0301", "FA-2026-0295"]) {
-      expect(cellsOf(number)[3]).toHaveTextContent("Hors sous-projet");
+    const codes: readonly (readonly [string, string])[] = [
+      ["FA-2026-0412", "SP-CAB"],
+      ["AV-2026-0388", "SP-CAB"],
+      ["FA-2026-0301", "SP-AUT"],
+      ["FA-2026-0295", "SP-REC"],
+    ];
+    for (const [number, code] of codes) {
+      expect(cellsOf(number)[3]).toHaveTextContent(`Hors sous-projet${code}`);
     }
   });
 

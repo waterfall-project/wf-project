@@ -1,5 +1,5 @@
 {
-  "summary": "Les rôles d'habilitation de l'installation, par libellé : les trois prédéfinis tels que livrés — l'administrateur, que plus personne ne porte, le chef de projet, porté par Alix Moreau, désactivée, et le manager, porté par Dominique Bernard — et « Direction de projet », composé sur mesure de tout le catalogue, celui de Camille Martin (WF-ADM-0010, WF-ADM-0020, WF-ADM-0090).",
+  "summary": "Les rôles d'habilitation de l'installation, par libellé : les trois prédéfinis tels que livrés — l'administrateur, que plus personne ne porte, le chef de projet, porté par Alix Moreau, désactivée, et le manager, porté par Dominique Bernard — et « Direction de projet », composé sur mesure de tout le catalogue, celui de Camille Martin (WF-ADM-0010, WF-ADM-0020, WF-ADM-0090) ; le chef de projet crée un projet, abandonne une révision en cours et fusionne un différentiel, trois permissions propres de WF-ADM-0100.",
   "value": [
     {
       "access_role_id": "01926f3a-7c00-7000-8000-000000000704",
@@ -58,10 +58,13 @@
         "lifecycle.read",
         "lifecycle.write",
         "revision_mark",
+        "revision_abandon",
         "reference_designate",
+        "structure_merge",
         "project_exit",
         "risk_occurrence",
-        "cost_line_exclude"
+        "cost_line_exclude",
+        "project_create"
       ],
       "is_predefined": true,
       "holder_count": 1,
@@ -130,11 +133,14 @@
         "lifecycle.read",
         "lifecycle.write",
         "revision_mark",
+        "revision_abandon",
         "reference_designate",
+        "structure_merge",
         "project_exit",
         "risk_occurrence",
         "cost_line_exclude",
         "platform_restore",
+        "project_create",
         "all_projects_read"
       ],
       "is_predefined": false,
