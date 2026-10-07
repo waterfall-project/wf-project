@@ -20,8 +20,10 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     # The front check runs lint, types, unit tests, build and the end-to-end paths: about
-    # 8 to 10 minutes on a hosted runner by October 2026, so 10 cancelled it (#354).
-    timeout-minutes: 15
+    # 8 to 10 minutes on a hosted runner by October 2026, so 10 cancelled it (#354). The
+    # system packages of the browser come from the Ubuntu mirror, whose speed is not ours:
+    # 10 minutes for 32 MB once (#472). Their step has its own bound, and the job room for it.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,7 +47,25 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+      # And the system packages they need, kept as the archives apt downloaded: installed
+      # again from the cache, they ask the mirror for nothing but a newer version (#472).
+      - if: inputs.tier == 'full'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/playwright-deb
+          key: playwright-deb-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: playwright-deb-${{ runner.os }}-
+      - if: inputs.tier == 'full'
+        name: Install the browser and its system packages
+        timeout-minutes: 12
+        run: |
+          mkdir -p ~/.cache/playwright-deb
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' \
+            | sudo tee /etc/apt/apt.conf.d/99-keep-downloaded >/dev/null
+          sudo cp ~/.cache/playwright-deb/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps
+          cp /var/cache/apt/archives/*.deb ~/.cache/playwright-deb/ 2>/dev/null || true
+      # The browser is in place: the check finds it, and installs nothing more.
       - run: make check-front
         env:
           TIER: ${{ inputs.tier }}
-          PLAYWRIGHT_INSTALL: --with-deps
