@@ -336,17 +336,19 @@ règles du mot de passe sont celles du fournisseur, qui les dit sur sa page.
 
 **Hors périmètre.** Les écrans de mot de passe de la maquette (US-0320) : ils disparaissent.
 
-## US-0360 — Comptes : créer, modifier, désactiver
+## US-0360 — Comptes : la table des comptes et l'affectation des rôles
 
 - **statut** : à faire
 - **exigences** : `WF-ADM-0050-A`, `WF-ADM-0060-A`
-- **opérations** : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`
+- **opérations** : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`,
+  `setUserAccessRoles`, `listAccessRoles`
 - **issue** :
 
-**En tant qu'**administrateur, **je veux** créer un compte local, corriger ce que Waterfall
-garde d'un compte, le désactiver et le réactiver, depuis la table des comptes, **afin que**
-chacun puisse entrer, et qu'une personne partie ne le puisse plus sans que ses actes cessent
-d'être attribuables.
+**En tant qu'**administrateur, **je veux** voir tous les comptes de l'installation dans une
+table, y créer un compte local, corriger ce que Waterfall garde d'un compte, lui affecter ses
+rôles d'habilitation, le désactiver et le réactiver, **afin que** chacun puisse entrer avec
+les droits qu'on lui a donnés, et qu'une personne partie ne le puisse plus sans que ses actes
+cessent d'être attribuables.
 
 **Critères d'acceptation.**
 
@@ -358,19 +360,31 @@ d'être attribuables.
   l'exigence ; ici, un compte désactivé reste nommé partout où il est cité, dans les colonnes
   d'audit des comptes et des rôles qu'il a écrits.
 - `WF-ADM-0060-A` — « Un compte réactivé se connecte de nouveau avec ses rôles d’avant. »
-- propre à l'US : chaque colonne de la table des comptes se trie dans les deux sens, par le
-  serveur (`sort_by`, `sort_order`, WF-IHM-0060).
+- propre à l'US : la table des comptes liste tous les comptes de l'installation, désactivés
+  compris, par pages, chacun avec son nom, son prénom, son adresse, son origine, son
+  rattachement, ses rôles d'habilitation nommés par le serveur et son état (WF-ADM-0050) ;
+  chaque colonne se trie dans les deux sens, par le serveur (`sort_by`, `sort_order`,
+  WF-IHM-0060).
 - propre à l'US : la table des comptes est sa propre saisie, pour qui porte `users.write` —
-  nom et prénom d'un compte local, état sur un interrupteur, rôles et rattachement selon leurs
-  US — et un refus s'y dit par le catalogue des codes d'erreur (#379).
+  nom et prénom d'un compte local en champs, état sur un interrupteur, rôles dans une liste à
+  choix multiple des rôles de l'installation — ; « Créer un compte local » est dans son
+  en-tête. Un refus s'y dit par le catalogue des codes d'erreur (#379).
+- propre à l'US : l'affectation des rôles s'y fait cellule par cellule — zéro, un ou plusieurs
+  rôles (WF-ADM-0050) — et s'applique sans reconnexion du compte concerné (WF-ADM-0090) ; le
+  retrait de son rôle au dernier administrateur y est refusé par `LAST_ADMINISTRATOR`
+  (WF-ADM-0120) ; les rôles proposés sont ceux de l'installation, quel que soit le
+  rattachement (WF-ADM-0030, #379).
 
 **Notes de réalisation.** Un compte local est créé dans Waterfall et dans le fournisseur
 d'identité, par son API d'administration (WF-ADM-0070, dernière phrase du corps), dont le
 Vérif est constaté par US-0370. La désactivation révoque les sessions du compte chez le
 fournisseur (WF-SEC-0020). L'ordre des colonnes et la forme de la saisie en ligne sont ceux
-que #379 consigne.
+que #379 consigne. Les règles de l'affectation — union des permissions, application
+immédiate, dernier administrateur — sont celles d'US-0380, dont les critères les constatent ;
+cette US porte la table qui les exerce.
 
-**Hors périmètre.** Les filtres de la table (WF-IHM-0130) — EP-11 ; le rattachement — EP-05.
+**Hors périmètre.** Les filtres de la table (WF-IHM-0130) — EP-11 ; la colonne du
+rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.
 
 ## US-0370 — Lecture des comptes du fournisseur, worker et file
 
@@ -411,7 +425,7 @@ imports (EP-09, EP-12) et la sauvegarde (EP-13) : le genre d'une tâche est déj
 - **exigences** : `WF-ADM-0010-A`, `WF-ADM-0020-A`, `WF-ADM-0090-A`, `WF-ADM-0100-A`,
   `WF-ADM-0120-A`, `WF-INTF-0030-A`
 - **opérations** : `listPermissions`, `listAccessRoles`, `createAccessRole`, `getAccessRole`,
-  `updateAccessRole`, `deleteAccessRole`, `setUserAccessRoles`
+  `updateAccessRole`, `deleteAccessRole`, `setUserAccessRoles` (servie avec US-0360)
 - **issue** :
 
 **En tant qu'**administrateur, **je veux** composer des rôles à partir du catalogue, les
