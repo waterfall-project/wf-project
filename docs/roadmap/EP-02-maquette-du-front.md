@@ -382,7 +382,7 @@ verrou.
   `functions.json`, **en clair et en sombre**, à 1366 points puis à l'agrandissement de
   150 % ; parcours au clavier, focus visible. Le helper arrive avec la coquille, chaque lot
   d'écran y ajoute ses routes.
-- **Navigateurs** : chromium-fr et chromium-en pour tous les parcours ; les quatre
+- **Navigateurs** : un parcours complet dans chaque langue (WF-QUA-0070), celui de la revue mensuelle (`e2e/review.spec.ts`) ; les autres parcours en français (décision de l'auteur du 2026-10-07, #470) ; les quatre
   navigateurs de la spécification — Chrome et Edge par leurs canaux Playwright, Firefox,
   WebKit pour Safari — pour les parcours de WF-CMP-0010, grilles, Gantt et courbes à 1366
   points, vues d'indicateurs à 360. `make e2e-browsers` les installe tous.
@@ -647,7 +647,7 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
 
 ## US-0090 — Coquille de l'application et contexte de projet
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0010-A`
 - **opérations** : `getCurrentSession`, `getMe`, `listProjects`, `getProject`,
   `getSystemStatus`, `getReferenceReadiness`
@@ -689,6 +689,16 @@ projet, révision, sous-projet filtré, date de calcul — est l'état que porte
 tout écran le lit. C'est lui que le bandeau
 de l'US-0100 affiche et que les filtres des grilles restreignent : le décider ici évite que
 chaque écran s'invente le sien.
+
+La seconde phrase est portée par le parcours « reviews a project from the list to its indicators,
+the revision and the sub-project kept from screen to screen, every figure the API's, and comes
+back to it from the portfolio [WF-QUA-0070-A] [WF-IHM-0010-A] [WF-ARC-0020-A] »
+(`frontend/e2e/review.spec.ts`, US-0090/L3) : le sous-projet est choisi au filtre des coûts réels,
+puis le reste à engager, les risques et les indicateurs gardent la révision dans le chemin et le
+sous-projet dans les paramètres ; le portefeuille quitté, le retour au projet ramène aux
+indicateurs dans le même contexte. La première et la troisième phrase sont portées par les
+parcours de `frontend/e2e/navigation.spec.ts`. Les révisions qu'offre l'écran du projet s'ouvrent
+elles aussi avec les filtres de l'adresse, comme celles de l'écran des révisions (US-0090/L3).
 
 ## US-0100 — Bandeau de contexte de lecture
 
@@ -967,7 +977,7 @@ courent (`listBackgroundTasks`, EP-02/L4), lancées d'un autre onglet ou d'un au
 
 ## US-0190 — Langue de l'interface, catalogues et formats d'affichage
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0160-A`, `WF-INTF-0170-A`, `WF-INTF-0180-A`, `WF-ADM-0040-A`, `WF-QUA-0070-A`, `WF-DAT-0100-A`
 - **opérations** : `getMe`, `updateMyPreferences`, `getInstallation`
 - **issue** : #83
@@ -1013,6 +1023,23 @@ ouvertes sans pouvoir les remplir : l'ajout d'une clé de traduction, et l'ajout
 d'erreur côté front (US-0300). L'API ne renvoie aucune phrase (WF-ARC-0110) : les messages
 d'erreur et les comptes rendus sont des codes que le front rend par son catalogue. C'est
 cette US qui fixe le catalogue de codes d'erreur, et tout EPIC ultérieur y ajoute les siens.
+
+La troisième phrase de `WF-QUA-0070-A` est portée par le parcours complet de la revue d'un projet
+— la liste des projets, le projet, sa révision, les coûts réels, le reste à engager, les risques,
+les indicateurs, le portefeuille et le retour au projet —, joué en entier dans un navigateur qui
+demande le français puis dans un qui demande l'anglais, chacun trouvant les commandes par les noms
+de son catalogue et aucun écran ne montrant la clé d'un texte manquant : « reviews a project from
+the list to its indicators… [WF-QUA-0070-A] » (`frontend/e2e/review.spec.ts`, US-0090/L3). Les
+trois phrases de `WF-INTF-0170-A` sont portées par « two users of different languages opening the
+same project read the same labels of tasks and lines… [WF-INTF-0170-A] », au même fichier : deux
+navigateurs, l'un en français, l'autre en anglais, lisent sur les grilles du planning et du devis
+les mêmes libellés de tâches et de lignes, des intitulés de colonnes et un état de la révision
+différents ; chaque grille n'a qu'une colonne du libellé, et un libellé ne se saisit, au devis,
+que dans sa cellule, en un seul champ, quelle que soit la langue — le planning se saisit à
+partir d'EP-06 — ; le
+projet saisi en français se lit en anglais tel quel, sans marque de traduction manquante. Les
+autres parcours se jouent en français seulement, comme le dit « Contrôles et tests » (décision de
+l'auteur du 2026-10-07, #470).
 
 La langue est une préférence de compte à trois états — `default`, `fr`, `en` —, où `default`
 suit le navigateur ; dès qu'elle est fixée, elle prime (décision du cadrage). Le front la
@@ -1283,7 +1310,7 @@ feuilles de la FBS, que le premier passage du lot avait pris.
 
 ## US-0270 — Le front n'appelle l'API que par le client engendré
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-ARC-0020-A`
 - **opérations** : aucune
 - **issue** : #91
@@ -1308,6 +1335,19 @@ de la relecture.
 d'outil : elle se tient par la revue, et par le fait qu'aucun écran de cet EPIC n'a de raison
 de calculer — le mock répond déjà les valeurs. Les constats de l'EPIC sont l'endroit où se
 note un écran qui aurait été tenté de le faire.
+
+La troisième phrase est portée, de bout en bout et dans les deux langues, par « reviews a project
+from the list to its indicators… [WF-ARC-0020-A] » (`frontend/e2e/review.spec.ts`, US-0090/L3) :
+les montants — reste à engager, budget de référence, valeur planifiée, écart de délai —, les
+indices de délai et de coût et la date de calcul des indicateurs s'affichent tels que l'exemple
+servi les porte, écrits en littéral dans le parcours tels que chaque langue les montre, la date en
+heure locale du poste ; ces repères sont tenus dans le générateur des exemples
+(`test_the_marks_the_review_journey_reads`, `tools/tests/test_mocktoday.py`). Trois écrans la citent en outre dans leurs tests
+— le cycle de vie du projet (`frontend/src/app/projects/[projectId]/screens.test.tsx`), la
+comparaison des révisions (`…/revisions/page.test.tsx`) et la relecture des totaux d'une grille
+cherchée (`frontend/src/components/grid/entry.dom.test.tsx`) — ; sur les autres écrans, elle se
+tient aussi par la revue. La première est tenue par la garde réseau
+(`frontend/src/api/network-guard.test.ts`), la deuxième par la spécification et la revue.
 
 ## US-0290 — Navigateurs et largeurs d'affichage
 

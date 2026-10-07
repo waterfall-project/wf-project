@@ -3,8 +3,9 @@
 /**
  * A project (US-0210), second step of the witness path (US-0080): the banner of its reading
  * context (WF-IHM-0020), its label, what it is — its code, its state, its order, its
- * description —, and its revisions — or, when it has none yet, that it has none, with the way to
- * the function of its revisions when the session may read them. A project the API does not find
+ * description —, and its revisions, each opened in the reading context of the address, the filters
+ * it carries kept (WF-IHM-0010) — or, when it has none yet, that it has none, with the way to the
+ * function of its revisions when the session may read them. A project the API does not find
  * is not found, as at the other screens of a project. Nothing is offered to modify it: its form
  * belongs to the epic of its domain.
  */
@@ -20,6 +21,7 @@ import { ProjectFacts } from "@/components/projects/project-facts";
 import { type NamedRevision, useRevisionName } from "@/components/revisions/revision-history";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { NoRevisions } from "@/components/system/empty-states";
+import { contextQuery } from "@/navigation/context";
 import { functionHref, functionOf } from "@/navigation/functions";
 import { requestSession } from "@/session/request";
 
@@ -45,10 +47,13 @@ export async function generateMetadata({
 function Revisions({
   projectId,
   revisions,
+  filters,
   way,
 }: {
   readonly projectId: string;
   readonly revisions: readonly NamedRevision[];
+  /** The filters of the address, which a revision opened keeps: `?subproject_id=…`, or nothing. */
+  readonly filters: string;
   /** The way to the function of the revisions, when the session may read them. */
   readonly way: string | undefined;
 }) {
@@ -67,7 +72,7 @@ function Revisions({
           {revisions.map((revision) => (
             <li key={revision.revision_id}>
               <Link
-                href={`/projects/${projectId}/revisions/${revision.revision_id}`}
+                href={`/projects/${projectId}/revisions/${revision.revision_id}${filters}`}
                 className="underline-offset-4 hover:underline"
               >
                 {revisionName(revision)}
@@ -104,6 +109,7 @@ export default async function ProjectPage(props: ProjectPageProps) {
         <Revisions
           projectId={address.projectId}
           revisions={revisions}
+          filters={contextQuery(read.context, false)}
           way={mayReadRevisions ? functionHref(functionOf("revisions"), read.context) : undefined}
         />
       </Screen>

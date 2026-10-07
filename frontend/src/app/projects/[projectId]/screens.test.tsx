@@ -103,6 +103,26 @@ describe("the screen of a project", () => {
     expect(text(page)).toContain("Revisions Référence Current revision");
   });
 
+  it("opens each revision with the filters of its address, the revision it was read in left to the link", async () => {
+    const subproject = "01926f3a-7c00-7000-8000-000000000801";
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_offer",
+    };
+    const page = html(
+      await ProjectPage(
+        at({
+          revision_id: "01926f3a-7c00-7000-8000-000000000100",
+          subproject_id: subproject,
+          as_of: "2026-05-31",
+        }),
+      ),
+    );
+    const revision = `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102`;
+    expect(page).toContain(`href="${revision}?subproject_id=${subproject}&amp;as_of=2026-05-31"`);
+    expect(html(await ProjectPage(at()))).toContain(`href="${revision}"`);
+  });
+
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
     const page = html(await ProjectPage(at()));
     expect(buttons(page)).toEqual([]);

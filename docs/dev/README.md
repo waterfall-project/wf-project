@@ -679,7 +679,8 @@ s'écrit une ligne par élément, pour qu'un changement se lise dans le diff. Le
 lisent les parcours de bout en bout — numéros de ligne, libellés, totaux — sont fixés par
 `test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`) pour la structure, et
 ceux du portefeuille par `test_the_marks_the_portfolio_journey_reads`
-(`tools/tests/test_mockdata.py`) : un changement du générateur qui les déplace échoue là, avant
+(`tools/tests/test_mockdata.py`), et ceux du parcours de la revue mensuelle par
+`test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`) : un changement du générateur qui les déplace échoue là, avant
 les parcours.
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
