@@ -34,6 +34,9 @@ services:
       context: ../../frontend
     environment:
       WATERFALL_API_ADDRESS: http://mock:4010
+      # The hosts besides localhost the browser may open the front at (#481): this
+      # workstation's address on its network, set by the caller or in deploy/compose/.env.
+      WATERFALL_DEV_ORIGINS: ${WATERFALL_DEV_ORIGINS:-127.0.0.1}
     ports:
       - "3000:3000"
     volumes:

@@ -6,8 +6,18 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+// The hosts besides localhost that the browser may open the development server at: `next dev`
+// refuses its resources (`/_next/*`, the hot reload) to any other origin, and the page then shows
+// without the JavaScript that hydrates it (#481). The addresses of a local network are each
+// workstation's own, so they come from the environment: hosts separated by commas.
+const DEV_ORIGINS = (process.env.WATERFALL_DEV_ORIGINS ?? "127.0.0.1")
+  .split(",")
+  .map((host) => host.trim())
+  .filter((host) => host !== "");
+
 const config: NextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: DEV_ORIGINS,
   // The front calls nothing but the API, through the generated client (WF-ARC-0020).
   poweredByHeader: false,
   experimental: {
