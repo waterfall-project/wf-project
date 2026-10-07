@@ -1,6 +1,6 @@
 ---
 name: typescript-developer
-description: "Réalise un lot de Waterfall en TypeScript — le front (`frontend/`) —, à partir de l'issue du lot et du fichier de son EPIC. À utiliser pour un lot `[US-nnnn/Ln]` ou `[EP-nn/Ln]` dont le code est en TypeScript, ou pour la part TypeScript d'un lot qui touche les deux langages. Travaille sur la branche du lot et rend la main quand les contrôles passent ; n'ouvre ni ne fusionne de pull request."
+description: "Réalise un lot de Waterfall en TypeScript — le front (`frontend/`) —, à partir de l'issue du lot et du fichier de son EPIC. À utiliser pour un lot `[US-nnnn/Ln]` ou `[US-nnnn]` dont le code est en TypeScript, ou pour la part TypeScript d'un lot qui touche les deux langages. Travaille sur la branche du lot et rend la main quand les contrôles passent ; n'ouvre ni ne fusionne de pull request."
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: inherit
 ---

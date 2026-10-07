@@ -50,7 +50,12 @@ autres sont des sous-agents, que l'agent de livraison — ou une personne — ap
   `en cours`, et celui qui la termine la passe `fini` — dans le fichier, par ce même lot,
   quand ses critères sont tenus et que ses tests citent leurs exigences.
 - **Un constat hors du périmètre du lot ne se corrige pas dans le lot** : il devient une
-  issue, rattachée à l'EPIC ou à l'US qu'il concerne.
+  issue `[EP-nn] <nature> : …`, sous-issue du lot qui le relève, avec sa décision — corrigé
+  par un lot, bloque un lot, reporté vers un EPIC, ou à trancher —, comme le dit le README de
+  la roadmap, « Suivi sur GitHub ».
+- **Le tableau de suivi de l'issue de l'EPIC** est tenu à jour par l'agent qui change un état
+  — `epic-framer` le crée, `epic-deliverer` le tient — dans le corps de l'issue, jamais en
+  commentaire.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
   `make check BASE=origin/epic/EP-nn`, qui éprouve ce que la modification touche, fichiers
   non commités compris. Un agent de revue, lui, ne lance que des commandes qui n'écrivent

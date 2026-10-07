@@ -134,9 +134,9 @@ qui permet de confier le reste à un agent.
    prendrait ses propres décisions de schéma. *Validation* ; l'EPIC passe `prêt`.
 3. **Établir le plan de lots** : pour chaque lot, son périmètre, les critères d'acceptation
    qu'il ferme, les lots dont il dépend et sa taille estimée. *Validation.*
-4. **Ouvrir les issues** : une issue pour l'EPIC, une par US, une par lot en sous-issue de
-   son US ; reporter dans le fichier les numéros des issues de l'EPIC et des US. L'EPIC passe
-   `en cours`.
+4. **Ouvrir les issues**, dans la hiérarchie de « Suivi sur GitHub » : l'issue de l'EPIC et
+   son tableau, une par US, une par lot sous son US ; reporter dans le fichier les numéros des
+   issues de l'EPIC et des US. L'EPIC passe `en cours`.
 5. **Livrer** : au premier lot, tirer `epic/EP-nn` de `main`, ce qui attend que les EPIC dont
    celui-ci dépend soient livrés ; livrer les lots ; quand toutes les US sont finies,
    constater la définition de fini sur la branche de l'EPIC, puis la fusionner dans `main` —
@@ -152,7 +152,7 @@ Une proposition de fonctionnalité n'est pas une US : elle passe par le gabarit 
 
 Un lot est l'unité de revue : **un lot, une issue, une branche, une pull request**. Une US
 tient en un lot ou en plusieurs ; un lot qui ne ferme aucun critère d'acceptation se déclare
-lot technique et nomme les US qu'il prépare.
+lot technique, se range sous la première US qu'il prépare, et nomme les autres.
 
 | Règle | Pourquoi |
 |---|---|
@@ -160,16 +160,59 @@ lot technique et nomme les US qu'il prépare.
 | le code engendré n'est pas compté : client du contrat, verrous de dépendances, fixtures extraites, migrations produites par l'outil | un lot qui régénère le client paraîtrait gros sans rien contenir à relire |
 | la pull request met chaque critère fermé en regard du test qui le porte | c'est ce que la revue vérifie en premier |
 | un lot se fusionne seul, la chaîne au vert | la branche de l'EPIC n'est jamais à moitié construite |
-| un constat de revue hors du périmètre du lot devient une issue, et ne se corrige pas dans le lot | c'est ce qui fait grossir un lot pendant sa revue, et tourner la revue en boucle |
+| un constat de revue hors du périmètre du lot devient une issue, rattachée et tranchée selon « Suivi sur GitHub », et ne se corrige pas dans le lot | c'est ce qui fait grossir un lot pendant sa revue, et tourner la revue en boucle |
 | la pull request donne la taille réelle du lot, mesurée par `make lot-size`, à côté de l'estimation de son issue ; un dépassement ne fait rien échouer | l'estimation se trompe, et une règle d'arrêt bloquerait un EPIC livré la nuit ; l'écart se lit au relevé de livraison, et le plan de lots suivant s'en corrige |
 
 Ce tableau est la seule définition de la taille visée : le gabarit de pull request, celui
 des lots et les agents y renvoient, et aucun ne la recopie.
 
-Un lot porte le titre `[US-nnnn/Ln] …` ou, pour un lot technique, `[EP-nn/Ln] …` ; `Ln`
-numérote les lots d'une même US ou d'un même EPIC, sans réemploi. Les lots vivent sur GitHub
-et nulle part ailleurs : ils sont une façon de faire le travail, pas son intention, et le
-fichier de l'EPIC ne les recopie pas.
+Un lot porte le titre `[US-nnnn/Ln] …` ; `Ln` numérote les lots d'une même US, dans l'ordre
+où ils se livrent, sans réemploi. Une US réalisée par un seul lot n'a qu'une issue, `[US-nnnn]`,
+qui est aussi celle du lot, et sa branche `lot/US-nnnn`. Les lots vivent sur GitHub et nulle
+part ailleurs : ils sont une façon de faire le travail, pas son intention, et le fichier de
+l'EPIC ne les recopie pas. Les lots `[EP-nn/Ln]` des EPIC déjà ouverts gardent leur titre.
+
+## Suivi sur GitHub
+
+L'état d'un EPIC se lit en ouvrant une seule issue, la sienne, et la hiérarchie des
+sous-issues suit le découpage :
+
+```
+[EP-nn] l'EPIC — son tableau de suivi
+├── [US-nnnn] une US à un seul lot — elle est aussi le lot
+├── [US-nnnn] une US à plusieurs lots
+│   ├── [US-nnnn/L1] un lot — technique ou non
+│   │   └── [EP-nn] <nature> : un constat que ce lot a relevé
+│   └── [US-nnnn/L2] …
+└── [EP-nn] <nature> : un constat relevé hors de tout lot
+```
+
+**Le tableau de suivi** est dans le corps de l'issue de l'EPIC, jamais dans un commentaire,
+et il est tenu à jour à chaque changement d'état — lot commencé, en revue, fusionné, bloqué ;
+US passée `en cours` ou `fini` ; constat ouvert ou tranché. Il a deux parties :
+
+- **Ordre de réalisation** : une ligne par US, dans l'ordre où elles se livrent, avec son
+  issue et son statut, celui du fichier ; sous elle, une ligne par lot, dans l'ordre, avec ses
+  dépendances, son état — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —
+  et sa pull request ;
+- **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
+  sa décision.
+
+**Un constat** — de revue, de contrat, de spécification, d'outil — relevé pendant un EPIC
+s'ouvre en sous-issue du lot qui le relève, ou de l'EPIC s'il ne vient d'aucun lot, sous le
+titre `[EP-nn] <nature> : …`, où la nature est `contrat`, `spec`, `front`, `back` ou `outil`.
+Il porte dès son ouverture une décision, écrite dans son corps et dans le tableau :
+
+| Décision | Ce qu'elle fait de l'issue |
+|---|---|
+| `corrigé par <lot>` | elle passe sous ce lot, et se ferme à sa fusion |
+| `bloque <lot>` | elle reste sous le lot relevé ; le lot bloqué le dit dans le tableau |
+| `reporté → EP-nn` | elle passe sous l'issue de cet EPIC ; si elle n'existe pas encore, le constat se note dans son fichier, section « Constats reçus », et se rattachera à son ouverture |
+| `à trancher` | une personne doit décider ; c'est la seule décision provisoire, et le tableau la montre |
+
+Aucune issue de l'EPIC n'est sans parent. **Une issue se ferme quand ce qu'elle suit est
+fait** : un lot à sa fusion, une US quand le lot qui la passe `fini` est fusionné, l'EPIC à sa
+livraison.
 
 ## Branches
 

@@ -56,6 +56,11 @@ installé. « rien » est une réponse.>
 <Ce qui se constate, pas ce qui se déclare : les commandes qui passent, ce qu'un tiers
 peut faire tourner et voir. C'est cette liste qui autorise le statut « livré ».>
 
+## Constats reçus
+
+<Optionnel : les constats qu'un autre EPIC a reportés vers celui-ci avant que son issue
+n'existe — numéro et titre —, que le cadrage rattachera à l'ouverture des issues.>
+
 ## Conception
 
 <Écrite après les US, validée avant le plan de lots ; c'est elle qui fait passer l'EPIC

@@ -1,0 +1,44 @@
+name: Finding — raised during an epic
+description: A review, test or trial finding outside the scope of the lot that raised it.
+title: "[EP-nn] front : "
+labels: ["finding"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A finding raised during an epic is not fixed in the lot that raised it: it is opened
+        here, as a sub-issue of that lot — or of the epic's issue when no lot raised it —,
+        with a decision, also written in the epic's tracking table
+        (`docs/roadmap/README.md`, « Suivi sur GitHub »). Title: `[EP-nn] <nature> : …`, the
+        nature being `front`, `back` or `outil`; a finding on the contract or on the
+        specification takes its own template.
+  - type: input
+    id: raised_by
+    attributes:
+      label: Raised by
+      description: The lot, review or trial that raised it, with its issue or pull request.
+      placeholder: "US-0350/L2, review of #523"
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: Finding
+      description: What is wrong, where — file and line, or screen —, and what was expected.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The fix, or the question to settle.
+  - type: input
+    id: decision
+    attributes:
+      label: Decision
+      description: >-
+        « corrigé par <lot> », « bloque <lot> », « reporté → EP-nn » or « à trancher » — the
+        same as in the epic's tracking table.
+      placeholder: "reporté → EP-11"
+    validations:
+      required: true

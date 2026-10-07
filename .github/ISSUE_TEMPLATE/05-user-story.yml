@@ -9,7 +9,10 @@ body:
         The story lives in the epic's file, under `docs/roadmap`, and that file is
         authoritative for its acceptance criteria. This issue carries its state. Copying the
         criteria here would give two versions of them, and they would diverge. To propose a
-        feature that is in no epic yet, use « Question or proposal » instead.
+        feature that is in no epic yet, use « Question or proposal » instead. A story
+        delivered by a single lot has no lot issue: this issue is also the lot — fill the
+        lot's fields below, and its branch is `lot/US-nnnn`. A story of several lots leaves
+        them empty, and its lots are its sub-issues.
   - type: input
     id: identifier
     attributes:
@@ -58,3 +61,22 @@ body:
       label: Contract operations
       description: The operationIds this story consumes or serves, if any.
       placeholder: "listProjects, getProject"
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope of its single lot
+      description: For a story of a single lot only — what the lot builds, as the lot plan says it.
+  - type: input
+    id: depends
+    attributes:
+      label: Depends on
+      description: For a story of a single lot only — the lots merged before it starts.
+      placeholder: "#58 — or « nothing »"
+  - type: input
+    id: size
+    attributes:
+      label: Estimated size
+      description: >-
+        For a story of a single lot only — against the target of `docs/roadmap/README.md`,
+        section « Lots ».
+      placeholder: "≈ 1,100 (production ≈ 550)"

@@ -6,6 +6,12 @@ body:
   - type: markdown
     attributes:
       value: >-
+        Raised during an epic? Title it `[EP-nn] spec : …`, open it as a sub-issue of the lot
+        that raised it — or of the epic's issue —, and give it a decision in « Decision »
+        (`docs/roadmap/README.md`, « Suivi sur GitHub »).
+  - type: markdown
+    attributes:
+      value: >-
         The specification is a Word document; `docs/spec/waterfall-spec.md` is generated
         from it and is never edited by hand. A finding is therefore located by section and
         requirement identifier, and quoted, so that the author can find it by searching the
@@ -67,3 +73,11 @@ body:
             I looked through `docs/spec/revue/constats/` and this finding is not one that
             has already been settled.
           required: true
+  - type: input
+    id: decision
+    attributes:
+      label: Decision
+      description: >-
+        During an epic: « corrigé par <lot> », « bloque <lot> », « reporté → EP-nn » or
+        « à trancher » — the same as in the epic's tracking table.
+      placeholder: "bloque US-0350/L2"

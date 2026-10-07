@@ -8,8 +8,9 @@ body:
       value: >-
         A lot is the unit of review: one issue, one branch cut from its epic's branch
         `epic/EP-nn`, one pull request back into it. It is opened as a sub-issue of its
-        story's issue, from the lot plan validated for the epic — not invented along the
-        way. The acceptance
+        story's issue — a technical lot, of the first story it prepares —, from the lot plan
+        validated for the epic, not invented along the way. A story of a single lot has no
+        lot issue: its own issue is the lot. The acceptance
         criteria stay in the epic's file under `docs/roadmap`; this issue names which of
         them the lot closes, it does not copy them. The size target is in
         `docs/roadmap/README.md`, section « Lots ».
@@ -18,8 +19,8 @@ body:
     attributes:
       label: Identifier
       description: >-
-        `US-nnnn/Ln` for a lot of a story, `EP-nn/Ln` for a technical lot that prepares
-        several. Also the prefix of this issue's title. Never reused.
+        `US-nnnn/Ln`, `Ln` numbering the lots of the story in the order they are delivered.
+        Also the prefix of this issue's title. Never reused.
       placeholder: "US-0130/L2"
     validations:
       required: true
@@ -27,7 +28,7 @@ body:
     id: story
     attributes:
       label: Story
-      description: The story's identifier and issue number — or, for a technical lot, the epic's, and the stories it prepares.
+      description: The story's identifier and issue number — for a technical lot, the first story it prepares, and the others.
       placeholder: "US-0130, #57"
     validations:
       required: true
