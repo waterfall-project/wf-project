@@ -2,7 +2,7 @@
 id: EP-03
 titre: Se connecter, et n'agir que dans les limites de ses habilitations
 statut: prêt
-depend_de: EP-01
+depend_de: EP-01, EP-02
 issue:
 ---
 
@@ -173,10 +173,10 @@ aucune.
 
 ## Préalables
 
-EP-01 livré. Le contrat d'EP-02 stabilisé : le premier lot ne démarre pas avant la fusion
-d'EP-02/L30 (#393) dans `epic/EP-02`, au mieux après la livraison d'EP-02 dans `main`, dont
-la branche `epic/EP-03` sera tirée. Les écrans que cet EPIC branche viennent d'EP-02 : s'il
-n'est pas livré, les US d'écran attendent et le reste avance.
+EP-01 et EP-02 livrés : le premier lot modifie le contrat et le front qu'EP-02 a posés, et
+`epic/EP-03` se tire de `main` une fois EP-02 fusionné dans `main` (décision du cadrage,
+2026-10-07), ce qui suppose EP-02/L30 (#393) fusionné. Écarté : tirer `epic/EP-03`
+d'`epic/EP-02` dès L30, qui ferait reposer EP-03 sur un EPIC non livré.
 
 ## Définition de fini
 

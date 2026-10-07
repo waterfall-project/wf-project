@@ -88,6 +88,12 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
 - `access` : `listUsers`, `getUser`.
 
+## Constats reçus
+
+- #351 — un chiffreur sans permission du référentiel ne peut saisir ni catégorie ni rôle :
+  la garde de `include_inactive` sur les lectures du référentiel, reportée d'EP-03 par son
+  cadrage (2026-10-07).
+
 ## Préalables
 
 EP-03 livré : chaque écriture du référentiel est évaluée contre une permission.

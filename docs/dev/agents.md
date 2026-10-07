@@ -12,7 +12,7 @@ foi.
 |---|---|
 | `epic-framer` | cadre un EPIC jusqu'à ses issues : US détaillées, conception, plan de lots |
 | `epic-deliverer` | livre les lots d'un EPIC `en cours`, à partir de leurs issues |
-| `python-developer`, `typescript-developer` | réalisent un lot, chacun dans son langage |
+| `python-developer`, `typescript-developer` | réalisent un lot, chacun dans son langage ; l'extension Java de Keycloak revient à `python-developer` |
 | `python-reviewer`, `typescript-reviewer` | relisent la pull request d'un lot, sans rien modifier |
 
 `epic-framer` et `epic-deliverer` se lancent comme agent principal de la session
