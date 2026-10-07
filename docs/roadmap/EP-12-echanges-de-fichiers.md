@@ -54,7 +54,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-INTF-0120-A` | Import du reste à engager (FLX-05) | entière | — |
 | `WF-INTF-0130-A` | Export du reste à engager (FLX-06) | entière | — |
 | `WF-INTF-0180-A` | Formats indépendants de la langue | fin — amorcée en EP-02 | — |
-| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | fin — amorcée en EP-03 | — |
+| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-13 | — |
 | `WF-DAT-0110-A` | Idempotence garantie par la base | fin — amorcée en EP-09 | — |
 
 ## Opérations du contrat

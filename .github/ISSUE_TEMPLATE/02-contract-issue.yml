@@ -6,6 +6,12 @@ body:
   - type: markdown
     attributes:
       value: >-
+        Raised during an epic? Title it `[EP-nn] contrat : …`, open it as a sub-issue of the lot
+        that raised it — or of the epic's issue —, and give it a decision in « Decision »
+        (`docs/roadmap/README.md`, « Suivi sur GitHub »).
+  - type: markdown
+    attributes:
+      value: >-
         The contract in `docs/api` is hand-written and authoritative: the front's client is
         generated from it. `docs/api/INVENTORY.md` lists every operation with the
         requirements it serves. French or English, as you prefer.
@@ -39,3 +45,11 @@ body:
       description: The shape you would give it. A fragment of YAML is welcome.
     validations:
       required: true
+  - type: input
+    id: decision
+    attributes:
+      label: Decision
+      description: >-
+        During an epic: « corrigé par <lot> », « bloque <lot> », « reporté → EP-nn » or
+        « à trancher » — the same as in the epic's tracking table.
+      placeholder: "bloque US-0350/L2"

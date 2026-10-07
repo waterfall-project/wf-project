@@ -59,6 +59,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-RIS-0040-A` | Grille de suivi des risques | entière | — |
 | `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-10 | — |
 | `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-10 | — |
+| `WF-ADM-0100-A` | Catalogue des permissions | fin — amorcée en EP-03 | — |
 
 ## Opérations du contrat
 

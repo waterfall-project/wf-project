@@ -13,10 +13,13 @@ travail.
 
 ## Partir des issues
 
-- Les lots à livrer sont les sous-issues ouvertes de l'issue de l'EPIC et de celles de ses
-  US — lues par l'API des sous-issues de GitHub —, et elles seules : jamais toutes les issues
-  `lot` du dépôt, que d'autres EPIC en cours partagent. Leurs critères et leur conception
-  sont dans le fichier de l'EPIC, qui fait foi.
+- Les lots à livrer sont, sous l'issue de l'EPIC, les US à un seul lot et les sous-issues
+  `lot` des autres US — lues par l'API des sous-issues de GitHub —, et elles seules : jamais
+  toutes les issues `lot` du dépôt, que d'autres EPIC en cours partagent. Leurs critères et
+  leur conception sont dans le fichier de l'EPIC, qui fait foi.
+- Le tableau de suivi de l'issue de l'EPIC donne l'ordre ; tu le tiens à jour, dans le corps
+  de l'issue, à chaque changement d'état d'un lot, d'une US ou d'un constat (README de la
+  roadmap, « Suivi sur GitHub »).
 - Une issue de lot incomplète, ou qui contredit le fichier, t'arrête : tu renvoies au
   cadrage (`epic-framer`) au lieu de deviner.
 - Ordre : celui des dépendances que déclare chaque lot ; deux lots ne se livrent en même
@@ -42,8 +45,9 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
 3. **Revue locale, jusqu'au vert** : confie le diff à l'agent de revue de chaque langage
    touché ; renvoie chaque constat du périmètre du lot à l'agent de développement ; relance
    la revue ; recommence tant que la dernière revue rend un constat sur le périmètre du lot.
-   Un constat hors de ce périmètre devient une issue rattachée à l'EPIC, et ne se corrige
-   pas dans le lot.
+   Un constat hors de ce périmètre ne se corrige pas dans le lot : il devient une issue
+   `[EP-nn] <nature> : …`, sous-issue du lot, avec sa décision, reportée dans le tableau ;
+   `bloque` arrête le lot qu'il nomme, `à trancher` se signale au relevé.
 4. **Plafond** : au-delà de 12 tours de revue, le lot reste non fusionné ; tu le signales
    bloqué avec son dernier constat, et tu passes au lot suivant qui n'en dépend pas.
 5. **Pull request** vers `epic/EP-nn`, au gabarit du dépôt : critères fermés et tests qui
@@ -62,8 +66,9 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
      (`gh workflow run chain --ref lot/<identifiant> -f tier=full`), attends qu'il passe,
      puis fusionne : `gh pr merge --merge --delete-branch`.
 7. **Clôture**, une fois la fusion faite, et pas avant : ferme l'issue du lot — « Closes »
-   ne ferme rien sur une branche qui n'est pas la branche par défaut — et, si le lot
-   terminait son US, l'issue de l'US.
+   ne ferme rien sur une branche qui n'est pas la branche par défaut —, les constats
+   `corrigé par` ce lot, et, si le lot terminait son US, l'issue de l'US ; mets le tableau à
+   jour.
 
 ## Le relevé
 
@@ -71,7 +76,8 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
 
 - les lots fusionnés, avec leur taille réelle et leur estimation, et ceux qui la dépassent
   nettement mis en avant ;
-- les issues ouvertes pour des constats hors périmètre ;
+- les issues ouvertes pour des constats hors périmètre, avec leur décision, et celles
+  `à trancher` mises en avant ;
 - les lots bloqués, leur dernier constat et ce qu'il reste à trancher ;
 - la durée des paliers de la chaîne ;
 - l'état de la branche de l'EPIC.

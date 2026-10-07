@@ -72,6 +72,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-REF-0170-A` | Seuils d’alerte des indices | début — close en EP-10 | — |
 | `WF-REF-0180-A` | Délai maximal entre deux revues | début — close en EP-11 | — |
 | `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-04 | — |
+| `WF-ADM-0020-A` | Aucune action réservée à un acteur | fin — amorcée en EP-03 | — |
 
 ## Opérations du contrat
 
@@ -86,6 +87,12 @@ Servies ici pour la première fois (25) :
 Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 
 - `access` : `listUsers`, `getUser`.
+
+## Constats reçus
+
+- #351 — un chiffreur sans permission du référentiel ne peut saisir ni catégorie ni rôle :
+  la garde de `include_inactive` sur les lectures du référentiel, reportée d'EP-03 par son
+  cadrage (2026-10-07).
 
 ## Préalables
 

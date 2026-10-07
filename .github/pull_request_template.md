@@ -29,10 +29,10 @@ Tick what applies; delete the sections that do not.
 - [ ] the conventions of `docs/api/README.md` are held: UUIDs, `snake_case`, exact decimals, one error envelope, 404 against 403, `lock_version`
 
 **Lot** (code, from an epic's lot plan)
-- [ ] this pull request targets its epic's branch, `epic/EP-nn`, and names its lot issue: `[US-nnnn/Ln]` or `[EP-nn/Ln]`
+- [ ] this pull request targets its epic's branch, `epic/EP-nn`, and names its lot issue: `[US-nnnn/Ln]`, or `[US-nnnn]` for a story of a single lot
 - [ ] each acceptance criterion the lot closes is listed with the test that carries it, and that test cites the requirement
 - [ ] the real size of the lot, from `make lot-size`, is given next to the estimate of its issue; the target is in `docs/roadmap/README.md`, section « Lots »
-- [ ] review findings outside the lot's scope were opened as issues, not fixed here
+- [ ] review findings outside the lot's scope were opened as sub-issues of the lot, `[EP-nn] <nature> : …`, each with its decision, not fixed here
 - [ ] the chain passes, and nothing in the epic's branch is left half-built by this merge
 
 **Tooling** (`Makefile`, `docs/*/tools`)

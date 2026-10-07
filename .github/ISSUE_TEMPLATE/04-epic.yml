@@ -37,15 +37,30 @@ body:
     validations:
       required: true
   - type: textarea
-    id: stories
+    id: tracking
     attributes:
-      label: Stories
+      label: Tracking
       description: >-
-        One line per story, as a checklist, each with its identifier and the number of its
-        own issue once opened. This list is how the epic's progress is read.
+        The epic's state, read from this one issue (`docs/roadmap/README.md`, « Suivi sur
+        GitHub »). Kept up to date in this body by the agent that changes a state — never in a
+        comment. The order of realisation: each story in the order it is delivered, with its
+        status from the file, and under it each lot in order, with what it depends on, its
+        state (à faire, en cours, en revue, fusionné, bloqué : #n) and its pull request. Then
+        every open finding, where it is attached, and its decision.
       value: |
-        - [ ] US-0010 — #
-        - [ ] US-0020 — #
+        ## Ordre de réalisation
+
+        | # | US | Statut | Lot | Dépend de | État du lot | PR |
+        |---|---|---|---|---|---|---|
+        | 1 | US-0010 # | à faire | L1 # | — | à faire | — |
+        |   |   |   | L2 # | L1 | à faire | — |
+        | 2 | US-0020 # | à faire | lot unique | US-0010/L2 | à faire | — |
+
+        ## Constats ouverts
+
+        | Constat | Rattaché à | Décision |
+        |---|---|---|
+        | aucun | | |
     validations:
       required: true
   - type: checkboxes

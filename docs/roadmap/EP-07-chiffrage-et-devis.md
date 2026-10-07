@@ -71,6 +71,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DEV-0070-A` | Plan de charge du projet | début — close en EP-09 | — |
 | `WF-DAT-0090-A` | Intégrité déclarée en base | fin — amorcée en EP-03 | — |
 | `WF-DAT-0100-A` | Types des grandeurs | fin — amorcée en EP-03 | — |
+| `WF-IHM-0060-A` | Lecture d'une grille | fin — amorcée en EP-02, EP-03 | — |
 
 ## Opérations du contrat
 

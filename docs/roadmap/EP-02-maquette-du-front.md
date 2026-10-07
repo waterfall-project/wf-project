@@ -80,7 +80,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0030-A` | Valeur calculée et valeur saisie | entière | US-0150 |
 | `WF-IHM-0040-A` | Saisie au clavier dans les grilles | entière | US-0120 |
 | `WF-IHM-0050-A` | Collage depuis un tableur | entière | US-0130 |
-| `WF-IHM-0060-A` | Lecture d'une grille | début — close en EP-03 | US-0110 |
+| `WF-IHM-0060-A` | Lecture d'une grille | début — close en EP-07 | US-0110 |
 | `WF-IHM-0070-A` | Une échelle de signalement commune, lisible sans couleur | entière | US-0160 |
 | `WF-IHM-0080-A` | Traitements longs | début — close en EP-04 | US-0180 |
 | `WF-IHM-0090-A` | Refus et commandes indisponibles | entière | US-0170 |
@@ -90,19 +90,20 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-INTF-0160-A` | Choix de la langue de l'interface | début — close en EP-03 | US-0190 |
 | `WF-INTF-0170-A` | Ce qui est traduit et ce qui ne l'est pas | entière | US-0190 |
 | `WF-INTF-0180-A` | Formats indépendants de la langue | début — close en EP-12 | US-0190 |
-| `WF-ADM-0040-A` | Préférences d'affichage | début — close en EP-03 | US-0110, US-0190 |
+| `WF-ADM-0040-A` | Préférences d'affichage | début — close en EP-04 | US-0110, US-0190 |
 | `WF-DAT-0100-A` | Types des grandeurs | début — close en EP-07 | US-0190 |
 | `WF-QUA-0070-A` | Complétude des traductions | entière | US-0190 |
 | `WF-CMP-0010-A` | Navigateurs et affichage | début — close en EP-13 | US-0290 |
 
 Le §3.6 compte treize exigences ; cet EPIC en réalise douze, et en clôt huit : elles portent
 sur l'interface, et l'interface existe ici pour de bon. La treizième, WF-IHM-0120 (l'écran
-d'accueil), se réalise et se clôt en EP-03. Neuf exigences ne font que commencer, et leurs US
-disent quelle phrase attend quoi : WF-IHM-0060 (le tri effectif et les réglages par compte —
-EP-03), WF-IHM-0080 (le marquage de dix mille objets, sur le marquage réel — EP-04),
+d'accueil), se réalise et se clôt en EP-04 (cadrage d'EP-03). Neuf exigences ne font que commencer, et leurs US
+disent quelle phrase attend quoi : WF-IHM-0060 (le tri effectif des tables et les réglages par compte —
+EP-03, le devis ordonné — EP-07), WF-IHM-0080 (le marquage de dix mille objets, sur le marquage réel — EP-04),
 WF-IHM-0110 (l'annulation qui restitue — EP-06), WF-IHM-0130 (des totaux que le filtre
 restreint, calculés par un serveur réel — EP-11), WF-ADM-0040 et WF-INTF-0160 (la
-conservation des préférences et de la langue dans le compte — EP-03), WF-INTF-0180 (le
+conservation des préférences et de la langue dans le compte — EP-03 ; deux utilisateurs
+sur un même projet — EP-04), WF-INTF-0180 (le
 format des fichiers d'échange — EP-12), WF-CMP-0010 (la version majeure précédente et le
 Safari réel — EP-13, en recette), et WF-DAT-0100 (l'affichage des dates sans fuseau est
 ici ; les sommes exactes sont au noyau — EP-03, closes en EP-07). WF-IHM-0130 touche aussi
@@ -720,14 +721,15 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
   de tri ; dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche
   sans déplacer les tâches. » : l'absence de tri sur la grille de planning se constate dans la
   maquette ; le réordonnancement des lignes sous chaque tâche demande le vrai service, qui
-  rend le devis ordonné — EP-03.
+  rend le devis ordonné — EP-07.
 - écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées
   à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres
   réglages. » : la conservation passe par `updateMyPreferences`, que le mock accepte sans
   rien garder, et le second utilisateur demande un compte réel — EP-03. Ici, l'écran des
   colonnes et des largeurs existe et écrit la préférence ; rien ne la restitue encore.
 - écart : `WF-ADM-0040-A` — « Deux utilisateurs ouvrant le même projet voient les mêmes
-  données présentées selon leurs réglages respectifs. » demande deux comptes réels — EP-03.
+  données présentées selon leurs réglages respectifs. » demande deux comptes réels et un projet
+  — EP-04.
 - écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
   celles d'un autre. » est l'affaire de l'US-0190, et demande des comptes réels — EP-03.
 
@@ -995,7 +997,7 @@ seul champ de langue.
   celles d'un autre. » demande des comptes réels — EP-03.
 - écart : `WF-ADM-0040-A` — « Deux utilisateurs ouvrant le même projet voient les mêmes
   données présentées selon leurs réglages respectifs. » est l'affaire de l'US-0110, et
-  demande deux comptes réels — EP-03.
+  demande deux comptes réels et un projet — EP-04.
 - écart : `WF-INTF-0160-A` — « Un utilisateur qui force le français le retrouve en se
   connectant depuis un autre poste dont le navigateur demande l'anglais. » : la conservation
   du choix dans le compte demande un compte réel — EP-03.
