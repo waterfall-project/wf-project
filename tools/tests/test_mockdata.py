@@ -11,7 +11,15 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockdata, mockportfolio, mockstructure, mockwitness, paths
+from wftools import (
+    REPOSITORY,
+    mockdata,
+    mockportfolio,
+    mockstructure,
+    mocktoday,
+    mockwitness,
+    paths,
+)
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
 CONTRACT = REPOSITORY / "docs" / "api" / "paths"
@@ -142,13 +150,13 @@ def test_the_indicators_keep_the_context_and_labels_of_the_universe(
     volumes: dict[str, Any],
 ) -> None:
     indicators = volumes["estimate_indicators.json"]["value"]
-    witness = mockwitness.fixture("estimate_indicators")
+    witness = mocktoday.estimate_today()
     assert indicators["context"] == witness["context"]
     assert indicators["delta_to_reference"] == witness["delta_to_reference"]
     assert indicators["delta_to_previous_revision"] == witness["delta_to_previous_revision"]
-    natures = mockwitness.fixture("estimate_indicators_breakdown")["by_cost_type"]
+    natures = mockwitness.fixture("cost_types")
     assert [(part["key"], part["label"]) for part in indicators["by_cost_type"]] == [
-        (part["key"], part["label"]) for part in natures
+        (nature["cost_type_id"], nature["label"]) for nature in natures
     ]
     subprojects = [
         (entry["subproject_id"], entry["label"]) for entry in mockwitness.fixture("subprojects")
@@ -182,7 +190,7 @@ def test_no_project_takes_the_subject_and_object_of_the_witness_or_the_offer(
 def test_the_witness_and_the_offer_are_those_of_their_examples(volumes: dict[str, Any]) -> None:
     witness, offer = volumes["portfolio_projects.json"]["value"]["items"][:2]
     project = mockwitness.fixture("project")
-    indicators = mockwitness.fixture("project_indicators")
+    indicators = cast("dict[str, Any]", mocktoday.project_today())
     for field in ("project_id", "label", "code", "state", "win_probability"):
         assert witness[field] == project[field]
     assert witness["reference_budget"] == indicators["reference_budget"]
@@ -381,15 +389,15 @@ def test_the_roles_of_the_workload_are_those_of_the_universe() -> None:
 
 def test_the_marks_the_portfolio_journey_reads(volumes: dict[str, Any]) -> None:
     # The end-to-end path of the list of the portfolio (portfolio.spec.ts) reads the perimeter the
-    # server retained, the number of projects, the conversion rate and the witness project in alert
-    # by its schedule index: a change of the generator that moves them fails here.
+    # server retained, the number of projects, the conversion rate and the witness project, both
+    # its indices nominal: a change of the generator that moves them fails here.
     value = volumes["portfolio_projects.json"]["value"]
     assert value["scope"]["states"] == ["in_progress", "pricing"]
     assert value["scope"]["as_of"] == "2026-03-16"
     assert value["meta"]["total"] == value["scope"]["project_count"] == 300
     witness = next(row for row in value["items"] if row["code"] == "PRJ-001")
     assert witness["label"] == "Modernisation du poste de commande"
-    assert witness["schedule_index"]["zone"] == "alert"
+    assert witness["cost_index"]["zone"] == witness["schedule_index"]["zone"] == "nominal"
     assert volumes["portfolio_value.json"]["value"]["conversion_rate"]["value"] == "0.4"
 
 
@@ -399,6 +407,7 @@ def test_the_marks_the_zone_journey_reads(volumes: dict[str, Any]) -> None:
     # generator that moves them fails here.
     rows = {row["code"]: row for row in volumes["portfolio_projects.json"]["value"]["items"]}
     assert rows["PRJ-003"]["cost_index"]["zone"] == "watch"
+    assert rows["PRJ-003"]["schedule_index"]["zone"] == "alert"
     assert rows["PRJ-004"]["cost_index"]["zone"] == "nominal"
     performance = volumes["portfolio_performance.json"]["value"]
     counts = {
@@ -406,7 +415,7 @@ def test_the_marks_the_zone_journey_reads(volumes: dict[str, Any]) -> None:
         for entry in performance["zone_distribution"]
         if entry["index"] == "cost"
     }
-    assert counts == {"nominal": 168, "watch": 47, "alert": 53}
+    assert counts == {"nominal": 169, "watch": 47, "alert": 53}
 
 
 def test_the_second_page_holds_the_projects_fifty_to_a_hundred(volumes: dict[str, Any]) -> None:

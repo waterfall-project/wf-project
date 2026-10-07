@@ -1713,6 +1713,107 @@ Quand EP-02/L27 (#376) y incrustera le cœur, le budget de référence changera 
 et avec lui les cases de la matrice ; la question est soumise à l'auteur sur #376, qui la tranchera
 avec la réserve.
 
+## L'univers témoin : les indicateurs d'aujourd'hui (EP-02/L24)
+
+**Les indicateurs du témoin sont engendrés, au 3 juin 2026 à 14 h 05** (#287 ; C2, C13, C15,
+#232). `wftools.mockindicators` lit trois révisions décrites depuis le cœur — l'offre et la
+référence à leur marquage (`mockhistory`), la révision courante aujourd'hui (`mockcore`) — et les
+coûts réels du périmètre suivi que portent `actual_costs` et `actual_costs_subproject`, écrits à
+la main, à leur date de pièce ; `wftools.mockcurves` les étale dans le temps ; `wftools.mocktoday`
+en écrit les exemples, que `tools/paths.toml` déclare engendrés : `estimate_indicators*`,
+`missing_rates`, `rate_update`, `remaining_indicators*`, `project_indicators`,
+`project_indicators_marked`, `index_history`, `milestone_tracking`, `cost_curve*`,
+`earned_value_curves` et `workload*`. Le budget de référence vaut désormais partout 120 834,56 —
+les montants budgétés de la référence hors provisions (WF-RIS-0050) — et non plus les 100 000
+écrits à la main ; les exemples au 16 mars disparaissent de ces opérations. Restent écrits à la
+main les refus (`project_indicators_not_in_progress`, `project_indicators_offer`, `workload_*`
+refusés), `missing_rates_none`, `rate_update_none` et `milestone_tracking_none`, recalé à
+aujourd'hui.
+
+**Les formules, simples et dites dans le générateur**, en attendant le noyau d'EP-07 à EP-11 :
+une valeur à un jour compte le travail de ce jour, quelle que soit l'heure du calcul ; un montant
+étalé sur une tâche l'est au prorata de ses heures travaillées sur le calendrier de la tâche, celui
+de ses rôles (WF-DEV-0080, WF-DEV-0070) ; le reste à engager suit WF-RAE-0010 ligne à ligne — rien
+pour une tâche terminée, le réestimé d'une tâche démarrée, le budgété projeté d'une tâche non
+démarrée, le réestimé d'une ligne budgétée à zéro quel que soit l'état de sa tâche, la provision
+d'un risque identifié pour son montant — ; la valeur acquise exclut les lignes fusionnées par une
+survenance (WF-IND-0030) ; l'écart du reste à engager au budget de référence est le coût réel plus
+le reste à engager moins le budget, comme l'exemple écrit à la main le faisait. Un sous-projet qui
+dépasse son budget est en alerte, les autres nominaux, et un mois de charge au-delà de la capacité
+de son rôle aussi : WF-IHM-0070 ne fixe aucun seuil intermédiaire pour l'un ni l'autre.
+
+**Ce que disent les exemples.** `estimate_indicators` : 121 534,56 de devis, dont 500 de
+provision du risque identifié, le poste du lotissement que porte le lot « Poste de commande », et
+un écart de -210,00 à la référence, qui est aussi la révision marquée précédente — les 500 de
+provision et les 200 des lignes fusionnées face à ses 910 de provisions. `estimate_indicators_breakdown`
+devient le devis que l'offre v1.0 a conservé à son marquage pendant le chiffrage (WF-DAT-0040),
+sans écart faute de référence et de révision marquée précédente — l'exemple écrit à la main
+décrivait un lot hors de tout univers. `*_missing_rates` reste la variante contrefactuelle
+déclarée du devis d'aujourd'hui sans taux 2026 pour l'ingénierie électrique, engendrée : ce que
+touchent ses lignes ne se calcule pas. `remaining_indicators` : 21 534,56, le poste de commande
+au-delà de son budget de 2 400 — la facture des écrans, datée du 18 mai et importée le 3 juin, s'ajoute à un reste à engager
+égal à son budget —, en alerte ; `remaining_indicators_over_budget` devient la suite immédiate de
+la réestimation faite aujourd'hui (`remaining_reestimated`), le poste de commande encore au-delà,
+de 2 200. `project_indicators` : valeur planifiée 101 223,69, valeur acquise 100 000 (les études
+de détail), coût réel 5 400 ; `project_indicators_marked`, ceux que la référence a conservés le
+1er février, rien de planifié ni de dépensé, un reste à engager qui compte ses 910 de provisions.
+Le portefeuille reçoit ces indicateurs en mémoire (`mocktoday.project_today`) : la ligne du témoin
+et les vues qui la somment changent avec eux, en attendant EP-02/L26. `workload_org_node` filtre
+désormais sur l'atelier de câblage, qui ne retient que le monteur câbleur et écarte les deux rôles
+du bureau d'études électricité : l'exemple éprouve le filtrage (WF-DEV-0070). L'atelier relève du
+bureau d'études (`org_nodes`) : un filtre sur ce dernier retiendrait les trois rôles.
+
+**Le suivi des jalons suit les révisions** (C13, commentaire du 2026-10-07 sur #373) : la
+réception usine, que l'avenant 1 ajoute, n'a pas de point à l'offre ; la réception des études,
+que ni la référence ni la révision courante ne déplacent, garde le 24 avril, et, terminée ce
+jour-là, a son dernier point sur la diagonale, daté de minuit de sa terminaison, et aucun après
+(WF-IND-0090).
+
+**La courbe du budget porte la marche de l'avenant 1.** L'offre est la référence désignée à la
+commande, le 15 janvier ; l'avenant 1 en produit une nouvelle le 1er février (WF-REV-0040,
+WF-REV-0050) : `steps` porte sa marche, 3 165,00, la différence des deux budgets de référence, et
+la série deux points à cette date, avant et après, nuls tous deux, rien n'étant encore prévu de
+dépenser. La série suit, à chaque jour, la référence en vigueur ce jour-là ; la valeur planifiée,
+elle, est recalculée entière sur la référence en vigueur (WF-DEV-0080), sans marche.
+`cost_curve_amendment`, variante gardée, devient un avenant 2 de 15 000 sur la ligne des études
+de détail au 10 mars : sa marche monte de 23 333,33 à 26 833,33, ce que la nouvelle référence
+prévoyait de plus à cette date. **Les délais de paiement sont décrits** : trente jours sur
+l'ingénierie de détail et sur les borniers (`mockwitness.PAYMENT_DELAY`), aucun sur la
+main-d'œuvre ; la provision du risque identifié est placée à la fin de la tâche qui la porte, ou
+au premier jour ouvré après aujourd'hui si elle est passée ; une ligne dont la tâche n'a plus
+d'heure à travailler compte au premier jour ouvré qui suit la date de calcul. Le plan de charge
+sur le reste à engager étale de même les heures d'une tâche démarrée sur ses heures ouvrées après
+la date de calcul : aucun mois passé, les mêmes heures en tout. Les lignes du cœur ne rendent pas
+`payment_delay_days`, facultatif : les nœuds restent tels quels, renvoyés à EP-02/L25 (#374).
+
+**L'évolution des indices ne compte que les révisions marquées à partir de l'état En cours.**
+Une révision marquée pendant le chiffrage ne conserve que les indicateurs de son devis
+(WF-DAT-0040, WF-IND-0010) : l'offre v1.0 n'a pas de point, et chaque courbe du témoin en porte
+deux, la référence à son marquage et la révision courante aujourd'hui. Le Vérif de WF-IND-0130
+(« un point par révision marquée ») le contredit : la question est ouverte sur #468. Le suivi
+des jalons, lui, garde le point de l'offre, une date prévue que l'offre porte (WF-IND-0090).
+
+**`rate_update` suit la grille des taux** (C15, #232). Une proposition se présente à la création
+d'une révision dont l'année de référence diffère de celle qu'elle copie (WF-REV-0060) : c'est la
+création de la révision 101, le 12 janvier 2026, copie de l'offre de 2025. Chaque catégorie de
+main-d'œuvre de l'offre y est proposée au taux de 2026 de la grille, celui de 2025 en regard :
+l'ingénierie électrique de 78,50 à 80,00, la mise en service de 73,50 à 75,00, source
+`reference_rate` — les taux auxquels la comparaison chiffre l'offre et la référence. L'exemple
+écrit à la main les disait sans taux 2026, ce que la grille contredit. La révision courante,
+ouverte en 2026 comme la référence qu'elle copie, n'a pas de proposition : `rate_update_none`
+devient le premier exemple de `getRateUpdateProposal`, le témoin aujourd'hui, et `rate_update`
+l'exemple nommé `reference_created`.
+
+**Ce que ce lot laisse.** Le coût réel du témoin est celui des fixtures des coûts, écrites à la
+main, qu'EP-02/L25 recale : les études de détail, terminées le 10 avril pour 100 000 de
+sous-traitance, n'y ont aucune pièce, et l'indice de coût du projet vaut 18,5185, celui de
+l'ensemble hors sous-projet 33,3333 — juste au regard des formules, invraisemblable ; renvoyé à
+L25 par un commentaire sur #374, avec `payment_delay_days` des nœuds et le calendrier 481. Le
+signe des écarts, que le contrat ne dit pas, est #466 ; le constat sur WF-REV-0050, à trancher
+par l'auteur, #467 ; le point de l'offre dans l'évolution
+des indices, #468. La ligne du témoin au portefeuille et la décision 4 du cadrage restent à
+EP-02/L26.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

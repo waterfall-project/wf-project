@@ -270,6 +270,10 @@ REFERENCE_PROVISION_751 = Decimal("250.00")
 severity of 1,000 at 25 % (``risk_reviews``), before its review raised it to 1,250 at 40 %. The
 reserve for risks of the reference counts it (WF-RIS-0050); the line of provision is budgeted so."""
 
+PAYMENT_DELAY = 30
+"""The payment delay of the subcontracting and of the terminal blocks, in days: paid a month
+after their work (WF-IND-0100); the other lines are paid as they are worked."""
+
 SUBPROJECT_CONTROL = universe(801)
 SUBCONTRACTING = universe(401)
 ELECTRICAL_ENGINEERING = universe(402)
@@ -297,7 +301,9 @@ class Line:
     revision gives it another: nothing for a line merged by the occurrence of a risk
     (WF-RIS-0060) or added after the reference (WF-DEV-0020); for a provision, the provision
     the risk had when the reference was marked, which counts to the reserve for risks, never
-    to the reference budget (WF-RIS-0050).
+    to the reference budget (WF-RIS-0050). A line of disbursement may be paid some days after
+    its work, its payment delay, which shifts it on the curve of the disbursements; a labour line
+    has none (WF-DEV-0020, WF-IND-0100).
     """
 
     number: int
@@ -309,6 +315,7 @@ class Line:
     subproject: str | None = None
     budgeted: Decimal | None = None
     is_provision: bool = False
+    payment_delay_days: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -373,7 +380,15 @@ STUDIES = Task(
             522,
             "Études de détail",
             days=30,
-            lines=(Line(527, "Ingénierie de détail", SUBCONTRACTING, unit=Decimal("100000.00")),),
+            lines=(
+                Line(
+                    527,
+                    "Ingénierie de détail",
+                    SUBCONTRACTING,
+                    unit=Decimal("100000.00"),
+                    payment_delay_days=PAYMENT_DELAY,
+                ),
+            ),
         ),
         Task(
             523,
@@ -422,6 +437,7 @@ CONTROL_STATION = Task(
                     EQUIPMENT,
                     unit=Decimal("1234.56"),
                     subproject=SUBPROJECT_CONTROL,
+                    payment_delay_days=PAYMENT_DELAY,
                 ),
                 Line(
                     555,
@@ -534,6 +550,12 @@ starts and is consumed there (EP-02/L22)."""
 
 CORE = (STUDIES, CONTROL_STATION, INSTALLATION)
 """The readable core, to be the first roots of the structure, its rows its first rows (#376)."""
+
+STUDIES_RECEIVED, STUDIES_LINE = 525, 527
+WIRING, LABOUR, FACTORY_ACCEPTANCE = 552, 553, 556
+"""The nodes of the core several readings name, said once: the reception of the studies and the
+line of the detailed studies; the wiring of the cabinets, its labour line, and the factory
+acceptance."""
 
 # --- The risks ---------------------------------------------------------------------------------
 

@@ -712,7 +712,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Estimate indicators Computed on Estimate total 100,000.00 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Estimate indicators Computed on Estimate total 121,534.56 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
     expect(html).toMatch(
@@ -720,7 +720,7 @@ describe("the indicators and the missing rates of the estimate", () => {
         `<a [^>]*href="/projects/${PROJECT}/revisions/${REVISION}/workload"[^>]*>.*?Workload</a>`,
       ),
     );
-    expect(html).toContain('<time dateTime="2026-03-16T14:05:00Z"');
+    expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');
     expect(Object.fromEntries(callOf("/estimate-indicators")?.query ?? [])).toEqual({
       revision_id: REVISION,
     });

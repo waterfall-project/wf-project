@@ -3,7 +3,7 @@
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "scope": {"states":["in_progress","pricing"],"as_of":"2026-03-16","from":"2025-03-17","to":"2026-03-16","org_node_id":null,"org_node_label":null,"project_count":300},
-    "order_book": "2597289500.00",
+    "order_book": "2597310334.56",
     "pipeline_gross": "317939400.00",
     "pipeline_weighted": "146660510.00",
     "delivered": "0.00",

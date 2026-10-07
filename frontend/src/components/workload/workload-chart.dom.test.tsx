@@ -141,42 +141,47 @@ describe("the workload of a project", () => {
     expect(
       series.slice(0, 2).map((each) => (each as BarSeriesOption).itemStyle?.decal),
     ).toMatchObject([{ symbol: "circle" }, { symbol: "triangle" }]);
-    expect(series[0]?.data).toEqual([
-      ["2026-05-01T00:00:00Z", "5.95"],
-      ["2026-06-01T00:00:00Z", "6.55"],
+    // What is left of the connection of the terminal blocks, in June after the calculation,
+    // then the wiring on site.
+    expect(series[0]?.data?.slice(0, 2)).toEqual([
+      ["2026-06-01T00:00:00Z", "12.5"],
+      ["2026-07-01T00:00:00Z", "22.44"],
     ]);
     // The capacity of each role over the months of its load, a role without load left to the
     // table.
-    const capacities = series.slice(2);
-    expect(capacities.map((each) => [each.type, each.name, each.data])).toEqual([
-      [
-        "line",
-        "Capacity — Ingénieur électricien",
-        [
-          ["2026-05-01T00:00:00Z", "910.02"],
-          ["2026-06-01T00:00:00Z", "910.02"],
-        ],
-      ],
+    expect(series.slice(0, 3).map((each) => each.type)).toEqual(["bar", "bar", "bar"]);
+    const capacities = series.slice(3);
+    expect(
+      capacities.map((each) => [each.type, each.name, (each.data as unknown[]).at(0)]),
+    ).toEqual([
+      ["line", "Capacity — Ingénieur électricien", ["2026-06-01T00:00:00Z", "910.02"]],
+      ["line", "Capacity — Technicien de mise en service", ["2026-07-01T00:00:00Z", "606.68"]],
     ]);
-    // Its months on an axis in UTC, a tick on the first of each, May to July.
+    // Its months on an axis in UTC, a tick on the first of each, June 2026 to February 2027.
     expect(option.useUTC).toBe(true);
     // The instance gives back each of its components as a list.
     const [xAxis] = option.xAxis as { axisLabel: { customValues: number[] } }[];
-    expect(xAxis?.axisLabel.customValues.map((tick) => new Date(tick).toISOString())).toEqual([
-      "2026-05-01T00:00:00.000Z",
+    const ticks = xAxis?.axisLabel.customValues.map((tick) => new Date(tick).toISOString());
+    expect([ticks?.at(0), ticks?.at(-1), ticks?.length]).toEqual([
       "2026-06-01T00:00:00.000Z",
-      "2026-07-01T00:00:00.000Z",
+      "2027-02-01T00:00:00.000Z",
+      9,
     ]);
   });
 
   it("lists each month of each role, its capacity, its ratio and its zone by the one signal, a role without load said so [WF-IHM-0070-A]", async () => {
     const { container } = workload();
     const rows = screen.getAllByRole("row").slice(1);
-    expect(rows.map((row) => row.textContent)).toEqual([
-      "Ingénieur électricienMay 20265.95910.020.65%Nominal",
-      "Ingénieur électricienJune 20266.55910.020.72%Nominal",
-      "Technicien de mise en serviceNo load606.68",
+    const listed = rows.map((row) => row.textContent);
+    expect(listed.slice(0, 2)).toEqual([
+      "Ingénieur électricienJune 202612.5910.021.37%Nominal",
+      "Ingénieur électricienJuly 202622.44910.022.47%Nominal",
     ]);
+    expect(listed.slice(-2)).toEqual([
+      "Technicien de mise en serviceJanuary 20278606.681.32%Nominal",
+      "Monteur câbleurNo load519.99",
+    ]);
+    expect(listed).toHaveLength(7 + 7 + 1);
     expect(within(container).getByText(/^Computed on/)).toBeInTheDocument();
     await expectAccessible(container);
   });
@@ -204,7 +209,9 @@ describe("the workload of a project", () => {
     expect((option.series as BarSeriesOption[]).map((each) => each.name)).toEqual([
       "Ingénieur électricien",
       "Technicien de mise en service",
+      "Monteur câbleur",
       "Capacity — Ingénieur électricien",
+      "Capacity — Technicien de mise en service",
     ]);
     expect(option.animation).toBe(false);
     expect(canvas.images).toEqual([{ type: "png", pixelRatio: 2, backgroundColor: BACKGROUND }]);

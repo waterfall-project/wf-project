@@ -15,10 +15,11 @@ import { type Computable, ComputedIndicator, type IndicatorLabel } from "./indic
 
 type ProjectIndicators = components["schemas"]["ProjectIndicators"];
 
-// The indicators of the project at the date of the example: no actual cost yet, no task
-// completed, so no earned value either.
+// The indicators of the project at the date of the example; those the reference kept at its
+// marking, before any actual cost, for the values that cannot be computed.
 const INDICATORS = example("project_indicators") as ProjectIndicators;
-const COMPUTED_AT = "2026-03-16T14:05:00Z";
+const MARKED = example("project_indicators_marked") as ProjectIndicators;
+const COMPUTED_AT = "2026-06-03T14:05:00Z";
 
 /** A value the example holds. */
 function held<T>(value: T | undefined): T {
@@ -30,11 +31,16 @@ function held<T>(value: T | undefined): T {
 
 const PHYSICAL_PROGRESS = held(INDICATORS.physical_progress);
 
-/** An indicator of the example, in a page of a language. */
-function page(label: IndicatorLabel, value: Computable, locale: Locale = "fr") {
+/** An indicator of an example, under the context of the same example, in a language. */
+function page(
+  label: IndicatorLabel,
+  value: Computable,
+  locale: Locale = "fr",
+  context: ProjectIndicators["context"] = INDICATORS.context,
+) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
-      <ComputedIndicator indicator={label} value={value} context={INDICATORS.context} />
+      <ComputedIndicator indicator={label} value={value} context={context} />
     </NextIntlClientProvider>
   );
 }
@@ -55,8 +61,8 @@ describe("an indicator", () => {
     const { container } = render(page("indicator.names.physicalProgress", PHYSICAL_PROGRESS));
     expect(screen.getByRole("term")).toHaveTextContent("Avancement physique");
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
-      "0\u00a0%",
-      "Calculé le 16 mars 2026, 07:05",
+      "82,76\u00a0%",
+      "Calculé le 3 juin 2026, 07:05",
     ]);
     const time = container.querySelector("time");
     expect(time).toHaveAttribute("datetime", COMPUTED_AT);
@@ -75,31 +81,31 @@ describe("an indicator", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["0%"]);
+    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["82.76%"]);
   });
 
   it("shows a cost index without actual cost as not computable, with its reason and its date", async () => {
     const { container } = render(
-      page("indicator.names.costIndex", INDICATORS.cost_index.value, "en"),
+      page("indicator.names.costIndex", MARKED.cost_index.value, "en", MARKED.context),
     );
     expect(screen.getByRole("term")).toHaveTextContent("Cost index");
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
       "Not computable",
       "No actual cost at the calculation date.",
-      "Computed on 16 Mar 2026, 07:05",
+      "Computed on 1 Feb 2026, 01:00",
     ]);
     expect(container).not.toHaveTextContent(/\b0\b|∞|Infinity|NaN/);
     await expectAccessible(container);
   });
 
   it("says why a value cannot be computed in the language of the interface, from the code the API gives", () => {
-    const projection = INDICATORS.projections.at_observed_rate;
+    const projection = MARKED.projections.at_observed_rate;
     expect(projection.reason).toBe("no_actual_cost");
-    render(page("indicator.names.projectionAtObservedRate", projection));
+    render(page("indicator.names.projectionAtObservedRate", projection, "fr", MARKED.context));
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
       "Non calculable",
       "Aucun coût réel à la date de calcul.",
-      "Calculé le 16 mars 2026, 07:05",
+      "Calculé le 1 févr. 2026, 01:00",
     ]);
   });
 
@@ -107,7 +113,7 @@ describe("an indicator", () => {
     render(page("indicator.names.financialProgress", { is_computable: true, value: null }));
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
       "Non calculable",
-      "Calculé le 16 mars 2026, 07:05",
+      "Calculé le 3 juin 2026, 07:05",
     ]);
   });
 
@@ -125,6 +131,6 @@ describe("an indicator", () => {
         .getAllByRole("definition")
         .map((item) => item.textContent)
         .filter((text) => !text.startsWith("Computed")),
-    ).toEqual(["12.5%", "0"]);
+    ).toEqual(["12.5%", "0.9879"]);
   });
 });

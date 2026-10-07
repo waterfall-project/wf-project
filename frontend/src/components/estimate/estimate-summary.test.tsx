@@ -61,25 +61,29 @@ describe("the summary of the estimate", () => {
     const html = summary("estimate_indicators", "missing_rates_none");
     expect(text(html)).toMatch(
       new RegExp(
-        `^Indicateurs du devis Calculé le .*Total du devis 100 000,00 ` +
-          `Provisions identifiées 0,00 Écart avec la référence 0,00 ` +
-          `Écart avec la révision marquée précédente 0,00 ` +
-          `Par nature de coût Débours 100 000,00 \\(100 %\\) ` +
-          `Par sous-projet Hors sous-projet 100 000,00 \\(100 %\\)$`,
+        `^Indicateurs du devis Calculé le .*Total du devis 121 534,56 ` +
+          `Provisions identifiées 500,00 Écart avec la référence -210,00 ` +
+          `Écart avec la révision marquée précédente -210,00 ` +
+          `Par nature de coût Main-d'œuvre 19 600,00 \\(16,13 %\\) ` +
+          `Débours 101 434,56 \\(83,46 %\\) Provision 500,00 \\(0,41 %\\) ` +
+          `Par sous-projet Poste de commande 20 834,56 \\(17,14 %\\) ` +
+          `Hors sous-projet 100 700,00 \\(82,86 %\\) ` +
+          `Par poste Fourniture et montage des armoires 2 934,56 \\(2,41 %\\)$`,
       ),
     );
-    expect(html).toContain('<time dateTime="2026-03-16T14:05:00Z"');
+    expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');
   });
 
   it("breaks the total down by nature of cost, in amount and in share, and by sub-project, as the API gives them", () => {
+    // The estimate the offer v1.0 kept at its marking, before any risk: no provision.
     const html = text(summary("estimate_indicators_breakdown", "missing_rates_none", all, "en"));
     expect(html).toContain(
-      "By nature of cost Main-d'œuvre 1,000.00 (36.57%) Débours 1,234.56 (45.15%) Provision 500.00 (18.28%)",
+      "By nature of cost Main-d'œuvre 16,085.00 (13.67%) Débours 101,584.56 (86.33%) By subproject",
     );
     expect(html).toContain(
-      "By subproject Poste de commande 2,234.56 (81.72%) No subproject 500.00 (18.28%)",
+      "By subproject Poste de commande 17,669.56 (15.02%) No subproject 100,000.00 (84.98%)",
     );
-    expect(html).toContain("Estimate total 2,734.56 Identified provisions 500.00");
+    expect(html).toContain("Estimate total 117,669.56 Identified provisions 0.00");
   });
 
   it("says an amount the API could not compute for want of an hourly rate, with its reason, never a figure [WF-DEV-0010-A]", () => {
@@ -89,7 +93,7 @@ describe("the summary of the estimate", () => {
     );
     // The amounts the missing rates do not touch are computed; no share without the total.
     expect(html).toContain(
-      "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 1 234,56 Provision 500,00",
+      "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 101 434,56 Provision 500,00",
     );
     expect(html).not.toContain("%");
     expect(html).not.toContain("Total du devis 0,00");
@@ -110,15 +114,18 @@ describe("the summary of the estimate", () => {
         "en",
       ),
     );
-    expect(html).toContain("Identified provisions 0.00 Deviation from the reference 0.00 By");
+    expect(html).toContain("Identified provisions 500.00 Deviation from the reference -210.00 By");
     expect(html).not.toContain("previous marked revision");
   });
 
   it("breaks the total down by order item as the API gives it, and leaves the order items out of a planning not structured in them, rather than nil [WF-DEV-0060-A]", () => {
-    expect(text(summary("estimate_indicators_breakdown", "missing_rates_none"))).toMatch(
-      /Par sous-projet .* Par poste Fourniture et montage des armoires 2 734,56 \(100 %\)$/,
+    expect(text(summary("estimate_indicators", "missing_rates_none"))).toMatch(
+      /Par sous-projet .* Par poste Fourniture et montage des armoires 2 934,56 \(2,41 %\)$/,
     );
-    expect(text(summary("estimate_indicators", "missing_rates_none"))).not.toContain("Par poste");
+    const indicators = example("estimate_indicators") as EstimateIndicators;
+    expect(
+      text(renderSummary({ ...indicators, by_order_item: null }, [] satisfies MissingRates)),
+    ).not.toContain("Par poste");
   });
 
   it("says an amount by order item the API could not compute, with its reason", () => {
@@ -161,7 +168,7 @@ describe("the summary of the estimate", () => {
       ),
     );
     expect(html).toContain("Sans libellé — 2026");
-    expect(html).toContain("Par nature de coût Sans libellé 1 000,00 (36,57 %) Sans libellé");
+    expect(html).toContain("Par nature de coût Sans libellé 16 085,00 (13,67 %) Sans libellé");
     expect(html).not.toMatch(/01926f3a-/);
   });
 
@@ -170,7 +177,7 @@ describe("the summary of the estimate", () => {
     const html = text(
       renderSummary({ ...indicators, by_subproject: [] }, [] satisfies MissingRates),
     );
-    expect(html).toContain("Par nature de coût Débours");
+    expect(html).toContain("Par nature de coût Main-d'œuvre");
     expect(html).not.toContain("Par sous-projet");
   });
 

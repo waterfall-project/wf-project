@@ -162,19 +162,18 @@ describe("the screen of the remaining to commit", () => {
     expect(queryOf(NODES)?.progress).toBe("started");
   });
 
-  it("shows the indicators of the remaining to commit as the server gives them, dated, the deviation from a review that never was left out [WF-RAE-0020-A]", async () => {
-    // Sur un projet sans revue précédente, l'écart correspondant est absent plutôt que nul. La
-    // couverture des risques présente la réserve de référence, les provisions restantes, le coût
-    // des risques survenus et l'écart de couverture.
+  it("shows the indicators of the remaining to commit as the server gives them, dated, its deviations signed [WF-RAE-0020-A]", async () => {
+    // Les écarts sont présents et signés. La couverture des risques présente la réserve de
+    // référence, les provisions restantes, le coût des risques survenus et l'écart de couverture.
     const summary = section(await remainingAt(), "Remaining to commit indicators");
-    expect(summary).toMatch(/Computed on <time dateTime="2026-03-16T14:05:00Z"/);
+    expect(summary).toMatch(/Computed on <time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(summary)).toContain(
-      "Remaining to commit 100,000.00 Deviation from the reference budget 0.00 By nature of cost",
+      "Remaining to commit 21,534.56 Deviation from the reference budget -93,900.00 " +
+        "Deviation from the previous review -100,210.00 By nature of cost",
     );
-    expect(text(summary)).not.toContain("previous review");
     // Each amount bears the one mark of a computed value.
-    expect(summary.match(/aria-label="Computed"/g)).toHaveLength(6);
-    expect(text(summary)).toContain("Débours: 100,000.00 (100%)");
+    expect(summary.match(/aria-label="Computed"/g)).toHaveLength(7);
+    expect(text(summary)).toContain("Débours: 1,434.56 (6.66%)");
     expect(text(summary)).toContain(
       "Risk reserve 910.00 Remaining provisions 500.00 Cost of the occurred risks 200.00 Coverage variance 210.00",
     );
@@ -183,16 +182,18 @@ describe("the screen of the remaining to commit", () => {
   it("signals the sub-project over its budget in the zone the server classes it in, the others not, the deviations signed [WF-RAE-0020-A]", async () => {
     // Les écarts sont présents et signés. Un sous-projet dont le coût réel augmenté du reste à
     // engager dépasse son budget est signalé par la couleur, les autres non.
+    // The remaining to commit just after the re-estimate made today: the control station, its
+    // invoice of 2,400 beyond the estimate of its lines, still over its budget.
     server.answers = { ...server.answers, [INDICATORS]: "remaining_indicators_over_budget" };
     const markup = section(await remainingAt(), "Remaining to commit indicators");
     const summary = text(markup);
-    expect(summary).toContain("No subproject: 112,000.00, variance -15,000.00");
-    expect(summary).toContain("Poste de commande: 0.00, variance 0.00");
+    expect(summary).toContain("Poste de commande: 20,634.56, variance -2,200.00");
+    expect(summary).toContain("No subproject: 700.00, variance 96,300.00");
     // Each by the zone the server gives it, named.
     expect(
       [...markup.matchAll(/role="img" aria-label="(Alert|Nominal|Watch)"/g)].map((m) => m[1]),
-    ).toEqual(["Nominal", "Nominal", "Alert"]);
-    expect(summary).toContain("Deviation from the previous review 12,000.00");
+    ).toEqual(["Alert", "Nominal", "Nominal"]);
+    expect(summary).toContain("Deviation from the previous review -100,410.00");
   });
 
   it("says the indicators unavailable when the API does not find them, the grid shown", async () => {

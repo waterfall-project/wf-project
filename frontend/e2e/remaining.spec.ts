@@ -28,13 +28,15 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
 
   // The indicators, dated, each figure as the server gives it, the coverage of the risks with them.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*100\s000,00/);
+  await expect(indicators).toContainText(/Reste à engager\s*21\s534,56/);
   await expect(indicators).toContainText("Calculé le");
   await expect(indicators.getByRole("region", { name: "Couverture des risques" })).toHaveText(
     /Réserve pour risques\s*910,00\s*Provisions restantes\s*500,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*210,00/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
-  await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(3);
+  // The control station over its budget, in alert; the two other sub-projects nominal.
+  await expect(indicators.getByRole("img", { name: "Alerte" })).toHaveCount(1);
+  await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(2);
 
   // The grid, its amounts computed, its totals those of the answer, in the window.
   const grid = page.getByRole("grid", { name: "Grille de reste à engager" });

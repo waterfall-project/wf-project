@@ -40,7 +40,10 @@ from wftools.mockstructure import (
 from wftools.mockwitness import (
     CABLE_FITTER,
     CORE,
+    FACTORY_ACCEPTANCE,
+    LABOUR,
     NODES,
+    WIRING,
     Line,
     Link,
     Task,
@@ -208,8 +211,8 @@ def core_write(
     )
 
 
-MILESTONE = 556
-CONTROL_STATION, WIRING, LABOUR, BLOCKS = 551, 552, 553, 554
+MILESTONE = FACTORY_ACCEPTANCE
+CONTROL_STATION, BLOCKS = 551, 554
 MOUNTING, WIRING_ON_SITE, COMMISSIONING_TASK, COMMISSIONING_LINE = 562, 563, 565, 566
 """The nodes of the core the writes are about (``mockwitness``)."""
 

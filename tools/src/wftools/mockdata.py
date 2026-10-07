@@ -62,7 +62,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mockhistory, mocktext, mockwrites, paths
+from wftools import REPOSITORY, mockcore, mockhistory, mocktext, mocktoday, mockwrites, paths
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
     PAGE,
@@ -100,14 +100,17 @@ from wftools.mockwitness import (
     CORE,
     ELECTRICAL_ENGINEERING,
     EQUIPMENT,
+    FACTORY_ACCEPTANCE,
     FIXTURES,
     INSTALLATION,
     INSTALLED,
+    LABOUR,
     PROVISIONS,
     STUDIES,
     SUBCONTRACTING,
     TIMELINES,
     TODAY,
+    WIRING,
     fixture,
     identifier,
 )
@@ -279,9 +282,7 @@ def hourly_rate_grid() -> JsonObject:
 
 # --- The readings of the witness ------------------------------------------------------------
 
-_WIRING = 552
-_ACCEPTANCE = 556
-_LABOUR, _PROVISION = 553, 555
+_WIRING, _ACCEPTANCE, _LABOUR, _PROVISION = WIRING, FACTORY_ACCEPTANCE, LABOUR, 555
 _DESKS = 523
 _RISK_OCCURRED = 541
 _MILESTONE = "Réception usine"
@@ -293,9 +294,15 @@ _TASKS = frozenset({mockcore.TASK})
 def named() -> dict[str, JsonObject]:
     """Return the named examples of the witness, by file name.
 
-    Its readings, its writes, and its history — its revisions compared and its risks.
+    Its readings, its writes, its history — its revisions compared and its risks —, and its
+    indicators today.
     """
-    return {**readings(), **mockwrites.writes(), **mockhistory.examples()}
+    return {
+        **readings(),
+        **mockwrites.writes(),
+        **mockhistory.examples(),
+        **mocktoday.examples(),
+    }
 
 
 def nested() -> tuple[Task, ...]:
@@ -486,11 +493,9 @@ def readings() -> dict[str, JsonObject]:
 def volumes() -> dict[str, JsonObject]:
     """Return every volume, as the example of the contract its file holds, by file name."""
     built = structure()
-    witness = fixture("estimate_indicators")
-    labels = {
-        entry["key"]: entry["label"]
-        for entry in fixture("estimate_indicators_breakdown")["by_cost_type"]
-    }
+    # The witness is read in memory, never from the file the same command writes.
+    witness = mocktoday.estimate_today()
+    labels = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")}
     labels.update((entry["subproject_id"], entry["label"]) for entry in fixture("subprojects"))
     indicators = estimate_indicators(built.totals, witness, labels)
     projects = portfolio()

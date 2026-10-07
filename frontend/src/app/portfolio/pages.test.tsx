@@ -160,7 +160,7 @@ describe("the screens of the portfolio", () => {
     const page = text(await render(ProjectsPage));
     expect(page).toContain("In progress and Pricing · 300 projects · calculated on 16 Mar 2026");
     expect(page).toMatch(
-      /Order book .*2,597,289,500\.00 Gross pipeline .*317,939,400\.00 Weighted pipeline .*146,660,510\.00 Delivered .*0\.00 Conversion rate 40%/,
+      /Order book .*2,597,310,334\.56 Gross pipeline .*317,939,400\.00 Weighted pipeline .*146,660,510\.00 Delivered .*0\.00 Conversion rate 40%/,
     );
     const [grid] = grids.projects;
     expect(grid?.projects).toHaveLength(300);
@@ -179,9 +179,9 @@ describe("the screens of the portfolio", () => {
     const page = text(markup);
     expect(page).toContain("In progress · 269 projects · calculated on 16 Mar 2026");
     expect(page).toMatch(/Cost index 0\.94 Nominal Schedule index 0\.91 Nominal/);
-    expect(page).toMatch(/At the observed rate .*2,757,435,807\.65 .*160,146,307\.65/);
+    expect(page).toMatch(/At the observed rate .*2,757,242,622\.53 .*159,932,287\.97/);
     expect(page).toContain(
-      "Cost index Nominal 168 Cost index Watch 47 Cost index Alert 53 Schedule index Nominal 152",
+      "Cost index Nominal 169 Cost index Watch 47 Cost index Alert 53 Schedule index Nominal 153",
     );
     expect(page).toContain(
       "Q2 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date.",
@@ -192,7 +192,7 @@ describe("the screens of the portfolio", () => {
     const page = text(await render(CostStructurePage, { from: "2025-01-01" }));
     expect(queryOf("GET /portfolio/cost-structure")).toEqual({});
     expect(page).toContain("The actual cost is not broken down by nature");
-    expect(page).toMatch(/Reference budget by nature .*Main-d'œuvre .*1,428,509,225\.00 55%/);
+    expect(page).toMatch(/Reference budget by nature .*Main-d'œuvre .*1,428,520,684\.01 55%/);
     expect(page).toMatch(/Labour by organisation node .*Bureau d'études électricité .*100%/);
   });
 
@@ -253,7 +253,7 @@ describe("the screens of the portfolio", () => {
       "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
     };
     const markup = await render(ProjectsPage);
-    expect(text(markup)).toMatch(/Order book .*2,597,289,500\.00/);
+    expect(text(markup)).toMatch(/Order book .*2,597,310,334\.56/);
     expect(grids.projects[0]?.projects).toHaveLength(300);
     expect(markup).not.toContain("Organisation node");
   });

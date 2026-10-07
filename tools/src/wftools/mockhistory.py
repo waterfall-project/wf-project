@@ -50,7 +50,9 @@ from wftools.mockwitness import (
     CORE,
     DISMISSED,
     EQUIPMENT,
+    FACTORY_ACCEPTANCE,
     IDENTIFIED,
+    LABOUR,
     OCCURRED,
     OFFER_MARKED,
     OFFER_OPENED,
@@ -60,6 +62,7 @@ from wftools.mockwitness import (
     RISKS_IDENTIFIED,
     SUBPROJECT_CONTROL,
     TODAY,
+    WIRING,
     Event,
     Line,
     Link,
@@ -91,7 +94,7 @@ def stamp(at: datetime) -> str:
 
 # --- The marked revisions, described from the core --------------------------------------------
 
-WIRING, MERGED, MILESTONE, LABOUR = 552, 541, 556, 553
+MERGED, MILESTONE = 541, FACTORY_ACCEPTANCE
 MOUNTING, TESTS_LINE, COMMISSIONING_TASK, DESIGN_FILE, INSTALLATION_TASK = 562, 564, 565, 526, 561
 """The nodes of the core the history is about (``mockwitness``)."""
 
@@ -240,7 +243,8 @@ def _line(row: mockcore.Row) -> dict[str, JsonValue]:
     return cast("dict[str, JsonValue]", row.node["estimate_line"])
 
 
-def _is_provision(row: mockcore.Row) -> bool:
+def is_provision(row: mockcore.Row) -> bool:
+    """Whether a row is a line of provision: computed from its risk, never entered."""
     return row.kind == mockcore.ESTIMATE_LINE and _line(row)["is_computed"] is True
 
 
@@ -250,7 +254,7 @@ def reference_budget(rows: Iterable[mockcore.Row]) -> Decimal:
         (
             row.amounts.budgeted
             for row in rows
-            if row.kind == mockcore.ESTIMATE_LINE and not _is_provision(row)
+            if row.kind == mockcore.ESTIMATE_LINE and not is_provision(row)
         ),
         Decimal(0),
     )
@@ -258,7 +262,7 @@ def reference_budget(rows: Iterable[mockcore.Row]) -> Decimal:
 
 def reserve(rows: Iterable[mockcore.Row]) -> Decimal:
     """Return the reserve for risks of a reference: the sum of its lines of provision."""
-    return sum((row.amounts.base for row in rows if _is_provision(row)), Decimal(0))
+    return sum((row.amounts.base for row in rows if is_provision(row)), Decimal(0))
 
 
 # --- The comparison of two marked revisions ---------------------------------------------------
@@ -288,9 +292,9 @@ def _changes(row: mockcore.Row, was: mockcore.Row) -> list[JsonValue]:
     return found
 
 
-def _nature(row: mockcore.Row) -> str:
+def nature(row: mockcore.Row) -> str:
     """Return the nature of cost of a line: provision, labour by its hours, else disbursement."""
-    if _is_provision(row):
+    if is_provision(row):
         return PROVISION
     return LABOR if _line(row)["hours"] is not None else NON_LABOR
 
@@ -310,7 +314,7 @@ def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonV
             if row.kind != mockcore.ESTIMATE_LINE:
                 continue
             subproject = cast("str | None", _line(row)["subproject_id"]) or "unassigned"
-            for key in (("cost_type", _nature(row)), ("subproject", subproject)):
+            for key in (("cost_type", nature(row)), ("subproject", subproject)):
                 by[key] = by.get(key, Decimal(0)) + sign * row.amounts.base
     order = [("cost_type", key) for key in natures] + [
         ("subproject", key) for key in [*subprojects, "unassigned"]
@@ -558,7 +562,7 @@ def coverage(today: list[mockcore.Row], rows: list[mockcore.Row]) -> JsonObject:
     reestimated of the lines merged by the risks that occurred; the difference, signed
     (WF-RIS-0050).
     """
-    remaining = sum((row.amounts.base for row in today if _is_provision(row)), Decimal(0))
+    remaining = sum((row.amounts.base for row in today if is_provision(row)), Decimal(0))
     occurred = sum((row.amounts.reestimated for row in merged_lines(today)), Decimal(0))
     kept = reserve(rows)
     return {
@@ -673,7 +677,7 @@ def examples() -> dict[str, JsonObject]:
         cast("str", entry["key"]): cast("str", entry["delta"])
         for entry in cast("list[JsonObject]", compared["amount_deltas"])
     }
-    provisions = sum(1 for row in rows if _is_provision(row))
+    provisions = sum(1 for row in rows if is_provision(row))
     reserve_text = (
         f"la réserve pour risques de la référence, {_amount(reserve(rows))} — les provisions "
         f"qu'elle portait au {_day(AMENDMENT_MERGED.on)} : "

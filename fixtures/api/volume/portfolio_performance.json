@@ -3,19 +3,19 @@
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "scope": {"states":["in_progress"],"as_of":"2026-03-16","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":269},
-    "reference_budget": "2597289500.00",
+    "reference_budget": "2597310334.56",
     "cost_index": {"value":{"is_computable":true,"value":"0.94","reason":null},"zone":"nominal"},
     "schedule_index": {"value":{"is_computable":true,"value":"0.91","reason":null},"zone":"nominal"},
-    "cost_variance": "-74945497.40",
-    "schedule_variance": "-123855432.68",
-    "projections": {"at_budget":"2672234997.40","project_manager":"2726794370.00","at_observed_rate":{"is_computable":true,"value":"2757435807.65","reason":null},"variance_at_budget":"74945497.40","variance_project_manager":"129504870.00","variance_at_observed_rate":"160146307.65"},
+    "cost_variance": "-74850897.40",
+    "schedule_variance": "-123823323.04",
+    "projections": {"at_budget":"2672161231.96","project_manager":"2726721304.56","at_observed_rate":{"is_computable":true,"value":"2757242622.53","reason":null},"variance_at_budget":"74850897.40","variance_project_manager":"129410970.00","variance_at_observed_rate":"159932287.97"},
     "zone_distribution": [
-      {"index":"cost","zone":"nominal","project_count":168},
+      {"index":"cost","zone":"nominal","project_count":169},
       {"index":"cost","zone":"watch","project_count":47},
       {"index":"cost","zone":"alert","project_count":53},
-      {"index":"schedule","zone":"nominal","project_count":152},
+      {"index":"schedule","zone":"nominal","project_count":153},
       {"index":"schedule","zone":"watch","project_count":57},
-      {"index":"schedule","zone":"alert","project_count":60}
+      {"index":"schedule","zone":"alert","project_count":59}
     ],
     "quarterly": [
       {"quarter":"2025-Q2","cost_index":{"is_computable":false,"value":null,"reason":"no_actual_cost"},"schedule_index":{"is_computable":false,"value":null,"reason":"no_planned_value"}},

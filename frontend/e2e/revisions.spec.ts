@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 
 // The fake back serves the first example of each operation: the history of three revisions —
 // the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
-// structures, the rate update proposed for it, and the comparison of the offer to the
+// structures, no rate update proposed for it, and the comparison of the offer to the
 // reference. The screen of the revisions shows them all; the comparison proves the fake back
 // serves `compareRevisions` — its path, `/revisions/comparison`, could be mistaken for a
 // revision named `comparison`.
@@ -27,13 +27,13 @@ test("the revisions of a project, their comparison as the API renders it, its st
   const commands = main.getByRole("region", { name: "Commandes" });
   await expect(commands.getByRole("button", { name: "Marquer la révision" })).toBeVisible();
 
-  // The structures of the revision, and the rate update proposed for it, as the API gives
-  // them: 82,40 is the previous rate projected by inflation, never a figure of the front.
+  // The structures of the revision, and no rate update: the current revision, opened in 2026 as
+  // the reference it copies, has none to propose (WF-REV-0060).
   await expect(main.getByRole("table", { name: "Structures de coûts" })).toContainText(
     "Structure principale",
   );
-  const rates = main.getByRole("table", { name: "Mise à jour des taux proposée" });
-  await expect(rates.getByRole("row").last()).toContainText("82,40");
+  await expect(main).toContainText("aucune mise à jour des taux n’est proposée");
+  await expect(main.getByRole("table", { name: "Mise à jour des taux proposée" })).toHaveCount(0);
 
   // The comparison asked of the server: what it answers is shown, nothing paired by the front.
   await main.getByRole("button", { name: "Comparer" }).click();
