@@ -16,15 +16,16 @@ import {
 } from "./nodes";
 import { PLANNING_FIELDS, type PlanningNode } from "./planning";
 
-// The witness planning, and the link that reschedules two of its tasks (`predecessor_set`): the
-// review written, its summary recalculated, the acceptance that follows it moved to 29 April, and
-// the design file, its dates unchanged, put on the critical path.
+// The witness planning, and the link that reschedules the tasks after it (`predecessor_set`): the
+// mounting on site, not started, written two days after the factory acceptance, its summary
+// recalculated, the commissioning that follows it moved, and the tasks without a successor — the
+// design file of the planning among them — given more float as the end of the core moves away.
 const planning = example("nodes_planning") as NodeList;
 const linked = example("predecessor_set") as NodesWritten;
-const REVIEW = "01926f3a-7c00-7000-8000-000000000524";
-const ACCEPTANCE = "01926f3a-7c00-7000-8000-000000000525";
-const DESIGN_FILE = "01926f3a-7c00-7000-8000-000000000526";
-const SUMMARY = "01926f3a-7c00-7000-8000-000000000521";
+const node = (number: number) => `01926f3a-7c00-7000-8000-000000000${number.toString()}`;
+const MOUNTING = node(562);
+const DESIGN_FILE = node(526);
+const FLOAT = { value: "189", unit: "d" };
 
 /** The rows of the witness planning, as the grid of the planning reads them. */
 const rows = projectNodes(planning, PLANNING_FIELDS).items;
@@ -41,25 +42,20 @@ function row(id: string): PlanningNode {
 describe("what a write answers, as a grid reads it", () => {
   it("gives the nodes written and their ancestors whole, and the tasks rescheduled by their schedule alone", () => {
     const written = nodesWritten(linked, PLANNING_FIELDS, true);
-    expect(written.rows.map(nodeKey)).toEqual([REVIEW]);
-    expect(written.changed.map(nodeKey)).toEqual([SUMMARY]);
-    expect(written.parts.map((part) => part.key)).toEqual([ACCEPTANCE, DESIGN_FILE]);
+    expect(written.rows.map(nodeKey)).toEqual([MOUNTING]);
+    expect(written.changed.map(nodeKey)).toEqual([521, 551, 541, 561].map(node));
+    expect(written.parts.map((part) => part.key)).toEqual([
+      DESIGN_FILE,
+      ...[542, 544, 565].map(node),
+    ]);
     expect(written.totals).toEqual(linked.totals);
     expect(written.order).toBe(2);
 
-    // The schedule laid over the row shown, the rest of it as it was.
-    const [acceptance, file] = written.parts;
-    const moved = acceptance?.change(row(ACCEPTANCE));
-    expect(moved?.task).toEqual({
-      ...row(ACCEPTANCE).task,
-      start: { date: "2026-04-29", hours: "8" },
-      finish: { date: "2026-04-29", hours: "8" },
-    });
-    expect(moved?.lock_version).toBe(row(ACCEPTANCE).lock_version);
-    const critical = file?.change(row(DESIGN_FILE));
-    expect(critical?.task?.is_critical).toBe(true);
-    expect(critical?.task?.total_float).toEqual({ value: "0", unit: "d" });
-    expect(critical?.task?.start).toEqual(row(DESIGN_FILE).task?.start);
+    // The schedule laid over the row shown, the rest of it as it was: more float, no date moved.
+    const [file] = written.parts;
+    const later = file?.change(row(DESIGN_FILE));
+    expect(later?.task).toEqual({ ...row(DESIGN_FILE).task, total_float: FLOAT });
+    expect(later?.lock_version).toBe(row(DESIGN_FILE).lock_version);
   });
 
   it("gives no schedule to a grid that reads no date, and no totals to a filtered one", () => {
@@ -151,50 +147,41 @@ describe("the answers of a reading", () => {
     // The schedule of the next write arrives first, alone.
     const later = nodesWritten(linked, PLANNING_FIELDS, true);
     take(answers, { ...later, rows: [], changed: [], order: 3 }, nodeKey);
-    expect(shownRow(answers, nodeKey, ACCEPTANCE)?.task?.start).toEqual({
-      date: "2026-04-29",
-      hours: "8",
-    });
+    expect(shownRow(answers, nodeKey, DESIGN_FILE)?.task?.total_float).toEqual(FLOAT);
     // Then the earlier write answers the same task whole: its label and its version stand, the
     // later schedule laid over them.
-    const before = row(ACCEPTANCE);
+    const before = row(DESIGN_FILE);
     const task = before.task;
     if (task === undefined || task === null) {
-      throw new Error("the acceptance of the witness planning is a task");
+      throw new Error("the design file of the witness planning is a task");
     }
     const renamed: PlanningNode = {
       ...before,
       lock_version: before.lock_version + 1,
-      task: { ...task, label: "Réception" },
+      task: { ...task, label: "Dossier" },
     };
     take(
       answers,
       { rows: [renamed], changed: [], parts: [], totals: undefined, order: 2 },
       nodeKey,
     );
-    const shown = shownRow(answers, nodeKey, ACCEPTANCE);
-    expect(shown?.task?.label).toBe("Réception");
+    const shown = shownRow(answers, nodeKey, DESIGN_FILE);
+    expect(shown?.task?.label).toBe("Dossier");
     expect(shown?.lock_version).toBe(before.lock_version + 1);
-    expect(shown?.task?.start).toEqual({ date: "2026-04-29", hours: "8" });
+    expect(shown?.task?.total_float).toEqual(FLOAT);
   });
 
   it("lay two parts of the calendar of one task answered in the wrong order so that the later wins, and let go of those a later row whole covers", () => {
     const answers = answersOf<PlanningNode, unknown>(rows);
-    // The acceptance moved to 29 April by the write of order 3, to 27 April by that of order 2;
+    // The design file given 189 days of float by the write of order 3, 188 by that of order 2;
     // the later answers first.
-    const schedule = linked.rescheduled.find((each) => each.node_id === ACCEPTANCE);
+    const schedule = linked.rescheduled.find((each) => each.node_id === DESIGN_FILE);
     if (schedule === undefined) {
-      throw new Error("the link of the witness planning reschedules the acceptance");
+      throw new Error("the link of the witness reschedules the design file");
     }
     const earlier: NodesWritten = {
       ...linked,
-      rescheduled: [
-        {
-          ...schedule,
-          start: { date: "2026-04-27", hours: "8" },
-          finish: { date: "2026-04-27", hours: "8" },
-        },
-      ],
+      rescheduled: [{ ...schedule, total_float: { value: "188", unit: "d" } }],
     };
     const parts = (written: NodesWritten, order: number) => ({
       ...nodesWritten(written, PLANNING_FIELDS, true),
@@ -204,34 +191,28 @@ describe("the answers of a reading", () => {
     });
     take(answers, parts(linked, 3), nodeKey);
     take(answers, parts(earlier, 2), nodeKey);
-    expect(shownRow(answers, nodeKey, ACCEPTANCE)?.task?.start).toEqual({
-      date: "2026-04-29",
-      hours: "8",
-    });
-    expect(answers.parts.get(ACCEPTANCE)?.map((part) => part.order)).toEqual([2, 3]);
-    // The acceptance answered whole by the write of order 2: its part of order 2 is covered, let
+    expect(shownRow(answers, nodeKey, DESIGN_FILE)?.task?.total_float).toEqual(FLOAT);
+    expect(answers.parts.get(DESIGN_FILE)?.map((part) => part.order)).toEqual([2, 3]);
+    // The design file answered whole by the write of order 2: its part of order 2 is covered, let
     // go; that of order 3 stands over the row (#355).
     const whole = (order: number) => ({
-      rows: [row(ACCEPTANCE)],
+      rows: [row(DESIGN_FILE)],
       changed: [],
       parts: [],
       totals: undefined,
       order,
     });
     take(answers, whole(2), nodeKey);
-    expect(answers.parts.get(ACCEPTANCE)?.map((part) => part.order)).toEqual([3]);
-    expect(shownRow(answers, nodeKey, ACCEPTANCE)?.task?.start).toEqual({
-      date: "2026-04-29",
-      hours: "8",
-    });
+    expect(answers.parts.get(DESIGN_FILE)?.map((part) => part.order)).toEqual([3]);
+    expect(shownRow(answers, nodeKey, DESIGN_FILE)?.task?.total_float).toEqual(FLOAT);
     take(answers, whole(3), nodeKey);
-    expect(answers.parts.has(ACCEPTANCE)).toBe(false);
+    expect(answers.parts.has(DESIGN_FILE)).toBe(false);
     // A part that comes after a later row whole is covered as it comes: never kept.
     take(answers, whole(5), nodeKey);
     take(answers, parts(linked, 3), nodeKey);
-    expect(answers.parts.has(ACCEPTANCE)).toBe(false);
-    expect(shownRow(answers, nodeKey, ACCEPTANCE)?.task?.start).toEqual(
-      row(ACCEPTANCE).task?.start,
+    expect(answers.parts.has(DESIGN_FILE)).toBe(false);
+    expect(shownRow(answers, nodeKey, DESIGN_FILE)?.task?.total_float).toEqual(
+      row(DESIGN_FILE).task?.total_float,
     );
   });
 

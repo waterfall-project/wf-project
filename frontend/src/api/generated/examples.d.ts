@@ -111,7 +111,7 @@ export interface Examples {
     200: "structures" | "structures_amendments";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_estimate" | "nodes_milestone" | "nodes_planning" | "nodes_risk_occurred" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_core" | "nodes_estimate" | "nodes_installation" | "nodes_milestone" | "nodes_planning" | "nodes_risk_occurred" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
@@ -192,7 +192,7 @@ export interface Examples {
     200: "preferences" | "preferences_dark";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
-    200: "estimate_line_entered" | "estimate_line_updated";
+    200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";

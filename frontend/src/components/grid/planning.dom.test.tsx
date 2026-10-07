@@ -176,7 +176,7 @@ describe("the grid of the planning", () => {
         "09/04/2026",
         "15/04/2026",
         "",
-        days("54"),
+        days("187"),
         `2FD-${days("2")}`,
       ],
     ]);
@@ -319,7 +319,7 @@ describe("the grid of the planning", () => {
       "09/04/2026",
       "15/04/2026",
       "",
-      `54${NBSP}d`,
+      `187${NBSP}d`,
       `2FS-2${NBSP}d`,
     ]);
     expect(iconNames(cellsOf("Revue de conception")[7])).toEqual(["Computed", "Critical path"]);

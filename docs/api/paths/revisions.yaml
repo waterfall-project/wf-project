@@ -496,6 +496,8 @@
               witness: { $ref: ../../../fixtures/api/nodes.json }
               milestone: { $ref: ../../../fixtures/api/nodes_milestone.json }
               estimate: { $ref: ../../../fixtures/api/nodes_estimate.json }
+              installation: { $ref: ../../../fixtures/api/nodes_installation.json }
+              core: { $ref: ../../../fixtures/api/nodes_core.json }
               planning: { $ref: ../../../fixtures/api/nodes_planning.json }
               risk_occurred: { $ref: ../../../fixtures/api/nodes_risk_occurred.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
@@ -722,6 +724,7 @@
             examples:
               entered: { $ref: ../../../fixtures/api/estimate_line_entered.json }
               updated: { $ref: ../../../fixtures/api/estimate_line_updated.json }
+              redated: { $ref: ../../../fixtures/api/estimate_line_redated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

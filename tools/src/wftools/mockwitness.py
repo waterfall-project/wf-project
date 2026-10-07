@@ -204,8 +204,8 @@ COMMISSIONING_TECHNICIAN = universe(452)
 CABLE_FITTER = universe(454)
 """The active roles of the witness (``resource_roles``): the electrical engineer and the
 commissioning technician, whom its lines employ, on the standard week; and the cable fitter, on
-the week of four days of ten hours, whom no line employs yet — a write of the estimate will give
-him one (EP-02/L22)."""
+the week of four days of ten hours, whom no line employs today — the write of the estimate that
+gives him the wiring on site redates its task (EP-02/L22, ``mockwrites``)."""
 
 STANDARD_WEEK = universe(481)
 FOUR_DAY_WEEK = universe(482)
@@ -250,6 +250,7 @@ SUBCONTRACTING = universe(401)
 ELECTRICAL_ENGINEERING = universe(402)
 EQUIPMENT = universe(403)
 PROVISIONS = universe(404)
+COMMISSIONING = universe(405)
 
 
 @dataclass(frozen=True, slots=True)
@@ -434,5 +435,59 @@ of the risk 751, budgeted at the 250 the reference knew; the subtree merged into
 revision by the occurrence of the risk 752, its lines of 120 and 80 budgeted nothing
 (WF-RIS-0060); and the factory acceptance at the end of the wiring."""
 
-CORE = (STUDIES, CONTROL_STATION)
+INSTALLATION = Task(
+    561,
+    "Installation sur site",
+    children=(
+        Task(
+            562,
+            "Montage des armoires sur site",
+            days=123,
+            links=(Link(556),),
+            lines=(
+                Line(
+                    563,
+                    "Câblage sur site",
+                    ELECTRICAL_ENGINEERING,
+                    hours=Decimal(120),
+                    role=ENGINEER,
+                    subproject=SUBPROJECT_CONTROL,
+                ),
+                Line(
+                    564,
+                    "Assistance aux essais de câblage",
+                    COMMISSIONING,
+                    hours=Decimal(40),
+                    role=COMMISSIONING_TECHNICIAN,
+                    subproject=SUBPROJECT_CONTROL,
+                ),
+            ),
+        ),
+        Task(
+            565,
+            "Mise en service",
+            days=10,
+            links=(Link(562),),
+            lines=(
+                Line(
+                    566,
+                    "Mise en service sur site",
+                    COMMISSIONING,
+                    hours=Decimal(80),
+                    role=COMMISSIONING_TECHNICIAN,
+                    subproject=SUBPROJECT_CONTROL,
+                ),
+            ),
+        ),
+    ),
+)
+"""The installation on site, after the factory acceptance: the cabinets mounted on site from
+1 July to 18 December 2026, wired by the electrical engineer and tested with the commissioning
+technician, both on the standard week; and the commissioning, which follows, from 21 December
+2026 into January 2027, its line consumed in 2026, the year it starts (WF-DEV-0040). The wiring
+on site given to the cable fitter, on the week of four days, puts the mounting on the days both
+its roles work, four of eight hours (WF-PLA-0010): it finishes in 2027, and the commissioning
+starts and is consumed there (EP-02/L22)."""
+
+CORE = (STUDIES, CONTROL_STATION, INSTALLATION)
 """The readable core, to be the first roots of the structure, its rows its first rows (#376)."""
