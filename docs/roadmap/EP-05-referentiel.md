@@ -93,6 +93,10 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
 - #351 — un chiffreur sans permission du référentiel ne peut saisir ni catégorie ni rôle :
   la garde de `include_inactive` sur les lectures du référentiel, reportée d'EP-03 par son
   cadrage (2026-10-07).
+- #299 — ajouter une année à la grille des taux horaires (WF-REF-0060) : la commande appartient
+  au référentiel réel, reportée d'EP-02 (2026-10-07).
+- #300 — les écrans du référentiel ne montrent ni ne réactivent les objets désactivés
+  (WF-REF-0150), reportée d'EP-02 (2026-10-07).
 
 ## Préalables
 
