@@ -221,9 +221,9 @@ describe("the lifecycle of a project", () => {
     );
     // Each instant, in the local time of the workstation, which the browser writes.
     expect([...page.matchAll(/<time dateTime="([^"]+)"/g)].map((match) => match[1])).toEqual([
-      "2026-03-02T08:30:00Z",
-      "2026-03-02T08:45:00Z",
-      "2026-03-16T14:05:00Z",
+      "2025-10-06T09:00:00Z",
+      "2025-11-03T08:30:00Z",
+      "2026-01-15T11:00:00Z",
     ]);
   });
 

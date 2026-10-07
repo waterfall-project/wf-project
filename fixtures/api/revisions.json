@@ -1,5 +1,5 @@
 {
-  "summary": "La révision de référence, marquée, la révision courante, en brouillon, toutes deux créées en 2026 et portant cette année de référence, et l'offre v1.0, marquée avant elles, créée en 2025 et portant 2025 (WF-REV-0060, WF-REV-0090).",
+  "summary": "Les révisions du projet témoin : la référence, ouverte le 12 janvier 2026 par l'identification des risques et marquée le 1er février par la fusion de l'avenant 1 ; la révision courante, en brouillon, ouverte le 2 février par le réexamen d'un risque (WF-RIS-0020), où la survenance du 20 février a fusionné son devis propre sans rien marquer (WF-RIS-0060) — toutes deux créées en 2026 et portant cette année de référence — ; et l'offre v1.0, ouverte le 3 novembre 2025 et marquée le 15 décembre, créée en 2025 et portant 2025 (WF-REV-0060, WF-REV-0090).",
   "value": {
     "items": [
       {
@@ -90,7 +90,7 @@
           }
         ],
         "audit": {
-          "created_at": "2026-01-05T08:30:00Z",
+          "created_at": "2026-01-12T10:00:00Z",
           "created_by": {
             "kind": "user",
             "user_id": "01926f3a-7c00-7000-8000-000000000301",
@@ -186,13 +186,13 @@
           }
         ],
         "audit": {
-          "created_at": "2026-03-02T08:30:00Z",
+          "created_at": "2026-02-02T09:00:00Z",
           "created_by": {
             "kind": "user",
             "user_id": "01926f3a-7c00-7000-8000-000000000301",
             "display_name": "Camille Martin"
           },
-          "updated_at": "2026-03-16T14:05:00Z",
+          "updated_at": "2026-03-02T09:15:00Z",
           "updated_by": {
             "kind": "user",
             "user_id": "01926f3a-7c00-7000-8000-000000000301",

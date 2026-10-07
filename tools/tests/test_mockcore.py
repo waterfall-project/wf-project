@@ -425,12 +425,6 @@ def test_the_physical_progress_of_a_summary_is_the_budget_of_its_completed_tasks
 _STRUCTURE_NODES = next(f for f in mockwitness.IDENTIFIERS if f.what == "nœuds de la structure")
 _STRUCTURE_LINEAGES = next(f for f in mockwitness.IDENTIFIERS if f.first == 600)
 
-_DECLARED = {
-    # The comparison of two revisions, on the lineages of another cut of the witness: C12, L23.
-    "comparison.json",
-}
-"""The fixtures that may name a node of the core otherwise than the readings do, and why."""
-
 _RENAMED = {
     ("task_renamed.json", universe(WIRING)),
     ("task_renamed.json", mockcore.lineage(WIRING)),
@@ -471,11 +465,10 @@ def test_a_node_or_a_lineage_of_the_core_bears_one_kind_and_one_label_in_the_who
     None
 ):
     # C1 and C17 (#287): the readings, the writes, the risks, the imports and the trackings name
-    # the same node by the same identifier, lineage, kind and label — but the fixtures declared.
+    # the same node by the same identifier, lineage, kind and label — the comparison of two
+    # revisions too, generated from the core since L23 (C12).
     names: dict[str, set[tuple[str, str]]] = {}
     for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
-        if path.name in _DECLARED:
-            continue
         found: list[tuple[str, str, str]] = []
         _named(json.loads(path.read_text(encoding="utf-8"))["value"], found)
         for identifier, kind, label in found:
@@ -515,8 +508,6 @@ def test_an_example_that_names_a_label_of_the_core_names_it_by_the_core_identifi
         )
     strays: list[tuple[str, str, str]] = []
     for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
-        if path.name in _DECLARED:
-            continue
         found: list[tuple[str, str, str]] = []
         _named(json.loads(path.read_text(encoding="utf-8"))["value"], found)
         strays.extend(

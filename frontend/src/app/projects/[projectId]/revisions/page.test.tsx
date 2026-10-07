@@ -217,20 +217,27 @@ describe("the comparison of two revisions", () => {
     expect(call?.path).toBe(`${REVISIONS}/comparison`);
     expect(call?.query.toString()).toBe(`from_revision_id=${OFFER}&to_revision_id=${REFERENCE}`);
     expect(table(page, "Ajouts")).toBe(
-      "Libellé Nature Réception usine Tâche Provision — risque de reprise du câblage Ligne de devis",
+      "Libellé Nature Provision — risque de reprise du câblage Ligne de devis " +
+        "Provision — retard de livraison des armoires Ligne de devis " +
+        "Réception usine Tâche Assistance aux essais de câblage Ligne de devis " +
+        "Provision — indisponibilité de l'automaticien Ligne de devis",
     );
-    expect(table(page, "Retraits")).toBe("Libellé Nature Essais préliminaires sur site Tâche");
+    expect(table(page, "Retraits")).toBe(
+      "Libellé Nature Essais préliminaires sur site Tâche Location du banc d'essais Ligne de devis",
+    );
     expect(table(page, "Modifications")).toBe(
-      "Libellé Nature Ce qui change Câblage des armoires Tâche Dates Durée " +
-        "Raccordement des borniers Ligne de devis Montant budgété Montant réestimé",
+      "Libellé Nature Ce qui change Dossier de conception Tâche Dates Durée " +
+        "Raccordement des borniers Ligne de devis Montant budgété Montant réestimé " +
+        "Câblage sur site Ligne de devis Montant budgété Montant réestimé " +
+        "Mise en service sur site Ligne de devis Montant budgété Montant réestimé",
     );
     // The deviations as the API gives them, in its order, each named by the label it resolves
     // (#204): no total the front would add up, no identifier shown.
     expect(table(page, "Écarts de montants")).toBe(
       "Axe Poste Écart " +
-        "Nature de coût Main-d'œuvre 1 200,00 Nature de coût Débours -350,00 " +
-        "Nature de coût Provision 500,00 Sous-projet Poste de commande 850,00 " +
-        "Sous-projet Hors sous-projet 500,00",
+        "Nature de coût Main-d'œuvre 3 515,00 Nature de coût Débours -350,00 " +
+        "Nature de coût Provision 910,00 Sous-projet Poste de commande 3 165,00 " +
+        "Sous-projet Hors sous-projet 910,00",
     );
     expect(page).not.toContain("01926f3a-7c00-7000-8000-000000000461");
     // The choice keeps the two revisions compared.

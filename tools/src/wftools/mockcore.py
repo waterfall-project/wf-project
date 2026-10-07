@@ -285,17 +285,18 @@ class Amounts:
         }
 
 
-def price(line: Line, year: int) -> Amounts:
+def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) -> Amounts:
     """Return the amounts of a line: hours at the rate of its category, or its disbursement.
 
     The amount at the year of reference is the product of the quantity, one, and of the hours
     by the hourly rate for a labour line, of the quantity and the unit disbursement otherwise
     (WF-DEV-0030); the budget is what the reference revision gives it, the amount unless the
     line says otherwise; the re-estimate is the amount; the amount corrected for inflation is
-    the amount projected on the year of consumption (WF-DEV-0040).
+    the amount projected on the year of consumption (WF-DEV-0040). The hourly rates are those
+    of the reference year of the revision priced: by default, the core's, of 2026.
     """
     if line.hours is not None:
-        amount = line.hours * LABOUR_RATES[line.category]
+        amount = line.hours * rates[line.category]
     elif line.unit is not None:
         amount = line.unit
     else:
@@ -347,6 +348,7 @@ class _Emitter:
     dated: Mapping[int, Dated]
     labels: Mapping[str, str]
     today: date
+    rates: Mapping[str, Decimal] = field(default_factory=lambda: dict(LABOUR_RATES))
     rows: list[Row] = field(default_factory=list[Row])
     row_of: dict[int, int] = field(default_factory=dict[int, int])
 
@@ -390,7 +392,7 @@ class _Emitter:
         """Append a line of a task, consumed in the year its task starts; return its amounts."""
         task = place.bearing
         year = self.dated[task.number].start.day.year
-        amounts = price(line, year)
+        amounts = price(line, year, self.rates)
         facet: JsonObject = {
             "label": line.label,
             "cost_category_id": line.category,
@@ -547,10 +549,17 @@ def rows_of(roots: Iterable[Task]) -> dict[int, int]:
     return rows
 
 
-def core(roots: Iterable[Task] = CORE, today: date = READ_ON) -> list[Row]:
-    """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one."""
+def core(
+    roots: Iterable[Task] = CORE,
+    today: date = READ_ON,
+    rates: Mapping[str, Decimal] = LABOUR_RATES,
+) -> list[Row]:
+    """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one.
+
+    Its labour lines at the hourly rates given, those of the reference year of the revision.
+    """
     roots = tuple(roots)
-    emitter = _Emitter(schedule(roots), labels(), today, row_of=rows_of(roots))
+    emitter = _Emitter(schedule(roots), labels(), today, rates, row_of=rows_of(roots))
     for position, root in enumerate(roots):
         emitter.task(root, None, position, 1)
     return emitter.rows

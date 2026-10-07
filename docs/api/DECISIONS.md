@@ -1636,6 +1636,83 @@ colonne comme le fichier la nomme ; `document_number`, qui identifie la ligne, e
 `label` et jamais par `fields`. Exemple : `import_actual_costs_analysed`, le fournisseur de la
 facture. `listOrgNodes` cherche aussi sur le code.
 
+## L'univers témoin : révisions et risques (EP-02/L23)
+
+**La chronologie du témoin se lit dans ses révisions** (#287, C11 ; WF-RIS-0020, WF-RIS-0060
+révisée). `wftools.mockwitness` date désormais chaque événement à l'heure où les exemples
+l'écrivent, et le cadrage du 2026-10-05 est recalé sur la spécification révisée, comme le
+commentaire du 2026-10-06 sur #372 le demandait : l'installation, son référentiel et ses comptes le
+1er septembre 2025 (les audits du référentiel, des comptes et des catégories engendrées, qui
+portaient le 5 janvier 2026, y passent) ; PRJ-001 créé le 6 octobre 2025, passé en chiffrage le
+3 novembre à l'ouverture de l'offre 100, en cours le 15 janvier 2026 à la désignation de sa
+référence — l'exemple écrit à la main le créait le 2 mars, après son offre. Deux ouvertures de
+révision, que le cadrage ne datait pas, suivent la spécification : **la révision 101 est ouverte le
+12 janvier par l'identification des risques**, saisie de la révision en cours qui la crée faute
+d'en avoir une (WF-RIS-0020), puis marquée le 1er février par la fusion de l'avenant 1, qui en fait
+la référence (WF-REV-0050) ; **la révision courante 102 est ouverte le 2 février par le réexamen
+du risque 751**, et non le 2 mars, pour que la survenance du 20 février fusionne dans une révision
+en cours sans en créer une (WF-RIS-0060). La référence reste 101 : la révision 103 du cadrage
+n'existe plus, et C8 tombe avec elle. `tools/tests/test_mockhistory.py` confronte à cette
+chronologie le projet, ses révisions et ses transitions d'état, écrits à la main, et vérifie
+qu'aucun instant de l'univers n'est antérieur à l'installation ni postérieur à aujourd'hui, hors
+les expirations à venir ; la sortie du projet (`project_completed`), suite d'une écriture faite
+aujourd'hui, passe du 30 septembre au 3 juin à 14 h 05.
+
+**L'offre et la référence sont décrites depuis le cœur, et leur comparaison en est la
+différence, engendrée** (C12, C13 ; WF-REV-0080). `wftools.mockhistory` décrit la référence telle
+qu'elle fut marquée — rien de démarré, sans le sous-arbre de la survenance, chaque risque portant sa
+ligne de provision à la provision qu'il avait alors : 751 à 250 (1 000 à 25 %, `risk_reviews`),
+752 à 60 sur la ligne 557, 753 à 600 sur la ligne 567, deux lignes que la révision courante ne
+porte plus — et l'offre telle qu'elle fut marquée, avant tout risque et sans l'avenant 1 : le
+raccordement des borniers à 10 h, ni assistance aux essais de câblage ni réception usine,
+le dossier de conception en trois jours, et des essais préliminaires sur site (568, sa ligne 569),
+que l'avenant retire. `comparison` est la différence des deux lectures par lignée : une tâche
+change par ses dates, sa durée, son avancement ou son parent, une ligne par ses montants ou son
+parent — le montant d'une tâche est celui de ses lignes, que disent les lignes et les écarts ; les
+écarts sont ceux du devis à l'année de référence, par nature et par sous-projet. La ligne de
+provision ajoutée de 751 porte donc 250, et la réception usine est celle du cœur, 656 : `comparison`
+quitte la liste des fixtures dispensées du test des libellés du cœur. Chaque révision se chiffre
+aux taux de son année de référence (WF-REV-0030) : la référence à ceux de 2026, ceux du cœur ;
+l'offre, de 2025, aux taux de 2025 du volume des taux (`getHourlyRateGrid`, la formule sortie dans
+`mockstructure.hourly_rate`) : 78,50 pour l'ingénierie électrique, 73,50 pour la mise en service,
+comme #232 le propose. Le câblage sur site et la mise en service sur site changent donc de montants
+comme le raccordement des borniers, et l'écart de main-d'œuvre vaut 3 515,00. `rate_update`, écrit
+à la main, donne encore 80,00 de taux précédent à la mise en service : EP-02/L24 l'alignera sur le
+volume (C15 de #287, #232).
+
+**Les risques, leur matrice, leurs réexamens et leur couverture sont engendrés** (#287). Les trois risques sont décrits une fois (`mockwitness.REGISTER`) : ce que l'utilisateur a
+saisi, leurs réexamens datés — l'identification la première, la survenance la dernière —, la
+ligne de provision qu'ils portent et celle que portait la référence. `risks`, `risk`,
+`risk_occurred_detail`, `risk_matrix`, `risk_reviews` et `risk_coverage` en sont lus : la
+probabilité, la gravité et l'état du dernier réexamen, la provision la gravité pondérée, les
+commandes selon l'état et la citation par une révision marquée (EP-02/L30), les totaux — les
+identifiés à leur provision d'aujourd'hui, les survenus et les écartés à celle que portait la
+référence —, la réserve de la référence, 910, somme de ses lignes de provision, la couverture au
+3 juin. **La matrice est à l'échelle du témoin** : la gravité se lit en part du budget de
+référence que le générateur calcule — les montants budgétés de la référence hors provisions,
+120 834,56, que la révision courante porte encore, la survenance ne le déplaçant pas —, et non plus
+des 100 000 écrits à la main. Les gravités et les probabilités gardent les chiffres que fixe la
+réserve de 910 ; « Indisponibilité de l'automaticien », 12 000, soit 9,93 % du budget, passe ainsi
+du niveau de gravité 4 au niveau 3, et sa case de la zone de vigilance à la zone nominale ; un
+risque prend une version par réexamen, et ce risque passe à la version 3. Un risque identifié
+après le marquage de la référence n'a pas de part à sa réserve : sa provision de référence est
+nulle, et la référence ne porte pas sa ligne de provision. Le portefeuille, qui somme le registre, la matrice et la couverture du témoin, les reçoit en
+mémoire (`mockhistory.readings`), jamais relus des fichiers que la même commande écrit : une seule
+exécution de `make mock-data` atteint son point fixe.
+
+**Ce que ce lot laisse.** Les indicateurs du projet (`project_indicators`, budget de référence de
+100 000), `remaining_indicators` et sa couverture, au 16 mars, sont à EP-02/L24, qui les
+engendrera depuis le même cœur ; la ligne du témoin au portefeuille et `state_transitions_exited`,
+l'offre perdue, à EP-02/L26. `milestone_tracking`, écrit à la main, contredit l'histoire engendrée :
+la réception usine y a un point à l'offre, que l'avenant 1 lui a pourtant ajoutée, et la réception
+des études y est dite repoussée de deux semaines par la référence, quand la référence ne la
+déplace pas — renvoyé à EP-02/L24, qui engendrera le suivi des jalons depuis les révisions
+décrites ici. **La décision 4 du cadrage n'est pas appliquée** : 751 et 753 gardent les chiffres
+qui fixent la réserve de 910, et ne sont pas portés à l'échelle de la structure de mille tâches.
+Quand EP-02/L27 (#376) y incrustera le cœur, le budget de référence changera d'ordre de grandeur,
+et avec lui les cases de la matrice ; la question est soumise à l'auteur sur #376, qui la tranchera
+avec la réserve.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

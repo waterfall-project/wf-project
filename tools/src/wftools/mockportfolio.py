@@ -16,8 +16,9 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from functools import cache
-from typing import cast
+from typing import Any, cast
 
+from wftools import mockhistory
 from wftools.mockstructure import (
     AS_OF,
     CENT,
@@ -507,9 +508,13 @@ def identified_risks(rows: list[JsonObject]) -> list[Risk]:
     three: each drawn in a cell of the matrix first, then its probability and its severity — a
     part of the budget of its project — within the bounds of the levels of that cell
     (`risk_matrix`), and its provision the severity weighted by the probability (WF-RIS-0010).
+    The register and the matrix are read in memory (``mockhistory``), never from the files the
+    same command writes.
     """
     witness = fixture("project")["project_id"]
-    matrix = fixture("risk_matrix")
+    read = mockhistory.readings()
+    register = cast("list[dict[str, Any]]", cast("dict[str, Any]", read["risks"])["items"])
+    matrix = cast("dict[str, Any]", read["risk_matrix"])
     levels = {"probability": matrix["probability_levels"], "severity": matrix["severity_levels"]}
     risks: list[Risk] = []
     for row in rows:
@@ -529,7 +534,7 @@ def identified_risks(rows: list[JsonObject]) -> list[Risk]:
                         risk["matrix_cell"]["severity_level"],
                     ),
                 )
-                for risk in fixture("risks")["items"]
+                for risk in register
                 if risk["state"] == "identified"
             )
             continue
@@ -562,11 +567,12 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
     (`identified_risks`); the risks that occurred or were dismissed over the period are the
     witness project's and a drawn sum.
     """
-    register = fixture("risks")["items"]
+    read = mockhistory.readings()
+    register = cast("list[dict[str, Any]]", cast("dict[str, Any]", read["risks"])["items"])
     risks = identified_risks(rows)
     total = sum((risk.provision for risk in risks), Decimal(0))
     heaviest = sorted(risks, key=lambda risk: -risk.provision)[:10]
-    matrix = fixture("risk_matrix")
+    matrix = cast("dict[str, Any]", read["risk_matrix"])
     counted = Counter(risk.cell for risk in risks)
     occurred = sum(
         (Decimal(risk["provision_amount"]) for risk in register if risk["state"] == "occurred"),
@@ -579,7 +585,7 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
     # The coverage of the risks (WF-RIS-0050), summed over the projects in progress: the
     # witness brings its own, the others a drawn reserve that their identified provisions and
     # the reestimated cost of their occurred risks eat into (WF-PTF-0090).
-    coverage = fixture("risk_coverage")
+    coverage = cast("dict[str, Any]", read["risk_coverage"])
     reserve = Decimal(coverage["reserve"]) + Decimal(draw("risks/reserve", 95_000, 125_000) * 1_000)
     remaining = total
     occurred_cost = Decimal(coverage["occurred_cost"]) + Decimal(

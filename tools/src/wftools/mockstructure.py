@@ -82,6 +82,19 @@ year its line is consumed (WF-DEV-0040)."""
 REFERENCE_YEAR = 2026
 """The reference year of the witness estimate: an amount of that year is not projected."""
 
+RATE_STEP = Decimal("1.50")
+"""How much an hourly rate of the volume of rates grew each year, up to the reference year."""
+
+
+def hourly_rate(last_amount: Decimal, year: int) -> Decimal:
+    """Return the rate of a category for a year, as the volume of rates gives it.
+
+    Its rate of the reference year, less the step for each year before it (``listHourlyRates``,
+    ``getHourlyRateGrid``).
+    """
+    return (last_amount - RATE_STEP * (REFERENCE_YEAR - year)).quantize(CENT)
+
+
 # The universe of the other examples of the contract.
 SUBPROJECT_TESTS = universe(802)
 LABOR = universe(461)

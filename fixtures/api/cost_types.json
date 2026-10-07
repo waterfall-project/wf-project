@@ -8,13 +8,13 @@
       "kind": "labor",
       "is_active": true,
       "audit": {
-        "created_at": "2026-01-05T09:00:00Z",
+        "created_at": "2025-09-01T09:00:00Z",
         "created_by": {
           "kind": "user",
           "user_id": "01926f3a-7c00-7000-8000-000000000301",
           "display_name": "Camille Martin"
         },
-        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_at": "2025-09-01T09:00:00Z",
         "updated_by": {
           "kind": "user",
           "user_id": "01926f3a-7c00-7000-8000-000000000301",
@@ -30,13 +30,13 @@
       "kind": "non_labor",
       "is_active": true,
       "audit": {
-        "created_at": "2026-01-05T09:00:00Z",
+        "created_at": "2025-09-01T09:00:00Z",
         "created_by": {
           "kind": "user",
           "user_id": "01926f3a-7c00-7000-8000-000000000301",
           "display_name": "Camille Martin"
         },
-        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_at": "2025-09-01T09:00:00Z",
         "updated_by": {
           "kind": "user",
           "user_id": "01926f3a-7c00-7000-8000-000000000301",
@@ -52,13 +52,13 @@
       "kind": "provision",
       "is_active": true,
       "audit": {
-        "created_at": "2026-01-05T09:00:00Z",
+        "created_at": "2025-09-01T09:00:00Z",
         "created_by": {
           "kind": "user",
           "user_id": "01926f3a-7c00-7000-8000-000000000301",
           "display_name": "Camille Martin"
         },
-        "updated_at": "2026-01-05T09:00:00Z",
+        "updated_at": "2025-09-01T09:00:00Z",
         "updated_by": {
           "kind": "user",
           "user_id": "01926f3a-7c00-7000-8000-000000000301",

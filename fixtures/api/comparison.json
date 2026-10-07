@@ -1,72 +1,32 @@
 {
-  "summary": "De l'offre v1.0 à la révision de référence, obtenue par la fusion de l'avenant 1 : une tâche et une ligne de provision ajoutées, une tâche retirée, une tâche et une ligne modifiées ; 1 350,00 d'écart, par nature de coût comme par sous-projet, chaque poste nommé par son libellé.",
+  "summary": "De l'offre v1.0, marquée le 15 décembre 2025, à la révision de référence, marquée le 1er février 2026 par la fusion de l'avenant 1, rapprochées par lignée sur le cœur du témoin : 3 lignes de provision ajoutées par l'identification des risques le 12 janvier 2026, à la provision de chacun ce jour-là — 751 à 250,00 —, et, par l'avenant, la réception usine et l'assistance aux essais de câblage ajoutées, « Essais préliminaires sur site » retirés avec leur ligne, la durée du dossier de conception et la charge du raccordement des borniers modifiées ; et les lignes de main-d'œuvre passées des taux de 2025 du référentiel, ceux de l'offre, à ceux de 2026 (WF-REV-0030, WF-REV-0060). Les écarts du devis à l'année de référence, par nature — 3 515,00 de main-d'œuvre, -350,00 de débours, 910,00 de provisions — et par sous-projet, chaque poste nommé par son libellé (WF-REV-0080, WF-DAT-0030). 4 nœuds modifiés, 5 ajoutés, 2 retirés.",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "from_revision_id": "01926f3a-7c00-7000-8000-000000000100",
     "to_revision_id": "01926f3a-7c00-7000-8000-000000000101",
     "added": [
-      {
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000626",
-        "label": "Réception usine",
-        "kind": "task"
-      },
-      {
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000625",
-        "label": "Provision — risque de reprise du câblage",
-        "kind": "estimate_line"
-      }
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000655","label":"Provision — risque de reprise du câblage","kind":"estimate_line"},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000657","label":"Provision — retard de livraison des armoires","kind":"estimate_line"},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000656","label":"Réception usine","kind":"task"},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000664","label":"Assistance aux essais de câblage","kind":"estimate_line"},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000667","label":"Provision — indisponibilité de l'automaticien","kind":"estimate_line"}
     ],
     "removed": [
-      {
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000631",
-        "label": "Essais préliminaires sur site",
-        "kind": "task"
-      }
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000668","label":"Essais préliminaires sur site","kind":"task"},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000669","label":"Location du banc d'essais","kind":"estimate_line"}
     ],
     "changed": [
-      {
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
-        "label": "Câblage des armoires",
-        "kind": "task",
-        "changes": ["dates", "duration"]
-      },
-      {
-        "lineage_id": "01926f3a-7c00-7000-8000-000000000623",
-        "label": "Raccordement des borniers",
-        "kind": "estimate_line",
-        "changes": ["budgeted_amount", "reestimated_amount"]
-      }
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000626","label":"Dossier de conception","kind":"task","changes":["dates","duration"]},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000653","label":"Raccordement des borniers","kind":"estimate_line","changes":["budgeted_amount","reestimated_amount"]},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000663","label":"Câblage sur site","kind":"estimate_line","changes":["budgeted_amount","reestimated_amount"]},
+      {"lineage_id":"01926f3a-7c00-7000-8000-000000000666","label":"Mise en service sur site","kind":"estimate_line","changes":["budgeted_amount","reestimated_amount"]}
     ],
     "amount_deltas": [
-      {
-        "dimension": "cost_type",
-        "key": "01926f3a-7c00-7000-8000-000000000461",
-        "label": "Main-d'œuvre",
-        "delta": "1200.00"
-      },
-      {
-        "dimension": "cost_type",
-        "key": "01926f3a-7c00-7000-8000-000000000462",
-        "label": "Débours",
-        "delta": "-350.00"
-      },
-      {
-        "dimension": "cost_type",
-        "key": "01926f3a-7c00-7000-8000-000000000463",
-        "label": "Provision",
-        "delta": "500.00"
-      },
-      {
-        "dimension": "subproject",
-        "key": "01926f3a-7c00-7000-8000-000000000801",
-        "label": "Poste de commande",
-        "delta": "850.00"
-      },
-      {
-        "dimension": "subproject",
-        "key": "unassigned",
-        "label": null,
-        "delta": "500.00"
-      }
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","delta":"3515.00"},
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","delta":"-350.00"},
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","delta":"910.00"},
+      {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","delta":"3165.00"},
+      {"dimension":"subproject","key":"unassigned","label":null,"delta":"910.00"}
     ]
   }
 }

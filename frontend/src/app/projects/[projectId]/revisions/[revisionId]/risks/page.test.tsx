@@ -229,7 +229,7 @@ describe("the screen of the risks", () => {
       "60% and over 0 0 0 0",
       "30% to under 60% 1 1 0 0",
       "10% to under 30% 0 0 0 0",
-      "0% to under 10% 0 0 0 1",
+      "0% to under 10% 0 0 1 0",
     ]);
     const zones = (row: string) =>
       [...row.matchAll(/role="img" aria-label="(\w+)"/g)].map((m) => m[1]);

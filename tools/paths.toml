@@ -88,8 +88,9 @@ paths = ["fixtures/examples.json"]
 by = "make fixtures"
 
 [[generated]]
-# The volumes, the named examples read from the core of the witness (wftools.mockcore), and the
-# answers of the writes of the grids (wftools.mockwrites).
+# The volumes, the named examples read from the core of the witness (wftools.mockcore), the
+# answers of the writes of the grids (wftools.mockwrites), and the history of the witness — its
+# revisions compared and its risks (wftools.mockhistory).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -118,6 +119,13 @@ paths = [
     "fixtures/api/paste_plan_unknown_category.json",
     "fixtures/api/paste_too_wide.json",
     "fixtures/api/paste_applied.json",
+    "fixtures/api/comparison.json",
+    "fixtures/api/risks.json",
+    "fixtures/api/risk.json",
+    "fixtures/api/risk_occurred_detail.json",
+    "fixtures/api/risk_matrix.json",
+    "fixtures/api/risk_reviews.json",
+    "fixtures/api/risk_coverage.json",
 ]
 by = "make mock-data"
 
