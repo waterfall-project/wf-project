@@ -1,9 +1,9 @@
 ---
 id: EP-03
 titre: Se connecter, et n'agir que dans les limites de ses habilitations
-statut: prêt
+statut: en cours
 depend_de: EP-01, EP-02
-issue:
+issue: 426
 ---
 
 # EP-03 — Comptes, authentification et habilitations
@@ -543,7 +543,7 @@ dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
 - **exigences** : `WF-DAT-0060-A`, `WF-DAT-0070-A`, `WF-DAT-0080-A`, `WF-DAT-0090-A`,
   `WF-DAT-0100-A`, `WF-DAT-0140-A`, `WF-SEC-0010-A`, `WF-OBS-0020-A`
 - **opérations** : `getLiveness`
-- **issue** :
+- **issue** : #428
 
 **En tant que** développeur, **je veux** un service d'API et un worker qui démarrent sur
 PostgreSQL et Redis, une première table écrite selon les conventions du §4.4.1 par une
@@ -608,7 +608,7 @@ plateforme — EP-13.
 - **statut** : à faire
 - **exigences** : `WF-ARC-0060-A`
 - **opérations** : aucune en propre — toutes celles que sert le service
-- **issue** :
+- **issue** : #429
 
 **En tant que** développeur, **je veux** que la chaîne compare chaque réponse du service au
 schéma déclaré, et que les parcours de bout en bout se jouent contre le vrai service, **afin
@@ -635,7 +635,7 @@ sert.
 - **statut** : à faire
 - **exigences** : `WF-ARC-0030-A`, `WF-ADM-0140-A`, `WF-ADM-0180-A`, `WF-SEC-0020-A`
 - **opérations** : `getMe`, `closeMySessions`, `createPasswordSetupLink`
-- **issue** :
+- **issue** : #427
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** me connecter avec le
 compte que j'ai — local, de l'annuaire ou d'un fournisseur externe —, sans que Waterfall ne
@@ -697,7 +697,7 @@ règles du mot de passe sont celles du fournisseur, qui les dit sur sa page.
 - **exigences** : `WF-ADM-0050-A`, `WF-ADM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`,
   `setUserAccessRoles`, `listAccessRoles`
-- **issue** :
+- **issue** : #433
 
 **En tant qu'**administrateur, **je veux** voir tous les comptes de l'installation dans une
 table, y créer un compte local, corriger ce que Waterfall garde d'un compte, lui affecter ses
@@ -767,7 +767,7 @@ rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.
 - **exigences** : `WF-ADM-0070-A`, `WF-ARC-0090-A`
 - **opérations** : `startDirectorySync`, `getLatestDirectorySync`, `getBackgroundTask`,
   `listBackgroundTasks`
-- **issue** :
+- **issue** : #434
 
 **En tant qu'**administrateur, **je veux** que Waterfall connaisse les comptes du fournisseur
 d'identité avant leur première connexion, à ma demande et à intervalle régulier, sans leur
@@ -801,7 +801,7 @@ imports (EP-09, EP-12) et la sauvegarde (EP-13) : le genre d'une tâche est déj
   `WF-ADM-0120-A`, `WF-INTF-0030-A`
 - **opérations** : `listPermissions`, `listAccessRoles`, `createAccessRole`, `getAccessRole`,
   `updateAccessRole`, `deleteAccessRole`, `setUserAccessRoles` (servie avec US-0360)
-- **issue** :
+- **issue** : #431
 
 **En tant qu'**administrateur, **je veux** composer des rôles à partir du catalogue, les
 attribuer aux comptes, et modifier ou supprimer les trois rôles livrés, sans jamais pouvoir
@@ -860,7 +860,7 @@ dire dans la spécification.
 - **statut** : à faire
 - **exigences** : `WF-ADM-0110-A`
 - **opérations** : `getMe`
-- **issue** :
+- **issue** : #432
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** que chaque action soit
 évaluée contre mes permissions au moment où je la demande, et que le front sache ce que j'ai
@@ -889,7 +889,7 @@ appellent : la qualité de contributeur, second terme, s'y ajoute en EP-04.
 - **exigences** : `WF-ADM-0040-A`, `WF-ADM-0080-A`, `WF-INTF-0160-A`, `WF-IHM-0060-A`
 - **opérations** : `getMe`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar`,
   `getUserAvatar`, `getInstallation`
-- **issue** :
+- **issue** : #435
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** que ma langue, mes
 réglages de grille et mon avatar me suivent d'un poste à l'autre, **afin de** ne pas refaire
@@ -926,7 +926,7 @@ US-0410). `getInstallation` rend la langue par défaut posée à l'amorçage (US
 - **statut** : à faire
 - **exigences** : `WF-SEC-0030-A`, `WF-ARC-0110-A`
 - **opérations** : aucune en propre — les écritures des comptes et des rôles l'alimentent
-- **issue** :
+- **issue** : #430
 
 **En tant qu'**administrateur, **je veux** que chaque création ou modification d'un compte,
 d'un rôle ou d'une attribution soit inscrite dans un journal que la plateforme ne peut pas
@@ -953,7 +953,7 @@ qui a donné quel droit, dans la langue de celui qui le relit.
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : aucune — l'amorçage est une commande d'installation, non une opération de
   l'API
-- **issue** :
+- **issue** : #436
 
 **En tant qu'**exploitant, **je veux** qu'une installation neuve crée d'elle-même ce sans quoi
 personne ne peut entrer, et rien d'autre, et qu'elle me remette le lien par lequel le premier
