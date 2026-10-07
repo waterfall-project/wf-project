@@ -140,13 +140,13 @@ conception :
 
 - un schéma de sécurité `bearer`, le jeton d'accès du fournisseur, à la place du témoin de
   session ;
-- retirées : `listAuthProviders`, `getCurrentSession`, `openSession`, `closeSession`,
-  `startOidcSession`, `completeOidcSession`, `requestPasswordReset`, `confirmPasswordReset`,
-  `changeMyPassword`, et les schémas qu'elles seules emploient ; les permissions effectives,
+- retirées : `listAuthProviders`, `getCurrentSession`, `openSession`, `startOidcSession`, `completeOidcSession`, `requestPasswordReset`, `confirmPasswordReset`,
+  `changeMyPassword`, et les schémas qu'elles seules emploient ; `closeSession` devient
+  `closeMySessions`, qui ferme toutes les sessions du compte ; les permissions effectives,
   que `Session` portait, passent à `getMe` ;
 - `createPasswordSetupLink` reste, son lien menant à la page du fournisseur qui fixe le mot
   de passe, et non plus à `/login/reset` du front ;
-- `startDirectorySync` et `getLatestDirectorySync` lisent les comptes du fournisseur
+- `startDirectorySync` et `getLatestDirectorySync` (`startIdentitySync`, `getLatestIdentitySync`) lisent les comptes du fournisseur
   d'identité, non l'annuaire, et leur chemin le dit (`identity-syncs`) ; le compte rendu
   nomme ses signalements par un code du catalogue ;
 - les refus par champ des écritures d'un compte qui manquent : rôle ou nœud inconnu, nom
@@ -157,10 +157,10 @@ conception :
   la présence de porteurs sur `listAccessRoles`, avec le nombre de rôles retenus ; et, sur
   les deux, un ordre de départage qui rend les pages stables.
 
-Servies ici pour la première fois, après cette modification (24) :
+Servies ici pour la première fois, après cette modification (25) :
 
 - `system` : `getLiveness`, `getInstallation`, `getBackgroundTask`, `listBackgroundTasks` ;
-- `me` : `getMe`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar` ;
+- `me` : `getMe`, `closeMySessions`, `updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar` ;
 - `users` : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`,
   `setUserAccessRoles`, `createPasswordSetupLink`, `getUserAvatar`, `startDirectorySync`,
   `getLatestDirectorySync` ;
@@ -196,7 +196,344 @@ n'est pas livré, les US d'écran attendent et le reste avance.
 
 ## Conception
 
-*À écrire à l'étape 2, après validation des US.*
+Écrite le 2026-10-07 sur le contrat et la spécification d'`epic/EP-02`. Chaque décision dit
+l'option écartée ; celles qui défont une décision antérieure le disent avec leur source.
+
+### Vue d'ensemble
+
+```
+navigateur ──témoin opaque── front (Next) ──Bearer── service d'API ──── PostgreSQL (waterfall)
+                              │   │                      │   │
+                              │   └── Redis : sessions   │   └── Redis : file de tâches ── worker
+                              │       du front, verrous  │                                  │
+                              └──── Keycloak ◄───────────┴── API d'administration ◄─────────┘
+                                    (royaume waterfall, extension, base keycloak)
+                                    ├── annuaire LDAP (fédération, console)
+                                    └── fournisseur externe (relais OIDC, console)
+```
+
+Le navigateur ne parle qu'au front (TFX-01) et à Keycloak (TFX-07). Le front tient les
+jetons ; l'API ne tire du jeton que l'identité et lit tout le reste en base (WF-ARC-0030).
+
+### Authentification et session
+
+**Keycloak.** Image Keycloak 26 construite par le dépôt (`deploy/keycloak/`), avec
+l'extension ci-dessous. Le royaume `waterfall` est un fichier versionné
+(`deploy/keycloak/realm/waterfall.yaml`), appliqué de façon idempotente à chaque déploiement
+par keycloak-config-cli (#215) : un service de Compose ici, un crochet Helm en EP-13. Il
+porte :
+
+- les clients : `waterfall-front` (confidentiel, code d'autorisation avec PKCE, adresses de
+  retour du front, déconnexion par canal de retour vers le front), `waterfall-api` (audience
+  des jetons, sans flux propre), `waterfall-service` (compte de service de l'API et du worker,
+  rôles `manage-users`, `view-users`, `query-users` et le rôle de l'extension) ;
+- la politique de mot de passe de WF-ADM-0140 : douze caractères au moins, ni l'adresse
+  (`notEmail`, `notUsername`, l'adresse servant d'identifiant), ni le nom (règle de
+  l'extension) ; le verrouillage temporaire : dix échecs, quinze minutes, jamais permanent ;
+  aucune expiration périodique ; liens d'action valables une heure ;
+- les durées de WF-SEC-0020 : jeton d'accès 5 min ; session inactive 2 h ; session 12 h ;
+  rotation du jeton de rafraîchissement, réemploi refusé (`revokeRefreshToken`,
+  `refreshTokenMaxReuse` 0) ;
+- l'inscription libre fermée, l'adresse comme identifiant, les langues fr et en, le thème
+  de connexion et les modèles de courriel dans les deux langues.
+
+keycloak-config-cli ne gère que ce que le fichier déclare : la fédération d'un annuaire et
+les fournisseurs externes, que l'administrateur raccorde dans la console (WF-ADM-0180), ne
+sont ni écrasés ni supprimés. La plateforme de développement ajoute, par un second fichier
+qui ne sert qu'à elle, un annuaire OpenLDAP de test, un second royaume `external` qui joue le
+fournisseur externe, et Mailpit pour recevoir les courriels : c'est ce qui rend la Définition
+de fini constatable. La base de Keycloak est une base distincte sur le même serveur
+PostgreSQL (#215, PBS-3.1).
+
+**L'extension Keycloak** (décision du cadrage, 2026-10-07). Un fournisseur Java,
+`deploy/keycloak/extension/`, construit par un Dockerfile multi-étapes dans l'image Keycloak :
+aucune JVM n'est demandée au poste. Deux pièces :
+
+- `password-setup-link` : un point d'entrée du royaume, réservé au rôle
+  `waterfall-password-link` du compte de service, qui rend pour un compte un lien d'action
+  « fixer le mot de passe », valable une heure et à usage unique, vers la page de Keycloak ;
+  il fait tourner un nonce porté par le compte, de sorte qu'un lien précédent cesse de
+  valoir ;
+- `not-last-name` : la règle de politique « le mot de passe n'est pas le nom du compte ».
+
+Son code suit un quatrième fichier de règles, court (`docs/dev/java.md`) ; il se teste par
+les tests d'intégration du service contre le Keycloak de la plateforme, et la chaîne
+construit l'image à chaque modification de `deploy/keycloak/`.
+
+**Le front.** `openid-client`, côté serveur Next (#215). `/login?next=…` devient un
+gestionnaire de route qui démarre le flux : `state`, `nonce` et le vérificateur PKCE sont
+écrits dans Redis avec l'adresse visée, quinze minutes au plus ; `/auth/callback` échange le
+code, vérifie l'état, et ouvre la session du front : un identifiant opaque dans le témoin
+`wf_session` (`httpOnly`, `Secure`, `SameSite=Lax`), les jetons dans Redis sous cet
+identifiant, avec une durée calée sur la session de Keycloak. L'adresse visée ne passe que si
+`returnTarget` l'accepte (`frontend/src/navigation/login.ts`) : un chemin du front, sinon
+l'accueil. `serverClient()` reste le seul endroit qui porte le jeton à l'API (EP-02) ; il
+rafraîchit un jeton qui expire dans moins de trente secondes, sous un verrou Redis par
+session, pour que deux requêtes concurrentes ne présentent jamais le même jeton de
+rafraîchissement. Les écrans de mot de passe d'US-0320 (`/login/reset`, le formulaire de
+connexion, le changement de mot de passe) disparaissent ; l'écran de mon compte mène, pour
+un compte local, à la page du compte de Keycloak.
+
+**Déconnexion et révocation.** WF-SEC-0020 veut que la déconnexion, la désactivation et le
+retrait de tous les rôles prennent effet « à la requête suivante, sur tous ses postes ». Les
+trois passent par le même chemin : l'API demande à Keycloak de fermer toutes les sessions du
+compte (API d'administration), Keycloak le notifie au front par la déconnexion par canal de
+retour (`/auth/backchannel-logout`, une route du front, pas une opération de l'API), et le
+front efface les sessions Redis de ce compte. La déconnexion demandée par l'utilisateur est
+une opération du contrat (`closeMySessions`, ci-dessous) : le front ne parle pas à l'API
+d'administration de Keycloak. Indépendamment, l'API lit l'état du compte à chaque requête :
+un compte désactivé est refusé même si la notification se perd.
+
+**L'API.** Elle valide chaque jeton par les clés publiques du royaume (PyJWT, clés mises en
+cache et relues sur un identifiant de clé inconnu) : signature, émetteur, audience
+`waterfall-api`, expiration. Elle n'en tire que `sub`. Le compte se lit par
+`user_account.idp_subject` ; un `sub` inconnu est un compte que Waterfall ne connaît pas
+encore — un compte de l'annuaire avant la première lecture, ou une personne venue d'un
+fournisseur externe —, que l'API crée sans rôle après avoir lu son origine dans l'API
+d'administration de Keycloak (lien de fédération ou identité relayée) (WF-ADM-0180,
+WF-ADM-0070). Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED`.
+
+### Tables et migrations
+
+Alembic, des migrations écrites à la main, revues comme le code ; jamais d'autogénération
+validée sans relecture. Une convention de nommage des contraintes, déclarée une fois. Chaque
+migration est compatible avec le code qui la précède et celui qui la suit (WF-DAT-0140) : on
+ajoute, puis on retire dans une migration ultérieure. Toutes les tables d'EP-03 sont du
+régime « plateforme » (§4.4.1) : jamais supprimées, sauf les associations, qui ne portent
+rien d'autre que leurs deux clés.
+
+| Table | Contenu | Contraintes |
+|---|---|---|
+| `installation` | une seule ligne : langue par défaut, borne de l'avatar, borne d'une sauvegarde déposée, date d'installation | une seule ligne (clé constante vérifiée) ; langue dans `fr`, `en` ; borne de l'avatar ≤ 8 Mio |
+| `user_account` | identité (`last_name`, `first_name`, `email`), `idp_subject`, `origin`, `state`, `display_preferences` (jsonb), `avatar` (bytea), `avatar_media_type`, audit, `lock_version` | adresse unique sans égard à la casse (index unique sur `lower(email)`) ; `idp_subject` unique ; `origin` dans `local`, `directory`, `identity_provider` ; `state` dans `active`, `deactivated` ; type d'image dans `image/png`, `image/jpeg` ; taille de l'avatar ≤ 8 Mio |
+| `permission` | `code`, `kind`, `fbs_code` | `code` unique ; `kind` dans les quatre natures ; écrite par migration seulement |
+| `access_role` | `label`, `is_predefined`, `deleted_at`, audit, `lock_version` | — |
+| `access_role_permission` | rôle, permission | clé primaire sur les deux ; clés étrangères en refus |
+| `user_access_role` | compte, rôle | clé primaire sur les deux ; clés étrangères en refus |
+| `background_task` | `kind`, `status`, `progress`, `payload`, `result`, `problem` (jsonb), `requested_by`, `correlation_id`, `attempts`, dates | `kind` et `status` dans les énumérations du contrat |
+| `identity_sync_report` | la tâche, les nombres de comptes créés, mis à jour, désactivés, les signalements | clé étrangère vers la tâche |
+| `audit_entry` | `occurred_at`, `actor_user_id` (nul pour la plateforme), `action`, `object_kind`, `object_id`, `project_id` (nul ici), `params` (jsonb), `correlation_id` | `action` dans une énumération qui s'étend par migration ; aucune mise à jour ni suppression : le rôle de base du service n'a que `INSERT` et `SELECT`, et un déclencheur refuse l'une et l'autre |
+
+- **Identifiants** : UUID v7 engendrés par le service (`uuid-utils`), jamais par un
+  défaut de la base ; Python 3.13 n'a pas encore `uuid.uuid7`.
+- **Audit des lignes** : `created_at`, `created_by`, `updated_at`, `updated_by` ;
+  l'auteur est une clé étrangère vers `user_account`, nulle pour la plateforme (WF-DAT-0070),
+  que le contrat rend `ActorRef { kind: platform }`.
+- **Le catalogue** est écrit par une migration de données : l'installation crée le
+  catalogue parce qu'elle applique les migrations (WF-EXP-0020), et une permission nouvelle
+  d'un EPIC ultérieur est une migration de plus, avec sa valeur dans `PermissionCode`.
+- **Le rattachement** : `user_account` n'a pas de colonne `org_node_id` en EP-03 ; EP-05
+  l'ajoute avec sa clé étrangère vers `org_node`, quand la table existe (WF-DAT-0090). L'API
+  rend `org_node_id` et `org_node_label` nuls jusque-là.
+- **Les règles SQL** (`docs/dev/sql.md`) fixent : nommage, types (`numeric` pour toute
+  grandeur, jamais `float` ; `timestamptz` ; `date`), contraintes déclarées, refus par
+  défaut, migrations en deux temps, interdiction du SQL en texte qui nomme la table d'un
+  autre module, verrous.
+
+### Modules
+
+Le noyau suit le découpage FBS (guide, « Le back et les frontières du noyau ») :
+
+| Module | Contenu | Interface offerte |
+|---|---|---|
+| `waterfall.core.users` (FBS-1.1) | comptes, cycle de vie, préférences, avatar, lecture des comptes du fournisseur | lecture d'un compte et de ses libellés ; création d'un compte venu du fournisseur |
+| `waterfall.core.access_roles` (FBS-1.2) | catalogue, rôles, attributions, permissions effectives, évaluation d'une action, garde du dernier administrateur | `effective_permissions(user_id)`, `require(actor, permission)`, `guard_last_administrator(...)` |
+
+Ce qui n'est pas une fonction du métier va dans un paquet nouveau, `waterfall.platform`,
+sous le noyau, que le noyau, l'API et le worker importent, et qui n'importe rien d'eux : la
+base et ses sessions, les réglages et les secrets, les journaux, la file de tâches, le client
+de Keycloak, l'écriture du journal d'audit. Un contrat d'import-linter de plus le garde.
+
+L'évaluation d'une action prend un acteur — le compte et ses permissions effectives, lues
+une fois par requête — et une permission ; EP-04 y ajoute la qualité de contributeur. Les
+permissions effectives sont l'union des permissions des rôles non supprimés du compte
+(WF-ADM-0090), lues à chaque requête : la modification d'un rôle vaut à la requête suivante.
+
+**Le dernier administrateur.** Toute écriture qui peut retirer à un compte actif `users.write`
+ou `access_roles.write` — désactivation, attribution des rôles, modification ou suppression
+d'un rôle, désactivation par la lecture des comptes — prend d'abord un verrou consultatif de
+transaction unique (`pg_advisory_xact_lock`), relit sous lui, puis vérifie qu'un compte actif
+au moins garde les deux permissions (WF-ADM-0120). Le refus est `LAST_ADMINISTRATOR` (409) ;
+la lecture des comptes, elle, garde le compte actif et le signale.
+
+### Le service d'API
+
+- FastAPI, sans route de documentation ni `openapi.json` : aucun endpoint qui ne figure au
+  contrat (WF-ARC-0060).
+- Les modèles Pydantic sont **engendrés du contrat** (datamodel-code-generator) dans
+  `waterfall/api/contract/`, versionnés et contrôlés à jour comme le client du front
+  (`make server-models-up-to-date`, dans `check-contract`) ; ils ne sont pas comptés dans la
+  taille d'un lot.
+- Les erreurs : le noyau lève des exceptions typées qui portent un code et ses paramètres ;
+  un seul gestionnaire les rend dans `Problem`, comme les erreurs de validation (400
+  `MALFORMED_REQUEST` ou 422 `VALIDATION_FAILED`, selon le contrat) et toute exception
+  inattendue (500 `INTERNAL_ERROR`, avec sa corrélation). La section « Ajouter un code côté
+  service » du guide le décrit.
+- SQLAlchemy 2, sessions synchrones, psycopg 3 ; une transaction par requête ; la réponse se
+  construit avant la validation de la transaction (défaut connu n° 3).
+- Les réglages et les secrets se lisent de l'environnement au démarrage (pydantic-settings) ;
+  un secret absent arrête le processus en nommant la variable qui manque (WF-SEC-0010).
+
+### Journaux et corrélation
+
+structlog, en JSON. L'identifiant de corrélation est repris de l'en-tête `X-Correlation-ID`
+s'il a la forme du contrat, engendré sinon, rendu en en-tête et dans `Problem`, lié au
+contexte de chaque enregistrement, et écrit dans la tâche qu'une requête dépose : le worker le
+reprend (WF-OBS-0020). Chaque enregistrement porte l'auteur et la gravité. Un processeur
+retire tout champ dont le nom évoque un secret (`password`, `token`, `secret`,
+`authorization`, `cookie`) ; un test cherche les secrets de la plateforme de test dans les
+journaux capturés. Le front transmet l'en-tête qu'il reçoit ou en engendre un.
+
+### Worker, file et planification
+
+- **La tâche vit en base**, dans `background_task` : c'est elle que lisent `getBackgroundTask`
+  et `listBackgroundTasks`, et Redis ne garde rien de durable (PBS-3.2).
+- **La file est un flux Redis** (`XADD`, groupe de consommateurs) : l'API écrit la tâche, puis
+  la dépose après validation de sa transaction ; le worker la lit, la passe `running`,
+  l'exécute dans sa transaction, la passe `succeeded` ou `failed`, puis l'acquitte. Un worker
+  arrêté laisse son entrée non acquittée, qu'un autre reprend après un délai (`XAUTOCLAIM`) :
+  la tâche est rejouée depuis le début, ce que sa transaction unique rend sans risque, et
+  échoue après trois tentatives (WF-ARC-0090). Une tâche restée `queued` sans entrée dans le
+  flux — la plateforme tombée entre la validation et le dépôt — est redéposée par le worker
+  au démarrage puis périodiquement.
+- **La planification** : `waterfall-worker enqueue identity_sync` dépose une tâche, et
+  n'en dépose pas si une tâche du même genre est en file ou en cours ; un service de Compose
+  l'appelle à l'intervalle que fixe `WATERFALL_IDENTITY_SYNC_INTERVAL`, une CronJob le fera en
+  EP-13 (PBS-5.3, TFX-10).
+- **La lecture des comptes** demande d'abord à Keycloak une synchronisation complète de
+  chaque annuaire fédéré, puis lit les comptes du royaume par pages : elle crée les absents
+  sans rôle, met à jour nom, prénom et adresse des comptes fédérés, désactive ceux que
+  Keycloak ne connaît plus — sauf le dernier administrateur, gardé et signalé —, et ne touche
+  aucun compte local (WF-ADM-0070). Ses écritures portent la plateforme comme auteur
+  (WF-DAT-0070).
+
+### Journal d'audit
+
+`waterfall.platform.audit` inscrit, dans la transaction de l'action, une ligne par action
+énumérée par WF-SEC-0030 que cet EPIC réalise : création et modification d'un compte, de
+son état, de ses rôles ; création, modification et suppression d'un rôle ; demande d'un lien
+de fixation ; création, mise à jour et désactivation par la lecture des comptes. Une
+inscription est un code et des données, sans phrase (WF-ARC-0110), et ne porte jamais le
+jeton du lien. Aucune opération ne la lit en EP-03.
+
+### Amorçage
+
+`waterfall-api install`, une commande du même paquet, sous un verrou consultatif :
+
+1. applique les migrations (`alembic upgrade head`) — le catalogue avec elles ;
+2. si la ligne `installation` existe, s'arrête sans rien faire d'autre (WF-EXP-0020) ;
+3. crée la ligne `installation` avec la langue par défaut (`WATERFALL_DEFAULT_LANGUAGE`) et
+   les bornes ; les trois rôles prédéfinis, avec les permissions de l'exemple `access_roles`
+   du contrat et leurs libellés dans cette langue ; le compte administrateur local dans
+   Keycloak et dans Waterfall, avec le rôle administrateur, l'adresse venant de
+   `WATERFALL_ADMIN_EMAIL` ;
+4. écrit sur sa sortie le lien de fixation de ce compte, obtenu de l'extension.
+
+Le royaume Keycloak est appliqué avant, par keycloak-config-cli. EP-05 ajoute à l'étape 3 le
+calendrier et la nature de provision.
+
+### Modifications du contrat
+
+Faites sur `epic/EP-03` par le premier lot, avant le code qui les consomme, avec leur entrée
+dans `DECISIONS.md` ; décrites dans une issue « Interface contract issue » :
+
+1. **Sécurité** : le schéma `session` (témoin) devient un schéma `bearer` (JWT) ; la section
+   « Session et erreurs » de `DECISIONS.md` le dit, et retire « pas de jeton Bearer ».
+2. **Session** : retirées `listAuthProviders`, `getCurrentSession`, `openSession`,
+   `startOidcSession`, `completeOidcSession`, `requestPasswordReset`, `confirmPasswordReset`,
+   `changeMyPassword`, et leurs schémas (`AuthProvider*`, `LocalCredentials`, `Session`,
+   `PasswordReset*`, `PasswordChange`) et exemples ; `closeSession` devient
+   `closeMySessions` (`DELETE /me/sessions`), qui ferme toutes les sessions du compte.
+3. **Mon compte** : `UserSelf` porte `permissions`, les permissions effectives que `Session`
+   portait (WF-ADM-0110) ; les exemples de session deviennent des exemples de `getMe`.
+4. **Codes d'erreur** : `ACCOUNT_DEACTIVATED` (401) entre ; `INVALID_CREDENTIALS`,
+   `ACCOUNT_LOCKED` et `PASSWORD_RESET_TOKEN_INVALID` sortent ; par champ,
+   `UNKNOWN_ACCESS_ROLE`, `UNKNOWN_ORG_NODE` et `FIELD_READ_ONLY` entrent, et `createUser`,
+   `updateUser`, `setUserAccessRoles` déclarent leur 422 (#379, commit `7081a04` jamais
+   arrivé sur `epic/EP-02`).
+5. **Lien de fixation** : `PasswordSetupLink.url` mène à la page de Keycloak, et non plus à
+   `/login/reset` ; le refus d'un compte non local ou désactivé nomme sa condition par
+   `missing_condition` (`is_local_account`, `is_active_account`, nouvelles valeurs de
+   `CommandCondition`) plutôt que par `params.state`, que #413 dit ambigu.
+6. **Lecture des comptes** : `/directory-syncs` devient `/identity-syncs`
+   (`startIdentitySync`, `getLatestIdentitySync`), `BackgroundTaskRef.kind` `directory_sync`
+   devient `identity_sync`, `DirectorySyncResult` devient `IdentitySyncReport`, dont les
+   signalements portent un `ErrorCode` ; le 409 « aucun annuaire activé » disparaît ;
+   `PlatformComponent` remplace `directory` par `identity_provider`.
+7. **Tables** : sur `listUsers`, les filtres par rôles (`access_role_ids`) et par état
+   (`states`), une recherche décrite sur le nom, le prénom et l'adresse ; sur
+   `listAccessRoles`, les filtres par nature (`is_predefined`) et par porteurs
+   (`has_holders`) ; sur les deux, le départage par identifiant, qui rend les pages stables.
+8. **Rôles** : `deleteAccessRole` dit la suppression logique ; un rôle supprimé est un 404.
+
+### Conformité au contrat et parcours contre le service
+
+- **Dans les tests du service** : chaque réponse d'un test d'API est validée contre le
+  contrat (openapi-core), et un test compare les routes de l'application aux opérations du
+  contrat — aucune route hors contrat (WF-ARC-0060).
+- **Dans les parcours** : `make e2e-service` démarre la plateforme de service
+  (`deploy/compose/compose.service.yaml` : API, worker, planificateur, PostgreSQL, Redis,
+  Keycloak et sa configuration, OpenLDAP, Mailpit), l'amorce, place Prism en mandataire
+  (`prism proxy --errors`) entre le front et l'API — une réponse hors schéma fait échouer le
+  parcours —, et joue le projet Playwright `service` (`frontend/e2e/service/`) avec
+  `WATERFALL_API_ADDRESS`. La chaîne le joue au palier complet.
+- **Le relevé des exigences** : `tools/paths.toml` déclare la famille `end-to-end-service`
+  (`frontend/e2e/service/**`), que `wftools.coverage` ne range pas parmi les familles du front
+  (`FRONT_FAMILIES`) : une exigence qu'elle cite est prouvée par le back.
+- **Le faux back reste** pour les parcours d'EP-02 et les lots de front qui précèdent leur
+  back. Le schéma `bearer` exige un en-tête : le front, en mode `WATERFALL_AUTH=mock` — refusé
+  si `NODE_ENV` est `production` hors des parcours —, envoie un jeton fixe que Prism accepte.
+
+### Ordre de construction
+
+1. Le contrat (modifications ci-dessus), le client régénéré, et le front qui suit le client
+   — encore sur le faux back, en mode `mock`.
+2. Le socle du service : réglages, journaux, base, Alembic, `installation` et
+   `user_account`, enveloppe d'erreur, corrélation, `getLiveness`, validation des réponses
+   dans les tests, plateforme de service dans Compose ; les règles SQL et les sections du
+   guide.
+3. Keycloak : royaume, extension, image ; validation du jeton par l'API, identification du
+   compte, `getMe`.
+4. Le front sur Keycloak : connexion, retour, rafraîchissement, déconnexion, canal de retour ;
+   la disparition des écrans de mot de passe ; `make e2e-service` et la famille
+   `end-to-end-service`.
+5. Rôles, catalogue, évaluation, dernier administrateur, journal d'audit.
+6. Comptes : création, modification, activation, attribution, lien de fixation ; table des
+   comptes et matrice des rôles branchées.
+7. Worker, file, planification, lecture des comptes, `getBackgroundTask`,
+   `listBackgroundTasks`.
+8. Mon compte : préférences, langue — reportée sur l'attribut `locale` du compte dans
+   Keycloak, pour les courriels —, avatar, `getInstallation`.
+9. L'amorçage, puis les parcours de la Définition de fini.
+
+### Décisions
+
+| Décision | Option écartée, et pourquoi |
+|---|---|
+| L'authentification de #215, reprise au cadrage le 2026-10-07 : jeton `bearer`, jetons dans Redis côté front, famille `session` retirée. Défait « Témoin de session `httpOnly`, pas de jeton Bearer » (`DECISIONS.md`, « Session et erreurs ») | garder la session ouverte par Waterfall : contraire à WF-ARC-0030, WF-ADM-0140 et §4.4.1 |
+| Une extension Keycloak maison pour le lien de fixation et la règle du nom (cadrage, 2026-10-07) | une extension tierce : licence et maintenance à vérifier, ni l'invalidation du lien précédent ni la règle du nom ; le courriel seul : impossible sans messagerie (WF-CMP-0030) |
+| Waterfall fait foi pour l'état du compte : la désactivation ne désactive pas le compte dans Keycloak, elle ferme ses sessions et l'API le refuse | désactiver aussi dans Keycloak : couperait les applications voisines qui partagent le fournisseur (motif de WF-ARC-0030), et un annuaire en lecture seule le refuse |
+| La déconnexion ferme toutes les sessions du compte, sur tous ses postes (lecture de WF-SEC-0020, « sur tous ses postes ») | fermer la seule session du navigateur : ne tient pas la phrase pour la déconnexion |
+| Un compte désactivé est refusé par 401 `ACCOUNT_DEACTIVATED` | 403 : chaque opération devrait le déclarer, quand le 401 l'est déjà partout (`rule/session-operation-declares-401`) ; le front distingue le code et ne renvoie pas à la connexion, qui bouclerait |
+| La suppression d'un rôle est logique (cadrage, 2026-10-07) | la suppression physique : contraire à WF-DAT-0080 |
+| La tâche en base, la file dans un flux Redis, un module à nous | arq : asynchrone, état dans Redis, qui ne doit rien garder de durable ; Celery, Dramatiq : un second état à tenir d'accord avec la base ; une file en base (`SKIP LOCKED`) : PBS-3.2 met la file dans Redis |
+| Les modèles Pydantic engendrés du contrat | les écrire à la main : deux descriptions de la même interface (motif de WF-ARC-0060) |
+| SQLAlchemy synchrone, psycopg 3 | l'asynchrone : rien dans EP-03 ne l'exige, et il complique le typage strict et les tests |
+| UUID v7 engendrés par le service | `uuidv7()` de PostgreSQL 18 : l'identifiant n'est connu qu'après l'insertion ; UUID v4 : pas ordonnés dans le temps (WF-DAT-0060) |
+| Un paquet `waterfall.platform` sous le noyau | la technique dans les modules du noyau : ils ne seraient plus calqués sur la FBS |
+| Garde du dernier administrateur par un verrou consultatif unique | l'isolation sérialisable : des reprises à gérer partout pour une règle qui ne touche que quelques écritures |
+| Conformité vérifiée dans les tests du service et par Prism en mandataire dans les parcours | Prism seul : ne couvre que ce que les parcours traversent |
+| `installation` porte la langue par défaut ; `ReferenceSettings.default_language` (EP-05) la lira | une langue dans `reference_setting` dès EP-03 : table d'EP-05 |
+| `org_node_id` ajouté par EP-05 avec sa clé étrangère | une colonne sans clé dès EP-03 : contraire à WF-DAT-0090 |
+| La lecture des comptes passe par Keycloak, qui fédère l'annuaire (WF-ADM-0070) | lire l'annuaire en LDAP depuis Waterfall : un second chemin vers l'annuaire, que la spécification révisée a retiré |
+
+### Issues à ouvrir avec la conception
+
+- « Interface contract issue » : les huit modifications ci-dessus ; elle ferme, à sa
+  réalisation, #152 et #155 (sans objet) et répond à #413 pour les refus d'un compte.
+- « Specification finding » : WF-DAT-0080 et WF-ADM-0090 sur la suppression d'un rôle, avec
+  la proposition « un rôle supprimé n'est plus proposé et sa trace est conservée ».
+- Un commentaire sur #351, rattachée à EP-05.
 
 ---
 
@@ -297,7 +634,7 @@ sert.
 
 - **statut** : à faire
 - **exigences** : `WF-ARC-0030-A`, `WF-ADM-0140-A`, `WF-ADM-0180-A`, `WF-SEC-0020-A`
-- **opérations** : `getMe`, `createPasswordSetupLink`
+- **opérations** : `getMe`, `closeMySessions`, `createPasswordSetupLink`
 - **issue** :
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** me connecter avec le
