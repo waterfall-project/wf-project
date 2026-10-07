@@ -116,19 +116,24 @@ export function pageHref(
   return address(pathname, next);
 }
 
-/** A query without one of its parameters, in a stable order. */
-function without(query: URLSearchParams, name: string): string {
+/** A query without some of its parameters, in a stable order. */
+function without(query: URLSearchParams, names: readonly string[]): string {
   const rest = new URLSearchParams(query);
-  rest.delete(name);
+  for (const name of names) {
+    rest.delete(name);
+  }
   rest.sort();
   return rest.toString();
 }
 
 /**
- * Whether two queries ask the same list but for its page (`name`): a page turned from a query
- * that asks another — a filter or a sort under way — starts that list from its first page, the
- * place of a row in the one shown meaning nothing in the other.
+ * Whether two queries ask the same list but for the pages of the screen (`name`, and the page of
+ * the other list, which reads nothing of the list): a page turned from a query that asks another
+ * — a filter or a sort under way — starts that list from its first page, the place of a row in
+ * the one shown meaning nothing in the other; the page of the journal turned meanwhile changes
+ * nothing of the costs (#294).
  */
 export function sameList(query: URLSearchParams, shown: URLSearchParams, name: string): boolean {
-  return without(query, name) === without(shown, name);
+  const pages = [name, COSTS_PAGE, IMPORTS_PAGE];
+  return without(query, pages) === without(shown, pages);
 }

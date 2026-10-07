@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { columnsOf } from "./columns";
+
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2). The journeys read it by marks the generator writes, which
 // `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds: row 1, the phase
@@ -37,10 +39,10 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   const grid = page.getByRole("grid", { name: "Grille de devis" });
   const labour = grid.getByRole("row", { name: /^4 .*Heures d'ingénierie/ });
   await expect(labour.getByRole("img", { name: "Ligne de main-d’œuvre" })).toBeVisible();
-  // Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
-  // reference, amount corrected for inflation.
-  const hours = cellOf(labour, 5);
-  const amount = cellOf(labour, 7);
+  // The effort and the amount, found by their heading (`columnsOf`).
+  const at = await columnsOf(grid, { hours: "Charge (h)", reference: "Montant (année de réf.)" });
+  const hours = cellOf(labour, at.hours);
+  const amount = cellOf(labour, at.reference);
 
   // The effort is entered: its figure alone. The amount is computed: marked Σ, named so, on
   // another background — the mark reads without the colour.
@@ -60,8 +62,9 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   // The same digit on the amount opens no field: the try is refused beside it, naming what the
   // server says it depends on — the reading done, at least one rule said, whatever the fake back
   // answers for any value.
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
+  for (let column = at.hours; column < at.reference; column += 1) {
+    await page.keyboard.press("ArrowRight");
+  }
   await expect(amount).toBeFocused();
   await page.keyboard.press("7");
   await expect(refusal(page)).toBeInViewport();

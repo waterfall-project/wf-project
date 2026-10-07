@@ -819,11 +819,11 @@ celui des cases de `risk_matrix`.
 
 **La borne d'un avatar ne dépasse pas 8 Mio** (`Installation.avatar_max_bytes`, `maximum`, #233).
 La spécification dit seulement que « la taille d'un avatar est bornée par l'application »
-(§4.4.1) ; 8 Mio est le
-plafond technique proposé par la revue d'EP-02/L13 : le front règle d'avance, par un réglage
-statique de Next, la taille de corps de ses actions serveur (`bodySizeLimit`), et ne peut la
-régler qu'au-dessus d'un maximum déclaré, l'enveloppe du formulaire comprise. Huit mébioctets
-restent sous cette borne, et la taille admise reste un réglage de l'installation sous ce maximum.
+(§4.4.1) ; 8 Mio est le plafond technique proposé par la revue d'EP-02/L13 : le front règle
+d'avance, par un réglage statique de Next, la taille de corps de ses actions serveur
+(`bodySizeLimit`), et ne peut la régler qu'au-dessus d'un maximum déclaré, l'enveloppe du
+formulaire comprise. Huit mébioctets restent sous cette borne, et la taille admise reste un
+réglage de l'installation sous ce maximum.
 
 **Un dépôt dit son usage, qui le borne** (`uploadFile`, `purpose`, `FileUploadPurpose`, #324 ;
 décision de l'utilisateur du 2026-10-05, « une borne par usage »). `uploadFile` reçoit le fichier

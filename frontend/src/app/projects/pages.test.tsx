@@ -17,6 +17,7 @@ import {
   COMMON_FIELDS,
   type NodeList,
   nodeFieldNames,
+  SPARSE_LINE_FIELDS,
 } from "@/components/grid/nodes";
 import { PLANNING_FIELDS } from "@/components/grid/planning";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
@@ -135,6 +136,9 @@ const STRUCTURE = {
   revision_id: REVISION,
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
+const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
+const NODES_READ =
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const NO_SEARCH = Promise.resolve({});
 const BANNER = '<section aria-label="Reading context"';
@@ -160,6 +164,7 @@ const EXAMPLE_BY_END = {
   ],
   "/cost-categories": ["GET /reference/cost-categories", "volume/cost_categories"],
   "/resource-roles": ["GET /reference/resource-roles", "resource_roles"],
+  "/subprojects": ["GET /projects/{project_id}/subprojects", "subprojects"],
 } as const satisfies Readonly<Record<string, CitedRead>>;
 const READ_REVISION = [
   "GET /projects/{project_id}/revisions/{revision_id}",
@@ -247,6 +252,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/estimate-indicators/missing-rates": "missing_rates_none",
     "GET /reference/cost-categories": "volume/cost_categories",
     "GET /reference/resource-roles": "resource_roles",
+    "GET /projects/{project_id}/subprojects": "subprojects",
   };
 });
 
@@ -280,10 +286,10 @@ describe("the witness path", () => {
       /<table[^>]*role="grid"[^>]*aria-label="Estimate grid"[^>]*aria-rowcount="9"/,
     );
     // Each row shows the icon of its nature, named for it: a summary task, tasks, a line, the
-    // milestone of the studies.
+    // milestone of the studies — the marks of the headers aside.
     const natures = [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)]
       .map((match) => match[1])
-      .filter((name) => name !== "Computed");
+      .filter((name) => name !== "Computed" && name !== "Deactivated object");
     expect(natures).toEqual([
       "Summary task",
       "Task",
@@ -348,8 +354,7 @@ describe("the witness path", () => {
 
   it("shows the totals the server gave for the request, in the language of the interface", async () => {
     const { html } = await estimateWith({
-      "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes":
-        "nodes_estimate",
+      [NODES_READ]: "nodes_estimate",
     });
     // The hours, the amount at the year of reference and the one corrected for inflation.
     expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 2,934\.56 2,934\.56$/);
@@ -426,6 +431,18 @@ describe("the witness path", () => {
     expect(grid?.reference.roles).toBeUndefined();
     expect(grid?.reference.categories).toHaveLength(200);
     expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
+  });
+
+  it("hands the grid the identifier of the sub-project of a line only where it is entered", async () => {
+    const ids = async (answers: FakeAnswers) => {
+      grids.estimate = [];
+      const { grid } = await estimateWith({ [NODES_READ]: "nodes_estimate", ...answers });
+      return grid?.nodes.items.map((node) => node.estimate_line?.subproject_id);
+    };
+    expect(await ids({})).toContain(SUBPROJECT);
+    expect(await ids({ [REVISION_READ]: "revision_marked" })).not.toContain(SUBPROJECT);
+    const refused = { "GET /projects/{project_id}/subprojects": NOT_FOUND } as const;
+    expect(await ids(refused)).not.toContain(SUBPROJECT);
   });
 
   it("keeps the grid of a marked revision read only", async () => {
@@ -588,8 +605,7 @@ describe("the grid of the planning", () => {
   beforeEach(() => {
     server.answers = {
       ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes":
-        "nodes_planning",
+      [NODES_READ]: "nodes_planning",
     };
   });
 
@@ -938,7 +954,8 @@ describe("the rows a page hands its grid", () => {
 
   /**
    * Check that each row a grid was handed holds the fields of its list that its node has — the
-   * fields every grid reads and those of its columns —, and those alone, its facets alike.
+   * fields every grid reads and those of its columns —, and those alone, its facets alike; a field
+   * of a line that says nothing is left out (`SPARSE_LINE_FIELDS`).
    */
   function projected(items: readonly object[], fields: AnyNodeFields) {
     const answer = example(VOLUME) as NodeList;
@@ -947,8 +964,9 @@ describe("the rows a page hands its grid", () => {
       task: [...COMMON_FIELDS.task, ...fields.task],
       line: [...COMMON_FIELDS.line, ...fields.line],
     };
-    const kept = (source: object, keys: readonly string[]) =>
-      keys.filter((key) => key in source).sort();
+    const sparse = new Set<string>(SPARSE_LINE_FIELDS);
+    const kept = (source: Readonly<Record<string, unknown>>, keys: readonly string[]) =>
+      keys.filter((key) => key in source && !(sparse.has(key) && !source[key])).sort();
     expect(items).toHaveLength(answer.items.length);
     for (const [index, node] of answer.items.entries()) {
       const row = items[index] ?? {};

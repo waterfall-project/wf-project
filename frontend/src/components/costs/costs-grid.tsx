@@ -9,7 +9,7 @@
  */
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { DenseGrid } from "@/components/grid/dense-grid";
@@ -31,7 +31,8 @@ export function CostsGrid({ costs, query, preferences }: CostsGridProps) {
   const t = useTranslations("actualCosts");
   // A column for each column kept from the file the lines carry: the same configuration as long
   // as the page carries the same.
-  const kept = keptColumns(costs.items).join("\u0000");
+  const locale = useLocale();
+  const kept = keptColumns(costs.items, locale).join("\u0000");
   const config = useMemo(() => costGrid(kept === "" ? [] : kept.split("\u0000")), [kept]);
   return (
     <DenseGrid

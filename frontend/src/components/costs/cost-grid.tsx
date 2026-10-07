@@ -17,6 +17,8 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
+import { formatLocale } from "@/i18n/format";
+import type { Locale } from "@/i18n/locale";
 
 import { ScopeCell, SubprojectCell } from "./cost-cells";
 
@@ -150,11 +152,16 @@ export function isKeptSort(column: string | null | undefined): column is CostSor
 }
 
 /**
- * The names of the columns kept from the file the lines of a page carry, in the order they first
- * come: the lines of one file carry the same, those of two files may differ.
+ * The names of the columns kept from the file the lines of a page carry, in the alphabetical
+ * order of the language of the interface, whatever the order of the lines and of their columns.
+ * The lines of one file carry the same; a column of another file shows on the pages that carry
+ * its lines alone, the contract naming no union of them (#353).
  */
-export function keptColumns(lines: readonly CostRow[]): readonly string[] {
-  return [...new Set(lines.flatMap((line) => Object.keys(line.passthrough ?? {})))];
+export function keptColumns(lines: readonly CostRow[], locale: Locale): readonly string[] {
+  const names = new Intl.Collator(formatLocale(locale), { sensitivity: "base", numeric: true });
+  return [...new Set(lines.flatMap((line) => Object.keys(line.passthrough ?? {})))].sort(
+    names.compare,
+  );
 }
 
 /**

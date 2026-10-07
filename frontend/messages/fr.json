@@ -135,8 +135,10 @@
       "quantity": "Qté",
       "hours": "Charge (h)",
       "unitDisbursement": "Débours unit.",
+      "paymentDelay": "Délai de paiement (j)",
       "referenceAmount": "Montant (année de réf.)",
       "inflatedAmount": "Montant corrigé de l’inflation",
+      "inactiveObject": "Objet désactivé",
       "startDate": "Début",
       "finishDate": "Fin",
       "schedulingMode": "Mode de planification",
@@ -171,6 +173,7 @@
     "computed": "Calculé",
     "entry": {
       "none": "Aucun",
+      "codedChoice": "{code} — {label}",
       "notANumber": "Ce n’est pas un nombre : saisissez-le comme {example}.",
       "required": "Cette cellule ne peut pas rester vide.",
       "tooLong": "{max} caractères au plus.",
@@ -218,7 +221,8 @@
   },
   "estimateGrid": {
     "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}",
-    "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}"
+    "summary": "{structure} · {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}, {lines, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}",
+    "usesInactiveObject": "Emploie un objet désactivé"
   },
   "planningGrid": {
     "totals": "Total — {tasks, plural, =0 {aucune tâche} one {# tâche} other {# tâches}}",
@@ -310,6 +314,7 @@
       "subproject": "Sous-projet",
       "everySubproject": "Tous les sous-projets",
       "subprojectChoice": "{code} — {label}",
+      "unknownSubproject": "Sous-projet inconnu",
       "period": "Période des pièces",
       "from": "Pièces du",
       "to": "Pièces jusqu’au",
@@ -626,6 +631,8 @@
       "series": "Courbe",
       "date": "Date",
       "amount": "Montant",
+      "beforeStep": "{series}, avant la marche",
+      "afterStep": "{series}, après la marche",
       "steps": "Marches du budget de référence",
       "cause": "Motif",
       "stepAmount": "Montant de la marche",
@@ -1145,6 +1152,7 @@
     "missing_permission": "Permission requise : {permission}.",
     "missing_condition": "Condition non remplie : {condition}.",
     "missing_prerequisites": "À compléter : {prerequisites}.",
+    "projectState": "État du projet : {state}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",

@@ -452,8 +452,13 @@ describe("the keyboard of a grid", () => {
     await userEvent.keyboard("{Enter}{Shift>}{Tab}{/Shift}");
     expect(cell(DISBURSEMENT, "quantity")).toHaveFocus();
     // Along the row of the provision: its quantity and its unit disbursement are computed, and it
-    // accepts neither category, nor role, nor effort: its label alone is entered.
+    // accepts neither category, nor role, nor effort: its label, its sub-project and its payment
+    // delay alone are entered.
     cell(PROVISION, "label").focus();
+    await userEvent.keyboard("{Enter}{Tab}");
+    expect(cell(PROVISION, "subproject")).toHaveFocus();
+    await userEvent.keyboard("{Enter}{Tab}");
+    expect(cell(PROVISION, "payment_delay_days")).toHaveFocus();
     await userEvent.keyboard("{Enter}{Tab}");
     // Nothing more to enter along the row: the next row, at the cell it was started from.
     expect(cell(OCCURRED, "label")).toHaveFocus();
@@ -615,16 +620,22 @@ describe("a write the server refuses", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("lets the API out of reach be dismissed too", async () => {
+  it("lets the API out of reach be dismissed too, the active cell brought back into view", async () => {
     server.client = unreachable();
     render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Le service est injoignable");
+    // The grid may have been scrolled away from the active cell meanwhile: the focus given back
+    // brings it into view, as the keyboard does (#241).
+    const scrolled = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => undefined);
     await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(cell(DISBURSEMENT, "hours")).toHaveFocus();
+    expect(scrolled.mock.contexts).toEqual([cell(DISBURSEMENT, "hours")]);
   });
 
   it("drops an answer that comes once the page has been read anew", async () => {
@@ -765,6 +776,9 @@ describe("what a write answers besides the row written", () => {
       "",
       "12,5",
       "",
+      "",
+      "",
+      "",
       "2\u202f934,56",
       "2\u202f934,56",
     ]);
@@ -785,6 +799,9 @@ describe("what a write answers besides the row written", () => {
       "",
       "14",
       "",
+      "",
+      "",
+      "",
       "3\u202f054,56",
       "3\u202f054,56",
     ]);
@@ -803,7 +820,7 @@ describe("what a write answers besides the row written", () => {
     });
     expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals()[5]).toBe("0");
-    expect(totals()[7]).toBe("100\u202f000,00");
+    expect(totals()[10]).toBe("100\u202f000,00");
     // The same search, after the write, each node asked by its identifier alone.
     const reads = client.calls.filter((call) => call.route === NODES_ROUTE);
     expect(reads.map((call) => Object.fromEntries(call.query))).toEqual([

@@ -16,7 +16,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { usePendingLink } from "@/components/grid/pending-address";
-
 import { Signal } from "@/components/signal/signal";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -25,7 +24,9 @@ import type { RiskRow } from "./risk-grid";
 
 /**
  * Open the detail of a risk — or close it, `undefined` —, from the address last asked: a sort or a
- * filter under way is kept. A click with a modifier is the browser's: a new tab, a new window.
+ * filter under way is kept. A click with a modifier is the browser's: a new tab, a new window — on
+ * the `href`, which reflects the address shown, not the one asked: a Ctrl+click during a sort
+ * opens the tab without the sort (#288).
  */
 function useRiskNavigation(risk: string | undefined) {
   const pathname = usePathname();

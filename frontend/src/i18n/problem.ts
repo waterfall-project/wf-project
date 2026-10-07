@@ -6,8 +6,10 @@
  *
  * The code gives the sentence, `errors.<CODE>`; each parameter the contract names and a
  * reader can use adds one, `problemDetails.<param>`, with the value named by the catalogue
- * too — a `missing_permission` by its label, a `missing_condition` by its own. A parameter
- * that names nothing a reader knows — an identifier, a lock version — adds nothing. The
+ * too — a `missing_permission` by its label, a `missing_condition` by its own, a `state` by its
+ * label as a `ProjectState`, the only enumeration the contract names for it (#353); a state the
+ * contract does not say the enumeration of adds nothing. A
+ * parameter that names nothing a reader knows — an identifier, a lock version — adds nothing. The
  * decoder of the envelope (`src/api/problem.ts`) classes a refusal by its status, and the
  * notice of its outcome (`OutcomeNotice`) writes it with this sentence.
  */
@@ -60,6 +62,10 @@ const DETAILS: readonly Reader[] = [
     const known = named.filter((item) => item !== undefined);
     const list = new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(known);
     return known.length === 0 ? undefined : ["missing_prerequisites", { prerequisites: list }];
+  },
+  ({ state }, label) => {
+    const project = label("enums.ProjectState", state);
+    return project === undefined ? undefined : ["projectState", { state: project }];
   },
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,

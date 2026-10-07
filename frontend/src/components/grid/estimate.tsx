@@ -12,18 +12,24 @@
  * and the two amounts of the lines retained, never the amounts of the tasks, which would count
  * them twice.
  *
- * Each column sorts by the column of the contract of the same name. The category and the role of
- * a line are named by the labels the server resolves, the object active or deactivated (#305) —
- * never by bringing the lists of the reference data together here (WF-ARC-0020).
+ * Each column sorts by the column of the contract of the same name. The category, the role and
+ * the sub-project of a line are named by the labels the server resolves, the object active or
+ * deactivated (#305) — never by bringing the lists of the reference data together here
+ * (WF-ARC-0020). A line that employs a deactivated object of the reference data says so
+ * (`uses_inactive_object`), and the grid marks it by a mark of its own, named — no zone of the
+ * scale of signals, which the server alone gives —, without deducing anything from the lists
+ * (WF-REF-0010, #349); the payment delay and the sub-project are shown with it (WF-DEV-0050).
  *
- * A line is entered whole from the keyboard (WF-IHM-0040): its label, its category and its role,
- * chosen from their lists, its quantity, its effort and its unit disbursement, each written alone
- * by `updateEstimateLine`, where the node names the field among those it accepts
- * (`editable_fields`, #219) and not among those it computes — a line of labour takes no unit
- * disbursement, another no role nor effort, a provision none of them (WF-DEV-0020), which the grid
- * never deduces from the nature of the category —; the label of a task by `updateTaskFacet`
- * (`estimateGrid`).
+ * A line is entered whole from the keyboard (WF-IHM-0040): its label, its category, its role and
+ * its sub-project, chosen from their lists, its quantity, its effort, its unit disbursement and
+ * its payment delay, each written alone by `updateEstimateLine`, where the node names the field
+ * among those it accepts (`editable_fields`, #219) and not among those it computes — a line of
+ * labour takes no unit disbursement nor payment delay, another no role nor effort, a provision
+ * none of them (WF-DEV-0020), which the grid never deduces from the nature of the category —; the
+ * label of a task by `updateTaskFacet` (`estimateGrid`).
  */
+import { ToggleLeft } from "lucide-react";
+
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 
@@ -38,6 +44,7 @@ import {
   sortColumns,
 } from "./columns";
 import { computedAmount, computedWhereNamed } from "./computed-nodes";
+import { InactiveObjectCell } from "./estimate-cells";
 import {
   type AnyNodeFields,
   type GridNode,
@@ -46,16 +53,17 @@ import {
   nodeKey,
   nodeNumber,
   type NodeSortColumn,
+  type NodeRows,
   type NodeTotals,
   type RowOf,
 } from "./nodes";
 
 /**
  * What the columns of the estimate read of a node, beyond what every grid reads: the amounts of a
- * task, the figures of a line, its amounts, the labels of its category and its role, and the
- * identifier of its category, which an entry starts from. The page asks for these alone
- * (`fields`) — the label of a sub-project, which no column shows, is not asked — and hands the
- * grid these alone (`projectNodes`).
+ * task, the figures of a line, its amounts, the labels of its category, its role and its
+ * sub-project, the identifiers of its category and its sub-project, which an entry starts from,
+ * its payment delay, and whether it employs a deactivated object. The page asks for these alone
+ * (`fields`) and hands the grid these alone (`projectNodes`).
  */
 export const ESTIMATE_FIELDS = {
   node: [],
@@ -67,6 +75,10 @@ export const ESTIMATE_FIELDS = {
     "quantity",
     "hours",
     "unit_disbursement",
+    "subproject_id",
+    "subproject_label",
+    "payment_delay_days",
+    "uses_inactive_object",
     "base_amount",
     "inflated_amount",
   ],
@@ -131,8 +143,39 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       sortBy: "unit_disbursement",
       value: (node) => node.estimate_line?.unit_disbursement,
     },
-    // The two amounts of WF-DEV-0050, of a line, of a task — the sum of its subtree — and of the
-    // totals, as the server gives them.
+    // The sub-project is named by the label the server resolves (#349); the payment delay is a
+    // whole number of days, which the cumulative cost curve shifts the line by (WF-IND-0100).
+    {
+      key: "subproject",
+      label: "subproject",
+      format: "text",
+      width: 160,
+      sortBy: "subproject",
+      value: (node) => node.estimate_line?.subproject_label ?? null,
+    },
+    {
+      key: "payment_delay_days",
+      label: "paymentDelay",
+      format: "decimal",
+      width: 88,
+      sortBy: "payment_delay_days",
+      value: (node) => paymentDelay(node),
+    },
+    // A line that employs a deactivated object of the reference data, which the server says
+    // (WF-REF-0010): a mark of its own, a narrow column headed by the same icon; the server sorts
+    // by no such column, and the column offers no value to sort by.
+    {
+      key: "inactive_object",
+      label: "inactiveObject",
+      format: "text",
+      align: "center",
+      width: 44,
+      icon: ToggleLeft,
+      value: () => undefined,
+      render: (node) => <InactiveObjectCell node={node} />,
+    },
+    // The two amounts of WF-DEV-0050, of a line, of a task — the sum of its subtree — and of
+    // the totals, as the server gives them.
     {
       key: "base_amount",
       label: "referenceAmount",
@@ -156,6 +199,35 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
   ],
 };
 
+/**
+ * The payment delay of a line, as the exact text of the whole number of days the contract gives;
+ * none for a task, or a line without one — left out by the projection or null alike.
+ */
+function paymentDelay(node: EstimateNode): CellValue {
+  const days = node.estimate_line?.payment_delay_days;
+  return days === undefined || days === null ? null : String(days);
+}
+
+/**
+ * The rows of a grid that takes no entry of a sub-project — a revision not open to entry, or a
+ * list of the sub-projects the API refused —: without the identifier of the sub-project of a line,
+ * which only an entry starts from, the label shown as it is.
+ */
+export function withoutSubprojectIds(rows: NodeRows<EstimateNode>): NodeRows<EstimateNode> {
+  return {
+    ...rows,
+    items: rows.items.map((node) => {
+      const line = node.estimate_line;
+      if (line?.subproject_id === undefined) {
+        return node;
+      }
+      const shown = { ...line };
+      delete shown.subproject_id;
+      return { ...node, estimate_line: shown };
+    }),
+  };
+}
+
 /** The columns of the contract the grid of the estimate sorts by. */
 export const ESTIMATE_SORT_COLUMNS = sortColumns(ESTIMATE_GRID);
 
@@ -166,7 +238,14 @@ export type EstimateWritten = RowsWritten<EstimateNode, NodeTotals>;
 export type LineChange = Partial<
   Pick<
     components["schemas"]["EstimateLineUpdate"],
-    "label" | "cost_category_id" | "resource_role_id" | "quantity" | "hours" | "unit_disbursement"
+    | "label"
+    | "cost_category_id"
+    | "resource_role_id"
+    | "quantity"
+    | "hours"
+    | "unit_disbursement"
+    | "payment_delay_days"
+    | "subproject_id"
   >
 >;
 
@@ -186,12 +265,14 @@ export interface EstimateWrites {
 }
 
 /**
- * The reference data the grid offers the categories and the roles of the lines from; a list the
- * API refused is none — its column is not entered, and still named by the server.
+ * The reference data the grid offers the categories and the roles of the lines from, and the
+ * sub-projects of the project, each by its code and its label; a list the API refused is none —
+ * its column is not entered, and still named by the server.
  */
 export interface EstimateReference {
   readonly categories: readonly Choice[] | undefined;
   readonly roles: readonly Choice[] | undefined;
+  readonly subprojects: readonly Choice[] | undefined;
 }
 
 /** A field of a facet a node may accept, as the contract names it. */
@@ -234,11 +315,14 @@ function listEntered(
   };
 }
 
-/** The columns of a line that take an entry, the lists of a category and a role among them. */
+/**
+ * The columns of a line that take an entry, the lists of a category, a role and a sub-project
+ * among them.
+ */
 function enteredColumns(
   reference: EstimateReference,
 ): Readonly<Record<string, Entered & { readonly known?: (node: EstimateNode) => boolean }>> {
-  const { categories, roles } = reference;
+  const { categories, roles, subprojects } = reference;
   return {
     // The contract takes a label of 1 to 300 characters: a task's, or a line's.
     label: {
@@ -282,6 +366,23 @@ function enteredColumns(
       kind: { type: "money", nullable: true },
       field: () => "estimate_line.unit_disbursement",
       change: (value) => ({ unit_disbursement: value }),
+    },
+    ...(subprojects === undefined
+      ? {}
+      : {
+          subproject: listEntered(
+            subprojects,
+            "estimate_line.subproject_id",
+            true,
+            (node) => node.estimate_line?.subproject_id ?? null,
+            (value) => ({ subproject_id: value }),
+          ),
+        }),
+    // A whole number of days, which the entry validates as such: the contract takes an integer.
+    payment_delay_days: {
+      kind: { type: "integer", nullable: true },
+      field: () => "estimate_line.payment_delay_days",
+      change: (value) => ({ payment_delay_days: value === null ? null : Number(value) }),
     },
   };
 }
@@ -331,10 +432,10 @@ function entered(
 /**
  * The grid of the estimate: its cells entered and a block pasted through `writes`; none, and the
  * grid is read only, taking neither entry nor paste. A line takes its label, category, role,
- * quantity, effort and unit disbursement, where its node accepts the field and the server does not
- * compute it — a category or a role from the lists of the reference data, which must know the one
- * the line bears, a deactivated one included —; a task, its label, where its node accepts it and
- * the planning is entered.
+ * quantity, effort, unit disbursement, sub-project and payment delay, where its node accepts the
+ * field and the server does not compute it — a category, a role or a sub-project from the lists
+ * of the reference data, which must know the one the line bears, a deactivated one included —; a
+ * task, its label, where its node accepts it and the planning is entered.
  */
 export function estimateGrid(
   reference: EstimateReference,

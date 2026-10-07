@@ -128,13 +128,13 @@ function amounts(rows: readonly number[]): string[] {
 /** The total amount at the year of reference, at the foot of the grid. */
 function totalAmount(): string | null | undefined {
   const row = screen.getByRole("grid", { hidden: true }).querySelector("tfoot tr");
-  return row?.querySelectorAll("td")[7]?.textContent;
+  return row?.querySelectorAll("td")[10]?.textContent;
 }
 
 /** The total amount corrected for inflation, at the foot of the grid. */
 function totalInflated(): string | null | undefined {
   const row = screen.getByRole("grid", { hidden: true }).querySelector("tfoot tr");
-  return row?.querySelectorAll("td")[8]?.textContent;
+  return row?.querySelectorAll("td")[11]?.textContent;
 }
 
 /** Paste a block on a cell, as the browser hands it at the event `paste`. */
@@ -526,20 +526,20 @@ describe("a block pasted from a spreadsheet", () => {
   it("whose span reaches a column of the contract the grid does not present is refused, naming it, and nothing is asked [WF-IHM-0050-A]", async () => {
     const client = serve();
     renderGrid();
-    // After the unit disbursement, the server fills the sub-project, which the grid of the
+    // After the payment delay, the server fills the year of consumption, which the grid of the
     // estimate does not present: where the user saw the amount (#223).
-    await pasteOn(cell(FIRST, "unit_disbursement"), copied([["12", "3"]]));
+    await pasteOn(cell(FIRST, "payment_delay_days"), copied([["12", "3"]]));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(
-      "Le bloc collé s’étendrait sur la colonne « Sous-projet », que cette grille ne présente pas : collez un bloc plus étroit.",
+      "Le bloc collé s’étendrait sur la colonne « Année de consommation », que cette grille ne présente pas : collez un bloc plus étroit.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
     // The block of one column is asked.
-    await pasteOn(cell(FIRST, "unit_disbursement"), copied([["12"]]));
+    await pasteOn(cell(FIRST, "payment_delay_days"), copied([["12"]]));
     await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     expect(bodies(client, PREVIEW)).toEqual([
-      { target_node_id: LINE_4, target_column: "unit_disbursement", rows: [["12"]] },
+      { target_node_id: LINE_4, target_column: "payment_delay_days", rows: [["12"]] },
     ]);
   });
 

@@ -228,6 +228,22 @@ describe("the keyboard of a grid", () => {
     expect(stops()).toEqual([cell(0, "base_amount")]);
   });
 
+  it("keeps to the header on Ctrl with an arrow or Page Up, which move within the row, and leaves it on Ctrl+End alone [WF-IHM-0040-A]", async () => {
+    serve();
+    renderGrid();
+    cell(0, "quantity").focus();
+    await userEvent.keyboard("{ArrowUp}");
+    expect(header("Qté")).toHaveFocus();
+    // Ctrl with an arrow moves within the row, in the header as elsewhere (#243).
+    await userEvent.keyboard("{Control>}{ArrowLeft}{/Control}");
+    expect(header("Rôle")).toHaveFocus();
+    await userEvent.keyboard("{Control>}{ArrowRight}{PageUp}{/Control}");
+    expect(header("Qté")).toHaveFocus();
+    // Ctrl+End goes to the last cell of the rows.
+    await userEvent.keyboard("{Control>}{End}{/Control}");
+    expect(cell(MILESTONE, "inflated_amount")).toHaveFocus();
+  });
+
   it("keeps its one stop of the tabulation in the header when the answer has no row", () => {
     serve();
     renderGrid({ ...estimate, items: [] });
@@ -257,7 +273,7 @@ describe("the keyboard of a grid", () => {
     expect(cell(PROVISION, "unit_disbursement")).toHaveFocus();
     expect(cell(PROVISION, "unit_disbursement")).toHaveAttribute("aria-expanded", "false");
     // F2 on another computed cell refuses it too.
-    await userEvent.keyboard("{ArrowRight}{F2}");
+    await userEvent.keyboard("{End}{ArrowLeft}{F2}");
     expect(refusal()).toHaveTextContent(/Montant \(année de réf\.\) ne se saisit pas/);
   });
 
@@ -319,6 +335,25 @@ describe("the keyboard of a grid", () => {
     expect(refusal()).toBeNull();
     expect(cell(LABOUR, "base_amount")).toHaveAttribute("aria-expanded", "false");
     expect(client.calls.filter((call) => call.route === DEPENDENCIES)).toHaveLength(1);
+  });
+
+  it("keeps a refusal open on its row when a reading anew moves the row, the active cell with it [WF-IHM-0040-A]", async () => {
+    const client = serve();
+    const { rerender } = renderGrid();
+    cell(LABOUR, "base_amount").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByRole("dialog", { name: "Valeur calculée" })).toBeInTheDocument();
+    // The same rows, read anew and sorted otherwise: the line of labour last (#243).
+    const moved = without(estimate, LABOUR);
+    rerender(
+      gridOf({ ...moved, items: [...moved.items, ...estimate.items.slice(LABOUR, LABOUR + 1)] }),
+    );
+    const last = estimate.items.length - 1;
+    expect(refusal()).not.toBeNull();
+    expect(cell(last, "base_amount")).toHaveAttribute("aria-expanded", "true");
+    expect(stops()).toEqual([cell(last, "base_amount")]);
+    // Asked once for each reading, the rows the answer names may have moved (`useDependencies`).
+    expect(client.calls.filter((call) => call.route === DEPENDENCIES)).toHaveLength(2);
   });
 
   it("closes a refusal on a click on its own cell, rather than opening it again", async () => {

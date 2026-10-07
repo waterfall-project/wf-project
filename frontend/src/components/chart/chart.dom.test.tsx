@@ -259,9 +259,30 @@ describe("the ticks of an axis of time", () => {
     );
   });
 
-  it("falls on the first of the month in the local time of the workstation for an axis of instants", () => {
-    const [first] = monthTicks(["2026-03-16T14:05:00Z"], false);
-    expect(first).toBe(new Date(2026, 2, 1).getTime());
+  it.each(["America/Los_Angeles", "Asia/Tokyo"])(
+    "falls on the first of the month in the local time of the workstation for an axis of instants, under %s",
+    (zone) => {
+      vi.stubEnv("TZ", zone);
+      try {
+        const [first] = monthTicks(["2026-03-16T14:05:00Z"], false);
+        expect(first).toBe(new Date(2026, 2, 1).getTime());
+        expect(first).not.toBe(Date.UTC(2026, 2, 1));
+        // Two in the morning in UTC on 1 March is still February west of Greenwich.
+        const [month] = monthTicks(["2026-03-01T02:00:00Z"], false);
+        expect(new Date(month ?? 0).getMonth()).toBe(zone === "Asia/Tokyo" ? 2 : 1);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
+  it("writes thirteen ticks at most, its step lengthened when the alignment on January would add one", () => {
+    // Thirty-five months from March: every third month would be thirteen ticks from March, one
+    // more aligned on January (#290).
+    const ticks = iso(monthTicks(["2026-03-10T00:00:00Z", "2029-01-15T00:00:00Z"], true));
+    expect(ticks.length).toBeLessThanOrEqual(13);
+    expect(ticks[0]).toBe("2026-01-01");
+    expect(new Set(ticks.map((tick) => tick.slice(5)))).toEqual(new Set(["01-01", "07-01"]));
   });
 
   it("has none without an instant", () => {

@@ -168,8 +168,8 @@ afterEach(() => {
 const QUANTITY = 4;
 const HOURS = 5;
 const DISBURSEMENT = 6;
-const REFERENCE = 7;
-const INFLATED = 8;
+const REFERENCE = 10;
+const INFLATED = 11;
 // Number, label, mode, duration, start, finish, progress, float, predecessors.
 const DURATION = 3;
 const START = 4;
