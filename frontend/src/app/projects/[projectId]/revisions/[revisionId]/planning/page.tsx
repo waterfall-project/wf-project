@@ -6,8 +6,10 @@
  * structure of the revision, its tasks alone — the server renders no line for it (`kinds`) —,
  * asked and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer,
  * with the totals of the answer: a header clicked or a search entered changes the address, and
- * this page reads anew (`grid-screen.ts`). Its head leads to the imports and exports of the
- * project (FBS-4.3.4), in the same context.
+ * this page reads anew (`grid-screen.ts`). The Gantt is the last column of the grid, row for row
+ * (FBS-4.3.3). Its head leads to the leaves of the planning with a screen of their own — the
+ * timelines (FBS-4.3.1), the imports and exports of the project (FBS-4.3.4), the task tree
+ * (FBS-4.3.5) —, in the same context.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -25,7 +27,7 @@ import { PlanningGrid } from "@/components/grid/planning-grid";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
-import type { PageSearchParams } from "@/navigation/context";
+import type { PageSearchParams, ProjectContext } from "@/navigation/context";
 import { functionHref, leafOf } from "@/navigation/functions";
 
 import { screenMetadata } from "../../../../../title";
@@ -42,24 +44,24 @@ export async function generateMetadata({
   return screenMetadata("functions.planning", projectId);
 }
 
-/** The imports and exports of the project, a leaf of the planning with a screen of its own. */
-const EXCHANGES = leafOf("FBS-4.3.4");
-
-/** The icon of the imports and exports, which their own screen shows too. */
-const ExchangesIcon = LEAF_ICONS["FBS-4.3.4"];
+/** The leaves of the planning with a screen of their own, in the order of the FBS. */
+const LEAVES = (["FBS-4.3.1", "FBS-4.3.4", "FBS-4.3.5"] as const).map((code) => ({
+  leaf: leafOf(code),
+  Icon: LEAF_ICONS[code],
+}));
 
 /**
- * The title of the grid, and what it holds: the structure, and its tasks retained; and the link to
- * the imports and exports of the project, in the same context.
+ * The title of the grid, and what it holds: the structure, and its tasks retained; and the links to
+ * the leaves of the planning, in the same context.
  */
 function PlanningHeader({
   label,
   totals,
-  exchanges,
+  context,
 }: {
   readonly label: string;
   readonly totals: NodeTotals;
-  readonly exchanges: string | undefined;
+  readonly context: ProjectContext;
 }) {
   const t = useTranslations();
   return (
@@ -69,12 +71,21 @@ function PlanningHeader({
       density={FUNCTION_DENSITY.planning}
       subtitle={t("planningGrid.summary", { structure: label, tasks: totals.task_count })}
       actions={
-        exchanges === undefined ? undefined : (
-          <Link href={exchanges} className={buttonVariants({ variant: "outline", size: "sm" })}>
-            <ExchangesIcon aria-hidden="true" />
-            {t(EXCHANGES.label)}
-          </Link>
-        )
+        <div className="flex flex-wrap gap-2">
+          {LEAVES.map(({ leaf, Icon }) => {
+            const href = functionHref(leaf, context);
+            return href === undefined ? null : (
+              <Link
+                key={leaf.code}
+                href={href}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                <Icon aria-hidden="true" />
+                {t(leaf.label)}
+              </Link>
+            );
+          })}
+        </div>
       }
     />
   );
@@ -100,11 +111,7 @@ export default async function PlanningPage({
     <>
       <ContextBanner reading={screen.reading} />
       <Screen density={FUNCTION_DENSITY.planning} fill>
-        <PlanningHeader
-          label={screen.label}
-          totals={screen.nodes.totals}
-          exchanges={functionHref(EXCHANGES, at.context)}
-        />
+        <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />
         <PlanningGrid
           nodes={screen.nodes}
           structure={screen.structure}

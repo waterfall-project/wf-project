@@ -288,6 +288,7 @@ _KEYS = {
     "correlation_id": ("collages et corrélations",),
     "upload_id": ("imports et téléversements",),
     "import_id": ("imports et téléversements",),
+    "timeline_id": ("chronologies",),
     "cost_line_id": ("lignes de coût réel",),
     "cost_import_id": ("imports de coûts réels",),
 }

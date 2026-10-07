@@ -11,6 +11,7 @@ import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
+import { formatPercent } from "@/i18n/format";
 
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID } from "./estimate";
@@ -47,6 +48,11 @@ const STRUCTURE = {
 };
 const NBSP = " ";
 const planning = example("nodes_planning") as NodeList;
+
+/** The position of a column among the cells of a row, the number of the row first. */
+function at(key: string): number {
+  return 1 + PLANNING_GRID.columns.findIndex((column) => column.key === key);
+}
 
 /** Render the grid of the planning on an answer, in a language. */
 function renderPlanning(nodes: NodeList = planning, locale: Locale = "fr") {
@@ -147,37 +153,85 @@ describe("the grids of the planning and of the estimate", () => {
 });
 
 describe("the grid of the planning", () => {
-  it("shows each task of the answer, in its order: its number, label, duration, dates, float and predecessors", () => {
+  it("shows each task of the answer, in its order: its number, label, description, duration, dates, physical progress, float and predecessors", () => {
     renderPlanning();
     const days = (count: string) => `${count}${NBSP}j`;
+    const full = formatPercent("1", "fr");
     // The numbers are those of the whole structure: the line of row 3, which the planning does
     // not render, keeps its own. A lag keeps its unit: a week is not written in days.
+    // The description, which no task of the witness bears; the physical progress of the summary
+    // alone; the Gantt last, a drawing.
     expect(bodyRows().map(texts)).toEqual([
-      ["1", "Études", "", days("40"), "02/03/2026", "24/04/2026", "", "", ""],
-      ["2", "Études de détail", "", days("30"), "02/03/2026", "10/04/2026", "", days("0"), ""],
-      ["4", "Pupitres opérateurs", "", days("40"), "02/03/2026", "24/04/2026", "", "", ""],
-      ["5", "Revue de conception", "", days("10"), "13/04/2026", "24/04/2026", "", days("0"), "2"],
+      ["1", "Études", "", "", days("40"), "02/03/2026", "24/04/2026", "", full, "", "", ""],
+      [
+        "2",
+        "Études de détail",
+        "",
+        "",
+        days("30"),
+        "02/03/2026",
+        "10/04/2026",
+        "",
+        "",
+        days("0"),
+        "",
+        "",
+      ],
+      [
+        "4",
+        "Pupitres opérateurs",
+        "",
+        "",
+        days("40"),
+        "02/03/2026",
+        "24/04/2026",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ],
+      [
+        "5",
+        "Revue de conception",
+        "",
+        "",
+        days("10"),
+        "13/04/2026",
+        "24/04/2026",
+        "",
+        "",
+        days("0"),
+        "2",
+        "",
+      ],
       [
         "6",
         "Réception des études",
         "",
+        "",
         days("0"),
         "24/04/2026",
         "24/04/2026",
         "",
+        "",
         days("0"),
         `5;4DD+1${NBSP}sem`,
+        "",
       ],
       [
         "7",
         "Dossier de conception",
         "",
+        "",
         days("5"),
         "09/04/2026",
         "15/04/2026",
         "",
+        "",
         days("187"),
         `2FD-${days("2")}`,
+        "",
       ],
     ]);
     expect(texts(screen.getAllByRole("row").at(-1))[1]).toBe("Total — 6 tâches");
@@ -186,29 +240,27 @@ describe("the grid of the planning", () => {
   it("marks the three sorts of task, the scheduling mode and the progress by icons named for them", () => {
     renderPlanning();
     const icons = (label: string) => cellsOf(label).map((cell) => iconNames(cell));
-    // Nature, mode and progress: the second, third and seventh cells — the progress of a
-    // summary computed from its subordinates, and marked so.
-    const [, nature, mode, , , , progress] = icons("Études");
-    expect([nature, mode, progress]).toEqual([
-      ["Tâche récapitulative"],
-      ["Automatique"],
-      ["Calculé", "Démarrée"],
-    ]);
-    expect(icons("Pupitres opérateurs")[2]).toEqual(["Manuel"]);
-    expect(icons("Études de détail")[6]).toEqual(["Terminée"]);
-    expect(icons("Réception des études")[1]).toEqual(["Jalon"]);
-    expect(icons("Réception des études")[6]).toEqual(["Terminée"]);
-    expect(icons("Dossier de conception")[1]).toEqual(["Tâche"]);
+    // Nature, mode and progress — the progress of a summary computed from its subordinates, and
+    // marked so.
+    const studies = icons("Études");
+    expect([studies[at("label")], studies[at("scheduling_mode")], studies[at("progress")]]).toEqual(
+      [["Tâche récapitulative"], ["Automatique"], ["Calculé", "Démarrée"]],
+    );
+    expect(icons("Pupitres opérateurs")[at("scheduling_mode")]).toEqual(["Manuel"]);
+    expect(icons("Études de détail")[at("progress")]).toEqual(["Terminée"]);
+    expect(icons("Réception des études")[at("label")]).toEqual(["Jalon"]);
+    expect(icons("Réception des études")[at("progress")]).toEqual(["Terminée"]);
+    expect(icons("Dossier de conception")[at("label")]).toEqual(["Tâche"]);
     // Each shows its name on hover too, to whoever does not read the icon.
-    const [, , manual] = cellsOf("Pupitres opérateurs");
+    const manual = cellsOf("Pupitres opérateurs")[at("scheduling_mode")];
     expect(within(manual ?? document.body).getByTitle("Manuel")).toBeInTheDocument();
-    const [, , , , , , completed] = cellsOf("Études de détail");
+    const completed = cellsOf("Études de détail")[at("progress")];
     expect(within(completed ?? document.body).getByTitle("Terminée")).toBeInTheDocument();
   });
 
   it("marks the float of a task on the critical path by an icon and bold type, never by a colour alone", () => {
     renderPlanning();
-    const float = (label: string) => cellsOf(label)[7];
+    const float = (label: string) => cellsOf(label)[at("total_float")];
     // The float is computed in every task: its cell bears the mark of a computed value first.
     for (const critical of ["Études de détail", "Revue de conception", "Réception des études"]) {
       expect(iconNames(float(critical))).toEqual(["Calculé", "Chemin critique"]);
@@ -241,19 +293,53 @@ describe("the grid of the planning", () => {
   });
 
   it("sorts each of its columns by the column of the contract of the same name, whose value it reads", () => {
-    expect(PLANNING_SORT_COLUMNS).toEqual(PLANNING_GRID.columns.map((column) => column.key));
+    // Each but the Gantt, which draws the row and sorts nothing.
+    expect(PLANNING_SORT_COLUMNS).toEqual(
+      PLANNING_GRID.columns.map((column) => column.key).filter((key) => key !== "gantt"),
+    );
     // The predecessors, which their cell renders, give an accessor to the sort alone.
     const milestone = planning.items[4];
-    const columns = PLANNING_GRID.columns.filter((column) => column.key !== "predecessors");
+    const columns = PLANNING_GRID.columns.filter(
+      (column) => !["predecessors", "gantt"].includes(column.key),
+    );
     expect(milestone === undefined ? [] : columns.map((c) => c.value(milestone))).toEqual([
       "Réception des études",
+      undefined,
       "automatic",
       "0",
       "2026-04-24",
       "2026-04-24",
       "completed",
+      undefined,
       "0",
     ]);
+  });
+
+  it("says the physical progress of a summary not computable, and why, in the cell itself", () => {
+    // What the API would answer of the studies without any amount budgeted in their subtree.
+    renderPlanning({
+      ...planning,
+      items: planning.items.map((node) =>
+        node.task?.is_summary === true
+          ? {
+              ...node,
+              task: {
+                ...node.task,
+                physical_progress: {
+                  is_computable: false,
+                  value: null,
+                  reason: "no_budgeted_amount" as const,
+                },
+              },
+            }
+          : node,
+      ),
+    });
+    const cell = cellsOf("Études")[at("physical_progress")];
+    expect(cell?.textContent).toBe(
+      "Non calculable — Aucun montant budgété dans le sous-arbre de la tâche.",
+    );
+    expect(cell?.querySelector("[title]")).toBeNull();
   });
 
   it("names a predecessor the answer does not hold by the number the API gives it", () => {
@@ -262,7 +348,9 @@ describe("the grid of the planning", () => {
       ...planning,
       items: planning.items.filter((node) => node.task?.label !== "Études de détail"),
     });
-    expect(texts(bodyRows().find((row) => texts(row)[1] === "Revue de conception"))[8]).toBe("2");
+    expect(
+      texts(bodyRows().find((row) => texts(row)[1] === "Revue de conception"))[at("predecessors")],
+    ).toBe("2");
   });
 
   it("writes each lag in its unit, in months, and a lead in weeks", () => {
@@ -292,10 +380,10 @@ describe("the grid of the planning", () => {
     const { unmount } = renderPlanning(linked);
     const dossier = () =>
       texts(bodyRows().find((row) => texts(row)[1] === "Dossier de conception"));
-    expect(dossier()[8]).toBe(`2DD+2${NBSP}m;5DD-1${NBSP}sem`);
+    expect(dossier()[at("predecessors")]).toBe(`2DD+2${NBSP}m;5DD-1${NBSP}sem`);
     unmount();
     renderPlanning(linked, "en");
-    expect(dossier()[8]).toBe(`2SS+2${NBSP}mo;5SS-1${NBSP}wk`);
+    expect(dossier()[at("predecessors")]).toBe(`2SS+2${NBSP}mo;5SS-1${NBSP}wk`);
   });
 
   it("shows its figures, units and links in English too", () => {
@@ -304,25 +392,34 @@ describe("the grid of the planning", () => {
       "6",
       "Réception des études",
       "",
+      "",
       `0${NBSP}d`,
       "24/04/2026",
       "24/04/2026",
       "",
+      "",
       `0${NBSP}d`,
       `5;4SS+1${NBSP}wk`,
+      "",
     ]);
     expect(texts(bodyRows()[5])).toEqual([
       "7",
       "Dossier de conception",
       "",
+      "",
       `5${NBSP}d`,
       "09/04/2026",
       "15/04/2026",
       "",
+      "",
       `187${NBSP}d`,
       `2FS-2${NBSP}d`,
+      "",
     ]);
-    expect(iconNames(cellsOf("Revue de conception")[7])).toEqual(["Computed", "Critical path"]);
+    expect(iconNames(cellsOf("Revue de conception")[at("total_float")])).toEqual([
+      "Computed",
+      "Critical path",
+    ]);
   });
 
   it("is accessible", async () => {

@@ -141,6 +141,12 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * Ctrl+Z and Ctrl+Shift+Z (WF-IHM-0110) — placed, not wired yet.
    */
   readonly undoable?: boolean | undefined;
+  /**
+   * What holds the grid, given the rows it shows — those of the answer, as its writes left them —:
+   * the Gantt of the planning lays them out once for all its cells (`GanttRows`). One element
+   * around the grid, never a prop of each row (défaut n° 14).
+   */
+  readonly around?: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined;
 }
 
 /** How a cell of a column is pinned: its classes, and its offset from the start. */
@@ -500,6 +506,15 @@ function toggledColumns<Row extends RowData, Sort extends string, Totals>(
   });
 }
 
+/** The grid, held by what its screen puts around it, if anything. */
+function held<Row>(
+  grid: ReactNode,
+  rows: readonly Row[],
+  around: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined,
+): ReactNode {
+  return around === undefined ? grid : around(rows, grid);
+}
+
 /** Render a dense grid. */
 export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   config,
@@ -510,6 +525,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   preferences,
   dependencies,
   undoable,
+  around,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const locale = useLocale();
@@ -643,7 +659,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   // An empty answer still has a row, which says so, between the header and the totals.
   const bodyRows = Math.max(model.length, 1);
 
-  return (
+  const grid = (
     <div className="flex min-h-0 flex-col gap-2" onKeyDown={undo.onKeyDown}>
       <GridToolbar
         search={query.search}
@@ -780,4 +796,5 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       </Table>
     </div>
   );
+  return held(grid, writes.rows, around);
 }

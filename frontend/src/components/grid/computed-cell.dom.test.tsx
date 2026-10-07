@@ -170,12 +170,13 @@ const HOURS = 5;
 const DISBURSEMENT = 6;
 const REFERENCE = 10;
 const INFLATED = 11;
-// Number, label, mode, duration, start, finish, progress, float, predecessors.
-const DURATION = 3;
-const START = 4;
-const FINISH = 5;
-const PROGRESS = 6;
-const FLOAT = 7;
+// Number, label, description, mode, duration, start, finish, progress, physical progress, float,
+// predecessors, Gantt.
+const DURATION = 4;
+const START = 5;
+const FINISH = 6;
+const PROGRESS = 7;
+const FLOAT = 9;
 
 describe("a value of a grid the server computes", () => {
   it("is not entered in a line of labour, does not look like its effort in hours, and is refused naming what it depends on [WF-IHM-0030-A]", async () => {

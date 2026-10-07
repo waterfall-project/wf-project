@@ -150,9 +150,23 @@
           "permission": "planning",
           "leaves": [
             {
+              "code": "FBS-4.3.1",
+              "label": "functions.timelines",
+              "route": "/projects/[projectId]/revisions/[revisionId]/timelines",
+              "scope": "revision",
+              "permission": "planning"
+            },
+            {
               "code": "FBS-4.3.4",
               "label": "functions.exchanges",
               "route": "/projects/[projectId]/revisions/[revisionId]/exchanges",
+              "scope": "revision",
+              "permission": "planning"
+            },
+            {
+              "code": "FBS-4.3.5",
+              "label": "functions.taskTree",
+              "route": "/projects/[projectId]/revisions/[revisionId]/task-tree",
               "scope": "revision",
               "permission": "planning"
             }

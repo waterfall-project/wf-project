@@ -579,6 +579,43 @@ def test_the_lot_of_the_control_station_bears_the_one_order_item_of_the_witness(
     assert "order_item_id" not in facet(estimate[OCCURRED])
 
 
+def test_the_tasks_inscribed_name_the_timelines_of_the_witness_and_its_tracked_milestones(
+    readings: dict[str, Any],
+) -> None:
+    core = nodes(readings["nodes_core.json"])
+    timelines = {entry["timeline_id"]: entry["label"] for entry in readings["timelines.json"]}
+    assert list(timelines.values()) == ["Comité de pilotage", "Revue client"]
+    inscribed = {
+        number: [entry["timeline_id"] for entry in facet(node).get("tracking", [])]
+        for number, node in core.items()
+        if node["kind"] == "task"
+    }
+    steering, customer = timelines
+    assert {number: entries for number, entries in inscribed.items() if entries} == {
+        STUDIES: [steering],
+        ACCEPTANCE: [steering, customer, None],
+        MILESTONE: [steering, customer, None],
+        COMMISSIONING: [steering],
+    }
+    # The milestones of the time/time tracking are those its diagram follows (WF-PLA-0060).
+    tracked = mockwitness.fixture("milestone_tracking")["milestones"]
+    assert [entry["lineage_id"] for entry in tracked] == [
+        core[ACCEPTANCE]["lineage_id"],
+        core[MILESTONE]["lineage_id"],
+    ]
+
+
+def test_the_nested_variant_has_four_levels_of_tasks_a_summary_at_the_third(
+    readings: dict[str, Any],
+) -> None:
+    nested = nodes(readings["nodes_nested.json"])
+    levels = {number: node["level"] for number, node in nested.items()}
+    assert (levels[INSTALLATION], levels[CONTROL_STATION], levels[OCCURRED]) == (1, 2, 3)
+    assert levels[REMINDER] == levels[TRANSPORT] == 4
+    assert facet(nested[OCCURRED])["is_summary"] is True
+    assert all(node["kind"] == "task" for node in nested.values())
+
+
 def test_the_core_is_dated_in_the_order_of_its_links_whatever_the_order_of_the_plan(
     readings: dict[str, Any],
 ) -> None:

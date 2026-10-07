@@ -92,8 +92,8 @@ test("refuses to change the finish date of a summary task, from the keyboard, na
   const grid = page.getByRole("grid", { name: "Grille de planning" });
   const summary = grid.getByRole("row", { name: /^1 .*Études/ });
   await expect(summary.getByRole("img", { name: "Tâche récapitulative" })).toBeVisible();
-  // Number, label, mode, duration, start, finish.
-  const finish = cellOf(summary, 5);
+  const at = await columnsOf(grid, { finish: "Fin" });
+  const finish = cellOf(summary, at.finish);
   await expect(finish).toHaveAccessibleName(/^Calculé \d\d\/\d\d\/\d{4}$/);
 
   await finish.focus();

@@ -35,7 +35,7 @@ const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
 /** What a header reads of its column: whether the server computes it whole, not its rows. */
 type HeaderColumn = Pick<
   GridColumn<unknown, string, unknown>,
-  "label" | "format" | "align" | "icon"
+  "label" | "format" | "align" | "icon" | "axis"
 > & {
   readonly computed?: { readonly whole: boolean };
 };
@@ -133,10 +133,13 @@ function Heading({
   id,
   column,
   label,
+  width,
 }: {
   readonly id: string;
   readonly column: HeaderColumn | undefined;
   readonly label: string;
+  /** The width of the column, at which an axis draws. */
+  readonly width: number;
 }) {
   const t = useTranslations("grid");
   const Icon = column?.icon;
@@ -150,10 +153,11 @@ function Heading({
         <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
       ) : null}
       {Icon === undefined ? (
-        <span className="truncate">{label}</span>
+        <span className={column?.axis === undefined ? "truncate" : "sr-only"}>{label}</span>
       ) : (
         <Icon role="img" aria-label={label} className="size-3.5 shrink-0" />
       )}
+      {column?.axis?.(width)}
     </span>
   );
 }
@@ -176,7 +180,7 @@ export function HeaderCell<Row extends RowData>({
   // The header is named by its heading alone — the Σ and the label —, not by the name of the
   // handle it holds, which would be read with every cell of the column.
   const id = useId();
-  const heading = <Heading id={id} column={column} label={label} />;
+  const heading = <Heading id={id} column={column} label={label} width={header.getSize()} />;
   const sorts = header.column.getCanSort();
   const resizes = header.column.getCanResize();
   // The keys the header itself takes, not those of its button or handle, which take their own.

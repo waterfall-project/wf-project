@@ -1,0 +1,8 @@
+{
+  "summary": "Les chronologies du projet témoin le 3 juin 2026 (WF-PLA-0140) : le comité de pilotage, auquel sont inscrits les études, leur réception, la réception usine et la mise en service, et la revue client, les deux réceptions — inscriptions que porte chaque tâche (`tracking`, WF-PLA-0060).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": [
+    {"timeline_id":"01926f3a-7c00-7000-8000-000000001000","label":"Comité de pilotage"},
+    {"timeline_id":"01926f3a-7c00-7000-8000-000000001001","label":"Revue client"}
+  ]
+}

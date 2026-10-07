@@ -201,6 +201,7 @@ IDENTIFIERS = (
     Family("sauvegardes", 900, 919),
     Family("tâches de fond", 920, 959),
     Family("collages et corrélations", 960, 999),
+    Family("chronologies", 1000, 1009),
     Family("imports et téléversements", 0xA00, 0xAFF, hexadecimal=True),
     Family("lignes de coût réel", 0xC00, 0xC0F, hexadecimal=True),
     Family("imports de coûts réels", 0xC10, 0xCFF, hexadecimal=True),
@@ -344,6 +345,24 @@ class OrderItem:
 ASSEMBLY = OrderItem(universe(711), "Fourniture et montage des armoires")
 """The one order item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130),
 and whose total the estimate presents (`estimate_indicators_breakdown`, WF-DEV-0060)."""
+
+STEERING = universe(1000)
+CUSTOMER = universe(1001)
+TIMELINES = ((STEERING, "Comité de pilotage"), (CUSTOMER, "Revue client"))
+"""The named timelines of the witness (WF-PLA-0140): the steering committee follows the studies,
+their reception, the factory acceptance and the commissioning; the customer, the two receptions."""
+
+INSCRIBED: dict[int, tuple[str, ...]] = {
+    521: (STEERING,),
+    525: (STEERING, CUSTOMER),
+    556: (STEERING, CUSTOMER),
+    565: (STEERING,),
+}
+"""The tasks of the core inscribed to each timeline, by their number (WF-PLA-0060)."""
+
+TRACKED = frozenset({525, 556})
+"""The milestones of the core inscribed to the time/time tracking, those ``milestone_tracking``
+follows (WF-PLA-0060, WF-IND-0090)."""
 
 
 STUDIES = Task(

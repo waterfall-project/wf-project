@@ -53,8 +53,10 @@ from wftools.mockwitness import (
     COMMISSIONING,
     CORE,
     ELECTRICAL_ENGINEERING,
+    INSCRIBED,
     STUDIES_STARTED,
     TODAY,
+    TRACKED,
     Line,
     Task,
     default_calendar,
@@ -458,6 +460,9 @@ class _Emitter:
             facet["order_item_id"] = task.order_item.identifier
             facet["work_package_id"] = None
             facet["work_breakdown_label"] = task.order_item.label
+        tracking = _tracking(task.number)
+        if tracking:
+            facet["tracking"] = tracking
         if not task.children:
             total_float = placed.total_float
             facet["total_float"] = (
@@ -523,6 +528,16 @@ class _Emitter:
             "lock_version": 1,
             kind: facet,
         }
+
+
+def _tracking(number: int) -> list[JsonValue]:
+    """Return the inscriptions of a task: to its timelines, and to the time/time tracking."""
+    entries: list[JsonValue] = [
+        {"kind": "timeline", "timeline_id": timeline} for timeline in INSCRIBED.get(number, ())
+    ]
+    if number in TRACKED:
+        entries.append({"kind": "milestone_tracking", "timeline_id": None})
+    return entries
 
 
 def _instant(at: Instant) -> JsonObject:

@@ -90,6 +90,11 @@ export interface GridColumn<Row, Sort extends string, Totals> {
   readonly render?: (row: Row) => ReactNode;
   /** What it reads of the totals of the answer, for the totals row; none, and it is blank. */
   readonly total?: (totals: Totals) => CellValue;
+  /**
+   * What its header draws in place of its heading, at the width of the column — the axis of time
+   * of the Gantt —; its heading then names it to the readers of the screen alone.
+   */
+  readonly axis?: (width: number) => ReactNode;
 }
 
 /** A field whose value the server computes, as the contract names it: `task.finish`. */
