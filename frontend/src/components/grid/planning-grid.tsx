@@ -6,12 +6,15 @@
  * functions of a configuration live. The page hands it data only: the rows of the answer of
  * `listNodes` as the grid reads them (`projectNodes`), the structure they belong to, what the
  * address asked, and the settings the session read. A computed cell asks the server what its
- * value depends on, by the structure and its node.
+ * value depends on, by the structure and its node. The Gantt, its last column, lays out the rows
+ * the grid shows once for all its cells (`GanttRows`).
  */
 "use client";
 
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
+
+import { GanttRows } from "@/components/gantt/gantt";
 
 import { DenseGrid } from "./dense-grid";
 import { nodeDependencies } from "./node-dependencies";
@@ -59,6 +62,7 @@ export function PlanningGrid({
       preferences={preferences}
       dependencies={dependencies}
       undoable={undoable}
+      around={(rows, table) => <GanttRows rows={rows}>{table}</GanttRows>}
     />
   );
 }

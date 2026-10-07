@@ -57,6 +57,7 @@ import argparse
 import json
 import sys
 from collections import Counter
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
@@ -105,6 +106,7 @@ from wftools.mockwitness import (
     PROVISIONS,
     STUDIES,
     SUBCONTRACTING,
+    TIMELINES,
     TODAY,
     fixture,
     identifier,
@@ -296,6 +298,20 @@ def named() -> dict[str, JsonObject]:
     return {**readings(), **mockwrites.writes(), **mockhistory.examples()}
 
 
+def nested() -> tuple[Task, ...]:
+    """Return the core with the lot of the control station ranged under the installation.
+
+    A counterfactual variant, declared as such: its tree has four levels of tasks, the subtree
+    the occurrence merged a summary of the third (WF-PLA-0110).
+    """
+    installation = replace(INSTALLATION, children=(CONTROL_STATION, *INSTALLATION.children))
+    return tuple(
+        installation if root is INSTALLATION else root
+        for root in CORE
+        if root is not CONTROL_STATION
+    )
+
+
 def wiring_completed() -> tuple[Task, ...]:
     """Return the core with the wiring of the cabinets declared completed today, by hand.
 
@@ -386,6 +402,14 @@ def readings() -> dict[str, JsonObject]:
             f"de l'arbre et absente des totaux (WF-PLA-0050, WF-PLA-0080).",
             mockcore.search(rows, _MILESTONE),
         ),
+        "nodes_nested.json": _example(
+            f"Variante contrefactuelle du planning du témoin, lue sans ses lignes (subtree_of, "
+            f"kinds=task) le {day} : le lot « Poste de commande » rangé sous l'installation sur "
+            f"site, de sorte que l'arbre a quatre niveaux de tâches — l'installation, le lot, le "
+            f"sous-arbre fusionné par la survenance du risque 752, récapitulative du troisième "
+            f"niveau, et ses deux tâches au quatrième (WF-PLA-0040, WF-PLA-0110).",
+            mockcore.subtree(mockcore.core(nested()), INSTALLATION.number, _TASKS),
+        ),
         "nodes_risk_occurred.json": _example(
             f"Le sous-arbre fusionné dans la structure principale de la révision en cours par la "
             f"survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 %, lu "
@@ -394,6 +418,13 @@ def readings() -> dict[str, JsonObject]:
             f"et réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative "
             f"somme ses lignes (WF-RIS-0060, WF-RIS-0050).",
             mockcore.subtree(rows, _RISK_OCCURRED),
+        ),
+        "timelines.json": _example(
+            f"Les chronologies du projet témoin le {day} (WF-PLA-0140) : le comité de pilotage, "
+            f"auquel sont inscrits les études, leur réception, la réception usine et la mise en "
+            f"service, et la revue client, les deux réceptions — inscriptions que porte chaque "
+            f"tâche (`tracking`, WF-PLA-0060).",
+            [{"timeline_id": timeline, "label": label} for timeline, label in TIMELINES],
         ),
         "startable_tasks.json": _example(
             f"Le Kanban du cœur du témoin le {day}, sur la révision en cours : les tâches "

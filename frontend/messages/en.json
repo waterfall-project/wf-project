@@ -170,7 +170,10 @@
       "finishOverdue": "Finish overdue",
       "budgetedAmount": "Budgeted amount",
       "previousReestimatedAmount": "Re-estimated at the previous review",
-      "reestimatedAmount": "Re-estimated amount"
+      "reestimatedAmount": "Re-estimated amount",
+      "description": "Description",
+      "physicalProgress": "Physical progress",
+      "gantt": "Gantt"
     },
     "computed": "Computed",
     "entry": {
@@ -232,7 +235,24 @@
     "duration": "{value} {unit}",
     "critical": "Critical path",
     "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
-    "predecessorSeparator": ";"
+    "predecessorSeparator": ";",
+    "notComputableReason": " — {reason}"
+  },
+  "gantt": {
+    "bar": "{nature, select, milestone {Milestone on {finish}} other {From {start} to {finish}}}{critical, select, true { — critical} other {}}"
+  },
+  "taskTree": {
+    "summary": "The summary tasks, under the project, down to the level chosen — read only.",
+    "name": "Tree of the summary tasks",
+    "depths": "Level shown",
+    "depth": "Level {level}",
+    "noSummary": "This plan has no summary task: the tree comes down to the project."
+  },
+  "timelines": {
+    "summary": "The tasks and milestones inscribed to each timeline of the project — read only.",
+    "choice": "Timeline shown",
+    "none": "This project has no timeline.",
+    "empty": "No task of this revision is inscribed to this timeline."
   },
   "remainingGrid": {
     "finishOverdue": "Started task past its finish",
@@ -1119,7 +1139,9 @@
     "projectIndicators": "Project indicators",
     "lifecycle": "Project lifecycle",
     "exchanges": "Imports and exports",
-    "kanban": "Kanban — task start"
+    "kanban": "Kanban — task start",
+    "timelines": "Timelines",
+    "taskTree": "Task tree"
   },
   "errors": {
     "MALFORMED_REQUEST": "The request is malformed.",

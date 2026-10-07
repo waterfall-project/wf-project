@@ -64,8 +64,9 @@ consulter ; une fonction dont la session n'a pas la permission `<fonction>.read`
 pas. La table ne porte encore que le second niveau : les feuilles adressables y entrent avec
 le contrôle de complétude des écrans, que le lot EP-02/L3 (#125) ajoute. Une feuille qui a déjà
 son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même
-permission : les imports et exports, FBS-4.3.4, sous le planning
-(`/projects/[projectId]/revisions/[revisionId]/exchanges`), et le plan de charge du projet,
+permission : les chronologies, FBS-4.3.1, les imports et exports, FBS-4.3.4, et l'arborescence de
+tâches, FBS-4.3.5, sous le planning (`/projects/[projectId]/revisions/[revisionId]/timelines`,
+`…/exchanges`, `…/task-tree`), et le plan de charge du projet,
 FBS-4.4.4, sous le devis (`…/workload`). La navigation ne l'offre pas —
 l'écran de sa fonction y mène, dans le même contexte, et son entrée est marquée courante —,
 mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle.
@@ -319,6 +320,32 @@ lit, et ses indicateurs, avec leur date de calcul, ou qu'ils sont indisponibles 
 ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #159) — ces
 deux cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures
 (`EstimateSummary`).
+
+La grille de planning présente aussi la description d'une tâche et l'avancement physique d'une
+récapitulative, un pourcentage calculé ou non calculable, son motif en titre ; puis le Gantt
+(FBS-4.3.3, `frontend/src/components/gantt/`), sa dernière colonne, en lecture seule. Chaque cellule
+dessine en SVG la ligne de sa tâche — sa barre, les morceaux des liaisons qui la quittent, la longent
+ou l'atteignent, les mois de l'axe — : le dessin est aligné ligne à ligne sur la grille, rendu avec
+ses seules lignes visibles, et suit la largeur de sa colonne, en part de cette largeur. La
+disposition (`ganttLayout`, `layout.ts`) se calcule une fois pour les lignes que la grille montre,
+écritures comprises, que `DenseGrid` remet à ce qu'un écran met autour d'elle (`around`,
+`GanttRows`) — jamais en prop de chaque ligne ; l'en-tête dessine l'axe (`GridColumn.axis`), son
+libellé ne nommant plus la colonne qu'aux lecteurs d'écran. Rien n'y est planifié : une tâche va du
+début de son premier jour à la fin du dernier, une fin à l'heure 0 étant le début de son jour, un
+jalon se tient à sa fin, et l'axe va du premier du mois du plus tôt au premier du mois qui suit le
+plus tard (`monthTicks`, `chart/ticks.ts`, sans ECharts). Une liaison joint l'endroit que son type
+nomme sur le prédécesseur à celui qu'il nomme sur la tâche ; un prédécesseur hors de la réponse n'en
+dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâche une barre, pleine
+sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
+« critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie ni le
+pointeur. Les autres feuilles du planning ont leur écran, où son en-tête mène : l'arborescence de
+tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
+du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
+que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
+(FBS-4.3.1, `…/timelines`), une par lien (`timeline`), leurs tâches sur l'axe qu'elles partagent,
+dessinées comme le Gantt. Faute d'un filtre de `listNodes`, l'arborescence garde des tâches rendues
+les récapitulatives dans la profondeur, et une chronologie les tâches qui la nomment (constat
+d'US-0220/L2).
 
 L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de
 ses opérations dans la révision de sa route (`revision_id`) : les totaux des provisions des

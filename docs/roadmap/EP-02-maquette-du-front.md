@@ -507,6 +507,19 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
 - `listStartableTasks` ne rend pas les tâches terminées, que le Kanban rouvre (WF-RAE-0030), ni les
   tâches non démarrées dont un prédécesseur ne l'est pas — US-0230/L1, ouvert en #425. D'ici là, le
   Kanban présente les deux colonnes que l'opération rend, non démarrées et démarrées.
+- `listTimelines` n'avait aucun exemple, et aucune tâche témoin ne portait d'inscription
+  (`TaskFacet.tracking`) : l'écran des chronologies n'aurait rien eu à montrer — US-0220/L2. Corrigé
+  par ce lot, par des exemples engendrés du cœur du témoin (`make mock-data`) : `timelines` (le
+  comité de pilotage et la revue client, famille d'identifiants « chronologies », 1000 à 1009) et
+  les inscriptions des tâches du cœur — les études, les deux réceptions et la mise en service au
+  comité, les deux réceptions à la revue client, et les deux jalons du diagramme temps/temps
+  (`milestone_tracking`) au suivi temps/temps, ceux que `milestone_tracking` suit déjà.
+- `listNodes` ne filtre ni sur la récapitulative ni sur le niveau, ni sur l'inscription à une
+  chronologie : l'arborescence de tâches (WF-PLA-0110) et une chronologie (WF-PLA-0140) ne peuvent
+  demander au serveur les seules tâches qu'elles montrent — US-0220/L2, ouvert en #463. D'ici là,
+  l'arborescence garde, des tâches que le serveur rend dans l'ordre du plan, les récapitulatives
+  dont le niveau que l'API calcule est dans la profondeur demandée (`depth`, dans l'adresse), et
+  une chronologie les tâches dont les inscriptions la nomment, sans rien ordonner ni calculer.
 - Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
   US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
   tests ne peuvent pas le simuler sur ces opérations. Corrigé par EP-02/L8 : cent dix
@@ -1085,7 +1098,7 @@ qu'ils ont à montrer.
 
 ## US-0220 — Écrans du planning et du devis
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — EP-06 et EP-07
 - **opérations** : `getWorkBreakdown`, `listNodes`, `createNode`, `updateTaskFacet`,
   `setPredecessors`, `listTimelines`, `listCostStructures`, `updateEstimateLine`,
@@ -1106,6 +1119,25 @@ les objectifs de temps de réponse.
   l'objectif d'une seconde du §4.6.2 — mesurée contre le faux back, elle écrit ses chiffres
   sans bloquer ; la seconde se tient en EP-13, bloquante, sur le jeu de référence, avec
   cinquante utilisateurs, contre le vrai service.
+
+**Notes de réalisation.** Le Gantt est la dernière colonne de la grille de planning (US-0220/L2) :
+chaque cellule dessine en SVG la ligne de sa tâche — sa barre, les morceaux des liaisons qui la
+quittent, la longent ou l'atteignent —, de sorte que le dessin est aligné ligne à ligne sur la
+grille et rendu avec ses seules lignes visibles ; son en-tête porte l'axe des mois. L'arborescence
+(`…/task-tree`) et les chronologies (`…/timelines`) sont deux feuilles du planning, FBS-4.3.5 et
+FBS-4.3.1. Le second critère propre à l'US est porté par « modifies no task, from the pointer or
+the keyboard [WF-PLA-0090-A] » (`frontend/src/components/gantt/gantt.dom.test.tsx`), par le
+parcours « draws the Gantt beside the grid, row for row, the critical path told in words, and
+modifies no task [WF-PLA-0090-A] » (`frontend/e2e/planning.spec.ts`) et, pour l'arborescence, par
+« is one stop of the tabulation, whose arrows go through the items as in any tree, and change
+nothing » (`frontend/src/components/tree/task-tree.dom.test.tsx`). Le pliage commun de la grille et
+du Gantt (WF-PLA-0090), qui suppose l'arbre pliable de la grille (WF-PLA-0080), et l'export PNG de
+l'arborescence et des chronologies (WF-PLA-0120, WF-PLA-0140) restent à EP-06, comme le menu
+contextuel des cellules — Annuler et Rétablir —, qui s'ouvre aussi sur une cellule du Gantt, où
+rien ne se saisit : EP-06, qui branche ces commandes, décide où le menu s'offre (revue 1
+d'US-0220/L2). Une arborescence de quatre niveaux s'éprouve sur `nodes_nested`, une variante
+contrefactuelle du cœur du témoin — le lot du poste de commande rangé sous l'installation sur
+site —, engendrée par `make mock-data`.
 
 ## US-0230 — Écrans des risques, du reste à engager et des coûts réels
 

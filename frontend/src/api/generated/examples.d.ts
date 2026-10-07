@@ -114,7 +114,7 @@ export interface Examples {
     200: "structures" | "structures_amendments";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_core" | "nodes_estimate" | "nodes_installation" | "nodes_milestone" | "nodes_planning" | "nodes_risk_occurred" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_core" | "nodes_estimate" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
@@ -139,6 +139,9 @@ export interface Examples {
   };
   "GET /projects/{project_id}/subprojects": {
     200: "subprojects";
+  };
+  "GET /projects/{project_id}/timelines": {
+    200: "timelines";
   };
   "GET /projects/{project_id}/workload": {
     200: "workload" | "workload_marked_remaining" | "workload_org_node" | "workload_reference_budget";

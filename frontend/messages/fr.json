@@ -170,7 +170,10 @@
       "finishOverdue": "Fin dépassée",
       "budgetedAmount": "Montant budgété",
       "previousReestimatedAmount": "Réestimé à la revue précédente",
-      "reestimatedAmount": "Montant réestimé"
+      "reestimatedAmount": "Montant réestimé",
+      "description": "Description",
+      "physicalProgress": "Avancement physique",
+      "gantt": "Gantt"
     },
     "computed": "Calculé",
     "entry": {
@@ -232,7 +235,24 @@
     "duration": "{value} {unit}",
     "critical": "Chemin critique",
     "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
-    "predecessorSeparator": ";"
+    "predecessorSeparator": ";",
+    "notComputableReason": " — {reason}"
+  },
+  "gantt": {
+    "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}"
+  },
+  "taskTree": {
+    "summary": "Les tâches récapitulatives, sous le projet, jusqu’au niveau choisi — en lecture.",
+    "name": "Arborescence des tâches récapitulatives",
+    "depths": "Niveau affiché",
+    "depth": "Niveau {level}",
+    "noSummary": "Ce planning n’a aucune tâche récapitulative : l’arborescence se réduit au projet."
+  },
+  "timelines": {
+    "summary": "Les tâches et les jalons inscrits à chaque chronologie du projet — en lecture.",
+    "choice": "Chronologie affichée",
+    "none": "Ce projet n’a aucune chronologie.",
+    "empty": "Aucune tâche de cette révision n’est inscrite à cette chronologie."
   },
   "remainingGrid": {
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
@@ -1119,7 +1139,9 @@
     "projectIndicators": "Indicateurs projets",
     "lifecycle": "Cycle de vie du projet",
     "exchanges": "Imports et exports",
-    "kanban": "Kanban — démarrage des tâches"
+    "kanban": "Kanban — démarrage des tâches",
+    "timelines": "Chronologies",
+    "taskTree": "Arborescence de tâches"
   },
   "errors": {
     "MALFORMED_REQUEST": "La requête est mal formée.",

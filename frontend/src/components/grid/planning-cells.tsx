@@ -6,7 +6,8 @@
  * the unit of its entry (WF-PLA-0160) and its total float in working days; the critical path
  * marked on the float by an icon and bold type, never by a colour alone (WF-PLA-0100); and its
  * predecessors, named by their row numbers with the type of each link and its lag in its unit,
- * as Microsoft Project writes them (WF-PLA-0030).
+ * as Microsoft Project writes them (WF-PLA-0030); the physical progress of a summary, as a
+ * percentage, or why it cannot be computed (WF-IND-0060, WF-IND-0010).
  *
  * Everything shown is what the API gives: the mode, the progress, the float and the critical
  * path are read from the task, never deduced from its dates. A predecessor is named by the row
@@ -19,7 +20,7 @@ import { Circle, CircleCheck, Contrast, Flame, type LucideIcon, PenLine, Zap } f
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { formatDecimal } from "@/i18n/format";
+import { formatDecimal, formatPercent } from "@/i18n/format";
 
 import type { PlanningNode } from "./planning";
 
@@ -128,6 +129,38 @@ export function FloatCell({ node }: { readonly node: PlanningNode }) {
         <title>{t("critical")}</title>
       </Flame>
       <DurationCell duration={task.total_float} />
+    </span>
+  );
+}
+
+/**
+ * Render the physical progress of a summary as a percentage of the exact ratio the API gives; why
+ * it cannot be computed when it cannot, said by the catalogue; nothing for a leaf, which bears
+ * none (WF-PLA-0080).
+ */
+export function PhysicalProgressCell({ node }: { readonly node: PlanningNode }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const progress = node.task?.physical_progress;
+  if (progress === undefined || progress === null) {
+    return null;
+  }
+  if (progress.is_computable && progress.value !== undefined && progress.value !== null) {
+    return formatPercent(progress.value, locale);
+  }
+  // Not computable, said as such, and why when the API says it — seen and read with the cell,
+  // once: no `title`, which a screen reader would read again as its description (#334).
+  const reason = progress.reason ?? null;
+  return (
+    <span className="truncate text-muted-foreground">
+      {t("indicator.notComputable")}
+      {reason === null ? null : (
+        <span className="text-xs">
+          {t("planningGrid.notComputableReason", {
+            reason: t(`enums.NotComputableReason.${reason}`),
+          })}
+        </span>
+      )}
     </span>
   );
 }

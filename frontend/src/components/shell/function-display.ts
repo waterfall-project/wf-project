@@ -19,6 +19,7 @@ import {
   Briefcase,
   BriefcaseBusiness,
   Calculator,
+  CalendarClock,
   CalendarRange,
   ChartColumnStacked,
   ChartGantt,
@@ -34,6 +35,7 @@ import {
   ImageIcon,
   Kanban,
   KeyRound,
+  Network,
   type LucideIcon,
   Receipt,
   RefreshCcw,
@@ -84,11 +86,14 @@ export const FUNCTION_ICONS: Readonly<Record<FunctionPermission, LucideIcon>> = 
 };
 
 /**
- * The icon of each leaf with a screen of its own, by its code: the imports and exports of the
- * planning, the workload of the project, the Kanban of the start of the tasks.
+ * The icon of each leaf with a screen of its own, by its code: the timelines, the imports and
+ * exports and the task tree of the planning, the workload of the project, the Kanban of the start
+ * of the tasks.
  */
 export const LEAF_ICONS = {
+  "FBS-4.3.1": CalendarClock,
   "FBS-4.3.4": ArrowLeftRight,
+  "FBS-4.3.5": Network,
   "FBS-4.4.4": ChartColumnStacked,
   "FBS-4.5.3": Kanban,
 } as const satisfies Readonly<Record<string, LucideIcon>>;
