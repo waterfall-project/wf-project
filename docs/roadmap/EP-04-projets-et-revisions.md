@@ -97,6 +97,10 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-EXP-0020-A` | Amorçage d'une installation neuve | fin — amorcée en EP-03, EP-05 | — |
 | `WF-QUA-0040-A` | Jeu de données de référence | début — close en EP-13 | — |
 | `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02 | — |
+| `WF-ADM-0040-A` | Préférences d’affichage | fin — amorcée en EP-02, EP-03 | — |
+| `WF-ADM-0060-A` | Cycle de vie d’un compte | fin — amorcée en EP-03 | — |
+| `WF-ADM-0070-A` | Lecture des comptes du fournisseur d’identité | fin — amorcée en EP-03 | — |
+| `WF-IHM-0120-A` | Écran d’accueil | entière | — |
 
 ## Opérations du contrat
 
