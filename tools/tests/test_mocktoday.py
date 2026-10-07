@@ -205,6 +205,22 @@ def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[st
     assert marked["schedule_index"]["value"]["reason"] == "no_planned_value"
 
 
+def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
+    # The review of a project (frontend/e2e/review.spec.ts) reads the indicators of the witness by
+    # these figures, written there as each language shows them: a change of the generator that
+    # moves them fails here.
+    project = today["project_indicators"]
+    assert project["context"]["computed_at"] == "2026-06-03T14:05:00Z"
+    assert (
+        project["remaining"],
+        project["reference_budget"],
+        project["planned_value"],
+        project["schedule_variance"],
+        project["schedule_index"]["value"]["value"],
+        project["cost_index"]["value"]["value"],
+    ) == ("21534.56", "120834.56", "101223.69", "-1223.69", "0.9879", "18.5185")
+
+
 def test_the_curves_reach_the_budget_and_the_projection_of_the_project_manager(
     today: dict[str, Any],
 ) -> None:
