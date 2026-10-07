@@ -2963,7 +2963,7 @@ fbs: "FBS-4.8.4, FBS-4.8.5"
 pbs: "PBS-1.1, PBS-1.3, PBS-2.1, PBS-2.3, PBS-3.1, PBS-3.2"
 corps: "Waterfall présente, pour le projet et pour chaque sous-projet, l’évolution de l’indice de coût et de l’indice de délai : un point par révision marquée, à sa date de marquage, et le dernier point au jour courant pour la révision en cours, avec les seuils de vigilance et d’alerte du référentiel (WF-REF-0170)."
 motif: "Un indice ne se lit qu’avec sa tendance : 0,9 qui remonte et 0,9 qui descend ne demandent pas la même décision. Les indicateurs des révisions marquées sont conservés (§4.4.2) ; les montrer dans le temps ne coûte rien de plus."
-verification: "Sur un projet de trois révisions marquées, chaque courbe porte quatre points, le dernier au jour courant ; les deux seuils sont tracés ; un sous-projet a ses courbes."
+verification: "Sur un projet de trois révisions marquées à partir de l’état En cours, chaque courbe porte quatre points, le dernier au jour courant ; une révision marquée pendant le chiffrage n’en donne aucun (WF-DAT-0040) ; les deux seuils sont tracés ; un sous-projet a ses courbes."
 ```
 
 ##### 3.4.5.8.6. FBS-4.8.6 : Diagramme temps/temps
