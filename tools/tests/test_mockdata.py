@@ -45,7 +45,7 @@ def first_example(path: str, operation: str) -> str:
 def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> None:
     assert sorted(volumes) == [
         "cost_categories.json",
-        "estimate_indicators.json",
+        "estimate_indicators_volume.json",
         "hourly_rate_grid.json",
         "hourly_rates.json",
         "nodes_thousand.json",
@@ -68,9 +68,9 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "930 tâches de travail et leurs 30 jalons" in nodes
     assert "5 000 lignes de devis" in nodes
     assert "provision de plus sur 350" in nodes
-    total = volumes["estimate_indicators.json"]["value"]["total"]
+    total = volumes["estimate_indicators_volume.json"]["value"]["total"]
     assert total == mockstructure.computable("60553621.36")
-    assert "60 553 621,36 au total" in volumes["estimate_indicators.json"]["summary"]
+    assert "60 553 621,36 au total" in volumes["estimate_indicators_volume.json"]["summary"]
     assert "Les 300 projets" in volumes["portfolio_projects.json"]["summary"]
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
@@ -121,7 +121,7 @@ def test_the_dependencies_of_a_summary_are_its_tasks_not_its_lines() -> None:
 
 
 def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str, Any]) -> None:
-    indicators = volumes["estimate_indicators.json"]["value"]
+    indicators = volumes["estimate_indicators_volume.json"]["value"]
     nodes = volumes["nodes_thousand.json"]["value"]
     lines = [node["estimate_line"] for node in nodes["items"] if node["kind"] == "estimate_line"]
     # Every rate of the universe is set: every amount is computable (WF-DEV-0010).
@@ -149,7 +149,7 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
 def test_the_indicators_keep_the_context_and_labels_of_the_universe(
     volumes: dict[str, Any],
 ) -> None:
-    indicators = volumes["estimate_indicators.json"]["value"]
+    indicators = volumes["estimate_indicators_volume.json"]["value"]
     witness = mocktoday.estimate_today()
     assert indicators["context"] == witness["context"]
     assert indicators["delta_to_reference"] == witness["delta_to_reference"]
@@ -707,7 +707,7 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
         "volume: { $ref: ../../../fixtures/api/volume/nodes_thousand.json }"
     )
     assert first_example("analysis.yaml", "getEstimateIndicators") == (
-        "volume: { $ref: ../../../fixtures/api/volume/estimate_indicators.json }"
+        "volume: { $ref: ../../../fixtures/api/volume/estimate_indicators_volume.json }"
     )
     assert first_example("revisions.yaml", "getComputedValueDependencies") == (
         "volume: { $ref: ../../../fixtures/api/volume/summary_dependencies.json }"
@@ -730,3 +730,11 @@ def test_the_fake_back_serves_the_volumes_first() -> None:
 def test_a_fixture_is_read_by_its_value() -> None:
     project = cast("dict[str, Any]", mockwitness.fixture("project"))
     assert project["project_id"] == "01926f3a-7c00-7000-8000-000000000001"
+
+
+def test_no_two_examples_bear_the_same_file_name() -> None:
+    # #489: the bundler names an example after its file, and renames the second of two files of
+    # the same name (`estimate_indicators-2`): a volume and a reading of the witness each keep
+    # their own name, wherever they lie under fixtures/api/.
+    names = Counter(path.name for path in (REPOSITORY / "fixtures" / "api").rglob("*.json"))
+    assert [name for name, count in names.items() if count > 1] == []

@@ -163,7 +163,7 @@
       "currentEstimate": "Current estimate",
       "winProbability": "Win probability",
       "projectManagerProjection": "Project manager’s projection",
-      "deltaToReference": "Variance to budget",
+      "deltaToReference": "Variance to reference",
       "costIndex": "Cost index",
       "scheduleIndex": "Schedule index",
       "lastMarkedAt": "Last marked revision",
@@ -537,16 +537,16 @@
     "unavailable": "The remaining to commit indicators are unavailable.",
     "unnamed": "Unnamed",
     "total": "Remaining to commit",
-    "deltaToReference": "Deviation from the reference budget",
+    "deltaToReference": "Margin on the reference budget",
     "deltaToPrevious": "Deviation from the previous review",
     "byCostType": "By nature of cost",
-    "bySubproject": "Remaining to commit by sub-project, and variance from the budget",
+    "bySubproject": "Remaining to commit by sub-project, and margin on the budget",
     "amount": "{name}: {amount}",
     "amountShare": "{name}: {amount} ({share})",
-    "balance": "{name}: {remaining}, variance {variance}"
+    "balance": "{name}: {remaining}, margin {variance}"
   },
   "kanban": {
-    "summary": "The tasks of the revision in progress not started whose predecessors are completed, and those started. A task is started or it is not: no percentage is entered.",
+    "summary": "The tasks of the revision in progress, not started and started. A task is started or it is not: no percentage is entered.",
     "inProgressOnly": "The Kanban presents the tasks of the revision in progress: a marked revision has none to start.",
     "notStarted": "Not started",
     "started": "Started",
@@ -1196,6 +1196,7 @@
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
+    "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
@@ -1441,6 +1442,9 @@
       "non_labor": "Non-labour",
       "provision": "Provision"
     },
+    "StateEnumeration": {
+      "ProjectState": "State of the project"
+    },
     "ProjectState": {
       "created": "Created",
       "pricing": "Pricing",
@@ -1665,6 +1669,9 @@
       "budgeted_amount": "Budgeted amount",
       "reestimated_amount": "Re-estimated amount",
       "inflated_amount": "Inflation-corrected amount",
+      "previous_quantity": "Previous quantity",
+      "previous_hours": "Previous hours",
+      "previous_unit_disbursement": "Previous unit disbursement",
       "previous_reestimated_amount": "Previous re-estimated amount"
     },
     "ComputedValueField": {

@@ -116,14 +116,25 @@ Problem:
     params:
       type: object
       additionalProperties: true
+      properties:
+        state_enum: { $ref: '#/StateEnumeration' }
+      dependentRequired:
+        state: [state_enum]
+        state_enum: [state]
       description: >-
         Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`),
         `missing_condition` (une `CommandCondition`), `conflicting_object_id`,
         `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une
         récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
         calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030),
-        `missing_prerequisites` (WF-CYC-0120), `state` (l'état de l'objet qui interdit
-        l'opération, `STATE_FORBIDS_OPERATION` ; un `ProjectState` pour un projet),
+        `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui
+        interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat
+        dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans
+        l'autre : seul `ProjectState` en relève
+        aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande
+        les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan
+        de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une
+        modification du contrat),
         `max_columns` (collage trop large, WF-IHM-0050), `component` (un `PlatformComponent`,
         WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
@@ -138,7 +149,9 @@ Problem:
         WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et
         celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
         WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous
-        un autre poste (`setWorkBreakdown`).
+        un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche
+        qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`,
+        WF-RAE-0040).
     fields:
       type: array
       description: Erreurs par champ, pour une entité refusée à la validation.
@@ -152,6 +165,14 @@ Problem:
         repris d'un en-tête d'entrée qui ne les respecte pas est remplacé, pas transmis. Le
         front l'affiche comme référence d'une erreur inattendue, et peut le mettre tel quel
         dans un chemin ou un digest.
+
+StateEnumeration:
+  type: string
+  enum: [ProjectState]
+  description: >-
+    Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec
+    lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une
+    énumération qu'un refus nommerait de plus est une modification du contrat.
 
 ErrorCode:
   type: string
@@ -232,6 +253,9 @@ ErrorCode:
     # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
     # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED
+    # Une réestimation qui termine la tâche sans la date de terminaison que la validation
+    # demande (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
+    - COMPLETION_DATE_REQUIRED
     # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0130) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
     # ligne importée et d'une saisie du lotissement (`setWorkBreakdown`) qui sortiraient la

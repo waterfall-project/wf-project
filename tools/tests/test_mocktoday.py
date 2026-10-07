@@ -13,7 +13,15 @@ from typing import Any
 
 import pytest
 
-from wftools import mockcore, mockdata, mockhistory, mockindicators, mocktoday, mockwitness
+from wftools import (
+    mockcore,
+    mockdata,
+    mockhistory,
+    mockindicators,
+    mocktext,
+    mocktoday,
+    mockwitness,
+)
 from wftools.mockwitness import COMMISSIONING, ELECTRICAL_ENGINEERING, universe
 
 type Node = dict[str, Any]
@@ -168,6 +176,35 @@ def test_the_balances_sum_to_the_project_and_signal_the_one_over_its_budget(
         entry["key"]: entry for entry in today["remaining_indicators_over_budget"]["by_subproject"]
     }
     assert Decimal(over[CONTROL]["remaining"]) == Decimal(balances[CONTROL]["remaining"]) - 200
+
+
+def test_the_gaps_of_the_remaining_to_the_budget_have_one_sense(today: dict[str, Any]) -> None:
+    # #466: the gap to the reference budget is the budget less the actual cost and the
+    # remaining, as each balance of a subproject is: the balances sum to it, and it is positive
+    # while a margin is left.
+    for name in ("remaining_indicators", "remaining_indicators_over_budget"):
+        left = today[name]
+        balances = left["by_subproject"]
+        gap = Decimal(left["delta_to_reference"])
+        assert gap == sum(Decimal(entry["variance"]) for entry in balances)
+        assert gap == sum(
+            Decimal(entry["budget"]) - Decimal(entry["actual_cost"]) - Decimal(entry["remaining"])
+            for entry in balances
+        )
+        assert gap > 0
+    # The re-estimate made today commits 200 less: the margin grows by as much.
+    gaps = [
+        Decimal(today[name]["delta_to_reference"])
+        for name in ("remaining_indicators", "remaining_indicators_over_budget")
+    ]
+    assert gaps[1] - gaps[0] == 200
+    # The summaries name the one a margin and the other a gap (review 2 of EP-02/L35).
+    for name, gap in zip(
+        ("remaining_indicators", "remaining_indicators_over_budget"), gaps, strict=True
+    ):
+        summary = str(mocktoday.examples()[f"{name}.json"]["summary"])
+        assert f"la marge sur le budget de référence, {mocktext.amount(gap)}" in summary
+        assert "l'écart à la revue précédente, " in summary
 
 
 def today_coverage() -> dict[str, Any]:

@@ -1,5 +1,5 @@
 {
-  "summary": "La même consultation lue une ligne par page (limit=1, offset=1) : la deuxième des quatre lignes, l'avoir de -200, et les totaux de toutes les lignes retenues, pas de la seule page rendue (WF-CRE-0040).",
+  "summary": "La même consultation lue une ligne par page (limit=1, offset=1) : la deuxième des quatre lignes, l'avoir de -200, et les totaux de toutes les lignes retenues, pas de la seule page rendue (WF-CRE-0040), comme l'union de leurs colonnes conservées, dans l'ordre où les imports les ont déclarées (WF-CRE-0010).",
   "value": {
     "items": [
       {
@@ -43,7 +43,12 @@
     "meta": {
       "limit": 1,
       "offset": 1,
-      "total": 4
+      "total": 4,
+      "passthrough_columns": [
+        "Fournisseur",
+        "Texte de commande",
+        "Élément d'OTP"
+      ]
     }
   }
 }

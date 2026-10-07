@@ -11,7 +11,8 @@
     "meta": {
       "limit": 50,
       "offset": 0,
-      "total": 0
+      "total": 0,
+      "passthrough_columns": []
     }
   }
 }

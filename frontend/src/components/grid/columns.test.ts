@@ -156,6 +156,9 @@ describe("the columns of the contract", () => {
       "budgeted_amount",
       "reestimated_amount",
       "inflated_amount",
+      "previous_quantity",
+      "previous_hours",
+      "previous_unit_disbursement",
       "previous_reestimated_amount",
     ]);
     expect(pasteSpan(labour, "label")?.slice(0, 3)).toEqual([

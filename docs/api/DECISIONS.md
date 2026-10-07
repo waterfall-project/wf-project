@@ -1814,6 +1814,149 @@ par l'auteur, #467 ; le point de l'offre dans l'évolution
 des indices, #468. La ligne du témoin au portefeuille et la décision 4 du cadrage restent à
 EP-02/L26.
 
+## Les constats de la seconde moitié d'EP-02 (EP-02/L35)
+
+Les constats de contrat ouverts pendant les lots d'écrans et du témoin (#466, #463, #424, #425,
+#458, #414, #413, et le quatrième point de #353, joint à #414), chacun selon la proposition de son
+issue et la décision du plan de résorption du 2026-10-07. Une forme que ni la spécification, ni le
+constat ne fixaient est dite comme telle. Le front n'en adopte que ce qu'il faut pour rester juste
+et vert ; l'adoption à l'écran est EP-02/L36 (#475).
+
+**La marge du reste à engager a un seul sens** (#466, décision de l'auteur du 2026-10-07 ;
+WF-RAE-0020). `RemainingIndicators.delta_to_reference` vaut désormais le budget de référence moins
+la somme du coût réel et du reste à engager, positive quand il en reste, comme
+`SubprojectBalance.variance` et l'écart de couverture des risques ; les descriptions le disent, et
+la marge du projet est la somme des marges de ses sous-projets, hors sous-projet compris. Le
+générateur le calcule ainsi, et non plus « le coût réel plus le reste à engager moins le budget »
+qu'EP-02/L24 reprenait de l'exemple écrit à la main : `remaining_indicators` porte 93 900 et non
+plus -93 900, `remaining_indicators_over_budget` 94 100, la réestimation du jour en ayant dégagé
+200. Le front nomme cette valeur « Marge sur le budget de référence ». `delta_to_previous_revision`,
+que la décision ne vise pas, garde son sens et le contrat le dit : le reste à engager courant moins
+celui de la révision marquée précédente, à son marquage, négatif quand la revue l'a réduit — ce que
+la revue a changé (WF-RAE-0020), qui n'est pas une marge : un reste à engager diminue aussi de ce
+qui s'est dépensé ; nul (`null`) sans revue précédente, et non zéro, l'écran l'omettant alors. Deux
+mots, deux sens — décision de l'auteur à la revue : le reste à engager parle de **marge**
+(`delta_to_reference`, `SubprojectBalance.variance`, que le front nomme « marge », par sous-projet
+comme pour le projet), et la couverture des risques garde son « écart de couverture » de la
+spécification, dans le même sens ; le portefeuille et les projections parlent d'**écart**, positif
+au-delà du budget : l'écart de la liste des projets (`PortfolioProject.delta_to_reference`), que le
+Vérif de WF-PTF-0040 fixe ainsi (« un écart de 50 » pour 1 050 face à 1 000), et les écarts des
+projections (`Projections.variance_*`, la projection moins le budget de référence, WF-IND-0050),
+dont le front garde le libellé « Écart au budget ». Les écarts du devis
+(`EstimateIndicators.delta_to_*`) sont le devis courant moins le devis comparé. L'écart de coût et
+l'écart de délai (`cost_variance`, `schedule_variance` des indicateurs du projet et du portefeuille)
+suivent le glossaire : la valeur acquise moins le coût réel, positif sous le budget, et la valeur
+acquise moins la valeur planifiée, positif en avance (WF-IND-0070, WF-IND-0080). Les écarts de
+montants d'une comparaison de révisions (`RevisionComparison.amount_deltas[].delta`) : la
+spécification ne donne aucun sens (WF-REV-0080, « les écarts de montants ») ; retenu, la révision
+comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), le sens où une tâche y
+est dite ajoutée et celui du devis en cours moins le devis comparé, et le sens que le générateur
+calculait déjà. Chaque propriété `*variance*` ou `delta*` des schémas porte désormais une
+description qui dit son sens, `RiskCoverageTotals.coverage_variance` compris ; un test des outils le
+tient (`test_contract_gaps.py`). La colonne de la liste des projets se nomme « Écart à la référence
+», libellé fixé par l'auteur sur #466 ; les projections gardent « Écart au budget ».
+
+**`listNodes` filtre sur la récapitulative, le niveau et la chronologie** (#463 ; WF-PLA-0110,
+WF-PLA-0140). Trois filtres sur une tâche, qui se combinent aux autres : `summaries_only`, les
+seules récapitulatives ; `max_level`, au moins 1, les tâches dont le niveau ne dépasse pas celui
+demandé, le premier étant celui des tâches sans parent — une ligne suit la tâche qui la porte, quel
+que soit son niveau ; `timeline_id`, les tâches et les jalons inscrits sur la chronologie. Deux
+formes que le constat ne fixait pas : **une lecture par chronologie ne rend pas les ancêtres** des
+tâches retenues, seule exception à la règle de lisibilité de l'arbre — une chronologie n'est pas un
+arbre, et le front n'aurait sinon d'autre moyen que `tracking` pour écarter les ancêtres, la
+sélection que le constat voulait lui retirer ; et une chronologie sans inscription, ou d'un autre
+projet, ne retient rien plutôt que d'être refusée, comme un poste qu'aucune tâche ne porte. Exemples
+`nodes_summaries` — la variante à quatre niveaux du témoin (`nodes_nested`) demandée au niveau 2 :
+les études, l'installation et le lot rangé sous elle, sans le sous-arbre de la survenance, au
+troisième niveau — et `nodes_timeline`, le comité de pilotage : les études, la réception des études,
+la réception usine et la mise en service, sans le lot ni l'installation.
+
+**Les totaux d'une lecture ne changent pas avec `kinds`** (#487, option (a), décision de l'auteur).
+La description de `listNodes` le promettait déjà : les totaux sont ceux de la structure lue, quel
+que soit `kinds`. Le générateur rendait des totaux nuls pour une lecture des tâches seules ; il rend
+désormais ceux de la lecture complète, aux mêmes filtres. `nodes_planning` porte la ligne des études
+de détail, `nodes_timeline` celle de la mise en service, `nodes_nested` les lignes de son sous-arbre
+; `nodes_summaries` reste à zéro, aucune récapitulative ne portant de ligne propre, qu'un filtre sur
+une tâche retiendrait avec elle.
+
+**La grille de reste à engager reçoit les grandeurs au reste à engager précédent** (#424 ;
+WF-RAE-0040, WF-ARC-0020). `EstimateLineFacet.previous_quantity`, `previous_hours` et
+`previous_unit_disbursement`, nuls avant la première revue comme `previous_reestimated_amount`, et
+nuls comme leurs grandeurs courantes là où la ligne n'en porte pas ; demandables par `fields` comme
+toute propriété de la facette. `NodeColumn` les range avant `previous_reestimated_amount` : une
+ligne offre désormais dix-sept colonnes à partir de son libellé, et `paste_too_wide` le dit
+(`max_columns` à 17). Ce sont des valeurs conservées et non calculées : elles n'entrent ni dans
+`ComputedField` ni dans `ComputedValueField`, et aucun nœud ne les accepte en écriture. Les lignes
+du témoin les portent nulles, comme leur montant réestimé précédent (voir « Ce que ce lot laisse »).
+
+**Le Kanban reçoit toutes les tâches, par état** (#425 ; WF-RAE-0030, WF-PLA-0040).
+`listStartableTasks` rend trois colonnes exigées, chacune dans l'ordre du plan et sans
+récapitulative : `not_started`, toutes les tâches non démarrées et non plus les seules dont les
+prédécesseurs sont terminés ; `started` ; `completed`, les tâches terminées avec leur
+`task.completed_on`, que le Kanban rouvre par `setTaskProgress`. Une tâche non démarrée est un
+`NotStartedTask`, le nœud et `predecessors_completed`, vrai quand tous ses prédécesseurs sont
+terminés ou qu'elle n'en a aucun : c'est par lui que le Kanban signale un jalon à terminer. Le nom
+s'écarte de l'`is_startable` du constat : WF-RAE-0030 ne fait pas dépendre le démarrage des
+prédécesseurs, et un drapeau « démarrable » à faux sur une tâche que rien n'empêche de démarrer
+dirait le contraire de la règle. L'operationId reste `listStartableTasks`, que le client engendré
+nomme ; le résumé devient « Tâches du Kanban, par état ». Exemples : `startable_tasks`, trois tâches
+non démarrées, aucune signalée — la réception usine attend la fin du câblage —, six terminées ;
+`startable_tasks_milestone`, la réception usine signalée, le câblage parmi les terminées. Le front
+signale désormais un jalon par ce drapeau, et non plus par sa seule colonne, qui le signalerait à
+tort ; il garde ses deux colonnes jusqu'à EP-02/L36.
+
+**Une réestimation qui termine une tâche demande sa date** (#458 ; WF-RAE-0040, WF-PLA-0130).
+`RemainingUpdate.completed_on`, facultatif, exigé quand la saisie met à zéro la dernière ligne
+encore ouverte de sa tâche, ignoré sinon ; sans lui, `setLineRemaining` répond 422
+`VALIDATION_FAILED`, motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`,
+`fields[].params.task_node_id` nommant la tâche, et rien n'est écrit : l'écran demande la date,
+qu'il propose au jour courant, et rejoue la saisie. Un motif par champ et non un code de premier
+niveau, comme le proposait le constat : c'est un champ du corps qui manque. Le nom suit
+`TaskFacet.completed_on`, et non l'`occurred_on` de `ProgressUpdate`, qui date un démarrage comme
+une terminaison. Exemple engendré `remaining_completion_date_required`, variante contrefactuelle
+déclarée : la charge du raccordement des borniers mise à zéro, les deux autres lignes du câblage des
+armoires supposées déjà à zéro — la ligne de provision du risque identifié 751 ne l'est pas dans le
+témoin.
+
+**Une tâche non démarrée réestimée à zéro passe par l'état démarré** (#486, option (a), décision de
+l'auteur ; WF-RAE-0030, WF-RAE-0040). Le contrat permettait de réestimer une tâche non démarrée, et
+un reste à engager nul termine la tâche : pour une tâche qui n'est pas un jalon, c'était le passage
+direct de non démarrée à terminée que WF-RAE-0030 réserve aux jalons. Une telle saisie la démarre et
+la termine à la même date, celle de `completed_on`, qui devient aussi son `started_on` ;
+`RemainingUpdate`, `completed_on` et `setLineRemaining` le disent. La règle est celle de
+WF-RAE-0030, quel que soit le chemin : un import de reste à engager qui termine une telle tâche la
+démarre et la termine le jour de son application, `started_on` égal à `completed_on`, ce que disent
+`ImportReport.completed_tasks` et `ImportCompletedTask`. Écartés : une date de démarrage demandée en
+plus, détail que le reste à engager ne demande pas, et un refus tant que la tâche n'est pas
+démarrée. L'exemple `remaining_completion_date_required` porte sur le câblage des armoires, déjà
+démarré : il n'en dépend pas.
+
+**L'union des colonnes conservées des coûts réels est donnée pour toute la lecture** (#414, #353
+quatrième point ; WF-CRE-0010). `meta` de `listActualCosts` devient un `ActualCostListMeta`, la
+pagination et `passthrough_columns`, l'union des colonnes conservées de toutes les lignes retenues
+par les filtres, et non de la page : chaque colonne une fois, nommée comme `passthrough` la nomme,
+dans l'ordre où les imports les ont déclarées — les imports dans leur ordre d'application, les
+colonnes d'un import dans l'ordre de son fichier, une colonne à sa première déclaration —, ordre que
+le constat laissait ouvert pour plusieurs imports. `PaginationMeta` ne change pas pour les autres
+listes. Les quatre exemples, écrits à la main, la portent : les trois colonnes du témoin, aucune
+pour `actual_costs_empty`.
+
+**Un état refusé nomme son énumération** (#413 ; WF-ARC-0110). `Problem.params.state_enum`, rendu
+avec `params.state`, nomme l'énumération du contrat dont l'état est une valeur (`StateEnumeration`)
+; seul `ProjectState` en relève aujourd'hui — les indicateurs d'un projet qui n'a pas atteint l'état
+En cours, le plan de charge d'un projet sans référence, les deux seuls refus qui portent un état —,
+et une énumération de plus sera une modification du contrat. Écarté : `object_kind` et une table
+objet → énumération, une indirection de plus pour le même renseignement. Exemples
+`project_indicators_not_in_progress` et `workload_no_reference`. Le front le lira avec EP-02/L36
+(#475, premier point de #353) ; d'ici là il nomme toujours un état comme un `ProjectState`, ce qui
+reste juste.
+
+**Ce que ce lot laisse.** Les lignes du témoin ne portent aucune valeur au reste à engager
+précédent, montant ni grandeurs, alors que la révision 101, marquée le 1er février pendant l'état En
+cours, en est la revue précédente — celle dont `remaining_indicators` tire son écart à la révision
+précédente : renvoyé à EP-02/L26 (#375), où c'est noté. Les totaux de `listNodes` lu avec
+`kinds=task` sont ouverts en #487.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

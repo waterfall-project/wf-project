@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The Kanban of the start of the tasks (FBS-4.5.3, WF-RAE-0030), as the contract gives it
- * (`listStartableTasks`): a column of the tasks not started — those whose predecessors are
- * completed, as the contract renders them —, and one of the tasks started, whose remaining to
- * commit is to re-estimate, each in the order of the answer; the contract renders no task
- * completed, which the Kanban reopens (#425). A task is a card: its row number and its label, its
- * finish, the mark of a finish past the date of calculation (`finish_overdue`), and, for a
- * milestone not started — its predecessors completed, as the column says —, the mark that invites
- * one to complete it, which nothing does by itself. A task is started or it is not: no percentage
+ * (`listStartableTasks`): a column of the tasks not started, and one of the tasks started, whose
+ * remaining to commit is to re-estimate, each in the order of the answer; the column of the tasks
+ * completed, which the contract now renders and the Kanban reopens, comes with EP-02/L36 (#425).
+ * A task is a card: its row number and its label, its finish, the mark of a finish past the date
+ * of calculation (`finish_overdue`), and, for a milestone not started whose predecessors are all
+ * completed, as the API says (`predecessors_completed`), the mark that invites one to complete it,
+ * which nothing does by itself. A task is started or it is not: no percentage
  * shows, nor is entered (US-0230). Starting or completing a task is a command of the epic of the
  * actual costs and of the progress, not of the mock-up: no card offers one.
  *
@@ -20,15 +20,12 @@ import { useLocale, useTranslations } from "next-intl";
 import type { operations } from "@/api/generated/schema";
 import { formatPlanningDate } from "@/i18n/format";
 
-/**
- * The answer of `listStartableTasks`: the tasks not started whose predecessors are completed, and
- * those started.
- */
+/** The answer of `listStartableTasks`: the tasks not started, started and completed. */
 export type StartableTasks =
   operations["listStartableTasks"]["responses"][200]["content"]["application/json"];
 
-/** A task of the Kanban, as the API reads it. */
-type KanbanTask = StartableTasks["started"][number];
+/** A task of the Kanban, as the API reads it: a task not started says if its predecessors are. */
+type KanbanTask = StartableTasks["started"][number] | StartableTasks["not_started"][number];
 
 /** The columns of the Kanban, in their order: the key of the answer, and that of its title. */
 const COLUMNS = [
@@ -36,13 +33,14 @@ const COLUMNS = [
   ["started", "started"],
 ] as const satisfies readonly (readonly [keyof StartableTasks, string])[];
 
-/** A card of the Kanban: a task, what the column it stands in says of it. */
-function Card({ node, notStarted }: { readonly node: KanbanTask; readonly notStarted: boolean }) {
+/** A card of the Kanban: a task, and whether it is a milestone to complete, as the API says. */
+function Card({ node }: { readonly node: KanbanTask }) {
   const t = useTranslations("kanban");
   const locale = useLocale();
   const task = node.task;
   const finish = task?.finish?.date;
   const milestone = task?.is_milestone === true;
+  const due = milestone && "predecessors_completed" in node && node.predecessors_completed;
   return (
     <li className="space-y-1 rounded-md border bg-card p-2 text-sm">
       <p className="flex items-baseline gap-2">
@@ -64,7 +62,7 @@ function Card({ node, notStarted }: { readonly node: KanbanTask; readonly notSta
           ) : null}
         </p>
       )}
-      {notStarted && milestone ? (
+      {due ? (
         <p className="flex items-center gap-1.5 text-xs font-medium">
           <Flag aria-hidden="true" className="size-3.5 shrink-0" />
           {t("milestoneDue")}
@@ -89,7 +87,7 @@ export function Kanban({ tasks }: { readonly tasks: StartableTasks }) {
             ) : (
               <ul className="space-y-2">
                 {cards.map((node) => (
-                  <Card key={node.node_id} node={node} notStarted={key === "not_started"} />
+                  <Card key={node.node_id} node={node} />
                 ))}
               </ul>
             )}

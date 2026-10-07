@@ -6,9 +6,11 @@
     description: >-
       Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du
       périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes
-      conservées du fichier sont restituées (WF-CRE-0010). Le tri et les filtres sont
-      faits par le serveur, et les totaux sont ceux de toutes les lignes retenues, pas
-      de la seule page rendue.
+      conservées du fichier sont restituées (WF-CRE-0010), ligne par ligne (`passthrough`),
+      et leur union nommée une fois pour toute la lecture (`meta.passthrough_columns`) : la
+      grille les présente toutes, à toutes les pages. Le tri et les filtres sont faits par
+      le serveur, et les totaux comme cette union sont ceux de toutes les lignes retenues,
+      pas de la seule page rendue.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
@@ -64,7 +66,7 @@
                   anyOf:
                     - $ref: ../components/common.yaml#/Timestamp
                     - type: 'null'
-                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+                meta: { $ref: ../components/schemas/costs.yaml#/ActualCostListMeta }
             examples:
               witness: { $ref: ../../../fixtures/api/actual_costs.json }
               page: { $ref: ../../../fixtures/api/actual_costs_page.json }

@@ -1,0 +1,12 @@
+{
+  "summary": "Variante contrefactuelle déclarée : la charge de « Raccordement des borniers » mise à zéro, les borniers et la provision du risque 751 supposés déjà réestimés à zéro, sans date de terminaison. La saisie terminerait le « Câblage des armoires », démarré, à une date que la validation demande : elle est refusée sur `/completed_on`, la tâche nommée, et rien n'est écrit ; l'écran demande la date, proposée au jour courant, et rejoue la saisie (WF-RAE-0040, WF-PLA-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/completed_on","code":"COMPLETION_DATE_REQUIRED","params":{"task_node_id":"01926f3a-7c00-7000-8000-000000000552"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000965"
+  }
+}

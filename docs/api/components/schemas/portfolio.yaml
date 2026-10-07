@@ -137,8 +137,19 @@ PortfolioPerformance:
     reference_budget: { $ref: ../common.yaml#/Money }
     cost_index: { $ref: indicators.yaml#/IndexValue }
     schedule_index: { $ref: indicators.yaml#/IndexValue }
-    cost_variance: { $ref: ../common.yaml#/Money }
-    schedule_variance: { $ref: ../common.yaml#/Money }
+    cost_variance:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a
+        coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel
+        de 500 donne -100 (WF-IND-0070, glossaire), sommé sur le périmètre.
+    schedule_variance:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance,
+        négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100
+        (WF-IND-0080, glossaire), sommé sur le
+        périmètre.
     projections: { $ref: indicators.yaml#/Projections }
     zone_distribution:
       type: array

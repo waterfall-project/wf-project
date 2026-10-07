@@ -8,7 +8,7 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
 
 - ``nodes_thousand.json``, ``listNodes``: the structure of a thousand tasks and their lines
   (``wftools.mockstructure``);
-- ``estimate_indicators.json``, ``getEstimateIndicators``: the indicators of that estimate,
+- ``estimate_indicators_volume.json``, ``getEstimateIndicators``: the indicators of that estimate,
   summed from the same lines, so that the fake back tells the same story on both;
 - ``summary_dependencies.json``, ``getComputedValueDependencies``: what the finish date of its
   first summary depends on, its direct subordinates named from the same structure — the
@@ -106,6 +106,7 @@ from wftools.mockwitness import (
     INSTALLED,
     LABOUR,
     PROVISIONS,
+    STEERING,
     STUDIES,
     SUBCONTRACTING,
     TIMELINES,
@@ -374,8 +375,8 @@ def readings() -> dict[str, JsonObject]:
             f"dossier de conception, lié avec deux jours d'avance, qui porte sa marge jusqu'à la "
             f"fin du cœur (WF-PLA-0030, WF-PLA-0040, WF-PLA-0080, WF-PLA-0100). Les numéros "
             f"de ligne sont ceux de toute la structure : la ligne des études de détail, que le "
-            f"planning ne rend pas, garde le numéro 3 ; les totaux sont ceux des lignes retenues, "
-            f"aucune.",
+            f"planning ne rend pas, garde le numéro 3 ; les totaux sont ceux du sous-arbre lu, "
+            f"sa ligne comprise, que `kinds` ne rend pas (#487).",
             mockcore.subtree(rows, STUDIES.number, _TASKS),
         ),
         "nodes_estimate.json": _example(
@@ -417,6 +418,27 @@ def readings() -> dict[str, JsonObject]:
             f"niveau, et ses deux tâches au quatrième (WF-PLA-0040, WF-PLA-0110).",
             mockcore.subtree(mockcore.core(nested()), INSTALLATION.number, _TASKS),
         ),
+        "nodes_summaries.json": _example(
+            f"L'arborescence de tâches de la variante à quatre niveaux du planning du témoin, "
+            f"demandée au niveau 2 (kinds=task, summaries_only, max_level=2) le {day} : les "
+            f"récapitulatives des deux premiers niveaux — les études, l'installation sur site et "
+            f"le lot « Poste de commande » rangé sous elle —, que le front dessine sous le nœud "
+            f"du projet ; ni le sous-arbre fusionné par la survenance, récapitulative du "
+            f"troisième niveau, ni aucune feuille ni aucun jalon ; les totaux sont ceux de ces "
+            f"récapitulatives et des lignes qu'elles portent elles-mêmes, aucune (WF-PLA-0110, "
+            f"#487).",
+            mockcore.summaries(mockcore.core(nested()), 2),
+        ),
+        "nodes_timeline.json": _example(
+            f"La chronologie du comité de pilotage lue dans la structure (kinds=task, "
+            f"timeline_id) le {day} : les seules tâches qui y sont inscrites — les études, la "
+            f"réception des études, la réception usine et la mise en service —, dans l'ordre du "
+            f"plan, sans les ancêtres qui n'y sont pas inscrits, le lot « Poste de commande » et "
+            f"l'installation sur site : une chronologie n'est pas un arbre ; les totaux, ceux de "
+            f"ces tâches et de la ligne de la mise en service, que `kinds` ne rend pas "
+            f"(WF-PLA-0140, WF-PLA-0060, #487).",
+            mockcore.timeline(rows, STEERING),
+        ),
         "nodes_risk_occurred.json": _example(
             f"Le sous-arbre fusionné dans la structure principale de la révision en cours par la "
             f"survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 %, lu "
@@ -434,20 +456,25 @@ def readings() -> dict[str, JsonObject]:
             [{"timeline_id": timeline, "label": label} for timeline, label in TIMELINES],
         ),
         "startable_tasks.json": _example(
-            f"Le Kanban du cœur du témoin le {day}, sur la révision en cours : les tâches "
-            f"démarrées, les pupitres opérateurs, en mode manuel et en dépassement de fin, et le "
-            f"câblage des armoires ; aucune tâche à démarrer — la réception usine attend la fin du "
-            f"câblage, et rien ne se termine seul. Jamais une récapitulative, dont l'état dérive "
-            f"de ses subordonnées (WF-RAE-0030, WF-PLA-0040).",
+            f"Le Kanban du cœur du témoin le {day}, sur la révision en cours, ses tâches par "
+            f"état : non démarrées, la réception usine, le montage des armoires sur site et la "
+            f"mise en service, aucune dont les prédécesseurs soient tous terminés — la réception "
+            f"usine attend la fin du câblage, et rien ne se termine seul ; démarrées, les "
+            f"pupitres opérateurs, en mode manuel et en dépassement de fin, et le câblage des "
+            f"armoires ; terminées, avec leur date, les études de détail, la revue de conception, "
+            f"la réception des études, le dossier de conception et les deux tâches fusionnées "
+            f"par la survenance, que le Kanban rouvre. Jamais une récapitulative, dont l'état "
+            f"dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040).",
             mockcore.startable(rows),
         ),
         "startable_tasks_milestone.json": _example(
             f"Le Kanban du cœur du témoin le {day}, le câblage des armoires déclaré terminé ce "
             f"jour-là : la réception usine, jalon dont le seul prédécesseur est terminé, posée à "
             f"la main au 30 juin, non démarrée tant que personne ne la termine, et signalée à "
-            f"terminer ; les "
-            f"pupitres opérateurs toujours démarrés, en dépassement de fin (WF-RAE-0030, "
-            f"WF-PLA-0130).",
+            f"terminer (predecessors_completed) ; les autres tâches non démarrées, dont un "
+            f"prédécesseur ne l'est pas ; les pupitres opérateurs toujours démarrés, en "
+            f"dépassement de fin ; le câblage parmi les terminées, à la date du geste "
+            f"(WF-RAE-0030, WF-PLA-0130).",
             mockcore.startable(mockcore.core(wiring_completed())),
         ),
         "dependencies_summary.json": _example(
@@ -518,7 +545,7 @@ def volumes() -> dict[str, JsonObject]:
             "WF-DEV-0040, WF-DEV-0050).",
             mockwrites.task_lengthened(),
         ),
-        "estimate_indicators.json": _example(
+        "estimate_indicators_volume.json": _example(
             f"Les indicateurs du devis de la structure aux volumes du §4.6.2, sommés sur les "
             f"mêmes lignes que la grille : {_amount(built.totals.amount)} au total, dont "
             f"{_amount(built.totals.by_cost_type[PROVISION])} de provisions, ventilés par "

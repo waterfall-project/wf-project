@@ -185,7 +185,7 @@ describe("the list of the projects of the portfolio", () => {
       "Devis courant",
       "Probabilité de gain",
       "Projection du chef de projet",
-      "Écart au budget",
+      "Écart à la référence",
       "Indice de coût",
       "Indice de délai",
       "Dernière révision marquée",

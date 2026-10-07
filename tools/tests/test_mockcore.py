@@ -351,16 +351,9 @@ def test_a_reading_numbers_its_rows_in_the_whole_structure_and_sums_what_it_reta
     assert numbers("nodes_milestone.json") == [8, 18]
     assert readings["nodes_milestone.json"]["totals"]["task_count"] == 1
     assert readings["nodes_milestone.json"]["totals"]["estimate_line_count"] == 0
-    # The tasks alone retain no line: the totals sum nothing.
-    assert readings["nodes_planning.json"]["totals"] == {
-        "task_count": 6,
-        "estimate_line_count": 0,
-        "hours": "0",
-        "base_amount": "0.00",
-        "budgeted_amount": "0.00",
-        "reestimated_amount": "0.00",
-        "inflated_amount": "0.00",
-    }
+    # The tasks alone have the totals of the full reading: `kinds` renders, never sums (#487).
+    assert readings["nodes_planning.json"]["totals"] == readings["nodes.json"]["totals"]
+    assert readings["nodes_planning.json"]["totals"]["task_count"] == 6
     assert readings["nodes.json"]["totals"]["budgeted_amount"] == "100000.00"
     assert readings["nodes.json"]["totals"]["estimate_line_count"] == 1
 
@@ -616,6 +609,41 @@ def test_the_nested_variant_has_four_levels_of_tasks_a_summary_at_the_third(
     assert all(node["kind"] == "task" for node in nested.values())
 
 
+def test_the_task_tree_reads_the_summaries_down_to_the_level_asked(
+    readings: dict[str, Any],
+) -> None:
+    # #463: the four levels of the nested variant asked at the level 2 — the summaries of the
+    # first two, under the node of the project the front draws; no leaf, no milestone, and not
+    # the subtree of the occurrence, a summary of the third. Nothing sums.
+    tree = readings["nodes_summaries.json"]
+    found = nodes(tree)
+    assert list(found) == [STUDIES, INSTALLATION, CONTROL_STATION]
+    assert all(facet(node)["is_summary"] and node["level"] <= 2 for node in found.values())
+    assert tree["totals"]["task_count"] == 3
+    assert tree["totals"]["estimate_line_count"] == 0
+
+
+def test_a_timeline_reads_the_tasks_inscribed_on_it_without_their_ancestors(
+    readings: dict[str, Any],
+) -> None:
+    # #463: the steering committee, in the order of the plan, without the lot and the
+    # installation that bear what is inscribed on it: a timeline is no tree (WF-PLA-0140).
+    found = nodes(readings["nodes_timeline.json"])
+    assert list(found) == [STUDIES, ACCEPTANCE, MILESTONE, COMMISSIONING]
+    # Every task inscribed on it is rendered: those whose `tracking` names it, in the core.
+    entry = {"kind": "timeline", "timeline_id": mockwitness.STEERING}
+    inscribed = [
+        row.number
+        for row in mockcore.core()
+        if row.kind == mockcore.TASK
+        and entry in cast("list[Node]", cast("Node", row.node["task"]).get("tracking", []))
+    ]
+    assert list(found) == inscribed
+    for node in found.values():
+        entries = cast("list[Node]", facet(node)["tracking"])
+        assert {"kind": "timeline", "timeline_id": mockwitness.STEERING} in entries
+
+
 def test_the_core_is_dated_in_the_order_of_its_links_whatever_the_order_of_the_plan(
     readings: dict[str, Any],
 ) -> None:
@@ -674,16 +702,33 @@ def _numbers(answer: Any) -> dict[str, list[int]]:
     return {key: [int(node["node_id"][-3:]) for node in nodes] for key, nodes in columns.items()}
 
 
-def test_the_kanban_holds_the_tasks_started_and_those_whose_predecessors_are_completed() -> None:
-    # Today: the operator desks and the wiring started, none to start — the factory acceptance
-    # waits for the wiring; never a summary, whose progress derives from its subordinates.
-    today = _numbers(mockcore.startable(mockcore.core()))
-    assert today == {"not_started": [], "started": [DESKS, WIRING]}
+def _ready(answer: Any) -> list[int]:
+    """Return the tasks not started of a Kanban whose predecessors are all completed."""
+    ready = [node for node in answer["not_started"] if node["predecessors_completed"]]
+    return [int(node["node_id"][-3:]) for node in ready]
+
+
+def test_the_kanban_holds_every_task_by_its_state_the_milestones_to_complete_flagged() -> None:
+    # Today (#425): every task not started — the factory acceptance waits for the wiring, the
+    # mounting and the commissioning for it, none flagged —, the operator desks and the wiring
+    # started, the tasks completed, which the Kanban reopens; never a summary, whose progress
+    # derives from its subordinates.
+    answer = mockcore.startable(mockcore.core())
+    today = _numbers(answer)
+    assert today == {
+        "not_started": [MILESTONE, MOUNTING, COMMISSIONING],
+        "started": [DESKS, WIRING],
+        "completed": [DETAILED_STUDIES, REVIEW, ACCEPTANCE, FILE, REMINDER, TRANSPORT],
+    }
+    assert _ready(answer) == []
     # The wiring declared completed: the factory acceptance, a milestone, has its predecessors
-    # completed, and is to start; the mounting on site after it waits for it.
+    # completed, and is flagged; the mounting on site after it waits for it.
     completed = mockcore.startable(mockcore.core(mockdata.wiring_completed()))
     later = _numbers(completed)
-    assert later == {"not_started": [MILESTONE], "started": [DESKS]}
+    assert later["not_started"] == [MILESTONE, MOUNTING, COMMISSIONING]
+    assert later["started"] == [DESKS]
+    assert WIRING in later["completed"]
+    assert _ready(completed) == [MILESTONE]
     # The finish declared is never after today, and the factory acceptance keeps its 30 June
     # (C13), an instant.
     wiring = next(row for row in mockcore.core(mockdata.wiring_completed()) if row.number == WIRING)

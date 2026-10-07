@@ -310,18 +310,20 @@ def _remaining_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"identifié (WF-RAE-0010). Le poste de commande dépasse son budget de "
             f"{_money(control(left)['variance']).lstrip('-')} : ses "
             f"{_money(control(left)['actual_cost'])} de coût réel s'ajoutent à un reste à engager "
-            f"égal à son budget, et le serveur le classe en alerte ; les écarts, signés, au budget "
-            f"de référence, {_money(left['delta_to_reference'])}, et au reste à engager de la "
-            f"référence à son marquage, {_money(left['delta_to_previous_revision'])} ; la "
-            f"couverture des risques (WF-RAE-0020, WF-RIS-0050)."
+            f"égal à son budget, et le serveur le classe en alerte ; la marge sur le budget de "
+            f"référence, {_money(left['delta_to_reference'])} — le budget moins le coût réel et "
+            f"le reste à engager, dans le sens des sous-projets — ; l'écart à la revue "
+            f"précédente, {_money(left['delta_to_previous_revision'])} — le reste à engager "
+            f"courant moins celui de la référence à son marquage — ; la couverture des risques "
+            f"(WF-RAE-0020, WF-RIS-0050)."
         ),
         "remaining_indicators_over_budget": (
             f"Le reste à engager juste après la réestimation du raccordement des borniers à "
             f"{mockwrites.REESTIMATED_HOURS} h, faite aujourd'hui (remaining_reestimated) : "
             f"{_money(over['total'])} ; le poste de commande dépasse encore son budget, de "
             f"{_money(control(over)['variance']).lstrip('-')}, en alerte, les autres sous-projets "
-            f"restent nominaux ; les écarts, signés, au budget de référence, "
-            f"{_money(over['delta_to_reference'])}, et à la référence, "
+            f"restent nominaux ; la marge sur le budget de référence, "
+            f"{_money(over['delta_to_reference'])} ; l'écart à la revue précédente, "
             f"{_money(over['delta_to_previous_revision'])} (WF-RAE-0020, WF-IHM-0070)."
         ),
     }

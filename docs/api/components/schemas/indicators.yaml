@@ -152,11 +152,14 @@ EstimateIndicators:
     delta_to_reference:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
       description: >-
-        L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) ;
-        nul quand le projet n'a pas de révision de référence.
+        L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) :
+        le devis en cours moins celui de la référence, positif quand il le dépasse ; nul quand
+        le projet n'a pas de révision de référence.
     delta_to_previous_revision:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
-      description: L'écart avec la révision marquée précédente ; nul sans elle.
+      description: >-
+        L'écart avec la révision marquée précédente : le devis en cours moins le sien, positif
+        quand il le dépasse ; nul sans elle.
 
 ComputableAmountByKey:
   type: object
@@ -176,7 +179,13 @@ RemainingIndicators:
   description: >-
     Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de
     provision des risques identifiés comprises, ses ventilations, ses écarts et la
-    couverture des risques.
+    couverture des risques. Le reste à engager parle de marge, au budget de référence
+    (`delta_to_reference`) comme à celui d'un sous-projet (`SubprojectBalance.variance`) : le
+    budget moins la somme du coût réel et du reste à engager, positive quand il en reste,
+    négative au-delà du budget — le sens de l'écart de couverture des risques
+    (`RiskCoverageTotals.coverage_variance`), qui garde son nom de la spécification. Le
+    portefeuille et les projections parlent d'écart, positif au-delà du budget
+    (`PortfolioProject.delta_to_reference`, `Projections`).
   properties:
     context: { $ref: '#/CalculationContext' }
     total: { $ref: ../common.yaml#/Money }
@@ -191,14 +200,24 @@ RemainingIndicators:
       items: { $ref: '#/SubprojectBalance' }
     delta_to_reference:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        La marge sur le budget de référence (WF-RAE-0020) : le budget de référence moins la
+        somme du coût réel et du reste à engager, positive quand il en reste, négative quand le
+        projet dépasse son budget — budget 1 000, coût réel 500, reste à engager 550, marge
+        -50 ; nulle quand le projet n'a pas de révision de référence.
     delta_to_previous_revision:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        L'écart avec le reste à engager de la révision marquée précédente, à son marquage
+        (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien,
+        négatif quand il a diminué ; nul (`null`) sans revue précédente, et non zéro : l'écran
+        l'omet alors (WF-RAE-0020).
 
 SubprojectBalance:
   type: object
   required: [key, budget, actual_cost, remaining, variance, is_over_budget, zone]
   description: >-
-    Écart entre le budget d'un sous-projet et la somme de son coût réel et de son
+    Marge entre le budget d'un sous-projet et la somme de son coût réel et de son
     reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors
     sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune
     des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone.
@@ -208,7 +227,12 @@ SubprojectBalance:
     budget: { $ref: ../common.yaml#/Money }
     actual_cost: { $ref: ../common.yaml#/Money }
     remaining: { $ref: ../common.yaml#/Money }
-    variance: { $ref: ../common.yaml#/Money }
+    variance:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        La marge du sous-projet : son budget moins la somme de son coût réel et de son reste à
+        engager, positive quand il en reste, négative quand le sous-projet dépasse son budget
+        (WF-RAE-0020) — le sens de `RemainingIndicators.delta_to_reference`.
     is_over_budget: { type: boolean }
     zone: { $ref: reference.yaml#/AlertZone }
 
@@ -260,8 +284,18 @@ ProjectIndicators:
     physical_progress: { $ref: '#/Computable' }
     cost_index: { $ref: '#/IndexValue' }
     schedule_index: { $ref: '#/IndexValue' }
-    cost_variance: { $ref: ../common.yaml#/Money }
-    schedule_variance: { $ref: ../common.yaml#/Money }
+    cost_variance:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a
+        coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel
+        de 500 donne -100 (WF-IND-0070, glossaire).
+    schedule_variance:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance,
+        négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100
+        (WF-IND-0080, glossaire).
     projections: { $ref: '#/Projections' }
 
 IndexValue:
@@ -283,10 +317,22 @@ Projections:
     at_budget: { $ref: ../common.yaml#/Money }
     project_manager: { $ref: ../common.yaml#/Money }
     at_observed_rate: { $ref: '#/ComputableMoney' }
-    variance_at_budget: { $ref: ../common.yaml#/Money }
-    variance_project_manager: { $ref: ../common.yaml#/Money }
+    variance_at_budget:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        La projection moins le budget de référence, positive quand elle le dépasse
+        (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`.
+    variance_project_manager:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        La projection moins le budget de référence, positive quand elle le dépasse
+        (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`.
     variance_at_observed_rate:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        La projection moins le budget de référence, positive quand elle le dépasse
+        (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference` ; nulle tant que la
+        projection au rythme constaté ne se calcule pas.
 
 WorkloadPlan:
   type: object

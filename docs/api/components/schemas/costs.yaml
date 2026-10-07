@@ -59,6 +59,27 @@ ActualCostLine:
       description: Colonnes conservées du fichier, restituées à la consultation (WF-CRE-0010).
     audit: { $ref: ../common.yaml#/Audit }
 
+ActualCostListMeta:
+  description: >-
+    La pagination de la consultation des coûts réels, et l'union des colonnes conservées
+    des fichiers de toutes les lignes retenues par les filtres, et non de la seule page
+    (WF-CRE-0010).
+  allOf:
+    - $ref: ../common.yaml#/PaginationMeta
+    - type: object
+      required: [passthrough_columns]
+      properties:
+        passthrough_columns:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+          description: >-
+            Les colonnes conservées, nommées comme `passthrough` les nomme, chacune une fois :
+            dans l'ordre où les imports les ont déclarées — les imports dans l'ordre où ils ont
+            été appliqués, les colonnes d'un import dans l'ordre de son fichier, une colonne
+            à sa première déclaration. Une ligne qui n'en porte pas l'une la présente vide ;
+            vide quand aucune ligne n'est retenue.
+
 ActualCostTotals:
   type: object
   required: [tracked, excluded, overall]

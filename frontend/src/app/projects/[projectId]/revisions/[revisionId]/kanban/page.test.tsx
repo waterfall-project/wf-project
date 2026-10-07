@@ -89,8 +89,12 @@ describe("the Kanban of the start of the tasks", () => {
       `/projects/${PROJECT}/remaining-indicators/startable-tasks`,
     ]);
     expect(text(page)).toContain(
-      "Not started No task. Started 4 Pupitres opérateurs Finish on 24/04/2026 Finish overdue 9 Câblage des armoires Finish on 30/06/2026",
+      "Not started 18 Milestone Réception usine Finish on 30/06/2026 20 Montage des armoires sur site Finish on 18/12/2026 23 Mise en service Finish on 01/01/2027 " +
+        "Started 4 Pupitres opérateurs Finish on 24/04/2026 Finish overdue 9 Câblage des armoires Finish on 30/06/2026",
     );
+    // No milestone is signalled whose predecessors are not all completed: the factory acceptance
+    // waits for the wiring.
+    expect(text(page)).not.toContain("milestone to complete");
     expect(page.match(/aria-label="Finish overdue"/g)).toHaveLength(1);
   });
 
@@ -100,8 +104,10 @@ describe("the Kanban of the start of the tasks", () => {
     server.answers = { ...server.answers, [STARTABLE]: "startable_tasks_milestone" };
     const page = await kanbanAt();
     expect(text(page)).toContain(
-      "Not started 18 Milestone Réception usine Finish on 30/06/2026 Its predecessors are completed: milestone to complete. Started 4 Pupitres opérateurs",
+      "Not started 18 Milestone Réception usine Finish on 30/06/2026 Its predecessors are completed: milestone to complete. 20 Montage des armoires sur site",
     );
+    // The milestone alone is signalled, not the tasks whose predecessors are not completed.
+    expect(text(page).match(/milestone to complete/g)).toHaveLength(1);
     expect(page).toContain('aria-label="Milestone"');
   });
 

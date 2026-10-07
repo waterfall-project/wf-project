@@ -85,8 +85,14 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await page.getByRole("link", { name: "Kanban — démarrage des tâches" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/kanban?subproject_id=${SUBPROJECT}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Kanban — démarrage des tâches");
-  await expect(page.getByRole("region", { name: "Non démarrées" })).toContainText("Aucune tâche.");
-  const started = page.getByRole("region", { name: "Démarrées" });
+  // Every task not started (#425), none signalled: the factory acceptance waits for the wiring.
+  const notStarted = page.getByRole("region", { name: "Non démarrées" });
+  await expect(notStarted.getByRole("listitem")).toHaveText([
+    /^18\s*Jalon\s*Réception usine\s*Fin le 30\/06\/2026$/,
+    /^20\s*Montage des armoires sur site\s*Fin le 18\/12\/2026$/,
+    /^23\s*Mise en service\s*Fin le 01\/01\/2027$/,
+  ]);
+  const started = page.getByRole("region", { name: "Démarrées", exact: true });
   await expect(started.getByRole("listitem")).toHaveText([
     /^4\s*Pupitres opérateurs\s*Fin le 24\/04\/2026/,
     /^9\s*Câblage des armoires\s*Fin le 30\/06\/2026$/,

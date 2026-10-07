@@ -242,6 +242,30 @@ def remaining_reestimated() -> JsonObject:
     return core_write(amended(CORE, line=on_line(LABOUR, hours=REESTIMATED_HOURS)), [LABOUR])
 
 
+COMPLETION_CORRELATION = universe(965)
+
+
+def completion_date_required() -> JsonObject:
+    """Return what setLineRemaining answers to a re-estimate that completes its task undated.
+
+    The last open line of the wiring of the cabinets set to nothing completes the task, at a
+    date the validation asks for (WF-RAE-0040, WF-PLA-0130): without one, the entry is refused,
+    the task named, and nothing is written.
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/completed_on",
+                "code": "COMPLETION_DATE_REQUIRED",
+                "params": {"task_node_id": universe(WIRING)},
+            }
+        ],
+        "correlation_id": COMPLETION_CORRELATION,
+    }
+
+
 def node_deleted() -> JsonObject:
     """Return what deleteNode answers when the terminal blocks are deleted from the estimate."""
     return core_write(amended(CORE, line=removed(BLOCKS)), [], [BLOCKS])
@@ -511,6 +535,15 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_money(_node(reestimated, CONTROL_STATION)['task']['reestimated_amount'])}, et "
             f"{_totals(reestimated)}, le budgété inchangé (WF-RAE-0040, WF-DEV-0020).",
             reestimated,
+        ),
+        "remaining_completion_date_required.json": mocktext.example(
+            f"Variante contrefactuelle déclarée : la charge de « {before[LABOUR].label} » mise à "
+            f"zéro, les borniers et la provision du risque 751 supposés déjà réestimés à zéro, "
+            f"sans date de terminaison. La saisie terminerait le « {before[WIRING].label} », "
+            f"démarré, à une date que la validation demande : elle est refusée sur "
+            f"`/completed_on`, la tâche nommée, et rien n'est écrit ; l'écran demande la date, "
+            f"proposée au jour courant, et rejoue la saisie (WF-RAE-0040, WF-PLA-0130).",
+            completion_date_required(),
         ),
         "node_deleted.json": mocktext.example(
             f"La ligne de débours « {before[BLOCKS].label} », "
