@@ -99,7 +99,7 @@ const FRENCH: Language = {
     ["Valeur planifiée", "101\u202f223,69"],
     ["Écart de délai", "-1\u202f223,69"],
     ["Indice de délai", "0,9879"],
-    ["Indice de coût", "18,5185"],
+    ["Indice de coût", "0,9488"],
   ],
   computedOn: "Calculé le 3 juin 2026, 16:05",
 };
@@ -137,7 +137,7 @@ const ENGLISH: Language = {
     ["Planned value", "101,223.69"],
     ["Schedule variance", "-1,223.69"],
     ["Schedule index", "0.9879"],
-    ["Cost index", "18.5185"],
+    ["Cost index", "0.9488"],
   ],
   computedOn: "Computed on 3 Jun 2026, 10:05",
 };

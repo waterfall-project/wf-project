@@ -198,16 +198,32 @@ def removed(number: int) -> Callable[[Line], Line | None]:
 
 
 def core_write(
-    roots: Iterable[Task], writes: Sequence[int], deleted: Sequence[int] = ()
+    roots: Iterable[Task],
+    writes: Sequence[int],
+    deleted: Sequence[int] = (),
+    *,
+    following: Iterable[Task] | None = None,
 ) -> JsonObject:
-    """Return what a write of the core answers: the core read whole today, then as amended."""
-    before = mockcore.whole(mockcore.core())
+    """Return what a write of the core answers: the core read whole today, then as amended.
+
+    A write that follows another reads the core as that one left it, the nodes it wrote one
+    version further, and leaves the structure one version further still: two answers never
+    render one node at one version with two contents (#421).
+    """
+    if following is None:
+        before, version = mockcore.whole(mockcore.core()), 2
+    else:
+        before, version = mockcore.whole(mockcore.core(following)), 3
+        for node in cast("list[Node]", before["items"]):
+            if node["node_id"] in {universe(number) for number in writes}:
+                node["lock_version"] += 1
     after = mockcore.whole(mockcore.core(roots))
     return written(
         before,
         after,
         [universe(number) for number in writes],
         deleted=[universe(number) for number in deleted],
+        structure_version=version,
     )
 
 
@@ -237,9 +253,14 @@ def remaining_reestimated() -> JsonObject:
     """Return what setLineRemaining answers when the labour of the wiring is re-estimated at 10 h.
 
     The re-estimate follows the figures entered, the budget the reference fixed does not
-    (WF-RAE-0040, WF-DEV-0020).
+    (WF-RAE-0040, WF-DEV-0020). It follows the 14 hours entered (`estimate_line_updated`):
+    the line is read at the version that write left (#421).
     """
-    return core_write(amended(CORE, line=on_line(LABOUR, hours=REESTIMATED_HOURS)), [LABOUR])
+    return core_write(
+        amended(CORE, line=on_line(LABOUR, hours=REESTIMATED_HOURS)),
+        [LABOUR],
+        following=amended(CORE, line=on_line(LABOUR, hours=LABOUR_HOURS)),
+    )
 
 
 COMPLETION_CORRELATION = universe(965)
@@ -329,9 +350,21 @@ def estimate_line_entered() -> JsonObject:
     they were read, and this answer is the second (#178).
     """
     before = structure().nodes
+    return written(before, _entered(before), [LINE_4], structure_version=ENTERED_VERSION)
+
+
+ENTERED_VERSION = 3
+"""The version of the structure the label entered leaves: the paste follows it (#421)."""
+
+
+def _entered(before: JsonObject, *, versioned: bool = False) -> JsonObject:
+    """Return the structure with the label of LINE_4 entered; its version one further if asked."""
     after = copy.deepcopy(before)
-    _by_id(after)[LINE_4]["estimate_line"]["label"] = ENTERED
-    return written(before, after, [LINE_4], structure_version=3)
+    line = _by_id(after)[LINE_4]
+    line["estimate_line"]["label"] = ENTERED
+    if versioned:
+        line["lock_version"] += 1
+    return after
 
 
 BLOCK = (
@@ -345,8 +378,8 @@ copies it, pasted on the label of the first line: the rows of the journeys and o
 UNKNOWN_CATEGORY = (BLOCK[0], ("Heures d'essais", "Essais", "", "1"), BLOCK[2])
 """The same block, its second row naming a category the reference data does not know."""
 
-PASTES = (universe(911), universe(912))
-TOO_WIDE_CORRELATION = universe(913)
+PASTES = (universe(971), universe(972))
+TOO_WIDE_CORRELATION = universe(973)
 
 
 def _known() -> tuple[dict[str, str], dict[str, str]]:
@@ -380,9 +413,11 @@ def paste_applied() -> JsonObject:
 
     Each line takes the label, the category, the role and the quantity of its row; its amount
     follows its quantity, its budget, the reference's, does not (WF-DEV-0020); its task and the
-    summaries above follow its amount, and the totals.
+    summaries above follow its amount, and the totals. The paste follows the label entered on
+    LINE_4 (`estimate_line_entered`): it reads the line at the version that write left, so that
+    two answers never render one node at one version with two contents (#421).
     """
-    before = structure().nodes
+    before = _entered(structure().nodes, versioned=True)
     after = copy.deepcopy(before)
     items = cast("list[Node]", after["items"])
     first = next(index for index, node in enumerate(items) if node["node_id"] == LINE_4)
@@ -411,7 +446,12 @@ def paste_applied() -> JsonObject:
         for above in [nodes[parent] for parent in _ancestors(nodes, [node["node_id"]])]:
             _add(above["task"], delta)
         _add(cast("Node", after["totals"]), delta)
-    return written(before, after, [node["node_id"] for node in targets])
+    return written(
+        before,
+        after,
+        [node["node_id"] for node in targets],
+        structure_version=ENTERED_VERSION + 1,
+    )
 
 
 def _add(amounts: Node, delta: dict[str, Decimal]) -> None:
@@ -529,7 +569,10 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_money(reestimated_line['estimate_line']['reestimated_amount'])}, recalculé "
             f"depuis ses grandeurs et jamais saisi, le budgété inchangé, "
             f"{_money(reestimated_line['estimate_line']['budgeted_amount'])}, fixé par la "
-            f"référence ; une version de plus. Avec elle, sa tâche « {before[WIRING].label} », "
+            f"référence ; une version de plus que celle que la saisie de {LABOUR_HOURS} h "
+            f"(estimate_line_updated) lui laissait, et la structure à "
+            f"{reestimated['structure_lock_version']}. Avec elle, sa tâche "
+            f"« {before[WIRING].label} », "
             f"à {_money(_node(reestimated, WIRING)['task']['reestimated_amount'])} réestimés, "
             f"la récapitulative « {before[CONTROL_STATION].label} » au-dessus, à "
             f"{_money(_node(reestimated, CONTROL_STATION)['task']['reestimated_amount'])}, et "
@@ -635,8 +678,11 @@ def _volume_writes() -> dict[str, JsonObject]:
             f"montant réestimé recalculé, {_money(line['reestimated_amount'])} — "
             f"{line['quantity']} fois {_money(line['unit_disbursement'])} —, le budgété inchangé, "
             f"{_money(line['budgeted_amount'])}, fixé par la référence ; une version de plus "
-            f"chacune. Avec elles, leurs trois ancêtres, dont le montant réestimé suit, les "
-            f"totaux de la structure, et le compteur de la structure, passé à 2. Le faux back les "
+            f"chacune — la ligne 4, écrite d'abord par la saisie de son libellé "
+            f"(estimate_line_entered), passe à la version 3. Avec elles, leurs trois ancêtres, "
+            f"dont le montant réestimé suit, les totaux de la structure, et le compteur de la "
+            f"structure, passé à {ENTERED_VERSION + 1}, celui que la saisie laissait plus un. "
+            f"Le faux back les "
             f"rend à tout collage confirmé, qui ne garde rien de ce qu'on lui envoie "
             f"(WF-IHM-0050, WF-DEV-0020).",
             applied,

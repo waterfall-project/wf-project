@@ -62,7 +62,16 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mockhistory, mocktext, mocktoday, mockwrites, paths
+from wftools import (
+    REPOSITORY,
+    mockcore,
+    mockcosts,
+    mockhistory,
+    mocktext,
+    mocktoday,
+    mockwrites,
+    paths,
+)
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
     PAGE,
@@ -295,14 +304,15 @@ _TASKS = frozenset({mockcore.TASK})
 def named() -> dict[str, JsonObject]:
     """Return the named examples of the witness, by file name.
 
-    Its readings, its writes, its history — its revisions compared and its risks —, and its
-    indicators today.
+    Its readings, its writes, its history — its revisions compared and its risks —, its
+    indicators today, and its actual costs with the journal of their imports.
     """
     return {
         **readings(),
         **mockwrites.writes(),
         **mockhistory.examples(),
         **mocktoday.examples(),
+        **mockcosts.examples(),
     }
 
 

@@ -52,7 +52,6 @@ from wftools.mockwitness import (
     RISKS_IDENTIFIED,
     STUDIES_LINE,
     STUDIES_STARTED,
-    SUBPROJECT_CONTROL,
     fixture,
     universe,
 )
@@ -264,8 +263,9 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"{_day(OFFER_MARKED.on)} les a calculés et conservés, pendant le chiffrage "
             f"(WF-DAT-0040) : {_of(offered['total'])} au total, "
             f"aux taux de 2025, sans provision — aucun risque n'était identifié —, par nature en "
-            f"montant et en part du total, dont la somme vaut cent pour cent ; le sous-projet du "
-            f"poste de commande et l'ensemble hors sous-projet ; le poste du lotissement que "
+            f"montant et en part du total, dont la somme vaut cent pour cent ; tout dans "
+            f"l'ensemble hors sous-projet, aucun n'étant encore déclaré (WF-PRJ-0050) ; le poste "
+            f"du lotissement que "
             f"porte le lot « Poste de commande ». Ni révision de référence ni révision marquée "
             f"avant elle : aucun écart (WF-DEV-0060)."
         ),
@@ -292,39 +292,68 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     }
 
 
+def _scopes_said(answer: JsonObject) -> str:
+    """Say the zone of each subproject from ``by_subproject``: those in alert by their overrun.
+
+    A scope in alert is named with what it overruns its budget by; only the others are said
+    nominal (WF-RAE-0020, WF-IHM-0070).
+    """
+
+    def name(entry: JsonObject) -> str:
+        label = entry.get("label")
+        return "l'ensemble hors sous-projet" if label is None else f"« {label} »"
+
+    entries = _objs(answer["by_subproject"])
+    alerts = [entry for entry in entries if entry["zone"] == "alert"]
+    others = [entry for entry in entries if entry["zone"] != "alert"]
+    said = [
+        f"{name(entry)}, en alerte, dépasse son budget de {_money(entry['variance']).lstrip('-')}"
+        for entry in alerts
+    ]
+    text = " ; ".join(said)
+    if others:
+        nominal = ", ".join(
+            f"{name(entry)} {_ZONES[cast('str', entry['zone'])]}" for entry in others
+        )
+        text = f"{text} ; {nominal}" if alerts else nominal
+    return text
+
+
+def _margins(answer: JsonObject) -> str:
+    """Say the margin on the reference budget and the deviation from the previous review.
+
+    The margin is the budget less what is foreseen, the actual cost and the remaining to commit,
+    as ``delta_to_reference`` carries it, in the sense of each subproject (#466); the deviation,
+    the remaining to commit less that of the previous review.
+    """
+    return (
+        f"la marge sur le budget de référence, {_money(answer['delta_to_reference'])} — le budget "
+        f"moins le coût réel et le reste à engager, dans le sens des sous-projets — ; l'écart à "
+        f"la revue précédente, {_money(answer['delta_to_previous_revision'])} — le reste à "
+        f"engager courant moins celui de la référence à son marquage"
+    )
+
+
 def _remaining_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     left, over = (
         _get(found, "remaining_indicators"),
         _get(found, "remaining_indicators_over_budget"),
     )
-
-    def control(answer: JsonObject) -> JsonObject:
-        return next(e for e in _objs(answer["by_subproject"]) if e["key"] == SUBPROJECT_CONTROL)
-
     return {
         "remaining_indicators": (
             f"Le reste à engager de la révision courante au {_TODAY} : {_money(left['total'])} — "
             f"les tâches non démarrées à leur montant budgété, le câblage des armoires démarré à "
             f"son montant réestimé, les études terminées pour rien, les lignes fusionnées par la "
             f"survenance, budgétées à zéro, à leur montant réestimé et la provision du risque "
-            f"identifié (WF-RAE-0010). Le poste de commande dépasse son budget de "
-            f"{_money(control(left)['variance']).lstrip('-')} : ses "
-            f"{_money(control(left)['actual_cost'])} de coût réel s'ajoutent à un reste à engager "
-            f"égal à son budget, et le serveur le classe en alerte ; la marge sur le budget de "
-            f"référence, {_money(left['delta_to_reference'])} — le budget moins le coût réel et "
-            f"le reste à engager, dans le sens des sous-projets — ; l'écart à la revue "
-            f"précédente, {_money(left['delta_to_previous_revision'])} — le reste à engager "
-            f"courant moins celui de la référence à son marquage — ; la couverture des risques "
+            f"identifié (WF-RAE-0010). Par sous-projet, le coût réel et le reste à engager face "
+            f"au budget : {_scopes_said(left)} ; {_margins(left)} ; la couverture des risques "
             f"(WF-RAE-0020, WF-RIS-0050)."
         ),
         "remaining_indicators_over_budget": (
             f"Le reste à engager juste après la réestimation du raccordement des borniers à "
             f"{mockwrites.REESTIMATED_HOURS} h, faite aujourd'hui (remaining_reestimated) : "
-            f"{_money(over['total'])} ; le poste de commande dépasse encore son budget, de "
-            f"{_money(control(over)['variance']).lstrip('-')}, en alerte, les autres sous-projets "
-            f"restent nominaux ; la marge sur le budget de référence, "
-            f"{_money(over['delta_to_reference'])} ; l'écart à la revue précédente, "
-            f"{_money(over['delta_to_previous_revision'])} (WF-RAE-0020, WF-IHM-0070)."
+            f"{_money(over['total'])} ; {_scopes_said(over)} ; {_margins(over)} (WF-RAE-0020, "
+            f"WF-IHM-0070)."
         ),
     }
 

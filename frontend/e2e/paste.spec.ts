@@ -136,7 +136,7 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   await expect(dialog).toHaveCount(0);
   // One operation: the plan confirmed, with the version of the structure read.
   expect(argumentsWith(posted, "paste_id")?.[1]).toEqual({
-    paste_id: "01926f3a-7c00-7000-8000-000000000911",
+    paste_id: "01926f3a-7c00-7000-8000-000000000971",
     confirmed: true,
     lock_version: 1,
   });

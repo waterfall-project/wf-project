@@ -34,9 +34,10 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     /Réserve pour risques\s*910,00\s*Provisions restantes\s*500,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*210,00/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
-  // The control station over its budget, in alert; the two other sub-projects nominal.
-  await expect(indicators.getByRole("img", { name: "Alerte" })).toHaveCount(1);
-  await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(2);
+  // The control station and the whole without sub-project over their budget, in alert — the
+  // invoice of the studies beyond the latter —; the tests and commissioning nominal.
+  await expect(indicators.getByRole("img", { name: "Alerte" })).toHaveCount(2);
+  await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(1);
 
   // The grid, its amounts computed, its totals those of the answer, in the window.
   const grid = page.getByRole("grid", { name: "Grille de reste à engager" });

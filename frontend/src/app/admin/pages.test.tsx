@@ -113,9 +113,11 @@ describe("the accounts", () => {
       "Lefèvre Sacha sacha.lefevre@example.com Créé par le fournisseur d’identité Aucun rôle Aucun Actif",
       "Martin Camille camille.martin@example.com Créé dans Waterfall Direction de projet Aucun Actif",
       "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
+      "Petit Lucas lucas.petit@example.com Créé dans Waterfall Chiffreur Aucun Actif",
+      "Roux Inès ines.roux@example.com Créé dans Waterfall Pilotage de projet Aucun Actif",
     ]);
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
-    expect(text(page)).toContain("4 comptes");
+    expect(text(page)).toContain("6 comptes");
     expect(page).not.toContain("<nav");
   });
 
@@ -133,8 +135,8 @@ describe("the accounts", () => {
       "Martin Camille camille.martin@example.com Créé dans Waterfall Direction de projet Aucun Actif",
       "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
     ]);
-    expect(links(page)).toEqual(["/admin/users"]);
-    expect(text(page)).toContain("4 comptes Page précédente");
+    expect(links(page)).toEqual(["/admin/users", "/admin/users?offset=4"]);
+    expect(text(page)).toContain("6 comptes Page précédente");
   });
 
   it("ask the first page of an address whose page no server could take", async () => {
@@ -161,8 +163,10 @@ describe("the access roles", () => {
       "Libellé Nature Comptes porteurs",
       "Administrateur Prédéfini 0",
       "Chef de projet Prédéfini 1",
+      "Chiffreur Composé 1",
       "Direction de projet Composé 1",
       "Manager Prédéfini 1",
+      "Pilotage de projet Composé 1",
     ]);
   });
 
@@ -171,25 +175,25 @@ describe("the access roles", () => {
     // A header, forty-eight permissions of the functions, eight irreversible and two structuring.
     expect(matrix).toHaveLength(59);
     expect(matrix.slice(0, 3)).toEqual([
-      "Fonction Permission Administrateur Chef de projet Direction de projet Manager",
-      "FBS-1.1 Gestion des utilisateurs Consulter les utilisateurs Accordée Non accordée Accordée Non accordée",
-      "Modifier les utilisateurs Accordée Non accordée Accordée Non accordée",
+      "Fonction Permission Administrateur Chef de projet Chiffreur Direction de projet Manager Pilotage de projet",
+      "FBS-1.1 Gestion des utilisateurs Consulter les utilisateurs Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+      "Modifier les utilisateurs Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
     ]);
     expect(matrix).toContain(
-      "FBS-3.1 Paramètres de coûts Consulter les paramètres de coûts Non accordée Accordée Accordée Accordée",
+      "FBS-3.1 Paramètres de coûts Consulter les paramètres de coûts Non accordée Accordée Accordée Accordée Accordée Accordée",
     );
     expect(matrix.slice(-11)).toEqual([
-      "Modifier le cycle de vie du projet Non accordée Accordée Accordée Non accordée",
-      "Action irréversible Marquer une révision Non accordée Accordée Accordée Non accordée",
-      "Abandonner une révision en cours Non accordée Accordée Accordée Non accordée",
-      "Désigner la révision de référence Non accordée Accordée Accordée Non accordée",
-      "Fusionner un différentiel Non accordée Accordée Accordée Non accordée",
-      "Clore un projet : terminé, perdu ou abandonné Non accordée Accordée Accordée Non accordée",
-      "Déclarer la survenance d’un risque Non accordée Accordée Accordée Non accordée",
-      "Exclure des lignes de coût réel Non accordée Accordée Accordée Non accordée",
-      "Restaurer la plateforme Accordée Non accordée Accordée Non accordée",
-      "Permission structurante Créer un projet Non accordée Accordée Accordée Non accordée",
-      "Consulter tous les projets Non accordée Non accordée Accordée Accordée",
+      "Modifier le cycle de vie du projet Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Action irréversible Marquer une révision Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Abandonner une révision en cours Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Désigner la révision de référence Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Fusionner un différentiel Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Clore un projet : terminé, perdu ou abandonné Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Déclarer la survenance d’un risque Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Exclure des lignes de coût réel Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Restaurer la plateforme Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+      "Permission structurante Créer un projet Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Consulter tous les projets Non accordée Non accordée Non accordée Accordée Accordée Non accordée",
     ]);
   });
 
@@ -216,9 +220,9 @@ describe("the state of the system", () => {
     ]);
     expect(instants(page)).toEqual(
       expect.arrayContaining([
-        "2026-03-16T02:00:00Z",
-        "2026-03-16T01:00:00Z",
-        "2026-03-01T03:00:00Z",
+        "2026-06-03T02:00:00Z",
+        "2026-06-03T01:00:00Z",
+        "2026-06-01T03:00:00Z",
       ]),
     );
   });
@@ -280,7 +284,7 @@ describe("the backups", () => {
       "1,2 gigaoctet Vérifiée Planifiée",
     ]);
     expect(backups[8]).toBe("900 mégaoctets Vérifiée Manuelle Marquée à conserver");
-    expect(instants(page)[0]).toBe("2026-03-16T01:00:00Z");
+    expect(instants(page)[0]).toBe("2026-06-03T01:00:00Z");
     expect(text(page)).toContain("8 sauvegardes");
   });
 

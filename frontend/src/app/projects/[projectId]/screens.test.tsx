@@ -147,7 +147,7 @@ describe("the settings of a project", () => {
     );
     expect(page).toMatch(/<h2[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Subprojects<\/h2>/);
     expect(text(page)).toContain(
-      "Subprojects ERP code Label Actual costs SP-CMD Poste de commande None SP-ESS Essais et mise en service None",
+      "Subprojects ERP code Label Actual costs SP-CMD Poste de commande Charged SP-ESS Essais et mise en service None",
     );
   });
 
@@ -158,15 +158,16 @@ describe("the settings of a project", () => {
     );
     expect(text(page)).toContain(
       "Contributors Name Capacity Account " +
-        "Camille Martin Project manager Active Alix Moreau Contributor Deactivated",
+        "Camille Martin Project manager Active Alix Moreau Contributor Deactivated " +
+        "Lucas Petit Contributor Active Inès Roux Contributor Active",
     );
     // The project manager alone bears the icon, beside the words that say it.
     const capacities = [...page.matchAll(/<td[^>]*>(.*?)<\/td>/g)]
       .map((match) => match[1] ?? "")
       .filter((cell) => /Project manager|^Contributor$/.test(text(cell)));
-    expect(capacities).toHaveLength(2);
+    expect(capacities).toHaveLength(4);
     expect(capacities[0]).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>.*<\/svg>Project manager/);
-    expect(capacities[1]).toBe("Contributor");
+    expect(capacities.slice(1)).toEqual(["Contributor", "Contributor", "Contributor"]);
   });
 
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {

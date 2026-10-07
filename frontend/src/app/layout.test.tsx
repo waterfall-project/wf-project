@@ -216,7 +216,7 @@ describe("RootLayout", () => {
     expect(await page()).toContain("<p>page</p>");
     const tasks = await server.running;
     expect(tasks?.map((task) => [task.task_id, task.status])).toEqual([
-      ["01926f3a-7c00-7000-8000-000000000901", "running"],
+      ["01926f3a-7c00-7000-8000-000000000931", "running"],
     ]);
   });
 

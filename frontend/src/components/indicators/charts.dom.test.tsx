@@ -299,11 +299,11 @@ describe("the cumulative curves", () => {
       "Steps of the reference budget",
     ]);
     expect(series[1]?.data?.slice(-2)).toEqual([
-      ["2026-05-18T00:00:00Z", "5400.00"],
-      ["2026-06-03T00:00:00Z", "5400.00"],
+      ["2026-05-18T00:00:00Z", "105400.00"],
+      ["2026-06-03T00:00:00Z", "105400.00"],
     ]);
-    expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "5400.00"]);
-    expect(series[2]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "26934.56"]);
+    expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "105400.00"]);
+    expect(series[2]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "126934.56"]);
     expect(series[0]?.data?.at(-1)).toEqual(["2027-01-01T00:00:00Z", "120834.56"]);
     // The actual cost cumulates dated documents: by steps; the budget and the projection, spread
     // over durations, by lines.
@@ -355,7 +355,7 @@ describe("the cumulative curves", () => {
     ).toEqual([
       "MonthPaid outTo pay out",
       "March 20261,400.000.00",
-      "April 20261,600.000.00",
+      "April 2026101,600.000.00",
       "May 20262,400.000.00",
       "June 20260.001,700.00",
     ]);

@@ -7,7 +7,7 @@ import { example } from "@/test/fixtures";
 
 import { isPolled, NOTHING_TRACKED, type Tracking, tracking } from "./tracking";
 
-const MARKING = "01926f3a-7c00-7000-8000-000000000901";
+const MARKING = "01926f3a-7c00-7000-8000-000000000931";
 
 /** A task of the contract, by the name of its example. */
 function task(name: string): BackgroundTask {
@@ -66,7 +66,7 @@ describe("what the tracker follows", () => {
       problem: { code: "NOT_FOUND", status: 404 },
       conflictingObjectId: null,
     } as const;
-    const exported = "01926f3a-7c00-7000-8000-000000000905";
+    const exported = "01926f3a-7c00-7000-8000-000000000935";
     const before = following(task("task_export_succeeded"));
     const after = tracking(before, {
       type: "answer",
@@ -81,7 +81,7 @@ describe("what the tracker follows", () => {
   });
 
   it("says the result no longer available when the read before a download finds none, and not after any other read", () => {
-    const exported = "01926f3a-7c00-7000-8000-000000000905";
+    const exported = "01926f3a-7c00-7000-8000-000000000935";
     const withoutResult = { ...task("task_export_succeeded"), result_url: null };
     const answered = (source: "read" | "download") =>
       tracking(following(task("task_export_succeeded")), {

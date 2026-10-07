@@ -80,9 +80,7 @@ describe("the summary of the estimate", () => {
     expect(html).toContain(
       "By nature of cost Main-d'œuvre 16,085.00 (13.67%) Débours 101,584.56 (86.33%) By subproject",
     );
-    expect(html).toContain(
-      "By subproject Poste de commande 17,669.56 (15.02%) No subproject 100,000.00 (84.98%)",
-    );
+    expect(html).toContain("By subproject No subproject 117,669.56 (100%)");
     expect(html).toContain("Estimate total 117,669.56 Identified provisions 0.00");
   });
 

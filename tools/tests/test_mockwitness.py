@@ -5,6 +5,7 @@
 import json
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from itertools import pairwise
 from typing import Any, cast
 
 import pytest
@@ -38,10 +39,11 @@ def at(day: int, worked: int | str = 0) -> Instant:
 
 def test_today_is_the_instant_every_first_example_describes() -> None:
     assert datetime(2026, 6, 3, 14, 5, tzinfo=UTC) == mockwitness.TODAY
-    days = [event.on for event in mockwitness.CHRONOLOGY]
-    assert days == sorted(days)
-    assert days[0] == date(2025, 9, 1)
-    assert days[-1] == mockwitness.TODAY.date()
+    instants = [event.instant for event in mockwitness.CHRONOLOGY]
+    assert all(earlier < later for earlier, later in pairwise(instants))
+    assert instants[0].date() == date(2025, 9, 1)
+    assert mockwitness.TODAY.date() == instants[-1].date()
+    assert instants[-1] <= mockwitness.TODAY
     # The project is created before its offer is opened (#287, C11).
     assert mockwitness.CREATED.on < mockwitness.OFFER_OPENED.on < mockwitness.OFFER_MARKED.on
 
@@ -295,15 +297,9 @@ _KEYS = {
 }
 """The families an identifier may be of, by the key that carries it."""
 
-_TRESPASSES = {
-    *(("task_id", f"00000000090{n}") for n in range(1, 6)),
-    ("paste_id", "000000000911"),
-    ("paste_id", "000000000912"),
-    ("correlation_id", "000000000913"),
-    *(("correlation_id", f"00000000092{n}") for n in range(1, 8)),
-}
-"""The identifiers written by hand off the range of their family (#287, C16): a list that only
-shrinks, as their examples are moved onto it."""
+_TRESPASSES: set[tuple[str, str]] = set()
+"""The identifiers written by hand off the range of their family (#287, C16): none left, since
+EP-02/L25 moved the background tasks, the pastes and the correlations onto their ranges."""
 
 
 def _identifiers(value: Any, key: str = "") -> list[tuple[str, str]]:

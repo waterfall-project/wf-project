@@ -190,7 +190,7 @@ describe("a block pasted from a spreadsheet", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
     expect(bodies(client, APPLY)).toEqual([
-      { paste_id: "01926f3a-7c00-7000-8000-000000000911", confirmed: true, lock_version: 1 },
+      { paste_id: "01926f3a-7c00-7000-8000-000000000971", confirmed: true, lock_version: 1 },
     ]);
     expect(client.calls.at(-1)?.path).toBe(`${NODES}/paste`);
     // The three rows the server wrote, in place of those read.
@@ -359,12 +359,12 @@ describe("a block pasted from a spreadsheet", () => {
     expect(bodies(client, APPLY)).toEqual([]);
   });
 
-  it("shows what a cell written before a paste answers after it, later in the structure: its row, the tasks above it, the totals", async () => {
+  it("keeps what a paste answered when a cell written before it answers after it, earlier in the structure: its rows, the tasks above them, the totals (#421)", async () => {
     let release: () => void = () => undefined;
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
-    // The paste answers the structure at its version 2, the cell written at 3.
+    // The paste answers the structure at its version 4, the cell written before it at 3 (#421).
     const client = fakeClient(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
       { hold: (route) => (route === LINE ? held : undefined) },
@@ -385,20 +385,24 @@ describe("a block pasted from a spreadsheet", () => {
     });
     // The paste answered first: its rows shown, the cell under way showing what was validated.
     expect(labels()).toEqual(["X", "Heures d'essais", "Matériel de câblage"]);
-    // The write answers after it, later in the structure: its row, the tasks above, the totals.
+    // The write answers after it, earlier in the structure: it takes back none of the paste's.
     await act(async () => {
       release();
       await held;
     });
     await vi.waitFor(() => {
-      expect(labels()).toEqual(["Heures de câblage", "Heures d'essais", "Matériel de câblage"]);
+      expect(labels()).toEqual([
+        "Heures de câblage et repérage",
+        "Heures d'essais",
+        "Matériel de câblage",
+      ]);
     });
     expect(amounts([0, 1, 2])).toEqual([
-      "5\u202f555\u202f710,00",
-      "1\u202f960\u202f843,85",
-      "36\u202f209,25",
+      "5\u202f564\u202f371,76",
+      "1\u202f969\u202f505,61",
+      "44\u202f871,01",
     ]);
-    expect(totalAmount()).toBe("60\u202f553\u202f621,36");
+    expect(totalAmount()).toBe("60\u202f562\u202f283,12");
     expect(bodies(client, LINE)).toEqual([{ label: "X", lock_version: 1 }]);
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -463,7 +467,7 @@ describe("a block pasted from a spreadsheet", () => {
     expect(bodies(client, LINE)).toHaveLength(2);
   });
 
-  it("carries the highest version of the structure told, and keeps what a later write answered, whatever the order the answers come back in", async () => {
+  it("carries the highest version of the structure told, and keeps what the later paste answered, whatever the order the answers come back in (#421)", async () => {
     let releaseLine: () => void = () => undefined;
     const heldLine = new Promise<void>((resolve) => {
       releaseLine = resolve;
@@ -472,7 +476,7 @@ describe("a block pasted from a spreadsheet", () => {
     const heldApply = new Promise<void>((resolve) => {
       releaseApply = resolve;
     });
-    // The cell written answers the structure at its version 3, the first paste applied at 2.
+    // The cell written answers the structure at its version 3, the paste that follows it at 4.
     const client = fakeClient(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
       {
@@ -489,7 +493,7 @@ describe("a block pasted from a spreadsheet", () => {
     await userEvent.click(
       await within(first).findByRole("button", { name: "Appliquer le collage" }),
     );
-    // The write answers first, version 3; the paste answers after it, version 2.
+    // The write answers first, version 3; the paste answers after it, version 4.
     await act(async () => {
       releaseLine();
       await heldLine;
@@ -501,15 +505,18 @@ describe("a block pasted from a spreadsheet", () => {
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
-    // The paste, earlier, takes back neither the row the write answered, nor the tasks above it,
-    // nor the totals: the rows it wrote alone are its own.
-    expect(labels()).toEqual(["Heures de câblage", "Heures d'essais", "Matériel de câblage"]);
-    expect(amounts([0, 1, 2])).toEqual([
-      "5\u202f555\u202f710,00",
-      "1\u202f960\u202f843,85",
-      "36\u202f209,25",
+    // The paste, later in the structure, shows its rows, the tasks above them and the totals.
+    expect(labels()).toEqual([
+      "Heures de câblage et repérage",
+      "Heures d'essais",
+      "Matériel de câblage",
     ]);
-    expect(totalAmount()).toBe("60\u202f553\u202f621,36");
+    expect(amounts([0, 1, 2])).toEqual([
+      "5\u202f564\u202f371,76",
+      "1\u202f969\u202f505,61",
+      "44\u202f871,01",
+    ]);
+    expect(totalAmount()).toBe("60\u202f562\u202f283,12");
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
     const second = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await userEvent.click(
@@ -520,7 +527,7 @@ describe("a block pasted from a spreadsheet", () => {
     });
     expect(
       bodies(client, APPLY).map((body) => (body as { lock_version: number }).lock_version),
-    ).toEqual([1, 3]);
+    ).toEqual([1, 4]);
   });
 
   it("whose span reaches a column of the contract the grid does not present is refused, naming it, and nothing is asked [WF-IHM-0050-A]", async () => {

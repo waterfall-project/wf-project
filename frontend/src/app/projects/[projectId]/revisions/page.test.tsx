@@ -236,8 +236,8 @@ describe("the comparison of two revisions", () => {
     expect(table(page, "Écarts de montants")).toBe(
       "Axe Poste Écart " +
         "Nature de coût Main-d'œuvre 3 515,00 Nature de coût Débours -350,00 " +
-        "Nature de coût Provision 910,00 Sous-projet Poste de commande 3 165,00 " +
-        "Sous-projet Hors sous-projet 910,00",
+        "Nature de coût Provision 910,00 Sous-projet Poste de commande 20 834,56 " +
+        "Sous-projet Hors sous-projet -16 759,56",
     );
     expect(page).not.toContain("01926f3a-7c00-7000-8000-000000000461");
     // The choice keeps the two revisions compared.

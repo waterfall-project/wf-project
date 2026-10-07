@@ -11,7 +11,7 @@ import { compile } from "./compile";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // The task of the marking queued (`task_mark_queued`), which the tracker reads by its id.
-const TASK = "01926f3a-7c00-7000-8000-000000000901";
+const TASK = "01926f3a-7c00-7000-8000-000000000931";
 
 test("marking a revision gives the hand back, shows its progress, and announces on another screen its end, which comes after the change [WF-IHM-0080-A]", async ({
   page,

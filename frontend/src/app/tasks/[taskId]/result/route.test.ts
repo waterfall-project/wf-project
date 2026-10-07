@@ -17,7 +17,7 @@ const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: un
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 
-const TASK = "01926f3a-7c00-7000-8000-000000000905";
+const TASK = "01926f3a-7c00-7000-8000-000000000935";
 const RESULT = "GET /tasks/{task_id}/result";
 const SHEET = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 

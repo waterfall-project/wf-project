@@ -1,5 +1,5 @@
 {
-  "summary": "Les imports du projet au 1er juin 2026, du plus récent au plus ancien : le devis du Poste de commande analysé, qui attend sa confirmation ; un planning MS Project abandonné ; les quatre extractions de coûts réels appliquées de cost_imports_periods avant celle de mai (WF-INTF-0080, WF-ARC-0100).",
+  "summary": "Les imports du projet au 3 juin 2026 à 14 h 05, du plus récent au plus ancien : le devis du Poste de commande, analysé ce matin à 8 h 41, qui attend sa confirmation jusqu'à demain 8 h 41 ; l'extraction de coûts réels de mai, appliquée à 8 h 30 ; la nouvelle extraction d'avril analysée le 2 juin, expirée ce matin sans avoir été appliquée, vingt-quatre heures après son analyse ; un planning MS Project abandonné ; les quatre premières extractions de coûts réels du journal (cost_imports), appliquées. L'import du reste à engager de import_remaining_analysed est une variante que la liste ne reprend pas (WF-INTF-0080, WF-ARC-0100, WF-CRE-0050).",
   "value": {
     "items": [
       {
@@ -7,8 +7,24 @@
         "kind": "estimate",
         "filename": "devis-poste-de-commande.xlsx",
         "status": "analysed",
-        "created_at": "2026-06-01T08:40:05Z",
-        "expires_at": "2026-06-02T08:41:00Z"
+        "created_at": "2026-06-03T08:40:05Z",
+        "expires_at": "2026-06-04T08:41:00Z"
+      },
+      {
+        "import_id": "01926f3a-7c00-7000-8000-000000000a14",
+        "kind": "actual_costs",
+        "filename": "couts-reels-2026-05.xlsx",
+        "status": "applied",
+        "created_at": "2026-06-03T08:25:00Z",
+        "expires_at": "2026-06-04T08:26:00Z"
+      },
+      {
+        "import_id": "01926f3a-7c00-7000-8000-000000000a12",
+        "kind": "actual_costs",
+        "filename": "couts-reels-2026-04-correction.xlsx",
+        "status": "expired",
+        "created_at": "2026-06-02T09:00:05Z",
+        "expires_at": "2026-06-03T09:01:00Z"
       },
       {
         "import_id": "01926f3a-7c00-7000-8000-000000000a10",
@@ -54,7 +70,7 @@
     "meta": {
       "limit": 50,
       "offset": 0,
-      "total": 6
+      "total": 8
     }
   }
 }

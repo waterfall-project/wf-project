@@ -52,13 +52,13 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
 }) => {
   await page.goto("/admin/users");
   const accounts = page.getByRole("table", { name: "Comptes utilisateurs" });
-  await expect(accounts.getByRole("row")).toHaveCount(5);
+  await expect(accounts.getByRole("row")).toHaveCount(7);
   await expect(
     accounts.getByRole("row", {
       name: "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
     }),
   ).toHaveCount(1);
-  await expect(page.getByText("4 comptes")).toBeVisible();
+  await expect(page.getByText("6 comptes")).toBeVisible();
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
@@ -67,7 +67,9 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   await expect(restore.getByRole("cell")).toHaveText([
     "Accordée",
     "Non accordée",
+    "Non accordée",
     "Accordée",
+    "Non accordée",
     "Non accordée",
   ]);
   await expect(

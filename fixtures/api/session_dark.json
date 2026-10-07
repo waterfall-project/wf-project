@@ -22,7 +22,7 @@
         "created_by": {
           "kind": "platform"
         },
-        "updated_at": "2026-03-16T14:05:00Z",
+        "updated_at": "2026-06-03T14:05:00Z",
         "updated_by": {
           "kind": "user",
           "user_id": "01926f3a-7c00-7000-8000-000000000301",
@@ -97,7 +97,7 @@
       "project_create",
       "all_projects_read"
     ],
-    "expires_at": "2026-03-17T08:00:00Z",
-    "idle_expires_at": "2026-03-16T16:05:00Z"
+    "expires_at": "2026-06-04T08:00:00Z",
+    "idle_expires_at": "2026-06-03T16:05:00Z"
   }
 }
