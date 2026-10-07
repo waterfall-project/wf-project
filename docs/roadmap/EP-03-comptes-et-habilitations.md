@@ -327,6 +327,17 @@ j'entre déjà dans les autres outils de l'entreprise.
 - `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. »
 - `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. »
 - `WF-SEC-0020-A` — « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. »
+- propre à l'US — **retour à l'écran visé** : la session expirée ramène à la page de
+  connexion du fournisseur d'identité, puis, reconnecté, à l'écran visé avec son adresse
+  entière, paramètres compris, et cela pour un compte local, un compte de l'annuaire comme
+  pour un compte d'un fournisseur externe, que Keycloak relaie (WF-SEC-0020, #152). L'adresse
+  visée est gardée côté serveur, liée à l'état de la demande d'authentification, et seule une
+  adresse du front y est acceptée : un retour vers un autre site est refusé et mène à
+  l'accueil.
+- propre à l'US : une session expirée pendant une écriture — une cellule saisie, une
+  commande — ne perd rien en silence : l'écriture n'est pas appliquée, et l'écran le dit
+  avant de mener à la connexion ; une session expirée sur une page ouverte, sans action de
+  l'utilisateur, le ramène à la connexion à sa requête suivante.
 - propre à l'US : un utilisateur habilité obtient, pour un compte local actif, le lien de
   fixation du mot de passe, valable une heure et à usage unique, le précédent cessant de
   valoir ; la demande est inscrite au journal d'audit, sans le jeton (WF-ADM-0140,
