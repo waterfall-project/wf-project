@@ -206,6 +206,14 @@ ImportDateMismatch:
 ImportRejection:
   type: object
   required: [row, code]
+  description: >-
+    Une ligne du fichier rejetée, par son rang et son motif (WF-INTF-0080). Parmi les motifs :
+    une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée
+    (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), une tâche que le fichier placerait hors du
+    sous-arbre de la tâche du poste de son lot (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+    WF-PLA-0130), une ligne de devis d'une catégorie de nature provision, que seule la
+    déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), chacun avec les
+    paramètres qu'il porte dans un refus.
   properties:
     row: { type: integer, minimum: 1 }
     code: { $ref: ../common.yaml#/ErrorCode }
@@ -236,7 +244,17 @@ ImportDifference:
         successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien.
     label:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce.
+      description: >-
+        Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût,
+        son numéro de pièce, qui l'identifie (WF-INTF-0140) : `document_number` ne figure
+        donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro étant une
+        autre ligne.
+    predecessor_label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte
+        rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080,
+        WF-ARC-0020) ; nul pour tout autre objet.
     fields:
       type: array
       description: >-
@@ -245,7 +263,8 @@ ImportDifference:
         comme les colonnes de leur grille, que le front rend par son catalogue
         (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une
         liaison changée de type ou de décalage par `predecessors`, la colonne qui la
-        présente ; une ligne de coût réel par `ActualCostColumn`.
+        présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du
+        fichier par `passthrough.<colonne>`.
       items:
         anyOf:
           - $ref: revisions.yaml#/NodeColumn
@@ -258,9 +277,17 @@ ActualCostColumn:
     `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son
     montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un
     réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un
-    écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Le périmètre suivi et le
+    écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du
+    fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`,
+    comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce —
+    est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la
+    ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le
     motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.
-  enum: [document_date, document_number, amount, subproject]
+  anyOf:
+    - type: string
+      enum: [document_date, document_number, amount, subproject]
+    - type: string
+      pattern: '^passthrough\..+$'
 
 ImportApply:
   type: object
@@ -276,7 +303,7 @@ ImportApply:
 
 ExportRequest:
   type: object
-  required: [kind]
+  required: [kind, revision_id]
   description: >-
     Demande un export. Le fichier est engendré à la demande et transmis sans être
     stocké (WF-DAT-0120). Les en-têtes des formats Excel ne dépendent pas de la
@@ -290,7 +317,11 @@ ExportRequest:
         - remaining
         - task_tree_image
     revision_id:
-      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        La révision exportée, en cours ou marquée, exigée : c'est sa commande `export_*` qui
+        juge l'export (`RevisionCommand`, WF-INTF-0110, WF-INTF-0130). Aucune révision n'est
+        prise par défaut.
     structure_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     depth:

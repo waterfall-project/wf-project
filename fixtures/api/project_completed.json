@@ -56,13 +56,6 @@
         ]
       },
       {
-        "command": "edit_risks",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
         "command": "declare_risk_occurrence",
         "is_available": false,
         "missing_conditions": [

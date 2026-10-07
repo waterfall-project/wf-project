@@ -633,15 +633,15 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     """Return what a task computes and what it accepts (WF-PLA-0130).
 
     A task in automatic mode computes its dates; one in manual mode enters them, and computes
-    nothing. A summary computes its duration and its progress too, and accepts its label, its
-    description and its attachment to an order item or a work package (WF-PLA-0130); a
-    milestone has no duration to enter.
+    nothing. A summary computes its duration and its progress too, and accepts its label and its
+    description; a milestone has no duration to enter. Every task, summary or leaf, accepts its
+    attachment to an order item or a work package, last (WF-PLA-0130).
     """
     dates: list[JsonValue] = ["task.start", "task.finish"]
     editable: list[JsonValue] = ["task.label", "task.description"]
+    attachment: list[JsonValue] = ["task.order_item_id", "task.work_package_id"]
     if is_summary:
-        editable.extend(["task.order_item_id", "task.work_package_id"])
-        return Fields(["task.duration", *dates, "task.progress"], editable)
+        return Fields(["task.duration", *dates, "task.progress"], [*editable, *attachment])
     editable.append("task.scheduling_mode")
     if not is_milestone:
         editable.append("task.duration")
@@ -649,7 +649,7 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
         editable.extend(dates)
         dates = []
     editable.append("task.progress")
-    return Fields(dates, editable)
+    return Fields(dates, [*editable, *attachment])
 
 
 def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:

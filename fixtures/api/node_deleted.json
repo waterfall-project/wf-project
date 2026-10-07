@@ -117,7 +117,9 @@
           "task.description",
           "task.scheduling_mode",
           "task.duration",
-          "task.progress"
+          "task.progress",
+          "task.order_item_id",
+          "task.work_package_id"
         ]
       }
     ],

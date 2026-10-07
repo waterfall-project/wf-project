@@ -70,17 +70,29 @@ CommandCondition:
     — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que
     soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
     Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la
-    saisie du planning, du devis et du reste à engager, l'ouverture d'un différentiel, sa
-    fusion, le marquage, la désignation de la référence et l'abandon, et les imports du
-    projet qui y écriraient — ses exports, qui la lisent, restent disponibles ; pendant une
-    survenance ou un
-    import, la déclaration d'une survenance et les imports du projet (WF-IHM-0080,
+    saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un
+    différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les
+    imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles.
+    Pendant l'application d'un import de planning, de devis ou de reste à engager
+    (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance,
+    qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient
+    dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`,
+    `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration
+    d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un
+    import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de
+    coûts réels n'écrit pas dans la révision (WF-INTF-0080, WF-IHM-0080, WF-IHM-0090,
     WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en
-    cours, aux imports d'un planning, d'un devis ou d'un reste à engager de qui n'a pas la
-    permission de créer une révision (`revisions.write`) : l'import la créerait
-    (WF-INTF-0090). `risk_not_cited` manque à la suppression d'un risque qu'une révision
-    marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme
-    dans son 409.
+    cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une
+    commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager
+    (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la
+    déclaration d'un
+    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à
+    l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred`
+    manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune
+    transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est
+    pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée
+    cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son
+    409.
   enum:
     - is_contributor
     - is_project_manager
@@ -101,6 +113,8 @@ CommandCondition:
     - no_background_task_running
     - may_create_revision
     - risk_not_cited
+    - risk_not_occurred
+    - risk_identified
 
 ProjectCommand:
   type: string
@@ -120,19 +134,23 @@ ProjectCommand:
     - import_remaining
   description: >-
     Commandes portées par le projet : modifier ses paramètres, ses contributeurs,
-    ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer,
-    réexaminer et supprimer les risques (`edit_risks`, dont `deleteRisk` relève, WF-RIS-0020),
-    déclarer un risque survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la
-    survenance emporte la fusion qu'elle déclenche et n'exige pas la permission de fusionner,
-    `structure_merge` (WF-ADM-0100) ; importer les
+    ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque
+    survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la
+    fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge`
+    (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`,
+    `reference_revision_designated`, `no_background_task_running`), celles du risque sur le
+    risque (`RiskCommand.declare_occurrence`) ; importer les
     coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un
     planning MS Project, un devis, un reste à engager — une commande par nature, chacune
     gardée par sa permission —, que l'import applique à la révision en cours et crée au
     besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de
     révision en cours, et nomment alors `may_create_revision` à qui ne peut pas la créer.
-    Une commande
-    que refuse l'état d'un objet particulier — un risque déjà survenu — l'est par
-    son code d'erreur.
+    La saisie des risques est une commande de la révision (`RevisionCommand.edit_risks`,
+    WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet
+    porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions
+    marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020),
+    et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision
+    est en cours, la commande n'est plus listée sur le projet, mais sur elle.
 
 ProjectCommandAvailability:
   type: object

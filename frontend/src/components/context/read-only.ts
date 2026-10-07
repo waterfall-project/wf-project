@@ -14,7 +14,10 @@ export type Revision = components["schemas"]["Revision"];
 type RevisionStatus = components["schemas"]["RevisionStatus"];
 type RevisionCommand = components["schemas"]["RevisionCommand"];
 
-/** A command that modifies what a revision holds: its planning, its estimate, its remaining. */
+/**
+ * A command that modifies what a revision holds: its planning, its estimate, its remaining, its
+ * risks (WF-RIS-0020).
+ */
 export type EditCommand = Extract<RevisionCommand, `edit_${string}`>;
 
 /**

@@ -1,5 +1,5 @@
 {
-  "summary": "Le plan de charge du projet sur le reste à engager de la révision en cours, au 16 mars 2026 : les 12,5 heures du raccordement des borniers, portées par le câblage des armoires du 4 mai au 30 juin, réparties au prorata des heures travaillées de chaque mois — 5,95 en mai, 6,55 en juin — pour l'ingénieur électricien, en regard de sa capacité de 910,02 heures par mois (six personnes à 151,67) ; le technicien de mise en service, sans charge, avec la sienne (WF-DEV-0070).",
+  "summary": "Le même plan de charge sur le reste à engager de la révision en cours, restreint à la direction technique (`org_node_id`) : l'ingénieur électricien et le technicien de mise en service relèvent du bureau d'études électricité, son descendant, et restent retenus avec les mêmes charges ; le plan nomme le nœud retenu, que l'en-tête affiche sans lire l'arbre d'organisation (WF-DEV-0070, WF-REF-0070, WF-ARC-0020).",
   "value": {
     "context": {
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
@@ -9,8 +9,8 @@
       "is_stored": false
     },
     "basis": "current_remaining",
-    "org_node_id": null,
-    "org_node_label": null,
+    "org_node_id": "01926f3a-7c00-7000-8000-000000000470",
+    "org_node_label": "Direction technique",
     "roles": [
       {
         "resource_role_id": "01926f3a-7c00-7000-8000-000000000451",

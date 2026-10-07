@@ -1,5 +1,5 @@
 {
-  "summary": "Le rattachement du groupe « Études » au poste « Fourniture et montage des armoires », que la récapitulative « Poste de commande » porte déjà, refusé : un poste n'est porté que par une récapitulative à la fois, et le refus nomme celle qui le porte (WF-PLA-0130).",
+  "summary": "Le rattachement du groupe « Études » au poste « Fourniture et montage des armoires », que la récapitulative « Poste de commande » porte déjà, refusé : un poste n'est porté que par une tâche à la fois, et le refus nomme celle qui le porte (WF-PLA-0130).",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,

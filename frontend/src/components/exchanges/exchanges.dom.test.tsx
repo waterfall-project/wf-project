@@ -463,6 +463,14 @@ describe("the report of an import", () => {
     expect(differences).toHaveTextContent("UpdatedTaskRevue de conceptionDuration");
     expect(differences).toHaveTextContent("KeptTaskÉtudes de détail");
   });
+
+  it("names a column the file kept as the file names it, beside the columns its catalogue names", () => {
+    serve({});
+    open(report(example("import_actual_costs_analysed") as Import), "en");
+    const differences = screen.getByRole("table", { name: "Differences with the existing data" });
+    // `passthrough.Fournisseur`, a column of the file no catalogue translates (#365).
+    expect(differences).toHaveTextContent("FA-2026-0412Amount and Fournisseur");
+  });
 });
 
 describe("the request of an export", () => {

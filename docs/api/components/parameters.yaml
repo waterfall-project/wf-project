@@ -172,7 +172,11 @@ IndicatorsRevision:
     absente, ou la révision en cours, le calcul au jour courant ; une révision marquée,
     le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage
     a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien
-    ne conserve, sont recalculées à cette date, `is_stored` faux. Une révision marquée
+    ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel
+    connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une
+    pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les
+    indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored`
+    signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée
     avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur
     projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui
     choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`.

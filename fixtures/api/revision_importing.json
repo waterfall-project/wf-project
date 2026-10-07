@@ -1,5 +1,5 @@
 {
-  "summary": "La révision courante du projet, en brouillon, créée en 2026 et portant cette année de référence (WF-REV-0060) : toutes ses commandes de saisie sont disponibles.",
+  "summary": "La révision courante pendant que s'applique un import de planning MS Project (`Import.status` à `applying`) : aucune commande qui y écrirait n'est disponible — ni la saisie, risques compris, ni l'ouverture ou la fusion d'un différentiel, ni le marquage, ni l'abandon —, chacune nommant le traitement en cours ; ses exports, qui la lisent, restent disponibles, et la désignation de la référence ne manque que de son marquage. Le traitement d'une déclaration de survenance, qui fusionne dans la même révision, la met dans le même état ; l'analyse d'un import ne suspend rien (WF-INTF-0080, WF-IHM-0080, WF-IHM-0090, WF-RIS-0060).",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000102",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -12,40 +12,53 @@
     "available_commands": [
       {
         "command": "edit_planning",
-        "is_available": true,
-        "missing_conditions": []
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
       },
       {
         "command": "edit_estimate",
-        "is_available": true,
-        "missing_conditions": []
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
       },
       {
         "command": "edit_remaining",
-        "is_available": true,
-        "missing_conditions": []
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
       },
       {
         "command": "edit_risks",
-        "is_available": true,
-        "missing_conditions": []
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
       },
       {
         "command": "create_structure",
-        "is_available": true,
-        "missing_conditions": []
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
       },
       {
         "command": "merge_structure",
         "is_available": false,
         "missing_conditions": [
-          "unmerged_amendment_exists"
+          "unmerged_amendment_exists",
+          "no_background_task_running"
         ]
       },
       {
         "command": "mark",
-        "is_available": true,
-        "missing_conditions": []
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
       },
       {
         "command": "designate_reference",
@@ -56,8 +69,10 @@
       },
       {
         "command": "abandon",
-        "is_available": true,
-        "missing_conditions": []
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
       },
       {
         "command": "export_planning",

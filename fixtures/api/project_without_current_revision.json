@@ -1,27 +1,46 @@
 {
-  "summary": "La révision courante du projet, en brouillon, créée en 2026 et portant cette année de référence (WF-REV-0060) : toutes ses commandes de saisie sont disponibles.",
+  "summary": "Le même projet en cours, sa révision courante abandonnée aujourd'hui à 14 h 05 : il garde sa révision de référence marquée, n'a plus de révision en cours, et porte lui-même la saisie des risques, comme les imports — la première saisie créera la révision en cours (WF-RIS-0020, WF-INTF-0090) ; une révision peut de nouveau être ouverte.",
   "value": {
-    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
-    "version_name": null,
+    "label": "Modernisation du poste de commande",
+    "code": "PRJ-001",
     "description": null,
-    "status": "draft",
-    "marked_at": null,
-    "is_reference": false,
-    "reference_year": 2026,
+    "state": "in_progress",
+    "inflation_rate": "0.03",
+    "win_probability": "1",
+    "order_received_on": "2026-01-15",
+    "reference_revision_id": "01926f3a-7c00-7000-8000-000000000101",
+    "current_revision_id": null,
     "available_commands": [
       {
-        "command": "edit_planning",
+        "command": "update",
         "is_available": true,
         "missing_conditions": []
       },
       {
-        "command": "edit_estimate",
+        "command": "manage_contributors",
         "is_available": true,
         "missing_conditions": []
       },
       {
-        "command": "edit_remaining",
+        "command": "create_revision",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "complete",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "lose",
+        "is_available": false,
+        "missing_conditions": [
+          "project_in_pricing"
+        ]
+      },
+      {
+        "command": "abandon",
         "is_available": true,
         "missing_conditions": []
       },
@@ -31,51 +50,32 @@
         "missing_conditions": []
       },
       {
-        "command": "create_structure",
+        "command": "declare_risk_occurrence",
         "is_available": true,
         "missing_conditions": []
       },
       {
-        "command": "merge_structure",
-        "is_available": false,
-        "missing_conditions": [
-          "unmerged_amendment_exists"
-        ]
-      },
-      {
-        "command": "mark",
+        "command": "import_actual_costs",
         "is_available": true,
         "missing_conditions": []
       },
       {
-        "command": "designate_reference",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_marked"
-        ]
-      },
-      {
-        "command": "abandon",
+        "command": "exclude_cost_lines",
         "is_available": true,
         "missing_conditions": []
       },
       {
-        "command": "export_planning",
+        "command": "import_planning",
         "is_available": true,
         "missing_conditions": []
       },
       {
-        "command": "export_estimate",
+        "command": "import_estimate",
         "is_available": true,
         "missing_conditions": []
       },
       {
-        "command": "export_remaining",
-        "is_available": true,
-        "missing_conditions": []
-      },
-      {
-        "command": "export_task_tree_image",
+        "command": "import_remaining",
         "is_available": true,
         "missing_conditions": []
       }
@@ -87,13 +87,13 @@
         "user_id": "01926f3a-7c00-7000-8000-000000000301",
         "display_name": "Camille Martin"
       },
-      "updated_at": "2026-03-16T14:05:00Z",
+      "updated_at": "2026-06-03T14:05:00Z",
       "updated_by": {
         "kind": "user",
         "user_id": "01926f3a-7c00-7000-8000-000000000301",
         "display_name": "Camille Martin"
       }
     },
-    "lock_version": 4
+    "lock_version": 8
   }
 }

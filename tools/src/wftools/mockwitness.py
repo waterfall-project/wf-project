@@ -192,7 +192,9 @@ The examples written by hand do not all keep to it yet (#287, C16), until the ex
 carry them are moved: the background tasks 901 to 905, the pastes 911 and 912 and the
 correlation 913 are on the range of the backups; the correlations 921 to 927 on that of the
 background tasks. The order item 711, « Fourniture et montage des armoires », is the one order
-item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130).
+item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130); its work package
+712, « Armoires », is borne by no task: only the refusal to attach it outside the subtree of the
+task of its order item speaks of it (`task_attach_outside_order_item`).
 """
 
 # --- The roles, their calendars ---------------------------------------------------------------

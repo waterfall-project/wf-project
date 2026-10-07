@@ -271,6 +271,8 @@ _KEYS = {
     "subproject_id": ("sous-projets",),
     "order_item_id": ("postes et lots du lotissement",),
     "attached_node_id": _STRUCTURE,
+    "order_item_node_id": _STRUCTURE,
+    "work_package_node_ids": _STRUCTURE,
     "work_package_id": ("postes et lots du lotissement",),
     "scope": ("sous-projets",),
     "key": (
