@@ -80,6 +80,13 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (4) :
 - `reference` : `getReferenceSettings` ;
 - `projects` : `listProjects`, `updateProject`, `listProjectStateTransitions`.
 
+## Constats reçus
+
+- #301 — les tables du référentiel n'offrent aucun filtre ; WF-IHM-0130, les filtres de toute
+  table, se clôt ici, reportée d'EP-02 (2026-10-07).
+- #313 — la liste du portefeuille n'offre pas le filtre par zone (WF-IHM-0130), reportée
+  d'EP-02 (2026-10-07).
+
 ## Préalables
 
 EP-10 livré : le portefeuille agrège les indicateurs, conservés ou calculés.
