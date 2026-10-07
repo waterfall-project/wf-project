@@ -3,6 +3,7 @@ id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
 statut: à planifier
 depend_de: EP-03
+famille: front, back
 issue:
 ---
 

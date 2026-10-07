@@ -87,6 +87,31 @@ D'une US, cinq également :
 
 Lire ce répertoire doit suffire à savoir où en est le projet, sans ouvrir GitHub.
 
+## Familles
+
+Le champ `famille` du front matter d'un EPIC dit ce qu'il ajoute au produit et qui prouve
+ses exigences, d'après le découpage PBS du document — pas tout ce qu'il touche :
+
+| Famille | Ce qu'elle couvre |
+|---|---|
+| `front` | l'application web, son client engendré et ses composants (PBS-1) |
+| `back` | le service d'API, le worker, le noyau métier, le contrat et l'intégration du fournisseur d'identité (PBS-2) |
+| `plateforme` | un composant que l'EPIC ajoute à ce qui porte et fait tourner les deux : composants de données, observabilité, empaquetage, chaîne, tâches planifiées, fournisseur d'identité (PBS-3 à PBS-5) ; et l'outillage du dépôt, quand il est l'objet de l'EPIC (EP-01) |
+
+Un composant que l'EPIC emploie sans l'ajouter ne change pas sa famille : un EPIC fonctionnel
+écrit dans PostgreSQL ou dépose un fichier sur le stockage objet sans être `plateforme`,
+puisque c'est un autre EPIC qui ajoute le composant : EP-03 pour PostgreSQL et Redis, EP-13
+pour l'empaquetage de la plateforme. De même, un outil écrit en
+passant par un lot ne change pas la famille de son EPIC : EP-02 reste `front`.
+
+Un EPIC qui en construit plusieurs les déclare toutes, séparées par des virgules —
+`famille: front, back` pour une tranche verticale. `make roadmap` échoue sur un EPIC qui
+n'en déclare aucune, qui en déclare une autre, ou la même deux fois.
+
+La famille dit quels tests prouvent ce que l'EPIC clôt : une exigence close par un EPIC dont
+la seule famille est `front` est prouvée par les tests du front ; close par un autre, elle
+ne l'est pas tant que seuls le front et le bout en bout la citent (`make requirements`).
+
 ## Ordre des EPIC
 
 <!-- Un EPIC par ligne, dans l'ordre où ils se démarrent. -->

@@ -3,6 +3,7 @@ id: EP-02
 titre: Tous les écrans, navigables, alimentés par le faux back, avant toute règle métier
 statut: en cours
 depend_de: EP-01
+famille: front
 issue: 72
 ---
 

@@ -1,7 +1,7 @@
 # Modèle d'un EPIC et de ses US
 
 Copier ce qui suit dans `EP-nn-<intitulé>.md`, et n'y laisser aucun `<…>`. Les règles —
-identifiants, statuts, traçabilité — sont dans [`README.md`](README.md).
+identifiants, statuts, familles, traçabilité — sont dans [`README.md`](README.md).
 
 Un EPIC porte ses US dans le même fichier, à la suite de son propre en-tête.
 
@@ -13,6 +13,7 @@ id: EP-nn
 titre: <ce que l'EPIC rend possible, en une ligne>
 statut: à planifier
 depend_de: <EP-nn, ou « rien »>
+famille: <front, back ou plateforme ; plusieurs, séparées par des virgules>
 issue: <numéro, rempli au démarrage>
 ---
 

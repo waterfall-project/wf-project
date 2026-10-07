@@ -3,6 +3,7 @@ id: EP-07
 titre: Chiffrer un projet sur ses tâches, et le faire passer En cours
 statut: à planifier
 depend_de: EP-06
+famille: front, back
 issue:
 ---
 

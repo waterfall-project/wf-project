@@ -947,10 +947,10 @@ bout en bout (`frontend/e2e/**`, qui prime sur le reste de `frontend/`), front, 
 outils — dans le résumé du travail de la chaîne ; une citation d'un identifiant inconnu, ou
 d'un indice de révision que le document a dépassé, le fait échouer. Les tests du front
 citent des exigences que d'autres EPIC clôturent, par la phrase du Vérif qu'ils éprouvent ;
-une exigence que seuls le front et le bout en bout citent, et qu'un EPIC autre que celui du
-front (EP-02, d'après la table « Exigences réalisées » de la roadmap) clôt, est comptée à
-part, « couverte par le front seul », et ne
-compte pas comme couverte. `make requirements-release` échoue en plus sur toute exigence F0
+une exigence que seuls le front et le bout en bout citent, et qu'un EPIC clôt sans avoir
+`front` pour seule famille — d'après la table « Exigences réalisées » de la roadmap et le
+champ `famille` de son front matter —, est comptée à part, « couverte par le front seul »,
+et ne compte pas comme couverte. `make requirements-release` échoue en plus sur toute exigence F0
 non couverte, ou couverte par le front seul, en la nommant : c'est la commande de la
 publication d'une version. Une exigence dont le Vérif s'ouvre par « Vérifiée en recette »
 attend un procès-verbal, dont la forme n'est pas encore définie : le relevé le dit.

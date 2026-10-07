@@ -14,9 +14,9 @@ Each citation belongs to the family of its file — front, end-to-end, back or t
 ``tools/paths.toml`` declares them — and the report says, for every requirement, which
 families cite it. The front's tests cite requirements that other epics close, by the Vérif
 sentence they try (#333); such a requirement is not proven until the family that closes it
-cites it too. The roadmap says which epic closes each requirement: one cited by the front's
-families alone, and closed by an epic that is not the front's, is listed apart and does not
-count as covered.
+cites it too. The roadmap says which epic closes each requirement, and the front matter of
+each epic its families: one cited by the front's families alone, and closed by an epic that
+is not the front's alone, is listed apart and does not count as covered.
 
 The report lists every F0 requirement of the document with the tests that cover it, and is
 added to the summary of the chain's job when it runs there. A citation of an unknown
@@ -39,13 +39,6 @@ from pathlib import Path
 from typing import TypeGuard
 
 from wftools import REPOSITORY, paths, projection, roadmap
-
-FRONT_EPICS = frozenset({"EP-02"})
-"""The epics whose whole work is the front: a requirement they close is proven by its tests.
-
-Every other epic closes its requirements with the back, and the front's citations of them
-only say that a screen shows what the back will compute.
-"""
 
 ACCEPTANCE = "Vérifiée en recette"
 """What opens the Vérif field of a requirement an acceptance report covers (WF-QUA-0010)."""
@@ -147,11 +140,17 @@ def citations(declaration: paths.Declaration, repository: Path = REPOSITORY) -> 
 
 
 def closed_by_the_front(epics: tuple[roadmap.Epic, ...]) -> frozenset[str]:
-    """Return the requirements the front's epics close, from the tables of the roadmap."""
+    """Return the requirements the front's epics close, from the tables of the roadmap.
+
+    An epic of the front declares the front as its only family: its whole work is the
+    front, and a requirement it closes is proven by the front's tests. Every other epic
+    closes its requirements with the back or the platform too, and the front's citations
+    of them only say that a screen shows what the back will compute.
+    """
     return frozenset(
         row.requirement
         for epic in epics
-        if epic.identifier in FRONT_EPICS
+        if epic.families == (roadmap.FRONT,)
         for row in epic.rows
         if row.closes
     )

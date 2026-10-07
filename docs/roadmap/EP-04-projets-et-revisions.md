@@ -3,6 +3,7 @@ id: EP-04
 titre: Créer un projet, en figer des versions, et le mener d'un état à l'autre
 statut: à planifier
 depend_de: EP-05
+famille: front, back
 issue:
 ---
 

@@ -3,6 +3,7 @@ id: EP-06
 titre: Construire le planning d'un projet, et le lire en grille, en Gantt et en arborescence
 statut: à planifier
 depend_de: EP-04
+famille: front, back
 issue:
 ---
 

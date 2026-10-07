@@ -3,6 +3,7 @@ id: EP-01
 titre: Rendre le dépôt capable de porter du code, sans en écrire une ligne de métier
 statut: livré
 depend_de: rien
+famille: plateforme
 issue: 3
 ---
 

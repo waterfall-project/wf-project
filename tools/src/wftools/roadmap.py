@@ -14,6 +14,8 @@ It fails on what would let a requirement slip through the plan unnoticed:
   truncated in it: acceptance criteria take the Vérif word for word, as a criterion or as
   a deviation (« écart »), because they become the test cases;
 - a requirement that no epic closes, or that more than one closes;
+- an epic whose front matter declares no family, an unknown one, or one twice: the
+  family — front, back, platform — says which tests prove what the epic closes;
 - a ``make`` command an agent reads — in ``.claude/agents/``, or in the guide, the common
   rules and the coding rules of ``docs/dev/`` that the agents follow — that the Makefile
   does not have: a target renamed would otherwise leave an agent calling a command that is
@@ -41,6 +43,10 @@ EXCEPTIONS: dict[str, str] = {}
 """F0 requirements no story is meant to cite, each with its reason. None so far."""
 
 TO_PLAN = "à planifier"
+
+FRONT = "front"
+FAMILIES = (FRONT, "back", "plateforme")
+"""The values of the ``famille`` field of an epic, as the roadmap's README defines them."""
 
 _FRONT_MATTER = re.compile(r"\A---\n(?P<fields>.*?)\n---\n", re.DOTALL)
 _ROW = re.compile(
@@ -85,12 +91,13 @@ class Story:
 
 @dataclass(frozen=True, slots=True)
 class Epic:
-    """An epic file: its status, its table, its stories."""
+    """An epic file: its status, its table, its stories, and the families it builds."""
 
     identifier: str
     status: str
     rows: tuple[Row, ...]
     stories: tuple[Story, ...]
+    families: tuple[str, ...]
 
 
 def parse_epic(name: str, text: str) -> Epic:
@@ -105,7 +112,10 @@ def parse_epic(name: str, text: str) -> Epic:
         for match in _ROW.finditer(text)
     )
     stories = tuple(_story(match.group("id"), match.group(0)) for match in _STORY.finditer(text))
-    return Epic(fields.get("id", name), fields.get("statut", ""), rows, stories)
+    families = tuple(
+        family.strip() for family in fields.get("famille", "").split(",") if family.strip()
+    )
+    return Epic(fields.get("id", name), fields.get("statut", ""), rows, stories, families)
 
 
 def _story(identifier: str, text: str) -> Story:
@@ -120,6 +130,24 @@ def read(roadmap: Path = ROADMAP) -> tuple[Epic, ...]:
         parse_epic(path.stem, path.read_text(encoding="utf-8"))
         for path in sorted(roadmap.glob("EP-*.md"))
     )
+
+
+def family_problems(epic: Epic) -> list[str]:
+    """Return what is wrong with the families an epic declares."""
+    expected = ", ".join(FAMILIES)
+    if not epic.families:
+        return [f"{epic.identifier}: its front matter declares no famille ({expected})"]
+    problems = [
+        f"{epic.identifier}: famille « {family} » is unknown ({expected})"
+        for family in dict.fromkeys(epic.families)
+        if family not in FAMILIES
+    ]
+    problems.extend(
+        f"{epic.identifier}: famille « {family} » is declared more than once"
+        for family in dict.fromkeys(epic.families)
+        if epic.families.count(family) > 1
+    )
+    return problems
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +175,7 @@ def confront(epics: tuple[Epic, ...], requirements: tuple[projection.Requirement
     closures: dict[str, list[str]] = defaultdict(list)
     cited: set[str] = set()
     for epic in epics:
+        problems.extend(family_problems(epic))
         for row in epic.rows:
             if known(row.requirement, f"{epic.identifier} table") and row.closes:
                 closures[row.requirement].append(epic.identifier)

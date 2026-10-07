@@ -54,6 +54,7 @@ EPIC = """\
 id: {epic}
 titre: Un EPIC d'essai
 statut: en cours
+famille: {family}
 ---
 
 | Exigence | Titre | Portée | US |
@@ -203,12 +204,20 @@ def test_a_citation_by_the_back_proves_what_the_front_alone_could_not() -> None:
     assert result.families("WF-RIS-0040-A") == ["front", "back"]
 
 
+def epic(identifier: str, family: str) -> roadmap.Epic:
+    """Read the sample epic under this identifier, declaring these families."""
+    return roadmap.parse_epic(identifier, EPIC.format(epic=identifier, family=family))
+
+
 def test_the_front_closes_the_requirements_its_epic_closes_entirely() -> None:
-    epics = (
-        roadmap.parse_epic("EP-02", EPIC.format(epic="EP-02")),
-        roadmap.parse_epic("EP-03", EPIC.format(epic="EP-03").replace("WF-IHM", "WF-ADM")),
-    )
+    other = EPIC.format(epic="EP-03", family="front, back").replace("WF-IHM", "WF-ADM")
+    epics = (epic("EP-02", "front"), roadmap.parse_epic("EP-03", other))
     assert coverage.closed_by_the_front(epics) == frozenset({"WF-IHM-0010-A"})
+
+
+def test_an_epic_is_the_fronts_by_its_family_alone() -> None:
+    assert coverage.closed_by_the_front((epic("EP-02", "front, back"),)) == frozenset()
+    assert coverage.closed_by_the_front((epic("EP-07", "front"),)) == frozenset({"WF-IHM-0010-A"})
 
 
 def test_a_requirement_verified_at_acceptance_awaits_its_report() -> None:
@@ -263,9 +272,7 @@ def test_a_release_with_a_requirement_the_front_alone_covers_fails_naming_it(
         return [front("WF-RIS-0040-A"), front("WF-IHM-0010-A")]
 
     monkeypatch.setattr(coverage, "citations", two_front_citations)
-    monkeypatch.setattr(
-        roadmap, "read", lambda: (roadmap.parse_epic("EP-02", EPIC.format(epic="EP-02")),)
-    )
+    monkeypatch.setattr(roadmap, "read", lambda: (epic("EP-02", "front"),))
     monkeypatch.setattr(projection, "read", lambda: requirements)
     assert coverage.main([]) == 0
     out = capsys.readouterr().out
