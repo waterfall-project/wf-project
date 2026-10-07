@@ -230,9 +230,16 @@ describe("the dense grid, on a thousand rows", () => {
       "Qté",
       "Charge (h)",
       "Débours unit.",
+      "Sous-projet",
+      "Délai de paiement (j)",
+      // The signal of a deactivated object: an icon stands for its heading, named by it.
+      "",
       "Montant (année de réf.)",
       "Montant corrigé de l’inflation",
     ]);
+    expect(
+      within(header ?? grid()).getByRole("columnheader", { name: "Objet désactivé" }),
+    ).toBeInTheDocument();
     // The amounts are computed by the server: their headers bear the mark Σ, named.
     expect(within(header ?? grid()).getAllByRole("img", { name: "Calculé" })).toHaveLength(2);
     for (const cell of within(header ?? grid()).getAllByRole("columnheader")) {
@@ -246,6 +253,9 @@ describe("the dense grid, on a thousand rows", () => {
       "",
       "",
       "0",
+      "",
+      "",
+      "",
       "",
       "100\u202f000,00",
       "100\u202f000,00",
@@ -647,7 +657,7 @@ describe("the columns and their widths, a display preference of the account", ()
     handle.focus();
     await userEvent.keyboard("{ArrowRight}{ArrowRight}{ArrowLeft}{Home}");
     expect(handle).toHaveAttribute("aria-valuenow", "144");
-    expect(container.querySelectorAll("col")[7]).toHaveStyle({ width: "144px" });
+    expect(container.querySelectorAll("col")[10]).toHaveStyle({ width: "144px" });
     await waitFor(() => {
       expect(recorded(client)).toEqual([
         {
@@ -836,7 +846,7 @@ describe("a grid configured without its options", () => {
     // Without row numbers, the label is the first column: the caption of the totals is its.
     expect(texts(rowAt(9))[0]).toBe("—");
     // Every column may then be hidden.
-    expect(screen.getAllByRole("separator")).toHaveLength(8);
+    expect(screen.getAllByRole("separator")).toHaveLength(11);
   });
 
   it("sizes its rows by the root font, so that an enlarged font shifts no row", () => {
@@ -868,8 +878,8 @@ describe("the figures and the dates of a grid, in the language of the interface"
   it("shows the same amount « 1 234,56 » in French and « 1,234.56 » in English, and the same total of the project [WF-INTF-0180-A]", () => {
     const french = figures("fr", "Borniers");
     const english = figures("en", "Borniers");
-    // Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
-    // reference, amount corrected for inflation.
+    // Number, label, category, role, quantity, hours, unit disbursement, sub-project, payment
+    // delay, deactivated object, amount at the year of reference, amount corrected for inflation.
     expect(french.row).toEqual([
       "11",
       "Borniers",
@@ -878,6 +888,9 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1",
       "",
       "1 234,56",
+      "Poste de commande",
+      "",
+      "",
       "1 234,56",
       "1 234,56",
     ]);
@@ -889,6 +902,9 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1",
       "",
       "1,234.56",
+      "Poste de commande",
+      "",
+      "",
       "1,234.56",
       "1,234.56",
     ]);

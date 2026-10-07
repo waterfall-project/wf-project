@@ -61,6 +61,23 @@ export interface CurveSeriesChartProps {
 function CurveValues({ curves }: { readonly curves: CurveSeries }) {
   const t = useTranslations();
   const locale = useLocale();
+  /**
+   * The heading of the row of a point: the name of its series, said before or after the step when
+   * the point shares its date with the one after or before it.
+   */
+  const stepSide = (
+    points: CurveSeries["series"][number]["points"],
+    index: number,
+    name: string,
+  ): string => {
+    const date = points[index]?.date;
+    if (points[index - 1]?.date === date) {
+      return t("projectIndicators.curves.afterStep", { series: name });
+    }
+    return points[index + 1]?.date === date
+      ? t("projectIndicators.curves.beforeStep", { series: name })
+      : name;
+  };
   const steps = curves.steps ?? [];
   const months = curves.cash_out_by_month ?? [];
   const caption = "text-left font-medium";
@@ -76,11 +93,16 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
         </thead>
         <tbody>
           {curves.series.flatMap((series) =>
-            // A date may come twice in a series: the two sides of a step of the budget.
+            // A date may come twice in a series: the two sides of a step of the budget, whose
+            // rows a reader of the screen tells apart by their heading, before and after (#290).
             series.points.map((point, index) => (
               <tr key={`${series.name}-${point.date}-${String(index)}`}>
                 <th scope="row" className="font-normal">
-                  {t(`enums.CurveSeries.series.name.${series.name}`)}
+                  {stepSide(
+                    series.points,
+                    index,
+                    t(`enums.CurveSeries.series.name.${series.name}`),
+                  )}
                 </th>
                 <td>{formatPlanningDate(point.date, locale)}</td>
                 <td className="tabular-nums">{formatMoney(point.amount, locale)}</td>

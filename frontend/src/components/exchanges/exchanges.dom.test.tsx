@@ -529,6 +529,26 @@ describe("the request of an export", () => {
     );
   });
 
+  it("keeps an export the revision lists unavailable, its request told what it lacks and asking nothing", async () => {
+    const client = serve({});
+    // The contract lists an export present or absent; one it listed unavailable would stay (#361).
+    const revision = structuredClone(example("revision") as Revision);
+    for (const command of revision.available_commands) {
+      if (command.command === "export_estimate") {
+        command.is_available = false;
+        command.missing_conditions = ["revision_marked"];
+      }
+    }
+    open(<ExportForm projectId={PROJECT} revisionId={REVISION} offers={exportOffers(revision)} />);
+    const form = screen.getByRole("form", { name: "Demander un export" });
+    await userEvent.selectOptions(within(form).getByLabelText("Fichier à exporter"), "Devis");
+    const request = within(form).getByRole("button", { name: "Demander l’export" });
+    expect(request).toHaveAttribute("aria-disabled", "true");
+    expect(request).toHaveAccessibleDescription("Condition non remplie\u00A0: révision marquée.");
+    await userEvent.click(request);
+    expect(client.calls).toEqual([]);
+  });
+
   it("says no export is offered without a revision that offers one", () => {
     serve({});
     open(<ExportForm projectId={PROJECT} revisionId={REVISION} offers={exportOffers(undefined)} />);

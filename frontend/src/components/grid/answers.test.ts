@@ -178,6 +178,63 @@ describe("the answers of a reading", () => {
     expect(shown?.task?.start).toEqual({ date: "2026-04-29", hours: "8" });
   });
 
+  it("lay two parts of the calendar of one task answered in the wrong order so that the later wins, and let go of those a later row whole covers", () => {
+    const answers = answersOf<PlanningNode, unknown>(rows);
+    // The acceptance moved to 29 April by the write of order 3, to 27 April by that of order 2;
+    // the later answers first.
+    const schedule = linked.rescheduled.find((each) => each.node_id === ACCEPTANCE);
+    if (schedule === undefined) {
+      throw new Error("the link of the witness planning reschedules the acceptance");
+    }
+    const earlier: NodesWritten = {
+      ...linked,
+      rescheduled: [
+        {
+          ...schedule,
+          start: { date: "2026-04-27", hours: "8" },
+          finish: { date: "2026-04-27", hours: "8" },
+        },
+      ],
+    };
+    const parts = (written: NodesWritten, order: number) => ({
+      ...nodesWritten(written, PLANNING_FIELDS, true),
+      rows: [],
+      changed: [],
+      order,
+    });
+    take(answers, parts(linked, 3), nodeKey);
+    take(answers, parts(earlier, 2), nodeKey);
+    expect(shownRow(answers, nodeKey, ACCEPTANCE)?.task?.start).toEqual({
+      date: "2026-04-29",
+      hours: "8",
+    });
+    expect(answers.parts.get(ACCEPTANCE)?.map((part) => part.order)).toEqual([2, 3]);
+    // The acceptance answered whole by the write of order 2: its part of order 2 is covered, let
+    // go; that of order 3 stands over the row (#355).
+    const whole = (order: number) => ({
+      rows: [row(ACCEPTANCE)],
+      changed: [],
+      parts: [],
+      totals: undefined,
+      order,
+    });
+    take(answers, whole(2), nodeKey);
+    expect(answers.parts.get(ACCEPTANCE)?.map((part) => part.order)).toEqual([3]);
+    expect(shownRow(answers, nodeKey, ACCEPTANCE)?.task?.start).toEqual({
+      date: "2026-04-29",
+      hours: "8",
+    });
+    take(answers, whole(3), nodeKey);
+    expect(answers.parts.has(ACCEPTANCE)).toBe(false);
+    // A part that comes after a later row whole is covered as it comes: never kept.
+    take(answers, whole(5), nodeKey);
+    take(answers, parts(linked, 3), nodeKey);
+    expect(answers.parts.has(ACCEPTANCE)).toBe(false);
+    expect(shownRow(answers, nodeKey, ACCEPTANCE)?.task?.start).toEqual(
+      row(ACCEPTANCE).task?.start,
+    );
+  });
+
   it("keep no schedule that changes nothing of what the grid reads, which then keeps out no row", () => {
     const estimateRows = projectNodes(planning, ESTIMATE_FIELDS).items;
     const answers = answersOf<(typeof estimateRows)[number], unknown>(estimateRows);

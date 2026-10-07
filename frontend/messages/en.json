@@ -135,8 +135,10 @@
       "quantity": "Qty",
       "hours": "Effort (h)",
       "unitDisbursement": "Unit disbursement",
+      "paymentDelay": "Payment delay (days)",
       "referenceAmount": "Amount (reference year)",
       "inflatedAmount": "Amount corrected for inflation",
+      "inactiveObject": "Deactivated object",
       "startDate": "Start",
       "finishDate": "Finish",
       "schedulingMode": "Scheduling mode",
@@ -171,6 +173,7 @@
     "computed": "Computed",
     "entry": {
       "none": "None",
+      "codedChoice": "{code} — {label}",
       "notANumber": "This is not a number: enter it as {example}.",
       "required": "This cell cannot be left empty.",
       "tooLong": "{max} characters at most.",
@@ -218,7 +221,8 @@
   },
   "estimateGrid": {
     "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}",
-    "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}"
+    "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}",
+    "usesInactiveObject": "Uses a deactivated object"
   },
   "planningGrid": {
     "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
@@ -310,6 +314,7 @@
       "subproject": "Subproject",
       "everySubproject": "Every subproject",
       "subprojectChoice": "{code} — {label}",
+      "unknownSubproject": "Unknown subproject",
       "period": "Period of the documents",
       "from": "Documents from",
       "to": "Documents up to",
@@ -626,6 +631,8 @@
       "series": "Curve",
       "date": "Date",
       "amount": "Amount",
+      "beforeStep": "{series}, before the step",
+      "afterStep": "{series}, after the step",
       "steps": "Steps of the reference budget",
       "cause": "Cause",
       "stepAmount": "Amount of the step",
@@ -1145,6 +1152,7 @@
     "missing_permission": "Required permission: {permission}.",
     "missing_condition": "Unmet condition: {condition}.",
     "missing_prerequisites": "Still missing: {prerequisites}.",
+    "projectState": "State of the project: {state}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",

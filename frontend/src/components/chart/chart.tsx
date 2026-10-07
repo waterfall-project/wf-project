@@ -205,8 +205,9 @@ const MAX_TICKS = 13;
  * The ticks of an axis of time over the instants it shows: the first of each month — in UTC, or in
  * the local time of the workstation —, from the month of the earliest instant to the first of the
  * month after the latest; every second, third, sixth month, every year or more over a long range,
- * a step falling on the first of a month that is a multiple of it from January. None without an
- * instant. They are positions of the axis, never figures the screen shows.
+ * a step falling on the first of a month that is a multiple of it from January — the shortest step
+ * whose ticks, so aligned, are `MAX_TICKS` at most (#290). None without an instant. They are
+ * positions of the axis, never figures the screen shows.
  */
 export function monthTicks(instants: readonly string[], utc: boolean): number[] {
   const times = instants.map((instant) => Date.parse(instant)).filter(Number.isFinite);
@@ -224,16 +225,21 @@ export function monthTicks(instants: readonly string[], utc: boolean): number[] 
   const earliest = Math.min(...times);
   const latest = Math.max(...times);
   const start = parts(earliest);
-  const end = parts(latest);
-  const months = (end.year - start.year) * 12 + end.month - start.month + 2;
-  const step =
-    MONTH_STEPS.find((candidate) => Math.ceil(months / candidate) + 1 <= MAX_TICKS) ??
-    MONTH_STEPS[MONTH_STEPS.length - 1] ??
-    1;
-  const from = start.month - (start.month % step);
-  const ticks: number[] = [];
-  for (let index = 0; ticks.length === 0 || (ticks.at(-1) ?? latest) <= latest; index += 1) {
-    ticks.push(first(start.year, from + index * step));
+  /** The ticks at a step, from the first of the month aligned on January before the earliest. */
+  const ticksAt = (step: number): number[] => {
+    const from = start.month - (start.month % step);
+    const ticks: number[] = [];
+    for (let index = 0; ticks.length === 0 || (ticks.at(-1) ?? latest) <= latest; index += 1) {
+      ticks.push(first(start.year, from + index * step));
+    }
+    return ticks;
+  };
+  let ticks: number[] = [];
+  for (const step of MONTH_STEPS) {
+    ticks = ticksAt(step);
+    if (ticks.length <= MAX_TICKS) {
+      break;
+    }
   }
   return ticks;
 }

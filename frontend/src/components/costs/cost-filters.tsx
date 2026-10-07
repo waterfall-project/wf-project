@@ -123,7 +123,9 @@ function SubprojectFilter({
             {t("actualCosts.filters.subprojectChoice", { code: choice.code, label: choice.label })}
           </option>
         ))}
-        {unknown ? <option value={subproject}>{subproject}</option> : null}
+        {unknown ? (
+          <option value={subproject}>{t("actualCosts.filters.unknownSubproject")}</option>
+        ) : null}
       </NativeSelect>
     </div>
   );

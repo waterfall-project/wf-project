@@ -71,6 +71,22 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the state of the project that forbids the operation by its label", () => {
+    const project: ProblemText = {
+      code: "STATE_FORBIDS_OPERATION",
+      params: { state: "completed" },
+    };
+    expect(say(project, "fr")).toBe(
+      "L\u2019état actuel ne permet pas cette opération. État du projet\u00A0: Terminé.",
+    );
+    expect(say(project, "en")).toBe(
+      "The current state does not allow this operation. State of the project: Completed.",
+    );
+    // A state of another enumeration, which the contract does not name, says nothing more.
+    const risk: ProblemText = { code: "STATE_FORBIDS_OPERATION", params: { state: "occurred" } };
+    expect(say(risk, "en")).toBe("The current state does not allow this operation.");
+  });
+
   it("lists the missing prerequisites in the reader's language", () => {
     const problem: ProblemText = {
       code: "REFERENCE_INCOMPLETE",

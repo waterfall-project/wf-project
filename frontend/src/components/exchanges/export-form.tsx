@@ -6,11 +6,11 @@
  * of the tree of tasks, the level it stops at, if the user gives one —, asked by a server action.
  * An export is present or absent — the permission to read its kind guards it, and it lacks no
  * condition, a terminal project included (WF-CYC-0110) —: a kind the revision does not list is
- * not offered; one it would list unavailable would stay, the request naming what it lacks. The API gives the hand back at once with a background
- * task (WF-ARC-0090), handed to the tracker of the shell with the request itself, which runs it
- * again if it fails; its result, a file made on demand and not kept (WF-DAT-0120), is downloaded
- * from the tracker once the task has succeeded. A refusal is told under the form
- * (`OutcomeNotice`).
+ * not offered; one it would list unavailable would stay, the request naming what it lacks. The
+ * API gives the hand back at once with a background task (WF-ARC-0090), handed to the tracker of
+ * the shell with the request itself, which runs it again if it fails; its result, a file made on
+ * demand and not kept (WF-DAT-0120), is downloaded from the tracker once the task has succeeded.
+ * A refusal is told under the form (`OutcomeNotice`).
  */
 "use client";
 

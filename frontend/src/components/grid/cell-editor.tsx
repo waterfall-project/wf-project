@@ -57,6 +57,14 @@ export interface CellEditorProps {
   readonly onAbandon: (refocus: boolean) => void;
 }
 
+/** The keyboard a value is typed on: digits for a whole number, a number otherwise, any text. */
+function inputModeOf(kind: EntryKind): "numeric" | "decimal" | undefined {
+  if (kind.type === "text") {
+    return undefined;
+  }
+  return kind.type === "integer" ? "numeric" : "decimal";
+}
+
 /** Render the entry of a cell. */
 export function CellEditor({
   kind,
@@ -158,7 +166,9 @@ export function CellEditor({
           .filter((choice) => choice.active || choice.id === text)
           .map((choice) => (
             <option key={choice.id} value={choice.id}>
-              {choice.label}
+              {choice.code === undefined
+                ? choice.label
+                : t("codedChoice", { code: choice.code, label: choice.label })}
             </option>
           ))}
       </NativeSelect>
@@ -167,7 +177,7 @@ export function CellEditor({
   return (
     <Input
       {...common}
-      inputMode={kind.type === "text" ? undefined : "decimal"}
+      inputMode={inputModeOf(kind)}
       maxLength={kind.type === "text" ? kind.maxLength : undefined}
       className={
         kind.type === "text"

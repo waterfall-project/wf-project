@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { columnsOf } from "./columns";
 import { rowAt } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
@@ -20,14 +21,17 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 
-// Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
-// reference, amount corrected for inflation.
-const LABEL = 1;
-const CATEGORY = 2;
-const ROLE = 3;
-const QUANTITY = 4;
-const HOURS = 5;
-const REFERENCE = 7;
+// The columns the journeys enter and read, by their heading (`columnsOf`).
+const COLUMNS = {
+  label: "Libellé",
+  category: "Catégorie",
+  role: "Rôle",
+  quantity: "Qté",
+  hours: "Charge (h)",
+  subproject: "Sous-projet",
+  delay: "Délai de paiement (j)",
+  reference: "Montant (année de réf.)",
+} as const;
 
 /** A cell of the row at a position among the rows of the answer, by the position of its column. */
 function cellAt(grid: Locator, row: number, column: number): Locator {
@@ -39,7 +43,10 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
  * shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip to
  * the browser, which the journey is given the time of (`test.slow`).
  */
-async function tabIntoGrid(page: Page): Promise<Locator> {
+async function tabIntoGrid(page: Page): Promise<{
+  readonly grid: Locator;
+  readonly at: Readonly<Record<keyof typeof COLUMNS, number>>;
+}> {
   test.slow();
   await page.goto(ESTIMATE);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
@@ -54,8 +61,9 @@ async function tabIntoGrid(page: Page): Promise<Locator> {
       { intervals: [0], timeout: 30_000 },
     )
     .toBe(true);
-  await expect(cellAt(grid, 1, LABEL)).toBeFocused();
-  return grid;
+  const at = await columnsOf(grid, COLUMNS);
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
+  return { grid, at };
 }
 
 /** Press keys, one after the other. */
@@ -65,10 +73,15 @@ async function press(page: Page, ...keys: readonly string[]): Promise<void> {
   }
 }
 
+/** A key pressed as many times as there are columns from one to another. */
+function times(key: string, count: number): string[] {
+  return Array.from({ length: count }, () => key);
+}
+
 test("enters a whole line of the estimate without the mouse — label, category, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const grid = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page);
   // Each cell validated leaves by a server action of its own.
   const writes: string[] = [];
   page.on("request", (request) => {
@@ -77,19 +90,19 @@ test("enters a whole line of the estimate without the mouse — label, category,
     }
   });
   await press(page, "ArrowDown", "ArrowDown", "ArrowDown");
-  await expect(cellAt(grid, 4, LABEL)).toBeFocused();
+  await expect(cellAt(grid, 4, at.label)).toBeFocused();
 
   // Typed, the label replaces the one read; Tab validates it and goes along the row.
   await page.keyboard.type("Heures de câblage");
   await page.keyboard.press("Tab");
-  await expect(cellAt(grid, 4, CATEGORY)).toBeFocused();
+  await expect(cellAt(grid, 4, at.category)).toBeFocused();
   // The category is chosen by the first letters of its name, typed on the cell: its list opens.
   await page.keyboard.type("Mise en service");
   const categories = page.getByRole("combobox", { name: "Catégorie" });
   await expect(categories).toBeFocused();
   await expect(categories).toHaveValue("01926f3a-7c00-7000-8000-000000000405");
   await page.keyboard.press("Tab");
-  await expect(cellAt(grid, 4, ROLE)).toBeFocused();
+  await expect(cellAt(grid, 4, at.role)).toBeFocused();
   // The role, from its list opened by Enter.
   await page.keyboard.press("Enter");
   await page.keyboard.type("Technicien");
@@ -97,14 +110,14 @@ test("enters a whole line of the estimate without the mouse — label, category,
     "01926f3a-7c00-7000-8000-000000000452",
   );
   await page.keyboard.press("Tab");
-  await expect(cellAt(grid, 4, QUANTITY)).toBeFocused();
+  await expect(cellAt(grid, 4, at.quantity)).toBeFocused();
   await page.keyboard.type("2");
   await page.keyboard.press("Tab");
   await page.keyboard.type("12,5");
   await page.keyboard.press("Enter");
 
   // The row below, at the cell the line was started from, in view.
-  const next = cellAt(grid, 5, LABEL);
+  const next = cellAt(grid, 5, at.label);
   await expect(next).toBeFocused();
   await expect(next).toBeInViewport();
   // The five cells written, one after the other.
@@ -119,6 +132,9 @@ test("enters a whole line of the estimate without the mouse — label, category,
     "1",
     "33",
     "",
+    "Poste de commande",
+    "",
+    "",
     /2\s640,00$/,
     /2\s640,00$/,
   ]);
@@ -129,10 +145,15 @@ test("enters a whole line of the estimate without the mouse — label, category,
 test("leaves a cell at its value before when its entry under way is abandoned [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const grid = await tabIntoGrid(page);
-  await press(page, "ArrowDown", "ArrowDown", "ArrowDown", "ArrowRight", "ArrowRight");
-  await press(page, "ArrowRight", "ArrowRight");
-  const hours = cellAt(grid, 4, HOURS);
+  const { grid, at } = await tabIntoGrid(page);
+  await press(
+    page,
+    "ArrowDown",
+    "ArrowDown",
+    "ArrowDown",
+    ...times("ArrowRight", at.hours - at.label),
+  );
+  const hours = cellAt(grid, 4, at.hours);
   await expect(hours).toBeFocused();
   await page.keyboard.type("99");
   await expect(hours.getByRole("textbox", { name: "Charge (h)" })).toHaveValue("99");
@@ -145,18 +166,23 @@ test("leaves a cell at its value before when its entry under way is abandoned [W
 test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const grid = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page);
   for (let row = 1; row < 21; row += 1) {
     await page.keyboard.press("ArrowDown");
   }
   await expect(rowAt(grid, 21)).toContainText("Provision");
-  await expect(cellAt(grid, 21, LABEL)).toBeFocused();
+  await expect(cellAt(grid, 21, at.label)).toBeFocused();
   // From its label, Tab goes past its quantity and its unit disbursement, which the server
   // computes, past its category, its role and its effort, which its node does not accept (#219),
-  // and past its amounts, to the next row.
+  // to its sub-project and its payment delay, which it accepts (#349), then past its amounts, to
+  // the next row.
   await press(page, "Enter", "Tab");
-  await expect(cellAt(grid, 22, LABEL)).toBeFocused();
-  for (const column of [CATEGORY, ROLE, QUANTITY, HOURS]) {
+  await expect(cellAt(grid, 21, at.subproject)).toBeFocused();
+  await press(page, "Enter", "Tab");
+  await expect(cellAt(grid, 21, at.delay)).toBeFocused();
+  await press(page, "Enter", "Tab");
+  await expect(cellAt(grid, 22, at.label)).toBeFocused();
+  for (const column of [at.category, at.role, at.quantity, at.hours]) {
     await expect(cellAt(grid, 21, column)).toHaveAttribute("aria-readonly", "true");
   }
   await expect(grid.getByRole("textbox")).toHaveCount(0);
@@ -165,10 +191,15 @@ test("traverses the computed cells of a line entered along its row, without ente
 test("opens the entry of the effort on a digit typed, and the refusal of the amount, with no field, on the same digit [WF-IHM-0040-A]", async ({
   page,
 }) => {
-  const grid = await tabIntoGrid(page);
-  await press(page, "ArrowDown", "ArrowDown", "ArrowDown", "ArrowRight", "ArrowRight");
-  await press(page, "ArrowRight", "ArrowRight");
-  const hours = cellAt(grid, 4, HOURS);
+  const { grid, at } = await tabIntoGrid(page);
+  await press(
+    page,
+    "ArrowDown",
+    "ArrowDown",
+    "ArrowDown",
+    ...times("ArrowRight", at.hours - at.label),
+  );
+  const hours = cellAt(grid, 4, at.hours);
   await expect(hours).toBeFocused();
   // The effort of a line of labour is entered: a digit opens its entry, with it.
   await page.keyboard.press("7");
@@ -176,8 +207,8 @@ test("opens the entry of the effort on a digit typed, and the refusal of the amo
   await page.keyboard.press("Escape");
   await expect(hours).toHaveText("33");
   // Its amount is computed: the arrows reach it, the same digit opens no field but its refusal.
-  await press(page, "ArrowRight", "ArrowRight");
-  const amount = cellAt(grid, 4, REFERENCE);
+  await press(page, ...times("ArrowRight", at.reference - at.hours));
+  const amount = cellAt(grid, 4, at.reference);
   await expect(amount).toBeFocused();
   await expect(amount).toHaveAttribute("aria-readonly", "true");
   await page.keyboard.press("7");

@@ -13,7 +13,7 @@ import type { CellValue, Choice, EntryKind } from "./columns";
 
 /**
  * Why an entry is not validated: a cell that may not be emptied left blank, a text too long, no
- * number of the language, an amount with more than two decimals.
+ * number of the language, an amount with more than two decimals, a whole number with a fraction.
  */
 export type EntryProblem = "required" | "tooLong" | "notANumber" | "twoDecimals";
 
@@ -42,6 +42,13 @@ export function parsedEntry(
   if (text.trim() === "") {
     return kind.nullable ? { value: null } : { problem: "required" };
   }
+  if (kind.type === "integer") {
+    // Digits alone, as the contract takes a whole number: no sign, no separator, no fraction.
+    // Nine digits at most keep the number exact.
+    return /^\d{1,9}$/.test(text.trim())
+      ? { value: text.trim().replace(/^0+(?=\d)/, "") }
+      : { problem: "notANumber" };
+  }
   const value = parseDecimal(text, locale, kind.type);
   if (value !== undefined) {
     return { value };
@@ -59,6 +66,7 @@ export function shownEntry(kind: EntryKind, value: string | null, locale: Locale
   }
   switch (kind.type) {
     case "decimal":
+    case "integer":
       return formatDecimal(value, locale);
     case "money":
       return formatMoney(value, locale);

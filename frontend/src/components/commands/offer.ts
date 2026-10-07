@@ -9,10 +9,10 @@
  * front does not know which permission guards which command, and deduces none of it
  * (WF-ARC-0020). One exception, decided by the user on 2026-10-05: without a current revision,
  * an import the caller may exercise but whose revision they may not create is listed
- * unavailable, lacking `may_create_revision`. Elsewhere — accounts, roles, reference data, backups — the commands of a
- * function follow its permission of modification in the session, and the restoration its own,
- * `platform_restore`: the rule of the catalogue itself (WF-ADM-0100), with no condition to
- * name.
+ * unavailable, lacking `may_create_revision`. Elsewhere — accounts, roles, reference data,
+ * backups — the commands of a function follow its permission of modification in the session, and
+ * the restoration its own, `platform_restore`: the rule of the catalogue itself (WF-ADM-0100),
+ * with no condition to name.
  *
  * Greying a command out is a convenience of reading, not a protection: the server judges the
  * command anyway, and its refusal is rendered (`OutcomeNotice`).

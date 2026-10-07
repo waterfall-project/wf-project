@@ -304,7 +304,14 @@ describe("the cumulative curves", () => {
       ["2026-03-10T00:00:00Z", "23333.33"],
       ["2026-03-10T00:00:00Z", "38333.33"],
     ]);
-    expect(screen.getAllByRole("row", { name: /^Reference budget 10 Mar 2026/ })).toHaveLength(2);
+    // Its two rows in the table of the values are told apart by their heading (#290).
+    expect(
+      screen.getByRole("row", { name: "Reference budget, before the step 10 Mar 2026 23,333.33" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("row", { name: "Reference budget, after the step 10 Mar 2026 38,333.33" }),
+    ).toBeVisible();
+    expect(screen.queryAllByRole("row", { name: /^Reference budget 10 Mar 2026/ })).toHaveLength(0);
     const table = screen.getByRole("table", { name: "Steps of the reference budget" });
     // The amount of the step, not the budget after it (38,333.33).
     expect(within(table).getByRole("columnheader", { name: "Amount of the step" })).toBeVisible();

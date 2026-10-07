@@ -194,7 +194,7 @@ describe("a command of a revision", () => {
     );
   });
 
-  it("shows nothing when the user may exercise no command of the revision", () => {
+  it("shows nothing when the user may exercise no command of the revision but its exports", () => {
     french(revisionCommands("revision_reader"));
     expect(screen.queryByRole("region", { name: "Commandes" })).toBeNull();
   });

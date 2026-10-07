@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import type { ApiClient } from "@/api/client";
+import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
@@ -14,8 +15,6 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import type { RiskState } from "./address";
-import { PendingAddress } from "@/components/grid/pending-address";
-
 import { riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
 import { RisksGrid } from "./risks-grid";
 import { RiskStateFilter } from "./state-filter";
@@ -266,13 +265,18 @@ describe("the grid of the risks", () => {
   });
 });
 
-/** Render the filter of the risks by state, the address filtering on some. */
-function renderFilter(states: readonly RiskState[]) {
-  return render(
+/** The filter of the risks by state, in French, the address filtering on `states`. */
+function filterOf(states: readonly RiskState[]) {
+  return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <RiskStateFilter states={states} />
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+/** Render the filter of the risks by state, the address filtering on some. */
+function renderFilter(states: readonly RiskState[]) {
+  return render(filterOf(states));
 }
 
 /** The filter, by its name. */
@@ -305,9 +309,9 @@ describe("the filter of the risks by state", () => {
     );
   });
 
-  it("adds a state to those filtered on, in the order of the contract, and takes one off", async () => {
+  it("adds a state to those filtered on, in the order of the contract, and takes one off — from the address arrived, what was asked forgotten", async () => {
     page.search = "states=occurred";
-    const { unmount } = renderFilter(["occurred"]);
+    const { rerender } = renderFilter(["occurred"]);
     expect(within(filter()).getByRole("button", { name: "Survenu" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -316,10 +320,19 @@ describe("the filter of the risks by state", () => {
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified%2Coccurred`, {
       scroll: false,
     });
-    unmount();
-    renderFilter(["occurred"]);
+    // A navigation arrives — another than the one asked, which it replaced —: the next change
+    // goes on from the address of the screen, what was asked forgotten (#288).
+    page.search = "states=identified";
+    rerender(filterOf(["identified"]));
     await userEvent.click(within(filter()).getByRole("button", { name: "Survenu" }));
-    expect(router.push).toHaveBeenLastCalledWith(PATHNAME, { scroll: false });
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified%2Coccurred`, {
+      scroll: false,
+    });
+    // What was just asked is kept until it arrives: the next change goes on from it.
+    await userEvent.click(within(filter()).getByRole("button", { name: "Identifié" }));
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=occurred`, {
+      scroll: false,
+    });
   });
 
   it("lifts the filter on every state", async () => {
@@ -364,6 +377,25 @@ describe("the changes the screen makes to its address, before the server has ans
         { scroll: false },
       );
     });
+  });
+
+  it("leave a click with a modifier to the browser, on the address shown — without the sort asked —, and navigate nothing themselves", async () => {
+    renderScreen();
+    const heading = within(grid()).getByRole("columnheader", { name: /Provision/ });
+    await userEvent.click(within(heading).getByRole("button"));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith(
+        `${PATHNAME}?sort_by=provision_amount&sort_order=asc`,
+        { scroll: false },
+      );
+    });
+    const link = within(grid()).getByRole("link", { name: "Risque de reprise du câblage" });
+    // The `href` is the address shown, the sort not arrived: a new tab opens without it (#288).
+    expect(link).toHaveAttribute("href", `${PATHNAME}?risk=${CABLING}`);
+    const pushes = router.push.mock.calls.length;
+    fireEvent.click(link, { ctrlKey: true });
+    fireEvent.click(link, { button: 1 });
+    expect(router.push).toHaveBeenCalledTimes(pushes);
   });
 
   it("keep a sort under way when a risk is opened, by a click or from the keyboard [WF-RIS-0040-A]", async () => {
