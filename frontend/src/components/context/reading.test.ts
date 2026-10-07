@@ -76,7 +76,7 @@ describe("what a screen of a project reads in", () => {
       pathname: REMAINING,
       project: { label: "Modernisation du poste de commande" },
       revision: { revision_id: REVISION, status: "draft" },
-      edits: new Set(["edit_planning", "edit_estimate", "edit_remaining"]),
+      edits: new Set(["edit_planning", "edit_estimate", "edit_remaining", "edit_risks"]),
       readOnly: false,
       filters: [],
     });

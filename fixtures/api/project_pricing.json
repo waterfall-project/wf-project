@@ -1,5 +1,5 @@
 {
-  "summary": "Un projet en chiffrage, sans révision : sa terminaison est indisponible tant qu'il n'est pas en cours ; un planning, un devis, un reste à engager s'y importent, l'import créant la révision (WF-INTF-0090).",
+  "summary": "Un projet en chiffrage, sans révision : sa terminaison est indisponible tant qu'il n'est pas en cours ; un planning, un devis, un reste à engager s'y importent, l'import créant la révision (WF-INTF-0090) ; sans révision, il porte lui-même la saisie des risques, dont la première crée la révision en cours (WF-RIS-0020).",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000002",
     "label": "Extension de la ligne d'essais",

@@ -1,0 +1,17 @@
+{
+  "summary": "La création à la main, sous le « Câblage des armoires », d'une ligne de la catégorie « Provisions pour risques », de nature provision, refusée : une ligne de provision n'est créée que par la déclaration d'un risque, et porte un montant calculé (WF-DEV-0020, WF-RIS-0010).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/estimate_line/cost_category_id",
+        "code": "PROVISION_CATEGORY_RESERVED",
+        "params": {
+          "cost_category_id": "01926f3a-7c00-7000-8000-000000000404"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000964"
+  }
+}

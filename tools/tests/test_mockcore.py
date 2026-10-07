@@ -430,6 +430,9 @@ def _named(value: Any, found: list[tuple[str, str, str]]) -> None:
         if not isinstance(identifier, str) or not family.holds(identifier):
             continue
         kind = fields.get("kind") or fields.get("target") or ""
+        # A difference of an import on a link is named by its successor, the task whose column
+        # of predecessors presents it (#364): its lineage and its label are the task's.
+        kind = "task" if kind == "link" else kind
         label = fields.get("label") or fields.get("milestone_label")
         for facet_name in ("task", "estimate_line"):
             inner = fields.get(facet_name)
@@ -560,3 +563,31 @@ def test_the_lot_of_the_control_station_bears_the_one_order_item_of_the_witness(
     # Neither the studies nor the occurrence bear one: an order item is borne by one summary.
     assert "order_item_id" not in facet(planning[STUDIES])
     assert "order_item_id" not in facet(estimate[OCCURRED])
+
+
+def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fields(
+    readings: dict[str, Any],
+) -> None:
+    # Every task, leaf included, accepts an order item or a work package (#411, WF-PLA-0130):
+    # an automatic leaf enters neither date, a manual one both, in the order of `EditableField`.
+    nodes = {node["node_id"]: node for node in readings["nodes_planning.json"]["items"]}
+    assert nodes[universe(522)]["editable_fields"] == [
+        "task.label",
+        "task.description",
+        "task.scheduling_mode",
+        "task.duration",
+        "task.progress",
+        "task.order_item_id",
+        "task.work_package_id",
+    ]
+    assert nodes[universe(523)]["editable_fields"] == [
+        "task.label",
+        "task.description",
+        "task.scheduling_mode",
+        "task.duration",
+        "task.start",
+        "task.finish",
+        "task.progress",
+        "task.order_item_id",
+        "task.work_package_id",
+    ]

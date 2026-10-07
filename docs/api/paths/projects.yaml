@@ -93,6 +93,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/project.json }
               pricing: { $ref: ../../../fixtures/api/project_pricing.json }
+              without_current_revision: { $ref: ../../../fixtures/api/project_without_current_revision.json }
               pricing_estimator: { $ref: ../../../fixtures/api/project_pricing_estimator.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -230,7 +231,11 @@
     tags: [projects]
     summary: Saisir le lotissement
     description: >-
-      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020).
+      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un lot
+      que la saisie range sous un autre poste suit la règle du rattachement (WF-PLA-0130) : si
+      le lot et son nouveau poste sont tous deux rattachés et que, dans la révision en cours, la
+      tâche du lot n'est pas dans le sous-arbre de la tâche du poste, la saisie est refusée. Les
+      révisions marquées n'entrent pas dans ce jugement : leurs tâches ne se déplacent plus.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -248,6 +253,16 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Un lot rangé sous un autre poste sortirait sa tâche du sous-arbre de la tâche de son
+          nouveau poste dans la révision en cours, les deux étant rattachés (WF-PLA-0130) : `VALIDATION_FAILED`, `fields`
+          sur le lot (`/order_items/1/work_packages/0`), motif `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+          `fields[].params.work_package_id` nommant le lot, `order_item_node_id` et
+          `work_package_node_ids` les tâches du poste et du lot.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/subprojects:
   get:

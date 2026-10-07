@@ -446,6 +446,20 @@ sous-projet d'une ligne de coût, le tri des tables plates, le lien de fixation 
 `can_open`. Chaque forme est consignée dans `docs/api/DECISIONS.md`, « Révision de la
 spécification du 2026-10-04 » et « Ce que la révision de la spécification demande (EP-02/L29) ».
 
+**Constats d'EP-02 tranchés (EP-02/L30, #393).** Les constats #238, #244, #348, #352, #359, #360,
+#362, #364 et #365, selon les décisions de l'auteur du 2026-10-07, et les suites de la
+spécification modifiée par les PR #410 et #418 : toute tâche porte son rattachement au lotissement,
+la tâche d'un lot restant sous celle de son poste (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+`SUMMARY_TASK_REQUIRED` retiré) ; la marge totale signée ; le refus d'une saisie qui laisserait une
+tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) ; les commandes d'un risque
+(`Risk.available_commands`) ; la saisie des risques devenue une commande de la révision
+(`edit_risks`), annulable, le projet la gardant tant qu'il n'a pas de révision en cours ; le refus d'une ligne de provision
+créée à la main (`PROVISION_CATEGORY_RESERVED`) ; la révision en cours suspendue pendant l'application d'un import ou une
+survenance ; `listBackups` sans 403 ; les indicateurs de devis à l'année de référence ; la révision
+exigée d'un export ; le nœud nommé par le plan de charge ; le prédécesseur d'un écart de liaison ;
+les courbes d'une révision marquée et les colonnes conservées d'une ligne de coût. Chaque forme est
+consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-02/L30) ».
+
 ### Constats sur le contrat
 
 - `Computable.reason` était une phrase libre, que le front ne pouvait pas traduire, quand le

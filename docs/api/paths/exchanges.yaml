@@ -205,7 +205,10 @@
       reste à engager (WF-INTF-0130) — un planning exporté puis réimporté sans
       modification restitue les mêmes tâches (WF-INTF-0060) —, ou image de l'arborescence de tâches
       (WF-PLA-0120). Le fichier est engendré à la demande et n'est pas stocké
-      (WF-DAT-0120) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180).
+      (WF-DAT-0120) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180). La
+      révision nommée (`revision_id`, exigé) est celle dont la commande `export_*` juge
+      l'export ; une révision inconnue ou d'un autre projet est refusée par 404, un corps sans
+      révision par 422.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -223,5 +226,17 @@
               queued: { $ref: ../../../fixtures/api/task_export_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '404':
+        description: >-
+          Projet invisible, ou révision inconnue ou d'un autre projet (WF-ADM-0110) :
+          `NOT_FOUND`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422':
+        description: >-
+          Un corps sans révision : `VALIDATION_FAILED`, `fields` sur `/revision_id`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }

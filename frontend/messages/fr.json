@@ -1131,6 +1131,7 @@
     "PROJECT_CODE_REQUIRED": "Le code projet doit être renseigné.",
     "PASTE_TOO_WIDE": "Les données collées ont plus de colonnes que la grille.",
     "FILE_FORMAT_UNREADABLE": "Le format du fichier est illisible.",
+    "TASK_WITHOUT_WORKING_HOURS": "Les calendriers des rôles de cette tâche ne se recoupent aucun jour : elle n’aurait aucune heure travaillée dans la semaine.",
     "VALUE_REQUIRED": "Une valeur est requise.",
     "VALUE_TOO_LONG": "La valeur est trop longue.",
     "VALUE_OUT_OF_RANGE": "La valeur sort des limites admises.",
@@ -1141,10 +1142,11 @@
     "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
-    "SUMMARY_TASK_REQUIRED": "Seule une tâche récapitulative peut être rattachée à un poste ou à un lot.",
+    "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
-    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche récapitulative porte un poste ou un lot, jamais les deux.",
-    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche récapitulative.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
+    "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "La tâche d’un lot doit rester dans le sous-arbre de la tâche de son poste.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service."
   },
@@ -1428,7 +1430,9 @@
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
       "may_create_revision": "avoir la permission de créer une révision",
-      "risk_not_cited": "risque cité par aucune révision marquée"
+      "risk_not_cited": "risque cité par aucune révision marquée",
+      "risk_not_occurred": "risque non survenu",
+      "risk_identified": "risque identifié"
     },
     "ProjectExit": {
       "to_state": {
@@ -1449,6 +1453,7 @@
       "edit_planning": "Modifier le planning",
       "edit_estimate": "Modifier le devis",
       "edit_remaining": "Réestimer le reste à engager",
+      "edit_risks": "Modifier les risques",
       "create_structure": "Créer une structure",
       "merge_structure": "Fusionner une structure",
       "mark": "Marquer la révision",
@@ -1701,6 +1706,12 @@
       "identified": "Identifié",
       "occurred": "Survenu",
       "dismissed": "Écarté"
+    },
+    "RiskCommand": {
+      "update": "Modifier le risque",
+      "review": "Réexaminer le risque",
+      "declare_occurrence": "Déclarer le risque survenu",
+      "delete": "Supprimer le risque"
     },
     "RiskComputedField": {
       "field": {

@@ -71,7 +71,8 @@
       nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses
       descendants, les enfants d'un même parent — les racines entre elles aussi — triés
       par libellé, comparé caractère par caractère dans l'ordre des points de code
-      Unicode, sans égard à la langue du lecteur ; chacun dit sa profondeur (`level`). Une recherche rend les nœuds
+      Unicode, sans égard à la langue du lecteur ; chacun dit sa profondeur (`level`). Une
+      recherche porte sur le libellé et sur le code du nœud (WF-REF-0070) ; elle rend les nœuds
       retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou.
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
@@ -276,6 +277,15 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Le calendrier donné au rôle laisserait une tâche d'une révision en cours sans aucune
+          heure travaillée dans la semaine, ne recoupant jamais celui d'un autre rôle de ses
+          lignes de main-d'œuvre : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
+          `params.tasks` nommant les rôles et les tâches en cause (WF-PLA-0010).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /reference/resource-roles/{resource_role_id}/activation:
   put:
@@ -429,6 +439,18 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Les heures données au calendrier laisseraient une tâche d'une révision en cours sans
+          aucune heure travaillée dans la semaine : les calendriers des rôles de ses lignes de
+          main-d'œuvre ne se recoupant plus aucun jour, ou, pour le calendrier par défaut, une
+          tâche sans ligne de main-d'œuvre qui n'aurait plus d'heure du tout :
+          `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les
+          rôles et les tâches en cause — `resource_role_ids` vide pour les tâches sans ligne de
+          main-d'œuvre (WF-PLA-0010).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /reference/calendars/{calendar_id}/default:
   put:
@@ -437,7 +459,9 @@
     summary: Désigner le calendrier par défaut
     description: >-
       Un et un seul calendrier actif est par défaut ; la désignation la retire au
-      précédent (WF-REF-0120).
+      précédent (WF-REF-0120). Les tâches sans ligne de main-d'œuvre relèvent du calendrier
+      par défaut (WF-PLA-0010) : un calendrier sans aucune heure dans la semaine ne peut pas
+      l'être tant qu'une telle tâche existe dans une révision en cours.
     parameters:
       - $ref: ../components/parameters.yaml#/CalendarId
     responses:
@@ -450,6 +474,15 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422':
+        description: >-
+          Le calendrier désigné n'a aucune heure dans la semaine, et des tâches sans ligne de
+          main-d'œuvre d'une révision en cours, qui en relèveraient, n'auraient plus d'heure
+          travaillée : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` vide,
+          `params.tasks` nommant les tâches (WF-PLA-0010).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /reference/calendars/{calendar_id}/activation:
   put:

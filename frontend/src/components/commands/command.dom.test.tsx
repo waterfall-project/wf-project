@@ -99,6 +99,7 @@ describe("a command of a screen", () => {
       "Modifier le planning",
       "Modifier le devis",
       "Réestimer le reste à engager",
+      "Modifier les risques",
       "Créer une structure",
       "Fusionner une structure",
       "Marquer la révision",

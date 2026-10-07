@@ -59,6 +59,7 @@ export const REVISION_COMMAND_ICONS: Readonly<
   edit_planning: CalendarRange,
   edit_estimate: Calculator,
   edit_remaining: Hourglass,
+  edit_risks: ShieldAlert,
   create_structure: ListTree,
   merge_structure: GitMerge,
   mark: Stamp,

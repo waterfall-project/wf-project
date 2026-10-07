@@ -18,12 +18,14 @@ Risk:
     - state
     - structure_id
     - computed_fields
+    - available_commands
     - audit
     - lock_version
   description: >-
     La gravité est le total de la structure propre du risque et la provision cette
     gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies
-    (WF-RIS-0010), et le risque nomme ce dont elles dépendent (`computed_fields`).
+    (WF-RIS-0010), et le risque nomme ce dont elles dépendent (`computed_fields`). Il
+    porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090).
   properties:
     risk_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -63,8 +65,51 @@ Risk:
       minItems: 2
       maxItems: 2
       items: { $ref: '#/RiskComputedField' }
+    available_commands:
+      type: array
+      description: >-
+        Commandes du risque que l'appelant a la permission d'exercer, chacune disponible ou
+        non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
+        `RiskCommand`. Une commande absente de la liste n'est pas présentée. Le risque ne
+        nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et,
+        pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la
+        révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`,
+        `RevisionCommand.edit_risks`). Un appel envoyé malgré la liste est refusé par son code
+        d'erreur.
+      items: { $ref: '#/RiskCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskCommand:
+  type: string
+  enum:
+    - update
+    - review
+    - declare_occurrence
+    - delete
+  description: >-
+    Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), le réexaminer
+    — l'écarter ou le réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer
+    survenu (`declareRiskOccurrence`), le supprimer (`deleteRisk`). Les trois saisies relèvent
+    de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles,
+    `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la
+    suppression d'un risque qu'une révision marquée cite nomme `risk_not_cited`. La
+    déclaration de survenance est gardée par la seule permission `risk_occurrence` — elle
+    emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100) — ;
+    indisponible pour un risque qui n'est pas identifié, `risk_identified` manquante, et, quand
+    le projet n'a pas de révision en cours, pour qui n'a pas `revisions.write`,
+    `may_create_revision` manquante : elle la créerait (WF-RIS-0060).
+
+RiskCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/RiskCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
 
 RiskComputedField:
   type: object

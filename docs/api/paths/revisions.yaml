@@ -96,6 +96,7 @@
               reader: { $ref: ../../../fixtures/api/revision_reader.json }
               estimator: { $ref: ../../../fixtures/api/revision_estimator.json }
               marking: { $ref: ../../../fixtures/api/revision_marking.json }
+              importing: { $ref: ../../../fixtures/api/revision_importing.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   delete:
@@ -336,7 +337,11 @@
       désigne ; les montants réestimés sont conservés. Une tâche déjà démarrée n'est
       jamais retirée : son reste à engager est porté à zéro. La révision marquée qui en
       résulte devient la référence (WF-REV-0050). Confiée au worker et inscrite au
-      journal d'audit (WF-ARC-0090, WF-SEC-0030).
+      journal d'audit (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la
+      structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune
+      heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en
+      échec, `problem.code` à `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et
+      les tâches en cause (WF-PLA-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -423,16 +428,16 @@
       - name: order_item_id
         in: query
         description: >-
-          Restreint au sous-arbre de la récapitulative rattachée à ce poste du lotissement,
-          elle comprise (WF-PLA-0130, WF-DEV-0050) ; un poste qu'aucune récapitulative ne
-          porte ne retient rien.
+          Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, elle
+          comprise (WF-PLA-0130, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne retient
+          rien.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: work_package_id
         in: query
         description: >-
-          Restreint au sous-arbre de la récapitulative rattachée à ce lot du lotissement, elle
-          comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
-          WF-RAE-0040, WF-PLA-0130) ; un lot qu'aucune récapitulative ne porte ne retient rien.
+          Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, elle comprise
+          — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
+          WF-RAE-0040, WF-PLA-0130) ; un lot qu'aucune tâche ne porte ne retient rien.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: cost_category_id
         in: query
@@ -503,7 +508,14 @@
     description: >-
       Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal
       (WF-CYC-0100). Une tâche ajoutée après la référence porte un montant budgété nul
-      (WF-RAE-0050).
+      (WF-RAE-0050). Une ligne de main-d'œuvre dont le rôle laisserait sa tâche sans aucune
+      heure travaillée dans la semaine — son calendrier ne recoupant jamais ceux des autres
+      rôles de la tâche — est refusée par 422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant
+      les rôles et la tâche (WF-PLA-0010) ; une tâche créée rattachée à un lot suit les règles
+      du rattachement (`TaskFacetWrite`). Une ligne dont la catégorie relève d'une nature de
+      type provision n'est créée que par la déclaration d'un risque : sa création à la main est
+      refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif
+      `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -525,7 +537,17 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de
+          nature provision créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un
+          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0130) ; ou une ligne qui
+          laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              provision_refused: { $ref: ../../../fixtures/api/estimate_line_provision_refused.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
   delete:
@@ -654,13 +676,15 @@
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
           calculée (`COMPUTED_VALUE`, WF-IHM-0030), ou un rattachement au lotissement refusé —
-          tâche non récapitulative, poste ou lot inconnu, poste et lot ensemble, poste ou lot
-          déjà porté par une autre récapitulative (WF-PLA-0130, `TaskFacetUpdate`).
+          poste ou lot inconnu, poste et lot ensemble, poste ou lot déjà porté par une autre
+          tâche, tâche d'un lot sortie du sous-arbre de la tâche de son poste (WF-PLA-0130,
+          `TaskFacetUpdate`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               attach_refused: { $ref: ../../../fixtures/api/task_attach_refused.json }
+              attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_order_item.json }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line:
   patch:
@@ -706,7 +730,12 @@
       '422':
         description: >-
           Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne
-          de main-d'œuvre (WF-DEV-0010, WF-DEV-0020).
+          de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé dont le calendrier ne
+          recoupe jamais ceux des autres rôles de la tâche, qui resterait sans heure travaillée
+          dans la semaine : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
+          `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une
+          catégorie de nature provision donnée à une ligne saisie : `VALIDATION_FAILED`,
+          `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -864,7 +893,9 @@
       tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de
       l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont
       rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated`
-      (WF-DEV-0040).
+      (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son
+      rattachement au lotissement ; un déplacement qui sortirait la tâche d'un lot du
+      sous-arbre de la tâche de son poste est refusé (WF-PLA-0130, `NodeMove`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -887,6 +918,18 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Le déplacement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste
+          (WF-PLA-0130) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif
+          `WORK_PACKAGE_OUTSIDE_ORDER_ITEM` (`NodeMove`). Ou une ligne de main-d'œuvre déplacée
+          change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
+          heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
+          `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
+          (WF-PLA-0010).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
   post:
@@ -973,7 +1016,9 @@
     summary: Annuler la dernière modification
     description: >-
       Annule les modifications de la session, une par une et dans l'ordre inverse, sur
-      au moins cinquante niveaux. Une annulation est une modification comme une autre :
+      au moins cinquante niveaux : les saisies des grilles comme celles des risques —
+      création, modification, réexamen, suppression d'un risque —, saisies de la révision en
+      cours (WF-RIS-0020). Une annulation est une modification comme une autre :
       elle s'inscrit dans les colonnes d'audit et est refusée si une modification
       postérieure porte sur le même objet (WF-IHM-0110). Aucune commande n'annule un
       import appliqué, un marquage, une fusion, la désignation de la référence, une sortie

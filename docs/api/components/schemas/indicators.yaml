@@ -123,7 +123,12 @@ EstimateIndicators:
     nature, le sous-projet et le poste qui portent ses lignes, les écarts, et les parts qui
     se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories
     et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à
-    zéro. Les montants que ces lignes ne touchent pas se calculent.
+    zéro. Les montants que ces lignes ne touchent pas se calculent. Tous sont à l'année de
+    référence de la révision — `total`, ses ventilations par nature, par sous-projet et par
+    poste, et les deux écarts —, `total` valant le `base_amount` des totaux de la structure :
+    seul le montant corrigé de l'inflation de la grille (`NodeTotals.inflated_amount`,
+    WF-DEV-0040, WF-DEV-0050) porte l'inflation, et les indicateurs n'en ont pas de second
+    total, la somme des parts ne valant cent que sur une même base (WF-DEV-0060).
   properties:
     context: { $ref: '#/CalculationContext' }
     total: { $ref: '#/ComputableMoney' }
@@ -139,9 +144,10 @@ EstimateIndicators:
           items: { $ref: '#/ComputableAmountByKey' }
         - type: 'null'
       description: >-
-        Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche
-        récapitulative qui porte chacun ; nul quand le planning n'est pas structuré en postes
-        — absents plutôt que nuls (WF-DEV-0060).
+        Les totaux par poste du lotissement (WF-PRJ-0020), lus à travers la tâche,
+        récapitulative ou feuille, qui porte chacun — le total de son sous-arbre
+        (WF-PLA-0130) ; nul quand le planning n'est pas structuré en postes — absents plutôt
+        que nuls (WF-DEV-0060).
     provisions_identified: { $ref: ../common.yaml#/Money }
     delta_to_reference:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
@@ -284,7 +290,7 @@ Projections:
 
 WorkloadPlan:
   type: object
-  required: [context, basis, roles]
+  required: [context, basis, org_node_id, org_node_label, roles]
   description: >-
     Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la
     durée de sa tâche par interpolation linéaire (WF-DEV-0070).
@@ -297,6 +303,19 @@ WorkloadPlan:
         La base retenue : les montants budgétés de la révision de référence, les montants
         réestimés d'une révision marquée, ou ceux de la révision en cours (WF-DEV-0070).
         `context.revision_id` nomme la révision lue.
+    org_node_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Le nœud d'organisation retenu par le filtre (`org_node_id` de `getProjectWorkload`),
+        nul sans filtre (WF-DEV-0070).
+    org_node_label:
+      anyOf:
+        - { type: string, minLength: 1, maxLength: 200 }
+        - type: 'null'
+      description: >-
+        Le libellé du nœud retenu, résolu à la lecture, qu'il soit actif ou désactivé
+        (WF-REF-0150), que l'en-tête du plan de charge nomme sans lire l'arbre d'organisation
+        (WF-ARC-0020) ; nul sans nœud.
     roles:
       type: array
       items:

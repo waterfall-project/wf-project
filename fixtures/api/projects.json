@@ -49,11 +49,6 @@
             "missing_conditions": []
           },
           {
-            "command": "edit_risks",
-            "is_available": true,
-            "missing_conditions": []
-          },
-          {
             "command": "declare_risk_occurrence",
             "is_available": true,
             "missing_conditions": []

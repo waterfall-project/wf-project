@@ -104,7 +104,7 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 | GET | `/reference/calendars` | Calendriers | WF-REF-0110, WF-REF-0120 |
 | POST | `/reference/calendars` | Créer un calendrier | WF-REF-0110 |
 | PATCH | `/reference/calendars/{calendar_id}` | Modifier un calendrier | WF-REF-0110, WF-REF-0130 |
-| PUT | `/reference/calendars/{calendar_id}/default` | Désigner le calendrier par défaut | WF-REF-0120 |
+| PUT | `/reference/calendars/{calendar_id}/default` | Désigner le calendrier par défaut | WF-PLA-0010, WF-REF-0120 |
 | PUT | `/reference/calendars/{calendar_id}/activation` | Désactiver ou réactiver un calendrier | WF-REF-0120 |
 | GET | `/reference/cost-types` | Natures de coût | WF-REF-0030, WF-REF-0150 |
 | POST | `/reference/cost-types` | Créer une nature de coût | WF-REF-0030 |
@@ -132,7 +132,7 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 | GET | `/projects/{project_id}/next-state` | Prochain état, déclencheur et conditions restantes | WF-CYC-0020, WF-CYC-0050 |
 | POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-PRJ-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-PRJ-0020 |
-| PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-PRJ-0020 |
+| PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-PLA-0130, WF-PRJ-0020 |
 | GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-PRJ-0050 |
 | POST | `/projects/{project_id}/subprojects` | Créer un sous-projet | WF-PRJ-0050 |
 | PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Modifier un sous-projet | WF-PRJ-0050 |
@@ -161,9 +161,9 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Structures de coûts de la révision | WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Créer un différentiel ou un devis de risque | WF-REV-0100 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-REV-0050, WF-SEC-0030 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-PLA-0010, WF-REV-0050, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-RAE-0050 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-PLA-0010, WF-RAE-0050, WF-RIS-0010 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0070, WF-PLA-0100 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies` | Ce dont dépend une valeur calculée | WF-IHM-0030, WF-PLA-0040 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-IHM-0040, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160 |
@@ -172,10 +172,10 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Démarrer ou terminer une tâche | WF-IND-0030, WF-PLA-0040, WF-RAE-0030 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Réestimer une ligne | WF-RAE-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking` | Inscrire ou retirer une tâche des suivis | WF-PLA-0060 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-DEV-0040, WF-PLA-0020, WF-PLA-0040 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-DEV-0040, WF-PLA-0020, WF-PLA-0040, WF-PLA-0130 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview` | Aperçu d'un collage depuis un tableur | WF-DEV-0050, WF-IHM-0050, WF-PLA-0080 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste` | Appliquer un collage | WF-IHM-0050, WF-IHM-0110 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/undo` | Annuler la dernière modification | WF-IHM-0110 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/undo` | Annuler la dernière modification | WF-IHM-0110, WF-RIS-0020 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/redo` | Rétablir la dernière annulation | WF-IHM-0110 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/skeleton` | Engendrer le squelette de planning depuis le lotissement | WF-PLA-0130, WF-PRJ-0030 |
 
@@ -192,8 +192,8 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 | GET | `/projects/{project_id}/remaining-indicators/startable-tasks` | Tâches à démarrer, pour le Kanban | WF-RAE-0030 |
 | GET | `/projects/{project_id}/indicators` | Indicateurs de valeur acquise | WF-DAT-0040, WF-IND-0010, WF-IND-0080 |
 | GET | `/projects/{project_id}/indicators/milestone-tracking` | Diagramme temps/temps | WF-IND-0090 |
-| GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-IND-0100 |
-| GET | `/projects/{project_id}/indicators/earned-value-curves` | Courbes de valeur acquise | WF-IND-0110 |
+| GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-DAT-0040, WF-IND-0010, WF-IND-0100 |
+| GET | `/projects/{project_id}/indicators/earned-value-curves` | Courbes de valeur acquise | WF-DAT-0040, WF-IND-0010, WF-IND-0110 |
 | GET | `/projects/{project_id}/indicators/index-history` | Évolution des indices | WF-DAT-0040, WF-IND-0020, WF-IND-0130, WF-REF-0170 |
 
 ## Risques et provisions
@@ -203,13 +203,13 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/projects/{project_id}/risks` | Registre des risques | WF-IHM-0130, WF-RIS-0030, WF-RIS-0040 |
-| POST | `/projects/{project_id}/risks` | Déclarer un risque | WF-RIS-0010, WF-RIS-0030, WF-RIS-0050 |
+| POST | `/projects/{project_id}/risks` | Déclarer un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}` | Un risque | WF-RIS-0010, WF-RIS-0020, WF-RIS-0030 |
-| PATCH | `/projects/{project_id}/risks/{risk_id}` | Modifier un risque | WF-RIS-0010, WF-RIS-0030 |
-| DELETE | `/projects/{project_id}/risks/{risk_id}` | Supprimer un risque | WF-RIS-0020 |
+| PATCH | `/projects/{project_id}/risks/{risk_id}` | Modifier un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030 |
+| DELETE | `/projects/{project_id}/risks/{risk_id}` | Supprimer un risque | WF-IHM-0110, WF-RIS-0020 |
 | GET | `/projects/{project_id}/risks/{risk_id}/reviews` | Historique des réexamens | WF-RIS-0010, WF-RIS-0030 |
-| POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Réexaminer un risque | WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
-| POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Déclarer un risque survenu | WF-ARC-0090, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
+| POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Réexaminer un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
+| POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Déclarer un risque survenu | WF-ARC-0090, WF-IHM-0110, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/risks/coverage` | Couverture des risques | WF-RAE-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/matrix` | Matrice de risques du projet | WF-IHM-0070, WF-REF-0160, WF-RIS-0030, WF-RIS-0040 |
 
