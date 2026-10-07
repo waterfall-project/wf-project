@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { columnsOf } from "./columns";
 import { rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
@@ -15,14 +16,15 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 
-// Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
-// reference, amount corrected for inflation.
-const LABEL = 1;
-const QUANTITY = 4;
-const HOURS = 5;
-const DISBURSEMENT = 6;
-const REFERENCE = 7;
-const INFLATED = 8;
+// The columns the journeys move along, by their heading (`columnsOf`).
+const COLUMNS = {
+  label: "Libellé",
+  quantity: "Qté",
+  hours: "Charge (h)",
+  disbursement: "Débours unit.",
+  reference: "Montant (année de réf.)",
+  inflated: "Montant corrigé de l’inflation",
+} as const;
 
 /** A cell of the row at a position among the rows of the answer, by the position of its column. */
 function cellAt(grid: Locator, row: number, column: number): Locator {
@@ -34,7 +36,10 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
  * shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip to
  * the browser, which the journey is given the time of (`test.slow`).
  */
-async function tabIntoGrid(page: Page): Promise<Locator> {
+async function tabIntoGrid(page: Page): Promise<{
+  readonly grid: Locator;
+  readonly at: Readonly<Record<keyof typeof COLUMNS, number>>;
+}> {
   test.slow();
   await page.goto(ESTIMATE);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
@@ -50,8 +55,9 @@ async function tabIntoGrid(page: Page): Promise<Locator> {
     )
     .toBe(true);
   // The first row, at its label.
-  await expect(cellAt(grid, 1, LABEL)).toBeFocused();
-  return grid;
+  const at = await columnsOf(grid, COLUMNS);
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
+  return { grid, at };
 }
 
 /** Press keys, one after the other. */
@@ -61,19 +67,24 @@ async function press(page: Page, ...keys: readonly string[]): Promise<void> {
   }
 }
 
+/** A key pressed as many times as there are columns from one to another. */
+function times(key: string, count: number): string[] {
+  return Array.from({ length: count }, () => key);
+}
+
 test("is one stop of the tabulation, and reaches the header by the arrows, which sorts its column by Enter [WF-IHM-0100-A]", async ({
   page,
 }) => {
-  const grid = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page);
   // Tab leaves the grid, Shift+Tab comes back to its active cell: no other stop within it.
   await page.keyboard.press("Tab");
   await expect(grid.locator(":focus")).toHaveCount(0);
   await page.keyboard.press("Shift+Tab");
-  await expect(cellAt(grid, 1, LABEL)).toBeFocused();
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
   await page.keyboard.press("Shift+Tab");
   await expect(grid.locator(":focus")).toHaveCount(0);
   await page.keyboard.press("Tab");
-  await expect(cellAt(grid, 1, LABEL)).toBeFocused();
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
   // The up arrow reaches the header, which Enter sorts by, the focus kept on it.
   await page.keyboard.press("ArrowUp");
   const header = grid.getByRole("columnheader", { name: "Libellé" });
@@ -83,25 +94,25 @@ test("is one stop of the tabulation, and reaches the header by the arrows, which
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   await expect(header).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(cellAt(grid, 1, LABEL)).toBeFocused();
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
 });
 
 test("stops on the computed cells without entering them, and refuses a try", async ({ page }) => {
-  const grid = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page);
   for (let row = 1; row < 21; row += 1) {
     await page.keyboard.press("ArrowDown");
   }
   await expect(rowAt(grid, 21)).toContainText("Provision");
-  await expect(cellAt(grid, 21, LABEL)).toBeFocused();
-  await expect(cellAt(grid, 21, LABEL)).toBeInViewport();
+  await expect(cellAt(grid, 21, at.label)).toBeFocused();
+  await expect(cellAt(grid, 21, at.label)).toBeInViewport();
 
   // The arrows stop on the quantity the server computes, which opens no entry, and go past it.
-  await press(page, "ArrowRight", "ArrowRight", "ArrowRight");
-  const quantity = cellAt(grid, 21, QUANTITY);
+  await press(page, ...times("ArrowRight", at.quantity - at.label));
+  const quantity = cellAt(grid, 21, at.quantity);
   await expect(quantity).toBeFocused();
   await expect(quantity).toHaveAttribute("aria-readonly", "true");
-  await press(page, "ArrowRight", "ArrowRight");
-  await expect(cellAt(grid, 21, DISBURSEMENT)).toBeFocused();
+  await press(page, ...times("ArrowRight", at.disbursement - at.quantity));
+  await expect(cellAt(grid, 21, at.disbursement)).toBeFocused();
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 
   // A try is refused, naming what the value depends on, with no field; Escape comes back.
@@ -111,20 +122,20 @@ test("stops on the computed cells without entering them, and refuses a try", asy
   await expect(page.getByRole("textbox", { name: "Débours unit." })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(refusal).toHaveCount(0);
-  await expect(cellAt(grid, 21, DISBURSEMENT)).toBeFocused();
-  await press(page, "ArrowLeft", "ArrowRight", "ArrowRight");
-  await expect(cellAt(grid, 21, REFERENCE)).toBeFocused();
+  await expect(cellAt(grid, 21, at.disbursement)).toBeFocused();
+  await press(page, "ArrowLeft", ...times("ArrowRight", at.reference - at.disbursement + 1));
+  await expect(cellAt(grid, 21, at.reference)).toBeFocused();
   // The effort of a provision, which its node does not accept, is read only as well (#219).
-  await expect(cellAt(grid, 21, HOURS)).toHaveAttribute("aria-readonly", "true");
+  await expect(cellAt(grid, 21, at.hours)).toHaveAttribute("aria-readonly", "true");
 });
 
 test("keeps the active cell in the window, clear of the header and the totals, from the first row to the six thousandth", async ({
   page,
 }) => {
-  const grid = await tabIntoGrid(page);
+  const { grid, at } = await tabIntoGrid(page);
   const header = grid.getByRole("columnheader", { name: "Libellé" });
   // The caption of the totals: its cells stick to the foot of the grid, its row keeps its place.
-  const totals = grid.getByRole("row").last().getByRole("gridcell").nth(LABEL);
+  const totals = grid.getByRole("row").last().getByRole("gridcell").nth(at.label);
   for (const keys of [["PageDown", "PageDown"], ["Control+End"], ["PageUp"], ["Control+Home"]]) {
     await press(page, ...keys);
     const active = grid.locator("td:focus");
@@ -144,7 +155,7 @@ test("keeps the active cell in the window, clear of the header and the totals, f
     expect((cell?.y ?? 0) + (cell?.height ?? 0)).toBeLessThanOrEqual((foot?.y ?? 0) + 2);
   }
   await press(page, "Control+End");
-  await expect(cellAt(grid, 6000, INFLATED)).toBeFocused();
+  await expect(cellAt(grid, 6000, at.inflated)).toBeFocused();
 });
 
 test.describe("on a narrow window", () => {
@@ -153,11 +164,11 @@ test.describe("on a narrow window", () => {
   test("keeps the active cell clear of the pinned columns as it goes back along the row", async ({
     page,
   }) => {
-    const grid = await tabIntoGrid(page);
+    const { grid, at } = await tabIntoGrid(page);
     const label = grid.getByRole("columnheader", { name: "Libellé" });
     await page.keyboard.press("End");
-    await expect(cellAt(grid, 1, INFLATED)).toBeFocused();
-    for (const column of [REFERENCE, DISBURSEMENT, HOURS, QUANTITY]) {
+    await expect(cellAt(grid, 1, at.inflated)).toBeFocused();
+    for (let column = at.inflated - 1; column >= at.quantity; column -= 1) {
       await page.keyboard.press("ArrowLeft");
       const active = cellAt(grid, 1, column);
       await expect(active).toBeFocused();
@@ -171,20 +182,20 @@ test.describe("on a narrow window", () => {
   test("brings each header into view sideways as the arrows move along the header, the rows left where they are", async ({
     page,
   }) => {
-    const grid = await tabIntoGrid(page);
+    const { grid, at } = await tabIntoGrid(page);
     const label = grid.getByRole("columnheader", { name: "Libellé" });
     const headers = grid.getByRole("columnheader");
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("End");
-    await expect(headers.nth(INFLATED)).toBeFocused();
-    await expect(headers.nth(INFLATED)).toBeInViewport({ ratio: 1 });
+    await expect(headers.nth(at.inflated)).toBeFocused();
+    await expect(headers.nth(at.inflated)).toBeInViewport({ ratio: 1 });
     // The rows scrolled down, as the wheel does: moving along the header scrolls them no more.
     const top = await scroller(grid).evaluate((element) => {
       element.scrollTop = 560;
       return element.scrollTop;
     });
     expect(top).toBeGreaterThan(0);
-    for (const column of [REFERENCE, DISBURSEMENT, HOURS, QUANTITY]) {
+    for (let column = at.inflated - 1; column >= at.quantity; column -= 1) {
       await page.keyboard.press("ArrowLeft");
       const active = headers.nth(column);
       await expect(active).toBeFocused();
@@ -203,7 +214,7 @@ test.describe("on a window lower than the floor of the grid", () => {
   test("brings a cell of a pinned column into the window as the arrows move it down (#183)", async ({
     page,
   }) => {
-    const grid = await tabIntoGrid(page);
+    const { grid } = await tabIntoGrid(page);
     // The page scrolled back to its top: the grid overflows the window below it.
     await scroller(grid).evaluate((element) => {
       for (let each: Element | null = element; each !== null; each = each.parentElement) {

@@ -14,7 +14,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockstructure, mockwitness
+from wftools import mockcore, mockdata, mockstructure, mockwitness, mockwrites
 from wftools.mockwitness import Line, Task, universe
 
 type Node = dict[str, Any]
@@ -30,6 +30,14 @@ STUDIES, DETAILED_STUDIES, STUDIES_LINE, DESKS, REVIEW, ACCEPTANCE, FILE = (
 )
 CONTROL_STATION, WIRING, LABOUR, BLOCKS, PROVISION, MILESTONE = 551, 552, 553, 554, 555, 556
 OCCURRED, REMINDER, REMINDER_LINE, TRANSPORT, TRANSPORT_LINE = 541, 542, 543, 544, 545
+INSTALLATION, MOUNTING, ON_SITE, TESTS, COMMISSIONING, COMMISSIONING_LINE = (
+    561,
+    562,
+    563,
+    564,
+    565,
+    566,
+)
 
 
 @pytest.fixture(scope="module")
@@ -59,7 +67,9 @@ def facet(node: Node) -> Node:
 LIST_NODES = (
     "nodes.json",
     "nodes_planning.json",
+    "nodes_core.json",
     "nodes_estimate.json",
+    "nodes_installation.json",
     "nodes_milestone.json",
     "nodes_risk_occurred.json",
 )
@@ -78,9 +88,11 @@ def test_every_reading_names_a_node_by_one_identifier_one_lineage_and_one_figure
         for node in items:
             assert seen.setdefault(node["node_id"], node) == node, (name, node["node_id"])
             assert lineages.setdefault(node["lineage_id"], node["node_id"]) == node["node_id"]
-    assert len(seen) == 18
-    assert set(seen) == {universe(number) for number in nodes(readings["nodes_estimate.json"])} | {
-        universe(number) for number in nodes(readings["nodes.json"])
+    assert len(seen) == 24
+    assert set(seen) == {
+        universe(number)
+        for name in ("nodes.json", "nodes_estimate.json", "nodes_installation.json")
+        for number in nodes(readings[name])
     }
     # No lineage is also a node: the two families are apart.
     assert not set(lineages) & set(seen)
@@ -254,12 +266,23 @@ def test_the_critical_path_and_the_float_follow_the_links_of_the_core(
     planning = nodes(readings["nodes_planning.json"])
     estimate = nodes(readings["nodes_estimate.json"])
     tasks = {**planning, **estimate}
+    installation = nodes(readings["nodes_installation.json"])
+    tasks = {**tasks, **installation}
     critical = [n for n, node in tasks.items() if facet(node).get("is_critical")]
-    assert critical == [DETAILED_STUDIES, REVIEW, ACCEPTANCE, WIRING, MILESTONE]
+    assert critical == [
+        DETAILED_STUDIES,
+        REVIEW,
+        ACCEPTANCE,
+        WIRING,
+        MILESTONE,
+        MOUNTING,
+        COMMISSIONING,
+    ]
     assert all(facet(tasks[n])["total_float"] == {"value": "0", "unit": "d"} for n in critical)
-    # The design file, two days before the detailed studies finish, may wait for the factory
-    # acceptance: fifty-four days of work between 15 April and 30 June.
-    assert facet(planning[FILE])["total_float"] == {"value": "54", "unit": "d"}
+    # The design file, two days before the detailed studies finish, may wait for the end of the
+    # core, the commissioning: 187 days of work between 15 April 2026 and 1 January 2027.
+    assert facet(planning[FILE])["total_float"] == {"value": "187", "unit": "d"}
+    assert facet(installation[COMMISSIONING])["finish"] == {"date": "2027-01-01", "hours": "8"}
     assert facet(planning[FILE])["start"] == {"date": "2026-04-09", "hours": "0"}
     # A task in manual mode shows no float and is never critical; its successor is.
     assert (facet(planning[DESKS])["total_float"], facet(planning[DESKS])["is_critical"]) == (
@@ -268,9 +291,9 @@ def test_the_critical_path_and_the_float_follow_the_links_of_the_core(
     )
     assert planning[DESKS]["computed_fields"] == []
     assert {"task.start", "task.finish"} <= set(planning[DESKS]["editable_fields"])
-    # The two tasks of the occurrence, in parallel with the wiring, carry its remaining weeks.
-    assert facet(estimate[REMINDER])["total_float"] == {"value": "32", "unit": "d"}
-    assert facet(estimate[TRANSPORT])["total_float"] == {"value": "32", "unit": "d"}
+    # The two tasks of the occurrence, in parallel with the wiring, may wait for the end too.
+    assert facet(estimate[REMINDER])["total_float"] == {"value": "165", "unit": "d"}
+    assert facet(estimate[TRANSPORT])["total_float"] == {"value": "165", "unit": "d"}
 
 
 def test_a_milestone_is_a_task_of_no_duration_at_one_instant(readings: dict[str, Any]) -> None:
@@ -413,7 +436,7 @@ _RENAMED = {
     ("task_renamed.json", mockcore.lineage(WIRING)),
 }
 """The one node a write renames, by its node and its lineage, in the fixture that answers it
-(EP-02/L22 will generate it)."""
+(``wftools.mockwrites`` generates it)."""
 
 
 def _named(value: Any, found: list[tuple[str, str, str]]) -> None:
@@ -430,6 +453,9 @@ def _named(value: Any, found: list[tuple[str, str, str]]) -> None:
         if not isinstance(identifier, str) or not family.holds(identifier):
             continue
         kind = fields.get("kind") or fields.get("target") or ""
+        # A difference of an import on a link is named by its successor, the task whose column
+        # of predecessors presents it (#364): its lineage and its label are the task's.
+        kind = "task" if kind == "link" else kind
         label = fields.get("label") or fields.get("milestone_label")
         for facet_name in ("task", "estimate_line"):
             inner = fields.get(facet_name)
@@ -508,10 +534,10 @@ def test_a_name_declared_generated_that_the_generator_does_not_write_fails_the_c
 ) -> None:
     mockdata.write(tmp_path)
     assert mockdata.check(tmp_path) == []
-    assert mockdata.check(tmp_path, [*mockdata.readings(), "nodes_gone.json"]) == [
+    assert mockdata.check(tmp_path, [*mockdata.named(), "nodes_gone.json"]) == [
         "nodes_gone.json is declared generated by make mock-data, which does not write it"
     ]
-    assert set(mockdata.declared_names()) == set(mockdata.readings())
+    assert set(mockdata.declared_names()) == set(mockdata.named())
 
 
 def test_the_readings_are_the_fixtures_the_front_reads(readings: dict[str, Any]) -> None:
@@ -560,3 +586,55 @@ def test_the_lot_of_the_control_station_bears_the_one_order_item_of_the_witness(
     # Neither the studies nor the occurrence bear one: an order item is borne by one summary.
     assert "order_item_id" not in facet(planning[STUDIES])
     assert "order_item_id" not in facet(estimate[OCCURRED])
+
+
+def test_the_core_is_dated_in_the_order_of_its_links_whatever_the_order_of_the_plan(
+    readings: dict[str, Any],
+) -> None:
+    # The review linked to the design file too, a predecessor further down the plan: dated after
+    # it, it starts after the design file finishes, 15 April, and names it by its row.
+    review = next(task for task in mockcore.tasks_in_order() if task.number == REVIEW)
+    roots = mockwrites.amended(
+        mockwitness.CORE,
+        mockwrites.on_task(REVIEW, links=(*review.links, mockwitness.Link(FILE))),
+    )
+    dated = mockcore.schedule(roots)
+    assert dated[FILE].finish.day == date(2026, 4, 15)
+    assert dated[REVIEW].start.day > dated[FILE].finish.day
+    node = next(row.node for row in mockcore.core(roots) if row.number == REVIEW)
+    links = cast("list[dict[str, Any]]", node["predecessors"])
+    assert [link["predecessor_row_number"] for link in links] == [2, 7]
+    # Unlinked, the order of the plan stands; the whole reading gives every row and the totals.
+    order = [task.number for task in mockcore.in_link_order(mockcore.tasks_in_order())]
+    assert order == [task.number for task in mockcore.tasks_in_order()]
+    whole = readings["nodes_core.json"]
+    assert [item["row_number"] for item in whole["items"]] == list(range(1, 25))
+    assert whole["totals"]["task_count"] == 15
+
+
+def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fields(
+    readings: dict[str, Any],
+) -> None:
+    # Every task, leaf included, accepts an order item or a work package (#411, WF-PLA-0130):
+    # an automatic leaf enters neither date, a manual one both, in the order of `EditableField`.
+    nodes = {node["node_id"]: node for node in readings["nodes_planning.json"]["items"]}
+    assert nodes[universe(522)]["editable_fields"] == [
+        "task.label",
+        "task.description",
+        "task.scheduling_mode",
+        "task.duration",
+        "task.progress",
+        "task.order_item_id",
+        "task.work_package_id",
+    ]
+    assert nodes[universe(523)]["editable_fields"] == [
+        "task.label",
+        "task.description",
+        "task.scheduling_mode",
+        "task.duration",
+        "task.start",
+        "task.finish",
+        "task.progress",
+        "task.order_item_id",
+        "task.work_package_id",
+    ]

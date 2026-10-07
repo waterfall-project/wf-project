@@ -130,8 +130,9 @@ function stepOf(key: string, page: number): { readonly rows: number; readonly co
 /**
  * Where a key moves the cursor, among the header, `rows` rows and the columns shown; `undefined`
  * for a key that moves nothing. The header is reached by the up arrow from the first row, and kept
- * along by the keys that move within a row or up; Ctrl with Home or End, Page Down and the down
- * arrow go to the rows.
+ * along by the keys that move within a row or up — Ctrl with an arrow or Page Up among them, which
+ * move within the row elsewhere too (#243) —; Ctrl with Home or End, Page Down and the down arrow
+ * go to the rows.
  */
 export function moved(
   key: string,
@@ -143,10 +144,8 @@ export function moved(
   // Ctrl+Home and Page Up stop at the first row, as in a spreadsheet: only the up arrow reaches the
   // header — a choice, short of the pattern of ARIA, where Ctrl+Home goes to the first cell of
   // the grid, the header's.
-  const header =
-    key === "ArrowUp" ||
-    bounds.rows === 0 ||
-    (at.row === HEADER_ROW && !ctrl && key !== "PageDown");
+  const toRows = key === "PageDown" || (ctrl && (key === "Home" || key === "End"));
+  const header = key === "ArrowUp" || bounds.rows === 0 || (at.row === HEADER_ROW && !toRows);
   const to = (row: number, column: number): CellPosition => ({
     row: clamp(row, header ? HEADER_ROW : 0, bounds.rows - 1),
     column: bounds.columns[clamp(column, 0, last)] ?? at.column,
@@ -285,8 +284,9 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
   const origin = useRef<CellPosition>(undefined);
   const { active } = cursor;
   // The rows the cell entered and the refusal were last found among, which a reading anew changes
-  // in the very render that brings it: the cell entered goes with its row, the active cell with
-  // it, and neither the entry nor the refusal outlives its row — an entry closed so gives the focus
+  // in the very render that brings it: the cell entered, or the refusal open, goes with its row,
+  // the active cell with it — the row of a refusal kept rendered, its notice beside it (#243) —,
+  // and neither the entry nor the refusal outlives its row — an entry closed so gives the focus
   // it held to the active cell.
   const [seen, setSeen] = useState(rows);
   const [orphaned, setOrphaned] = useState(0);
@@ -300,8 +300,11 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     } else if (draft !== undefined && entered !== active.row) {
       cursor.set({ row: entered, column: draft.column });
     }
-    if (refusal.at !== undefined && indexOf(refusal.at.key) < 0) {
+    const refused = refusal.at === undefined ? -1 : indexOf(refusal.at.key);
+    if (refusal.at !== undefined && refused < 0) {
       setRefusal((before) => ({ ...before, at: undefined }));
+    } else if (refusal.at !== undefined && draft === undefined && refused !== active.row) {
+      cursor.set({ row: refused, column: refusal.at.column });
     }
   }
 
@@ -525,9 +528,15 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     },
     /** Close the refusal, a click having taken the focus elsewhere. */
     dismissRefusal: dismiss,
-    /** Give the focus back to the active cell, where it is — a notice dismissed took it with it. */
+    /**
+     * Give the focus back to the active cell — a notice dismissed took it with it —, brought into
+     * view: the grid may have been scrolled away from it meanwhile (#241).
+     */
     refocus: () => {
-      renderedCell(scroller.current, active)?.focus({ preventScroll: true });
+      const cell = renderedCell(scroller.current, active);
+      if (cell !== null) {
+        focusRendered(cell, scroller.current);
+      }
     },
     /**
      * Close the refusal once its row is scrolled out of view — it would stand beside nothing —, the

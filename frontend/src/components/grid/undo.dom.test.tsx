@@ -165,6 +165,15 @@ describe("undo and redo, placed in the grids", () => {
     expect(client.calls).toEqual([]);
   });
 
+  it("announces the menu on each cell by the key that opens it, where the grid offers one", () => {
+    render(estimateGrid());
+    const cells = screen.getByRole("grid").querySelectorAll("td[data-column]");
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect(cell).toHaveAttribute("aria-keyshortcuts", "Shift+F10");
+    }
+  });
+
   it("leaves the menu of the browser to the field of a cell being entered, whose entry it neither takes nor validates", async () => {
     render(estimateGrid());
     focusLabel();
@@ -289,6 +298,7 @@ describe("what no command undoes", () => {
     expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Rétablir" })).toBeNull();
     const cell = focusLabel();
+    expect(cell).not.toHaveAttribute("aria-keyshortcuts");
     expect(press(cell)).toBe(true);
     await userEvent.keyboard("{Shift>}{F10}{/Shift}");
     await userEvent.pointer({ keys: "[MouseRight]", target: cell });

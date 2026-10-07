@@ -52,8 +52,25 @@ describe("a cell of a grid", () => {
 });
 
 describe("the columns of the grid of the estimate", () => {
-  it("each sort by the column of the contract of the same name", () => {
-    expect(sortColumns(ESTIMATE_GRID)).toEqual(ESTIMATE_GRID.columns.map((column) => column.key));
+  it("each sort by the column of the contract of the same name, but the signal of a deactivated object", () => {
+    const sorted = ESTIMATE_GRID.columns.filter((column) => column.key !== "inactive_object");
+    expect(sortColumns(ESTIMATE_GRID)).toEqual(sorted.map((column) => column.key));
+  });
+
+  it("present the sub-project and the payment delay of a line between its unit disbursement and its amounts, named by the server", () => {
+    expect(ESTIMATE_GRID.columns.map((column) => column.key)).toEqual([
+      "label",
+      "cost_category",
+      "resource_role",
+      "quantity",
+      "hours",
+      "unit_disbursement",
+      "subproject",
+      "payment_delay_days",
+      "inactive_object",
+      "base_amount",
+      "inflated_amount",
+    ]);
   });
 
   it("present neither a budgeted amount nor a re-estimated amount, but the amount at the year of reference and the amount corrected for inflation [WF-DEV-0050-A]", () => {

@@ -10,7 +10,7 @@ import { example } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
 import type { GridConfig } from "./columns";
-import { ESTIMATE_FIELDS, estimateGrid } from "./estimate";
+import { ESTIMATE_FIELDS, ESTIMATE_GRID as ESTIMATE_GRID_READ, estimateGrid } from "./estimate";
 import {
   COMMON_FIELDS,
   type NodeField,
@@ -21,6 +21,7 @@ import {
   type NodeTotals,
   nodeFieldNames,
   projectNodes,
+  SPARSE_LINE_FIELDS,
 } from "./nodes";
 import { PLANNING_FIELDS, PLANNING_GRID } from "./planning";
 
@@ -54,6 +55,18 @@ const ANSWERS = [
  */
 function keptKeys(source: object, fields: readonly string[]): string[] {
   return fields.filter((key) => key in source).sort();
+}
+
+/**
+ * The keys a projection keeps of a line: those of a closed list that the line has, but a field
+ * that says nothing — null, or a false flag (`SPARSE_LINE_FIELDS`).
+ */
+function keptLineKeys(source: object, fields: readonly string[]): string[] {
+  const sparse = new Set<string>(SPARSE_LINE_FIELDS);
+  return keptKeys(source, fields).filter((key) => {
+    const value: unknown = (source as Record<string, unknown>)[key];
+    return !sparse.has(key) || (value !== null && value !== false);
+  });
 }
 
 /** An answer of `listNodes`, among the examples of the contract. */
@@ -146,7 +159,7 @@ function holdsWhatTheGridReads<
           );
           expect(
             Object.keys(("estimate_line" in row ? row.estimate_line : undefined) ?? {}).sort(),
-          ).toEqual(keptKeys(source.estimate_line ?? {}, line));
+          ).toEqual(keptLineKeys(source.estimate_line ?? {}, line));
           for (const [key, value] of Object.entries(row)) {
             if (key !== "task" && key !== "estimate_line") {
               expect(value).toEqual(source[key as NodeField]);
@@ -178,13 +191,40 @@ function holdsWhatTheGridReads<
   });
 }
 
+describe("a field of a line that says nothing, left out by the projection", () => {
+  it("is read by the grid of the estimate as the null it was: the same values, the same cells", () => {
+    const list = answer("nodes_estimate");
+    const projected = projectNodes(list, ESTIMATE_FIELDS).items;
+    // The provision: out of any sub-project, without a payment delay, no deactivated object.
+    const provision = projected.find((node) => node.estimate_line?.is_computed === true);
+    expect(provision?.estimate_line).not.toHaveProperty("subproject_label");
+    expect(provision?.estimate_line).not.toHaveProperty("payment_delay_days");
+    expect(provision?.estimate_line).not.toHaveProperty("uses_inactive_object");
+    const config = ESTIMATE_GRID_READ;
+    for (const key of ["subproject", "payment_delay_days", "inactive_object"]) {
+      const column = config.columns.find((each) => each.key === key);
+      const source = list.items.find((node) => node.node_id === provision?.node_id);
+      if (column === undefined || provision === undefined || source === undefined) {
+        throw new Error(`no column ${key}, or no provision, in the estimate`);
+      }
+      expect(column.value(provision) ?? null).toBeNull();
+      expect(column.value(provision)).toEqual(column.value(source));
+    }
+    expect(whatTheGridReads(config, projected)).toEqual(whatTheGridReads(config, list.items));
+  });
+});
+
 // The shares the projections weigh on the volume, as measured, each bound a hundredth or less above
-// it: 0.593 for the estimate, 0.455 for the planning — what each node accepts (`editable_fields`,
+// it: 0.640 for the estimate, 0.455 for the planning — what each node accepts (`editable_fields`,
 // #219) counted, whose weight #238 weighs. The labels of a line and the amounts at the year of
 // reference and corrected for inflation (#235, #305) made the answer heavier, 6.46 million
 // characters for 5.70: the estimate reads two labels and two amounts where it read one amount, and
 // its rows grew from 3.43 to 3.83 million; the planning reads none of them, its rows stayed at 2.94
-// million, a smaller share of a larger answer.
+// million, a smaller share of a larger answer. The sub-project, its identifier and its label, the
+// payment delay and the deactivated object of a line (WF-DEV-0050, WF-REF-0010, #349) took the
+// rows of the estimate from 3.83 to 4.37 million, 0.593 to 0.675 of the same answer; left out
+// where they say nothing (`SPARSE_LINE_FIELDS`), 4.13 million, 0.640 — 3.96 million, 0.613, in a
+// grid that enters no sub-project, which its identifier does not reach (`withoutSubprojectIds`).
 /** Nothing is written by these tests: what an entry reads is all they look at. */
 function unwritten(): never {
   throw new Error("nothing is written here");
@@ -198,5 +238,5 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
   paste: { preview: unwritten, apply: unwritten, span: unwritten, name: unwritten },
 });
 
-holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.6);
+holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.645);
 holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.46);

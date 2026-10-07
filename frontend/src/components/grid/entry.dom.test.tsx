@@ -64,6 +64,12 @@ const DISBURSEMENT = 3;
 const PROVISION = 4;
 const OCCURRED = 5;
 const estimate = example("nodes_estimate") as NodeList;
+// The whole core of the witness, read without a filter (`nodes_core`), whose totals the writes of
+// the core answer: the lot of the control station, its task and its line of labour, by their index.
+const core = example("nodes_core") as NodeList;
+const CORE_LOT = 7;
+const CORE_TASK = 8;
+const CORE_LABOUR = 9;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
@@ -452,8 +458,13 @@ describe("the keyboard of a grid", () => {
     await userEvent.keyboard("{Enter}{Shift>}{Tab}{/Shift}");
     expect(cell(DISBURSEMENT, "quantity")).toHaveFocus();
     // Along the row of the provision: its quantity and its unit disbursement are computed, and it
-    // accepts neither category, nor role, nor effort: its label alone is entered.
+    // accepts neither category, nor role, nor effort: its label, its sub-project and its payment
+    // delay alone are entered.
     cell(PROVISION, "label").focus();
+    await userEvent.keyboard("{Enter}{Tab}");
+    expect(cell(PROVISION, "subproject")).toHaveFocus();
+    await userEvent.keyboard("{Enter}{Tab}");
+    expect(cell(PROVISION, "payment_delay_days")).toHaveFocus();
     await userEvent.keyboard("{Enter}{Tab}");
     // Nothing more to enter along the row: the next row, at the cell it was started from.
     expect(cell(OCCURRED, "label")).toHaveFocus();
@@ -615,16 +626,22 @@ describe("a write the server refuses", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("lets the API out of reach be dismissed too", async () => {
+  it("lets the API out of reach be dismissed too, the active cell brought back into view", async () => {
     server.client = unreachable();
     render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Le service est injoignable");
+    // The grid may have been scrolled away from the active cell meanwhile: the focus given back
+    // brings it into view, as the keyboard does (#241).
+    const scrolled = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => undefined);
     await userEvent.click(within(alert).getByRole("button", { name: "Fermer l’avis" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(cell(DISBURSEMENT, "hours")).toHaveFocus();
+    expect(scrolled.mock.contexts).toEqual([cell(DISBURSEMENT, "hours")]);
   });
 
   it("drops an answer that comes once the page has been read anew", async () => {
@@ -757,36 +774,42 @@ describe("a write the server answers otherwise", () => {
 describe("what a write answers besides the row written", () => {
   it("shows the amounts the server recalculated on the tasks above it, and the totals of the structure, summing nothing [WF-DEV-0050-A]", async () => {
     serve();
-    render(grid());
+    render(grid("fr", core));
     expect(totals().slice(1)).toEqual([
-      "Total — 6 tâches, 5 lignes",
+      "Total — 15 tâches, 9 lignes",
       "",
       "",
       "",
-      "12,5",
+      "252,5",
       "",
-      "2\u202f934,56",
-      "2\u202f934,56",
+      "",
+      "",
+      "",
+      "121\u202f534,56",
+      "121\u202f534,56",
     ]);
-    cell(LABOUR, "hours").focus();
+    cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     // The amounts of each summary follow those of its subordinates, as the server answers them,
     // at the year of reference and corrected for inflation.
     await vi.waitFor(() => {
-      expect(cell(0, "base_amount")).toHaveTextContent(/3\s054,56$/);
+      expect(cell(CORE_LOT, "base_amount")).toHaveTextContent(/3\s054,56$/);
     });
-    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
-    expect(cell(0, "inflated_amount")).toHaveTextContent(/3\s054,56$/);
-    expect(cell(TASK_ROW, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(CORE_TASK, "base_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(CORE_LOT, "inflated_amount")).toHaveTextContent(/3\s054,56$/);
+    expect(cell(CORE_TASK, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals().slice(1)).toEqual([
-      "Total — 6 tâches, 5 lignes",
+      "Total — 15 tâches, 9 lignes",
       "",
       "",
       "",
-      "14",
+      "254",
       "",
-      "3\u202f054,56",
-      "3\u202f054,56",
+      "",
+      "",
+      "",
+      "121\u202f654,56",
+      "121\u202f654,56",
     ]);
   });
 
@@ -803,7 +826,7 @@ describe("what a write answers besides the row written", () => {
     });
     expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals()[5]).toBe("0");
-    expect(totals()[7]).toBe("100\u202f000,00");
+    expect(totals()[10]).toBe("100\u202f000,00");
     // The same search, after the write, each node asked by its identifier alone.
     const reads = client.calls.filter((call) => call.route === NODES_ROUTE);
     expect(reads.map((call) => Object.fromEntries(call.query))).toEqual([
@@ -859,11 +882,11 @@ describe("what a write answers besides the row written", () => {
 
   it("reads nothing anew for a reading of the whole structure, whose totals the writes answer", async () => {
     const client = serve();
-    render(grid());
-    cell(LABOUR, "hours").focus();
+    render(grid("fr", core));
+    cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     await vi.waitFor(() => {
-      expect(totals()[5]).toBe("14");
+      expect(totals()[5]).toBe("254");
     });
     expect(client.calls.map((call) => call.route)).toEqual([LINE]);
   });

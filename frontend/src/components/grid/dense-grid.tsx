@@ -242,6 +242,8 @@ interface CellStates<Row extends RowData, Sort extends string, Totals> {
   readonly closeRefusal: () => void;
   /** Close the refusal, the focus gone elsewhere. */
   readonly dismissRefusal: () => void;
+  /** Whether the cells have a menu, which they announce. */
+  readonly menu: boolean;
 }
 
 /** What a cell of the body is doing: active, entered, written, its refusal shown. */
@@ -253,17 +255,26 @@ interface CellState {
   readonly refused: boolean;
 }
 
-/** The attributes of a cell of the body: its place in the grid, and what it says of itself. */
+/** The key that opens the menu of a cell, as `aria-keyshortcuts` names it (`CellMenu`). */
+const MENU_KEY = "Shift+F10";
+
+/**
+ * The attributes of a cell of the body: its place in the grid, and what it says of itself — the
+ * key of its menu among them, where the grid offers one, so that a reader of the screen learns of
+ * it (WF-IHM-0100, #339).
+ */
 function cellAttributes(
   position: CellPosition,
   state: CellState,
   enterable: boolean,
   computed: boolean,
+  menu: boolean,
 ) {
   return {
     "data-row": position.row,
     "data-column": position.column,
     tabIndex: state.active ? 0 : -1,
+    "aria-keyshortcuts": menu ? MENU_KEY : undefined,
     "aria-readonly": enterable ? undefined : true,
     "aria-busy": state.pending === undefined ? undefined : true,
     "aria-haspopup": computed ? ("dialog" as const) : undefined,
@@ -325,7 +336,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   }
   return (
     <TableCell
-      {...cellAttributes(position, state, column?.entry?.in(row) === true, computed)}
+      {...cellAttributes(position, state, column?.entry?.in(row) === true, computed, cells.menu)}
       style={{ left: pinning.left }}
       className={cn(
         "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
@@ -452,7 +463,10 @@ function EntryProblemNotice({
     tooLong: () => t("tooLong", { max: kind.type === "text" ? kind.maxLength : 0 }),
     notANumber: () =>
       t("notANumber", {
-        example: kind.type === "money" ? amount : formatCell("decimal", "1234.5", locale),
+        example:
+          kind.type === "money"
+            ? amount
+            : formatCell("decimal", kind.type === "integer" ? "30" : "1234.5", locale),
       }),
     twoDecimals: () => t("twoDecimals", { example: amount }),
   };
@@ -612,6 +626,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     pending: writes.pending,
     closeRefusal: keyboard.closeRefusal,
     dismissRefusal: keyboard.dismissRefusal,
+    menu: undoable === true,
     editor: (draft, column) =>
       column.entry === undefined ? null : (
         <CellEditor

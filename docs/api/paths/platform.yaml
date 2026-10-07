@@ -25,7 +25,6 @@
               empty: { $ref: ../../../fixtures/api/backups_empty.json }
               beyond: { $ref: ../../../fixtures/api/backups_beyond.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   post:
     operationId: startBackup

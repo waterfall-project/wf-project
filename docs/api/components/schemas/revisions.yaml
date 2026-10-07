@@ -68,6 +68,7 @@ RevisionCommand:
     - edit_planning
     - edit_estimate
     - edit_remaining
+    - edit_risks
     - create_structure
     - merge_structure
     - mark
@@ -79,7 +80,7 @@ RevisionCommand:
     - export_task_tree_image
   description: >-
     Commandes portées par la révision : saisir le planning, le devis, le reste à
-    engager — une commande par fonction, chacune gardée par sa permission
+    engager, les risques — une commande par fonction, chacune gardée par sa permission
     (WF-ADM-0100) —, ouvrir un différentiel (WF-REV-0100) et le fusionner (WF-REV-0050),
     la marquer, la désigner comme référence, l'abandonner (WF-REV-0010, WF-REV-0020,
     WF-REV-0040) — la fusion, le marquage, la désignation et l'abandon chacun gardés par
@@ -96,6 +97,18 @@ RevisionCommand:
     du devis (FBS-4.4), le reste à engager celle du reste à engager (FBS-4.5) — et ne
     manque d'aucune condition : sur une révision marquée, pendant un marquage, sur un
     projet terminal, il reste disponible. Un export est présent ou absent.
+
+    `edit_risks` est la saisie des risques — déclarer, modifier, réexaminer, supprimer un
+    risque (`createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`), sous `risks.write` —,
+    une saisie de la révision en cours comme les trois autres, annulable par le même
+    historique (WF-RIS-0020, WF-IHM-0110). Seule la révision en cours la porte : une révision
+    marquée ne la liste jamais, pas même indisponible comme les trois autres saisies — elle est
+    immuable (WF-DAT-0020), et l'écran ne doit pas montrer deux commandes de saisie des risques
+    quand le projet la porte. Tant que le projet n'a pas
+    de révision en cours, c'est le projet qui la porte (`ProjectCommand.edit_risks`), la saisie
+    créant la révision en cours (WF-RIS-0020).
+    La déclaration de survenance n'en relève pas : c'est une commande du projet et du risque
+    (`ProjectCommand.declare_risk_occurrence`, `RiskCommand.declare_occurrence`).
 
 RevisionCommandAvailability:
   type: object
@@ -352,8 +365,8 @@ EditableField:
     Champ d'une facette qu'une écriture porte — `TaskFacetUpdate`, `EstimateLineUpdate`, ou
     la commande d'avancement pour `task.progress` —, que le nœud nomme parmi ceux qu'il
     accepte (`editable_fields`, WF-IHM-0040). Le rattachement à un poste ou à un lot du
-    lotissement (`task.order_item_id`, `task.work_package_id`) n'est accepté que par une
-    récapitulative (WF-PLA-0130).
+    lotissement (`task.order_item_id`, `task.work_package_id`) est accepté de toute tâche,
+    récapitulative ou feuille (WF-PLA-0130).
   enum:
     - task.label
     - task.description
@@ -380,7 +393,7 @@ NodeColumn:
     colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de
     la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille
     les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le
-    poste ou le lot du lotissement auquel une récapitulative est rattachée (WF-PLA-0130) ;
+    poste ou le lot du lotissement auquel la tâche est rattachée (WF-PLA-0130) ;
     `label`, puis de
     `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant à
     l'année de référence (`base_amount`) et le montant corrigé de l'inflation, que présente la
@@ -633,13 +646,16 @@ NodeSchedule:
       anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
       description: >-
         Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés
-        (`unit: d`), décimale, jamais négative — les tâches en mode manuel, traitées comme des
-        dates imposées, évitent les marges négatives ; nulle pour une tâche en mode manuel,
+        (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au
+        plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un
+        prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est
+        critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel,
         qui ne porte pas de marge.
     is_critical:
       type: boolean
       description: >-
-        Appartenance au chemin critique (WF-PLA-0100) ; fausse pour une tâche en mode manuel.
+        Appartenance au chemin critique, une marge totale nulle ou négative (WF-PLA-0100) ;
+        fausse pour une tâche en mode manuel.
     finish_overdue:
       type: boolean
       description: >-
@@ -702,7 +718,10 @@ Duration:
   properties:
     value:
       allOf: [{ $ref: ../common.yaml#/Decimal }]
-      description: Jamais négative.
+      description: >-
+        Jamais négative pour la durée d'une tâche ; signée pour une marge totale, négative
+        quand un prédécesseur ne peut pas finir à temps pour une tâche en mode manuel
+        (WF-PLA-0100).
     unit: { $ref: '#/DurationUnit' }
 
 LagUnit:
@@ -744,9 +763,9 @@ TaskFacet:
     dates et durée d'une récapitulative, marge, criticité, avancement physique, fin
     dépassée — ne sont pas saisissables (WF-IHM-0030). La durée est portée dans l'unité
     de sa saisie (WF-PLA-0160) ; le début et la fin sont une date et les heures de
-    travail écoulées ce jour-là (WF-DAT-0100). Une récapitulative peut porter le
-    rattachement à un poste ou à un lot du lotissement (`order_item_id`, `work_package_id`,
-    WF-PLA-0130) ; une tâche créée par un import MS Project garde l'identifiant que le
+    travail écoulées ce jour-là (WF-DAT-0100). Une tâche, récapitulative ou feuille, peut
+    porter le rattachement à un poste ou à un lot du lotissement (`order_item_id`,
+    `work_package_id`, WF-PLA-0130) ; une tâche créée par un import MS Project garde l'identifiant que le
     fichier lui donnait (`external_id`, WF-INTF-0040).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
@@ -784,12 +803,16 @@ TaskFacet:
       anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
       description: >-
         Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés
-        (`unit: d`), décimale, jamais négative — les tâches en mode manuel, traitées comme des
-        dates imposées, évitent les marges négatives ; nulle pour une tâche en mode manuel,
+        (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au
+        plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un
+        prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est
+        critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel,
         qui ne porte pas de marge.
     is_critical:
       type: boolean
-      description: Appartenance au chemin critique, calculée (WF-PLA-0100).
+      description: >-
+        Appartenance au chemin critique, calculée : une marge totale nulle ou négative
+        (WF-PLA-0100).
     physical_progress:
       anyOf: [{ $ref: indicators.yaml#/Computable }, { type: 'null' }]
       description: >-
@@ -822,19 +845,20 @@ TaskFacet:
     order_item_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le poste du lotissement que porte cette récapitulative (WF-PLA-0130, WF-PLA-0040) :
+        Le poste du lotissement que porte cette tâche, récapitulative ou feuille (WF-PLA-0130) :
         posé par le squelette (WF-PRJ-0030), modifiable et retirable, exclusif de
-        `work_package_id`. Un poste n'est porté que par une récapitulative à la fois ; c'est par
-        lui que le devis présente ses totaux par poste (WF-DEV-0060) et que les grilles filtrent
-        par poste. Nul sans rattachement, et toujours nul pour une tâche qui n'est pas
-        récapitulative.
+        `work_package_id`. Un poste n'est porté que par une tâche à la fois ; c'est par elle
+        que le devis présente le total par poste, celui de son sous-arbre (WF-DEV-0060), et que
+        les grilles filtrent par poste. Une récapitulative qui perd sa dernière subordonnée
+        garde son rattachement. Nul sans rattachement.
     work_package_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le lot du lotissement que porte cette récapitulative (WF-PLA-0130), aux mêmes règles
-        que `order_item_id`, exclusif de lui : une récapitulative porte un poste ou un lot,
-        jamais les deux ; un lot n'est porté que par une récapitulative à la fois. Les grilles
-        filtrent par lot sur ce rattachement (WF-DEV-0050, WF-RAE-0040).
+        Le lot du lotissement que porte cette tâche (WF-PLA-0130), aux mêmes règles que
+        `order_item_id`, exclusif de lui : une tâche porte un poste ou un lot, jamais les deux ;
+        un lot n'est porté que par une tâche à la fois. Quand le poste du lot est rattaché, la
+        tâche du lot est dans le sous-arbre de la tâche de ce poste. Les grilles filtrent par
+        lot sur ce rattachement (WF-DEV-0050, WF-RAE-0040).
     work_breakdown_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
@@ -1046,9 +1070,9 @@ TaskFacetWrite:
     Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
     refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
     saisissables en mode manuel, sont une date et des heures de travail écoulées
-    (WF-DAT-0100). Le rattachement à un poste ou à un lot n'est accepté que d'une
-    récapitulative — une tâche qui a des subordonnées, ou que la grille de devis crée comme
-    telle (WF-DEV-0050) — et suit les règles de `TaskFacetUpdate`.
+    (WF-DAT-0100). Le rattachement à un poste ou à un lot est accepté de toute tâche et suit
+    les règles de `TaskFacetUpdate`, le parent de la tâche créée (`NodeCreate.parent_id`)
+    disant si la tâche d'un lot reste sous celle de son poste.
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
@@ -1075,14 +1099,21 @@ TaskFacetUpdate:
     que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030).
 
     Le rattachement au lotissement (WF-PLA-0130) : `order_item_id` ou `work_package_id`
-    rattache la récapitulative à ce poste ou à ce lot, `null` retire le rattachement. Le
-    refus est un 422 `VALIDATION_FAILED`, `fields` sur le champ envoyé : `SUMMARY_TASK_REQUIRED`
-    quand la tâche n'est pas récapitulative ; `UNKNOWN_WORK_BREAKDOWN_ITEM` quand le
-    lotissement du projet n'a pas ce poste ou ce lot ; `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` quand
-    les deux sont envoyés non nuls, ou que l'un est envoyé quand l'autre est porté ;
-    `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` quand une autre récapitulative porte déjà ce poste
-    ou ce lot, `fields[].params.attached_node_id` la nommant — « le rattachement d'une récapitulative
-    à un lot déjà porté par une autre est refusé » (Vérif de WF-PLA-0130).
+    rattache la tâche, récapitulative ou feuille, à ce poste ou à ce lot, `null` retire le
+    rattachement. L'échange se fait en une écriture : `{order_item_id: null, work_package_id:
+    X}` sur une tâche qui porte un poste retire le poste et rattache le lot. Le refus est un
+    422 `VALIDATION_FAILED`, `fields` sur le champ envoyé : `UNKNOWN_WORK_BREAKDOWN_ITEM` quand
+    le lotissement du projet n'a pas ce poste ou ce lot ; `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` quand
+    les deux sont envoyés non nuls, ou que l'un est envoyé non nul quand l'autre est porté et
+    n'est pas mis à `null` dans le même corps — « le rattachement d'une même tâche à un poste et
+    à un lot » ; `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` quand une autre tâche porte déjà ce
+    poste ou ce lot, `fields[].params.attached_node_id` la nommant — « le rattachement d'une
+    tâche à un lot déjà porté par une autre est refusé » ; `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`
+    quand le rattachement sortirait la tâche d'un lot du sous-arbre de la tâche de son poste —
+    un lot rattaché à une tâche hors du sous-arbre de la tâche de son poste, ou un poste
+    rattaché à une tâche dont le sous-arbre ne contient pas la tâche de l'un de ses lots —,
+    `fields[].params.order_item_node_id` nommant la tâche du poste et `work_package_node_ids`
+    celles des lots en cause (Vérif de WF-PLA-0130).
   properties:
     label: { type: string, minLength: 1, maxLength: 300 }
     description:
@@ -1152,6 +1183,13 @@ EstimateLineUpdate:
 NodeMove:
   type: object
   required: [node_ids, parent_id, lock_version]
+  description: >-
+    Déplacement de nœuds sous un parent. Un déplacement qui sortirait la tâche d'un lot du
+    sous-arbre de la tâche de son poste rattaché — la tâche du lot, ou une tâche qui la
+    contient — est refusé (WF-PLA-0130) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le
+    nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+    `fields[].params.order_item_node_id` et `work_package_node_ids` nommant les tâches du
+    poste et des lots.
   properties:
     node_ids:
       type: array
@@ -1206,7 +1244,9 @@ UndoResult:
   description: >-
     Annule ou rétablit la dernière modification de la session. Une annulation est
     une modification comme une autre ; elle est refusée par 409 si une modification
-    postérieure porte sur le même objet (WF-IHM-0110).
+    postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque — création,
+    modification, réexamen, suppression — sont dans le même historique que celles des
+    grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent.
   properties:
     undone:
       type: object
@@ -1214,6 +1254,12 @@ UndoResult:
         kind: { type: string }
         node_ids:
           type: array
+          items: { $ref: ../common.yaml#/Uuid }
+        risk_ids:
+          type: array
+          description: >-
+            Les risques que l'annulation, ou le rétablissement, rend à leur état précédent
+            (WF-IHM-0110, WF-RIS-0020) ; vide pour une saisie des grilles.
           items: { $ref: ../common.yaml#/Uuid }
     remaining_depth: { type: integer, minimum: 0 }
 

@@ -155,17 +155,20 @@ export interface Choice {
   readonly id: string;
   readonly label: string;
   readonly active: boolean;
+  /** The code that names it before its label in a list — a sub-project's —, if it has one. */
+  readonly code?: string | undefined;
 }
 
 /**
  * What a cell takes (WF-IHM-0040): a text, never blank, of `maxLength` characters at most, as the
  * contract bounds it; a number in the format of the language, which travels as the exact decimal
- * of the contract — an amount keeps two decimals at most —; one of the choices of a list. A cell
- * that may be emptied (`nullable`) writes `null` then.
+ * of the contract — an amount keeps two decimals at most —; a whole number, of digits alone, as
+ * the contract takes an integer — a number of days —; one of the choices of a list. A cell that
+ * may be emptied (`nullable`) writes `null` then.
  */
 export type EntryKind =
   | { readonly type: "text"; readonly maxLength: number }
-  | { readonly type: "decimal" | "money"; readonly nullable: boolean }
+  | { readonly type: "decimal" | "money" | "integer"; readonly nullable: boolean }
   | {
       readonly type: "choice";
       /** The choices, read by the entry alone: a function, never the list (défaut n° 14). */

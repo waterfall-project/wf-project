@@ -26,6 +26,11 @@
         "missing_conditions": []
       },
       {
+        "command": "edit_risks",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
         "command": "create_structure",
         "is_available": true,
         "missing_conditions": []

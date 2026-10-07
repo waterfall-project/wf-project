@@ -1,5 +1,5 @@
 {
-  "summary": "Le risque de reprise du câblage, identifié : sa description, ses actions de mitigation, sa gravité de 1 250, total de son devis propre, et sa provision de 500, la gravité à 40 % — ni l'une ni l'autre saisies (WF-RIS-0010).",
+  "summary": "Le risque de reprise du câblage, identifié : sa description, ses actions de mitigation, sa gravité de 1 250, total de son devis propre, et sa provision de 500, la gravité à 40 % — ni l'une ni l'autre saisies (WF-RIS-0010). Il se modifie, se réexamine et se déclare survenu ; cité par la révision de référence, il ne se supprime plus (`risk_not_cited`, WF-RIS-0020).",
   "value": {
     "risk_id": "01926f3a-7c00-7000-8000-000000000751",
     "label": "Risque de reprise du câblage",
@@ -28,6 +28,30 @@
         "field": "provision_amount",
         "dependencies": [
           "severity_and_probability"
+        ]
+      }
+    ],
+    "available_commands": [
+      {
+        "command": "update",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "review",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "declare_occurrence",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "delete",
+        "is_available": false,
+        "missing_conditions": [
+          "risk_not_cited"
         ]
       }
     ],

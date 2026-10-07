@@ -120,8 +120,31 @@ export const COMMON_FIELDS = {
 } as const satisfies AnyNodeFields;
 
 /**
+ * The fields of a line a projection leaves out when they say nothing — null, or false for the
+ * flag —, on six thousand lines of which most bear none (#349): a cell reads a field left out as
+ * it reads a null one, empty.
+ */
+export const SPARSE_LINE_FIELDS = [
+  "payment_delay_days",
+  "subproject_id",
+  "subproject_label",
+  "uses_inactive_object",
+] as const;
+
+/** A field of a line a projection leaves out when it says nothing. */
+type SparseLineField = (typeof SPARSE_LINE_FIELDS)[number];
+
+/** Some fields of a line, those that may say nothing made optional. */
+type SparseLine<F extends keyof EstimateLineFacet> = Omit<
+  Pick<EstimateLineFacet, F>,
+  SparseLineField
+> &
+  Partial<Pick<EstimateLineFacet, F & SparseLineField>>;
+
+/**
  * A node as a grid reads it: the fields every grid reads, and those `N` of the node, `T` of its
- * task and `L` of its line that its own columns read.
+ * task and `L` of its line that its own columns read — a field of a line that says nothing may be
+ * left out (`SPARSE_LINE_FIELDS`).
  */
 export type NodeRow<
   N extends NodeField = never,
@@ -129,7 +152,7 @@ export type NodeRow<
   L extends keyof EstimateLineFacet = never,
 > = Pick<Node, (typeof COMMON_FIELDS.node)[number] | N> & {
   readonly task?: Pick<TaskFacet, (typeof COMMON_FIELDS.task)[number] | T> | null;
-  readonly estimate_line?: Pick<EstimateLineFacet, (typeof COMMON_FIELDS.line)[number] | L> | null;
+  readonly estimate_line?: SparseLine<(typeof COMMON_FIELDS.line)[number] | L> | null;
 };
 
 /** A node as a grid reads it, by the fields its columns read. */
@@ -181,6 +204,18 @@ function pick<T extends object, K extends keyof T>(source: T, keys: readonly K[]
   return picked as Pick<T, K>;
 }
 
+/** Some fields of a line, but those that say nothing (`SPARSE_LINE_FIELDS`). */
+function pickLine<K extends keyof EstimateLineFacet>(
+  line: EstimateLineFacet,
+  keys: readonly K[],
+): SparseLine<K> {
+  const sparse = new Set<string>(SPARSE_LINE_FIELDS);
+  return pick(
+    line,
+    keys.filter((key) => !sparse.has(key) || (line[key] !== null && line[key] !== false)),
+  );
+}
+
 /** A node as a grid reads it: the fields every grid reads, and those its columns read. */
 export function projectNode<
   N extends NodeField,
@@ -196,7 +231,8 @@ export function projectNode<
     ...(line === undefined
       ? {}
       : {
-          estimate_line: line === null ? null : pick(line, [...COMMON_FIELDS.line, ...fields.line]),
+          estimate_line:
+            line === null ? null : pickLine(line, [...COMMON_FIELDS.line, ...fields.line]),
         }),
   };
 }

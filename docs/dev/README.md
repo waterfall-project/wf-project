@@ -221,20 +221,24 @@ Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), con
 celles de ses cellules que le serveur calcule, figée ou non, colonne `sort_by` du contrat, et,
 pour une colonne étroite, l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que
 rend sa cellule en place de la valeur formatée (`render`) — et, s'il y en a un, son arbre
-(niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des fonctions : elle se remet à
-`DenseGrid` dans un composant client propre à l'écran (`estimate-grid.tsx`,
-`planning-grid.tsx`), et la page, serveur, ne lui passe que des données — la structure lue et,
-de chaque nœud, les seuls champs que la grille lit : ceux de toute grille (identité, version,
-champs calculés, numéro, niveau, nature, libellé) et ceux de ses colonnes, que nomme sa
-configuration (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). La page les demande à `listNodes`
-(`fields`, `nodeFieldNames` : un champ d'une facette sous son nom, `task.label`) et les projette
-encore (`projectNodes`) : un serveur peut rendre plus qu'on ne lui demande — le faux back rend
-son exemple entier —, et les six mille nœuds entiers pèsent six mégaoctets et demi dans la page,
-projetés, de quarante-cinq à soixante pour cent ; la lecture de l'écran (`readGridScreen`) ne rend que les lignes
-projetées et les totaux, jamais la réponse entière. Une colonne qui lit un champ nouveau l'ajoute à cette liste : le
-typage de la ligne le demande, et `projection.test.tsx` vérifie que la grille lit la même chose
-de la ligne projetée que du nœud entier, et que la page demande ce qu'elle projette. Le calculé
-se lit cellule par cellule (WF-IHM-0030, `computed-nodes.ts`) : un champ qu'aucune écriture ne
+(niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des
+fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
+(`estimate-grid.tsx`, `planning-grid.tsx`), et la page, serveur, ne lui passe que des données —
+la structure lue et, de chaque nœud, les seuls champs que la grille lit : ceux de toute grille
+(identité, version, champs calculés, numéro, niveau, nature, libellé) et ceux de ses colonnes,
+que nomme sa configuration (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). La page les demande à
+`listNodes` (`fields`, `nodeFieldNames` : un champ d'une facette sous son nom, `task.label`) et
+les projette encore (`projectNodes`) : un serveur peut rendre plus qu'on ne lui demande — le faux
+back rend son exemple entier —, et les six mille nœuds entiers pèsent six mégaoctets et demi dans
+la page, projetés, de quarante-cinq à soixante-quatre pour cent ; la lecture de l'écran
+(`readGridScreen`) ne rend que les lignes projetées et les totaux, jamais la réponse entière. Un
+champ d'une ligne qui ne dit rien — nul, ou faux pour un drapeau (`SPARSE_LINE_FIELDS`) — ne
+traverse pas, la cellule le lisant comme nul, et l'identifiant du sous-projet d'une ligne ne
+traverse que vers une grille qui le saisit (`withoutSubprojectIds`). Une colonne qui lit un champ
+nouveau l'ajoute à cette liste : le typage de la ligne le demande, et `projection.test.tsx`
+vérifie que la grille lit la même chose de la ligne projetée que du nœud entier, et que la page
+demande ce qu'elle projette. Le calculé se lit cellule par cellule (WF-IHM-0030,
+`computed-nodes.ts`) : un champ qu'aucune écriture ne
 porte — les montants, la marge — l'est dans chaque ligne qui le porte, et sa colonne a Σ en
 en-tête ; un champ saisissable l'est là où le nœud le nomme dans `computed_fields`, jamais
 d'après son mode ni sa nature. Une cellule calculée est grisée, marquée Σ et nommée « Calculé »
@@ -341,9 +345,13 @@ première page ; la grille dense en lecture (`cost-grid.tsx`), sans recherche �
 a pas : une configuration la retire par `searched: false` —, chaque ligne avec son sous-projet
 nommé par le serveur, son périmètre en mots et chaque colonne conservée du fichier comme une
 colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
-(`passthrough.<colonne>`), chaque colonne triée par le serveur ; et le journal des imports, paginé à part (`imports_offset`). Des filtres que le serveur refuse
-(422 : une période qui finit avant de commencer, un sous-projet que le projet n'a pas) se disent à
-la place des lignes, les filtres gardés pour être changés. Un tri ou une
+(`passthrough.<colonne>`), chaque colonne triée par le serveur — les colonnes conservées sont
+celles des lignes de la page, dans l'ordre alphabétique de la langue de l'interface, quel que soit
+l'ordre des lignes : une colonne propre à un autre fichier ne paraît que sur les pages qui portent
+ses lignes, le contrat ne nommant pas leur union — ; et le journal des imports, paginé à part
+(`imports_offset`). Des filtres que le serveur refuse (422 : une période qui finit avant de
+commencer, un sous-projet que le projet n'a pas) se disent à la place des lignes, les filtres
+gardés pour être changés. Un tri ou une
 recherche changés ramènent toute liste paginée à sa première page (`sortHref`, `searchHref`).
 Un lien de page, comme le libellé d'un risque, part de la dernière adresse demandée
 (`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
@@ -597,10 +605,12 @@ du portefeuille qui se somment de leurs lignes — la valeur, la performance, la
 les risques —, les deux cents catégories de
 `listCostCategories`, quinze ans de taux de `listHourlyRates` et la grille des taux horaires de
 `getHourlyRateGrid`, cent cinquante catégories sur quinze ans. Les exemples nommés de `listNodes`
-et de `getComputedValueDependencies` (`witness`, `planning`, `estimate`, `milestone`,
-`risk_occurred`, `dependencies_*`), que lisent les tests de composants, sont des lectures du cœur
-du témoin (`wftools.mockcore`), écrites par la même commande sous `fixtures/api/` par leur nom et
-déclarées engendrées dans `tools/paths.toml`. Les indicateurs du projet
+et de `getComputedValueDependencies` (`witness`, `core`, `planning`, `estimate`,
+`installation`, `milestone`, `risk_occurred`, `dependencies_*`), que lisent les tests de
+composants, sont des lectures du cœur du témoin (`wftools.mockcore`), écrites par la même commande sous `fixtures/api/`
+par leur nom et déclarées engendrées dans `tools/paths.toml` ; de même les réponses des écritures
+de grille (`task_renamed`, `estimate_line_*`, `node_deleted`, `predecessor_set`, `paste_*`), chacune
+la différence de deux lectures de la structure, avant et après l'écriture (`wftools.mockwrites`). Les indicateurs du projet
 (`getProjectIndicators`) et la ligne du projet témoin dans le portefeuille restent ceux du
 témoin, que l'outil lit dans leurs fixtures : ils ne sont pas tirés du volume. Les volumes
 restent dans l'univers des autres exemples — le projet, sa révision, ses sous-projets, ses

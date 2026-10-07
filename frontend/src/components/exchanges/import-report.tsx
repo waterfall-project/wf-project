@@ -17,8 +17,10 @@ import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl
 import type { components } from "@/api/generated/schema";
 import type { CommandOffer } from "@/components/commands/offer";
 import { LocalTime } from "@/components/local-time";
+import { NODE_COLUMNS, type NodeColumn } from "@/components/grid/nodes";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
+import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
@@ -27,21 +29,39 @@ import { ReportCommands } from "./report-commands";
 
 type Import = components["schemas"]["Import"];
 type Report = components["schemas"]["ImportReport"];
-type ActualCostColumn = components["schemas"]["ActualCostColumn"];
 type Difference = Report["differences"][number];
 type DifferenceField = NonNullable<Difference["fields"]>[number];
 
-/** The columns of a line of actual cost, every one of them, which its own catalogue names. */
+/**
+ * The columns of a line of actual cost, every one of them, which its own catalogue names. The
+ * generated type of `ActualCostColumn` is a mere string, the contract admitting the columns the
+ * file kept (`passthrough.<column>`): the named ones are held by the catalogue instead, whose keys
+ * `make catalogs` holds to the values the contract codes — one added fails the type check here.
+ */
 const ACTUAL_COST_COLUMNS = {
   document_date: true,
   document_number: true,
   amount: true,
   subproject: true,
-} as const satisfies Record<ActualCostColumn, true>;
+} as const satisfies Record<keyof Catalogue["enums"]["ActualCostColumn"], true>;
+
+/** A column of a line of actual cost that the catalogue names. */
+type ActualCostColumn = keyof typeof ACTUAL_COST_COLUMNS;
+
+/**
+ * A column the file kept, `passthrough.<column>` (WF-CRE-0010, #365): named as the file names
+ * it, which no catalogue translates.
+ */
+const PASSTHROUGH = "passthrough.";
 
 /** Whether a field of a difference is a column of a line of actual cost. */
 function isActualCostColumn(field: DifferenceField): field is ActualCostColumn {
   return Object.hasOwn(ACTUAL_COST_COLUMNS, field);
+}
+
+/** Whether a field of a difference is a column of the structure, which its catalogue names. */
+function isNodeColumn(field: DifferenceField): field is NodeColumn {
+  return (NODE_COLUMNS as readonly string[]).includes(field);
 }
 
 const HEADING = "text-sm font-semibold";
@@ -83,12 +103,15 @@ function Differences({ differences }: { readonly differences: Report["difference
   // is a column of both. A field the object does not have is left unnamed, never guessed.
   const fieldName = (target: Difference["target"], field: DifferenceField) => {
     if (target === "actual_cost_line") {
+      if (field.startsWith(PASSTHROUGH)) {
+        return field.slice(PASSTHROUGH.length);
+      }
       return isActualCostColumn(field) ? t(`enums.ActualCostColumn.${field}`) : undefined;
     }
     if (field === "subproject") {
       return t("enums.NodeColumn.subproject");
     }
-    return isActualCostColumn(field) ? undefined : t(`enums.NodeColumn.${field}`);
+    return isNodeColumn(field) ? t(`enums.NodeColumn.${field}`) : undefined;
   };
   const fieldsOf = (difference: Difference) =>
     (difference.fields ?? []).flatMap((field) => fieldName(difference.target, field) ?? []);

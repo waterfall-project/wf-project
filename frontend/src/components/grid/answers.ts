@@ -12,7 +12,8 @@
  * that a part never keeps out the label nor the version of a row an earlier write answered whole.
  * A part sets the values of its own fields alone: the parts of a row are laid one over the other in
  * the order of their answers, so that the schedule of one write and the amounts of another both
- * stand. A part that changes nothing of what the grid reads is not kept at all.
+ * stand. A part that changes nothing of what the grid reads is not kept at all, and a part a later
+ * row whole covers is let go (#355): a long run of writes keeps no more than it shows.
  *
  * Pure, and neither server nor client: the cells written keep one of these by reading.
  */
@@ -118,9 +119,9 @@ export function shownRows<Row, Totals>(
 
 /**
  * Take what a write answered among the answers of its reading: each row written and each row it
- * gave whole, unless a later write answered it whole; each part of a row, kept aside among the
- * others in the order of its answer, only when it changes the row shown; the totals, unless later
- * ones were.
+ * gave whole, unless a later write answered it whole — the parts of that row it covers let go —;
+ * each part of a row, kept aside among the others in the order of its answer, only when it is
+ * later than the row whole taken and changes the row shown; the totals, unless later ones were.
  */
 export function take<Row, Totals>(
   answers: Answers<Row, Totals>,
@@ -133,9 +134,15 @@ export function take<Row, Totals>(
     const key = rowKey(row);
     if (later(order, answers.rows.get(key))) {
       answers.rows.set(key, { value: row, order });
+      prune(answers, key, order);
     }
   }
   for (const { key, change } of written.parts) {
+    // A part no later than the row whole already taken is covered: never shown, never kept.
+    const base = answers.rows.get(key);
+    if (base !== undefined && base.order >= order) {
+      continue;
+    }
     const shown = shownRow(answers, rowKey, key);
     if (shown !== undefined && change(shown) !== shown) {
       const parts = answers.parts.get(key) ?? [];
@@ -149,6 +156,20 @@ export function take<Row, Totals>(
   }
   if (written.totals !== undefined && later(order, answers.totals)) {
     answers.totals = { value: written.totals, order };
+  }
+}
+
+/** Let go of the parts of a row that a row answered whole at a place covers: those not later. */
+function prune<Row, Totals>(answers: Answers<Row, Totals>, key: string, order: number): void {
+  const parts = answers.parts.get(key);
+  if (parts === undefined) {
+    return;
+  }
+  const kept = parts.filter((part) => part.order > order);
+  if (kept.length === 0) {
+    answers.parts.delete(key);
+  } else if (kept.length !== parts.length) {
+    answers.parts.set(key, kept);
   }
 }
 

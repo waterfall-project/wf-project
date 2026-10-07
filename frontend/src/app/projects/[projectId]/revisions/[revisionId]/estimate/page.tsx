@@ -30,6 +30,7 @@ import {
   ESTIMATE_GRID,
   ESTIMATE_SORT_COLUMNS,
   type EstimateReference,
+  withoutSubprojectIds,
 } from "@/components/grid/estimate";
 import { EstimateGrid } from "@/components/grid/estimate-grid";
 import type { NodeTotals } from "@/components/grid/nodes";
@@ -117,25 +118,36 @@ async function readOptional<T>(
 }
 
 /**
- * The categories and the roles a line of the estimate is chosen from, as the grid reads them — an
- * identifier, a name, whether it may still be chosen, nothing more crossing to the browser. The
- * deactivated ones are read too: a line may bear one, which its list keeps; the list of a cell
- * offers the active ones alone (WF-REF-0150). The cell names what the line bears by the label the
- * server resolves (#305), whatever these lists hold. A list the API refuses is none: its column is
- * not entered, and the screen stays.
+ * The categories, the roles and the sub-projects a line of the estimate is chosen from, as the
+ * grid reads them — an identifier, a name, whether it may still be chosen, nothing more crossing to
+ * the browser. The deactivated ones are read too: a line may bear one, which its list keeps; the
+ * list of a cell offers the active ones alone (WF-REF-0150) — a sub-project is never deactivated.
+ * The cell names what the line bears by the label the server resolves (#305), whatever these lists
+ * hold. A list the API refuses is none: its column is not entered, and the screen stays.
  */
-async function readReference(): Promise<EstimateReference> {
+async function readReference(projectId: string): Promise<EstimateReference> {
   const client = serverClient();
   const query = { include_inactive: true };
-  const [categories, roles] = await Promise.all([
+  const [categories, roles, subprojects] = await Promise.all([
     readOptional("listCostCategories", () =>
       client.GET("/reference/cost-categories", { params: { query } }),
     ),
     readOptional("listResourceRoles", () =>
       client.GET("/reference/resource-roles", { params: { query } }),
     ),
+    readOptional("listSubprojects", () =>
+      client.GET("/projects/{project_id}/subprojects", {
+        params: { path: { project_id: projectId } },
+      }),
+    ),
   ]);
   return {
+    subprojects: subprojects?.map((subproject) => ({
+      id: subproject.subproject_id,
+      code: subproject.code,
+      label: subproject.label,
+      active: true,
+    })),
     categories: categories?.map((category) => ({
       id: category.cost_category_id,
       label: category.label,
@@ -208,9 +220,13 @@ export default async function EstimatePage({
       fields: ESTIMATE_FIELDS,
     }),
     readEstimateFigures(at),
-    readReference(),
+    readReference(revision.projectId),
     requestSession(),
   ]);
+  // The sub-project of a line is entered from the list of the project, in a revision open to
+  // entry: elsewhere, its identifier does not cross to the browser, its label alone shown.
+  const editable = screen.reading.edits.has("edit_estimate");
+  const subprojectsEntered = editable && reference.subprojects !== undefined;
   return (
     <>
       <ContextBanner reading={screen.reading} />
@@ -226,12 +242,12 @@ export default async function EstimatePage({
           permissions={session?.permissions ?? []}
         />
         <EstimateGrid
-          nodes={screen.nodes}
+          nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
           structure={screen.structure}
           structureVersion={screen.structureVersion}
           filters={screen.filters}
           reference={reference}
-          editable={screen.reading.edits.has("edit_estimate")}
+          editable={editable}
           tasksEditable={screen.reading.edits.has("edit_planning")}
           query={screen.query}
           preferences={screen.preferences}

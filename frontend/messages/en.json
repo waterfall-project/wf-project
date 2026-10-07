@@ -135,8 +135,10 @@
       "quantity": "Qty",
       "hours": "Effort (h)",
       "unitDisbursement": "Unit disbursement",
+      "paymentDelay": "Payment delay (days)",
       "referenceAmount": "Amount (reference year)",
       "inflatedAmount": "Amount corrected for inflation",
+      "inactiveObject": "Deactivated object",
       "startDate": "Start",
       "finishDate": "Finish",
       "schedulingMode": "Scheduling mode",
@@ -171,6 +173,7 @@
     "computed": "Computed",
     "entry": {
       "none": "None",
+      "codedChoice": "{code} — {label}",
       "notANumber": "This is not a number: enter it as {example}.",
       "required": "This cell cannot be left empty.",
       "tooLong": "{max} characters at most.",
@@ -218,7 +221,8 @@
   },
   "estimateGrid": {
     "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}",
-    "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}"
+    "summary": "{structure} · {tasks, plural, =0 {no task} one {# task} other {# tasks}}, {lines, plural, =0 {no line} one {# line} other {# lines}}",
+    "usesInactiveObject": "Uses a deactivated object"
   },
   "planningGrid": {
     "totals": "Total — {tasks, plural, =0 {no task} one {# task} other {# tasks}}",
@@ -310,6 +314,7 @@
       "subproject": "Subproject",
       "everySubproject": "Every subproject",
       "subprojectChoice": "{code} — {label}",
+      "unknownSubproject": "Unknown subproject",
       "period": "Period of the documents",
       "from": "Documents from",
       "to": "Documents up to",
@@ -626,6 +631,8 @@
       "series": "Curve",
       "date": "Date",
       "amount": "Amount",
+      "beforeStep": "{series}, before the step",
+      "afterStep": "{series}, after the step",
       "steps": "Steps of the reference budget",
       "cause": "Cause",
       "stepAmount": "Amount of the step",
@@ -1124,6 +1131,7 @@
     "PROJECT_CODE_REQUIRED": "The project code must be filled in.",
     "PASTE_TOO_WIDE": "The pasted data has more columns than the grid.",
     "FILE_FORMAT_UNREADABLE": "The file format cannot be read.",
+    "TASK_WITHOUT_WORKING_HOURS": "The calendars of the roles of this task never overlap: it would have no working hour in the week.",
     "VALUE_REQUIRED": "A value is required.",
     "VALUE_TOO_LONG": "The value is too long.",
     "VALUE_OUT_OF_RANGE": "The value is outside the allowed range.",
@@ -1134,10 +1142,11 @@
     "UNKNOWN_SUBPROJECT": "Unknown subproject.",
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
-    "SUMMARY_TASK_REQUIRED": "Only a summary task can be attached to an order item or a work package.",
+    "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",
-    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A summary task bears an order item or a work package, never both.",
-    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another summary task.",
+    "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
+    "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
+    "WORK_PACKAGE_OUTSIDE_ORDER_ITEM": "The task of a work package must stay within the subtree of the task of its order item.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error."
   },
@@ -1145,6 +1154,7 @@
     "missing_permission": "Required permission: {permission}.",
     "missing_condition": "Unmet condition: {condition}.",
     "missing_prerequisites": "Still missing: {prerequisites}.",
+    "projectState": "State of the project: {state}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
@@ -1420,7 +1430,9 @@
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
       "may_create_revision": "holding the permission to create a revision",
-      "risk_not_cited": "risk cited by no marked revision"
+      "risk_not_cited": "risk cited by no marked revision",
+      "risk_not_occurred": "risk not occurred",
+      "risk_identified": "risk identified"
     },
     "ProjectExit": {
       "to_state": {
@@ -1441,6 +1453,7 @@
       "edit_planning": "Edit the schedule",
       "edit_estimate": "Edit the estimate",
       "edit_remaining": "Update the estimate to complete",
+      "edit_risks": "Edit the risks",
       "create_structure": "Create a structure",
       "merge_structure": "Merge a structure",
       "mark": "Mark the revision",
@@ -1693,6 +1706,12 @@
       "identified": "Identified",
       "occurred": "Occurred",
       "dismissed": "Dismissed"
+    },
+    "RiskCommand": {
+      "update": "Edit the risk",
+      "review": "Review the risk",
+      "declare_occurrence": "Declare the risk occurred",
+      "delete": "Delete the risk"
     },
     "RiskComputedField": {
       "field": {

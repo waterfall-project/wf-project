@@ -74,7 +74,8 @@
       en regard (WF-DEV-0070). Sur un projet sans révision de référence, seule la
       révision en cours est une base : les deux autres sont refusées (409,
       `STATE_FORBIDS_OPERATION`), et `marked_remaining` l'est aussi sans `revision_id`
-      ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`).
+      ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`). Le plan nomme le
+      nœud d'organisation qu'il retient (`org_node_id`, `org_node_label`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/WorkloadBasis
@@ -98,6 +99,7 @@
               witness: { $ref: ../../../fixtures/api/workload.json }
               reference_budget: { $ref: ../../../fixtures/api/workload_reference_budget.json }
               marked_remaining: { $ref: ../../../fixtures/api/workload_marked_remaining.json }
+              org_node: { $ref: ../../../fixtures/api/workload_org_node.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -258,7 +260,10 @@
       de la tâche qui les porte : la courbe présente alors les décaissements, passés et
       à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des
       décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision
-      marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`).
+      marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`), sur les
+      lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou
+      égale (WF-IND-0010) : elle peut différer des indicateurs que le marquage a conservés
+      (WF-DAT-0040), et `context.is_stored`, faux, le dit.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -307,7 +312,10 @@
     description: >-
       Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon
       les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes
-      recalculées à la date de son marquage (`revision_id`).
+      recalculées à la date de son marquage (`revision_id`), sur les lignes de coût réel
+      connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) :
+      elles peuvent différer des indicateurs conservés (WF-DAT-0040), `context.is_stored`
+      faux.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision

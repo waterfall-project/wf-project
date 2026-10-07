@@ -103,7 +103,11 @@ describe("the server actions of the exchanges", () => {
       "POST /projects/{project_id}/exports": { example: "task_export_queued", status: 202 },
     });
     expect(await abandonFileImport(PROJECT, IMPORT)).toEqual({ kind: "done", data: null });
-    const request = { kind: "estimate", revision_id: null } as const;
+    // The revision exported is always named: its command `export_estimate` judges the export (#359).
+    const request = {
+      kind: "estimate",
+      revision_id: "01926f3a-7c00-7000-8000-000000000102",
+    } as const;
     expect(await requestFileExport(PROJECT, request)).toEqual({
       kind: "done",
       data: example("task_export_queued"),

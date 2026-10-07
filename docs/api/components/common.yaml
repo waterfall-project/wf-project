@@ -128,9 +128,17 @@ Problem:
         WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
-        WF-INTF-0070). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi
-        `attached_node_id`, la récapitulative qui porte déjà le poste ou le lot qu'une autre
-        voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0130).
+        WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche
+        sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les
+        calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une
+        tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son
+        nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par
+        champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà
+        le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`,
+        WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et
+        celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`,
+        WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous
+        un autre poste (`setWorkBreakdown`).
     fields:
       type: array
       description: Erreurs par champ, pour une entité refusée à la validation.
@@ -206,6 +214,9 @@ ErrorCode:
     - PROJECT_CODE_REQUIRED
     - PASTE_TOO_WIDE
     - FILE_FORMAT_UNREADABLE
+    # Une saisie de rôle ou de calendrier qui laisserait une tâche sans aucune heure travaillée
+    # dans la semaine ; aussi motif de rejet d'une ligne collée ou importée (WF-PLA-0010).
+    - TASK_WITHOUT_WORKING_HOURS
     # Motifs par champ, par ligne collée ou importée (`fields`, `PastePlan`,
     # `ImportRejection`).
     - VALUE_REQUIRED
@@ -218,12 +229,17 @@ ErrorCode:
     - UNKNOWN_SUBPROJECT
     - UNKNOWN_TASK
     - INACTIVE_REFERENCE_OBJECT
-    # Motifs par champ du rattachement d'une récapitulative à un poste ou à un lot du
-    # lotissement (`TaskFacetUpdate`, WF-PLA-0130).
-    - SUMMARY_TASK_REQUIRED
+    # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
+    # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
+    - PROVISION_CATEGORY_RESERVED
+    # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
+    # (`TaskFacetUpdate`, WF-PLA-0130) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
+    # ligne importée et d'une saisie du lotissement (`setWorkBreakdown`) qui sortiraient la
+    # tâche d'un lot du sous-arbre de celle de son poste.
     - UNKNOWN_WORK_BREAKDOWN_ITEM
     - WORK_BREAKDOWN_ITEMS_EXCLUSIVE
     - WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED
+    - WORK_PACKAGE_OUTSIDE_ORDER_ITEM
     # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
     # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
     - COMPONENT_UNAVAILABLE

@@ -1,0 +1,114 @@
+{
+  "summary": "La révision courante pendant que s'applique un import de planning MS Project (`Import.status` à `applying`) : aucune commande qui y écrirait n'est disponible — ni la saisie, risques compris, ni l'ouverture ou la fusion d'un différentiel, ni le marquage, ni l'abandon —, chacune nommant le traitement en cours ; ses exports, qui la lisent, restent disponibles, et la désignation de la référence ne manque que de son marquage. Le traitement d'une déclaration de survenance, qui fusionne dans la même révision, la met dans le même état ; l'analyse d'un import ne suspend rien (WF-INTF-0080, WF-IHM-0080, WF-IHM-0090, WF-RIS-0060).",
+  "value": {
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "project_id": "01926f3a-7c00-7000-8000-000000000001",
+    "version_name": null,
+    "description": null,
+    "status": "draft",
+    "marked_at": null,
+    "is_reference": false,
+    "reference_year": 2026,
+    "available_commands": [
+      {
+        "command": "edit_planning",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "edit_estimate",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "edit_remaining",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "edit_risks",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "create_structure",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "merge_structure",
+        "is_available": false,
+        "missing_conditions": [
+          "unmerged_amendment_exists",
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "mark",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "designate_reference",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_marked"
+        ]
+      },
+      {
+        "command": "abandon",
+        "is_available": false,
+        "missing_conditions": [
+          "no_background_task_running"
+        ]
+      },
+      {
+        "command": "export_planning",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "export_estimate",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "export_remaining",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "export_task_tree_image",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ],
+    "audit": {
+      "created_at": "2026-03-02T08:30:00Z",
+      "created_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      },
+      "updated_at": "2026-03-16T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    },
+    "lock_version": 4
+  }
+}

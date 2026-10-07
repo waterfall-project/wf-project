@@ -15,7 +15,8 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   refusal the journeys try on it;
 - ``task_lengthened.json``, ``updateTaskFacet``: a duration lengthened in that structure, which
   pushes a successor into the next year — its schedule, the amounts corrected of its lines and
-  of itself, the summaries above and the totals, recalculated from the same lines;
+  of itself, the summaries above and the totals, recalculated from the same lines
+  (``wftools.mockwrites``);
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first, and ``portfolio_projects_page.json``,
   its second page of fifty;
@@ -30,12 +31,15 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   categories in rows and the fifteen years in columns, read in one call (#162).
 
 And the named examples of ``listNodes`` and of ``getComputedValueDependencies``, written under
-``fixtures/api/`` by their name — ``nodes``, ``nodes_planning``, ``nodes_estimate``,
-``nodes_milestone``, ``nodes_risk_occurred``, ``dependencies_summary``,
-``dependencies_summary_moved``, ``dependencies_labour``, ``dependencies_task_amount``,
-``dependencies_provision``, ``dependencies_manual_float`` —: readings of the readable core of the
-witness, described once in ``wftools.mockwitness`` and dated in ``wftools.mockcore``, so that
-every example names each node by one identifier, one lineage and one figure (EP-02/L21, #287).
+``fixtures/api/`` by their name — ``nodes``, ``nodes_core``, ``nodes_planning``,
+``nodes_estimate``, ``nodes_installation``, ``nodes_milestone``, ``nodes_risk_occurred``,
+``dependencies_summary``, ``dependencies_summary_moved``, ``dependencies_labour``,
+``dependencies_task_amount``, ``dependencies_provision``, ``dependencies_manual_float`` —:
+readings of the readable core of the witness, described once in ``wftools.mockwitness`` and
+dated in ``wftools.mockcore``, so that every example names each node by one identifier, one
+lineage and one figure (EP-02/L21, #287); and the answers of the writes of the grids, made on
+that core or on the structure of a thousand tasks, written beside them by ``wftools.mockwrites``
+(EP-02/L22).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -56,7 +60,7 @@ from collections import Counter
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, paths
+from wftools import REPOSITORY, mockcore, mocktext, mockwrites, paths
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
     PAGE,
@@ -72,7 +76,7 @@ from wftools.mockportfolio import (
 )
 from wftools.mockstructure import (
     CATEGORY_LABELS,
-    COMMISSIONING,
+    COMMISSIONING_RATE,
     ELECTRICAL_RATE,
     LABOR,
     LINES_PER_TASK,
@@ -84,15 +88,16 @@ from wftools.mockstructure import (
     estimate_indicators,
     money,
     structure,
-    task_lengthened,
 )
 from wftools.mockwitness import (
     ASSEMBLY,
     CATEGORIES,
+    COMMISSIONING,
     CONTROL_STATION,
     ELECTRICAL_ENGINEERING,
     EQUIPMENT,
     FIXTURES,
+    INSTALLATION,
     PROVISIONS,
     STUDIES,
     SUBCONTRACTING,
@@ -103,8 +108,10 @@ from wftools.mockwitness import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from datetime import date
     from pathlib import Path
+
+_day, _count, _amount, _example = mocktext.day, mocktext.count, mocktext.amount, mocktext.example
+"""How the summaries write a day, a count and an amount, and the envelope of an example."""
 
 VOLUME = "volume"
 """Where the volumes are written, under the fixtures: a directory the generator owns, entry by
@@ -125,8 +132,6 @@ _AUDIT: JsonObject = {
     "updated_at": "2026-01-05T09:00:00Z",
     "updated_by": {"kind": "user", "user_id": USER, "display_name": "Camille Martin"},
 }
-
-_DESCRIPTION = "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas."
 
 
 # --- The grid of hourly rates -------------------------------------------------------------
@@ -230,9 +235,6 @@ def _rate(category: str, last_amount: Decimal, year: int) -> JsonObject:
     }
 
 
-COMMISSIONING_RATE = Decimal("75.00")
-"""The hourly rate of the commissioning in the reference year, the one the structure's lines pay."""
-
 _EMPTY_YEARS = 4
 """How many of the first years a category may leave without a rate: an empty cell of the grid."""
 
@@ -283,6 +285,11 @@ _MILESTONE = "Réception usine"
 _TASKS = frozenset({mockcore.TASK})
 
 
+def named() -> dict[str, JsonObject]:
+    """Return the named examples of the witness, by file name: its readings and its writes."""
+    return {**readings(), **mockwrites.writes()}
+
+
 def readings() -> dict[str, JsonObject]:
     """Return the named examples read from the core of the witness, by file name.
 
@@ -303,6 +310,13 @@ def readings() -> dict[str, JsonObject]:
             f"réception des études et le dossier de conception. Les numéros de ligne sont ceux "
             f"de toute la structure, où le cœur vient en tête (WF-PLA-0080, WF-DEV-0050).",
             studies,
+        ),
+        "nodes_core.json": _example(
+            f"Le cœur du témoin lu entier, sans filtre, le {day} : les études, le lot « Poste de "
+            f"commande » et l'installation sur site, avec leurs lignes, et les totaux de la "
+            f"structure entière — ceux que rendent les écritures du cœur (NodeTotals, "
+            f"WF-DEV-0050, WF-PLA-0080).",
+            mockcore.whole(rows),
         ),
         "nodes_planning.json": _example(
             f"Le planning du groupe « Études », lu sans ses lignes (subtree_of, kinds=task) le "
@@ -332,6 +346,15 @@ def readings() -> dict[str, JsonObject]:
             f"{_amount(Decimal(str(total['budgeted_amount'])))} budgétés (WF-DEV-0020, "
             f"WF-RIS-0060, WF-INTF-0180, WF-DAT-0100).",
             estimate,
+        ),
+        "nodes_installation.json": _example(
+            f"L'installation sur site, lue avec ses lignes (subtree_of) le {day} : après la "
+            f"réception usine, le montage des armoires sur site, du 1er juillet au 18 décembre "
+            f"2026, son câblage par l'ingénieur électricien et l'assistance du technicien de mise "
+            f"en service aux essais, tous deux sur la semaine standard, et la mise en service qui "
+            f"le suit, démarrée en 2026 et consommée cette année-là, sur le chemin critique "
+            f"jusqu'à la fin du cœur (WF-PLA-0010, WF-DEV-0040, WF-DEV-0050).",
+            mockcore.subtree(rows, INSTALLATION.number),
         ),
         "nodes_milestone.json": _example(
             f"La recherche « {_MILESTONE} » dans la structure, le {day} : le jalon, tâche de durée "
@@ -385,27 +408,6 @@ def readings() -> dict[str, JsonObject]:
     }
 
 
-_MONTHS = (
-    "janvier",
-    "février",
-    "mars",
-    "avril",
-    "mai",
-    "juin",
-    "juillet",
-    "août",
-    "septembre",
-    "octobre",
-    "novembre",
-    "décembre",
-)
-
-
-def _day(day: date) -> str:
-    """Write a day as French does: 3 juin 2026."""
-    return f"{day.day} {_MONTHS[day.month - 1]} {day.year}"
-
-
 # --- Writing and checking ------------------------------------------------------------------
 
 
@@ -437,7 +439,7 @@ def volumes() -> dict[str, JsonObject]:
             "(reinflated), sa marge diminue (rescheduled), les récapitulatives au-dessus et les "
             "totaux sont recalculés, le montant à l'année de référence inchangé (WF-PLA-0020, "
             "WF-DEV-0040, WF-DEV-0050).",
-            task_lengthened(),
+            mockwrites.task_lengthened(),
         ),
         "estimate_indicators.json": _example(
             f"Les indicateurs du devis de la structure aux volumes du §4.6.2, sommés sur les "
@@ -573,20 +575,6 @@ def _ordinal(value: int) -> str:
     return _ORDINALS[value]
 
 
-def _count(value: int) -> str:
-    """Write a count as French does: thousands apart by a narrow no-break space."""
-    return f"{value:,}".replace(",", "\u202f")
-
-
-def _amount(value: Decimal, places: int = 2) -> str:
-    """Write an amount as French does: 60 553 621,36."""
-    return f"{value:,.{places}f}".replace(",", "\u202f").replace(".", ",")
-
-
-def _example(summary: str, value: JsonValue) -> JsonObject:
-    return {"summary": summary, "description": _DESCRIPTION, "value": value}
-
-
 # The envelope of an example and its value are laid out; below them, one line per item.
 _EXPANDED_DEPTH = 2
 
@@ -631,7 +619,7 @@ def write(fixtures: Path) -> list[Path]:
     written: list[Path] = []
     for name, text in expected.items():
         written.append(_write(directory / name, text))
-    for name, example in readings().items():
+    for name, example in named().items():
         written.append(_write(fixtures / name, render(example)))
     return written
 
@@ -654,13 +642,13 @@ def check(fixtures: Path, declared: Iterable[str] | None = None) -> list[str]:
     problems = [_left_over(directory / name) for name in sorted(set(present) - expected.keys())]
     for name, text in expected.items():
         problems.extend(_differences(directory / name, text, f"{VOLUME}/{name}"))
-    named = readings()
-    for name, example in named.items():
+    examples = named()
+    for name, example in examples.items():
         problems.extend(_differences(fixtures / name, render(example), name))
     problems.extend(
         f"{name} is declared generated by {BY}, which does not write it"
         for name in (declared_names() if declared is None else declared)
-        if name not in named
+        if name not in examples
     )
     return problems
 

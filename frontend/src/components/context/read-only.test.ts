@@ -20,7 +20,7 @@ describe("a revision read only", () => {
   it("is not a draft whose commands of modification are available", () => {
     expect(isReadOnly(revision("revision"))).toBe(false);
     expect(availableEdits(revision("revision"))).toEqual(
-      new Set(["edit_planning", "edit_estimate", "edit_remaining"]),
+      new Set(["edit_planning", "edit_estimate", "edit_remaining", "edit_risks"]),
     );
   });
 

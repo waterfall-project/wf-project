@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 
 import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
 
+import { columnsOf } from "./columns";
 import { rowAt } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
@@ -20,11 +21,12 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 const LINE_4 = "01926f3a-7c00-7000-8000-000100000004";
 
-// Number, label, category, role, quantity, hours, unit disbursement, amount at the year of
-// reference, amount corrected for inflation.
-const LABEL = 1;
-const QUANTITY = 4;
-const REFERENCE = 7;
+// The columns the journeys read, by their heading (`columnsOf`).
+const COLUMNS = {
+  label: "Libellé",
+  quantity: "Qté",
+  reference: "Montant (année de réf.)",
+} as const;
 
 const READ = ["Heures d'ingénierie", "Heures de mise en service", "Matériel"];
 
@@ -53,14 +55,18 @@ function labels(page: Page): Promise<string[]> {
   );
 }
 
-/** Open the estimate, the label of the row 4 active. */
-async function openOnRow4(page: Page): Promise<Locator> {
+/** Open the estimate, the label of the row 4 active; the grid, and where its columns are. */
+async function openOnRow4(page: Page): Promise<{
+  readonly grid: Locator;
+  readonly at: Readonly<Record<keyof typeof COLUMNS, number>>;
+}> {
   await page.goto(ESTIMATE);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
-  const label = cellAt(grid, 4, LABEL);
+  const at = await columnsOf(grid, COLUMNS);
+  const label = cellAt(grid, 4, at.label);
   await label.click();
   await expect(label).toBeFocused();
-  return grid;
+  return { grid, at };
 }
 
 /**
@@ -108,7 +114,7 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   page,
 }) => {
   const posted = actions(page);
-  const grid = await openOnRow4(page);
+  const { grid, at } = await openOnRow4(page);
   await paste(page, BLOCK);
 
   const dialog = page.getByRole("dialog", { name: "Coller depuis un tableur" });
@@ -135,15 +141,15 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
     lock_version: 1,
   });
   // The three rows the server wrote, in place of those read; the focus back on the cell.
-  await expect(cellAt(grid, 4, LABEL)).toHaveText("Heures de câblage et repérage");
+  await expect(cellAt(grid, 4, at.label)).toHaveText("Heures de câblage et repérage");
   expect(await labels(page)).toEqual([
     "Heures de câblage et repérage",
     "Heures d'essais",
     "Matériel de câblage",
   ]);
-  await expect(cellAt(grid, 6, QUANTITY)).toHaveText("24");
-  await expect(cellAt(grid, 6, REFERENCE)).toHaveText(/^25\s985,28/);
-  await expect(cellAt(grid, 4, LABEL)).toBeFocused();
+  await expect(cellAt(grid, 6, at.quantity)).toHaveText("24");
+  await expect(cellAt(grid, 6, at.reference)).toHaveText(/^25\s985,28/);
+  await expect(cellAt(grid, 4, at.label)).toBeFocused();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
@@ -151,7 +157,7 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   page,
 }) => {
   const posted = actions(page);
-  const grid = await openOnRow4(page);
+  const { grid, at } = await openOnRow4(page);
   const unknown = [BLOCK[0] ?? [], ["Heures d'essais", "Essais", "", "1"], BLOCK[2] ?? []];
   await paste(page, unknown);
 
@@ -166,15 +172,15 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   // Abandoned, by Escape: nothing more is asked, and no row changes.
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await expect(cellAt(grid, 4, LABEL)).toBeFocused();
+  await expect(cellAt(grid, 4, at.label)).toBeFocused();
   expect(argumentsWith(posted, "paste_id")).toBeUndefined();
   expect(await labels(page)).toEqual(READ);
-  await expect(cellAt(grid, 6, QUANTITY)).toHaveText("16");
+  await expect(cellAt(grid, 6, at.quantity)).toHaveText("16");
 });
 
 test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
   const posted = actions(page);
-  await openOnRow4(page);
+  const { grid, at } = await openOnRow4(page);
   // Fifteen columns from the label, where a line has fourteen in the contract (#223).
   await paste(
     page,
@@ -189,5 +195,5 @@ test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(argumentsWith(posted, "target_column")).toBeUndefined();
   expect(await labels(page)).toEqual(READ);
-  await expect(cellAt(page.getByRole("grid", { name: "Grille de devis" }), 4, LABEL)).toBeFocused();
+  await expect(cellAt(grid, 4, at.label)).toBeFocused();
 });

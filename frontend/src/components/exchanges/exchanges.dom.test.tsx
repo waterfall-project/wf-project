@@ -463,6 +463,14 @@ describe("the report of an import", () => {
     expect(differences).toHaveTextContent("UpdatedTaskRevue de conceptionDuration");
     expect(differences).toHaveTextContent("KeptTaskÉtudes de détail");
   });
+
+  it("names a column the file kept as the file names it, beside the columns its catalogue names", () => {
+    serve({});
+    open(report(example("import_actual_costs_analysed") as Import), "en");
+    const differences = screen.getByRole("table", { name: "Differences with the existing data" });
+    // `passthrough.Fournisseur`, a column of the file no catalogue translates (#365).
+    expect(differences).toHaveTextContent("FA-2026-0412Amount and Fournisseur");
+  });
 });
 
 describe("the request of an export", () => {
@@ -527,6 +535,26 @@ describe("the request of an export", () => {
     expect(within(form).getByRole("alert")).toHaveTextContent(
       CATALOGUES.fr.errors.PERMISSION_MISSING,
     );
+  });
+
+  it("keeps an export the revision lists unavailable, its request told what it lacks and asking nothing", async () => {
+    const client = serve({});
+    // The contract lists an export present or absent; one it listed unavailable would stay (#361).
+    const revision = structuredClone(example("revision") as Revision);
+    for (const command of revision.available_commands) {
+      if (command.command === "export_estimate") {
+        command.is_available = false;
+        command.missing_conditions = ["revision_marked"];
+      }
+    }
+    open(<ExportForm projectId={PROJECT} revisionId={REVISION} offers={exportOffers(revision)} />);
+    const form = screen.getByRole("form", { name: "Demander un export" });
+    await userEvent.selectOptions(within(form).getByLabelText("Fichier à exporter"), "Devis");
+    const request = within(form).getByRole("button", { name: "Demander l’export" });
+    expect(request).toHaveAttribute("aria-disabled", "true");
+    expect(request).toHaveAccessibleDescription("Condition non remplie\u00A0: révision marquée.");
+    await userEvent.click(request);
+    expect(client.calls).toEqual([]);
   });
 
   it("says no export is offered without a revision that offers one", () => {

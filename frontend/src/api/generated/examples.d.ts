@@ -54,7 +54,7 @@ export interface Examples {
     200: "projects" | "projects_empty";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_pricing" | "project_pricing_estimator";
+    200: "project" | "project_pricing" | "project_pricing_estimator" | "project_without_current_revision";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
@@ -102,7 +102,7 @@ export interface Examples {
     200: "comparison" | "comparison_identical";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
-    200: "revision" | "revision_estimator" | "revision_marked" | "revision_marking" | "revision_offer" | "revision_reader";
+    200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marking" | "revision_offer" | "revision_reader";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
     200: "rate_update" | "rate_update_none";
@@ -111,7 +111,7 @@ export interface Examples {
     200: "structures" | "structures_amendments";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_estimate" | "nodes_milestone" | "nodes_planning" | "nodes_risk_occurred" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_core" | "nodes_estimate" | "nodes_installation" | "nodes_milestone" | "nodes_planning" | "nodes_risk_occurred" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
@@ -138,7 +138,7 @@ export interface Examples {
     200: "subprojects";
   };
   "GET /projects/{project_id}/workload": {
-    200: "workload" | "workload_marked_remaining" | "workload_reference_budget";
+    200: "workload" | "workload_marked_remaining" | "workload_org_node" | "workload_reference_budget";
   };
   "GET /reference/calendars": {
     200: "calendars";
@@ -192,7 +192,7 @@ export interface Examples {
     200: "preferences" | "preferences_dark";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
-    200: "estimate_line_entered" | "estimate_line_updated";
+    200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";

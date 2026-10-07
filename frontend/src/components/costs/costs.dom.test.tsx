@@ -17,7 +17,13 @@ import { example, fakeClient } from "@/test/fixtures";
 
 import { readCostFilters } from "./address";
 import { CostFilterBar, type SubprojectChoice } from "./cost-filters";
-import { costRow, type CostRows, type CostSortColumn, type ListPage } from "./cost-grid";
+import {
+  costRow,
+  type CostRows,
+  type CostSortColumn,
+  keptColumns,
+  type ListPage,
+} from "./cost-grid";
 import { ListPages } from "./cost-pages";
 import { CostSummary } from "./cost-totals";
 import { CostsGrid } from "./costs-grid";
@@ -117,9 +123,9 @@ describe("the grid of the actual costs", () => {
       "Sous-projet",
       "Périmètre suivi",
       "Motif de l’exclusion",
+      "Élément d'OTP",
       "Fournisseur",
       "Texte de commande",
-      "Élément d'OTP",
     ]);
     const cells = cellsOf("FA-2026-0412");
     expect(cells.slice(0, 5).map((each) => each.textContent)).toEqual([
@@ -131,11 +137,24 @@ describe("the grid of the actual costs", () => {
     ]);
     // Each column kept from the file, under the name the file gives it, as imported.
     expect(cells.slice(6, 9).map((each) => each.textContent)).toEqual([
+      "WF.PRJ-001/SP-CAB",
       "Câbles du Rhône",
       "Câbles de commande du pupitre",
-      "WF.PRJ-001/SP-CAB",
     ]);
     await expectAccessible(container);
+  });
+
+  it("orders the columns of the file alphabetically in the language of the interface, whatever the order of the lines and of their columns", () => {
+    const { items } = costsOf("actual_costs");
+    const [first, second] = items;
+    if (first === undefined || second === undefined) {
+      throw new Error("the example actual_costs has changed");
+    }
+    // The second line carries the same columns the other way round, as another file might (#353).
+    const reversed = Object.fromEntries(Object.entries(second.passthrough ?? {}).reverse());
+    const kept = keptColumns([first, { ...second, passthrough: reversed }], "fr");
+    expect(kept).toEqual(["Élément d'OTP", "Fournisseur", "Texte de commande"]);
+    expect(keptColumns([{ ...second, passthrough: reversed }, first], "fr")).toEqual(kept);
   });
 
   it("accepts a line of negative amount, which lessens the actual cost [WF-CRE-0010-A]", () => {
@@ -320,12 +339,14 @@ describe("the filters of the actual costs", () => {
     expect(screen.getByLabelText("Pièces du")).not.toHaveAttribute("max");
   });
 
-  it("keeps chosen a sub-project the address names that the project does not hold, under its value", () => {
+  it("keeps chosen a sub-project the address names that the project does not hold, said unknown", () => {
     const unknown = "01926f3a-7c00-7000-8000-000000000899";
     renderFilters(`subproject_id=${unknown}`);
     const select = screen.getByRole("combobox", { name: "Sous-projet" });
     expect(select).toHaveValue(unknown);
-    expect(within(select).getByRole("option", { selected: true })).toHaveTextContent(unknown);
+    expect(within(select).getByRole("option", { selected: true })).toHaveTextContent(
+      /^Sous-projet inconnu$/,
+    );
   });
 
   it("does not ask a date or a scope the contract would refuse", () => {
@@ -445,6 +466,28 @@ describe("the pages of a list the server pages", () => {
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?in_tracked_scope=false`, {
       scroll: false,
     });
+  });
+
+  it("keeps the page of the costs when the page of the journal is turned meanwhile: the costs are the same list", async () => {
+    page.search = "offset=1&imports_offset=12";
+    const list = listOf("actual_costs_page");
+    const journal = example("cost_imports_beyond") as { readonly meta: ListPage };
+    render(
+      inLanguage(
+        <PendingAddress>
+          <ListPages list="costs" page={list.meta} shown={list.items.length} />
+          <ListPages list="imports" page={journal.meta} shown={0} />
+        </PendingAddress>,
+      ),
+    );
+    await userEvent.click(screen.getByRole("link", { name: /Imports plus récents/ }));
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?offset=1`, { scroll: false });
+    // The journal turned reads nothing of the costs: their next page follows the one shown (#294).
+    await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?offset=${String(1 + list.items.length)}`,
+      { scroll: false },
+    );
   });
 });
 

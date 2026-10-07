@@ -13,12 +13,20 @@ import { example } from "./fixtures";
 
 type CostCategory = components["schemas"]["CostCategory"];
 type ResourceRole = components["schemas"]["ResourceRole"];
+type Subproject = components["schemas"]["Subproject"];
 
 /** The categories and the roles of the examples, as the page hands them to the grid. */
 export function estimateReference(): EstimateReference {
   const categories = example("volume/cost_categories") as CostCategory[];
   const roles = example("resource_roles") as ResourceRole[];
+  const subprojects = example("subprojects") as Subproject[];
   return {
+    subprojects: subprojects.map((subproject) => ({
+      id: subproject.subproject_id,
+      code: subproject.code,
+      label: subproject.label,
+      active: true,
+    })),
     categories: categories.map((category) => ({
       id: category.cost_category_id,
       label: category.label,

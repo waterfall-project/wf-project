@@ -1,5 +1,5 @@
 {
-  "summary": "L'import d'un planning MS Project exporté de Waterfall puis retravaillé, tel qu'il se lisait le 20 mai 2026 à 10 h 16, analysé et pas encore abandonné — imports, au 1er juin, le dit abandonné depuis. Un aller-retour sur les identifiants que l'export a écrits : la « Revue de conception » du cœur, terminée le 24 avril, rallongée dans le fichier, serait mise à jour sur sa durée sans toucher à son état, et sa fin recalculée par Waterfall diffère de celle du fichier, écart présenté en information ; les « Études de détail », terminées le 10 avril et que le fichier ne porte plus, sont conservées et signalées ; les deux ressources, le calendrier et l'avancement du fichier sont ignorés et dits (WF-INTF-0040, WF-INTF-0080).",
+  "summary": "L'import d'un planning MS Project exporté de Waterfall puis retravaillé, tel qu'il se lisait le 20 mai 2026 à 10 h 16, analysé et pas encore abandonné — imports, au 1er juin, le dit abandonné depuis. Un aller-retour sur les identifiants que l'export a écrits : la « Revue de conception » du cœur, terminée le 24 avril, rallongée dans le fichier, serait mise à jour sur sa durée sans toucher à son état, et sa fin recalculée par Waterfall diffère de celle du fichier, écart présenté en information ; la liaison de la « Réception des études » à la « Revue de conception » y prend un décalage, écart de liaison porté par le successeur, dont la colonne des prédécesseurs la présente, et qui nomme son prédécesseur ; les « Études de détail », terminées le 10 avril et que le fichier ne porte plus, sont conservées et signalées ; les deux ressources, le calendrier et l'avancement du fichier sont ignorés et dits (WF-INTF-0040, WF-INTF-0080).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000a10",
     "kind": "ms_project_schedule",
@@ -17,8 +17,19 @@
           "target": "task",
           "lineage_id": "01926f3a-7c00-7000-8000-000000000624",
           "label": "Revue de conception",
+          "predecessor_label": null,
           "fields": [
             "duration"
+          ]
+        },
+        {
+          "change": "updated",
+          "target": "link",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000625",
+          "label": "Réception des études",
+          "predecessor_label": "Revue de conception",
+          "fields": [
+            "predecessors"
           ]
         },
         {
@@ -26,6 +37,7 @@
           "target": "task",
           "lineage_id": "01926f3a-7c00-7000-8000-000000000622",
           "label": "Études de détail",
+          "predecessor_label": null,
           "fields": []
         }
       ],

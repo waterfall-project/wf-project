@@ -18,7 +18,8 @@ its role and its subproject by the labels of the universe, as the server resolve
 
 Nothing here reads the clock or draws at random: every drawn value comes from a hash of a
 fixed seed and of what it describes, so that two runs make the same structure, whatever the
-version of Python. ``wftools.mockdata`` writes it.
+version of Python. ``wftools.mockdata`` writes it, and ``wftools.mockwrites`` the writes made
+in it.
 """
 
 from __future__ import annotations
@@ -27,10 +28,11 @@ import hashlib
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 from wftools.mockcalendar import HOURS_PER_DAY
 from wftools.mockwitness import (
+    COMMISSIONING,
     COMMISSIONING_TECHNICIAN,
     ELECTRICAL_ENGINEERING,
     ENGINEER,
@@ -67,6 +69,9 @@ ELECTRICAL_RATE = Decimal("80.00")
 """The hourly rate of the electrical engineering in 2026, the reference year of the estimate:
 the witness estimate reads 1,000.00 for 12.5 hours."""
 
+COMMISSIONING_RATE = Decimal("75.00")
+"""The hourly rate of the commissioning in 2026, the one the lines of the structure pay."""
+
 CENT = Decimal("0.01")
 SHARE = Decimal("0.0001")
 
@@ -79,7 +84,6 @@ REFERENCE_YEAR = 2026
 
 # The universe of the other examples of the contract.
 SUBPROJECT_TESTS = universe(802)
-COMMISSIONING = universe(405)
 LABOR = universe(461)
 NON_LABOR = universe(462)
 PROVISION = universe(463)
@@ -194,7 +198,9 @@ class LineKind:
 
 LINE_KINDS = (
     LineKind("Heures d'ingénierie", ELECTRICAL_ENGINEERING, ENGINEER, ELECTRICAL_RATE),
-    LineKind("Heures de mise en service", COMMISSIONING, COMMISSIONING_TECHNICIAN, Decimal(75)),
+    LineKind(
+        "Heures de mise en service", COMMISSIONING, COMMISSIONING_TECHNICIAN, COMMISSIONING_RATE
+    ),
     LineKind("Matériel", EQUIPMENT),
     LineKind("Sous-traitance", SUBCONTRACTING),
     LineKind("Heures de supervision", ELECTRICAL_ENGINEERING, ENGINEER, ELECTRICAL_RATE),
@@ -365,11 +371,11 @@ class Structure:
 
 def structure() -> Structure:
     """Plan, date and number the structure of a thousand tasks, and make its nodes."""
-    roots, _ = _planned()
-    return _emitted(roots)
+    roots, _ = planned()
+    return emitted(roots)
 
 
-def _planned() -> tuple[list[Task], list[Task]]:
+def planned() -> tuple[list[Task], list[Task]]:
     """Plan, date and number the structure: its phases, and its work tasks and milestones."""
     roots, activities = plan()
     schedule(roots, activities)
@@ -378,7 +384,7 @@ def _planned() -> tuple[list[Task], list[Task]]:
     return roots, activities
 
 
-def _emitted(roots: list[Task]) -> Structure:
+def emitted(roots: list[Task]) -> Structure:
     """Make the nodes of a structure planned, and its totals."""
     emitter = _Emitter(labels())
     for position, root in enumerate(roots):
@@ -397,97 +403,6 @@ def _emitted(roots: list[Task]) -> Structure:
         },
     }
     return Structure(answer, totals)
-
-
-# --- A write of the planning that moves lines into the next year ----------------------------
-
-LENGTHENED = "Revue 3.1.27"
-"""The work task whose duration the example lengthens: it finishes on 29 December 2026, with
-33 working days of float, and its one successor in its chain, « Reprise 3.1.30 », starts the
-next day."""
-
-LENGTHENED_BY = 2
-"""The working days the duration grows by: the task finishes on 31 December, and its successor
-starts on the first working day of 2027 — its lines are consumed a year later, corrected anew at
-the inflation of the witness project (WF-DEV-0040) —, within the float: the milestone of the lot
-does not move, nor anything after it."""
-
-_SCHEDULE = ("start", "finish", "total_float", "is_critical", "finish_overdue")
-"""The fields of a task a write may reschedule without writing it (`NodeSchedule`)."""
-
-
-def task_lengthened() -> JsonObject:
-    """Return what updateTaskFacet answers when the duration of LENGTHENED grows by its days.
-
-    The task written, whole; its successors rescheduled, by their schedule (`rescheduled`); the
-    lines and the tasks, not summaries, whose amount corrected for inflation changed, by their
-    amounts (`reinflated`); the summaries above the task and its successors, whole (`ancestors`);
-    the totals of the whole structure, and the version the structure moved on to (WF-PLA-0020,
-    WF-DEV-0040, WF-DEV-0050).
-    """
-    roots, activities = _planned()
-    before = _by_id(_emitted(roots).nodes)
-    task = next(each for each in activities if each.label == LENGTHENED)
-    task.duration += LENGTHENED_BY
-    schedule(roots, activities)
-    built = _emitted(roots)
-    after = _by_id(built.nodes)
-    written = identifier(NODES, task.row)
-    nodes = [{**after[written], "lock_version": 2}]
-    moved = [
-        node_id
-        for node_id, node in after.items()
-        if node_id != written
-        and node["kind"] == "task"
-        and not node["task"]["is_summary"]
-        and any(node["task"].get(key) != before[node_id]["task"].get(key) for key in _SCHEDULE)
-    ]
-    above = _ancestors(after, [written, *moved])
-    reinflated: list[JsonValue] = []
-    for node_id, node in after.items():
-        if node_id == written or node_id in above:
-            continue
-        facet = node.get("estimate_line") or node["task"]
-        old = before[node_id].get("estimate_line") or before[node_id]["task"]
-        line = node["kind"] == "estimate_line"
-        if facet["inflated_amount"] != old["inflated_amount"] or (
-            line and facet["consumption_year"] != old["consumption_year"]
-        ):
-            reinflated.append(
-                {
-                    "node_id": node_id,
-                    "inflated_amount": facet["inflated_amount"],
-                    "consumption_year": facet["consumption_year"] if line else None,
-                }
-            )
-    return {
-        "nodes": cast("list[JsonValue]", nodes),
-        "ancestors": [after[node_id] for node_id in after if node_id in above],
-        "rescheduled": [
-            {"node_id": node_id, **{key: after[node_id]["task"].get(key) for key in _SCHEDULE}}
-            for node_id in moved
-        ],
-        "reinflated": reinflated,
-        "totals": built.nodes["totals"],
-        "structure_lock_version": 2,
-    }
-
-
-def _by_id(answer: JsonObject) -> dict[str, dict[str, Any]]:
-    """Return the nodes of an answer by their identifier, in the order of the plan."""
-    items = cast("list[dict[str, Any]]", answer["items"])
-    return {item["node_id"]: item for item in items}
-
-
-def _ancestors(nodes: Mapping[str, dict[str, Any]], of: Sequence[str]) -> set[str]:
-    """Return the ancestors of some nodes, each once."""
-    found: set[str] = set()
-    for node_id in of:
-        parent = nodes[node_id]["parent_id"]
-        while parent is not None:
-            found.add(parent)
-            parent = nodes[parent]["parent_id"]
-    return found
 
 
 def labels() -> dict[str, str]:
@@ -633,15 +548,15 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     """Return what a task computes and what it accepts (WF-PLA-0130).
 
     A task in automatic mode computes its dates; one in manual mode enters them, and computes
-    nothing. A summary computes its duration and its progress too, and accepts its label, its
-    description and its attachment to an order item or a work package (WF-PLA-0130); a
-    milestone has no duration to enter.
+    nothing. A summary computes its duration and its progress too, and accepts its label and its
+    description; a milestone has no duration to enter. Every task, summary or leaf, accepts its
+    attachment to an order item or a work package, last (WF-PLA-0130).
     """
     dates: list[JsonValue] = ["task.start", "task.finish"]
     editable: list[JsonValue] = ["task.label", "task.description"]
+    attachment: list[JsonValue] = ["task.order_item_id", "task.work_package_id"]
     if is_summary:
-        editable.extend(["task.order_item_id", "task.work_package_id"])
-        return Fields(["task.duration", *dates, "task.progress"], editable)
+        return Fields(["task.duration", *dates, "task.progress"], [*editable, *attachment])
     editable.append("task.scheduling_mode")
     if not is_milestone:
         editable.append("task.duration")
@@ -649,7 +564,7 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
         editable.extend(dates)
         dates = []
     editable.append("task.progress")
-    return Fields(dates, editable)
+    return Fields(dates, [*editable, *attachment])
 
 
 def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:

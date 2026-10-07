@@ -147,9 +147,11 @@ référentiel, sauvegarde — n'ont pas de conditions à nommer : leurs commande
 permission de modification de la fonction, que la session porte, et la restauration sa
 permission propre ; c'est la règle même du catalogue. La saisie d'une révision est trois commandes —
 planning, devis, reste à engager —, parce que trois permissions la gardent : un chiffreur
-peut saisir le devis sans pouvoir toucher au planning. Les risques et les coûts réels ont
-leurs commandes sur le projet ; une commande que refuse l'état d'un objet particulier — un
-risque déjà survenu — l'est par son code d'erreur. `getProjectNextState` ne couvrait que les
+peut saisir le devis sans pouvoir toucher au planning. Les coûts réels ont leurs commandes sur
+le projet ; la saisie des risques est une commande de la révision (`edit_risks`), et chaque
+risque porte les siennes, avec les conditions que son état lui fait manquer
+(`Risk.available_commands`, EP-02/L30, #244) — l'appel envoyé malgré la liste reste refusé par
+son code d'erreur. `getProjectNextState` ne couvrait que les
 transitions d'avant En cours ; la terminaison d'un projet en chiffrage, par exemple, n'avait
 pas de condition à nommer. La consultation « prochain état » garde sa forme, et ses
 conditions viennent du même catalogue.
@@ -214,7 +216,10 @@ lecture qui en nomme — c'est la seule réponse du contrat dont le schéma ne d
 vérification des réponses du service (WF-ARC-0060) devra le savoir. Un nom est une propriété
 et non une énumération : il n'a pas de phrase à rendre, et une propriété nouvelle de `Node` le
 devient sans toucher au paramètre. Écartés : des vues nommées, qui feraient épouser les écrans
-au contrat ; ne rien changer, qui laisserait le back lourd.
+au contrat ; ne rien changer, qui laisserait le back lourd. `editable_fields` pesait 1,03 Mo sur
+5,70 Mo du volume de mille tâches, mesuré avant L30 (#238) ; une grille qui ne l'emploie pas l'omet par `fields` ;
+une table par nature de nœud n'est décidée que si la seconde du §4.6.2 n'est pas tenue, mesurée
+en EP-13 (EP-02/L30).
 
 **`row_number` numérote toute la structure** (EP-02/L4, #158) : ses tâches et ses lignes, dans
 l'ordre du plan, quels que soient `kinds`, les filtres, la recherche et le tri. Une liaison
@@ -819,11 +824,11 @@ celui des cases de `risk_matrix`.
 
 **La borne d'un avatar ne dépasse pas 8 Mio** (`Installation.avatar_max_bytes`, `maximum`, #233).
 La spécification dit seulement que « la taille d'un avatar est bornée par l'application »
-(§4.4.1) ; 8 Mio est le
-plafond technique proposé par la revue d'EP-02/L13 : le front règle d'avance, par un réglage
-statique de Next, la taille de corps de ses actions serveur (`bodySizeLimit`), et ne peut la
-régler qu'au-dessus d'un maximum déclaré, l'enveloppe du formulaire comprise. Huit mébioctets
-restent sous cette borne, et la taille admise reste un réglage de l'installation sous ce maximum.
+(§4.4.1) ; 8 Mio est le plafond technique proposé par la revue d'EP-02/L13 : le front règle
+d'avance, par un réglage statique de Next, la taille de corps de ses actions serveur
+(`bodySizeLimit`), et ne peut la régler qu'au-dessus d'un maximum déclaré, l'enveloppe du
+formulaire comprise. Huit mébioctets restent sous cette borne, et la taille admise reste un
+réglage de l'installation sous ce maximum.
 
 **Un dépôt dit son usage, qui le borne** (`uploadFile`, `purpose`, `FileUploadPurpose`, #324 ;
 décision de l'utilisateur du 2026-10-05, « une borne par usage »). `uploadFile` reçoit le fichier
@@ -1045,10 +1050,9 @@ constantes, légères : aucun appel au refus, et aucune ligne nommée — le dev
 structure à part, que la grille des risques ne montre pas. Écarté : étendre
 `getComputedValueDependencies` aux risques, un appel de plus pour dire deux phrases fixes.
 
-**Ce qui reste ouvert.** `ExportRequest.revision_id` reste facultatif, la révision prise par le
-serveur quand il est nul : la commande qui dit l'export disponible est celle de la révision lue,
-et le contrat ne dit pas laquelle juge un export demandé sans révision — suivi en #359. Les
-commandes d'un risque (`Risk.available_commands`, #244) sont décidées et réalisées avec EP-08.
+**Ce qui restait ouvert** a été tranché par EP-02/L30 : `ExportRequest.revision_id` est exigé
+(#359), et les commandes d'un risque sont au contrat (`Risk.available_commands`, #244), leur
+réalisation restant en EP-08.
 
 ## Ce que les lectures nomment (EP-02/L18)
 
@@ -1213,6 +1217,87 @@ totaux d'aujourd'hui, et `predecessor_set` reste une écriture d'avril (marge du
 conception à 7 jours quand les lectures la portent à 54, études sans dépassement de fin) : L22 les
 engendre toutes.
 
+## L'univers témoin : les écritures de la grille (EP-02/L22)
+
+**Une réponse d'écriture est la différence de deux lectures de la structure, avant et après
+l'écriture, engendrée** (#287 ; C9, C10). `wftools.mockwrites` modifie la description du témoin
+(`mockwitness`) — un libellé, une charge, une ligne retirée, une liaison ajoutée, un rôle changé
+—, la date et la chiffre à nouveau (`mockcore`), lit la structure entière avant et après, et en
+tire `NodesWritten` : les nœuds écrits, une version de plus ; les tâches non récapitulatives dont le
+début, la fin, la marge ou la criticité ont changé sans être écrites (`rescheduled`) ; les lignes et
+les tâches non récapitulatives dont le montant corrigé ou l'année de consommation a changé, hors
+celles que `ancestors` rend entières (`reinflated`) ; les ancêtres des nœuds écrits, du nœud
+supprimé — lu avant, puisqu'il n'est plus après — et des tâches redatées, entiers ; les totaux de
+la structure entière. Une tâche qui porte la ligne écrite et que l'écriture redate est à la fois
+dans `ancestors` et dans `rescheduled`, comme le contrat l'écrit. `make mock-data` écrit ainsi
+`task_renamed`, `estimate_line_updated`, `node_deleted`, `predecessor_set` et le nouvel
+`estimate_line_redated` sur le cœur, et `estimate_line_entered`, `paste_plan`,
+`paste_plan_unknown_category`, `paste_too_wide` et `paste_applied` sur la structure de mille tâches
+que le faux back sert en premier et que les parcours lisent, comme `task_lengthened`, désormais
+produit par la même différence ; `tools/paths.toml` les déclare engendrés. Le poste du lot « Poste
+de commande » (`order_item_id`, `work_breakdown_label`, EP-02/L29), rendu en ancêtre, sort du
+générateur. **Une ligne saisie garde son budget** : la référence l'a fixé, seul le montant réestimé
+suit les grandeurs (WF-DEV-0020) — 14 h au lieu de 12,5 donnent 1 120,00 réestimés et laissent
+1 000,00 budgétés. **Les totaux d'une écriture du cœur sont ceux du cœur entier**, quinze tâches
+et neuf lignes, comme le contrat le veut (« les totaux de la structure entière, sans filtre ») — les
+exemples écrits à la main gardaient ceux du lot ; L27 (#376) les portera à la structure de mille
+tâches où il incruste le cœur. Le bloc collé, ses lignes acceptées ou refusées, sont lus du bloc et
+des catégories et rôles de l'univers ; la largeur de `paste_too_wide` est comptée dans `NodeColumn`
+du contrat — le libellé, puis de `cost_category` à la dernière colonne —, pour suivre la prochaine
+colonne sans retouche (EP-02/L16 avait dû la corriger à la main).
+
+**L'univers offre une écriture du devis qui redate, et le cœur s'étend pour la porter** (C9). Le
+cœur finissait à la réception usine, le 30 juin : aucune tâche n'y finissait fin 2026, et le monteur
+câbleur, seul rôle actif sur un autre calendrier, n'avait pas de ligne. Le cœur gagne l'installation
+sur site, après la réception usine, qui reste au 30 juin (C13) : le montage des armoires sur site
+(562), du 1er juillet au 18 décembre 2026, son câblage par l'ingénieur électricien (563) et
+l'assistance du technicien de mise en service aux essais (564), et la mise en service qui le suit
+(565, sa ligne 566), démarrée le 21 décembre et consommée en 2026. `nodes_installation`, nouvel
+exemple nommé de `listNodes`, en est la lecture (`subtree_of`). `estimate_line_redated`
+(`updateEstimateLine`) confie le câblage sur site au monteur câbleur : le montage n'a plus que les
+jours de ses deux rôles, quatre jours de huit heures (WF-PLA-0010), finit le 1er février 2027, et la
+mise en service démarre le 2 février ; elle et le montage sont dans `rescheduled`, avec les tâches
+sans successeur dont la marge grandit ; la ligne de la mise en service, consommée en 2027, et la
+mise en service elle-même sont dans `reinflated`, 6 180,00 au lieu de 6 000,00. Deux écarts au
+cadrage de #287, qui disait « la tâche prend 482 et finit en 2027 ; `reinflated` ses lignes et
+elle-même », sont imposés par le modèle : la semaine de quatre jours de dix heures compte autant
+d'heures que la semaine standard, et le 31 décembre 2026 est un jeudi, dernier jour qu'elle travaille
+— un rôle seul sur 482 ne fait passer l'année à aucune tâche ; il y faut un second rôle sur 481, et
+le montage prend le calendrier commun des deux. Et une ligne est consommée l'année où sa tâche
+commence (simplification déclarée de `mockstructure.inflated`, WF-DEV-0040 voulant une répartition
+au prorata des heures) : le montage, commencé en 2026, garde l'année de ses lignes, et c'est la
+mise en service qui le suit, avec sa ligne, que l'écriture déplace dans le temps. Ajouter le
+cœur allonge le chemin critique : la marge du dossier de conception passe de 54 à 187 jours
+(15 avril 2026 – 1er janvier 2027), celle des tâches de la survenance de 32 à 165.
+
+**`predecessor_set` est une écriture d'aujourd'hui, sur une tâche non démarrée** : les
+prédécesseurs du montage sur site saisis à nouveau — la réception usine, en fin à début, avec deux
+jours ouvrés de décalage. Le montage va du 3 juillet au 22 décembre, la mise en service du
+23 décembre 2026 au 5 janvier 2027, démarrée encore en 2026 : `reinflated` est vide ; les tâches
+sans successeur gagnent de la marge. Aucune date passée ne bouge : l'avancement d'une tâche et ses
+dates de démarrage et d'achèvement sont des faits (WF-PLA-0130), et la réception usine reste au
+30 juin (C13) — le test de `predecessor_set` le vérifie, et un invariant interdit à toute écriture
+engendrée de changer l'avancement ou les dates d'une tâche démarrée ou terminée. L'exemple écrit à la main liait la
+revue de conception au dossier de conception, ce qui, aujourd'hui, aurait redaté des tâches
+terminées. Le cœur se date désormais dans l'ordre de ses liaisons, quel que soit l'ordre du plan ;
+une boucle est refusée, en nommant les tâches restées sans date.
+
+**La lecture entière du cœur est un exemple nommé** (`nodes_core`, `listNodes` sans filtre) : ses
+totaux sont ceux que rendent les écritures du cœur, et les tests de la grille qui éprouvent les
+totaux de la structure entière la lisent, plutôt qu'un sous-arbre lu comme s'il était entier.
+
+**Le chemin de la grille de devis par `reinflated` est éprouvé** (C10) :
+`inflation.dom.test.tsx` rend la grille sur `nodes_installation`, écrit le rôle du câblage sur site,
+et lit dans les cellules de la mise en service et de sa ligne les montants corrigés que la réponse
+porte, leur montant à l'année de référence inchangé, la récapitulative rendue entière.
+
+**Ce que ce lot laisse** : le refus de la création à la main d'une ligne de nature provision
+(Vérif de WF-DEV-0020) n'a pas d'exemple — il faut un motif de refus au catalogue
+(`ErrorCode`), modification d'un schéma que porte EP-02/L30 (#393) ; `paste_applied` calcule ses
+montants par un second chemin, sur les nœuds de la structure de mille tâches, que EP-02/L27 (#376)
+ramènera au calcul du cœur en l'y incrustant ; `task_renamed` reste déclaré dans le test des
+libellés du cœur, puisqu'il renomme.
+
 ## Révision de la spécification du 2026-10-04 (PR #328, fusion du 2026-10-06)
 
 La seconde revue de la spécification (#211, #212, #253 à #283) change le modèle des provisions et
@@ -1277,7 +1362,8 @@ pour ne déplacer aucune colonne de ligne dans l'ordre d'un collage (WF-IHM-0050
 d'`EditableField`, que seules les récapitulatives nomment ; deux filtres de `listNodes`,
 `order_item_id` et `work_package_id`, qui retiennent le sous-arbre de la récapitulative rattachée ;
 `generatePlanningSkeleton` dit que ses récapitulatives sont rattachées (WF-PRJ-0030). Les refus
-sont des motifs par champ de `VALIDATION_FAILED`, dans la convention du catalogue : `SUMMARY_TASK_REQUIRED`,
+sont des motifs par champ de `VALIDATION_FAILED`, dans la convention du catalogue : `SUMMARY_TASK_REQUIRED`
+— retiré par EP-02/L30, toute tâche portant désormais le rattachement (#411) —,
 `UNKNOWN_WORK_BREAKDOWN_ITEM`, `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` et
 `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, celui-ci nommant la récapitulative qui porte déjà le poste
 (`fields[].params.attached_node_id`, exemple `task_attach_refused` de `updateTaskFacet`) — le Vérif de WF-PLA-0130. Les trois propriétés de lecture sont
@@ -1399,6 +1485,156 @@ lotissement, les sections nouvelles du compte rendu, le tri des tables, le lien 
 le lien de fixation — sont à leurs lots ; le front n'a changé que là où le client engendré ou les
 exemples l'exigeaient : l'ordre des colonnes du contrat (`NODE_COLUMNS`), la cellule de sous-projet
 des coûts réels, et les tests qui lisent les exemples.
+
+## Les constats d'EP-02 tranchés (EP-02/L30)
+
+Les constats ouverts pendant EP-02 (#238, #244, #348, #352, #359, #360, #362, #364, #365), chacun
+selon la décision de l'auteur du 2026-10-07 portée en commentaire, et les suites dans le contrat de
+la spécification modifiée par les PR #410 (#337, #377) et #418 (#411, #402). Une forme que ni la
+spécification, ni le constat, ni sa décision ne fixaient est dite comme telle.
+
+**Toute tâche porte son rattachement au lotissement** (#411 ; WF-PLA-0130, WF-DEV-0060). La
+restriction aux récapitulatives est levée : `SUMMARY_TASK_REQUIRED` quitte le catalogue, une
+feuille accepte `task.order_item_id` et `task.work_package_id` (`editable_fields`, après ses autres
+champs, dans l'ordre d'`EditableField`), et une récapitulative qui perd sa dernière subordonnée
+garde son rattachement — par `deleteNode`, `moveNodes`, un import ou une annulation. L'exclusivité
+et l'unicité restent (`WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`) ;
+l'échange se fait en une écriture, l'autre champ mis à `null` dans le même corps — un détail du
+contrat que la décision lui laissait. Le motif nouveau, `WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, refuse
+ce qui sortirait la tâche d'un lot du sous-arbre de la tâche de son poste rattaché : un lot rattaché
+hors de ce sous-arbre, un poste rattaché à une tâche qui ne contient pas la tâche de l'un de ses
+lots, un déplacement (`moveNodes`, 422 désormais déclaré, `fields` sur le nœud déplacé en cause),
+une création (`createNode`, par son parent), une ligne importée (`ImportRejection`), et une saisie
+du lotissement qui range un lot sous un autre poste, les deux rattachés (`setWorkBreakdown`, 422
+désormais déclaré, `fields` sur le lot, `params.work_package_id` le nommant — décision de l'auteur
+à la revue) ; ce dernier refus se juge dans la révision en cours, dont seules les tâches se
+déplacent encore.
+`fields[].params` nomme la tâche du poste (`order_item_node_id`) et celles des lots
+(`work_package_node_ids`, une liste : un poste rattaché peut en laisser plusieurs dehors).
+Écarté : nommer les lots par leur identifiant du lotissement, quand c'est la tâche que l'écran
+montre. Exemple : `task_attach_outside_order_item`, le groupe « Études » refusé au lot 712 du poste
+que porte le « Poste de commande ». Les filtres par poste et par lot de `listNodes` et les totaux par
+poste lisent la tâche rattachée, quelle qu'elle soit.
+
+**La marge totale est signée** (#402 ; WF-PLA-0100). Une tâche manuelle borne la fin au plus tard
+de ses prédécesseurs : `TaskFacet.total_float` et `NodeSchedule.total_float` peuvent être négatifs,
+sans minimum — `Duration.value` n'en posait pas, sa description disait « jamais négative » et dit
+maintenant qu'une marge est signée —, et `is_critical` vaut pour une marge nulle ou négative. Le
+générateur du témoin applique encore « la tâche manuelle n'impose rien » : son alignement est un
+lot du témoin, aucun exemple ne porte de marge négative.
+
+**Une saisie qui laisserait une tâche sans heure travaillée est refusée** (#377 ; WF-PLA-0010) :
+422 `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` nommant les rôles dont les calendriers
+ne se recoupent aucun jour, `params.tasks` les tâches en cause, chacune par `project_id`, `node_id`
+et `label` — un calendrier ou un rôle du référentiel touche les révisions en cours de plusieurs
+projets, et l'écran du référentiel ne lit pas leurs structures. Déclaré sur `createNode` (une
+ligne de main-d'œuvre ajoutée), `updateEstimateLine` (un rôle changé), `updateResourceRole` et
+`updateCalendar` (un calendrier de rôle modifié), et motif de rejet d'une ligne collée ou importée.
+Un code d'erreur et non un motif par champ : la saisie refusée n'est pas toujours un champ de la
+tâche. Déclaré aussi, à la revue, sur `moveNodes` (une ligne de main-d'œuvre déplacée change de
+tâche porteuse), sur `updateCalendar` et `setDefaultCalendar` pour le calendrier par défaut qui
+n'aurait plus d'heure — les tâches sans ligne de main-d'œuvre en relèvent, `resource_role_ids` est
+alors vide —, et sur `mergeCostStructure` : un différentiel qui donnerait à une tâche de la
+structure principale une telle ligne fait échouer la tâche de fond, `problem.code` à
+`TASK_WITHOUT_WORKING_HOURS`, sans rien fusionner. Pas d'exemple : aucune tâche du témoin ne porte
+deux rôles, et un calendrier qui ne recouperait celui d'aucun autre n'existe pas au référentiel des
+exemples.
+
+**Les risques ont leurs commandes** (#244 ; WF-IHM-0090, WF-RIS-0020, WF-RIS-0060, WF-ADM-0100).
+`RiskCommand` — `update`, `review`, `declare_occurrence`, `delete`, une par opération —,
+`RiskCommandAvailability` sur le modèle de la révision, `Risk.available_commands` exigé.
+`CommandCondition` gagne `risk_not_occurred` (modification, réexamen et suppression d'un risque
+survenu) et `risk_identified` (survenance d'un risque qui ne l'est pas), et réemploie
+`risk_not_cited` (#385) plutôt que le `risk_not_cited_by_marked_revision` de la proposition, qui
+dirait la même chose. Le risque ne nomme que ce qui tient à lui ; la survenance reste gardée par la
+seule permission `risk_occurrence` et nomme `may_create_revision` à qui n'a pas `revisions.write`
+quand le projet n'a pas de révision en cours, qu'elle créerait ; les conditions du projet restent
+sur `ProjectCommand.declare_risk_occurrence`. Exemples : `risk`, `risks`, `risk_occurred_detail`
+— tous trois cités par la référence, aucun ne se supprime ; le survenu n'a plus aucune commande
+disponible.
+
+**La saisie des risques est une saisie de la révision en cours** (#337, PR #410 ; WF-RIS-0020,
+WF-IHM-0110). `edit_risks` passe de `ProjectCommand` à `RevisionCommand`, après les trois autres
+saisies, `ProjectCommand` la gardant tant que le projet n'a pas de révision en cours ;
+`createRisk`, `updateRisk`, `reviewRisk` et `deleteRisk` écrivent dans la révision en
+cours, la créent au besoin, et entrent dans l'historique d'`undoLastChange`, dont le résultat nomme
+les risques rendus (`UndoResult.undone.risk_ids`) ; la déclaration de survenance reste hors
+annulation. Où vit la commande — décision de l'auteur du 2026-10-07, précisée à la revue : le
+projet la porte (`ProjectCommand.edit_risks`) tant qu'il n'a pas de révision en cours, qu'il ait
+ou non des révisions marquées, comme les imports ; la saisie crée la révision en cours, et
+`may_create_revision` manque à qui ne peut pas la créer. Dès qu'une révision est en cours, la
+commande vit sur elle (`RevisionCommand.edit_risks`) et quitte le projet. Une révision marquée ne
+la liste jamais, pas même indisponible comme les trois autres saisies : elle est immuable
+(WF-DAT-0020), et l'écran montrerait sinon deux commandes de saisie des risques. Écarté : la
+porter sur la dernière révision marquée quand aucune n'est en cours, qui aurait fait offrir une
+saisie par une révision immuable. Exemples : la révision en cours la porte (`revision`,
+`revision_marking`, `revision_importing`, la 102 de `revisions`), les révisions marquées non ; le
+projet en chiffrage sans révision (`project_pricing`, sa ligne de `projects`) et le projet en
+cours dont la révision courante vient d'être abandonnée (`project_without_current_revision`, de
+`getProject`) la portent, le projet qui a une révision en cours non. Le front la compte parmi les
+commandes de modification de la révision (`availableEdits`), où elle n'est jamais disponible sur
+une révision marquée.
+
+Deux formes du contrat, que la spécification ne dictait pas mot pour mot : la modification d'un
+risque (`updateRisk`) est, comme le réexamen et la suppression, une saisie de la révision en cours,
+annulable et créatrice de la révision au besoin — chaque révision fige une version des risques,
+libellé et devis propre compris (WF-RIS-0030), une modification ne peut donc écrire que dans la
+révision en cours ; et la suppression d'un risque survenu est refusée, `risk_not_occurred`, aucune
+transition ne partant d'un survenu (WF-RIS-0020). Le 409 de `deleteRisk` ne nomme qu'une condition
+(`params.missing_condition`) : `risk_not_occurred` avant `risk_not_cited` quand les deux manquent,
+pour ne pas renvoyer vers un réexamen qu'un survenu n'a pas.
+
+**Une ligne de provision ne se crée pas à la main** (amendement de #371 ; WF-DEV-0020,
+WF-RIS-0010) : « la création à la main d'une ligne de nature provision est refusée » (Vérif de
+WF-DEV-0020). Motif par champ `PROVISION_CATEGORY_RESERVED` de `VALIDATION_FAILED`, sur la
+catégorie (`/estimate_line/cost_category_id` à la création, `/cost_category_id` à la
+modification), `params.cost_category_id` la nommant ; motif de rejet aussi d'une ligne collée ou
+importée. Écarté : un code de premier niveau, qui n'aurait pas désigné le champ. Exemple :
+`estimate_line_provision_refused` de `createNode`, une ligne de la catégorie « Provisions pour
+risques » (404) créée sous le « Câblage des armoires ».
+
+**Pendant l'application d'un import ou une survenance, la révision en cours est suspendue** (#360 ;
+WF-INTF-0080, WF-IHM-0080, WF-IHM-0090, WF-RIS-0060). `no_background_task_running` manque, pendant
+l'application (`applying`) d'un import de planning, de devis ou de reste à engager et pendant le
+traitement d'une déclaration de survenance, à `edit_planning`, `edit_estimate`, `edit_remaining`,
+`edit_risks`, `create_structure`, `merge_structure`, `mark` et `abandon` ; les exports restent
+disponibles, l'analyse ne suspend rien, l'import de coûts réels n'écrit pas dans la révision.
+Écarté : une condition `no_import_applying`, la même phrase pour l'écran. Exemple :
+`revision_importing` de `getRevision`, symétrique de `revision_marking`.
+
+**Les sauvegardes se lisent sans 403** (#348 ; WF-ADM-0110). `listBackups` garde 200, 401 et 404 :
+une lecture de plateforme n'a pas de condition à nommer, comme `getBackup` et `getBackupSchedule`.
+
+**Les indicateurs de devis sont à l'année de référence** (#352 ; WF-DEV-0060). `total`, ses
+ventilations et les deux écarts, la description d'`EstimateIndicators` le dit ; `total` vaut
+`NodeTotals.base_amount`, et seul `inflated_amount` de la grille porte l'inflation (#235). Écarté :
+un second total corrigé, à décider le jour où un écran d'indicateurs sans grille le montrerait.
+
+**Un export nomme sa révision** (#359 ; WF-INTF-0110, WF-INTF-0130). `ExportRequest.revision_id`
+est exigé et non nul ; `requestExport` refuse une révision inconnue ou d'un autre projet par 404, un
+corps sans révision par 422 (`/revision_id`). Écarté : une révision par défaut, qui ferait juger
+l'export par une commande que l'écran n'a pas lue.
+
+**Le plan de charge du projet nomme son nœud** (#362 ; WF-ARC-0020, WF-REF-0150).
+`WorkloadPlan.org_node_id` et `org_node_label`, exigés et nuls sans filtre, sur le modèle de
+`PortfolioScope` ; exemple `workload_org_node`, la direction technique. Le front lit encore le
+libellé dans `listOrgNodes` : l'en-tête passe à la réponse avec l'écran du plan de charge.
+
+**Un écart de liaison nomme son prédécesseur** (#364 ; WF-INTF-0080, WF-PLA-0080).
+`ImportDifference.predecessor_label`, nul sauf pour une liaison, le successeur portant `lineage_id`
+et `label` (EP-02/L29). Exemple : `import_planning_mismatch`, la liaison de la « Réception des
+études » à la « Revue de conception ».
+
+**Les courbes d'une révision marquée et les colonnes conservées** (#365 ; WF-DAT-0040, WF-IND-0010,
+WF-CRE-0010, WF-INTF-0140, WF-REF-0070). Les courbes d'une révision marquée sont recalculées à la
+date de son marquage sur les coûts réels connus aujourd'hui, et peuvent différer des indicateurs
+conservés : `IndicatorsRevision`, `getCostCurve` et `getEarnedValueCurves` le disent, et
+`is_stored` le signale ; WF-DAT-0040 ne change pas. Une colonne conservée du fichier changée est un
+écart `updated` nommé `passthrough.<colonne>`, comme le tri la nomme : `ActualCostColumn` devient
+un `anyOf` de ses quatre colonnes et du motif `^passthrough\..+$`, et le front nomme une telle
+colonne comme le fichier la nomme ; `document_number`, qui identifie la ligne, est porté par
+`label` et jamais par `fields`. Exemple : `import_actual_costs_analysed`, le fournisseur de la
+facture. `listOrgNodes` cherche aussi sur le code.
 
 ## Collage et annulation
 

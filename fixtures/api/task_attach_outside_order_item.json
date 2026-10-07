@@ -1,0 +1,20 @@
+{
+  "summary": "Le rattachement du groupe « Études » au lot « Armoires » du poste « Fourniture et montage des armoires », refusé : ce poste est porté par la récapitulative « Poste de commande », et la tâche de son lot se trouve dans le sous-arbre de la tâche de son poste — les « Études » n'y sont pas. Le refus nomme la tâche du poste et celle du lot qui en sortirait (WF-PLA-0130).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/work_package_id",
+        "code": "WORK_PACKAGE_OUTSIDE_ORDER_ITEM",
+        "params": {
+          "order_item_node_id": "01926f3a-7c00-7000-8000-000000000551",
+          "work_package_node_ids": [
+            "01926f3a-7c00-7000-8000-000000000521"
+          ]
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000963"
+  }
+}

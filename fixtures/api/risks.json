@@ -1,5 +1,5 @@
 {
-  "summary": "Le registre des risques de la révision courante, dans l'ordre de déclaration : le risque de reprise du câblage, identifié, porté au devis et au reste à engager par sa ligne de provision de 500 ; le retard de livraison des armoires, survenu, son devis propre fusionné dans la révision en cours à montant budgété nul et sa ligne de provision retirée (WF-RIS-0060) ; l'indisponibilité de l'automaticien, écartée. Chacun dans sa case de matrice, les trois totaux de provisions avec leur somme, et la réserve pour risques de la référence en regard (WF-RIS-0040, WF-RIS-0050).",
+  "summary": "Le registre des risques de la révision courante, dans l'ordre de déclaration : le risque de reprise du câblage, identifié, porté au devis et au reste à engager par sa ligne de provision de 500 ; le retard de livraison des armoires, survenu, son devis propre fusionné dans la révision en cours à montant budgété nul et sa ligne de provision retirée (WF-RIS-0060) ; l'indisponibilité de l'automaticien, écartée. Chacun dans sa case de matrice, avec ses commandes — tous trois cités par la révision de référence, aucun ne se supprime ; le risque survenu ne se modifie, ne se réexamine ni ne survient plus ; seul l'identifié se déclare survenu (WF-IHM-0090, WF-RIS-0020) —, les trois totaux de provisions avec leur somme, et la réserve pour risques de la référence en regard (WF-RIS-0040, WF-RIS-0050).",
   "value": {
     "items": [
       {
@@ -30,6 +30,30 @@
             "field": "provision_amount",
             "dependencies": [
               "severity_and_probability"
+            ]
+          }
+        ],
+        "available_commands": [
+          {
+            "command": "update",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "review",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "declare_occurrence",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "delete",
+            "is_available": false,
+            "missing_conditions": [
+              "risk_not_cited"
             ]
           }
         ],
@@ -80,6 +104,37 @@
             ]
           }
         ],
+        "available_commands": [
+          {
+            "command": "update",
+            "is_available": false,
+            "missing_conditions": [
+              "risk_not_occurred"
+            ]
+          },
+          {
+            "command": "review",
+            "is_available": false,
+            "missing_conditions": [
+              "risk_not_occurred"
+            ]
+          },
+          {
+            "command": "declare_occurrence",
+            "is_available": false,
+            "missing_conditions": [
+              "risk_identified"
+            ]
+          },
+          {
+            "command": "delete",
+            "is_available": false,
+            "missing_conditions": [
+              "risk_not_occurred",
+              "risk_not_cited"
+            ]
+          }
+        ],
         "audit": {
           "created_at": "2026-01-12T10:30:00Z",
           "created_by": {
@@ -124,6 +179,32 @@
             "field": "provision_amount",
             "dependencies": [
               "severity_and_probability"
+            ]
+          }
+        ],
+        "available_commands": [
+          {
+            "command": "update",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "review",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "declare_occurrence",
+            "is_available": false,
+            "missing_conditions": [
+              "risk_identified"
+            ]
+          },
+          {
+            "command": "delete",
+            "is_available": false,
+            "missing_conditions": [
+              "risk_not_cited"
             ]
           }
         ],
