@@ -57,6 +57,7 @@ import argparse
 import json
 import sys
 from collections import Counter
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
@@ -94,6 +95,7 @@ from wftools.mockwitness import (
     CATEGORIES,
     COMMISSIONING,
     CONTROL_STATION,
+    CORE,
     ELECTRICAL_ENGINEERING,
     EQUIPMENT,
     FIXTURES,
@@ -109,6 +111,8 @@ from wftools.mockwitness import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
+
+    from wftools.mockwitness import Task
 
 _day, _count, _amount, _example = mocktext.day, mocktext.count, mocktext.amount, mocktext.example
 """How the summaries write a day, a count and an amount, and the envelope of an example."""
@@ -276,6 +280,7 @@ def hourly_rate_grid() -> JsonObject:
 # --- The readings of the witness ------------------------------------------------------------
 
 _WIRING = 552
+_ACCEPTANCE = 556
 _LABOUR, _PROVISION = 553, 555
 _DESKS = 523
 _RISK_OCCURRED = 541
@@ -288,6 +293,24 @@ _TASKS = frozenset({mockcore.TASK})
 def named() -> dict[str, JsonObject]:
     """Return the named examples of the witness, by file name: its readings and its writes."""
     return {**readings(), **mockwrites.writes()}
+
+
+def wiring_completed() -> tuple[Task, ...]:
+    """Return the core with the wiring of the cabinets declared completed today, by hand.
+
+    Its finish is the day of the gesture, never later (WF-PLA-0130); the factory acceptance, a
+    milestone whose one predecessor it is, keeps its date of 30 June, entered by hand, and is
+    not started: its predecessors completed, nothing completes it by itself, and the Kanban
+    invites one to (WF-RAE-0030).
+    """
+    declared = (date(2026, 5, 4), TODAY.date())
+    acceptance = (date(2026, 6, 30), date(2026, 6, 30))
+    roots = mockwrites.amended(
+        CORE, mockwrites.on_task(_WIRING, manual=declared, progress="completed")
+    )
+    return mockwrites.amended(
+        roots, mockwrites.on_task(_ACCEPTANCE, manual=acceptance, progress="not_started")
+    )
 
 
 def readings() -> dict[str, JsonObject]:
@@ -370,6 +393,23 @@ def readings() -> dict[str, JsonObject]:
             f"et réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative "
             f"somme ses lignes (WF-RIS-0060, WF-RIS-0050).",
             mockcore.subtree(rows, _RISK_OCCURRED),
+        ),
+        "startable_tasks.json": _example(
+            f"Le Kanban du cœur du témoin le {day}, sur la révision en cours : les tâches "
+            f"démarrées, les pupitres opérateurs, en mode manuel et en dépassement de fin, et le "
+            f"câblage des armoires ; aucune tâche à démarrer — la réception usine attend la fin du "
+            f"câblage, et rien ne se termine seul. Jamais une récapitulative, dont l'état dérive "
+            f"de ses subordonnées (WF-RAE-0030, WF-PLA-0040).",
+            mockcore.startable(rows),
+        ),
+        "startable_tasks_milestone.json": _example(
+            f"Le Kanban du cœur du témoin le {day}, le câblage des armoires déclaré terminé ce "
+            f"jour-là : la réception usine, jalon dont le seul prédécesseur est terminé, posée à "
+            f"la main au 30 juin, non démarrée tant que personne ne la termine, et signalée à "
+            f"terminer ; les "
+            f"pupitres opérateurs toujours démarrés, en dépassement de fin (WF-RAE-0030, "
+            f"WF-PLA-0130).",
+            mockcore.startable(mockcore.core(wiring_completed())),
         ),
         "dependencies_summary.json": _example(
             "Ce dont dépend la date de fin de la récapitulative « Études » du planning : ses cinq "

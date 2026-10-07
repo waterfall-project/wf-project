@@ -158,7 +158,7 @@ describe("the skeleton of a screen that loads", () => {
   });
 
   it.each([
-    ["the functions still to come", () => import("@/app/[...path]/loading")],
+    ["an address no screen answers", () => import("@/app/[...path]/loading")],
     ["the home, the list of projects", () => import("@/app/(home)/loading")],
     ["a project", () => import("@/app/projects/[projectId]/loading")],
     ["a revision", () => import("@/app/projects/[projectId]/revisions/[revisionId]/loading")],

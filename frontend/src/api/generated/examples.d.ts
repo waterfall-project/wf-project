@@ -95,6 +95,9 @@ export interface Examples {
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
   };
+  "GET /projects/{project_id}/remaining-indicators/startable-tasks": {
+    200: "startable_tasks" | "startable_tasks_milestone";
+  };
   "GET /projects/{project_id}/revisions": {
     200: "revisions" | "revisions_empty" | "revisions_marked";
   };
@@ -226,6 +229,9 @@ export interface Examples {
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
     200: "predecessor_set";
+  };
+  "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining": {
+    200: "remaining_reestimated";
   };
   "PUT /reference/cost-categories/{cost_category_id}/hourly-rates/{year}": {
     200: "hourly_rate_corrected" | "hourly_rate_entered";

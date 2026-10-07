@@ -1,0 +1,12 @@
+{
+  "summary": "Le Kanban du cœur du témoin le 3 juin 2026, le câblage des armoires déclaré terminé ce jour-là : la réception usine, jalon dont le seul prédécesseur est terminé, posée à la main au 30 juin, non démarrée tant que personne ne la termine, et signalée à terminer ; les pupitres opérateurs toujours démarrés, en dépassement de fin (WF-RAE-0030, WF-PLA-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "not_started": [
+      {"node_id":"01926f3a-7c00-7000-8000-000000000556","lineage_id":"01926f3a-7c00-7000-8000-000000000656","kind":"task","parent_id":"01926f3a-7c00-7000-8000-000000000551","position":2,"row_number":18,"level":2,"lock_version":1,"task":{"label":"Réception usine","scheduling_mode":"manual","duration":{"value":"0","unit":"d"},"start":{"date":"2026-06-30","hours":"8"},"finish":{"date":"2026-06-30","hours":"8"},"progress":"not_started","finish_overdue":false,"is_summary":false,"is_milestone":true,"total_float":null,"is_critical":false,"base_amount":"0.00","budgeted_amount":"0.00","reestimated_amount":"0.00","inflated_amount":"0.00"},"predecessors":[{"predecessor_node_id":"01926f3a-7c00-7000-8000-000000000552","predecessor_row_number":9,"link_type":"finish_to_start","lag":{"value":"0","unit":"d"}}],"computed_fields":[],"editable_fields":["task.label","task.description","task.scheduling_mode","task.start","task.finish","task.progress","task.order_item_id","task.work_package_id"]}
+    ],
+    "started": [
+      {"node_id":"01926f3a-7c00-7000-8000-000000000523","lineage_id":"01926f3a-7c00-7000-8000-000000000623","kind":"task","parent_id":"01926f3a-7c00-7000-8000-000000000521","position":1,"row_number":4,"level":2,"lock_version":1,"task":{"label":"Pupitres opérateurs","scheduling_mode":"manual","duration":{"value":"40","unit":"d"},"start":{"date":"2026-03-02","hours":"0"},"finish":{"date":"2026-04-24","hours":"8"},"progress":"started","finish_overdue":true,"started_on":"2026-03-02","is_summary":false,"is_milestone":false,"total_float":null,"is_critical":false,"base_amount":"0.00","budgeted_amount":"0.00","reestimated_amount":"0.00","inflated_amount":"0.00"},"computed_fields":[],"editable_fields":["task.label","task.description","task.scheduling_mode","task.duration","task.start","task.finish","task.progress","task.order_item_id","task.work_package_id"]}
+    ]
+  }
+}

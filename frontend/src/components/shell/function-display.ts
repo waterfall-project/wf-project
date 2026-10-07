@@ -32,6 +32,7 @@ import {
   HeartPulse,
   Hourglass,
   ImageIcon,
+  Kanban,
   KeyRound,
   type LucideIcon,
   Receipt,
@@ -84,11 +85,12 @@ export const FUNCTION_ICONS: Readonly<Record<FunctionPermission, LucideIcon>> = 
 
 /**
  * The icon of each leaf with a screen of its own, by its code: the imports and exports of the
- * planning, the workload of the project.
+ * planning, the workload of the project, the Kanban of the start of the tasks.
  */
 export const LEAF_ICONS = {
   "FBS-4.3.4": ArrowLeftRight,
   "FBS-4.4.4": ChartColumnStacked,
+  "FBS-4.5.3": Kanban,
 } as const satisfies Readonly<Record<string, LucideIcon>>;
 
 /** The icon of each block of the FBS, by the key of its name. */

@@ -180,6 +180,21 @@ describe("the screen of the indicators of a project", () => {
     expect(cost.slice(0, cost.indexOf("Evolution"))).not.toContain("text-signal-");
   });
 
+  it("shows the sub-project and the date its indicators are read for as chips, each lifted by a link that keeps the other [WF-IHM-0020-A]", async () => {
+    // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres : the screen reads its
+    // indicators for both, and its banner shows both (#302).
+    const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-05-31" })));
+    const banner = page.slice(0, page.indexOf("</section>"));
+    expect(text(banner)).toContain(
+      "Subproject: SP-CMD — Poste de commande Calculation date: 31 May 2026",
+    );
+    const screen = `/projects/${PROJECT}/revisions/${REVISION}/indicators`;
+    expect(
+      [...banner.matchAll(/href="([^"]*)"/g)].map((m) => m[1]?.replaceAll("&amp;", "&")),
+    ).toEqual([`${screen}?as_of=2026-05-31`, `${screen}?subproject_id=${SUBPROJECT}`]);
+    expect(banner).toContain('aria-label="Remove the filter “Calculation date: 31 May 2026”"');
+  });
+
   it("asks the indicators for the sub-project and the date the address filters, the evolution of the indices dated by its own calculation [WF-IHM-0020-A]", async () => {
     const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-02-01" })));
     expect(queryOf("GET /projects/{project_id}/indicators")).toEqual({

@@ -3,8 +3,8 @@
 /**
  * The server actions of the nodes of a structure — what a computed value depends on
  * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
- * `updateEstimateLine`), a block pasted from a spreadsheet (`previewPaste`, `applyPaste`), the
- * totals of a filtered reading read anew (`listNodes`) —:
+ * `updateEstimateLine`, `setLineRemaining`), a block pasted from a spreadsheet (`previewPaste`,
+ * `applyPaste`), the totals of a filtered reading read anew (`listNodes`) —:
  * the grid asks the server of Next, which calls the API (§4.3.1), and gets back the outcome the
  * one decoder makes of its answer (`src/api/problem.ts`).
  */
@@ -98,6 +98,25 @@ export async function updateEstimateLine(
     serverClient().PATCH(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line",
       { ...nodePath(structure, nodeId), body: line },
+    ),
+  );
+}
+
+/**
+ * Re-estimate the line of a node a cell of the grid of the remaining to commit entered — the
+ * figure entered alone, from which the server computes the re-estimated amount —, with the version
+ * of the node read (WF-RAE-0040): the API answers the node as it now is, with its ancestors and the
+ * totals of the structure — or refuses it, on a line of a task completed.
+ */
+export async function setLineRemaining(
+  structure: StructurePath,
+  nodeId: string,
+  remaining: components["schemas"]["RemainingUpdate"],
+): Promise<Outcome<NodesWritten>> {
+  return decode(() =>
+    serverClient().PUT(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining",
+      { ...nodePath(structure, nodeId), body: remaining },
     ),
   );
 }

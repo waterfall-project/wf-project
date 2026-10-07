@@ -114,11 +114,13 @@ describe("the table of the functions", () => {
 describe("the leaves of the table", () => {
   const leaves = FUNCTIONS.flatMap((fn) => (fn.leaves ?? []).map((leaf) => ({ fn, leaf })));
 
-  it("hold the imports and exports of the planning (FBS-4.3.4) and the workload of the project, a leaf of the estimate (FBS-4.4.4)", () => {
+  it("hold the imports and exports of the planning (FBS-4.3.4), the workload of the project, a leaf of the estimate (FBS-4.4.4), and the Kanban of the remaining to commit (FBS-4.5.3)", () => {
     expect(leaves.map(({ fn, leaf }) => [fn.code, leaf.code])).toEqual([
       ["FBS-4.3", "FBS-4.3.4"],
       ["FBS-4.4", "FBS-4.4.4"],
+      ["FBS-4.5", "FBS-4.5.3"],
     ]);
+    expect(leafOf("FBS-4.5.3").route).toBe("/projects/[projectId]/revisions/[revisionId]/kanban");
     expect(leafOf("FBS-4.3.4").route).toBe(
       "/projects/[projectId]/revisions/[revisionId]/exchanges",
     );

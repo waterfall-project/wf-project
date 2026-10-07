@@ -44,7 +44,8 @@ test("each screen of the data of a project names the project and the revision sh
 test("an active filter is visible without opening the panel of filters [WF-IHM-0020-A]", async ({
   page,
 }) => {
-  await page.goto(`${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}&as_of=2026-05-31`);
+  // The indicators read both the sub-project and the date: their banner shows both (#302).
+  await page.goto(`${IN_REVISION}/indicators?subproject_id=${SUBPROJECT}&as_of=2026-05-31`);
   const chips = banner(page).getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
   await expect(chips).toHaveText([
     "Sous-projet : SP-CMD — Poste de commande",
@@ -57,6 +58,6 @@ test("an active filter is visible without opening the panel of filters [WF-IHM-0
   await banner(page)
     .getByRole("link", { name: "Lever le filtre « Date de calcul : 31 mai 2026 »" })
     .click();
-  await expect(page).toHaveURL(`${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
+  await expect(page).toHaveURL(`${IN_REVISION}/indicators?subproject_id=${SUBPROJECT}`);
   await expect(chips).toHaveText(["Sous-projet : SP-CMD — Poste de commande"]);
 });
