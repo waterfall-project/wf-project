@@ -88,6 +88,7 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-INTF-0160-A` | Choix de la langue de l'interface | fin — amorcée en EP-02 | US-0400 |
 | `WF-ADM-0040-A` | Préférences d’affichage | début — close en EP-04 | US-0400 |
 | `WF-IHM-0060-A` | Lecture d'une grille | début — close en EP-07 | US-0400 |
+| `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0360 |
 | `WF-ADM-0050-A` | Attributs d’un compte utilisateur | entière | US-0360 |
 | `WF-ADM-0060-A` | Cycle de vie d’un compte | début — close en EP-04 | US-0360 |
 | `WF-ADM-0070-A` | Lecture des comptes du fournisseur d’identité | début — close en EP-04 | US-0370 |
@@ -122,7 +123,8 @@ WF-ADM-0060 et WF-ADM-0070 se closent en EP-04 (une révision marquée, des acte
 consultables) ; WF-ADM-0100 en EP-08 (le devis, le marquage, la création d'un projet, puis la
 fusion, dernière action gardée) ; WF-ADM-0020 en EP-05 (la première action d'un autre acteur
 que l'administrateur) ; WF-ADM-0040 en EP-04 (« le même projet ») ; WF-IHM-0060 en EP-07 (le
-tri de la grille de devis, qu'EP-02 attribuait à tort à EP-03) ; WF-ARC-0110 en EP-13, où le
+tri de la grille de devis, qu'EP-02 attribuait à tort à EP-03) ; WF-IHM-0130 entre ici pour les
+tables des comptes et des rôles, et reste close en EP-11 ; WF-ARC-0110 en EP-13, où le
 journal d'audit se consulte, et non plus en EP-12. Les tableaux des EPIC concernés le disent.
 
 ## Opérations du contrat
@@ -148,7 +150,10 @@ conception :
   d'identité, non l'annuaire, et leur chemin le dit (`identity-syncs`) ; le compte rendu
   nomme ses signalements par un code du catalogue ;
 - les refus par champ des écritures d'un compte qui manquent : rôle ou nœud inconnu, nom
-  d'un compte fédéré (#379).
+  d'un compte fédéré (#379) ;
+- les filtres qui manquent pour que chaque colonne des tables des comptes et des rôles se
+  filtre (WF-IHM-0130) : par rôle et par état sur `listUsers`, par nature sur
+  `listAccessRoles`.
 
 Servies ici pour la première fois, après cette modification (24) :
 
@@ -339,7 +344,7 @@ règles du mot de passe sont celles du fournisseur, qui les dit sur sa page.
 ## US-0360 — Comptes : la table des comptes et l'affectation des rôles
 
 - **statut** : à faire
-- **exigences** : `WF-ADM-0050-A`, `WF-ADM-0060-A`
+- **exigences** : `WF-ADM-0050-A`, `WF-ADM-0060-A`, `WF-IHM-0130-A`
 - **opérations** : `listUsers`, `createUser`, `getUser`, `updateUser`, `setUserActivation`,
   `setUserAccessRoles`, `listAccessRoles`
 - **issue** :
@@ -374,6 +379,13 @@ cessent d'être attribuables.
   retrait de son rôle au dernier administrateur y est refusé par `LAST_ADMINISTRATOR`
   (WF-ADM-0120) ; les rôles proposés sont ceux de l'installation, quel que soit le
   rattachement (WF-ADM-0030, #379).
+- propre à l'US : la table des comptes se filtre sur chacune de ses colonnes, par le serveur —
+  le nom, le prénom et l'adresse par la recherche, l'origine, les rôles, l'état, et le
+  rattachement à partir d'EP-05 —, et le nombre de comptes qu'elle annonce est celui que le
+  filtre retient (WF-IHM-0130).
+- écart : `WF-IHM-0130-A` — « La liste des projets filtrée sur un état ne compte que les projets de cet état dans ses totaux. » : la liste des projets arrive en EP-04 ; EP-11, qui clôt
+  l'exigence, le constate.
+- écart : `WF-IHM-0130-A` — « Le plan de charge exporté est une image PNG qui porte le nom du projet, la révision et la date de calcul. » : le plan de charge arrive en EP-07 ; l'export, en EP-11.
 
 **Notes de réalisation.** Un compte local est créé dans Waterfall et dans le fournisseur
 d'identité, par son API d'administration (WF-ADM-0070, dernière phrase du corps), dont le
@@ -383,7 +395,7 @@ que #379 consigne. Les règles de l'affectation — union des permissions, appli
 immédiate, dernier administrateur — sont celles d'US-0380, dont les critères les constatent ;
 cette US porte la table qui les exerce.
 
-**Hors périmètre.** Les filtres de la table (WF-IHM-0130) — EP-11 ; la colonne du
+**Hors périmètre.** La colonne du
 rattachement reste en lecture, vide, jusqu'à EP-05, qui crée l'arbre.
 
 ## US-0370 — Lecture des comptes du fournisseur, worker et file
@@ -457,6 +469,9 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
   serveur (WF-IHM-0060) ; la matrice des permissions est le lieu de leur modification, une
   case par permission et par rôle, et la création, le renommage et la suppression se font
   dans la table (#380).
+- propre à l'US : la table des rôles se filtre sur chacune de ses colonnes, par le serveur —
+  le libellé par la recherche, la nature, et le nombre de porteurs — (WF-IHM-0130, constatée
+  par US-0360).
 - propre à l'US : un rôle supprimé n'est plus lu ni attribuable, et sa ligne est conservée,
   ce que le journal d'audit et les attributions passées citent (WF-DAT-0080, décision du
   cadrage).
