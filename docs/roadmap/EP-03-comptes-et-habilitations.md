@@ -1,7 +1,7 @@
 ---
 id: EP-03
 titre: Se connecter, et n'agir que dans les limites de ses habilitations
-statut: à planifier
+statut: prêt
 depend_de: EP-01
 issue:
 ---
