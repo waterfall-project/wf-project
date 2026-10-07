@@ -779,8 +779,8 @@ qu'elle a défait.
 
 **Critères d'acceptation.**
 
-- `WF-IHM-0110-A` — « Aucune commande n'annule un marquage, un import appliqué ou une
-  exclusion de ligne de coût. »
+- `WF-IHM-0110-A` — « Aucune commande n'annule un marquage, un import appliqué, une
+  déclaration de survenance ou une exclusion de ligne de coût. »
 - propre à l'US : Annuler et Rétablir sont présentes et positionnées — dans les grilles, au
   menu et par Ctrl+Z et Ctrl+Maj+Z — et leur état se lit ; aucune n'est branchée : elles
   n'agissent qu'en EP-06 (décision du cadrage).
@@ -799,12 +799,15 @@ boutons de la barre (US-0140/L1) — décision provisoire, en attente de confirm
 l'utilisateur.
 
 - écart : `WF-IHM-0110-A` — « La suppression d'une tâche puis son annulation restituent la
-  tâche, ses lignes et ses liaisons. », « Cinquante modifications successives s'annulent une
-  par une, puis se rétablissent dans l'ordre. » et « L'annulation d'une modification qu'un
-  autre contributeur a depuis reprise est refusée en nommant l'objet en conflit. » demandent
-  un serveur qui restitue et qui refuse — le faux back ne conserve rien. Ces trois phrases
-  reviennent à EP-06, où la grille de planning conserve ses saisies : ici, les commandes se
-  voient et se placent, elles n'agissent pas (décision du cadrage).
+  tâche, ses lignes et ses liaisons. », « Le réexamen d'un risque puis son annulation lui
+  rendent sa probabilité et son état précédents. », « Cinquante modifications successives
+  s'annulent une par une, puis se rétablissent dans l'ordre. » et « L'annulation d'une
+  modification qu'un autre contributeur a depuis reprise est refusée en nommant l'objet en
+  conflit. » demandent un serveur qui restitue et qui refuse — le faux back ne conserve rien,
+  et la grille des risques est en lecture seule en EP-02. Trois de ces phrases reviennent à
+  EP-06, où la grille de planning conserve ses saisies, et celle du réexamen d'un risque à
+  EP-08, qui réalise la saisie des risques (#337) : ici, les commandes se voient et se
+  placent, elles n'agissent pas (décision du cadrage).
 
 ## US-0150 — Valeur calculée contre valeur saisie
 
