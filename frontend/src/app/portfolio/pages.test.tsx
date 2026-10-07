@@ -179,7 +179,7 @@ describe("the screens of the portfolio", () => {
     const page = text(markup);
     expect(page).toContain("In progress · 269 projects · calculated on 16 Mar 2026");
     expect(page).toMatch(/Cost index 0\.94 Nominal Schedule index 0\.91 Nominal/);
-    expect(page).toMatch(/At the observed rate .*2,757,242,622\.53 .*159,932,287\.97/);
+    expect(page).toMatch(/At the observed rate .*2,757,456,290\.36 .*160,145,955\.80/);
     expect(page).toContain(
       "Cost index Nominal 169 Cost index Watch 47 Cost index Alert 53 Schedule index Nominal 153",
     );

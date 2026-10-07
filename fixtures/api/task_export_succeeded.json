@@ -1,13 +1,13 @@
 {
-  "summary": "L'export du devis de la révision courante, abouti : son fichier, engendré à la demande, se télécharge par la tâche (WF-DAT-0120).",
+  "summary": "L'export du devis de la révision courante, abouti vingt secondes après sa demande : son fichier, engendré à la demande, se télécharge par la tâche (WF-DAT-0120).",
   "value": {
-    "task_id": "01926f3a-7c00-7000-8000-000000000905",
+    "task_id": "01926f3a-7c00-7000-8000-000000000935",
     "kind": "export",
     "status": "succeeded",
     "progress": 100,
-    "submitted_at": "2026-06-01T09:10:00Z",
-    "finished_at": "2026-06-01T09:10:20Z",
+    "submitted_at": "2026-06-03T14:06:30Z",
+    "finished_at": "2026-06-03T14:06:50Z",
     "problem": null,
-    "result_url": "/api/v1/tasks/01926f3a-7c00-7000-8000-000000000905/result"
+    "result_url": "/api/v1/tasks/01926f3a-7c00-7000-8000-000000000935/result"
   }
 }

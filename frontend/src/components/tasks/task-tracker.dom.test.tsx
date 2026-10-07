@@ -42,9 +42,9 @@ vi.mock("next/navigation", async (original) => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const MARKING = "01926f3a-7c00-7000-8000-000000000901";
-const IMPORT = "01926f3a-7c00-7000-8000-000000000902";
-const RELAUNCHED = "01926f3a-7c00-7000-8000-000000000903";
+const MARKING = "01926f3a-7c00-7000-8000-000000000931";
+const IMPORT = "01926f3a-7c00-7000-8000-000000000932";
+const RELAUNCHED = "01926f3a-7c00-7000-8000-000000000933";
 const TASK = "GET /tasks/{task_id}";
 const TASKS = "GET /tasks";
 const MARK = "POST /projects/{project_id}/revisions/{revision_id}/mark";
@@ -838,7 +838,7 @@ describe("the tracker as the page hydrates", () => {
 });
 
 describe("the result of a task", () => {
-  const EXPORTED = "01926f3a-7c00-7000-8000-000000000905";
+  const EXPORTED = "01926f3a-7c00-7000-8000-000000000935";
 
   /**
    * The browser following a link: the click the entry lets through replayed as the browser would,

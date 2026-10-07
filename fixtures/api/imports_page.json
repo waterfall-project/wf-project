@@ -1,28 +1,28 @@
 {
-  "summary": "Les imports du projet au 1er juin 2026 lus deux par deux, la deuxième page : les deux dernières extractions de coûts réels de imports, sur six imports (WF-INTF-0080).",
+  "summary": "Les imports du projet au 3 juin 2026 lus deux par deux, la deuxième page : la nouvelle extraction d'avril, expirée, et le planning MS Project abandonné de imports, sur huit imports (WF-INTF-0080).",
   "value": {
     "items": [
       {
-        "import_id": "01926f3a-7c00-7000-8000-000000000a09",
+        "import_id": "01926f3a-7c00-7000-8000-000000000a12",
         "kind": "actual_costs",
-        "filename": "couts-reels-2026-04-reextraction.xlsx",
-        "status": "applied",
-        "created_at": "2026-05-11T08:55:00Z",
-        "expires_at": "2026-05-12T08:56:00Z"
+        "filename": "couts-reels-2026-04-correction.xlsx",
+        "status": "expired",
+        "created_at": "2026-06-02T09:00:05Z",
+        "expires_at": "2026-06-03T09:01:00Z"
       },
       {
-        "import_id": "01926f3a-7c00-7000-8000-000000000a08",
-        "kind": "actual_costs",
-        "filename": "couts-reels-2026-05-06.xlsx",
-        "status": "applied",
-        "created_at": "2026-05-06T13:55:00Z",
-        "expires_at": "2026-05-07T13:56:00Z"
+        "import_id": "01926f3a-7c00-7000-8000-000000000a10",
+        "kind": "ms_project_schedule",
+        "filename": "planning-poste-de-commande.xml",
+        "status": "abandoned",
+        "created_at": "2026-05-20T10:15:00Z",
+        "expires_at": "2026-05-21T10:16:00Z"
       }
     ],
     "meta": {
       "limit": 2,
       "offset": 2,
-      "total": 6
+      "total": 8
     }
   }
 }

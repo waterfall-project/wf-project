@@ -9,7 +9,7 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 import json
 import re
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
@@ -39,11 +39,40 @@ today: the dates of a task, a point of a curve or of a milestone tracking, the b
 Every other day an example carries — a review, an order received, a task started or completed, a
 document, a period of costs — is of the chronology, between the installation and today."""
 
-_LATER = {
-    ("import_remaining_analysed.json", "expires_at"),
-    ("password_setup_link.json", "expires_at"),
+_LATER = (
+    ("password_setup_link.json", "expires_at", timedelta(hours=1)),
+    ("import", "expires_at", timedelta(hours=24)),
+    ("file_upload.json", "expires_at", timedelta(hours=24)),
+    ("session", "expires_at", timedelta(hours=24)),
+    ("session", "idle_expires_at", timedelta(hours=2)),
+)
+"""The instants after today the examples may carry, by the start of the name of their file and
+their key, and how far after: the link to set a password, valid an hour (WF-ADM-0140); an import
+or a deposit, a day after its analysis or its deposit (WF-ARC-0100, WF-DAT-0120); a session,
+within the day, and its idleness, two hours after its last request."""
+
+
+def _later(name: str, key: str) -> timedelta:
+    """Return how far after today an instant of a file, under a key, may lie."""
+    spans = [span for start, field, span in _LATER if name.startswith(start) and key == field]
+    return spans[0] if spans else timedelta(0)
+
+
+_SEQUELS = {
+    "task_mark_queued.json",
+    "task_running.json",
+    "task_succeeded.json",
+    "task_failed.json",
+    "task_mark_relaunched.json",
+    "task_import_queued.json",
+    "task_import_succeeded.json",
+    "task_export_queued.json",
+    "task_export_succeeded.json",
+    "tasks_running.json",
 }
-"""The instants after today the examples may carry: an expiry, which is to come."""
+_SEQUEL_KEYS, _SEQUEL_SPAN = {"submitted_at", "finished_at"}, timedelta(minutes=10)
+"""The background tasks that follow a write made today, and their instants: the sequel of the
+write, at its own instant, within minutes after today (#287, EP-02/L25)."""
 
 
 @pytest.fixture(scope="module")
@@ -93,8 +122,10 @@ def test_every_instant_of_the_universe_lies_between_the_installation_and_today()
     for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
         value = json.loads(path.read_text(encoding="utf-8"))["value"]
         for key, text in _stamps(value):
-            later = (path.name, key) in _LATER
-            if _instant(text) < INSTALLED.instant or (_instant(text) > TODAY and not later):
+            span = _later(path.name, key)
+            if path.name in _SEQUELS and key in _SEQUEL_KEYS:
+                span = _SEQUEL_SPAN
+            if not INSTALLED.instant <= _instant(text) <= TODAY + span:
                 strays.append((path.name, key, text))
         for each in _audits(value):
             audit = each["audit"]

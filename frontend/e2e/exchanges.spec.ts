@@ -5,8 +5,9 @@ import { expect, type Route, test } from "@playwright/test";
 import { compile } from "./compile";
 
 // The fake back serves the first example of each operation: the file deposited, its import
-// opened, its analysis under way; the report the address then names, analysed — two lines
-// rejected —; the application queued; the abandonment. It keeps no state: the component and page
+// opened, its analysis under way; the report the address then names, the estimate analysed this
+// morning and applicable until tomorrow — two lines rejected —; the application queued; the
+// abandonment. It keeps no state: the component and page
 // tests prove the other states of an import (`exchanges.dom.test.tsx`, `page.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -14,7 +15,7 @@ const IMPORT = "01926f3a-7c00-7000-8000-000000000a11";
 const PLANNING = `/projects/${PROJECT}/revisions/${REVISION}/planning?as_of=2026-05-31`;
 const START = `/projects/${PROJECT}/revisions/${REVISION}/exchanges?as_of=2026-05-31`;
 // The task of the application queued (`task_import_queued`), which the tracker reads by its id.
-const APPLICATION = "01926f3a-7c00-7000-8000-000000000902";
+const APPLICATION = "01926f3a-7c00-7000-8000-000000000932";
 
 test("imports a file in two steps: the report lists the lines rejected with their motive before any confirmation, the application confirmed is followed in the shell, and the abandonment leads back to the screen as it was [WF-INTF-0080-A]", async ({
   page,

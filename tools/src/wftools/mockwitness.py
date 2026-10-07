@@ -94,20 +94,25 @@ RISK_752_OCCURRED = Event(
 )
 STUDIES_STARTED = Event(date(2026, 3, 2), "Réexamen de 751 à 40 % ; début des études", time(9, 15))
 COST_IMPORTS = tuple(
-    Event(day, "Import de coûts réels")
-    for day in (
-        date(2026, 4, 3),
-        date(2026, 5, 4),
-        date(2026, 5, 6),
-        date(2026, 5, 11),
-        date(2026, 6, 3),
+    Event(day, "Import de coûts réels", at)
+    for day, at in (
+        (date(2026, 4, 3), time(8, 30)),
+        (date(2026, 5, 4), time(8, 30)),
+        (date(2026, 5, 6), time(14, 0)),
+        (date(2026, 5, 11), time(9, 0)),
+        (date(2026, 6, 3), time(8, 30)),
     )
 )
 PLANNING_IMPORT_ABANDONED = Event(date(2026, 5, 20), "Import de planning, abandonné")
-ESTIMATE_IMPORT_ANALYSED = Event(
-    date(2026, 6, 1), "Import du devis analysé, en attente de confirmation"
+APRIL_EXTRACTION_REPLAYED = Event(
+    date(2026, 6, 2), "Extraction d'avril rejouée et analysée ; expirée le lendemain", time(9, 1)
 )
-APRIL_EXTRACTION_REPLAYED = Event(date(2026, 6, 2), "Extraction d'avril rejouée et analysée")
+ESTIMATE_IMPORT_ANALYSED = Event(
+    date(2026, 6, 3), "Import du devis analysé, applicable jusqu'au lendemain", time(8, 41)
+)
+"""The estimate imported this morning is still applicable today, an import analysed expiring a
+day after its analysis (WF-ARC-0100): the frame of #287 analysed it on 1 June, which would have
+let it expire before today (EP-02/L25)."""
 
 CHRONOLOGY = tuple(
     sorted(
@@ -127,7 +132,7 @@ CHRONOLOGY = tuple(
             ESTIMATE_IMPORT_ANALYSED,
             APRIL_EXTRACTION_REPLAYED,
         ),
-        key=lambda event: event.on,
+        key=lambda event: event.instant,
     )
 )
 """The events up to today, in their order; what follows today is the sequel of a write."""
@@ -213,13 +218,13 @@ IDENTIFIERS = (
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 
-The examples written by hand do not all keep to it yet (#287, C16), until the examples that
-carry them are moved: the background tasks 901 to 905, the pastes 911 and 912 and the
-correlation 913 are on the range of the backups; the correlations 921 to 927 on that of the
-background tasks. The order item 711, « Fourniture et montage des armoires », is the one order
-item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130); its work package
-712, « Armoires », is borne by no task: only the refusal to attach it outside the subtree of the
-task of its order item speaks of it (`task_attach_outside_order_item`).
+Every example keeps to it (#287, C16): EP-02/L25 moved the background tasks off the range of
+the backups (901 to 905, now 931 to 935), and the pastes and the correlations onto theirs (911 to
+913, now 971 to 973; 921 to 927, now 975 to 982). The order item 711, « Fourniture et montage des
+armoires », is the one order item of the witness, which the lot « Poste de commande » bears
+(WF-PLA-0130); its work package 712, « Armoires », is borne by no task: only the refusal to attach
+it outside the subtree of the task of its order item speaks of it
+(`task_attach_outside_order_item`).
 """
 
 # --- The roles, their calendars ---------------------------------------------------------------
@@ -272,7 +277,8 @@ reserve for risks of the reference counts it (WF-RIS-0050); the line of provisio
 
 PAYMENT_DELAY = 30
 """The payment delay of the subcontracting and of the terminal blocks, in days: paid a month
-after their work (WF-IND-0100); the other lines are paid as they are worked."""
+after their work (WF-IND-0100); the other lines, labour and provision included, have a delay of
+nought, paid as they are worked (WF-DEV-0020)."""
 
 SUBPROJECT_CONTROL = universe(801)
 SUBCONTRACTING = universe(401)
@@ -301,9 +307,9 @@ class Line:
     revision gives it another: nothing for a line merged by the occurrence of a risk
     (WF-RIS-0060) or added after the reference (WF-DEV-0020); for a provision, the provision
     the risk had when the reference was marked, which counts to the reserve for risks, never
-    to the reference budget (WF-RIS-0050). A line of disbursement may be paid some days after
-    its work, its payment delay, which shifts it on the curve of the disbursements; a labour line
-    has none (WF-DEV-0020, WF-IND-0100).
+    to the reference budget (WF-RIS-0050). Every line has a payment delay, the days after its work
+    it is paid, which shifts it on the curve of the disbursements: nought unless said, as for the
+    labour and the provision (WF-DEV-0020, WF-IND-0100).
     """
 
     number: int
@@ -661,3 +667,140 @@ identified, its provision the line 555 of the core; the delay of the cabinets, o
 of the core —; the unavailability of the automation engineer, dismissed on 2 February. All three
 identified on 12 January, before the reference 101 was marked, which bore their provisions: the
 lines 555, 557 and 567 of its structure (``mockhistory``)."""
+
+# --- The actual costs --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class CostImport:
+    """An import of actual costs, as its journal says it (WF-CRE-0050).
+
+    Its event, the instant it was applied; the import of the exchanges that applied it, by its
+    number, opened and analysed a few minutes before; the period it extracted, each bound
+    possibly missing; and the lines of other projects it read, rejected and signalled to its
+    report (WF-CRE-0020), which the journal counts among the lines ignored.
+    """
+
+    number: int
+    event: Event
+    exchange: int
+    period: tuple[date | None, date | None]
+    rejected: int = 0
+
+
+MARCH, APRIL, UNDATED, APRIL_AGAIN, MAY = (
+    CostImport(0xC11, COST_IMPORTS[0], 0xA06, (date(2026, 3, 1), date(2026, 3, 31))),
+    CostImport(0xC12, COST_IMPORTS[1], 0xA07, (date(2026, 4, 1), date(2026, 4, 30)), 1),
+    CostImport(0xC13, COST_IMPORTS[2], 0xA08, (None, None), 37),
+    CostImport(0xC14, COST_IMPORTS[3], 0xA09, (None, date(2026, 4, 30)), 12_345),
+    CostImport(0xC15, COST_IMPORTS[4], 0xA14, (date(2026, 5, 1), None)),
+)
+JOURNAL = (MARCH, APRIL, UNDATED, APRIL_AGAIN, MAY)
+"""The imports of actual costs of the witness, in their order: the extraction of March, that
+of April, a file without a period of which no line was the project's, a re-extraction up to
+30 April, which brings back the five lines already imported, and the extraction of May, from
+1 May."""
+
+
+@dataclass(frozen=True, slots=True)
+class CostLine:
+    """A line of actual cost of the witness: what the file of the ERP says of it (WF-CRE-0010).
+
+    Its number, 0xc0n; its document, dated, its signed amount; the code of subproject its element
+    of the work breakdown structure carries, if it has a subproject part, imputed to the
+    subproject of that code if the project has one, to the project alone otherwise — as is a line
+    without a subproject part (WF-CRE-0020); the columns kept of the file;
+    the imports that brought it, the first creating it, the others updating it (WF-CRE-0010); and
+    its exclusion from the tracked scope, when and why, kept by the imports after it
+    (WF-CRE-0030).
+    """
+
+    number: int
+    document: str
+    on: date
+    amount: Decimal
+    code: str | None
+    supplier: str
+    text: str
+    imports: tuple[CostImport, ...]
+    excluded: tuple[datetime, str] | None = None
+
+
+COSTS = (
+    CostLine(
+        0xC01,
+        "FA-2026-0412",
+        date(2026, 4, 21),
+        Decimal("1800.00"),
+        "SP-CAB",
+        "Câbles du Rhône",
+        "Câbles de commande du pupitre",
+        (APRIL, APRIL_AGAIN),
+    ),
+    CostLine(
+        0xC02,
+        "AV-2026-0388",
+        date(2026, 4, 8),
+        Decimal("-200.00"),
+        "SP-CAB",
+        "Câbles du Rhône",
+        "Avoir sur livraison incomplète",
+        (APRIL, APRIL_AGAIN),
+    ),
+    CostLine(
+        0xC03,
+        "FA-2026-0301",
+        date(2026, 3, 27),
+        Decimal("1400.00"),
+        "SP-AUT",
+        "Automatismes Durand",
+        "Automate de sécurité",
+        (MARCH, APRIL_AGAIN),
+    ),
+    CostLine(
+        0xC04,
+        "FA-2026-0295",
+        date(2026, 3, 20),
+        Decimal("650.00"),
+        "SP-REC",
+        "Traiteur Lumière",
+        "Réception du client sur site",
+        (MARCH, APRIL_AGAIN),
+        (datetime(2026, 4, 6, 9, 15, tzinfo=UTC), "Réception du client, non budgétée"),
+    ),
+    CostLine(
+        0xC06,
+        "FA-2026-0409",
+        date(2026, 4, 10),
+        Decimal("100000.00"),
+        None,
+        "Ingélec Études",
+        "Études de détail du poste de commande",
+        (APRIL, APRIL_AGAIN),
+    ),
+    CostLine(
+        0xC05,
+        "FA-2026-0521",
+        date(2026, 5, 18),
+        Decimal("2400.00"),
+        "SP-CMD",
+        "Automatismes Durand",
+        "Écrans du poste de commande",
+        (MAY,),
+    ),
+)
+"""The lines of actual cost of the witness today: the purchases of cables, a credit note on them and
+the safety controller, under codes of subproject the project does not have, imputed to it alone;
+the reception of the customer, excluded from the tracked scope three days after its import; the
+invoice of the detailed studies, 100,000 of subcontracting dated the day they finished, without a
+subproject part, as their line 527 has none — its payment delay of thirty days shifts the
+disbursement, not the date of the document (decision of the author, review of EP-02/L25) —; and
+the screens of the control station, imputed to its subproject."""
+
+PASSTHROUGH = ("Fournisseur", "Texte de commande", "Élément d'OTP")
+"""The columns of the file the imports keep, in the order they declare them (WF-CRE-0010)."""
+
+
+def hex_identifier(number: int) -> str:
+    """Return an identifier written by hand in hexadecimal digits: 01926f3a-…-000000000c01."""
+    return f"{PREFIX}{number:012x}"

@@ -20,9 +20,8 @@ The formulas are simple and said here, to be replaced by the kernel of EP-07 to 
 spread over a task is spread pro rata of the hours of work of the task's calendar (WF-DEV-0080,
 WF-DEV-0070) — the core employs one calendar for each task, that of its roles —; a value at a day
 counts the work of that day, whatever the hour of the calculation. The actual costs are the lines
-of the tracked scope that the examples of the costs carry (``actual_costs``,
-``actual_costs_subproject``), written by hand, at their date of document (WF-IND-0010). Nothing
-here reads the clock, nor a file the same command writes.
+of the tracked scope the witness describes (``mockwitness.COSTS``), at their date of document
+(WF-IND-0010). Nothing here reads the clock, nor a file the same command writes.
 """
 
 from __future__ import annotations
@@ -32,7 +31,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mockhistory
+from wftools import mockcore, mockcosts, mockhistory
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockstructure import (
     CENT,
@@ -155,17 +154,21 @@ def read(
 ) -> Reading:
     """Read a revision described from the core at an instant, its lines at the rates given."""
     roots = tuple(roots)
-    delays: dict[int, int] = {}
-
-    def walk(task: Task) -> None:
-        delays.update((line.number, line.payment_delay_days) for line in task.lines)
-        for child in task.children:
-            walk(child)
-
-    for root in roots:
-        walk(root)
     rows = tuple(mockcore.core(roots, at.date(), rates))
-    return Reading(revision, at, rows, mockcore.schedule(roots), delays)
+    return Reading(revision, at, rows, mockcore.schedule(roots), delays(rows))
+
+
+def delays(rows: Iterable[mockcore.Row]) -> dict[int, int]:
+    """Return the payment delay of each line, in days, as its node renders it (WF-IND-0100).
+
+    The curve of the disbursements shifts a line by the delay the grid of the estimate shows
+    for it, read from the same node.
+    """
+    return {
+        row.number: cast("int", cast("JsonObject", row.node[row.kind])["payment_delay_days"])
+        for row in rows
+        if row.kind == mockcore.ESTIMATE_LINE
+    }
 
 
 def today(roots: Iterable[Task] = CORE) -> Reading:
@@ -201,20 +204,13 @@ class Cost:
 def actual_costs() -> list[Cost]:
     """Return the lines of actual cost of the tracked scope known today, by date of document.
 
-    Those the consultations of the costs carry, written by hand — the lines of the imports of
-    March and April, and the invoice of the control station the import of 3 June brought —, each
-    once (WF-CRE-0010, WF-IND-0010); a line excluded from the tracked scope is not a cost.
+    Those the witness describes (``mockwitness.COSTS``), as the consultation of the costs presents
+    them (``mockcosts``) — the lines of the imports of March and April, and the invoice of the
+    control station the import of 3 June brought (WF-CRE-0010, WF-IND-0010); a line excluded from
+    the tracked scope is not a cost (WF-CRE-0030).
     """
-    found: dict[str, Cost] = {}
-    for name in ("actual_costs", "actual_costs_subproject"):
-        for item in fixture(name)["items"]:
-            if item["is_in_tracked_scope"]:
-                found[item["cost_line_id"]] = Cost(
-                    date.fromisoformat(item["document_date"]),
-                    Decimal(item["amount"]),
-                    item["subproject_id"],
-                )
-    return sorted(found.values(), key=lambda cost: cost.on)
+    found = [Cost(on, amount, subproject) for on, amount, subproject in mockcosts.tracked()]
+    return sorted(found, key=lambda cost: cost.on)
 
 
 def actual(costs: Iterable[Cost], day: date, scope: str = PROJECT) -> Decimal:

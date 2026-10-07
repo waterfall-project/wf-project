@@ -6,43 +6,43 @@
       {
         "component": "api",
         "is_available": true,
-        "checked_at": "2026-03-16T14:04:30Z",
+        "checked_at": "2026-06-03T14:04:30Z",
         "version": "1.0.0"
       },
       {
         "component": "worker",
         "is_available": true,
-        "checked_at": "2026-03-16T14:04:30Z",
+        "checked_at": "2026-06-03T14:04:30Z",
         "version": "1.0.0"
       },
       {
         "component": "database",
         "is_available": true,
-        "checked_at": "2026-03-16T14:04:30Z",
+        "checked_at": "2026-06-03T14:04:30Z",
         "version": "16.4"
       },
       {
         "component": "cache",
         "is_available": true,
-        "checked_at": "2026-03-16T14:04:30Z",
+        "checked_at": "2026-06-03T14:04:30Z",
         "version": "7.4.1"
       },
       {
         "component": "object_storage",
         "is_available": false,
-        "checked_at": "2026-03-16T14:04:30Z",
+        "checked_at": "2026-06-03T14:04:30Z",
         "version": null
       },
       {
         "component": "directory",
         "is_available": true,
-        "checked_at": "2026-03-16T14:04:30Z",
+        "checked_at": "2026-06-03T14:04:30Z",
         "version": "26.0.5"
       },
       {
         "component": "metrics",
         "is_available": true,
-        "checked_at": "2026-03-16T14:04:30Z",
+        "checked_at": "2026-06-03T14:04:30Z",
         "version": "2.53.0"
       }
     ],
@@ -51,12 +51,12 @@
       "available_bytes": 172922789888
     },
     "last_directory_sync": {
-      "at": "2026-03-16T02:00:00Z",
+      "at": "2026-06-03T02:00:00Z",
       "succeeded": true,
       "problem": null
     },
     "last_backup": {
-      "at": "2026-03-16T01:00:00Z",
+      "at": "2026-06-03T01:00:00Z",
       "succeeded": false,
       "problem": {
         "code": "COMPONENT_UNAVAILABLE",
@@ -67,19 +67,19 @@
       }
     },
     "last_restore_test": {
-      "at": "2026-03-01T03:00:00Z",
+      "at": "2026-06-01T03:00:00Z",
       "succeeded": true,
       "problem": null
     },
     "alerts": [
       {
         "code": "scheduled_backup_failed",
-        "since": "2026-03-16T01:00:00Z",
+        "since": "2026-06-03T01:00:00Z",
         "severity": "alert"
       },
       {
         "code": "component_unavailable",
-        "since": "2026-03-16T00:52:00Z",
+        "since": "2026-06-03T00:52:00Z",
         "severity": "alert",
         "params": {
           "component": "object_storage"

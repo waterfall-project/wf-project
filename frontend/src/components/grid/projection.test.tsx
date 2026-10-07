@@ -196,13 +196,14 @@ describe("a field of a line that says nothing, left out by the projection", () =
   it("is read by the grid of the estimate as the null it was: the same values, the same cells", () => {
     const list = answer("nodes_estimate");
     const projected = projectNodes(list, ESTIMATE_FIELDS).items;
-    // The provision: out of any sub-project, without a payment delay, no deactivated object.
+    // The provision: out of any sub-project, no deactivated object; its payment delay, nought,
+    // says something and is kept (WF-DEV-0020).
     const provision = projected.find((node) => node.estimate_line?.is_computed === true);
     expect(provision?.estimate_line).not.toHaveProperty("subproject_label");
-    expect(provision?.estimate_line).not.toHaveProperty("payment_delay_days");
+    expect(provision?.estimate_line?.payment_delay_days).toBe(0);
     expect(provision?.estimate_line).not.toHaveProperty("uses_inactive_object");
     const config = ESTIMATE_GRID_READ;
-    for (const key of ["subproject", "payment_delay_days", "inactive_object"]) {
+    for (const key of ["subproject", "inactive_object"]) {
       const column = config.columns.find((each) => each.key === key);
       const source = list.items.find((node) => node.node_id === provision?.node_id);
       if (column === undefined || provision === undefined || source === undefined) {

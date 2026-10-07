@@ -119,7 +119,7 @@ describe("the screen of the actual costs", () => {
     expect(page.startsWith(BANNER)).toBe(true);
     expect(queryOf(COSTS)).toEqual({});
     expect(queryOf(IMPORTS)).toEqual({ limit: "12" });
-    expect(text(page)).toContain("Actual costs 4 lines retained");
+    expect(text(page)).toContain("Actual costs 6 lines retained");
   });
 
   it("leads from its head to the imports and exports of the project, where the actual costs are imported, in the same context", async () => {
@@ -134,16 +134,18 @@ describe("the screen of the actual costs", () => {
   it("presents the three totals and the date of the last import the server gives [WF-CRE-0040-A] [WF-CRE-0050-A]", async () => {
     const page = await costsAt();
     expect(text(page)).toContain(
-      "Tracked scope 3,000.00 Excluded from the tracked scope 650.00 General total 3,650.00 Last import",
+      "Tracked scope 105,400.00 Excluded from the tracked scope 650.00 General total 106,050.00 Last import",
     );
-    expect(page).toContain('<time dateTime="2026-05-04T08:30:00Z">');
+    expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
   });
 
   it("hands the grid the lines of the page in the order of the answer, of each the fields it reads alone", async () => {
     await costsAt();
     const [handed] = grids.costs;
     expect(handed?.costs.items.map((line) => line.document_number)).toEqual([
+      "FA-2026-0521",
       "FA-2026-0412",
+      "FA-2026-0409",
       "AV-2026-0388",
       "FA-2026-0301",
       "FA-2026-0295",
@@ -160,9 +162,9 @@ describe("the screen of the actual costs", () => {
       "passthrough",
     ]);
     expect(handed?.costs.totals).toEqual({
-      tracked: "3000.00",
+      tracked: "105400.00",
       excluded: "650.00",
-      overall: "3650.00",
+      overall: "106050.00",
     });
   });
 
@@ -216,7 +218,7 @@ describe("the screen of the actual costs", () => {
   it("shows the way to the next page when the server holds more lines than the page [WF-CRE-0040-A]", async () => {
     server.answers = { ...server.answers, [COSTS]: { example: "actual_costs_page", status: 200 } };
     const page = await costsAt({ offset: "1" });
-    expect(text(page)).toContain("Actual costs 4 lines retained");
+    expect(text(page)).toContain("Actual costs 6 lines retained");
     expect(page).toContain('aria-label="Pages of the actual costs"');
     expect(page).toContain(`href="${PATHNAME}?offset=2"`);
   });

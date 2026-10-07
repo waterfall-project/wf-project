@@ -52,7 +52,14 @@ describe("the matrix of the permissions", () => {
       within(restore)
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
-    ).toEqual(["Accordée", "Non accordée", "Accordée", "Non accordée"]);
+    ).toEqual([
+      "Accordée",
+      "Non accordée",
+      "Non accordée",
+      "Accordée",
+      "Non accordée",
+      "Non accordée",
+    ]);
     // Each of the twenty-four functions heads its group by its code, then by its name.
     expect(within(matrix).getAllByRole("rowheader", { name: /^FBS-/ })).toHaveLength(24);
     expect(within(matrix).getAllByRole("rowheader", { name: /^FBS-\d+\.\d+ \S/ })).toHaveLength(24);
@@ -144,7 +151,7 @@ describe("the state of the platform and its backups", () => {
       within(operations)
         .getByRole("row", { name: /^Sauvegarde/ })
         .querySelector("time"),
-    ).toHaveAttribute("datetime", "2026-03-16T01:00:00Z");
+    ).toHaveAttribute("datetime", "2026-06-03T01:00:00Z");
     expect(screen.getByText("Désactivée")).toBeInTheDocument();
     expect(screen.getByText("7 sauvegardes conservées")).toBeInTheDocument();
     expect(screen.queryByText("Fréquence")).toBeNull();

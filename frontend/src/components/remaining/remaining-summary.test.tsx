@@ -33,16 +33,16 @@ describe("the summary of the remaining to commit", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary({ ...indicators, delta_to_previous_revision: null }));
     expect(html).toContain(
-      "Remaining to commit 21,534.56 Margin on the reference budget 93,900.00 By nature of cost",
+      "Remaining to commit 21,534.56 Margin on the reference budget -6,100.00 By nature of cost",
     );
     expect(html).not.toContain("previous review");
   });
 
-  it("names the gap to the reference budget a margin, positive while some is left, in French too [WF-RAE-0020-A]", () => {
+  it("names the gap to the reference budget a margin, negative once overrun, in French too [WF-RAE-0020-A]", () => {
     // Les écarts sont présents et signés : le reste à engager parle de marge (#466).
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary(indicators, "fr"));
-    expect(html).toMatch(/Marge sur le budget de référence 93\s900,00/);
+    expect(html).toMatch(/Marge sur le budget de référence -6\s100,00/);
     expect(html).toMatch(/Poste de commande\s: 20\s834,56, marge -2\s400,00/);
     expect(html).not.toContain("Écart au budget");
   });

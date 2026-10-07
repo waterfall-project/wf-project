@@ -190,7 +190,7 @@ describe("the grid of the actual costs", () => {
   it("shows in its totals row the general total of the lines retained the server gives, never a sum of the page [WF-CRE-0040-A]", () => {
     render(costsGrid(costsOf("actual_costs_page")));
     const total = within(grid()).getAllByRole("row").at(-1);
-    expect(total).toHaveTextContent(/^Total général des lignes retenues\s*3\s650,00$/);
+    expect(total).toHaveTextContent(/^Total général des lignes retenues\s*106\s050,00$/);
   });
 
   it("offers no search, which the server does not make, and asks it to sort by the amount", async () => {
@@ -232,7 +232,7 @@ describe("the grid of the actual costs", () => {
     );
     const english = screen.getByRole("grid", { name: "Actual costs" });
     expect(within(english).getByRole("columnheader", { name: /Document no\./ })).toBeVisible();
-    expect(within(english).getAllByText("No subproject")).toHaveLength(4);
+    expect(within(english).getAllByText("No subproject")).toHaveLength(5);
     expect(within(english).getByText("Excluded")).toBeVisible();
   });
 });
@@ -243,10 +243,10 @@ describe("the totals of the actual costs", () => {
     render(inLanguage(<CostSummary totals={list.totals} lastImport={list.last_import_at} />));
     const totals = screen.getByRole("region", { name: "Totaux des lignes retenues" });
     expect(totals).toHaveTextContent(
-      /Périmètre suivi.*3\s000,00.*Exclu du périmètre suivi.*650,00.*Total général.*3\s650,00/,
+      /Périmètre suivi.*105\s400,00.*Exclu du périmètre suivi.*650,00.*Total général.*106\s050,00/,
     );
     expect(within(totals).getAllByRole("img", { name: "Calculé" })).toHaveLength(3);
-    expect(totals).toHaveTextContent(/Dernier import.*4 mai 2026/);
+    expect(totals).toHaveTextContent(/Dernier import.*3 juin 2026/);
   });
 
   it("says no import has been made yet, rather than a date", () => {
@@ -493,7 +493,7 @@ describe("the pages of a list the server pages", () => {
 
 describe("the journal of the imports", () => {
   /** The journal of an example. */
-  function journalOf(name: "cost_imports" | "cost_imports_periods" | "cost_imports_empty") {
+  function journalOf(name: "cost_imports" | "cost_imports_empty") {
     return example(name) as { readonly items: CostImport[]; readonly meta: ListPage };
   }
 
@@ -506,14 +506,17 @@ describe("the journal of the imports", () => {
     const rows = within(table).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
       "DateParPériode extraiteCrééesMises à jourIgnorées",
-      expect.stringMatching(/^4 mai 2026.*Camille Martindu 01\/04\/2026 au 30\/04\/2026201$/),
+      expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/2026100$/),
+      expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/20260512\s345$/),
+      expect.stringMatching(/^6 mai 2026.*Camille MartinNon renseignée0037$/),
+      expect.stringMatching(/^4 mai 2026.*Camille Martindu 01\/04\/2026 au 30\/04\/2026301$/),
       expect.stringMatching(/^3 avr\. 2026.*Camille Martindu 01\/03\/2026 au 31\/03\/2026200$/),
     ]);
     await expectAccessible(container);
   });
 
   it("says a period the API does not give, or gives a bound of, and its counts in the format of the language [WF-CRE-0050-A]", () => {
-    const journal = journalOf("cost_imports_periods");
+    const journal = journalOf("cost_imports");
     render(inLanguage(<ImportJournal imports={journal.items} page={journal.meta} />));
     const rows = within(screen.getByRole("table", { name: "Journal des imports" }))
       .getAllByRole("row")
@@ -525,7 +528,7 @@ describe("the journal of the imports", () => {
   });
 
   it("writes its counts in English the English way", () => {
-    const journal = journalOf("cost_imports_periods");
+    const journal = journalOf("cost_imports");
     render(inLanguage(<ImportJournal imports={journal.items} page={journal.meta} />, "en"));
     expect(screen.getByText("12,345")).toBeVisible();
     expect(screen.getByText("until 30/04/2026")).toBeVisible();

@@ -1,10 +1,10 @@
 {
-  "summary": "Les sauvegardes de la plateforme au 16 mars 2026, de la plus récente : les sept planifiées de la semaine écoulée, chaque nuit à une heure, que la rétention de sept garde, et une sauvegarde manuelle du 30 janvier, marquée à conserver, qui échappe à la rotation ; toutes vérifiées (WF-ADM-0150, WF-ADM-0170).",
+  "summary": "Les sauvegardes de la plateforme au 3 juin 2026, de la plus récente : les sept planifiées de la semaine écoulée, chaque nuit à une heure, que la rétention de sept garde, et une sauvegarde manuelle du 30 janvier, marquée à conserver, qui échappe à la rotation ; toutes vérifiées (WF-ADM-0150, WF-ADM-0170).",
   "value": {
     "items": [
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000907",
-        "taken_at": "2026-03-16T01:00:00Z",
+        "taken_at": "2026-06-03T01:00:00Z",
         "size_bytes": 1313656012,
         "verification": "passed",
         "is_retained": false,
@@ -13,7 +13,7 @@
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000906",
-        "taken_at": "2026-03-15T01:00:00Z",
+        "taken_at": "2026-06-02T01:00:00Z",
         "size_bytes": 1309461708,
         "verification": "passed",
         "is_retained": false,
@@ -22,7 +22,7 @@
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000905",
-        "taken_at": "2026-03-14T01:00:00Z",
+        "taken_at": "2026-06-01T01:00:00Z",
         "size_bytes": 1305267404,
         "verification": "passed",
         "is_retained": false,
@@ -31,7 +31,7 @@
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000904",
-        "taken_at": "2026-03-13T01:00:00Z",
+        "taken_at": "2026-05-31T01:00:00Z",
         "size_bytes": 1301073100,
         "verification": "passed",
         "is_retained": false,
@@ -40,7 +40,7 @@
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000903",
-        "taken_at": "2026-03-12T01:00:00Z",
+        "taken_at": "2026-05-30T01:00:00Z",
         "size_bytes": 1296878796,
         "verification": "passed",
         "is_retained": false,
@@ -49,7 +49,7 @@
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000902",
-        "taken_at": "2026-03-11T01:00:00Z",
+        "taken_at": "2026-05-29T01:00:00Z",
         "size_bytes": 1292684492,
         "verification": "passed",
         "is_retained": false,
@@ -58,7 +58,7 @@
       },
       {
         "backup_id": "01926f3a-7c00-7000-8000-000000000901",
-        "taken_at": "2026-03-10T01:00:00Z",
+        "taken_at": "2026-05-28T01:00:00Z",
         "size_bytes": 1288490188,
         "verification": "passed",
         "is_retained": false,

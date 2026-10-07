@@ -180,8 +180,8 @@ def test_the_balances_sum_to_the_project_and_signal_the_one_over_its_budget(
 
 def test_the_gaps_of_the_remaining_to_the_budget_have_one_sense(today: dict[str, Any]) -> None:
     # #466: the gap to the reference budget is the budget less the actual cost and the
-    # remaining, as each balance of a subproject is: the balances sum to it, and it is positive
-    # while a margin is left.
+    # remaining, as each balance of a subproject is: the balances sum to it, negative once the
+    # budget is overrun — as the witness is since the invoice of the studies (EP-02/L25).
     for name in ("remaining_indicators", "remaining_indicators_over_budget"):
         left = today[name]
         balances = left["by_subproject"]
@@ -191,7 +191,7 @@ def test_the_gaps_of_the_remaining_to_the_budget_have_one_sense(today: dict[str,
             Decimal(entry["budget"]) - Decimal(entry["actual_cost"]) - Decimal(entry["remaining"])
             for entry in balances
         )
-        assert gap > 0
+        assert gap < 0
     # The re-estimate made today commits 200 less: the margin grows by as much.
     gaps = [
         Decimal(today[name]["delta_to_reference"])
@@ -224,7 +224,7 @@ def test_the_indicators_of_the_scopes_sum_to_those_of_the_project() -> None:
         assert sum(Decimal(each[field]) for each in found.values()) == Decimal(project[field])
     # The studies, completed on 10 April, earn their budget; the occurrence earns nothing.
     assert project["earned_value"] == "100000.00"
-    assert project["actual_cost"] == "5400.00"
+    assert project["actual_cost"] == "105400.00"
     assert project["reference_budget"] == "120834.56"
 
 
@@ -255,7 +255,7 @@ def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
         project["schedule_variance"],
         project["schedule_index"]["value"]["value"],
         project["cost_index"]["value"]["value"],
-    ) == ("21534.56", "120834.56", "101223.69", "-1223.69", "0.9879", "18.5185")
+    ) == ("21534.56", "120834.56", "101223.69", "-1223.69", "0.9879", "0.9488")
 
 
 def test_the_curves_reach_the_budget_and_the_projection_of_the_project_manager(
@@ -270,7 +270,7 @@ def test_the_curves_reach_the_budget_and_the_projection_of_the_project_manager(
     )
     actual = _series(curve, "actual_cost")
     projection = _series(curve, "project_manager_projection")
-    assert actual[-1] == projection[0] == {"date": "2026-06-03", "amount": "5400.00"}
+    assert actual[-1] == projection[0] == {"date": "2026-06-03", "amount": "105400.00"}
     assert projection[-1]["amount"] == project["projections"]["project_manager"]
     earned = _series(today["earned_value_curves"], "earned_value")
     assert earned[-1] == {"date": "2026-06-03", "amount": project["earned_value"]}
@@ -388,3 +388,18 @@ def test_one_run_writes_the_portfolio_from_the_indicators_it_writes(
     witness = rows["value"]["items"][0]
     assert witness["cost_index"] == written["cost_index"]
     assert witness["cost_index"] != mockwitness.fixture("project_indicators")["cost_index"]
+
+
+def test_each_subproject_in_alert_is_named_in_the_summary_and_none_said_nominal() -> None:
+    # The summaries of the remaining to commit follow the zones the answer gives (WF-RAE-0020):
+    # a scope in alert is named with its overrun, and never said nominal.
+    for name in ("remaining_indicators", "remaining_indicators_over_budget"):
+        example = json.loads(mockdata.render(mocktoday.examples()[f"{name}.json"]))
+        summary = example["summary"]
+        for entry in example["value"]["by_subproject"]:
+            label = entry.get("label")
+            named = "l'ensemble hors sous-projet" if label is None else f"« {label} »"
+            if entry["zone"] == "alert":
+                overrun = mocktext.amount(-Decimal(entry["variance"]))
+                assert f"{named}, en alerte, dépasse son budget de {overrun}" in summary, name
+                assert f"{named} nominal" not in summary, name

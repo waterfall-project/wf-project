@@ -36,7 +36,7 @@ vi.mock("next/navigation", async (original) => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
-const MARKING = "01926f3a-7c00-7000-8000-000000000901";
+const MARKING = "01926f3a-7c00-7000-8000-000000000931";
 const EXPIRED = { problem: { code: "SESSION_EXPIRED", status: 401 } } as const;
 // The session of the contract, which the fake back opens: the named example of openSession.
 const OPENED = { example: "session", status: 201 } as const;

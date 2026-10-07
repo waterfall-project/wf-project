@@ -6,9 +6,9 @@
     "reference_budget": "2597310334.56",
     "cost_index": {"value":{"is_computable":true,"value":"0.94","reason":null},"zone":"nominal"},
     "schedule_index": {"value":{"is_computable":true,"value":"0.91","reason":null},"zone":"nominal"},
-    "cost_variance": "-74850897.40",
+    "cost_variance": "-74950897.40",
     "schedule_variance": "-123823323.04",
-    "projections": {"at_budget":"2672161231.96","project_manager":"2726721304.56","at_observed_rate":{"is_computable":true,"value":"2757242622.53","reason":null},"variance_at_budget":"74850897.40","variance_project_manager":"129410970.00","variance_at_observed_rate":"159932287.97"},
+    "projections": {"at_budget":"2672261231.96","project_manager":"2726821304.56","at_observed_rate":{"is_computable":true,"value":"2757456290.36","reason":null},"variance_at_budget":"74950897.40","variance_project_manager":"129510970.00","variance_at_observed_rate":"160145955.80"},
     "zone_distribution": [
       {"index":"cost","zone":"nominal","project_count":169},
       {"index":"cost","zone":"watch","project_count":47},

@@ -1,5 +1,5 @@
 {
-  "summary": "Les contributeurs du projet : Camille Martin, cheffe de projet, et Alix Moreau, contributeur, dont le compte a été désactivé depuis son inscription ; la liste en est à sa première version.",
+  "summary": "Les contributeurs du projet : Camille Martin, cheffe de projet, qui l'a créé ; Lucas Petit, chiffreur, inscrit le 3 novembre 2025 au passage en chiffrage ; Alix Moreau, contributeur inscrit après la création de son compte le 12 janvier 2026, désactivé depuis ; Inès Roux, inscrite le 15 janvier 2026 au passage en cours, pour le pilotage. La liste en est à sa quatrième version, une par inscription après la création (WF-PRJ-0060, WF-ADM-0060, WF-ADM-0110).",
   "value": {
     "items": [
       {
@@ -13,8 +13,20 @@
         "display_name": "Alix Moreau",
         "kind": "contributor",
         "is_active": false
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000305",
+        "display_name": "Lucas Petit",
+        "kind": "contributor",
+        "is_active": true
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000306",
+        "display_name": "Inès Roux",
+        "kind": "contributor",
+        "is_active": true
       }
     ],
-    "lock_version": 1
+    "lock_version": 4
   }
 }

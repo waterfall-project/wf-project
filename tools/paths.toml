@@ -90,8 +90,8 @@ by = "make fixtures"
 [[generated]]
 # The volumes, the named examples read from the core of the witness (wftools.mockcore), the
 # answers of the writes of the grids (wftools.mockwrites), the history of the witness — its
-# revisions compared and its risks (wftools.mockhistory) —, and its indicators today
-# (wftools.mocktoday).
+# revisions compared and its risks (wftools.mockhistory) —, its indicators today
+# (wftools.mocktoday), and its actual costs with the journal of their imports (wftools.mockcosts).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -151,6 +151,10 @@ paths = [
     "fixtures/api/workload_reference_budget.json",
     "fixtures/api/workload_marked_remaining.json",
     "fixtures/api/workload_org_node.json",
+    "fixtures/api/actual_costs.json",
+    "fixtures/api/actual_costs_page.json",
+    "fixtures/api/actual_costs_subproject.json",
+    "fixtures/api/cost_imports.json",
 ]
 by = "make mock-data"
 

@@ -665,8 +665,12 @@ référentiel installé) restent écrits à la main, et `tools/tests/test_mockhi
 à sa chronologie. Les indicateurs du témoin aujourd'hui (`wftools.mocktoday`) — devis, reste à
 engager, indicateurs du projet, évolution des indices, suivi des jalons, courbes, plan de charge,
 taux manquants et mise à jour des taux — se lisent des mêmes révisions (`wftools.mockindicators`,
-`wftools.mockcurves`) et des coûts réels écrits à la main (`actual_costs`,
-`actual_costs_subproject`). Ce que la même commande engendre ne se relit jamais sur le disque :
+`wftools.mockcurves`) et des coûts réels du témoin, décrits une fois dans `mockwitness` — ses
+lignes et les imports qui les ont apportées — et lus par `wftools.mockcosts` comme la consultation
+des coûts et le journal des imports les présentent (`actual_costs*`, `cost_imports`). Ce qui reste
+écrit à la main — sessions, comptes et rôles, imports et leurs comptes rendus, tâches de fond,
+état du système et sauvegardes — est confronté à ce qui est engendré par
+`tools/tests/test_mockuniverse.py`. Ce que la même commande engendre ne se relit jamais sur le disque :
 les risques et les indicateurs du témoin, que le portefeuille somme, lui sont passés en mémoire
 (`mockhistory.readings`, `mocktoday.project_today`), pour qu'une seule exécution de
 `make mock-data` atteigne son point fixe. Les volumes

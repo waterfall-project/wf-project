@@ -322,17 +322,17 @@ def test_a_label_entered_on_the_volume_changes_nothing_else(answer: dict[str, An
 
 
 def test_a_block_is_planned_by_the_categories_and_roles_the_reference_names() -> None:
-    assert mockwrites.paste_plan(mockwrites.BLOCK, universe(911)) == {
-        "paste_id": universe(911),
+    assert mockwrites.paste_plan(mockwrites.BLOCK, universe(971)) == {
+        "paste_id": universe(971),
         "accepted": 3,
         "rejected": [],
     }
-    assert mockwrites.paste_plan(mockwrites.UNKNOWN_CATEGORY, universe(912))["rejected"] == [
+    assert mockwrites.paste_plan(mockwrites.UNKNOWN_CATEGORY, universe(972))["rejected"] == [
         {"row": 1, "column": "cost_category", "code": "UNKNOWN_COST_CATEGORY"}
     ]
     unknown_role = [("Heures", "Ingénierie électrique", "Soudeur", "1")]
-    assert mockwrites.paste_plan(unknown_role, universe(912)) == {
-        "paste_id": universe(912),
+    assert mockwrites.paste_plan(unknown_role, universe(972)) == {
+        "paste_id": universe(972),
         "accepted": 0,
         "rejected": [{"row": 0, "column": "resource_role", "code": "UNKNOWN_RESOURCE_ROLE"}],
     }

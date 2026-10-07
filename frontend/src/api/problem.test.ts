@@ -286,7 +286,7 @@ describe("a read a screen cannot do without", () => {
 });
 
 describe("the decoder of a background task", () => {
-  const TASK_ID = "01926f3a-7c00-7000-8000-000000000901";
+  const TASK_ID = "01926f3a-7c00-7000-8000-000000000931";
 
   /** Read a task whose answer is the one given, as the API would send it. */
   function readTask(body: unknown) {

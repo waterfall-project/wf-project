@@ -108,9 +108,10 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
     expect(cell(LABOUR, "subproject")).toHaveTextContent(/^Poste de commande$/);
     expect(cell(PROVISION, "subproject")).toHaveTextContent(/^$/);
     expect(cell(DISBURSEMENT, "payment_delay_days")).toHaveTextContent(/^30$/);
-    expect(cell(LABOUR, "payment_delay_days")).toHaveTextContent(/^$/);
-    // A line of labour takes no payment delay (WF-DEV-0020); a disbursement does, a whole number
-    // of days, which the contract takes as an integer.
+    expect(cell(LABOUR, "payment_delay_days")).toHaveTextContent(/^0$/);
+    // A line of labour shows the delay the server gives, nought, without entering it — its node
+    // does not accept it —; a disbursement takes one, a whole number of days, which the contract
+    // takes as an integer.
     expect(cell(LABOUR, "payment_delay_days")).toHaveAttribute("aria-readonly", "true");
     cell(DISBURSEMENT, "payment_delay_days").focus();
     await userEvent.keyboard("{Enter}");

@@ -60,7 +60,6 @@ from wftools.mockwitness import (
     REGISTER,
     RISK_751_REVIEWED,
     RISKS_IDENTIFIED,
-    SUBPROJECT_CONTROL,
     TODAY,
     WIRING,
     Event,
@@ -127,7 +126,6 @@ SITE_TRIALS = Task(
             "Location du banc d'essais",
             EQUIPMENT,
             unit=Decimal("350.00"),
-            subproject=SUBPROJECT_CONTROL,
         ),
     ),
 )
@@ -196,12 +194,17 @@ def offer() -> tuple[Task, ...]:
     """Return the offer v1.0 as marked on 15 December 2025.
 
     The reference without the amendment 1, and before any risk was identified: without any line
-    of provision.
+    of provision. Nor any subproject: their codes come from the ERP with the order, on 15 January
+    2026, and the subprojects were declared after it (WF-PRJ-0050, ``subprojects``).
     """
 
     def change(task: Task) -> Task:
         lines = tuple(
-            replace(line, hours=OFFER_LABOUR_HOURS) if line.number == LABOUR else line
+            replace(
+                line,
+                subproject=None,
+                hours=OFFER_LABOUR_HOURS if line.number == LABOUR else line.hours,
+            )
             for line in task.lines
             if not line.is_provision and line.number != TESTS_LINE
         )
@@ -720,8 +723,10 @@ def examples() -> dict[str, JsonObject]:
             f"devis à l'année de référence, par nature — {_amount(Decimal(deltas[LABOR]))} de "
             f"main-d'œuvre, {_amount(Decimal(deltas[NON_LABOR]))} de débours, "
             f"{_amount(Decimal(deltas[PROVISION]))} de provisions — et par sous-projet, chaque "
-            f"poste nommé par son libellé (WF-REV-0080, WF-DAT-0030). {len(changed)} nœuds "
-            f"modifiés, {len(added)} ajoutés, {len(removed)} retirés.",
+            f"poste nommé par son libellé : l'offre n'en portait aucun, les sous-projets ayant "
+            f"été déclarés après la commande, et les lignes du poste de commande passent de "
+            f"l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050). "
+            f"{len(changed)} nœuds modifiés, {len(added)} ajoutés, {len(removed)} retirés.",
             compared,
         ),
         "risks.json": mocktext.example(

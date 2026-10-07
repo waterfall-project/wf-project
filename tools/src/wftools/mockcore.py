@@ -287,6 +287,16 @@ class Amounts:
         }
 
 
+def payment_delay(line: Line) -> int:
+    """Return the payment delay a line renders, in days: nought unless the witness gives one.
+
+    Every line of the estimate has a payment delay (WF-DEV-0020) — labour and a provision
+    included, paid as they are worked unless said otherwise —; the curve of the disbursements
+    shifts each line by the delay its node renders (WF-IND-0100).
+    """
+    return line.payment_delay_days
+
+
 def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) -> Amounts:
     """Return the amounts of a line: hours at the rate of its category, or its disbursement.
 
@@ -404,6 +414,7 @@ class _Emitter:
             "quantity": "1",
             "hours": None if line.hours is None else decimal(line.hours),
             "unit_disbursement": None if line.unit is None else money(line.unit),
+            "payment_delay_days": payment_delay(line),
             "subproject_id": line.subproject,
             "subproject_label": None if line.subproject is None else self.labels[line.subproject],
             **amounts.rendered(),

@@ -637,18 +637,11 @@ n'a été importé). Facultative, son absence se confondait avec « aucun import
 dit qu'aucun import n'a eu lieu d'une réponse conforme qui l'omettait (relevé par Copilot sur la
 PR #295). Exigée et nullable, `null` dit seul qu'il n'y a pas d'import.
 
-**Exemples** : `actual_costs` (au 4 mai 2026, quatre lignes hors sous-projet — les codes de
-sous-projet de l'ERP ne sont pas ceux du projet —, dont un avoir de -200 et la réception du
-client exclue du périmètre suivi ; 3 000 suivis, le coût réel de `remaining_indicators_over_budget`,
-650 exclus, 3 650 en tout ; le dernier import du 4 mai), `actual_costs_page` (la même
-consultation lue une ligne par page, la deuxième ; les totaux de toutes les lignes retenues),
-`actual_costs_subproject` (filtrée sur le Poste de commande, après l'import du 3 juin : une
-facture imputée au sous-projet, nommé), `actual_costs_empty` (aucun import) ; `cost_imports`
-(les imports de mars et d'avril, une ligne d'un autre projet ignorée), `cost_imports_periods`
-(le journal au 3 juin : trois extractions à la période incomplète, dont une réextraction qui
-ignore 12 345 lignes d'autres projets, puis les imports de mars et d'avril de `cost_imports`), `cost_imports_beyond` (une page demandée au-delà de la fin) et
+**Exemples** : `actual_costs`, `actual_costs_page`, `actual_costs_subproject` et
+`cost_imports` sont engendrés depuis la description du témoin, au 3 juin 2026 — voir « L'univers
+témoin : coûts, échanges, tâches, comptes (EP-02/L25) » ; restent écrits à la main
+`actual_costs_empty` (aucun import), `cost_imports_beyond` (une page demandée au-delà de la fin) et
 `cost_imports_empty`.
-Ils restent dans l'univers des indicateurs, sans coût réel au 16 mars (`project_indicators`).
 
 ## Le référentiel (US-0250/L1)
 
@@ -726,22 +719,10 @@ appliqué, abandonné ou expiré (WF-DAT-0120) — `FileUpload.filename` ne se r
 celui que l'utilisateur a envoyé, gardé tel quel. Écarté : renvoyer au dépôt par `upload_id`, qui ne
 se lit pas.
 
-**Exemples**, dans l'univers des autres : `file_upload` (le devis du Poste de commande déposé le
-1er juin 2026 à 8 h 40), `import_analysing` (son import ouvert, l'analyse en cours),
-`import_analysed` (le même analysé à 8 h 41 : cinq lignes lues — deux rejetées, une tâche et un
-rôle inconnus, « Essais de continuité » ajoutée, « Raccordement des borniers » modifiée, la
-provision inchangée —, et « Borniers », que le fichier ne porte plus, retirée ; il est de l'univers
-du devis de `nodes_estimate`, de la scission des univers témoins, #287), `import_planning_mismatch`
-(un planning MS Project tel qu'il se lisait le 20 mai à 10 h 16, analysé et pas encore abandonné,
-dont la durée des « Études de détail » diffère de celle que Waterfall recalcule, qui demande une
-confirmation explicite ; il est de l'univers des indicateurs et du planning, sa tâche étant
-0602 de `nodes.json`, #287), `imports` (au 1er juin : le devis qui attend sa
-confirmation, le planning abandonné, et les quatre extractions de coûts réels de
-`cost_imports_periods` antérieures au 1er juin, appliquées), `imports_page` (la même liste lue
-deux par deux, sa deuxième page) et `imports_empty` ;
-`task_export_queued` et `task_export_succeeded` (l'export du devis demandé à 9 h 10, abouti, son
-résultat à lire par la tâche). L'application de l'import du devis est `task_import_queued`, à
-9 h.
+**Exemples**, dans l'univers des autres : `file_upload`, `import_analysing`, `import_analysed`,
+`import_planning_mismatch`, `imports`, `imports_page`, `imports_empty`, `task_export_*` et
+`task_import_*`. Leurs instants et ce qu'ils visent sont recalés sur la chronologie du témoin par
+EP-02/L25 — voir sa section, « L'univers témoin : coûts, échanges, tâches, comptes ».
 
 ## Les exemples du portefeuille (US-0240/L3)
 
@@ -1956,6 +1937,111 @@ précédent, montant ni grandeurs, alors que la révision 101, marquée le 1er f
 cours, en est la revue précédente — celle dont `remaining_indicators` tire son écart à la révision
 précédente : renvoyé à EP-02/L26 (#375), où c'est noté. Les totaux de `listNodes` lu avec
 `kinds=task` sont ouverts en #487.
+
+## L'univers témoin : coûts, échanges, tâches, comptes (EP-02/L25)
+
+**Les coûts réels du témoin sont décrits une fois et engendrés** (#287, C3 ; WF-CRE-0010 à
+WF-CRE-0050). `wftools.mockwitness` décrit les six lignes de coût — pièce, date, montant signé,
+code de sous-projet lu dans l'OTP s'il en a un, colonnes conservées dans l'ordre que les imports
+déclarent (`PASSTHROUGH`), imports qui les ont apportées, exclusion — et les cinq imports du
+journal, aux instants de la chronologie (3 avril, 4, 6 et 11 mai, 3 juin) ; `wftools.mockcosts` en
+écrit `actual_costs`, `actual_costs_page`, `actual_costs_subproject` et `cost_imports`, que
+`tools/paths.toml` déclare engendrés. Ce qui s'en déduit est calculé : l'imputation d'une ligne
+(WF-CRE-0020), son audit — créée par le premier import qui l'apporte, mise à jour par la
+réextraction du 11 mai ou par son exclusion —, les trois totaux, les colonnes conservées de toutes
+les lignes retenues (`meta.passthrough_columns`, #414, ajouté au contrat par `ActualCostListMeta`
+comme EP-02/L35 le fait), la date du dernier import du journal, quel que soit le filtre, et les
+lignes créées, mises à jour et ignorées de chaque entrée du journal. Les indicateurs lisent les
+mêmes lignes en mémoire (`mockcosts.tracked`). **Le premier exemple de chaque lecture est le témoin
+aujourd'hui** : `actual_costs` passe du 4 mai au 3 juin, six lignes, 105 400,00 suivis, 650,00
+exclus ; `cost_imports` porte les cinq imports, et `cost_imports_periods`, qui les portait déjà,
+disparaît. Une ligne d'un autre projet est « rejetée et signalée au compte rendu » (WF-CRE-0020
+révisée) ; le journal la compte parmi les lignes ignorées, seul compte que WF-CRE-0050 lui donne.
+
+**La facture des études entre dans l'univers** (décision de l'auteur, revue d'EP-02/L25) :
+FA-2026-0409, 100 000 de sous-traitance datés du 10 avril, jour où les études de détail se
+terminent, sans partie sous-projet dans son OTP comme leur ligne 527, apportée par l'extraction
+d'avril du 4 mai. Son délai de paiement de trente jours décale le décaissement, non la date de la
+pièce. Le coût réel du projet vaut 105 400,00, l'indice de coût 0,9488 ; l'ensemble hors
+sous-projet dépasse son budget de 3 700,00 et passe en alerte, avec le Poste de commande. La
+marge sur le budget de référence, dans le sens qu'EP-02/L35 lui donne, passe de 93 900 à
+-6 100,00 pour `remaining_indicators` et de 94 100 à -5 900,00 après la réestimation du jour. Les
+résumés du reste à engager se construisent depuis `by_subproject` : chaque maille en alerte y est
+nommée avec son dépassement, et seules les autres sont dites nominales ; ils disent déjà « la marge
+sur le budget de référence » (le budget moins le coût réel et le reste à engager) et « l'écart à la
+revue précédente », le vocabulaire qu'EP-02/L35 adopte pour #466 — « écart » ne désigne plus le
+budget moins le prévu.
+
+**Les sous-projets suivent la commande** (WF-PRJ-0050) : leurs codes viennent de l'ERP avec la
+commande du 15 janvier 2026, et ils sont déclarés le 20 janvier. L'offre, marquée le 15 décembre
+2025, ne porte donc aucun sous-projet sur ses lignes (`mockhistory.offer`) : son devis conservé est
+tout entier hors sous-projet, et la comparaison de l'offre à la référence fait passer les lignes du
+Poste de commande de l'ensemble hors sous-projet au sien. `subprojects` dit le Poste de commande
+porteur d'un coût réel (`has_actual_costs`), écrit à la main — `subprojects` est lu par tous les
+générateurs — et confronté aux lignes par le test d'invariants.
+
+**Toute ligne rend son délai de paiement, que la courbe applique** (WF-DEV-0020, WF-IND-0100).
+`estimate_line.payment_delay_days` est rendu par `mockcore` sur chaque ligne du cœur : trente jours
+sur l'ingénierie de détail et sur les borniers, zéro sur les autres, main-d'œuvre et provision
+comprises. La lecture des indicateurs tire ses délais des nœuds qu'elle rend, et la courbe des
+décaissements les applique : une seule source, que le test d'invariants vérifie ligne à ligne. Les
+nœuds du volume ne le rendent pas encore (EP-02/L27).
+
+**Le calendrier 481 ne connaît pas de jour férié** : WF-REF-0110 dit qu'un calendrier « ne gère ni
+les jours fériés ni les temps partiels ». Le 25 décembre et le 1er janvier y sont des jours ouvrés,
+et la charge de la mise en service y travaille : rien n'est à corriger.
+
+**Les imports se lisent aujourd'hui** (WF-ARC-0100, WF-INTF-0080). Le devis du Poste de commande
+(a11), que le cadrage analysait le 1er juin — il aurait expiré avant aujourd'hui —, est ouvert et
+analysé ce matin à 8 h 41, applicable jusqu'à demain 8 h 41 : c'est lui qu'applique le parcours des
+échanges. `imports` passe au 3 juin à 14 h 05 : ce devis analysé, l'extraction de mai (a14)
+appliquée à 8 h 30, la nouvelle extraction d'avril analysée le 2 juin et expirée ce matin, jamais
+appliquée, le planning abandonné et les quatre premières extractions ; huit imports.
+`import_actual_costs_analysed` reste l'état que son analyse a laissé, un instant antérieur de la
+même chronologie ; `import_remaining_analysed`, la variante que la liste ne reprend pas. Un import
+expire vingt-quatre heures après son analyse, quelle que soit la lecture qui le dit. Les comptes
+rendus visent l'arbre : chaque lignée nommée est celle du cœur, à son libellé, chaque ligne de coût
+nommée une pièce du témoin.
+
+**Les tâches de fond sont les suites d'écritures faites aujourd'hui** (C5, cadrage de #287).
+Chaque exemple de tâche de fond est une suite possible, indépendante des autres, et non un
+moment d'une seule séquence : le marquage a une variante aboutie et une variante échouée, que rien
+n'enchaîne. Ainsi : le
+marquage demandé à 14 h 05, qui court à 40 % (`tasks_running`), abouti à 14 h 09 ou échoué à
+14 h 07 et relancé à 14 h 10 ; l'application de l'import du devis a11, confirmée à 14 h 06 ;
+l'export, demandé à 14 h 06 min 30 s. Chacune a son instant, dans les dix minutes qui suivent
+aujourd'hui : `test_mockhistory` admet nommément ces instants, bornés, et toute expiration à venir
+dans la journée — une session, un lien, un import —, l'inactivité d'une session dans les deux
+heures. **Les identifiants rejoignent leurs familles** (C16) : les tâches de fond 901 à 905, sur la
+plage des sauvegardes, deviennent 931 à 935 ; les collages 911 et 912 et la corrélation 913, 971 à
+973 ; les corrélations 921 à 927, 975 à 982, chacune dite par un seul exemple — les deux 921
+d'origine séparées. La liste des empiètements de `test_mockwitness` est vide ; la plage 960-999,
+partagée entre collages et corrélations, est notée pour EP-02/L27.
+
+**L'état du système et les sauvegardes sont au 3 juin** : composants vérifiés à 14 h 04 min 30 s,
+annuaire relu à 2 h, sauvegarde de 1 h, test de restauration du 1er juin ; les sept sauvegardes
+planifiées vont du 28 mai au 3 juin. La copie externe automatique d'une sauvegarde planifiée
+(WF-ADM-0170 révisée) n'a pas de paramètre dans `BackupSchedule` : #488.
+
+**Comptes, sessions et contributeurs distincts** (C6 ; WF-ADM-0050, WF-ADM-0110). La session du
+chiffreur est celle de Lucas Petit (305, rôle 705 « Chiffreur »), la session sans administration
+celle d'Inès Roux (306, rôle 706 « Pilotage de projet ») : deux comptes locaux listés dans `users`,
+deux rôles composés dans `access_roles`, les permissions d'une session étant l'union de celles de
+ses rôles. Ni l'un ni l'autre ne lit tous les projets : ils sont contributeurs de PRJ-001, Lucas
+Petit inscrit le 3 novembre 2025 au passage en chiffrage, Inès Roux le 15 janvier 2026 au passage
+en cours ; `contributors` en est à sa quatrième version. Les comptes, sessions et `me` de Camille
+Martin, comme `hourly_rate_entered` et `hourly_rate_corrected`, sont mis à jour le 3 juin à 14 h 05.
+
+**Deux réponses d'écriture ne rendent plus un nœud à une version sous deux contenus** (#421). Le
+collage suit la saisie du libellé de la ligne 4 des volumes : il la lit à la version 2 que la
+saisie lui a laissée, la rend à la version 3, et la structure passe à 4 ; de même la réestimation à
+10 h suit la saisie des 14 h (`estimate_line_updated`), la ligne passant à 3 et la structure à 3.
+Les tests du collage dans la grille suivent : la réponse la plus récente est désormais celle du
+collage, quel que soit l'ordre des réponses.
+
+**Ce que ce lot laisse.** La copie externe des sauvegardes, #488 ; le délai de paiement des nœuds
+du volume et la plage partagée des collages et corrélations, EP-02/L27 ; la ligne du témoin au
+portefeuille et les exemples du portefeuille datés du 16 mars, EP-02/L26.
 
 ## Collage et annulation
 
