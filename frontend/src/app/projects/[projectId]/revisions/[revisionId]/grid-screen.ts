@@ -179,7 +179,8 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
   const asked = settings.then((kept) => readGridQuery(at.address, grid.sortable, kept?.sort));
   const [structure, reading, preferences, query] = await Promise.all([
     mainStructure(at, grid, asked),
-    readProjectContext(at.pathname, at.context),
+    // The nodes are read for the filtered sub-project alone (`listNodes`): no date (#302).
+    readProjectContext(at.pathname, at.context, ["subproject_id"]),
     settings,
     asked,
   ]);

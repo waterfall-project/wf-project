@@ -87,8 +87,15 @@ en a besoin — saisie, état local, événements. Une donnée se lit côté ser
 le permet, et côté client par le client engendré, jamais en recopiant une réponse dans un
 état global.
 
+Un composant serveur ne prend pas d'identifiant de `useId` : il nomme une section par
+`aria-label` et un champ par un identifiant à lui. `useId` est pour les composants client.
+
 *Pourquoi* : moins de code envoyé au navigateur, et une seule source pour chaque donnée :
-la réponse de l'API. *Contrôle* : la revue.
+la réponse de l'API. Et les identifiants que React donne aux composants serveur d'une page et aux
+composants client de la coquille peuvent se rencontrer : la région du détail d'un risque s'est
+nommée d'après l'aide de la recherche de la coquille (#251). *Contrôle* : la revue ; `useId` dans
+un module sans `"use client"`, `src/components/use-id-guard.test.ts` (`make test-front`), qui
+cherche son import depuis `react`, alias compris, hors des commentaires.
 
 ### Accessibilité
 

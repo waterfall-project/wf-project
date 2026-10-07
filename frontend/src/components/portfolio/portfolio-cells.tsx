@@ -56,14 +56,12 @@ export function IndexCell({ index }: { readonly index: IndexValue | null | undef
     <span className="inline-flex items-center gap-1.5 tabular-nums">
       {zone === null ? null : <Signal zone={zone} variant="icon" />}
       {computed === null ? (
-        <span
-          className="truncate text-muted-foreground"
-          title={reason === null ? undefined : t(`enums.NotComputableReason.${reason}`)}
-        >
+        <span className="truncate text-muted-foreground">
           {t("indicator.notComputable")}
-          {/* Its reason, read with the cell; the pointer finds it in the title too. */}
+          {/* Its reason, seen and read with the cell, once: no `title`, which a screen reader
+              would read again as its description (#334). */}
           {reason === null ? null : (
-            <span className="sr-only">
+            <span className="text-xs">
               {t("portfolio.projects.reason", {
                 reason: t(`enums.NotComputableReason.${reason}`),
               })}

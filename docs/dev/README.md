@@ -379,11 +379,12 @@ l'ordre du catalogue, les permissions consécutives d'une même fonction de seco
 même nature hors fonction, groupées sous un en-tête de groupe (`scope="rowgroup"`), une colonne par
 rôle, accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification,
 sans aucune commande. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en
-porte et mène aux pages voisines par `offset` (`ListPages`, `offsetOf`), sans jamais montrer une
-page pour le tout ; elle ne se dit vide que si elle ne tient rien (`meta.total`), et une page
-demandée au-delà de sa fin le dit et ramène à la dernière. L'heure d'une sauvegarde planifiée
-s'affiche telle quelle, en UTC, comme le contrat la donne : une heure du jour n'a pas de date d'où
-tirer le décalage d'un fuseau à heure d'été.
+porte et mène aux pages voisines par `offset` (`AdminListPages`), les autres paramètres de l'adresse
+gardés, sans jamais montrer une page pour le tout ; elle ne se dit vide que si elle ne tient rien
+(`meta.total`), et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
+règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigation/pages.ts` (#317).
+L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
+heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été.
 
 L'écran des imports et exports, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
 US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte, comme
@@ -408,8 +409,8 @@ import. Chaque import est offert comme le projet offre sa commande (`importOffer
 révision en cours — sans elle, qui ne peut pas créer la révision voit l'import indisponible,
 `may_create_revision` nommée. Un projet sans révision n'a toutefois pas encore d'adresse qui mène
 à l'écran, de portée révision (#332). La liste des imports, paginée par le serveur (`offset`,
-`ListPages`), mène au compte rendu de chacun ; la demande d'export n'offre que les natures que la
-révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
+`ListPages` de `components/costs/cost-pages.tsx`), mène au compte rendu de chacun ; la demande
+d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
 l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
 a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet, à la route
@@ -1028,14 +1029,23 @@ ses paramètres, jamais une phrase.
   `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
   `problemMessage` ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
   (`params.conflicting_object_id`) nommé quand l'écran le connaît, par `names` ; sur 401, le
-  lien vers la connexion ; l'API injoignable annoncée, jamais un écran blanc. La connexion
+  lien vers la connexion ; l'API injoignable annoncée, jamais un écran blanc ; l'erreur
+  inattendue avec sa référence (`correlation_id`), comme l'écran de panne. Une action serveur
+  dont la promesse est rejetée n'a rendu aucun `Outcome` : le composant le tient par `rejected`
+  (`frontend/src/components/commands/rejection.ts`), une règle pour tous les écrans (#330) —
+  une `TypeError` est l'API injoignable : c'est ce que lève le `fetch` du navigateur rejeté, et
+  le navigateur ne la distingue pas d'une `TypeError` levée ailleurs, qui passe donc aussi pour
+  « injoignable » ; tout autre rejet se classe par son `digest`, comme l'écran de panne le classe
+  (`failureOf`) — l'API injoignable, la session perdue avec le lien vers la connexion, ou
+  l'erreur inattendue avec sa référence, celle-ci gardée seulement si elle a la forme d'un
+  `correlation_id` du contrat. La connexion
   est `/login?next=<chemin et requête de l'écran visé>` (`loginHref`,
   `frontend/src/navigation/login.ts`) : la page de connexion (US-0320), la session rouverte,
   mène à `returnTarget(next)`, qui ne suit qu'un chemin du front — ni `//hôte`, ni une
   adresse d'un autre site — et ramène sinon à l'accueil.
 
-  *Contrôles* : `make test-front` (`problem.test.ts`, `login.test.ts`) ; qu'une action
-  serveur passe par `decode`, la revue.
+  *Contrôles* : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
+  qu'une action serveur passe par `decode`, et qu'un rejet passe par `rejected`, la revue.
 - **Ajouter un code côté service** — *à écrire*, EP-03, qui crée le service.
 
 ## Clés de traduction

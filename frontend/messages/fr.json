@@ -512,6 +512,8 @@
     "subproject": "Sous-projet : {subproject}",
     "subprojectName": "{code} — {label}",
     "asOf": "Date de calcul : {date}",
+    "computedOn": "Révision du calcul",
+    "unnamedRevision": "sans nom",
     "removeFilter": "Lever le filtre « {filter} »"
   },
   "indicator": {
@@ -541,9 +543,7 @@
     },
     "elsewhere": {
       "title": "Calculé sur une autre révision",
-      "indicators": "Ces indicateurs sont calculés sur la révision « {revision} », et non sur celle que nomme le bandeau.",
-      "history": "L’évolution des indices est calculée sur la révision « {revision} », et non sur celle que nomme le bandeau.",
-      "unknown": "sans nom"
+      "history": "L’évolution des indices est calculée sur la révision « {revision} », et non sur celle des indicateurs."
     },
     "financial": {
       "title": "Avancement financier"
@@ -693,7 +693,8 @@
     "toggle": "{count, plural, =0 {Tâches de fond} one {Tâches de fond : # suivie} other {Tâches de fond : # suivies}}",
     "none": "Aucune tâche de fond suivie.",
     "download": "Télécharger le résultat",
-    "downloadLabel": "Télécharger le résultat : {task}"
+    "downloadLabel": "Télécharger le résultat : {task}",
+    "resultUnavailable": "Le résultat de cette tâche n’est plus disponible."
   },
   "markRevision": {
     "versionName": "Nom de version",
@@ -769,7 +770,6 @@
     "history": {
       "title": "Historique des révisions",
       "none": "Ce projet n’a aucune révision.",
-      "truncated": "Seules les {shown} révisions les plus récentes sont affichées, sur {total}.",
       "version": "Version",
       "status": "État",
       "markedAt": "Marquée le",

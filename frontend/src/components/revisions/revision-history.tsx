@@ -45,9 +45,8 @@ export function useRevisionName(): (revision: NamedRevision) => string {
 
 /** The history, and the context of the screen whose links it leads to. */
 export interface RevisionHistoryProps {
+  /** Every revision of the project, read whole (`readEveryPage`). */
   readonly revisions: readonly HistoryRevision[];
-  /** How many revisions the project has, which the server counts: more than shown is said. */
-  readonly total: number;
   /** The context of the screen: the revision it shows, and the filters its links carry on. */
   readonly context: ProjectContext;
 }
@@ -116,11 +115,8 @@ function HistoryRow({
   );
 }
 
-/**
- * Render the history of the revisions of a project, or that it has none; a history the server
- * counts longer than what is shown says so, never truncated in silence.
- */
-export function RevisionHistory({ revisions, total, context }: RevisionHistoryProps) {
+/** Render the history of the revisions of a project, or that it has none. */
+export function RevisionHistory({ revisions, context }: RevisionHistoryProps) {
   const t = useTranslations("revisionScreen.history");
   return (
     <ListSection
@@ -136,14 +132,6 @@ export function RevisionHistory({ revisions, total, context }: RevisionHistoryPr
           <HistoryRow key={revision.revision_id} revision={revision} context={context} />
         ))}
       </ListTable>
-      {total > revisions.length ? (
-        <p className="text-sm text-muted-foreground">
-          {t("truncated", {
-            shown: revisions.length.toString(),
-            total: total.toString(),
-          })}
-        </p>
-      ) : null}
     </ListSection>
   );
 }

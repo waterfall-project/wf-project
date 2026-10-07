@@ -182,7 +182,8 @@ export default async function ExchangesPage({
   const at = gridAddress(revision, search, "exchanges");
   const offset = readPage(at.address, EXCHANGES_PAGE);
   const [reading, imports, shown] = await Promise.all([
-    readProjectContext(at.pathname, at.context),
+    // The imports take neither a sub-project nor a date: the banner shows no filter (#302).
+    readProjectContext(at.pathname, at.context, []),
     readImports(at, offset),
     readShownImport(at),
   ]);

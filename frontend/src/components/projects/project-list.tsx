@@ -31,12 +31,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ALL_PROJECTS, CONTRIBUTOR_PARAMETER, HOME } from "@/navigation/home";
+import { type ListPage, pageHref, pageOffsets } from "@/navigation/pages";
 
 /** A project, as the list reads it. */
 export type ListedProject = components["schemas"]["Project"];
-
-/** Where the list stands in the projects the server holds for it. */
-export type ListPage = components["schemas"]["PaginationMeta"];
 
 const LINK = buttonVariants({ variant: "outline", size: "sm" });
 const CELL = "py-1.5";
@@ -102,36 +100,17 @@ export function ProjectTable({ projects }: { readonly projects: readonly ListedP
   );
 }
 
-/** The address of another page of the list, its filter kept. */
-function pageHref(filtered: boolean, offset: number): string {
-  const query = new URLSearchParams();
-  if (!filtered) {
-    query.set(CONTRIBUTOR_PARAMETER, "false");
-  }
-  if (offset > 0) {
-    query.set("offset", String(offset));
-  }
-  const text = query.toString();
-  return text === "" ? HOME : `${HOME}?${text}`;
-}
-
-/**
- * The page before the one shown: the one just before it, or the last page of the list when the
- * address asked for one beyond it.
- */
-function previousOffset(page: ListPage, beyond: boolean): number {
-  if (beyond) {
-    return Math.floor((page.total - 1) / page.limit) * page.limit;
-  }
-  return Math.max(0, page.offset - page.limit);
+/** The parameters a link to another page of the list keeps: its filter, when lifted. */
+function keptQuery(filtered: boolean): URLSearchParams {
+  return new URLSearchParams(filtered ? {} : { [CONTRIBUTOR_PARAMETER]: "false" });
 }
 
 /**
  * How many projects the list holds, and the links to the pages before and after this one, when
  * there are: the list never shows a page of it as if it were the whole. A page asked beyond the
- * end of the list says so, and leads back to its last page.
+ * end of the list says so, and leads back to its last page (`pageOffsets`).
  */
-export function ListPages({
+export function ProjectListPages({
   page,
   shown,
   filtered,
@@ -141,30 +120,27 @@ export function ListPages({
   readonly filtered: boolean;
 }) {
   const t = useTranslations("projectList");
-  const beyond = shown === 0 && page.offset >= page.total;
-  const before = page.offset > 0;
-  const after = page.offset + shown < page.total;
+  const { beyond, previous, next } = pageOffsets(page, shown);
+  const kept = keptQuery(filtered);
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <p className="text-muted-foreground">{t("count", { count: page.total })}</p>
       {beyond ? <p>{t("pages.beyond")}</p> : null}
-      {before || after ? (
+      {previous !== undefined || next !== undefined ? (
         <Pagination aria-label={t("pages.label")}>
           <PaginationContent>
-            {before ? (
+            {previous === undefined ? null : (
               <PaginationItem>
-                <PaginationPrevious href={pageHref(filtered, previousOffset(page, beyond))}>
+                <PaginationPrevious href={pageHref(HOME, kept, previous)}>
                   {t("pages.previous")}
                 </PaginationPrevious>
               </PaginationItem>
-            ) : null}
-            {after ? (
+            )}
+            {next === undefined ? null : (
               <PaginationItem>
-                <PaginationNext href={pageHref(filtered, page.offset + shown)}>
-                  {t("pages.next")}
-                </PaginationNext>
+                <PaginationNext href={pageHref(HOME, kept, next)}>{t("pages.next")}</PaginationNext>
               </PaginationItem>
-            ) : null}
+            )}
           </PaginationContent>
         </Pagination>
       ) : null}
@@ -192,7 +168,7 @@ export function ProjectList({
   return (
     <>
       {projects.length === 0 ? null : <ProjectTable projects={projects} />}
-      <ListPages page={page} shown={projects.length} filtered={filtered} />
+      <ProjectListPages page={page} shown={projects.length} filtered={filtered} />
     </>
   );
 }

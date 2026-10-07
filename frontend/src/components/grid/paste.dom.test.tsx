@@ -582,7 +582,11 @@ describe("a block pasted from a spreadsheet", () => {
   it("tells the API out of reach at the confirmation, the grid left as it was", async () => {
     const client = fakeClient(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied" },
-      { hold: (route) => (route === APPLY ? Promise.reject(new Error("down")) : undefined) },
+      {
+        // The browser could not reach the server of Next: its `fetch` rejected (`rejected`).
+        hold: (route) =>
+          route === APPLY ? Promise.reject(new TypeError("Failed to fetch")) : undefined,
+      },
     );
     server.client = client;
     renderGrid();

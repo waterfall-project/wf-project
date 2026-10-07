@@ -4,8 +4,8 @@
  * The settings of the resources (FBS-3.2, US-0250), outside any project: the organisation
  * (FBS-3.2.1), the resource roles (FBS-3.2.2), the calendars (FBS-3.2.3) and the constants the
  * units of duration convert by, under the same permission as the calendars (WF-PLA-0160). Each
- * object names those it is attached to as the server resolves them. Every figure as the API gives it. A read the API refuses, or cannot answer, is thrown for
- * the pages of the shell to say.
+ * object names those it is attached to as the server resolves them. Every figure as the API gives
+ * it. A read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";

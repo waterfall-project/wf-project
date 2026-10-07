@@ -143,7 +143,7 @@ function useComputedOn(): (workload: WorkloadPlan, known: readonly Revision[]) =
     }
     return context.revision_status === "draft"
       ? t("contextBanner.currentRevision")
-      : t("projectIndicators.elsewhere.unknown");
+      : t("contextBanner.unnamedRevision");
   };
 }
 

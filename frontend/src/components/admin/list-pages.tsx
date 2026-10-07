@@ -4,13 +4,13 @@
  * The way through the pages of a list of the administration the server pages — the accounts, the
  * backups —: how many the list holds, and the links to the page before and the page after the one
  * shown, when there are, by the pagination of shadcn/ui. A list never shows one of its pages as if
- * it were the whole; a page asked beyond its end says so, and leads back to its last page. The page
- * is asked by its `offset`, as the contract names it (`offsetOf`). A list that holds nothing says
- * so itself: its pages say nothing.
+ * it were the whole; a page asked beyond its end says so, and leads back to its last page
+ * (`pageOffsets`). The page is asked by its `offset`, as the contract names it, the other
+ * parameters of the address kept by the links (#317). A list that holds nothing says so itself:
+ * its pages say nothing.
  */
 import { useTranslations } from "next-intl";
 
-import type { components } from "@/api/generated/schema";
 import {
   Pagination,
   PaginationContent,
@@ -18,27 +18,27 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { type ListPage, pageHref, pageOffsets } from "@/navigation/pages";
 
 /** Where a page of a list stands in it, as the server says. */
-export type ListPage = components["schemas"]["PaginationMeta"];
-
-/** The address of a page of the list of a screen. */
-function pageHref(path: string, offset: number): string {
-  return offset > 0 ? `${path}?offset=${String(offset)}` : path;
-}
+export type { ListPage } from "@/navigation/pages";
 
 /**
  * How many the list holds — the sentence given —, and the links to the pages before and after
- * this one, when there are.
+ * this one, when there are, the other parameters of the address — its filters, when it has —
+ * kept.
  */
-export function ListPages({
+export function AdminListPages({
   path,
+  query,
   page,
   shown,
   count,
 }: {
   /** The address of the screen of the list. */
   readonly path: string;
+  /** The parameters of the address of the screen, which the links keep. */
+  readonly query: URLSearchParams;
   readonly page: ListPage;
   /** How many of the list this page shows. */
   readonly shown: number;
@@ -50,34 +50,26 @@ export function ListPages({
     // The list holds nothing, which the list itself says.
     return null;
   }
-  const beyond = shown === 0 && page.offset >= page.total && page.total > 0;
-  const before = page.offset > 0;
-  const after = page.offset + shown < page.total;
-  // The page before: the one just before, or the last page when the address asked one beyond.
-  const previous = beyond
-    ? Math.floor((page.total - 1) / page.limit) * page.limit
-    : Math.max(0, page.offset - page.limit);
+  const { beyond, previous, next } = pageOffsets(page, shown);
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <p className="text-muted-foreground">{count}</p>
       {beyond ? <p>{t("beyond")}</p> : null}
-      {before || after ? (
+      {previous !== undefined || next !== undefined ? (
         <Pagination aria-label={t("label")} className="mx-0 w-auto">
           <PaginationContent>
-            {before ? (
+            {previous === undefined ? null : (
               <PaginationItem>
-                <PaginationPrevious href={pageHref(path, previous)}>
+                <PaginationPrevious href={pageHref(path, query, previous)}>
                   {t("previous")}
                 </PaginationPrevious>
               </PaginationItem>
-            ) : null}
-            {after ? (
+            )}
+            {next === undefined ? null : (
               <PaginationItem>
-                <PaginationNext href={pageHref(path, page.offset + shown)}>
-                  {t("next")}
-                </PaginationNext>
+                <PaginationNext href={pageHref(path, query, next)}>{t("next")}</PaginationNext>
               </PaginationItem>
-            ) : null}
+            )}
           </PaginationContent>
         </Pagination>
       ) : null}

@@ -29,6 +29,7 @@ import { useTranslations } from "next-intl";
 import { type ComponentProps, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import { rejected } from "@/components/commands/rejection";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
@@ -49,9 +50,6 @@ export type ComputedColumn<Row, Sort extends string, Totals> = GridColumn<Row, S
 
 /** The content of the cell: the whole of it, the mark at its start and the value at its end. */
 const MARKED = "flex w-full min-w-0 items-center justify-between gap-0.5";
-
-/** The API out of reach: the server action itself did not answer — the network is down. */
-const UNREACHABLE: Outcome<ComputedDependencies> = { kind: "unreachable" };
 
 /**
  * Ask the server what the value of a field of a row depends on, while the refusal is open and
@@ -99,8 +97,8 @@ function useDependencies<Row>(
         setAnswer({ reading: reader.reading, id, field, opening, outcome });
       }
     };
-    void reader.read(id, field).then(answered, () => {
-      answered(UNREACHABLE);
+    void reader.read(id, field).then(answered, (error: unknown) => {
+      answered(rejected(error));
     });
     return () => {
       live = false;

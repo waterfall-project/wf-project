@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient, Unreachable } from "@/api/client";
 import { SignedOut, UnexpectedAnswer } from "@/api/problem";
-import { readContext } from "@/navigation/context";
+import { CONTEXT_PARAMETERS, type ContextParameter, readContext } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { readAddress, readProject, readProjectContext } from "./reading";
@@ -59,10 +59,10 @@ function request(answers: FakeAnswers = {}) {
   server.client = fake;
 }
 
-/** Read the context of an address. */
-function read(address: string) {
+/** Read the context of an address, for a screen that reads every parameter of the context. */
+function read(address: string, reads: readonly ContextParameter[] = CONTEXT_PARAMETERS) {
   const [pathname = "", query = ""] = address.split("?");
-  return readAddress(pathname, new URLSearchParams(query));
+  return readAddress(pathname, new URLSearchParams(query), reads);
 }
 
 beforeEach(() => {
@@ -117,6 +117,23 @@ describe("what a screen of a project reads in", () => {
     });
   });
 
+  it("holds the filters the screen reads alone, and reads no sub-project for a screen that reads none [WF-IHM-0020-A]", async () => {
+    // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres — on an address whose
+    // parameters the screen reads; a workload or a lifecycle reads neither, and shows no chip (#302).
+    const address = `${LIFECYCLE}?as_of=2026-05-31&subproject_id=${SUBPROJECT}`;
+    expect(await read(address, [])).toMatchObject({ filters: [] });
+    expect(fake.calls.map((call) => call.route)).toEqual(["GET /projects/{project_id}"]);
+    expect(await read(address, ["as_of"])).toMatchObject({
+      filters: [{ name: "as_of", value: "2026-05-31" }],
+    });
+    expect(fake.calls.some((call) => call.route === "GET /projects/{project_id}/subprojects")).toBe(
+      false,
+    );
+    expect(await read(address, ["subproject_id"])).toMatchObject({
+      filters: [{ name: "subproject_id", value: SUBPROJECT, subproject: { code: "SP-CMD" } }],
+    });
+  });
+
   it("reads no sub-project for what belongs to none, nor names one the project lacks", async () => {
     const unassigned = await read(`${LIFECYCLE}?subproject_id=unassigned`);
     expect(unassigned).toMatchObject({
@@ -157,9 +174,9 @@ describe("what a screen of a project reads in", () => {
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
     const context = readContext(REMAINING, new URLSearchParams());
-    await expect(context && readProjectContext(REMAINING, context)).rejects.toBeInstanceOf(
-      Unreachable,
-    );
+    await expect(
+      context && readProjectContext(REMAINING, context, CONTEXT_PARAMETERS),
+    ).rejects.toBeInstanceOf(Unreachable);
   });
 
   it.each([502, 503, 504])(
@@ -178,9 +195,9 @@ describe("what a screen of a project reads in", () => {
       });
       const search = new URLSearchParams({ subproject_id: SUBPROJECT });
       const context = readContext(REMAINING, search);
-      await expect(context && readProjectContext(REMAINING, context)).rejects.toBeInstanceOf(
-        Unreachable,
-      );
+      await expect(
+        context && readProjectContext(REMAINING, context, CONTEXT_PARAMETERS),
+      ).rejects.toBeInstanceOf(Unreachable);
     },
   );
 
@@ -202,7 +219,7 @@ describe("what a screen of a project reads in", () => {
         ),
     });
     const context = readContext(LIFECYCLE, new URLSearchParams());
-    const failure = context && readProjectContext(LIFECYCLE, context);
+    const failure = context && readProjectContext(LIFECYCLE, context, CONTEXT_PARAMETERS);
     await expect(failure).rejects.toBeInstanceOf(UnexpectedAnswer);
     await expect(failure).rejects.toMatchObject({
       status: 503,

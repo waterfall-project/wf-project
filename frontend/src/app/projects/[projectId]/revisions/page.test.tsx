@@ -5,15 +5,8 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type HistoryRevision, RevisionHistory } from "@/components/revisions/revision-history";
 import { CATALOGUES } from "@/i18n/catalogues";
-import {
-  example,
-  type FakeAnswers,
-  type FakeCall,
-  type FakeClient,
-  fakeClient,
-} from "@/test/fixtures";
+import { type FakeAnswers, type FakeCall, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import RevisionsPage, { generateMetadata } from "./page";
 
@@ -135,7 +128,10 @@ describe("the screen of the revisions of a project", () => {
 
   it("lists the revisions in the order of the server, each with the attributes the API gives", async () => {
     const page = html(await RevisionsPage(at()));
-    expect(callTo("GET /projects/{project_id}/revisions")?.query.get("limit")).toBe("500");
+    // The history is read whole, by the largest page the contract takes (#303).
+    expect(Object.fromEntries(callTo("GET /projects/{project_id}/revisions")?.query ?? [])).toEqual(
+      { limit: "500", offset: "0" },
+    );
     expect(table(page, "Historique des révisions")).toBe(
       "Version État Marquée le Description Consultation " +
         "Référence Référence Marquée Ouvrir " +
@@ -170,25 +166,6 @@ describe("the screen of the revisions of a project", () => {
     );
     expect(links(current.join(""))).toEqual([`${REVISIONS}?revision_id=${DRAFT}&${filter}`]);
     expect(page).toContain('aria-label="Ouvrir la révision «\u00a0Offre v1.0\u00a0»"');
-  });
-
-  it("says how many revisions the server counts when more than shown — never truncated in silence", () => {
-    const { items } = example("revisions") as { items: HistoryRevision[] };
-    const context = {
-      projectId: PROJECT,
-      revisionId: undefined,
-      revisionInPath: false,
-      parameters: new URLSearchParams(),
-    };
-    const page = html(<RevisionHistory revisions={items} total={12} context={context} />);
-    expect(text(page)).toContain(
-      "Seules les 3 révisions les plus récentes sont affichées, sur 12.",
-    );
-    // The whole history shown says nothing of a truncation.
-    const whole = html(
-      <RevisionHistory revisions={items} total={items.length} context={context} />,
-    );
-    expect(text(whole)).not.toContain("Seules les");
   });
 
   it("says a project has no revision, and offers no comparison", async () => {

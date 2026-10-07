@@ -9,7 +9,9 @@
  * (`not-found.tsx`). The API out of reach is announced by the screen of failure
  * (`error.tsx`).
  *
- * A function of a project shows the banner of its reading context above it (WF-IHM-0020).
+ * A function of a project shows the banner of its reading context above it (WF-IHM-0020), every
+ * filter the address carries in it: the screen to come will declare the parameters its reads take
+ * (#302); until then, the banner shows what the address carries on to it.
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -18,7 +20,7 @@ import { ContextBanner } from "@/components/context/context-banner";
 import { readAddress } from "@/components/context/reading";
 import { ComingSoon } from "@/components/shell/coming-soon";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { type PageSearchParams, pageSearch } from "@/navigation/context";
+import { CONTEXT_PARAMETERS, type PageSearchParams, pageSearch } from "@/navigation/context";
 import { findScreen } from "@/navigation/functions";
 
 import { screenMetadata } from "../title";
@@ -54,7 +56,7 @@ export default async function ScreenPage({
   const read =
     screen.projectId === undefined
       ? undefined
-      : await readAddress(`/${path.join("/")}`, pageSearch(search));
+      : await readAddress(`/${path.join("/")}`, pageSearch(search), CONTEXT_PARAMETERS);
   if (read === "not_found") {
     notFound();
   }

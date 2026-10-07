@@ -7,8 +7,9 @@
  * (`getProjectWorkload`) on the basis, the marked revision and the node of organisation the
  * address asks — the server filters, the front computes nothing —, the capacity of each role
  * against it, and its export as a PNG image (WF-IHM-0130). The choice offers the bases the project
- * admits, the marked revisions of the project (`listRevisions`, `status=marked`) and the nodes of
- * organisation (`listOrgNodes`).
+ * admits, the marked revisions of the project — every one of them, whatever the server pages
+ * (`listRevisions`, `status=marked`, `readEveryPage`, #303) — and the nodes of organisation
+ * (`listOrgNodes`).
  *
  * A basis the API refuses — a project without a reference revision (409), a marked revision
  * missing or not marked (422) — is said unavailable, and why, the rest of the screen shown. Any
@@ -19,6 +20,7 @@ import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { readEveryPage } from "@/api/every-page";
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
@@ -98,13 +100,13 @@ async function readWorkload({ revision }: GridAddress, asked: WorkloadAsked) {
       client.GET("/projects/{project_id}/workload", { params: { path, query } }),
     ),
     readOrFail("listOrgNodes", () => client.GET("/reference/org-nodes")),
-    readOrFail("listRevisions", () =>
+    readEveryPage("listRevisions", (page) =>
       client.GET("/projects/{project_id}/revisions", {
-        params: { path, query: { status: ["marked"] } },
+        params: { path, query: { status: ["marked"], ...page } },
       }),
     ),
   ]);
-  return { workload: workload satisfies WorkloadRead, orgNodes, marked: marked.items };
+  return { workload: workload satisfies WorkloadRead, orgNodes, marked };
 }
 
 /**
@@ -171,7 +173,9 @@ export default async function WorkloadPage({
   const at = gridAddress(revision, search, "workload");
   const asked = workloadAsked(at.address);
   const [reading, read] = await Promise.all([
-    readProjectContext(at.pathname, at.context),
+    // The workload takes neither a sub-project nor a date (`getProjectWorkload`): the banner shows
+    // no filter, and the figure is dated by its own calculation (#302).
+    readProjectContext(at.pathname, at.context, []),
     readWorkload(at, asked),
   ]);
   if (reading === "not_found") {

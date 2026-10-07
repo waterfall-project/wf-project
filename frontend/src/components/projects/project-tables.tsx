@@ -6,8 +6,9 @@
  * (WF-PRJ-0050); its contributors, the project manager told from the others, and whether their
  * account is still active (WF-PRJ-0060); the history of its states, each transition dated when it
  * occurred, by whom, and with the motive given to confirm an exit, if any (WF-CYC-0130). Each
- * table is a section under its title; an empty list says it is. Nothing is offered to create or
- * modify: those forms belong to the epic of their domain.
+ * table is a section under its title — named by `aria-label`, never by an identifier of `useId`,
+ * which a server component may share with a client one of the shell (#251) —; an empty list says
+ * it is. Nothing is offered to create or modify: those forms belong to the epic of their domain.
  */
 import {
   ArrowRight,
@@ -21,7 +22,7 @@ import {
   UserX,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId } from "react";
+import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
@@ -57,10 +58,9 @@ export function ListSection({
   readonly empty: string | undefined;
   readonly children: ReactNode;
 }) {
-  const id = useId();
   return (
-    <section aria-labelledby={id} className="space-y-2">
-      <h2 id={id} className="flex items-center gap-2 text-base font-semibold">
+    <section aria-label={title} className="space-y-2">
+      <h2 className="flex items-center gap-2 text-base font-semibold">
         <Icon aria-hidden="true" className={ICON} />
         {title}
       </h2>

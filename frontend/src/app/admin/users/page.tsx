@@ -14,11 +14,12 @@ import { useTranslations } from "next-intl";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
-import { ListPages, type ListPage } from "@/components/admin/list-pages";
+import { AdminListPages, type ListPage } from "@/components/admin/list-pages";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { offsetOf, type PageSearchParams, pageSearch } from "@/navigation/context";
+import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { functionOf } from "@/navigation/functions";
+import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
 
 import { screenMetadata } from "../../title";
 
@@ -36,11 +37,20 @@ function UsersHeader() {
 }
 
 /** How many accounts the list holds, and the way through its pages. */
-function UserPages({ page, shown }: { readonly page: ListPage; readonly shown: number }) {
+function UserPages({
+  query,
+  page,
+  shown,
+}: {
+  readonly query: URLSearchParams;
+  readonly page: ListPage;
+  readonly shown: number;
+}) {
   const t = useTranslations("admin.users");
   return (
-    <ListPages
+    <AdminListPages
       path={functionOf("users").route}
+      query={query}
       page={page}
       shown={shown}
       count={t("count", { count: page.total })}
@@ -54,7 +64,8 @@ export default async function UsersPage({
 }: {
   searchParams: Promise<PageSearchParams>;
 }) {
-  const offset = offsetOf(pageSearch(await searchParams).get("offset"));
+  const query = searchQuery(await searchParams);
+  const offset = offsetOf(query.get(OFFSET_PARAMETER));
   const users = await readOrFail("listUsers", () =>
     serverClient().GET("/users", {
       params: { query: { include_inactive: true, ...(offset === undefined ? {} : { offset }) } },
@@ -64,7 +75,7 @@ export default async function UsersPage({
     <Screen density={FUNCTION_DENSITY.users}>
       <UsersHeader />
       <UserList users={users.items} page={users.meta} />
-      <UserPages page={users.meta} shown={users.items.length} />
+      <UserPages query={query} page={users.meta} shown={users.items.length} />
     </Screen>
   );
 }

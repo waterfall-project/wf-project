@@ -12,12 +12,13 @@ import { useTranslations } from "next-intl";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { ListPages, type ListPage } from "@/components/admin/list-pages";
+import { AdminListPages, type ListPage } from "@/components/admin/list-pages";
 import { BackupList, BackupScheduleFacts } from "@/components/admin/platform-lists";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { offsetOf, type PageSearchParams, pageSearch } from "@/navigation/context";
+import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { functionOf } from "@/navigation/functions";
+import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
 
 import { screenMetadata } from "../../title";
 
@@ -39,11 +40,20 @@ function BackupsHeader() {
 }
 
 /** How many backups the list holds, and the way through its pages. */
-function BackupPages({ page, shown }: { readonly page: ListPage; readonly shown: number }) {
+function BackupPages({
+  query,
+  page,
+  shown,
+}: {
+  readonly query: URLSearchParams;
+  readonly page: ListPage;
+  readonly shown: number;
+}) {
   const t = useTranslations("admin.backups");
   return (
-    <ListPages
+    <AdminListPages
       path={functionOf("backups").route}
+      query={query}
       page={page}
       shown={shown}
       count={t("count", { count: page.total })}
@@ -57,7 +67,8 @@ export default async function BackupsPage({
 }: {
   searchParams: Promise<PageSearchParams>;
 }) {
-  const offset = offsetOf(pageSearch(await searchParams).get("offset"));
+  const query = searchQuery(await searchParams);
+  const offset = offsetOf(query.get(OFFSET_PARAMETER));
   const client = serverClient();
   const [schedule, backups] = await Promise.all([
     readOrFail("getBackupSchedule", () => client.GET("/backup-schedule")),
@@ -70,7 +81,7 @@ export default async function BackupsPage({
       <BackupsHeader />
       <BackupScheduleFacts schedule={schedule} />
       <BackupList backups={backups.items} page={backups.meta} />
-      <BackupPages page={backups.meta} shown={backups.items.length} />
+      <BackupPages query={query} page={backups.meta} shown={backups.items.length} />
     </Screen>
   );
 }

@@ -4,14 +4,17 @@
  * The banner of the reading context, on every screen of the data of a project (WF-IHM-0020):
  * the project, the revision read — its version name, its status, whether it is the reference
  * —, that it is read only when it is, and the active filters as chips, visible without
- * opening any panel, each with a link that lifts it. An icon before each fact, whose name the
- * list of definitions gives to a screen reader; the states in badges, in words.
+ * opening any panel, each with a link that lifts it; and, when the figures of the screen are
+ * computed on another revision than the one the address names — a date `as_of` reads the last
+ * marked revision before it —, the revision of the calculation (`CalculationContext.revision_id`),
+ * named as the screen read it (#363). An icon before each fact, whose name the list of definitions
+ * gives to a screen reader; the states in badges, in words.
  *
  * A server component: what it shows is the reading of the page, and a filter is lifted by
  * following a link, not by a state of the browser. It hands the project on to the shell, which
  * names it in its side bar and its breadcrumb (`ShowProject`).
  */
-import { Filter, Folder, GitBranch, Lock, X } from "lucide-react";
+import { Calculator, Filter, Folder, GitBranch, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -24,9 +27,24 @@ import { UNASSIGNED, withoutFilter } from "@/navigation/context";
 import type { Revision } from "./read-only";
 import type { ContextFilter, ProjectReading, Subproject } from "./reading";
 
+/**
+ * A revision a calculation was made on (`CalculationContext.revision_id`), as the screen read it:
+ * its version name, `null` for the revision under way, `undefined` when the API does not find it.
+ */
+export interface ComputedRevision {
+  readonly revisionId: string;
+  readonly versionName: string | null | undefined;
+}
+
 /** What the banner shows: the reading of the screen. */
 export interface ContextBannerProps {
   readonly reading: ProjectReading;
+  /**
+   * The revision the figures of the screen are computed on, when the calculation context names
+   * another than the address: the banner names it, so that no value is taken for one of the
+   * revision shown.
+   */
+  readonly computedOn?: ComputedRevision | undefined;
 }
 
 const FACT = "flex items-center gap-1.5";
@@ -85,8 +103,27 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
   );
 }
 
+/** The revision the figures are computed on, when it is not the one shown. */
+function ComputedOnFacts({ computedOn }: { readonly computedOn: ComputedRevision }) {
+  const t = useTranslations("contextBanner");
+  const { versionName } = computedOn;
+  return (
+    <div className={FACT}>
+      <dt>
+        <Calculator aria-hidden="true" className={ICON} />
+        <span className="sr-only">{t("computedOn")}</span>
+      </dt>
+      <dd>
+        <Badge variant="outline">
+          {versionName === undefined ? t("unnamedRevision") : (versionName ?? t("currentRevision"))}
+        </Badge>
+      </dd>
+    </div>
+  );
+}
+
 /** Render the reading context of a screen of a project. */
-export function ContextBanner({ reading }: ContextBannerProps) {
+export function ContextBanner({ reading, computedOn }: ContextBannerProps) {
   const t = useTranslations();
   const filterText = useFilterText();
   const { project, revision, readOnly, filters } = reading;
@@ -112,6 +149,9 @@ export function ContextBanner({ reading }: ContextBannerProps) {
           <dd className="font-medium">{project.label}</dd>
         </div>
         {revision === undefined ? null : <RevisionFacts revision={revision} />}
+        {computedOn === undefined || computedOn.revisionId === revision?.revision_id ? null : (
+          <ComputedOnFacts computedOn={computedOn} />
+        )}
       </dl>
       {readOnly ? (
         <p className={`${FACT} font-medium`}>

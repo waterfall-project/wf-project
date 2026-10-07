@@ -10,7 +10,9 @@
  *
  * Every one is an alert: it follows a command the user just gave, and is announced at once. A
  * screen where the work goes on after a refusal — the cells of a grid entered one after the
- * other — lets the user dismiss it (#189): told until then, whatever succeeds after it.
+ * other — lets the user dismiss it (#189): told until then, whatever succeeds after it. The
+ * unexpected error of the service — or of a server action that threw (`rejection.ts`) — shows its
+ * reference, as the screen of failure does, for the operator to find it in the logs (WF-OBS-0020).
  */
 "use client";
 
@@ -105,6 +107,7 @@ export function OutcomeNotice({
   onDismissed,
 }: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
+  const failure = useTranslations("failure");
   const locale = useLocale();
   const messages = useMessages();
   if (outcome === undefined || outcome.kind === "done") {
@@ -128,12 +131,16 @@ export function OutcomeNotice({
   }
   const { kind, problem, conflictingObjectId } = outcome;
   const name = conflictingObjectId === null ? undefined : names[conflictingObjectId];
+  // The unexpected error shows its reference, as the screen of failure does (WF-OBS-0020): the
+  // correlation identifier of the API, or the reference of a server action that threw (`rejected`).
+  const reference = problem.code === "INTERNAL_ERROR" ? problem.correlation_id : undefined;
   return (
     <div role="alert" className={ALERT}>
       <p className={SENTENCE}>
         <CircleAlert aria-hidden="true" className={ICON} />
         {problemMessage(problem, { locale, messages })}
       </p>
+      {reference === undefined ? null : <p>{failure("reference", { reference })}</p>}
       {name === undefined ? null : <p>{t("conflictingObject", { name })}</p>}
       {kind === "signed_out" ? <SignIn /> : null}
       {kind === "stale" ? <Reload onClear={onClear} /> : null}

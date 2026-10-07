@@ -114,26 +114,41 @@ export function diagnosticGroups(): FunctionGroup[] {
   })).filter((group) => group.functions.length > 0);
 }
 
-/** A leaf of the table, by its code: a function the navigation does not offer. */
-export function leafOf(code: string): NavigationFunction {
-  const found = FUNCTION_GROUPS.flatMap((group) => group.functions)
-    .flatMap((fn) => fn.leaves ?? [])
-    .find((leaf) => leaf.code === code);
-  if (found === undefined) {
-    throw new Error(`no leaf of the table is ${code}`);
-  }
-  return found;
+/** The functions of the table, those of the second level of the FBS. */
+function functions(): readonly NavigationFunction[] {
+  return FUNCTION_GROUPS.flatMap((group) => group.functions);
 }
 
-/** The function of the table whose permissions bear a name. */
+/**
+ * What the table has not where the front asked for something: a defect of the table or of the
+ * code, never of the data — `functions.test.ts` holds the table against the catalogues and the FBS.
+ *
+ * One convention for searching the table (#317): each `…Of` finds a function the code names and
+ * throws through here when the table has none, a miss being a defect; `functionAt` alone gives
+ * `undefined`, for a code that comes from the data (`Permission.fbs_code`).
+ */
+function missing(what: string): never {
+  throw new Error(`the table of functions has no ${what}`);
+}
+
+/** The function of the table whose permissions bear a name — `planning`, `cost_settings`. */
 export function functionOf(permission: FunctionPermission): NavigationFunction {
-  const found = FUNCTION_GROUPS.flatMap((group) => group.functions).find(
-    (fn) => fn.permission === permission,
+  return (
+    functions().find((fn) => fn.permission === permission) ??
+    missing(`function reading with ${permission}.read`)
   );
-  if (found === undefined) {
-    throw new Error(`no function of the table reads with ${permission}.read`);
-  }
-  return found;
+}
+
+/**
+ * A leaf of the table, by its code of the FBS — `FBS-4.3.4` —: a function the navigation does not
+ * offer, reached from the screen of its function.
+ */
+export function leafOf(code: string): NavigationFunction {
+  return (
+    functions()
+      .flatMap((fn) => fn.leaves ?? [])
+      .find((leaf) => leaf.code === code) ?? missing(`leaf ${code}`)
+  );
 }
 
 /**
@@ -143,7 +158,7 @@ export function functionOf(permission: FunctionPermission): NavigationFunction {
  * found, nor is a block of the first level.
  */
 export function functionAt(code: string): NavigationFunction | undefined {
-  return FUNCTION_GROUPS.flatMap((group) => group.functions).find((fn) => fn.code === code);
+  return functions().find((fn) => fn.code === code);
 }
 
 /**
@@ -203,7 +218,7 @@ function follows(route: readonly string[], segments: readonly string[]): boolean
 
 /** The function the segments of an address lead to, or `undefined` when none does. */
 export function findScreen(segments: readonly string[]): Screen | undefined {
-  const screens = FUNCTION_GROUPS.flatMap((group) => group.functions).flatMap((fn) => [
+  const screens = functions().flatMap((fn) => [
     { fn, parent: undefined },
     ...(fn.leaves ?? []).map((leaf) => ({ fn: leaf, parent: fn })),
   ]);

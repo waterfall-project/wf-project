@@ -85,12 +85,13 @@ describe("the exports a revision offers", () => {
 
 describe("the address of the report of an import", () => {
   it("keeps the context of the screen, and names the import", () => {
-    expect(importHref("/projects/p/exchanges?revision_id=r", "i")).toBe(
-      "/projects/p/exchanges?revision_id=r&import=i",
+    // The screen is the leaf FBS-4.3.4 under the revision: the revision is in the path, the
+    // filters of the context in the query.
+    const screen = "/projects/p/revisions/r/exchanges";
+    expect(importHref(`${screen}?as_of=2026-05-31`, "i")).toBe(
+      `${screen}?as_of=2026-05-31&import=i`,
     );
-    expect(importHref("/projects/p/exchanges?import=old", "i")).toBe(
-      "/projects/p/exchanges?import=i",
-    );
-    expect(importHref("/projects/p/exchanges", "i")).toBe("/projects/p/exchanges?import=i");
+    expect(importHref(`${screen}?import=old`, "i")).toBe(`${screen}?import=i`);
+    expect(importHref(screen, "i")).toBe(`${screen}?import=i`);
   });
 });

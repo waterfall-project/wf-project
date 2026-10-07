@@ -19,7 +19,6 @@
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useId } from "react";
 
 import { FUNCTION_ICONS } from "@/components/shell/function-display";
 
@@ -215,15 +214,12 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
 /** Render what the screen of the estimate says above its grid. */
 export function EstimateSummary({ indicators, missingRates, permissions }: EstimateSummaryProps) {
   const t = useTranslations("estimateSummary");
-  const heading = useId();
   return (
     <div className="space-y-3">
       <MissingRatesNotice missingRates={missingRates} permissions={permissions} />
-      <section aria-labelledby={heading} className="space-y-1.5 text-sm">
+      <section aria-label={t("title")} className="space-y-1.5 text-sm">
         <div className="flex flex-wrap items-baseline gap-x-3">
-          <h2 id={heading} className="text-sm font-semibold">
-            {t("title")}
-          </h2>
+          <h2 className="text-sm font-semibold">{t("title")}</h2>
           {indicators === undefined ? null : <CalculationDate context={indicators.context} />}
         </div>
         {indicators === undefined ? (

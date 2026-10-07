@@ -6,7 +6,13 @@
  * motive in a sentence of the catalogue and the offer to run the same command again — or,
  * without the command, the way to do it from the screen of its object —; succeeded, the offer
  * to read the screen anew, and to download its result when it made one — an export —, which
- * the server of Next reads from the API (`app/tasks/[taskId]/result`). While the task runs,
+ * the server of Next reads from the API (`app/tasks/[taskId]/result`). Before each download, the
+ * entry reads the task anew (`getBackgroundTask`, #329): a refusal of that read — the task
+ * unknown, the session lost — is told by the notice of the entry, and a task that no longer gives
+ * a result (`result_url` none) is said so in place of the offer; only a task that still gives one
+ * lets the download leave, and only if the entry is still there. What the relay itself refuses
+ * afterwards — the result asked of `getBackgroundTaskResult` refused (409) between the read and the
+ * download — is not read here: the browser shows a download in failure. While the task runs,
  * the entry asks the server where it stands, by a server action, every so often; it stops once
  * the task has ended, once the API refuses to say — the follow-up is then interrupted, and the
  * entry says so —, and when it is dismissed or the shell goes away.
@@ -19,11 +25,19 @@
 import { Download, RefreshCw, RotateCcw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { type Dispatch, useCallback, useEffect, useRef, useTransition } from "react";
+import {
+  type Dispatch,
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useTransition,
+} from "react";
 
 import { readBackgroundTask } from "@/api/actions/tasks";
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
 import { OutcomeNotice, SignIn } from "@/components/commands/outcome-notice";
+import { rejected } from "@/components/commands/rejection";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
 
@@ -38,9 +52,6 @@ import {
 
 /** How long an entry waits before asking again where its running task stands, in ms. */
 export const POLL_INTERVAL = 2000;
-
-/** The API out of reach: the server action itself did not answer — the network is down. */
-const UNREACHABLE: Outcome<BackgroundTask> = { kind: "unreachable" };
 
 /** The sentence of each end, by how it ended. */
 const END_SENTENCE: Readonly<Record<EndKind, "succeeded" | "failed" | "interruptedLine">> = {
@@ -146,15 +157,60 @@ export function taskResultHref(taskId: string): string {
   return `/tasks/${encodeURIComponent(taskId)}/result`;
 }
 
-/** The offer to download the file a task made: made on demand, it is not kept (WF-DAT-0120). */
-function DownloadResult({ task, name }: { readonly task: BackgroundTask; readonly name: string }) {
+/**
+ * The offer to download the file a task made: made on demand, it is not kept (WF-DAT-0120). The
+ * link leaves once the server has said the result is still there: its refusal is told by the
+ * notice of the entry, the answer applied to the task as a read of its progress is.
+ */
+function DownloadResult({
+  entry,
+  name,
+  dispatch,
+}: {
+  readonly entry: TrackedTask;
+  readonly name: string;
+  readonly dispatch: Dispatch<TrackingEvent>;
+}) {
   const t = useTranslations("tasks");
+  const [pending, startTransition] = useTransition();
+  // Whether the click is the one the check lets through, to the browser.
+  const checked = useRef(false);
+  // Whether the entry is still shown: dismissed during the read, it downloads nothing.
+  const shown = useRef(true);
+  useEffect(() => {
+    shown.current = true;
+    return () => {
+      shown.current = false;
+    };
+  }, []);
+  const { key, task } = entry;
+  const download = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (checked.current) {
+      checked.current = false;
+      return;
+    }
+    event.preventDefault();
+    if (pending) {
+      return;
+    }
+    const link = event.currentTarget;
+    startTransition(async () => {
+      const outcome = await readBackgroundTask(task.task_id).catch(rejected);
+      dispatch({ type: "answer", source: "download", key, taskId: task.task_id, outcome });
+      if (shown.current && outcome.kind === "done" && outcome.data.result_url != null) {
+        checked.current = true;
+        link.click();
+      }
+    });
+  };
   return (
     <a
       href={taskResultHref(task.task_id)}
       download
       aria-label={t("downloadLabel", { task: name })}
+      aria-busy={pending}
       className={buttonVariants({ variant: "outline", size: "sm" })}
+      onClick={download}
     >
       <Download aria-hidden="true" />
       {t("download")}
@@ -191,8 +247,8 @@ function usePolling(entry: TrackedTask, dispatch: Dispatch<TrackingEvent>) {
       }
     };
     const timer = setTimeout(() => {
-      void readBackgroundTask(taskId).then(answered, () => {
-        answered(UNREACHABLE);
+      void readBackgroundTask(taskId).then(answered, (error: unknown) => {
+        answered(rejected(error));
       });
     }, POLL_INTERVAL);
     return () => {
@@ -232,7 +288,7 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
       return;
     }
     startTransition(async () => {
-      const outcome = await command().catch(() => UNREACHABLE);
+      const outcome = await command().catch(rejected);
       dispatch({ type: "answer", source: "relaunch", key, taskId: task.task_id, outcome });
       if (outcome.kind === "done" || outcome.kind === "stale") {
         // The button pressed goes — with the failure, or with the command refused as stale —:
@@ -273,7 +329,12 @@ export function TaskEntry({ entry, dispatch, onDismiss, dismissRef }: TaskEntryP
       {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
       {task.status === "succeeded" ? <ReloadScreen /> : null}
       {task.status === "succeeded" && task.result_url != null ? (
-        <DownloadResult task={task} name={name} />
+        <DownloadResult entry={entry} name={name} dispatch={dispatch} />
+      ) : null}
+      {entry.resultUnavailable === true ? (
+        <p role="alert" className="text-destructive">
+          {t("tasks.resultUnavailable")}
+        </p>
       ) : null}
       {failed ? <Motive problem={task.problem} /> : null}
       {failed && command !== undefined ? (

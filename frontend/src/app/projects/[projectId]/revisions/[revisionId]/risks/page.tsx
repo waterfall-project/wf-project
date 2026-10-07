@@ -169,7 +169,8 @@ export default async function RisksPage({
   );
   const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
   const [reading, risks, coverage, matrix, detail, preferences, query] = await Promise.all([
-    readProjectContext(at.pathname, at.context),
+    // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
+    readProjectContext(at.pathname, at.context, []),
     readRisks(at, states, asked),
     readCoverage(at),
     readMatrix(at),
