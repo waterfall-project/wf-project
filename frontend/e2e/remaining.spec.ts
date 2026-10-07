@@ -59,7 +59,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     }),
   ).toBeVisible();
   await expect(
-    grid.getByRole("row", { name: /^22 .*Réalisation 1\.1\.4/ }).getByRole("img", {
+    grid.getByRole("row", { name: /^15 .*Revue 1\.1\.3/ }).getByRole("img", {
       name: "Démarrée",
     }),
   ).toBeVisible();
@@ -70,9 +70,12 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   );
 
   // The tasks not started, on demand: the address asks the server for them, the context kept.
+  // The address changes once the screen has read the grid anew, a thousand tasks: the bound of
+  // the screens of grids (#315), not the five seconds of an assertion.
   await page.getByRole("link", { name: "Montrer aussi les tâches non démarrées" }).click();
   await expect(page).toHaveURL(
     `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}&progress=not_started%2Cstarted`,
+    { timeout: 15_000 },
   );
   await expect(
     page.getByRole("link", { name: "Ne montrer que les tâches démarrées" }),
