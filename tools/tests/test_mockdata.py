@@ -503,7 +503,7 @@ def test_the_grid_of_rates_agrees_with_the_rates_of_one_category_and_leaves_cell
     )
     assert electrical["cells"] == volumes["hourly_rates.json"]["value"]
     commissioning = next(
-        row for row in grid["rows"] if row["cost_category_id"] == mockstructure.COMMISSIONING
+        row for row in grid["rows"] if row["cost_category_id"] == mockwitness.COMMISSIONING
     )
     assert commissioning["cells"][-1]["amount"] == "75.00"
     assert all(cell is not None for cell in commissioning["cells"])
@@ -594,7 +594,7 @@ def test_the_written_volumes_and_readings_check_up_to_date(tmp_path: Path) -> No
     volume = tmp_path / mockdata.VOLUME
     assert sorted(path.name for path in volume.iterdir()) == sorted(mockdata.volumes())
     named = sorted(path.name for path in tmp_path.iterdir() if path.is_file())
-    assert named == sorted(mockdata.readings())
+    assert named == sorted(mockdata.named())
     assert mockdata.main(["--check"], tmp_path) == 0
 
 
@@ -649,7 +649,7 @@ def test_writing_removes_a_file_the_generator_no_longer_makes(tmp_path: Path) ->
     ]
     assert mockdata.check(tmp_path / "absent") == [
         *(f"volume/{name} is missing" for name in mockdata.volumes()),
-        *(f"{name} is missing" for name in mockdata.readings()),
+        *(f"{name} is missing" for name in mockdata.named()),
     ]
 
 

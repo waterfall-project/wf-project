@@ -37,6 +37,7 @@ from wftools.mockcalendar import (
     to_hours,
 )
 from wftools.mockstructure import (
+    COMMISSIONING_RATE,
     ELECTRICAL_RATE,
     JsonObject,
     JsonValue,
@@ -49,6 +50,7 @@ from wftools.mockstructure import (
     task_fields,
 )
 from wftools.mockwitness import (
+    COMMISSIONING,
     CORE,
     ELECTRICAL_ENGINEERING,
     STUDIES_STARTED,
@@ -67,7 +69,7 @@ if TYPE_CHECKING:
 READ_ON = TODAY.date()
 """The day the examples are read: the progress of the tasks is at that day."""
 
-LABOUR_RATES = {ELECTRICAL_ENGINEERING: ELECTRICAL_RATE}
+LABOUR_RATES = {ELECTRICAL_ENGINEERING: ELECTRICAL_RATE, COMMISSIONING: COMMISSIONING_RATE}
 """The hourly rate of each labour category the core employs, for the reference year."""
 
 LINEAGE = 100
@@ -131,14 +133,16 @@ def schedule(roots: Iterable[Task] = CORE) -> dict[int, Dated]:
     Forward: each task in automatic mode starts where its links allow, at the start of the
     studies without any, on the calendar of the roles of its labour lines (WF-PLA-0010,
     WF-PLA-0030); a task in manual mode keeps its dates; a summary spans its subordinates
-    (WF-PLA-0040). A predecessor comes before its successor in the order of the plan. Backward:
-    a task may finish as late as its successors allow, at the finish of the core without any.
+    (WF-PLA-0040). The tasks are dated in the order of their links, each after its
+    predecessors, whatever their order in the plan. Backward: a task may finish as late as its
+    successors allow, at the finish of the core without any.
     """
     roles, default = role_calendars(), default_calendar()
     origin = Instant(STUDIES_STARTED.on)
     tasks = tasks_in_order(roots)
+    linked = in_link_order(tasks)
     dated: dict[int, Dated] = {}
-    for task in tasks:
+    for task in linked:
         if task.children:
             continue
         if task.manual is not None:
@@ -165,12 +169,36 @@ def schedule(roots: Iterable[Task] = CORE) -> dict[int, Dated]:
             start = min(each.start for each in placed)
             finish = max(each.finish for each in placed)
             dated[task.number] = Dated(task, default, start, finish)
-    _backward(dated, tasks)
+    _backward(dated, linked)
     return dated
 
 
+def in_link_order(tasks: list[Task]) -> list[Task]:
+    """Return the tasks so that each comes after its predecessors, else in the order of the plan.
+
+    A link that closes a loop is refused, as the server refuses it (WF-PLA-0030).
+    """
+    placed: set[int] = set()
+    ordered: list[Task] = []
+    waiting = list(tasks)
+    while waiting:
+        ready = next(
+            (task for task in waiting if all(link.predecessor in placed for link in task.links)),
+            None,
+        )
+        if ready is None:
+            # Each task left waits for another left: a loop, and what follows it.
+            names = ", ".join(task.label for task in waiting)
+            message = f"the links close a loop among the tasks left undated: {names}"
+            raise ValueError(message)
+        waiting.remove(ready)
+        placed.add(ready.number)
+        ordered.append(ready)
+    return ordered
+
+
 def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
-    """Give each task in automatic mode the latest it may finish (WF-PLA-0100).
+    """Give each task in automatic mode the latest it may finish (WF-PLA-0100), in link order.
 
     Its successors, each by its link, say where it must finish or start: a finish-to-start
     link, its lag before the successor's latest start; a start-to-start link, there for the
@@ -394,10 +422,8 @@ class _Emitter:
         return amounts
 
     def _number(self, number: int) -> int:
-        """Give a node the next row of the structure, and remember it for the links."""
-        row = len(self.rows) + 1
-        self.row_of[number] = row
-        return row
+        """Return the row of a node in the structure, numbered before any was made."""
+        return self.row_of[number]
 
     def _task_facet(self, placed: Dated) -> JsonObject:
         """Return the facet of a task: its mode, its dates, its progress, its float."""
@@ -499,10 +525,29 @@ def _instant(at: Instant) -> JsonObject:
     return {"date": at.day.isoformat(), "hours": decimal(at.hours)}
 
 
+def rows_of(roots: Iterable[Task]) -> dict[int, int]:
+    """Return the row of each node, by its number: depth first, a task, its lines, its tasks.
+
+    Numbered before any node is made, so that a link names a predecessor further down.
+    """
+    rows: dict[int, int] = {}
+
+    def number(task: Task) -> None:
+        rows[task.number] = len(rows) + 1
+        for line in task.lines:
+            rows[line.number] = len(rows) + 1
+        for child in task.children:
+            number(child)
+
+    for root in roots:
+        number(root)
+    return rows
+
+
 def core(roots: Iterable[Task] = CORE, today: date = READ_ON) -> list[Row]:
     """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one."""
     roots = tuple(roots)
-    emitter = _Emitter(schedule(roots), labels(), today)
+    emitter = _Emitter(schedule(roots), labels(), today, row_of=rows_of(roots))
     for position, root in enumerate(roots):
         emitter.task(root, None, position, 1)
     return emitter.rows
@@ -523,6 +568,11 @@ def subtree(rows: list[Row], root: int, kinds: frozenset[str] | None = None) -> 
             below.add(row.number)
     retained = [row for row in rows if row.number in below and (kinds is None or row.kind in kinds)]
     return _answer(retained, [])
+
+
+def whole(rows: list[Row]) -> JsonObject:
+    """Return the reading of the whole structure, without a filter: every node, every total."""
+    return _answer(rows, [])
 
 
 def search(rows: list[Row], text: str) -> JsonObject:

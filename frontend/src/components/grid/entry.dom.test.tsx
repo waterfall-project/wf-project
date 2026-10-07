@@ -64,6 +64,12 @@ const DISBURSEMENT = 3;
 const PROVISION = 4;
 const OCCURRED = 5;
 const estimate = example("nodes_estimate") as NodeList;
+// The whole core of the witness, read without a filter (`nodes_core`), whose totals the writes of
+// the core answer: the lot of the control station, its task and its line of labour, by their index.
+const core = example("nodes_core") as NodeList;
+const CORE_LOT = 7;
+const CORE_TASK = 8;
+const CORE_LABOUR = 9;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
@@ -768,42 +774,42 @@ describe("a write the server answers otherwise", () => {
 describe("what a write answers besides the row written", () => {
   it("shows the amounts the server recalculated on the tasks above it, and the totals of the structure, summing nothing [WF-DEV-0050-A]", async () => {
     serve();
-    render(grid());
+    render(grid("fr", core));
     expect(totals().slice(1)).toEqual([
-      "Total — 6 tâches, 5 lignes",
+      "Total — 15 tâches, 9 lignes",
       "",
       "",
       "",
-      "12,5",
+      "252,5",
       "",
       "",
       "",
       "",
-      "2\u202f934,56",
-      "2\u202f934,56",
+      "121\u202f534,56",
+      "121\u202f534,56",
     ]);
-    cell(LABOUR, "hours").focus();
+    cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     // The amounts of each summary follow those of its subordinates, as the server answers them,
     // at the year of reference and corrected for inflation.
     await vi.waitFor(() => {
-      expect(cell(0, "base_amount")).toHaveTextContent(/3\s054,56$/);
+      expect(cell(CORE_LOT, "base_amount")).toHaveTextContent(/3\s054,56$/);
     });
-    expect(cell(TASK_ROW, "base_amount")).toHaveTextContent(/2\s854,56$/);
-    expect(cell(0, "inflated_amount")).toHaveTextContent(/3\s054,56$/);
-    expect(cell(TASK_ROW, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(CORE_TASK, "base_amount")).toHaveTextContent(/2\s854,56$/);
+    expect(cell(CORE_LOT, "inflated_amount")).toHaveTextContent(/3\s054,56$/);
+    expect(cell(CORE_TASK, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals().slice(1)).toEqual([
-      "Total — 6 tâches, 5 lignes",
+      "Total — 15 tâches, 9 lignes",
       "",
       "",
       "",
-      "14",
+      "254",
       "",
       "",
       "",
       "",
-      "3\u202f054,56",
-      "3\u202f054,56",
+      "121\u202f654,56",
+      "121\u202f654,56",
     ]);
   });
 
@@ -876,11 +882,11 @@ describe("what a write answers besides the row written", () => {
 
   it("reads nothing anew for a reading of the whole structure, whose totals the writes answer", async () => {
     const client = serve();
-    render(grid());
-    cell(LABOUR, "hours").focus();
+    render(grid("fr", core));
+    cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     await vi.waitFor(() => {
-      expect(totals()[5]).toBe("14");
+      expect(totals()[5]).toBe("254");
     });
     expect(client.calls.map((call) => call.route)).toEqual([LINE]);
   });

@@ -77,7 +77,7 @@ def _core(task: mockwitness.Task) -> list[mockwitness.Task | mockwitness.Line]:
 
 def test_the_core_has_one_identifier_a_node_and_its_lineage_apart() -> None:
     numbers = [each.number for root in mockwitness.CORE for each in _core(root)]
-    assert len(numbers) == len(set(numbers)) == 18
+    assert len(numbers) == len(set(numbers)) == 24
     nodes = next(family for family in mockwitness.IDENTIFIERS if family.what.startswith("nœuds de"))
     lineages = next(family for family in mockwitness.IDENTIFIERS if family.first == 600)
     assert all(nodes.holds(mockwitness.universe(number)) for number in numbers)

@@ -1217,6 +1217,87 @@ totaux d'aujourd'hui, et `predecessor_set` reste une écriture d'avril (marge du
 conception à 7 jours quand les lectures la portent à 54, études sans dépassement de fin) : L22 les
 engendre toutes.
 
+## L'univers témoin : les écritures de la grille (EP-02/L22)
+
+**Une réponse d'écriture est la différence de deux lectures de la structure, avant et après
+l'écriture, engendrée** (#287 ; C9, C10). `wftools.mockwrites` modifie la description du témoin
+(`mockwitness`) — un libellé, une charge, une ligne retirée, une liaison ajoutée, un rôle changé
+—, la date et la chiffre à nouveau (`mockcore`), lit la structure entière avant et après, et en
+tire `NodesWritten` : les nœuds écrits, une version de plus ; les tâches non récapitulatives dont le
+début, la fin, la marge ou la criticité ont changé sans être écrites (`rescheduled`) ; les lignes et
+les tâches non récapitulatives dont le montant corrigé ou l'année de consommation a changé, hors
+celles que `ancestors` rend entières (`reinflated`) ; les ancêtres des nœuds écrits, du nœud
+supprimé — lu avant, puisqu'il n'est plus après — et des tâches redatées, entiers ; les totaux de
+la structure entière. Une tâche qui porte la ligne écrite et que l'écriture redate est à la fois
+dans `ancestors` et dans `rescheduled`, comme le contrat l'écrit. `make mock-data` écrit ainsi
+`task_renamed`, `estimate_line_updated`, `node_deleted`, `predecessor_set` et le nouvel
+`estimate_line_redated` sur le cœur, et `estimate_line_entered`, `paste_plan`,
+`paste_plan_unknown_category`, `paste_too_wide` et `paste_applied` sur la structure de mille tâches
+que le faux back sert en premier et que les parcours lisent, comme `task_lengthened`, désormais
+produit par la même différence ; `tools/paths.toml` les déclare engendrés. Le poste du lot « Poste
+de commande » (`order_item_id`, `work_breakdown_label`, EP-02/L29), rendu en ancêtre, sort du
+générateur. **Une ligne saisie garde son budget** : la référence l'a fixé, seul le montant réestimé
+suit les grandeurs (WF-DEV-0020) — 14 h au lieu de 12,5 donnent 1 120,00 réestimés et laissent
+1 000,00 budgétés. **Les totaux d'une écriture du cœur sont ceux du cœur entier**, quinze tâches
+et neuf lignes, comme le contrat le veut (« les totaux de la structure entière, sans filtre ») — les
+exemples écrits à la main gardaient ceux du lot ; L27 (#376) les portera à la structure de mille
+tâches où il incruste le cœur. Le bloc collé, ses lignes acceptées ou refusées, sont lus du bloc et
+des catégories et rôles de l'univers ; la largeur de `paste_too_wide` est comptée dans `NodeColumn`
+du contrat — le libellé, puis de `cost_category` à la dernière colonne —, pour suivre la prochaine
+colonne sans retouche (EP-02/L16 avait dû la corriger à la main).
+
+**L'univers offre une écriture du devis qui redate, et le cœur s'étend pour la porter** (C9). Le
+cœur finissait à la réception usine, le 30 juin : aucune tâche n'y finissait fin 2026, et le monteur
+câbleur, seul rôle actif sur un autre calendrier, n'avait pas de ligne. Le cœur gagne l'installation
+sur site, après la réception usine, qui reste au 30 juin (C13) : le montage des armoires sur site
+(562), du 1er juillet au 18 décembre 2026, son câblage par l'ingénieur électricien (563) et
+l'assistance du technicien de mise en service aux essais (564), et la mise en service qui le suit
+(565, sa ligne 566), démarrée le 21 décembre et consommée en 2026. `nodes_installation`, nouvel
+exemple nommé de `listNodes`, en est la lecture (`subtree_of`). `estimate_line_redated`
+(`updateEstimateLine`) confie le câblage sur site au monteur câbleur : le montage n'a plus que les
+jours de ses deux rôles, quatre jours de huit heures (WF-PLA-0010), finit le 1er février 2027, et la
+mise en service démarre le 2 février ; elle et le montage sont dans `rescheduled`, avec les tâches
+sans successeur dont la marge grandit ; la ligne de la mise en service, consommée en 2027, et la
+mise en service elle-même sont dans `reinflated`, 6 180,00 au lieu de 6 000,00. Deux écarts au
+cadrage de #287, qui disait « la tâche prend 482 et finit en 2027 ; `reinflated` ses lignes et
+elle-même », sont imposés par le modèle : la semaine de quatre jours de dix heures compte autant
+d'heures que la semaine standard, et le 31 décembre 2026 est un jeudi, dernier jour qu'elle travaille
+— un rôle seul sur 482 ne fait passer l'année à aucune tâche ; il y faut un second rôle sur 481, et
+le montage prend le calendrier commun des deux. Et une ligne est consommée l'année où sa tâche
+commence (simplification déclarée de `mockstructure.inflated`, WF-DEV-0040 voulant une répartition
+au prorata des heures) : le montage, commencé en 2026, garde l'année de ses lignes, et c'est la
+mise en service qui le suit, avec sa ligne, que l'écriture déplace dans le temps. Ajouter le
+cœur allonge le chemin critique : la marge du dossier de conception passe de 54 à 187 jours
+(15 avril 2026 – 1er janvier 2027), celle des tâches de la survenance de 32 à 165.
+
+**`predecessor_set` est une écriture d'aujourd'hui, sur une tâche non démarrée** : les
+prédécesseurs du montage sur site saisis à nouveau — la réception usine, en fin à début, avec deux
+jours ouvrés de décalage. Le montage va du 3 juillet au 22 décembre, la mise en service du
+23 décembre 2026 au 5 janvier 2027, démarrée encore en 2026 : `reinflated` est vide ; les tâches
+sans successeur gagnent de la marge. Aucune date passée ne bouge : l'avancement d'une tâche et ses
+dates de démarrage et d'achèvement sont des faits (WF-PLA-0130), et la réception usine reste au
+30 juin (C13) — le test de `predecessor_set` le vérifie, et un invariant interdit à toute écriture
+engendrée de changer l'avancement ou les dates d'une tâche démarrée ou terminée. L'exemple écrit à la main liait la
+revue de conception au dossier de conception, ce qui, aujourd'hui, aurait redaté des tâches
+terminées. Le cœur se date désormais dans l'ordre de ses liaisons, quel que soit l'ordre du plan ;
+une boucle est refusée, en nommant les tâches restées sans date.
+
+**La lecture entière du cœur est un exemple nommé** (`nodes_core`, `listNodes` sans filtre) : ses
+totaux sont ceux que rendent les écritures du cœur, et les tests de la grille qui éprouvent les
+totaux de la structure entière la lisent, plutôt qu'un sous-arbre lu comme s'il était entier.
+
+**Le chemin de la grille de devis par `reinflated` est éprouvé** (C10) :
+`inflation.dom.test.tsx` rend la grille sur `nodes_installation`, écrit le rôle du câblage sur site,
+et lit dans les cellules de la mise en service et de sa ligne les montants corrigés que la réponse
+porte, leur montant à l'année de référence inchangé, la récapitulative rendue entière.
+
+**Ce que ce lot laisse** : le refus de la création à la main d'une ligne de nature provision
+(Vérif de WF-DEV-0020) n'a pas d'exemple — il faut un motif de refus au catalogue
+(`ErrorCode`), modification d'un schéma que porte EP-02/L30 (#393) ; `paste_applied` calcule ses
+montants par un second chemin, sur les nœuds de la structure de mille tâches, que EP-02/L27 (#376)
+ramènera au calcul du cœur en l'y incrustant ; `task_renamed` reste déclaré dans le test des
+libellés du cœur, puisqu'il renomme.
+
 ## Révision de la spécification du 2026-10-04 (PR #328, fusion du 2026-10-06)
 
 La seconde revue de la spécification (#211, #212, #253 à #283) change le modèle des provisions et
