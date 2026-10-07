@@ -21,3 +21,5 @@ test-results/
 playwright-report/
 # Schémas XML de MS Project, non redistribuables : lus sur le poste, jamais versionnés
 /docs/schemas/
+# Variables d'un poste pour la plateforme de développement (WATERFALL_DEV_ORIGINS)
+deploy/compose/.env

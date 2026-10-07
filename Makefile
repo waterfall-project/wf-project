@@ -99,7 +99,7 @@ dev: mock-spec ## Start the front against the fake back (http://localhost:3000)
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) up --build
 
 dev-down: ## Stop the development platform
-	@$(COMPOSE_DEV) down
+	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) down
 
 test-tools: ## Run the tests of the repository tools
 	@cd $(TOOLS) && uv run --frozen pytest

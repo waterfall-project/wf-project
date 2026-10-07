@@ -690,6 +690,12 @@ celle dont part la maquette (EP-02). Rien d'autre ne change.
 - `make dev` : le front (`http://localhost:3000`) contre le faux back, par
   `deploy/compose/compose.dev.yaml`. Le front ne connaît que l'adresse de l'API,
   `WATERFALL_API_ADDRESS` : à partir d'EP-03, la même variable désigne le vrai service.
+  `make dev-down` l'arrête.
+- Le front s'ouvre à `localhost` et à `127.0.0.1`. Pour l'ouvrir depuis un autre poste, à
+  l'adresse de celui-ci sur le réseau, la déclarer dans `WATERFALL_DEV_ORIGINS` (des hôtes
+  séparés par des virgules), à l'appel ou dans `deploy/compose/.env`, que git ignore :
+  `WATERFALL_DEV_ORIGINS=127.0.0.1,192.168.1.210 make dev`. Sans elle, `next dev` refuse ses
+  ressources à cette origine, et la page s'affiche sans s'hydrater (#481).
 
 Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'apparaît pas dans
 la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
