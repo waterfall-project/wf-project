@@ -395,3 +395,18 @@ def test_a_loop_of_links_cannot_be_dated_and_the_tasks_left_are_named() -> None:
         match=r"among the tasks left undated: Montage des armoires sur site, Mise en service$",
     ):
         mockcore.schedule(looped)
+
+
+def test_a_reestimation_follows_the_figures_entered_and_leaves_the_budget(
+    whole: dict[str, Any],
+) -> None:
+    # 12.5 hours re-estimated at 10: 10 x 80, the budget the reference's (WF-RAE-0040).
+    reestimated = write("remaining_reestimated")
+    [line] = reestimated["nodes"]
+    assert line["estimate_line"]["hours"] == "10"
+    assert line["estimate_line"]["reestimated_amount"] == "800.00"
+    assert line["estimate_line"]["budgeted_amount"] == "1000.00"
+    assert sorted(numbered(reestimated["ancestors"])) == [CONTROL_STATION, WIRING]
+    totals = reestimated["totals"]
+    assert money(totals["reestimated_amount"]) == money(whole["totals"]["reestimated_amount"]) - 200
+    assert totals["budgeted_amount"] == whole["totals"]["budgeted_amount"]

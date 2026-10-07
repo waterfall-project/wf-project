@@ -217,6 +217,7 @@ RENAMED = "Câblage et repérage des armoires"
 SITE_DELAY = 2
 """The working days the cabinets take to reach the site, after the factory acceptance."""
 LABOUR_HOURS = Decimal(14)
+REESTIMATED_HOURS = Decimal(10)
 
 
 def task_renamed() -> JsonObject:
@@ -227,6 +228,15 @@ def task_renamed() -> JsonObject:
 def estimate_line_updated() -> JsonObject:
     """Return what updateEstimateLine answers when the labour of the wiring takes 14 hours."""
     return core_write(amended(CORE, line=on_line(LABOUR, hours=LABOUR_HOURS)), [LABOUR])
+
+
+def remaining_reestimated() -> JsonObject:
+    """Return what setLineRemaining answers when the labour of the wiring is re-estimated at 10 h.
+
+    The re-estimate follows the figures entered, the budget the reference fixed does not
+    (WF-RAE-0040, WF-DEV-0020).
+    """
+    return core_write(amended(CORE, line=on_line(LABOUR, hours=REESTIMATED_HOURS)), [LABOUR])
 
 
 def node_deleted() -> JsonObject:
@@ -452,6 +462,8 @@ def writes() -> dict[str, JsonObject]:
 
 def _core_writes() -> dict[str, JsonObject]:
     renamed, updated = task_renamed(), estimate_line_updated()
+    reestimated = remaining_reestimated()
+    [reestimated_line] = cast("list[Node]", reestimated["nodes"])
     deleted, linked, redated = node_deleted(), predecessor_set(), estimate_line_redated()
     [line] = cast("list[Node]", updated["nodes"])
     [mounting] = cast("list[Node]", linked["nodes"])
@@ -482,6 +494,20 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_totals(updated)}, le budgété inchangé (WF-DEV-0020, WF-DEV-0030, "
             f"WF-DEV-0050).",
             updated,
+        ),
+        "remaining_reestimated.json": mocktext.example(
+            f"La réestimation de la ligne de main-d'œuvre « {before[LABOUR].label} », budgétée à "
+            f"{mocktext.amount(before[LABOUR].hours, 1)} h : une charge de "
+            f"{REESTIMATED_HOURS} h donne un montant réestimé de "
+            f"{_money(reestimated_line['estimate_line']['reestimated_amount'])}, recalculé "
+            f"depuis ses grandeurs et jamais saisi, le budgété inchangé, "
+            f"{_money(reestimated_line['estimate_line']['budgeted_amount'])}, fixé par la "
+            f"référence ; une version de plus. Avec elle, sa tâche « {before[WIRING].label} », "
+            f"à {_money(_node(reestimated, WIRING)['task']['reestimated_amount'])} réestimés, "
+            f"la récapitulative « {before[CONTROL_STATION].label} » au-dessus, à "
+            f"{_money(_node(reestimated, CONTROL_STATION)['task']['reestimated_amount'])}, et "
+            f"{_totals(reestimated)}, le budgété inchangé (WF-RAE-0040, WF-DEV-0020).",
+            reestimated,
         ),
         "node_deleted.json": mocktext.example(
             f"La ligne de débours « {before[BLOCKS].label} », "

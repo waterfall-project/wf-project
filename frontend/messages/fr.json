@@ -107,9 +107,6 @@
       "removed": "Votre avatar est retiré."
     }
   },
-  "screen": {
-    "comingSoon": "Cet écran est à venir."
-  },
   "rowNature": {
     "summary": "Tâche récapitulative",
     "task": "Tâche",
@@ -125,7 +122,8 @@
       "risks": "Registre des risques",
       "actualCosts": "Coûts réels",
       "hourlyRates": "Grille des taux horaires",
-      "portfolioProjects": "Projets du portefeuille"
+      "portfolioProjects": "Projets du portefeuille",
+      "remaining": "Grille de reste à engager"
     },
     "columns": {
       "rowNumber": "N°",
@@ -168,7 +166,11 @@
       "deltaToReference": "Écart au budget",
       "costIndex": "Indice de coût",
       "scheduleIndex": "Indice de délai",
-      "lastMarkedAt": "Dernière révision marquée"
+      "lastMarkedAt": "Dernière révision marquée",
+      "finishOverdue": "Fin dépassée",
+      "budgetedAmount": "Montant budgété",
+      "previousReestimatedAmount": "Réestimé à la revue précédente",
+      "reestimatedAmount": "Montant réestimé"
     },
     "computed": "Calculé",
     "entry": {
@@ -232,6 +234,11 @@
     "predecessor": "{row}{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";"
   },
+  "remainingGrid": {
+    "finishOverdue": "Tâche démarrée dont la fin est dépassée",
+    "showNotStarted": "Montrer aussi les tâches non démarrées",
+    "startedOnly": "Ne montrer que les tâches démarrées"
+  },
   "risks": {
     "summary": "{risks, plural, =0 {aucun risque retenu} one {# risque retenu} other {# risques retenus}}",
     "generalTotal": "Total général",
@@ -242,8 +249,7 @@
       "identified": "Risques identifiés",
       "occurred": "Risques survenus",
       "dismissed": "Risques écartés",
-      "total": "Total général",
-      "reserve": "Réserve pour risques"
+      "total": "Total général"
     },
     "coverage": {
       "title": "Couverture des risques",
@@ -505,6 +511,30 @@
       "enter": "Renseigner les taux horaires",
       "see": "Voir les taux horaires"
     }
+  },
+  "remainingSummary": {
+    "title": "Indicateurs du reste à engager",
+    "unavailable": "Les indicateurs du reste à engager sont indisponibles.",
+    "unnamed": "Sans nom",
+    "total": "Reste à engager",
+    "deltaToReference": "Écart au budget de référence",
+    "deltaToPrevious": "Écart à la revue précédente",
+    "byCostType": "Par nature de coût",
+    "bySubproject": "Reste à engager par sous-projet, et écart au budget",
+    "amount": "{name} : {amount}",
+    "amountShare": "{name} : {amount} ({share})",
+    "balance": "{name} : {remaining}, écart {variance}"
+  },
+  "kanban": {
+    "summary": "Les tâches de la révision en cours non démarrées dont les prédécesseurs sont terminés, et celles démarrées. Une tâche est démarrée ou ne l’est pas : aucun pourcentage ne se saisit.",
+    "inProgressOnly": "Le Kanban présente les tâches de la révision en cours d’élaboration : une révision marquée n’en a aucune à démarrer.",
+    "notStarted": "Non démarrées",
+    "started": "Démarrées",
+    "empty": "Aucune tâche.",
+    "milestone": "Jalon",
+    "milestoneDue": "Ses prédécesseurs sont terminés : jalon à terminer.",
+    "finish": "Fin le {date}",
+    "finishOverdue": "Fin dépassée"
   },
   "contextBanner": {
     "label": "Contexte de lecture",
@@ -1088,7 +1118,8 @@
     "actualCosts": "Coûts réels",
     "projectIndicators": "Indicateurs projets",
     "lifecycle": "Cycle de vie du projet",
-    "exchanges": "Imports et exports"
+    "exchanges": "Imports et exports",
+    "kanban": "Kanban — démarrage des tâches"
   },
   "errors": {
     "MALFORMED_REQUEST": "La requête est mal formée.",

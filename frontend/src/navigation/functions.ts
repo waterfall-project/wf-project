@@ -4,8 +4,7 @@
  * The functions of the FBS the navigation offers, read from `functions.json`: for each
  * function of the second level, its code, the key of its label in the catalogues, its route,
  * whether it lives outside any project or in one, and the permission that lets a user read
- * it (WF-ADM-0100). The navigation is drawn from this table, and so is the page that stands
- * for a screen still to come. A leaf of the FBS with a screen of its own — the workload of the
+ * it (WF-ADM-0100). The navigation is drawn from this table. A leaf of the FBS with a screen of its own — the workload of the
  * project, FBS-4.4.4 — is a leaf of its function in the table: of the same scope and permission,
  * reached from the screen of its function rather than from the navigation, and read in its
  * context as its function is.

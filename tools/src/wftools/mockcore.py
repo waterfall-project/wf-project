@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from wftools.mockcalendar import (
     FINISH_TO_START,
@@ -146,8 +146,11 @@ def schedule(roots: Iterable[Task] = CORE) -> dict[int, Dated]:
         if task.children:
             continue
         if task.manual is not None:
+            # A milestone in manual mode is an instant, like any other (WF-PLA-0050).
             first, last = task.manual
-            dated[task.number] = Dated(task, default, Instant(first), Instant(last, HOURS_PER_DAY))
+            finish = Instant(last, HOURS_PER_DAY)
+            start = finish if task.is_milestone else Instant(first)
+            dated[task.number] = Dated(task, default, start, finish)
             continue
         calendar = applicable(
             [roles[line.role] for line in task.lines if line.role is not None], default
@@ -591,6 +594,36 @@ def search(rows: list[Row], text: str) -> JsonObject:
     retained = [row for row in rows if row.number in found]
     readable = [row for row in rows if row.number in ancestors]
     return _answer(retained, readable)
+
+
+def startable(rows: list[Row]) -> JsonObject:
+    """Return the answer of listStartableTasks: the tasks of the Kanban (WF-RAE-0030).
+
+    The tasks not started whose predecessors are all completed, and the tasks started, in the
+    order of the plan; never a summary, whose progress derives from its subordinates.
+    """
+    facets = {
+        cast("str", row.node["node_id"]): cast("JsonObject", row.node["task"])
+        for row in rows
+        if row.kind == TASK
+    }
+    leaves = [row.node for row in rows if row.kind == TASK]
+    leaves = [node for node in leaves if not facets[cast("str", node["node_id"])]["is_summary"]]
+
+    def progress(node: JsonObject) -> str:
+        return cast("str", facets[cast("str", node["node_id"])]["progress"])
+
+    def ready(node: JsonObject) -> bool:
+        links = cast("list[JsonObject]", node.get("predecessors", []))
+        return all(
+            facets[cast("str", link["predecessor_node_id"])]["progress"] == "completed"
+            for link in links
+        )
+
+    return {
+        "not_started": [node for node in leaves if progress(node) == "not_started" and ready(node)],
+        "started": [node for node in leaves if progress(node) == "started"],
+    }
 
 
 def _answer(retained: list[Row], readable: list[Row]) -> JsonObject:

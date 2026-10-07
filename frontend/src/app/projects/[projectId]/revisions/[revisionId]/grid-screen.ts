@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What a grid of the structure of a revision reads before it shows — the planning, the
- * estimate —, the same for both (EP-02, « Grille dense »): the reading context of the address
- * (WF-IHM-0020), the main structure of the revision, and its nodes as the address asks them —
- * the sort, the search, the filtered sub-project, all named as the contract names them —, the
+ * estimate, the remaining to commit —, the same for each (EP-02, « Grille dense »): the reading
+ * context of the address (WF-IHM-0020), the main structure of the revision, and its nodes as the
+ * address asks them —
+ * the sort, the search, the filtered sub-project, the progress of the tasks the screen narrows to,
+ * all named as the contract names them —, the
  * sort the account keeps for the grid when the address asks none. A grid asks the server what
  * to render (`kinds`): the planning, the tasks alone; and, of each node, the fields it reads
  * alone (`fields`). A project or a revision the API does not find is not found, as at the other
@@ -82,6 +84,11 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
   readonly kinds?: readonly NodeKind[];
   /** The fields of each node the grid reads, besides those every grid reads. */
   readonly fields: NodeFields<N, T, L>;
+  /**
+   * The states of the tasks the screen narrows the reading to — the remaining to commit, the tasks
+   * started unless the address asks more (WF-RAE-0040) —; every task when none is given.
+   */
+  readonly progress?: NonNullable<NodeFilters["progress"]>;
 }
 
 /**
@@ -120,7 +127,7 @@ export interface GridScreen<Row> {
  */
 async function mainStructure<N extends NodeField, T extends TaskField, L extends LineField>(
   { revision, context }: GridAddress,
-  { kinds, fields }: GridReading<N, T, L>,
+  { kinds, fields, progress }: GridReading<N, T, L>,
   asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
   const client = serverClient();
@@ -141,6 +148,7 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
     ...(kinds === undefined ? {} : { kinds: [...kinds] }),
     ...(search === undefined ? {} : { search }),
     ...(subproject === null ? {} : { subproject_id: subproject }),
+    ...(progress === undefined ? {} : { progress }),
   };
   const answer = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {

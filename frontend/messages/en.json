@@ -107,9 +107,6 @@
       "removed": "Your avatar is removed."
     }
   },
-  "screen": {
-    "comingSoon": "This screen is still to come."
-  },
   "rowNature": {
     "summary": "Summary task",
     "task": "Task",
@@ -125,7 +122,8 @@
       "risks": "Risk register",
       "actualCosts": "Actual costs",
       "hourlyRates": "Hourly rate grid",
-      "portfolioProjects": "Portfolio projects"
+      "portfolioProjects": "Portfolio projects",
+      "remaining": "Remaining to commit grid"
     },
     "columns": {
       "rowNumber": "No.",
@@ -168,7 +166,11 @@
       "deltaToReference": "Variance to budget",
       "costIndex": "Cost index",
       "scheduleIndex": "Schedule index",
-      "lastMarkedAt": "Last marked revision"
+      "lastMarkedAt": "Last marked revision",
+      "finishOverdue": "Finish overdue",
+      "budgetedAmount": "Budgeted amount",
+      "previousReestimatedAmount": "Re-estimated at the previous review",
+      "reestimatedAmount": "Re-estimated amount"
     },
     "computed": "Computed",
     "entry": {
@@ -232,6 +234,11 @@
     "predecessor": "{row}{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}{direction, select, lag {+{lag} {unit}} lead {{lag} {unit}} other {}}",
     "predecessorSeparator": ";"
   },
+  "remainingGrid": {
+    "finishOverdue": "Started task past its finish",
+    "showNotStarted": "Show the tasks not started too",
+    "startedOnly": "Show the started tasks only"
+  },
   "risks": {
     "summary": "{risks, plural, =0 {no risk retained} one {# risk retained} other {# risks retained}}",
     "generalTotal": "General total",
@@ -242,8 +249,7 @@
       "identified": "Identified risks",
       "occurred": "Occurred risks",
       "dismissed": "Dismissed risks",
-      "total": "General total",
-      "reserve": "Risk reserve"
+      "total": "General total"
     },
     "coverage": {
       "title": "Risk coverage",
@@ -505,6 +511,30 @@
       "enter": "Enter the hourly rates",
       "see": "See the hourly rates"
     }
+  },
+  "remainingSummary": {
+    "title": "Remaining to commit indicators",
+    "unavailable": "The remaining to commit indicators are unavailable.",
+    "unnamed": "Unnamed",
+    "total": "Remaining to commit",
+    "deltaToReference": "Deviation from the reference budget",
+    "deltaToPrevious": "Deviation from the previous review",
+    "byCostType": "By nature of cost",
+    "bySubproject": "Remaining to commit by sub-project, and variance from the budget",
+    "amount": "{name}: {amount}",
+    "amountShare": "{name}: {amount} ({share})",
+    "balance": "{name}: {remaining}, variance {variance}"
+  },
+  "kanban": {
+    "summary": "The tasks of the revision in progress not started whose predecessors are completed, and those started. A task is started or it is not: no percentage is entered.",
+    "inProgressOnly": "The Kanban presents the tasks of the revision in progress: a marked revision has none to start.",
+    "notStarted": "Not started",
+    "started": "Started",
+    "empty": "No task.",
+    "milestone": "Milestone",
+    "milestoneDue": "Its predecessors are completed: milestone to complete.",
+    "finish": "Finish on {date}",
+    "finishOverdue": "Finish overdue"
   },
   "contextBanner": {
     "label": "Reading context",
@@ -1088,7 +1118,8 @@
     "actualCosts": "Actual costs",
     "projectIndicators": "Project indicators",
     "lifecycle": "Project lifecycle",
-    "exchanges": "Imports and exports"
+    "exchanges": "Imports and exports",
+    "kanban": "Kanban — task start"
   },
   "errors": {
     "MALFORMED_REQUEST": "The request is malformed.",

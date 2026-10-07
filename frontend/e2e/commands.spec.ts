@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 // exit as lost lacks the pricing state, and its current revision, a draft, read by a session
 // granted the whole catalogue. The project in pricing, whose completion lacks the state in
 // progress, is an example the fake back does not serve first: the tests of the commands show
-// it (`command.dom.test.tsx`, `[...path]/page.test.tsx`).
+// it (`command.dom.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 

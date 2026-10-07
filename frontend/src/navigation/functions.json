@@ -179,7 +179,16 @@
           "label": "functions.remaining",
           "route": "/projects/[projectId]/revisions/[revisionId]/remaining",
           "scope": "revision",
-          "permission": "remaining"
+          "permission": "remaining",
+          "leaves": [
+            {
+              "code": "FBS-4.5.3",
+              "label": "functions.kanban",
+              "route": "/projects/[projectId]/revisions/[revisionId]/kanban",
+              "scope": "revision",
+              "permission": "remaining"
+            }
+          ]
         },
         {
           "code": "FBS-4.6",

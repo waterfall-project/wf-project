@@ -300,7 +300,7 @@ verrou.
     Ctrl+Z/Ctrl+Maj+Z —, leur état, et rien d'autre ; EP-06 les branchera sur
     `undoLastChange` et `redoLastUndo`. Le menu est le menu contextuel de la cellule (clic
     droit, Maj+F10, touche Menu), à côté des boutons de la barre de la grille (US-0140/L1,
-    décision provisoire, en attente de confirmation de l'utilisateur). Écarté : un menu
+    décision confirmée par l'utilisateur le 2026-10-07). Écarté : un menu
     « Édition » dans la barre, qui ne faisait que doubler les deux boutons.
 - **Valeur calculée** : un seul style, une marque non colorée, un nom accessible.
 - **Signalement** : `Signal` reçoit une `AlertZone` du contrat — icône Lucide, libellé du
@@ -492,6 +492,21 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
   `zone` (`AlertZone`), que le serveur classe, avec leurs exemples (`remaining_indicators`,
   `remaining_indicators_over_budget`, `pilot_health`) ; les écrans qui les montrent (#115,
   #120) les rendront par `Signal`.
+- `listStartableTasks` et `setLineRemaining` n'avaient aucun exemple : le faux back aurait tiré le
+  Kanban et la réponse d'une réestimation de leurs schémas — US-0230/L1. Corrigé par ce lot, comme
+  les ajouts de lecture des lots d'écran, par des exemples engendrés du cœur du témoin
+  (`make mock-data`) : `startable_tasks` (au 3 juin 2026, deux tâches démarrées, aucune non démarrée),
+  `startable_tasks_milestone` (le câblage déclaré terminé ce jour-là, la réception usine gardée au
+  30 juin et signalée à terminer) et
+  `remaining_reestimated` (10 h au taux de 80,00, 800,00 réestimés).
+- La grille de reste à engager ne peut présenter les grandeurs d'une ligne au reste à engager
+  précédent (WF-RAE-0040) : `EstimateLineFacet` n'en porte qu'un jeu, celui de la révision lue, et
+  le seul montant précédent — US-0230/L1, ouvert en #424. D'ici là, la grille présente le montant
+  budgété, le montant réestimé précédent, les grandeurs courantes, saisies par `setLineRemaining`,
+  et le montant réestimé courant.
+- `listStartableTasks` ne rend pas les tâches terminées, que le Kanban rouvre (WF-RAE-0030), ni les
+  tâches non démarrées dont un prédécesseur ne l'est pas — US-0230/L1, ouvert en #425. D'ici là, le
+  Kanban présente les deux colonnes que l'opération rend, non démarrées et démarrées.
 - Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
   US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
   tests ne peuvent pas le simuler sur ces opérations. Corrigé par EP-02/L8 : cent dix
@@ -788,7 +803,7 @@ avec #200.
 
 ## US-0140 — Annulation et rétablissement des saisies
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : aucune en propre — `undoLastChange` et `redoLastUndo` attendent EP-06
 - **issue** : #78
@@ -815,8 +830,7 @@ par `edit_estimate`, le planning par `edit_planning`, le reste à engager par `e
 (#115, qui fermera le critère propre à l'US) ; aucune grille hors d'une révision en cours ne les
 pose : ni le marquage, ni un import appliqué, ni l'exclusion d'une ligne de coût ne s'annulent.
 Le menu est le menu contextuel de la cellule (clic droit, Maj+F10, touche Menu), à côté des
-boutons de la barre (US-0140/L1) — décision provisoire, en attente de confirmation de
-l'utilisateur.
+boutons de la barre (US-0140/L1) — décision confirmée par l'utilisateur le 2026-10-07.
 
 - écart : `WF-IHM-0110-A` — « La suppression d'une tâche puis son annulation restituent la
   tâche, ses lignes et ses liaisons. », « Le réexamen d'un risque puis son annulation lui
@@ -1095,7 +1109,7 @@ les objectifs de temps de réponse.
 
 ## US-0230 — Écrans des risques, du reste à engager et des coûts réels
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre — EP-08 et EP-09
 - **opérations** : `listRisks`, `getRisk`, `listRiskReviews`, `getProjectRiskMatrix`,
   `getRemainingIndicators`, `setLineRemaining`, `listStartableTasks`, `listActualCosts`,

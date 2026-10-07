@@ -173,6 +173,9 @@
                 started:
                   type: array
                   items: { $ref: ../components/schemas/revisions.yaml#/Node }
+            examples:
+              witness: { $ref: ../../../fixtures/api/startable_tasks.json }
+              milestone: { $ref: ../../../fixtures/api/startable_tasks_milestone.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

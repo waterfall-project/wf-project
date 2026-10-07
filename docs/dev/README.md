@@ -79,9 +79,8 @@ et `as_of`, comme le contrat les nomme. Les liens entre fonctions d'un projet le
 et un témoin du front, `wf_last_project`, garde le dernier, dont la coquille tire le « retour
 au projet » (WF-IHM-0010) ; il ne ramène qu'à un écran de projet de la table, fonction ou feuille
 qui a son écran. Chaque route
-existe dès la coquille, servie par la page d'attente `frontend/src/app/[...path]/page.tsx`,
-qui répond « introuvable » quand l'API ne trouve pas le projet ou la révision ; le lot d'un
-écran écrit sa page à la même route, qui l'emporte sur elle. Les pages du compte
+de la table a sa page, ce que `frontend/src/app/[...path]/page.test.tsx` vérifie ; toute autre
+adresse mène, par `frontend/src/app/[...path]/page.tsx`, à l'écran « introuvable ». Les pages du compte
 (`/account`, `/account/password`, `/account/avatar`, `frontend/src/navigation/account.ts`)
 ont leurs écrans (US-0320) : les informations du compte et ses préférences d'affichage — la
 langue et le mode, les mêmes champs que le menu du compte écrit, enregistrés ensemble —, le
@@ -334,6 +333,26 @@ quand l'adresse nomme un risque (`risk`), son détail : notes, ligne de provisio
 retirée à la survenance, historique des réexamens. Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
+
+L'écran du reste à engager, `…/revisions/[r]/remaining` (`frontend/src/components/remaining/`,
+`remaining.tsx` de la grille), lit ses indicateurs dans la révision de sa route
+(`getRemainingIndicators`, `revision_id`) — le total, les écarts à la référence et à la revue
+précédente, absent plutôt que nul sans elle, les totaux par nature et, par sous-projet, le reste à
+engager et l'écart au budget avec le `Signal` de la zone que le serveur donne, et la couverture des
+risques (`RiskCoverageSummary`) —, ou les dit indisponibles quand l'API ne les trouve pas ; et la
+grille dense, une configuration de plus, sur les lignes des seules tâches démarrées, à moins que
+l'adresse ne demande aussi les non démarrées (`progress`, sous le nom et la forme du contrat, qu'un
+lien de son en-tête écrit). Le montant budgété, le réestimé précédent et le réestimé courant y sont
+des colonnes calculées ; les grandeurs d'une ligne se réestiment une par une par `setLineRemaining`,
+là où la ligne dit l'accepter (`remaining_entry`) et où son nœud accepte le champ — jamais d'après
+l'avancement de sa tâche —, la commande `edit_remaining` posant Annuler et Rétablir ; la fin d'une
+tâche s'y montre sans se saisir, et la fin dépassée par une marque propre, que le serveur dit
+(`finish_overdue`). Son bandeau ne montre que le sous-projet, seul paramètre de contexte que ses
+lectures prennent. Le Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
+`…/revisions/[r]/kanban`, où l'en-tête de la grille mène : les tâches non démarrées dont les prédécesseurs sont terminés et
+les démarrées, telles que les rend `listStartableTasks`, chacune une carte, un jalon non démarré
+signalé à terminer ; aucun pourcentage, aucune commande. L'opération lit la révision en cours : sur une
+révision marquée, l'écran le dit et ne demande rien.
 
 L'écran des coûts réels, `…/revisions/[r]/actual-costs` (`frontend/src/components/costs/`), lit
 ceux du projet — ils ne sont pas versionnés, la révision de la route n'est que le contexte du

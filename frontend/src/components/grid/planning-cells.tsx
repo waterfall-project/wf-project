@@ -75,8 +75,15 @@ export function SchedulingModeCell({ node }: { readonly node: PlanningNode }) {
   );
 }
 
-/** Render the progress of a task, an icon named for it; nothing for a line. */
-export function ProgressCell({ node }: { readonly node: PlanningNode }) {
+/**
+ * Render the progress of a task, an icon named for it; nothing for a line — in the grid of the
+ * planning, as in that of the remaining to commit.
+ */
+export function ProgressCell({
+  node,
+}: {
+  readonly node: { readonly task?: { readonly progress: TaskProgress } | null };
+}) {
   const t = useTranslations("enums.TaskProgress");
   const progress = node.task?.progress;
   if (progress === undefined) {

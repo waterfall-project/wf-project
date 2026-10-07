@@ -193,9 +193,16 @@ describe("the screen of the risks", () => {
     expect(page).toContain('<section aria-label="Provisions of the risks retained"><dl');
   });
 
-  it("shows the risk reserve of the reference revision beside the totals of the provisions [WF-RIS-0050-A]", async () => {
+  it("shows the risk reserve of the reference revision in the coverage alone, never among the totals of the provisions", async () => {
+    // Decision of the author of 2026-10-07 (#409): the reserve has its sense beside the provisions
+    // remaining, the cost of the risks occurred and the variance.
     const page = await risksAt();
-    expect(text(page)).toContain("General total 1,160.00 Risk reserve 910.00");
+    const start = page.indexOf('<section aria-label="Provisions of the risks retained">');
+    const totals = page.slice(start, page.indexOf("</section>", start));
+    expect(text(totals)).toBe(
+      "Identified risks 500.00 Occurred risks 60.00 Dismissed risks 600.00 General total 1,160.00",
+    );
+    expect(text(page).match(/Risk reserve/g)).toHaveLength(1);
   });
 
   it("reads the coverage of the risks in the revision of its route, and shows its four amounts as the server computes them, the variance signed [WF-RIS-0050-A]", async () => {
@@ -290,7 +297,7 @@ describe("the screen of the risks", () => {
     const page = await risksAt({ states: "occurred" });
     expect(text(page)).toContain("Risk management no risk retained");
     expect(text(page)).toContain(
-      "Identified risks 0.00 Occurred risks 0.00 Dismissed risks 0.00 General total 0.00 Risk reserve 0.00",
+      "Identified risks 0.00 Occurred risks 0.00 Dismissed risks 0.00 General total 0.00",
     );
     expect(text(page)).toContain("No row matches the request.");
   });

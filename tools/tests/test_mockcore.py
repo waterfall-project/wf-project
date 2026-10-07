@@ -15,7 +15,7 @@ from typing import Any, cast
 import pytest
 
 from wftools import mockcore, mockdata, mockstructure, mockwitness, mockwrites
-from wftools.mockwitness import Line, Task, universe
+from wftools.mockwitness import TODAY, Line, Task, universe
 
 type Node = dict[str, Any]
 
@@ -638,3 +638,29 @@ def test_a_leaf_accepts_its_attachment_to_the_work_breakdown_after_its_other_fie
         "task.order_item_id",
         "task.work_package_id",
     ]
+
+
+def _numbers(answer: Any) -> dict[str, list[int]]:
+    """Return the numbers of the tasks of each column of a Kanban, read back as JSON."""
+    columns = cast("dict[str, list[Node]]", json.loads(json.dumps(answer)))
+    return {key: [int(node["node_id"][-3:]) for node in nodes] for key, nodes in columns.items()}
+
+
+def test_the_kanban_holds_the_tasks_started_and_those_whose_predecessors_are_completed() -> None:
+    # Today: the operator desks and the wiring started, none to start — the factory acceptance
+    # waits for the wiring; never a summary, whose progress derives from its subordinates.
+    today = _numbers(mockcore.startable(mockcore.core()))
+    assert today == {"not_started": [], "started": [DESKS, WIRING]}
+    # The wiring declared completed: the factory acceptance, a milestone, has its predecessors
+    # completed, and is to start; the mounting on site after it waits for it.
+    completed = mockcore.startable(mockcore.core(mockdata.wiring_completed()))
+    later = _numbers(completed)
+    assert later == {"not_started": [MILESTONE], "started": [DESKS]}
+    # The finish declared is never after today, and the factory acceptance keeps its 30 June
+    # (C13), an instant.
+    wiring = next(row for row in mockcore.core(mockdata.wiring_completed()) if row.number == WIRING)
+    declared = cast("dict[str, Any]", json.loads(json.dumps(wiring.node["task"])))
+    assert date.fromisoformat(declared["finish"]["date"]) <= TODAY.date()
+    assert declared["completed_on"] == TODAY.date().isoformat()
+    acceptance = cast("list[Node]", json.loads(json.dumps(completed["not_started"])))[0]["task"]
+    assert acceptance["start"] == acceptance["finish"] == {"date": "2026-06-30", "hours": "8"}
