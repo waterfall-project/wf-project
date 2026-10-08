@@ -80,13 +80,13 @@ l'écran de sa fonction y mène, dans le même contexte, et son entrée est marq
 mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
 que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
 (`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
-montre (`role` : `region`, `grid`, `columnheader` ou `heading`) et la clé de son nom (`name`) — le
-lotissement, FBS-4.2.1, est la région « Lotissement » des paramètres du projet ; le Gantt, FBS-4.3.3,
-la colonne « Gantt » de la grille de planning ; l'avancement financier, FBS-4.8.1, le titre de sa
-carte. Seul un fait d'une liste nommée se passe de rôle — un terme ne prend pas son nom de ce qu'il
-dit — : il se trouve par son texte dans la liste que nomme la clé `within`, comme le taux
-d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ; `functions.test.ts` refuse toute autre
-section sans rôle.
+montre (`role` : `region`, `grid`, `treegrid`, `columnheader` ou `heading`) et la clé de son nom
+(`name`) — le lotissement, FBS-4.2.1, est la région « Lotissement » des paramètres du projet ; le
+Gantt, FBS-4.3.3, la colonne « Gantt » de la grille de planning ; l'avancement financier,
+FBS-4.8.1, le titre de sa carte. Seul un fait d'une liste nommée se passe de rôle — un terme ne
+prend pas son nom de ce qu'il dit — : il se trouve par son texte dans la liste que nomme la clé
+`within`, comme le taux d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ;
+`functions.test.ts` refuse toute autre section sans rôle.
 
 *Contrôle* : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
 modification, puisqu'il lit la projection comme le front) confronte la table aux fonctions de

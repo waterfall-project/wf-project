@@ -204,7 +204,7 @@ describe("the sections of the table", () => {
 
   it("are found on their screen by a role a browser exposes, named by a key of both catalogues", () => {
     for (const { section } of sections) {
-      expect(["region", "grid", "columnheader", "heading", undefined], section.code).toContain(
+      expect(["region", "grid", "treegrid", "columnheader", "heading", undefined], section.code).toContain(
         section.role,
       );
       expect(text(CATALOGUES.fr, section.name), section.code).toEqual(expect.any(String));

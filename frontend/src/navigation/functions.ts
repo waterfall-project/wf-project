@@ -64,7 +64,7 @@ export type PlatformFunction = (typeof PLATFORM_FUNCTIONS)[number];
 export type Scope = "platform" | "project" | "revision";
 
 /** The roles of what shows a section of a screen, as a browser exposes them. */
-export type SectionRole = "region" | "grid" | "columnheader" | "heading";
+export type SectionRole = "region" | "grid" | "treegrid" | "columnheader" | "heading";
 
 /**
  * A leaf of the FBS the screen of its function shows itself — a section, a grid, a column, a
