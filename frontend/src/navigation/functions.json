@@ -31,6 +31,13 @@
           "route": "/admin/backups",
           "scope": "platform",
           "permission": "backups"
+        },
+        {
+          "code": "FBS-1.5",
+          "label": "functions.auditLog",
+          "route": "/admin/audit-log",
+          "scope": "platform",
+          "permission": "audit_log"
         }
       ]
     },

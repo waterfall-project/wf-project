@@ -1310,7 +1310,7 @@ par l'utilisateur le 2026-10-04.
   `setDurationUnits`, `listUsers`, `listAccessRoles`, `listPermissions`,
   `getSystemStatus`, `listBackups`, `getBackupSchedule` ; venues d'EP-02/L41b,
   `setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`,
-  `setCostTypeActivation`, `setCostCategoryActivation`
+  `setCostTypeActivation`, `setCostCategoryActivation` ; venue d'EP-02/L41e, `listAuditEvents`
 - **issue** : #89
 
 **En tant qu'**administrateur, **je veux** les écrans du référentiel, des comptes, des rôles
@@ -1394,6 +1394,21 @@ l'état du système ; les sauvegardes et leur planification, sans aucune command
 atteint les huit écrans du référentiel et de l'administration depuis la navigation, sans projet
 ouvert. Les formulaires — créer un compte, composer un rôle, régler la planification, déclencher
 une sauvegarde ou une restauration — restent aux EPICs de l'administration et de l'exploitation.
+EP-02/L41, sa partie L41e (#506), ajoute le journal d'audit (FBS-1.5, #517), un écran de
+l'administration à lui, sur la décision de l'auteur du 2026-10-08 — la table « Dernières
+opérations » de l'état du système reste telle quelle : une grille dense en lecture seule, lue par
+`listAuditEvents`, triée par date dans les deux sens, les plus récentes d'abord, filtrée par période,
+nature d'auteur, auteur, action, projet, nature de l'objet et objet, paginée par le serveur, chaque
+inscription nommant son objet et son projet, avec un lien là où la session peut les consulter
+(WF-ADM-0110) ; l'écran est gardé par `audit_log.read` et s'atteint depuis la navigation de
+l'administration ; la fonction en lecture seule entre dans la table de la navigation, et la matrice
+des permissions nomme son groupe par elle. Écarts au contrat relevés par L41e : le journal ne se trie
+que par date et ne se filtre ni sur la corrélation ni sur le libellé de l'objet (WF-IHM-0060,
+WF-IHM-0130) ; une inscription ne nomme pas la révision où s'adressent un risque, une ligne de coût
+ou un import, qui restent nommés sans lien ; aucune opération ne liste les auteurs ni les projets
+du journal entier, et les filtres s'appuient sur `listUsers` et `listProjects` (#550). Un exemple de
+session d'auditeur, qui consulte le journal sans lire les comptes (`session_auditor`, rôle composé
+« Auditeur »), porte les réglages gardés de sa grille.
 
 ## US-0260 — Écran d'import en deux temps
 

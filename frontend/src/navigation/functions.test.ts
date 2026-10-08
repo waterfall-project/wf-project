@@ -55,7 +55,7 @@ describe("the table of the functions", () => {
       "FBS-3",
       "FBS-4",
     ]);
-    const sizes = { "FBS-1": 4, "FBS-2": 7, "FBS-3": 4, "FBS-4": 9 };
+    const sizes = { "FBS-1": 5, "FBS-2": 7, "FBS-3": 4, "FBS-4": 9 };
     for (const group of FUNCTION_GROUPS) {
       const expected = Array.from(
         { length: sizes[group.code as keyof typeof sizes] },

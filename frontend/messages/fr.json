@@ -132,6 +132,7 @@
       "workBreakdown": "Lotissement",
       "users": "Comptes utilisateurs",
       "accessRoles": "Rôles d’habilitation",
+      "auditLog": "Journal d’audit",
       "portfolioProjects": "Projets du portefeuille",
       "remaining": "Grille de reste à engager",
       "projects": "Liste des projets"
@@ -223,7 +224,15 @@
       "description": "Description",
       "physicalProgress": "Avancement physique",
       "gantt": "Gantt",
-      "updatedAt": "Modifié le"
+      "updatedAt": "Modifié le",
+      "occurredAt": "Date",
+      "author": "Auteur",
+      "auditAction": "Action",
+      "objectKind": "Nature de l’objet",
+      "auditObject": "Objet",
+      "objectHistory": "Histoire de l’objet",
+      "project": "Projet",
+      "correlation": "Corrélation"
     },
     "computed": "Calculé",
     "entry": {
@@ -1193,8 +1202,7 @@
       "function": "Fonction",
       "permission": "Permission",
       "held": "Accordée",
-      "notHeld": "Non accordée",
-      "auditLog": "Journal d’audit"
+      "notHeld": "Non accordée"
     },
     "status": {
       "version": "Version installée : {version}",
@@ -1263,6 +1271,35 @@
         "saturday": "Samedi",
         "sunday": "Dimanche"
       }
+    },
+    "auditLog": {
+      "count": "{count, plural, =0 {Aucune inscription} one {# inscription} other {# inscriptions}}",
+      "none": "Le journal ne tient aucune inscription.",
+      "noProject": "Hors projet",
+      "project": "{code} · {label}",
+      "history": "Histoire de « {object} »",
+      "periodRefused": "La période finit avant de commencer : aucune inscription n’est lue. Changez ses bornes.",
+      "filters": {
+        "label": "Filtres du journal",
+        "period": "Période",
+        "from": "Depuis le",
+        "to": "Avant le",
+        "apply": "Appliquer",
+        "actorKind": "Filtrer par nature d’auteur",
+        "everyActor": "Tous les auteurs",
+        "user": "Auteur",
+        "everyUser": "Tous les comptes",
+        "everyAction": "Toutes les actions",
+        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
+        "actionsNamed": "Filtrer par action : {chosen}",
+        "project": "Projet",
+        "everyProject": "Tous les projets",
+        "objectKind": "Nature de l’objet",
+        "everyObjectKind": "Toutes les natures",
+        "object": "Objet : {object}",
+        "lift": "Lever",
+        "liftObject": "Lever le filtre sur « {object} »"
+      }
     }
   },
   "functionGroups": {
@@ -1276,6 +1313,7 @@
     "accessRoles": "Gestion des rôles d’habilitation",
     "systemStatus": "Surveillance de l’état du système",
     "backups": "Sauvegarde et restauration",
+    "auditLog": "Journal d’audit",
     "portfolioProjects": "Portefeuille de projets",
     "portfolioWorkload": "Plan de charge agrégé",
     "portfolioPerformance": "Performance du portefeuille",

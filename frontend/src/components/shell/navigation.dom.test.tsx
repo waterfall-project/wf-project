@@ -129,7 +129,7 @@ describe("the navigation", () => {
         .map((link) => link.textContent),
     ).toEqual(["Projets"]);
     await openBlocks();
-    expect(within(nav).getAllByRole("link")).toHaveLength(4 + 7 + 4 + 1);
+    expect(within(nav).getAllByRole("link")).toHaveLength(5 + 7 + 4 + 1);
     for (const block of ["Administration", "Portefeuille", "Paramètres applicatifs"]) {
       expect(within(nav).getByRole("button", { name: block })).toHaveAttribute(
         "aria-expanded",
@@ -167,7 +167,7 @@ describe("the navigation", () => {
       .map((h) => h.textContent);
     expect(headings).toEqual(["Plateforme", "Projet", "Révision en cours"]);
     const links = within(nav).getAllByRole("link");
-    expect(links).toHaveLength(15 + 1 + 3 + 6);
+    expect(links).toHaveLength(16 + 1 + 3 + 6);
     for (const link of [...links, ...within(nav).getAllByRole("button")]) {
       expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
       expect(link.textContent).not.toBe("");

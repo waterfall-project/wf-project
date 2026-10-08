@@ -90,12 +90,22 @@ le permet, et côté client par le client engendré, jamais en recopiant une ré
 Un composant serveur ne prend pas d'identifiant de `useId` : il nomme une section par
 `aria-label` et un champ par un identifiant à lui. `useId` est pour les composants client.
 
+Un module serveur — une page de `src/app`, un module sans directive, une action `"use server"` —
+n'importe d'un module `"use client"` que des composants et des types : toute autre valeur, une
+constante, une fonction, y arrive en référence au client (défaut n° 12). Ce que les deux côtés
+lisent vit dans un module sans directive.
+
 *Pourquoi* : moins de code envoyé au navigateur, et une seule source pour chaque donnée :
 la réponse de l'API. Et les identifiants que React donne aux composants serveur d'une page et aux
 composants client de la coquille peuvent se rencontrer : la région du détail d'un risque s'est
 nommée d'après l'aide de la recherche de la coquille (#251). *Contrôle* : la revue ; `useId` dans
 un module sans `"use client"`, `src/components/use-id-guard.test.ts` (`make test-front`), qui
-cherche son import depuis `react`, alias compris, hors des commentaires.
+cherche son import depuis `react`, alias compris, hors des commentaires ; une valeur d'un module
+`"use client"` importée par un module serveur, `src/components/client-import-guard.test.ts`
+(#548), qui lit les imports et les réexportations de chaque module serveur, hors des commentaires
+et des imports de types, et refuse tout nom qui n'est pas celui d'un composant — un nom en
+PascalCase, jamais une constante en capitales ; un espace de noms (`* as`, `export * from`) n'en est
+jamais un, et un défaut se juge sous le nom qu'on lui donne.
 
 ### Accessibilité
 

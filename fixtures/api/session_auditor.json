@@ -1,0 +1,61 @@
+{
+  "summary": "La session de Noé Vidal, auditeur : il consulte le journal d'audit, et rien d'autre — ni les comptes, ni les projets dont il n'est pas contributeur —, et garde ses réglages de la grille du journal : la colonne de la corrélation masquée, la date élargie et les plus anciennes inscriptions d'abord, le tri servant quand l'adresse n'en demande aucun.",
+  "value": {
+    "user": {
+      "user_id": "01926f3a-7c00-7000-8000-000000000307",
+      "last_name": "Vidal",
+      "first_name": "Noé",
+      "email": "noe.vidal@example.com",
+      "is_active": true,
+      "origin": "local",
+      "org_node_id": null,
+      "org_node_label": null,
+      "access_role_ids": [
+        "01926f3a-7c00-7000-8000-000000000707"
+      ],
+      "access_role_labels": [
+        "Auditeur"
+      ],
+      "has_avatar": false,
+      "audit": {
+        "created_at": "2025-10-06T09:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2025-10-06T09:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1,
+      "display_preferences": {
+        "language": "default",
+        "theme": "default",
+        "highlight_tasks_added_after_reference": false,
+        "grids": {
+          "audit_log": {
+            "hidden_columns": [
+              "correlation"
+            ],
+            "column_widths": {
+              "occurred_at": 220
+            },
+            "sort": {
+              "column": "occurred_at",
+              "order": "asc"
+            }
+          }
+        }
+      }
+    },
+    "permissions": [
+      "audit_log.read"
+    ],
+    "expires_at": "2026-06-04T08:00:00Z",
+    "idle_expires_at": "2026-06-03T16:05:00Z"
+  }
+}

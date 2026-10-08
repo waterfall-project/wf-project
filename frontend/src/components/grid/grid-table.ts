@@ -114,7 +114,8 @@ export function configColumn<Row extends RowData, Sort extends string, Totals>(
 
 /**
  * Make the table of a grid. Its sort is the address's: a click on a header computes the next
- * one — ascending, descending, then none — and hands it to `onSort`, never to the rows.
+ * one — ascending, descending, then none, unless the grid never lifts its sort — and hands it to
+ * `onSort`, never to the rows.
  */
 export function useGridTable<Row extends RowData, Sort extends string, Totals>({
   config,
@@ -145,6 +146,7 @@ export function useGridTable<Row extends RowData, Sort extends string, Totals>({
     getRowId: (row) => config.rowKey(row),
     manualSorting: true,
     enableMultiSort: false,
+    enableSortingRemoval: config.lifts !== false,
     columnResizeMode: "onChange",
     initialState: { columnPinning: { start: pinned, end: [] } },
     state: {

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The way through the pages of a list the server pages — the actual costs, the journal of their
- * imports, the imports of a project (US-0260), the projects of the portfolio, the accounts —: the links to the
- * page before and the page after the one shown, when there are, by the pagination of shadcn/ui. A
+ * imports, the imports of a project (US-0260), the projects of the portfolio, the accounts, the
+ * journal of audit —: the links to the page before and the page after the one shown, when there
+ * are, by the pagination of shadcn/ui. A
  * list never shows one of its pages as if it were the whole; a page asked beyond its end says so,
  * and leads back to its last page. A page turned only changes the address (`offset`,
  * `imports_offset`), from the address last asked: a sort or a filter under way is kept, and the
@@ -31,8 +32,8 @@ import type { ListPage } from "./cost-grid";
 
 /**
  * The lists the server pages, by the parameter of their page and the texts of their links: those
- * of the actual costs, the imports of a project, the projects of the portfolio and the accounts,
- * which share the way through their pages.
+ * of the actual costs, the imports of a project, the projects of the portfolio, the accounts and the
+ * journal of audit, which share the way through their pages.
  */
 const PAGES = {
   costs: { name: COSTS_PAGE, texts: "actualCosts.pages.costs" },
@@ -40,6 +41,7 @@ const PAGES = {
   exchanges: { name: EXCHANGES_PAGE, texts: "actualCosts.pages.exchanges" },
   projects: { name: OFFSET, texts: "portfolio.pages" },
   users: { name: OFFSET, texts: "admin.pages" },
+  audit: { name: OFFSET, texts: "admin.pages" },
 } as const;
 
 /**

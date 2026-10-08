@@ -55,19 +55,19 @@ describe("the matrix of the permissions", () => {
       "Accordée",
       "Non accordée",
       "Non accordée",
+      "Non accordée",
       "Accordée",
       "Non accordée",
       "Non accordée",
     ]);
-    // Each of the twenty-four functions heads its group by its name alone: no code of the FBS is
-    // shown to the user (decision of the author on #515); the consultation of the journal of
-    // audit heads its own by a name of the catalogue, its function still to come (#518).
+    // Each of the twenty-five functions heads its group by its name alone: no code of the FBS is
+    // shown to the user (decision of the author on #515) — the journal of audit, FBS-1.5, too.
     expect(within(matrix).getByRole("rowheader", { name: "Journal d’audit" })).toBeInTheDocument();
     expect(
       within(matrix).getByRole("rowheader", { name: "Gestion des rôles d’habilitation" }),
     ).toHaveAttribute("rowspan", "2");
-    // Twenty-four functions, the journal of audit, and the irreversible and the structuring
-    // actions.
+    // Twenty-five functions, the journal of audit among them, and the irreversible and the
+    // structuring actions.
     expect(matrix.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(27);
     expect(matrix.textContent).not.toContain("FBS-");
     await expectAccessible(container);

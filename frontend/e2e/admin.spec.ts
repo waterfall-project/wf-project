@@ -21,6 +21,7 @@ const SCREENS = [
   ["Administration", "Gestion des rôles d’habilitation", "/admin/access-roles"],
   ["Administration", "Surveillance de l’état du système", "/system"],
   ["Administration", "Sauvegarde et restauration", "/admin/backups"],
+  ["Administration", "Journal d’audit", "/admin/audit-log"],
 ] as const;
 
 /**
@@ -53,23 +54,27 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
 }) => {
   await page.goto("/admin/users");
   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
-  // The header, the six accounts, the totals: how many the server retained.
-  await expect(accounts.getByRole("row")).toHaveCount(8);
+  // The header, the seven accounts, the totals: how many the server retained.
+  await expect(accounts.getByRole("row")).toHaveCount(9);
   await expect(
     accounts.getByRole("row", {
       name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé/,
     }),
   ).toHaveCount(1);
-  await expect(accounts.getByRole("row").last()).toHaveText("6 comptes");
+  await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
-  // A header, the forty-eight permissions of the functions, the consultation of the journal of
-  // audit, and the ten permissions of their own.
+  // A header, the forty-nine permissions of the functions — the journal of audit has its
+  // consultation alone —, and the ten permissions of their own.
   await expect(matrix.getByRole("row")).toHaveCount(60);
+  await expect(
+    matrix.getByRole("rowheader", { name: "Journal d’audit", exact: true }),
+  ).toBeVisible();
   const restore = matrix.getByRole("row", { name: /^Restaurer la plateforme/ });
   await expect(restore.getByRole("cell")).toHaveText([
     "Accordée",
+    "Non accordée",
     "Non accordée",
     "Non accordée",
     "Accordée",
@@ -140,7 +145,7 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(page).toHaveURL(/search=Mor&include_inactive=false$/, { timeout: WORKING });
   await expect(page.getByRole("link", { name: "Afficher les désactivés" })).toBeVisible();
   // The fake back answers its example whatever is asked: what the screen asks is what this proves.
-  await expect(accounts.getByRole("row").last()).toHaveText("6 comptes");
+  await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
 });
 
 test("offers the commands of the accounts, each available with EP-03, and the deletion of none", async ({
@@ -189,5 +194,5 @@ test("offers the commands of the access roles, each available with EP-03, and so
   // Every role stays in the matrix, whatever the grid asks.
   await expect(
     page.getByRole("table", { name: "Permissions par fonction" }).getByRole("columnheader"),
-  ).toHaveCount(8);
+  ).toHaveCount(9);
 });

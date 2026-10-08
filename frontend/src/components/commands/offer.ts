@@ -18,7 +18,7 @@
  * command anyway, and its refusal is rendered (`OutcomeNotice`).
  */
 import type { components } from "@/api/generated/schema";
-import type { PlatformFunction } from "@/navigation/functions";
+import type { PlatformFunction, WritableFunction } from "@/navigation/functions";
 import type { Permission } from "@/session/request";
 
 /** A condition a command requires, named by the server when it lacks. */
@@ -65,11 +65,11 @@ const GRANTED: CommandOffer = { is_available: true, missing_conditions: [] };
  * The offer of a command of a function outside any project: available when the session holds
  * the permission of modification of the function — `users.write` for `users` —, or
  * `platform_restore` for the restoration; `undefined` otherwise, and the command is not
- * presented.
+ * presented. A function in reading alone — the journal of audit — has no command to offer.
  */
 export function platformOffer(
   permissions: readonly Permission[] | undefined,
-  guard: PlatformFunction | "platform_restore",
+  guard: (PlatformFunction & WritableFunction) | "platform_restore",
 ): CommandOffer | undefined {
   const needed = guard === "platform_restore" ? guard : `${guard}.write`;
   return new Set<string>(permissions).has(needed) ? GRANTED : undefined;

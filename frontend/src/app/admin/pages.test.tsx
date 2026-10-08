@@ -135,7 +135,8 @@ describe("the accounts", () => {
       "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
       "Petit Lucas lucas.petit@example.com Créé dans Waterfall Chiffreur Aucun Actif",
       "Roux Inès ines.roux@example.com Créé dans Waterfall Pilotage de projet Aucun Actif",
-      "6 comptes",
+      "Vidal Noé noe.vidal@example.com Créé dans Waterfall Auditeur Aucun Actif",
+      "7 comptes",
     ]);
     expect(sortable(page, "Comptes utilisateurs")).toEqual([
       "Nom",
@@ -239,7 +240,7 @@ describe("the accounts", () => {
     expect(rows(page, "Comptes utilisateurs").slice(1)).toEqual([
       "Martin Camille camille.martin@example.com Créé dans Waterfall Direction de projet Aucun Actif",
       "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
-      "6 comptes",
+      "7 comptes",
     ]);
     // The switch of the deactivated accounts, then the pages before and after.
     expect(links(page)).toEqual([
@@ -268,12 +269,13 @@ describe("the access roles", () => {
     expect(rows(page, "Rôles d’habilitation")).toEqual([
       "Libellé Nature Comptes porteurs",
       "Administrateur Prédéfini 0",
+      "Auditeur Composé 1",
       "Chef de projet Prédéfini 1",
       "Chiffreur Composé 1",
       "Direction de projet Composé 1",
       "Manager Prédéfini 1",
       "Pilotage de projet Composé 1",
-      "6 rôles",
+      "7 rôles",
     ]);
     expect(sortable(page, "Rôles d’habilitation")).toEqual([
       "Libellé",
@@ -310,28 +312,28 @@ describe("the access roles", () => {
     expect(matrix).toHaveLength(60);
     // Named by the catalogue, never by a code of the FBS (#518).
     expect(matrix).toContain(
-      "Journal d’audit Consulter le journal d’audit Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+      "Journal d’audit Consulter le journal d’audit Accordée Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
     );
     expect(matrix.slice(0, 3)).toEqual([
-      "Fonction Permission Administrateur Chef de projet Chiffreur Direction de projet Manager Pilotage de projet",
-      "Gestion des utilisateurs Consulter les utilisateurs Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
-      "Modifier les utilisateurs Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+      "Fonction Permission Administrateur Auditeur Chef de projet Chiffreur Direction de projet Manager Pilotage de projet",
+      "Gestion des utilisateurs Consulter les utilisateurs Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+      "Modifier les utilisateurs Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
     ]);
     expect(matrix).toContain(
-      "Paramètres de coûts Consulter les paramètres de coûts Non accordée Accordée Accordée Accordée Accordée Accordée",
+      "Paramètres de coûts Consulter les paramètres de coûts Non accordée Non accordée Accordée Accordée Accordée Accordée Accordée",
     );
     expect(matrix.slice(-11)).toEqual([
-      "Modifier le cycle de vie du projet Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Action irréversible Marquer une révision Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Abandonner une révision en cours Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Désigner la révision de référence Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Fusionner un différentiel Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Clore un projet : terminé, perdu ou abandonné Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Déclarer la survenance d’un risque Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Exclure des lignes de coût réel Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Restaurer la plateforme Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
-      "Permission structurante Créer un projet Non accordée Accordée Non accordée Accordée Non accordée Accordée",
-      "Consulter tous les projets Non accordée Non accordée Non accordée Accordée Accordée Non accordée",
+      "Modifier le cycle de vie du projet Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Action irréversible Marquer une révision Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Abandonner une révision en cours Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Désigner la révision de référence Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Fusionner un différentiel Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Clore un projet : terminé, perdu ou abandonné Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Déclarer la survenance d’un risque Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Exclure des lignes de coût réel Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Restaurer la plateforme Accordée Non accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+      "Permission structurante Créer un projet Non accordée Non accordée Accordée Non accordée Accordée Non accordée Accordée",
+      "Consulter tous les projets Non accordée Non accordée Non accordée Non accordée Accordée Accordée Non accordée",
     ]);
   });
 
