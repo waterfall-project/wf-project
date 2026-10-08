@@ -1291,7 +1291,9 @@ par l'utilisateur le 2026-10-04.
   `listResourceRoles`, `listCalendars`, `listCostTypes`, `listCostCategories`,
   `listHourlyRates`, `getHourlyRateGrid`, `setHourlyRate`, `getDurationUnits`,
   `setDurationUnits`, `listUsers`, `listAccessRoles`, `listPermissions`,
-  `getSystemStatus`, `listBackups`, `getBackupSchedule`
+  `getSystemStatus`, `listBackups`, `getBackupSchedule` ; venues d'EP-02/L41b,
+  `setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`,
+  `setCostTypeActivation`, `setCostCategoryActivation`
 - **issue** : #89
 
 **En tant qu'**administrateur, **je veux** les écrans du référentiel, des comptes, des rôles
@@ -1315,6 +1317,24 @@ grille ne saisit que les années que la réponse porte : l'ajout d'une colonne d
 (WF-REF-0060) manque au front, #299. Les écrans lisent les objets actifs seuls ; présenter les
 désactivés, qui restent lisibles (WF-REF-0150), est #300, et filtrer chaque table sur ses
 colonnes (WF-IHM-0130), #301.
+EP-02/L41, sa partie L41b (#506), fait la part de la maquette de ces trois constats, sur la
+décision de l'auteur du 2026-10-08 (#301, #511) : les tables plates des paramètres de ressources
+passent sur la grille dense — les rôles et les calendriers triés par le serveur là où le contrat
+le porte, sans pagination tant qu'EP-02/L42 ne l'a pas ajoutée au contrat, l'organisation en
+grille arborescente qui ne se trie pas et se plie comme les grilles de tâches —, chacune cherchée
+par le serveur et gardant ses réglages par grille ; la grille des taux ajoute la colonne d'une
+année, que le premier taux saisi écrit ; les listes montrent à la demande les objets désactivés
+et les réactivent. Les natures et les catégories de coût passent sur la grille dense avec
+EP-02/L42 (#510). Les tables des paramètres des risques et des indicateurs — bornes et zones de la
+matrice, seuils des indices — sont des matrices de taille fixe qui restent des tables simples,
+sans filtre ni tri (décision de l'auteur du 2026-10-08, #508). La part du service de #299 et #300
+reste à EP-05, dont les « Constats reçus » le disent.
+Écarts au contrat relevés par L41b : WF-REF-0080 ne réactive un nœud que sous un parent actif et un
+rôle que sous un nœud actif, et le contrat ne déclare ni ce refus ni la disponibilité de la
+commande — la réactivation est offerte sur tout objet désactivé, et le refus du serveur dit comme
+tout autre (#532, pour L42) ; les filtres par colonne de `listResourceRoles`, `listCalendars` et
+`listOrgNodes` au-delà du libellé et du nœud, et le tri des heures d'un jour des calendriers,
+manquent au contrat (#533).
 US-0250/L2 réalise l'administration (FBS-1.1 à 1.4), en lecture : les comptes, désactivés
 compris, chacun avec ses rôles et son rattachement nommés par le serveur, par pages ; les rôles
 d'habilitation et la matrice des permissions — une ligne par permission dans l'ordre de

@@ -23,6 +23,8 @@ import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatMoney, formatPercent, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
+import type { GridAddress } from "./query";
+
 /**
  * How the value of a cell shows, from the exact string of the contract: as it is (`text`), an
  * amount (`money`), a decimal — hours, a quantity (`decimal`) —, a ratio as a percentage
@@ -293,6 +295,11 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    * an operation without `search` — the actual costs — offers none.
    */
   readonly searched: boolean;
+  /**
+   * The names under which the grid writes its sort and its search in the address: those of the
+   * contract when none — a grid alone on its screen —, or its own among several (`prefixedAddress`).
+   */
+  readonly address?: GridAddress;
   /** The number of a row, shown first and pinned, as the API computes it; none, no column. */
   readonly rowNumber?: (row: Row) => number;
   readonly tree?: GridTree<Row>;

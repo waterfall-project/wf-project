@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ESTIMATE_SORT_COLUMNS } from "./estimate";
-import { readGridQuery, SEARCH_LENGTH, searchHref, sortHref } from "./query";
+import { prefixedAddress, readGridQuery, SEARCH_LENGTH, searchHref, sortHref } from "./query";
 
 describe("what the address asks of a grid", () => {
   it("reads the sort by a column the grid sorts, ascending unless the address says descending", () => {
@@ -85,5 +85,33 @@ describe("the address a grid leads to", () => {
       "/p?in_tracked_scope=false&sort_by=amount&sort_order=asc",
     );
     expect(searchHref("/p", paged, "pièce")).toBe("/p?in_tracked_scope=false&search=pi%C3%A8ce");
+  });
+
+  it("reads and writes the sort and the search of a grid among several under its own names, the others' kept", () => {
+    const roles = prefixedAddress("role_");
+    const address = new URLSearchParams(
+      "sort_by=hours&search=other&role_sort_by=label&role_sort_order=desc&role_search=Ing",
+    );
+    expect(readGridQuery(address, ESTIMATE_SORT_COLUMNS, null, roles)).toEqual({
+      sort: { column: "label", order: "desc" },
+      search: "Ing",
+    });
+    expect(sortHref("/r", address, { column: "hours", order: "asc" }, roles)).toBe(
+      "/r?sort_by=hours&search=other&role_search=Ing&role_sort_by=hours&role_sort_order=asc",
+    );
+    expect(searchHref("/r", address, "", roles)).toBe(
+      "/r?sort_by=hours&search=other&role_sort_by=label&role_sort_order=desc",
+    );
+  });
+
+  it("takes back to its first page only the list of the grid whose sort or search changed", () => {
+    const roles = prefixedAddress("role_");
+    const paged = new URLSearchParams("offset=50&role_offset=20&calendar_offset=10");
+    expect(sortHref("/r", paged, { column: "label", order: "asc" }, roles)).toBe(
+      "/r?offset=50&calendar_offset=10&role_sort_by=label&role_sort_order=asc",
+    );
+    expect(searchHref("/r", paged, "Ing", roles)).toBe(
+      "/r?offset=50&calendar_offset=10&role_search=Ing",
+    );
   });
 });

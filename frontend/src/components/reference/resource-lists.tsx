@@ -1,80 +1,79 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The settings of the resources (FBS-3.2, US-0250), in dense tables, in the order the server gave
- * them: the nodes of the organisation, as a tree — each by its code, set in by its depth under the
- * node it is attached to, in the order of the tree the server gives (WF-REF-0070); the
- * resource roles, with their node, their category and their calendar, and their single capacity
- * (WF-REF-0090, WF-REF-0100); the calendars, seven values of hours, the default one marked
- * (WF-REF-0110, WF-REF-0120); the constants the units of duration convert by (WF-PLA-0160). An
- * object attached is named as the server resolves it. Every figure as the API gives it. Read
- * only: the forms belong to the epic of the reference data.
+ * The settings of the resources (FBS-3.2, US-0250), each list a dense grid under its title (#301,
+ * #511), in the order the server gave it: the nodes of the organisation, as a tree that folds —
+ * each by its label set in by its depth under the node it is attached to, its code and its depth,
+ * in the order of the tree the server gives (WF-REF-0070); the resource roles, with their node,
+ * their category and their calendar, and their single capacity (WF-REF-0090, WF-REF-0100),
+ * filtered by node; the calendars, seven values of hours, the default one marked (WF-REF-0110,
+ * WF-REF-0120); the constants the units of duration convert by (WF-PLA-0160). An object attached
+ * is named as the server resolves it. Every figure as the API gives it. A deactivated object,
+ * which a list shows when the address asks for them, offers its reactivation (WF-REF-0150); the
+ * forms that create and modify belong to the epic of the reference data.
+ *
+ * A list says it is empty only when nothing narrows it: a search or a filter that retains nothing
+ * keeps its grid, the search shown to be changed.
  */
-import { CalendarDays, CalendarCheck, Network, Timer, Users } from "lucide-react";
+import { Network, Timer, Users, CalendarDays } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
-import { TableCell, TableRow } from "@/components/ui/table";
+import type { GridQuery } from "@/components/grid/query";
+import type { GridPreferences } from "@/components/grid/settings";
 import { formatDecimal } from "@/i18n/format";
 
-import { ActiveState, ReferenceSection } from "./section";
+import { listReads } from "./address";
+import { Reactivations } from "./reactivation";
+import { type NodeChoice, OrgNodeFilter } from "./reference-filters";
+import { ResourceGrid } from "./resource-grid";
+import {
+  CALENDAR_ADDRESS,
+  type Calendar,
+  type CalendarSort,
+  ORG_NODE_ADDRESS,
+  type OrgNode,
+  RESOURCE_ROLE_ADDRESS,
+  ROLE_ORG_NODE,
+  type ResourceRole,
+  type ResourceRoleSort,
+} from "./resource-grids";
+import { ReferenceSection } from "./section";
 
-type OrgNode = components["schemas"]["OrgNode"];
-type ResourceRole = components["schemas"]["ResourceRole"];
-type Calendar = components["schemas"]["Calendar"];
 type DurationUnits = components["schemas"]["DurationUnits"];
 
-/** The seven days of a calendar, from Monday, as the contract names them. */
-const DAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-] as const satisfies readonly (keyof Calendar["weekly_hours"])[];
+/** What a list of the settings of the resources shows. */
+interface ListProps<Row, Sort extends string> {
+  readonly rows: readonly Row[];
+  readonly query: GridQuery<Sort>;
+  readonly preferences: GridPreferences | undefined;
+  /** Whether the session may modify the settings of the resources (`platformOffer`). */
+  readonly reactivable: boolean;
+}
 
-/** The depth a level of the tree sets a label in by, in `rem`. */
-const LEVEL_INDENT = 1.25;
+/** What a list says when its answer holds nothing: that it is empty, unless something narrows it. */
+function emptiness(rows: readonly unknown[], narrowed: boolean, none: string): string | undefined {
+  return rows.length === 0 && !narrowed ? none : undefined;
+}
 
-/**
- * The nodes of the organisation as a tree, in the order the server gives it: each by its code, its
- * label set in by its depth under its parent, and its depth said.
- */
-export function OrgNodeList({ nodes }: { readonly nodes: readonly OrgNode[] }) {
+/** The nodes of the organisation, as a tree that folds, in the order the server gives it. */
+export function OrgNodeList({ rows, query, preferences, reactivable }: ListProps<OrgNode, never>) {
   const t = useTranslations("reference.orgNodes");
-  const columns = useTranslations("reference.columns");
-  const locale = useLocale();
   return (
     <ReferenceSection
       title={t("title")}
       icon={Network}
-      empty={nodes.length === 0 ? t("none") : undefined}
+      empty={emptiness(rows, query.search !== undefined, t("none"))}
     >
-      <ListTable
-        label={t("title")}
-        columns={[columns("code"), columns("label"), t("level"), columns("state")]}
-      >
-        {nodes.map((node) => (
-          <TableRow key={node.org_node_id}>
-            <TableCell className={CELL}>{node.code}</TableCell>
-            <TableCell
-              className={CELL}
-              style={{ paddingInlineStart: `${String((node.level - 1) * LEVEL_INDENT)}rem` }}
-            >
-              {node.label}
-            </TableCell>
-            <TableCell className={`${CELL} tabular-nums`}>
-              {formatDecimal(String(node.level), locale)}
-            </TableCell>
-            <TableCell className={CELL}>
-              <ActiveState active={node.is_active} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
+      <Reactivations reads={listReads(ORG_NODE_ADDRESS)}>
+        <ResourceGrid
+          kind="orgNodes"
+          rows={rows}
+          query={query}
+          preferences={preferences}
+          reactivable={reactivable}
+        />
+      </Reactivations>
     </ReferenceSection>
   );
 }
@@ -82,94 +81,65 @@ export function OrgNodeList({ nodes }: { readonly nodes: readonly OrgNode[] }) {
 /**
  * The resource roles, each with its node, its category and its calendar — named as the server
  * resolves them, active or not (WF-REF-0150) —, its capacity in hours a month and the headcount
- * they stand for, and its state.
+ * they stand for, and its state; filtered by the node the address names, among those of the tree.
  */
-export function ResourceRoleList({ roles }: { readonly roles: readonly ResourceRole[] }) {
+export function ResourceRoleList({
+  rows,
+  query,
+  preferences,
+  reactivable,
+  nodes,
+  orgNode,
+}: ListProps<ResourceRole, ResourceRoleSort> & {
+  /** The nodes of organisation the roles may be restricted to, in the order of the tree. */
+  readonly nodes: readonly NodeChoice[];
+  /** The node the address restricts the roles to, if any. */
+  readonly orgNode: string | undefined;
+}) {
   const t = useTranslations("reference.resourceRoles");
-  const columns = useTranslations("reference.columns");
-  const locale = useLocale();
   return (
     <ReferenceSection
       title={t("title")}
       icon={Users}
-      empty={roles.length === 0 ? t("none") : undefined}
+      empty={emptiness(rows, query.search !== undefined || orgNode !== undefined, t("none"))}
     >
-      <ListTable
-        label={t("title")}
-        columns={[
-          columns("label"),
-          t("orgNode"),
-          t("costCategory"),
-          t("calendar"),
-          t("monthlyHours"),
-          t("headcount"),
-          columns("state"),
-        ]}
-      >
-        {roles.map((role) => (
-          <TableRow key={role.resource_role_id}>
-            <TableCell className={CELL}>{role.label}</TableCell>
-            <TableCell className={CELL}>{role.org_node_label}</TableCell>
-            <TableCell className={CELL}>{role.cost_category_label}</TableCell>
-            <TableCell className={CELL}>{role.calendar_label}</TableCell>
-            <TableCell className={`${CELL} text-right tabular-nums`}>
-              {formatDecimal(role.capacity.monthly_hours, locale)}
-            </TableCell>
-            <TableCell className={`${CELL} text-right tabular-nums`}>
-              {formatDecimal(role.capacity.headcount, locale)}
-            </TableCell>
-            <TableCell className={CELL}>
-              <ActiveState active={role.is_active} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
+      <OrgNodeFilter name={ROLE_ORG_NODE} nodes={nodes} chosen={orgNode} />
+      <Reactivations reads={listReads(RESOURCE_ROLE_ADDRESS, ROLE_ORG_NODE)}>
+        <ResourceGrid
+          kind="resourceRoles"
+          rows={rows}
+          query={query}
+          preferences={preferences}
+          reactivable={reactivable}
+        />
+      </Reactivations>
     </ReferenceSection>
   );
 }
 
 /** The calendars, each by its seven values of hours from Monday, the default one marked. */
-export function CalendarList({ calendars }: { readonly calendars: readonly Calendar[] }) {
+export function CalendarList({
+  rows,
+  query,
+  preferences,
+  reactivable,
+}: ListProps<Calendar, CalendarSort>) {
   const t = useTranslations("reference.calendars");
-  const columns = useTranslations("reference.columns");
-  const locale = useLocale();
   return (
     <ReferenceSection
       title={t("title")}
       icon={CalendarDays}
-      empty={calendars.length === 0 ? t("none") : undefined}
+      empty={emptiness(rows, query.search !== undefined, t("none"))}
     >
-      <ListTable
-        label={t("title")}
-        columns={[
-          columns("label"),
-          ...DAYS.map((day) => t(`days.${day}`)),
-          t("default"),
-          columns("state"),
-        ]}
-      >
-        {calendars.map((calendar) => (
-          <TableRow key={calendar.calendar_id}>
-            <TableCell className={CELL}>{calendar.label}</TableCell>
-            {DAYS.map((day) => (
-              <TableCell key={day} className={`${CELL} text-right tabular-nums`}>
-                {formatDecimal(calendar.weekly_hours[day], locale)}
-              </TableCell>
-            ))}
-            <TableCell className={CELL}>
-              {calendar.is_default ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <CalendarCheck aria-hidden="true" className={ICON} />
-                  {t("isDefault")}
-                </span>
-              ) : null}
-            </TableCell>
-            <TableCell className={CELL}>
-              <ActiveState active={calendar.is_active} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
+      <Reactivations reads={listReads(CALENDAR_ADDRESS)}>
+        <ResourceGrid
+          kind="calendars"
+          rows={rows}
+          query={query}
+          preferences={preferences}
+          reactivable={reactivable}
+        />
+      </Reactivations>
     </ReferenceSection>
   );
 }

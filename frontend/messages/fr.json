@@ -122,6 +122,9 @@
       "risks": "Registre des risques",
       "actualCosts": "Coûts réels",
       "hourlyRates": "Grille des taux horaires",
+      "orgNodes": "Arbre d’organisation",
+      "resourceRoles": "Rôles de ressources",
+      "calendars": "Calendriers",
       "portfolioProjects": "Projets du portefeuille",
       "remaining": "Grille de reste à engager"
     },
@@ -159,6 +162,20 @@
       "passthrough": "Colonnes conservées du fichier",
       "code": "Code",
       "hourlyRate": "Taux horaire",
+      "level": "Niveau",
+      "orgNode": "Nœud d’organisation",
+      "costCategory": "Catégorie de coût",
+      "calendar": "Calendrier",
+      "monthlyHours": "Heures par mois",
+      "headcount": "Effectif",
+      "monday": "Lun.",
+      "tuesday": "Mar.",
+      "wednesday": "Mer.",
+      "thursday": "Jeu.",
+      "friday": "Ven.",
+      "saturday": "Sam.",
+      "sunday": "Dim.",
+      "defaultCalendar": "Par défaut",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
@@ -191,6 +208,7 @@
     "empty": "Aucune ligne ne répond à la demande.",
     "search": {
       "label": "Rechercher un libellé",
+      "labelIn": "Rechercher dans « {grid} »",
       "placeholder": "Rechercher un libellé"
     },
     "undo": {
@@ -209,6 +227,7 @@
     },
     "columnsMenu": {
       "open": "Colonnes",
+      "openIn": "Colonnes de « {grid} »",
       "title": "Colonnes affichées"
     },
     "fold": {
@@ -973,7 +992,13 @@
     "currency": "Montants exprimés en {currency}, devise unique de l’installation.",
     "state": {
       "active": "Actif",
-      "inactive": "Désactivé"
+      "inactive": "Désactivé",
+      "reactivate": "Réactiver « {name} »",
+      "reactivateShort": "Réactiver"
+    },
+    "inactive": {
+      "show": "Afficher aussi les désactivés",
+      "hide": "Masquer les désactivés"
     },
     "columns": {
       "code": "Code",
@@ -981,7 +1006,16 @@
       "state": "État"
     },
     "rates": {
-      "caption": "Taux horaires en {currency}"
+      "caption": "Taux horaires en {currency}",
+      "addYear": {
+        "label": "Ajouter une année à la grille",
+        "year": "Année",
+        "submit": "Ajouter la colonne",
+        "remove": "Retirer la colonne {year}",
+        "added": "Colonne {year} ajoutée : elle reste vide jusqu’à son premier taux, que la saisie d’une cellule enregistre.",
+        "present": "L’année {year} a déjà sa colonne dans la grille.",
+        "outOfRange": "Une année va de {min} à {max}."
+      }
     },
     "costTypes": {
       "title": "Natures de coût",
@@ -996,33 +1030,22 @@
     },
     "orgNodes": {
       "title": "Arbre d’organisation",
-      "level": "Niveau",
       "choice": "{code} · {label}",
-      "none": "Aucun nœud d’organisation."
+      "none": "Aucun nœud d’organisation.",
+      "count": "{count, plural, one {# nœud} other {# nœuds}}"
     },
     "resourceRoles": {
       "title": "Rôles de ressources",
-      "orgNode": "Nœud d’organisation",
-      "costCategory": "Catégorie de coût",
-      "calendar": "Calendrier",
-      "monthlyHours": "Heures par mois",
-      "headcount": "Effectif",
-      "none": "Aucun rôle de ressource."
+      "none": "Aucun rôle de ressource.",
+      "orgNodeFilter": "Nœud d’organisation",
+      "everyNode": "Tous les nœuds",
+      "count": "{count, plural, one {# rôle} other {# rôles}}"
     },
     "calendars": {
       "title": "Calendriers",
-      "days": {
-        "monday": "Lun.",
-        "tuesday": "Mar.",
-        "wednesday": "Mer.",
-        "thursday": "Jeu.",
-        "friday": "Ven.",
-        "saturday": "Sam.",
-        "sunday": "Dim."
-      },
-      "default": "Par défaut",
       "isDefault": "Calendrier par défaut",
-      "none": "Aucun calendrier."
+      "none": "Aucun calendrier.",
+      "count": "{count, plural, one {# calendrier} other {# calendriers}}"
     },
     "durationUnits": {
       "title": "Unités de durée",
