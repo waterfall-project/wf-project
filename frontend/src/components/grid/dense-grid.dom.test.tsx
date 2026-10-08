@@ -71,6 +71,13 @@ const VIEW = 20 * ROW_HEIGHT;
 
 const witness = example("nodes") as NodeList;
 
+/** The number of a row of the estimate, read in the example by its label (#400). */
+function numberOf(label: string): string {
+  const { items } = example("nodes_estimate") as NodeList;
+  const node = items.find((each) => (each.task ?? each.estimate_line)?.label === label);
+  return String(node?.row_number);
+}
+
 /** Serve the fake back, and give it back to read its calls. */
 function serve(
   answers: FakeAnswers = { [PREFERENCES]: "preferences" },
@@ -123,7 +130,7 @@ function renderGrid(
 
 /** The grid of the estimate. */
 function grid(): HTMLElement {
-  return screen.getByRole("grid", { name: "Grille de devis" });
+  return screen.getByRole("treegrid", { name: "Grille de devis" });
 }
 
 /** The element that scrolls the grid. */
@@ -185,6 +192,7 @@ function thousandRows(): NodeList {
   return {
     items: [summary, ...lines],
     totals: { ...witness.totals, task_count: 1, estimate_line_count: 999 },
+    meta: { summary_depth: 1 },
   };
 }
 
@@ -572,7 +580,8 @@ describe("the sort, the search and the totals, asked of the server", () => {
   });
 
   it("says no row matches when the server retains none, between the header and the totals", () => {
-    renderGrid({ items: [], totals: { ...witness.totals, task_count: 0, estimate_line_count: 0 } });
+    const none = { ...witness.totals, task_count: 0, estimate_line_count: 0 };
+    renderGrid({ ...witness, items: [], totals: none });
     expect(grid()).toHaveAttribute("aria-rowcount", "3");
     expect(texts(rowAt(2))).toEqual(["Aucune ligne ne répond à la demande."]);
     expect(texts(rowAt(3))[1]).toBe("Total — aucune tâche, aucune ligne");
@@ -690,9 +699,7 @@ describe("the columns and their widths, a display preference of the account", ()
   });
 
   it("tells a setting the API refused, and only the outcome of the last one", async () => {
-    serve({
-      [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } },
-    });
+    serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
     renderGrid(witness);
     const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
     handle.focus();
@@ -837,11 +844,14 @@ describe("a grid configured without its options", () => {
         />
       </NextIntlClientProvider>,
     );
+    // Without a tree, a grid and not a tree grid.
+    const flat = screen.getByRole("grid", { name: "Grille de devis" });
     expect(screen.queryByRole("columnheader", { name: "N°" })).toBeNull();
     expect(texts(rowAt(3)).slice(0, 2)).toEqual(["Études de détail", ""]);
-    expect(within(grid()).queryAllByRole("img", { name: /Tâche|Ligne/ })).toEqual([]);
+    expect(within(flat).queryAllByRole("img", { name: /Tâche|Ligne/ })).toEqual([]);
+    expect(within(flat).queryAllByRole("button", { name: /Plier|Déplier/ })).toEqual([]);
     expect(
-      [...grid().querySelectorAll<HTMLElement>("td, th")].filter((cell) => cell.style.left !== ""),
+      [...flat.querySelectorAll<HTMLElement>("td, th")].filter((cell) => cell.style.left !== ""),
     ).toEqual([]);
     // Without row numbers, the label is the first column: the caption of the totals is its.
     expect(texts(rowAt(9))[0]).toBe("—");
@@ -881,7 +891,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
     // Number, label, category, role, quantity, hours, unit disbursement, sub-project, payment
     // delay, deactivated object, amount at the year of reference, amount corrected for inflation.
     expect(french.row).toEqual([
-      "11",
+      numberOf("Borniers"),
       "Borniers",
       "Matériel électrique",
       "",
@@ -895,7 +905,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1 234,56",
     ]);
     expect(english.row).toEqual([
-      "11",
+      numberOf("Borniers"),
       "Borniers",
       "Matériel électrique",
       "",
@@ -955,7 +965,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
           label: "finishDate",
           format: "date",
           width: 120,
-          sortBy: "finish",
+          contract: "finish",
           value: (node) => node.task?.finish?.date,
         },
       ],
@@ -979,8 +989,9 @@ describe("the figures and the dates of a grid, in the language of the interface"
             />
           </NextIntlClientProvider>,
         );
-        const milestone = bodyRows().find((row) => texts(row)[1] === "Réception usine");
-        expect(texts(milestone)).toEqual(["18", "Réception usine", "30/06/2026"]);
+        const label = "Réception usine";
+        const milestone = bodyRows().find((row) => texts(row)[1] === label);
+        expect(texts(milestone)).toEqual([numberOf(label), label, "30/06/2026"]);
         expect(screen.getByRole("columnheader", { name: "Fin" })).toBeInTheDocument();
       },
     );

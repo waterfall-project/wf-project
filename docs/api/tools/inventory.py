@@ -32,6 +32,7 @@ FAMILIES: list[tuple[str, str]] = [
     ("session", "Session, compte courant et préférences"),
     ("access", "Comptes, rôles et permissions"),
     ("platform", "Sauvegarde et restauration"),
+    ("audit", "Journal d'audit"),
     ("reference", "Référentiel commun"),
     ("projects", "Projets, cycle de vie, lotissement, contributeurs"),
     ("revisions", "Révisions, structures et arbre commun"),
@@ -138,10 +139,11 @@ def _table(ops: list[Operation]) -> list[str]:
     lines: list[str] = []
     for family, title in FAMILIES:
         of_family = [o for o in ops if o.family == family]
+        counted = "opération" if len(of_family) == 1 else "opérations"
         lines += [
             f"## {title}",
             "",
-            f"`paths/{family}.yaml` — {len(of_family)} opérations",
+            f"`paths/{family}.yaml` — {len(of_family)} {counted}",
             "",
             "| Méthode | Chemin | Opération | Exigences citées |",
             "|---|---|---|---|",

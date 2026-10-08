@@ -48,6 +48,11 @@ const STRUCTURE = {
 };
 const NBSP = " ";
 const planning = example("nodes_planning") as NodeList;
+// The float of the design file, which has no successor: to the end of the whole structure, as
+// the example says it (#400) — the core incrusted in the thousand tasks, it follows them (#376).
+const FILE_FLOAT =
+  planning.items.find((node) => node.task?.label === "Dossier de conception")?.task?.total_float
+    ?.value ?? "";
 
 /** The position of a column among the cells of a row, the number of the row first. */
 function at(key: string): number {
@@ -58,7 +63,13 @@ function at(key: string): number {
 function renderPlanning(nodes: NodeList = planning, locale: Locale = "fr") {
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <PlanningGrid nodes={nodes} structure={STRUCTURE} query={NO_QUERY} preferences={undefined} />
+      <PlanningGrid
+        nodes={nodes}
+        structure={STRUCTURE}
+        filters={{}}
+        query={NO_QUERY}
+        preferences={undefined}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -116,6 +127,7 @@ describe("the grids of the planning and of the estimate", () => {
         <PlanningGrid
           nodes={planning}
           structure={STRUCTURE}
+          filters={{}}
           query={NO_QUERY}
           preferences={undefined}
         />
@@ -139,12 +151,12 @@ describe("the grids of the planning and of the estimate", () => {
     // Both are the same grid: numbered, the tree and the label pinned first, the search and
     // the choice of the columns above; they differ by their columns.
     for (const name of ["Grille de planning", "Grille de devis"]) {
-      const grid = screen.getByRole("grid", { name });
+      const grid = screen.getByRole("treegrid", { name });
       expect(within(grid).getByRole("columnheader", { name: "N°" })).toBeInTheDocument();
       expect(within(grid).getByRole("columnheader", { name: "Libellé" })).toBeInTheDocument();
     }
     expect(screen.getAllByRole("search")).toHaveLength(2);
-    const planningGrid = screen.getByRole("grid", { name: "Grille de planning" });
+    const planningGrid = screen.getByRole("treegrid", { name: "Grille de planning" });
     expect(within(planningGrid).queryByRole("columnheader", { name: /Budgété/ })).toBeNull();
     expect(
       within(planningGrid).getByRole("columnheader", { name: "Calculé Marge" }),
@@ -229,7 +241,7 @@ describe("the grid of the planning", () => {
         "15/04/2026",
         "",
         "",
-        days("187"),
+        days(FILE_FLOAT.replace(".", ",")),
         `2FD-${days("2")}`,
         "",
       ],
@@ -274,30 +286,42 @@ describe("the grid of the planning", () => {
     }
   });
 
-  it("names the icon columns in their headers, and asks the server for their sort", async () => {
+  it("names the icon columns in their headers", () => {
     renderPlanning();
-    const grid = screen.getByRole("grid", { name: "Grille de planning" });
+    const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
     // Each named by its heading, which shows on hover too.
     for (const name of ["Mode de planification", "Avancement"]) {
       const header = within(grid).getByRole("columnheader", { name });
       expect(within(header).getByTitle(name)).toBeInTheDocument();
     }
-    await userEvent.click(
-      within(within(grid).getByRole("columnheader", { name: "Mode de planification" })).getByRole(
-        "button",
-      ),
-    );
-    expect(router.push).toHaveBeenCalledWith(`${PATHNAME}?sort_by=scheduling_mode&sort_order=asc`, {
-      scroll: false,
-    });
   });
 
-  it("sorts each of its columns by the column of the contract of the same name, whose value it reads", () => {
-    // Each but the Gantt, which draws the row and sorts nothing.
-    expect(PLANNING_SORT_COLUMNS).toEqual(
-      PLANNING_GRID.columns.map((column) => column.key).filter((key) => key !== "gantt"),
-    );
-    // The predecessors, which their cell renders, give an accessor to the sort alone.
+  it("offers the sort of no column, its headers neither buttons nor sorted, and asks none by the keyboard [WF-IHM-0060-A]", async () => {
+    // Dans la grille de planning, aucun en-tête de colonne ne propose de tri.
+    renderPlanning();
+    const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
+    const headers = within(grid).getAllByRole("columnheader");
+    expect(headers.length).toBe(PLANNING_GRID.columns.length + 1);
+    for (const header of headers) {
+      expect(within(header).queryByRole("button")).toBeNull();
+      expect(header).not.toHaveAttribute("aria-sort");
+      expect(header.getAttribute("aria-keyshortcuts") ?? "").not.toContain("Enter");
+    }
+    // Enter and Space on a header, which sort elsewhere, ask nothing here.
+    const header = within(grid).getByRole("columnheader", { name: "Mode de planification" });
+    header.focus();
+    await userEvent.keyboard("{Enter} ");
+    expect(router.push).not.toHaveBeenCalled();
+    expect(PLANNING_SORT_COLUMNS).toEqual([]);
+  });
+
+  it("shows in each column but the Gantt the column of the contract of the same name, whose value it reads", () => {
+    // The name a paste on its cell is sent under, though the grid sorts none.
+    expect(PLANNING_GRID.columns.map((column) => column.contract)).toEqual([
+      ...PLANNING_GRID.columns.map((column) => column.key).filter((key) => key !== "gantt"),
+      undefined,
+    ]);
+    // The predecessors and the Gantt, which their cells render, read no value.
     const milestone = planning.items[4];
     const columns = PLANNING_GRID.columns.filter(
       (column) => !["predecessors", "gantt"].includes(column.key),
@@ -412,7 +436,7 @@ describe("the grid of the planning", () => {
       "15/04/2026",
       "",
       "",
-      `187${NBSP}d`,
+      `${FILE_FLOAT}${NBSP}d`,
       `2FS-2${NBSP}d`,
       "",
     ]);

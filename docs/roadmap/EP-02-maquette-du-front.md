@@ -288,15 +288,32 @@ verrou.
   - En-têtes et totaux figés au défilement vertical, colonnes d'identification figées au
     défilement horizontal ; colonnes et largeurs dans les préférences de compte, par clé de
     grille stable, écrites avec anti-rebond.
-  - Saisie : une seule cellule dans l'ordre de tabulation, `role="grid"`, `aria-rowcount`
-    malgré la virtualisation ; Entrée ou F2 entre en saisie, Entrée valide et avance,
+  - Saisie : une seule cellule dans l'ordre de tabulation, `role="grid"` — `role="treegrid"`
+    pour une grille arborescente —, `aria-rowcount` malgré la virtualisation ; Entrée ou F2 entre en saisie, Entrée valide et avance,
     Échap abandonne ; chaque cellule validée part seule, par une action serveur. Une
     cellule est saisissable si son champ est au schéma d'écriture et que le nœud ne le
     déclare pas calculé (`computed_fields`) ; une cellule calculée est traversée, et une
     tentative est refusée en nommant ce dont la valeur dépend. Un nombre se saisit au
     format de la langue et repart dans le décimal exact du contrat.
   - Collage : lecture TSV du presse-papiers, `previewPaste`, compte rendu, `applyPaste`
-    après confirmation ; le front ne juge rien du contenu.
+    après confirmation ; le front ne juge rien du contenu. Il refuse localement, sans rien
+    demander, un bloc dont une ligne tomberait sur une ligne du plan que la grille ne montre pas
+    à la même distance sous la cible — pliée, cachée par la recherche ou un filtre, déplacée par
+    un tri, ou au-delà de la dernière ligne montrée —, le serveur écrivant dans l'ordre du plan
+    (#527).
+  - **Arbre pliable** (EP-02/L40, WF-PLA-0080, WF-PLA-0090) : une grille dont les lignes nomment
+    leur parent (`parent_id` de `listNodes`) se plie et se déplie, purement dans le front — rien
+    n'est demandé au serveur ni ne lui est envoyé. Une ligne pliée retire ses subordonnées des
+    lignes de la grille, que la virtualisation, le clavier et le Gantt — une colonne de la même
+    grille — ne voient plus ; une recherche ou un filtre déplie les ancêtres des lignes qu'il
+    retient ; l'état plié se garde dans le stockage de session de l'onglet, par grille et par
+    révision. Raccourcis de Microsoft Project : Alt et moins, Alt et plus, Alt et *, Maj ou non
+    selon la disposition du clavier, en accélérateurs, et « Plier la ligne », « Déplier la ligne »
+    et « Tout déplier » au menu contextuel des cellules, qui marche dans tous les navigateurs ;
+    Alt+Maj+flèches restent libres pour l'indentation d'EP-06. Un collage qui s'étendrait sur une
+    ligne pliée est refusé localement, comme celui qui tomberait sur une ligne cachée par la
+    recherche ou un filtre, ou déplacée par un tri (#527). Écarté : déduire la parenté de l'ordre et du niveau — le
+    front ne déduit pas ce que l'API dit, et `parent_id` le dit.
   - **Annuler et Rétablir sont posées, pas branchées** : leur place — grille, menu,
     Ctrl+Z/Ctrl+Maj+Z —, leur état, et rien d'autre ; EP-06 les branchera sur
     `undoLastChange` et `redoLastUndo`. Le menu est le menu contextuel de la cellule (clic
@@ -440,7 +457,7 @@ marquage (`RiskOccurrence` sans `version_name`, `steps[].cause` à `amendment` s
 devient la courbe en S du portefeuille, une seule opération `getPortfolioCostCurve` avec
 `payment_delays`, `getPortfolioCashOut` retirée, permission `portfolio_cost_curve`. Les exemples
 `nodes_risk_occurred`, `risks`, `risk_matrix`, `remaining_indicators*` et les volumes suivent ;
-l'univers témoin reste à refaire sur ce modèle (L20 à L27, #287). Ce que la révision demande et
+l'univers témoin reste à refaire sur ce modèle (L20 à L27 et L45, #287, #528). Ce que la révision demande et
 que le contrat ne portait pas a été ouvert en constats #381 à #389, fermés par EP-02/L29 (#392) :
 l'année de référence d'une révision, le rattachement d'une récapitulative au lotissement, le compte
 rendu d'import en aller-retour, les trois permissions de WF-ADM-0100, `deleteRisk`, le code de
@@ -535,7 +552,10 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
   jusqu'au niveau demandé, tâches inscrites à la chronologie —, filtre idempotent qui ne change rien
   contre un serveur qui les tient ; il se retire quand le back d'EP-03 les tiendra. Le contrat ne dit
   pas jusqu'à quel niveau vont les récapitulatives : l'arborescence offre les niveaux de la réponse,
-  et le suivant quand une récapitulative est au niveau demandé.
+  et le suivant quand une récapitulative est au niveau demandé — revue d'EP-02/L36, ouvert en #494.
+  Corrigé par EP-02/L42 (décision de l'auteur du 2026-10-08) : `listNodes` rend dans son `meta` le
+  niveau de la plus profonde récapitulative de la structure, quels que soient les filtres
+  (`summary_depth`), et l'arborescence offre exactement les niveaux qui existent.
 - Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
   US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
   tests ne peuvent pas le simuler sur ces opérations. Corrigé par EP-02/L8 : cent dix
@@ -643,6 +663,8 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
 - `getBackgroundTaskResult` ne déclare ni le nom du fichier rendu (`Content-Disposition`) ni sa nature au-delà de `application/octet-stream` — revue d'US-0260/L1, ouvert en #323. D'ici là, le front transmet le `Content-Disposition` de l'API quand il vient, et pose sinon `attachment`, avec `X-Content-Type-Options: nosniff`.
 - Le contrat ne borne pas la taille d'un fichier déposé (`uploadFile`, 413 sans maximum) — revue d'US-0260/L1, ouvert en #324. D'ici là, l'écran refuse dans la page un fichier de plus de 10 Mio, la plus grande taille d'import du §4.6.2 (un fichier MS Project), et la borne des actions serveur de Next (`next.config.ts`) est réglée un peu au-dessus, l'enveloppe multipart comprise.
 - `getWorkBreakdown` n'avait aucun exemple, et aucun écran ne lisait le lotissement, qu'US-0220 citait pourtant : la feuille FBS-4.2.1 n'était adressable nulle part — EP-02/L3, ouvert en #503. Corrigé par ce lot, sur la décision de #503 (option a) : l'exemple `work_breakdown`, engendré du témoin par `make mock-data` — le poste 711, « Fourniture et montage des armoires », que porte la récapitulative « Poste de commande », son lot 712, « Armoires », et un livrable —, que l'écran des paramètres du projet présente en lecture ; la saisie (`setWorkBreakdown`) reste à EP-04.
+- `BackupSchedule` ne portait aucun paramètre de la copie externe automatique des sauvegardes planifiées que WF-ADM-0170 révisée prévoit — EP-02/L25, ouvert en #488. Corrigé par EP-02/L42 (proposition retenue avec l'auteur le 2026-10-08) : `BackupSchedule.external_copy` nomme un emplacement que l'installation déclare (`listExternalBackupLocations`, sans aucun secret), un dossier relatif et les copies gardées, au moins autant que la plateforme en garde (WF-EXP-0050) ; `testExternalBackupLocation` écrit puis efface un fichier témoin et rend l'issue en code ; l'échec d'une copie planifiée est une alerte de l'état du système (`scheduled_backup_copy_failed`), qui dit aussi la dernière copie (`last_backup_copy`). L'écran des sauvegardes la dit en lecture ; le formulaire et le test viennent avec EP-02/L43 (#519), la déclaration des emplacements et la copie avec EP-13.
+- Aucune opération ne lisait le journal d'audit de WF-SEC-0030 — relevé avec l'auteur le 2026-10-08, ouvert en #516. Corrigé par EP-02/L42 : `listAuditEvents`, en lecture seule, filtré par période, auteur, action, projet et objet, trié par date et paginé, sous une permission de consultation, `audit_log.read`, dont l'attribution au rôle d'administrateur et la fonction FBS-1.5 attendent #518 ; exemples engendrés du témoin. L'écran est EP-02/L41e (#517).
 
 ### Ordre de construction
 
@@ -775,8 +797,9 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 - écart : `WF-IHM-0060-A` — « Dans la grille de planning, aucun en-tête de colonne ne propose
   de tri ; dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche
   sans déplacer les tâches. » : l'absence de tri sur la grille de planning se constate dans la
-  maquette ; le réordonnancement des lignes sous chaque tâche demande le vrai service, qui
-  rend le devis ordonné — EP-07.
+  maquette depuis EP-02/L41 (#525), qui l'a retiré — la grille l'offrait jusque-là —, et le
+  parcours du planning l'affirme (`frontend/e2e/planning.spec.ts`) ; le réordonnancement des
+  lignes sous chaque tâche demande le vrai service, qui rend le devis ordonné — EP-07.
 - écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées
   à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres
   réglages. » : la conservation passe par `updateMyPreferences`, que le mock accepte sans
@@ -1140,6 +1163,18 @@ qu'ils ont à montrer.
 - propre à l'US : tout manque du contrat constaté ici est écrit dans cet EPIC, puis corrigé
   dans `docs/api` ou ouvert en issue.
 
+**Notes de réalisation.** EP-02/L41, sa partie L41c (#506), passe les tables de données des
+paramètres du projet sur la grille dense, sur la décision de l'auteur du 2026-10-08 (#301) : le
+lotissement, une grille arborescente dans l'ordre saisi, qui ne se trie pas et se plie ; les
+sous-projets, cherchés par le serveur ; les contributeurs, filtrés par le serveur sur leur qualité
+(`kinds`) — chacune avec sa clé de préférences et ses noms dans l'adresse. L'historique des états,
+une liste de lecture, reste une table simple. Écarts au contrat relevés par L41c, pour EP-02/L42
+(#536) : `listSubprojects` ne trie pas, `listContributors` ne cherche ni ne trie ; aucune de ces
+grilles ne trie donc, et celle des contributeurs n'offre pas de recherche ; aucune des trois ne
+filtre ses autres colonnes. Aucune pagination ne
+manque : le §4.6.2 compte dix sous-projets et cinquante contributeurs par projet, qui tiennent en
+une page.
+
 ## US-0220 — Écrans du planning et du devis
 
 - **statut** : fini
@@ -1174,12 +1209,31 @@ the keyboard [WF-PLA-0090-A] » (`frontend/src/components/gantt/gantt.dom.test.t
 parcours « draws the Gantt beside the grid, row for row, the critical path told in words, and
 modifies no task [WF-PLA-0090-A] » (`frontend/e2e/planning.spec.ts`) et, pour l'arborescence, par
 « is one stop of the tabulation, whose arrows go through the items as in any tree, and change
-nothing » (`frontend/src/components/tree/task-tree.dom.test.tsx`). Le pliage commun de la grille et
-du Gantt (WF-PLA-0090), qui suppose l'arbre pliable de la grille (WF-PLA-0080), et l'export PNG de
-l'arborescence et des chronologies (WF-PLA-0120, WF-PLA-0140) restent à EP-06, comme le menu
-contextuel des cellules — Annuler et Rétablir —, qui s'ouvre aussi sur une cellule du Gantt, où
-rien ne se saisit : EP-06, qui branche ces commandes, décide où le menu s'offre (revue 1
-d'US-0220/L2). Une arborescence de quatre niveaux s'éprouve sur `nodes_nested`, une variante
+nothing » (`frontend/src/components/tree/task-tree.dom.test.tsx`). L'arbre pliable et dépliable des
+grilles de planning, de devis et du reste à engager, et le pliage commun de la grille et du Gantt, ont
+été faits par EP-02/L40 (#505, décision de l'auteur du 2026-10-08, après le report à EP-06 de la
+revue 1 d'US-0220/L2) : WF-PLA-0080 et WF-PLA-0090 sont donc partiels, le pliage fait par
+EP-02/L40 ; le tableau d'EP-06 les garde « entière », EP-06 les vérifiant en entier sur le
+service, et US-0220 n'en cite aucune. Une ligne sous laquelle la réponse en tient d'autres — une
+récapitulative sur ses tâches, une tâche sur ses lignes — se plie à la souris, par le bouton de son
+libellé ou celui qui précède son crochet dans le Gantt, au clavier comme dans Microsoft Project —
+Alt et moins plie la ligne de la cellule active, ou celle qui la porte, Alt et plus la déplie,
+Alt et * déplie tout, Maj ou non selon la disposition du clavier, et partout par le menu
+contextuel des cellules (Maj+F10), que Safari et Firefox pour Mac demandent —, et par le menu « Arbre » de
+la barre : tout plier, tout déplier, jusqu'à un niveau ; la grille est un `treegrid`, chaque ligne disant son niveau, sa place parmi ses sœurs
+et son état. Une ligne pliée retire ses subordonnées des lignes de la grille — celles qu'elle rend,
+numérote et parcourt, celles du Gantt —, une recherche ou un filtre qui retient une ligne pliée
+déplie ses ancêtres, et l'état plié se garde pour la session de l'onglet, par grille et par
+révision, sans rien envoyer au serveur. Les tests portent « presents the same tree in the Gantt,
+folded alike […] [WF-PLA-0090-A] » et « unfolds the rows above those a search retains […]
+[WF-PLA-0080-A] » (`frontend/src/components/grid/fold.dom.test.tsx`), et les parcours « folds a
+summary in the grid and the Gantt follows […] [WF-PLA-0090-A] » (`frontend/e2e/planning.spec.ts`)
+et « folds a task over its lines and the tree down to a level […] » (`frontend/e2e/grid.spec.ts`).
+La saisie dans la grille de planning, le menu contextuel des cellules — Annuler et Rétablir —, qui
+s'ouvre aussi sur une cellule du Gantt, où rien ne se saisit, et le branchement des commandes
+restent à EP-06, qui décide où le menu s'offre (revue 1 d'US-0220/L2), comme l'export PNG de
+l'arborescence et des chronologies (WF-PLA-0120, WF-PLA-0140). Une arborescence de quatre
+niveaux s'éprouve sur `nodes_nested`, une variante
 contrefactuelle du cœur du témoin — le lot du poste de commande rangé sous l'installation sur
 site —, engendrée par `make mock-data`.
 
@@ -1254,7 +1308,9 @@ par l'utilisateur le 2026-10-04.
   `listResourceRoles`, `listCalendars`, `listCostTypes`, `listCostCategories`,
   `listHourlyRates`, `getHourlyRateGrid`, `setHourlyRate`, `getDurationUnits`,
   `setDurationUnits`, `listUsers`, `listAccessRoles`, `listPermissions`,
-  `getSystemStatus`, `listBackups`, `getBackupSchedule`
+  `getSystemStatus`, `listBackups`, `getBackupSchedule` ; venues d'EP-02/L41b,
+  `setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`,
+  `setCostTypeActivation`, `setCostCategoryActivation`
 - **issue** : #89
 
 **En tant qu'**administrateur, **je veux** les écrans du référentiel, des comptes, des rôles
@@ -1278,6 +1334,42 @@ grille ne saisit que les années que la réponse porte : l'ajout d'une colonne d
 (WF-REF-0060) manque au front, #299. Les écrans lisent les objets actifs seuls ; présenter les
 désactivés, qui restent lisibles (WF-REF-0150), est #300, et filtrer chaque table sur ses
 colonnes (WF-IHM-0130), #301.
+EP-02/L41, sa partie L41b (#506), fait la part de la maquette de ces trois constats, sur la
+décision de l'auteur du 2026-10-08 (#301, #511) : les tables plates des paramètres de ressources
+passent sur la grille dense — les rôles et les calendriers triés par le serveur là où le contrat
+le porte, sans pagination tant qu'EP-02/L42 ne l'a pas ajoutée au contrat, l'organisation en
+grille arborescente qui ne se trie pas et se plie comme les grilles de tâches —, chacune cherchée
+par le serveur et gardant ses réglages par grille ; la grille des taux ajoute la colonne d'une
+année, que le premier taux saisi écrit ; les listes montrent à la demande les objets désactivés
+et les réactivent. Les natures et les catégories de coût passent sur la grille dense avec
+EP-02/L42 (#510). Les tables des paramètres des risques et des indicateurs — bornes et zones de la
+matrice, seuils des indices — sont des matrices de taille fixe qui restent des tables simples,
+sans filtre ni tri (décision de l'auteur du 2026-10-08, #508). La part du service de #299 et #300
+reste à EP-05, dont les « Constats reçus » le disent.
+Écarts au contrat relevés par L41b : WF-REF-0080 ne réactive un nœud que sous un parent actif et un
+rôle que sous un nœud actif, et le contrat ne déclare ni ce refus ni la disponibilité de la
+commande — la réactivation est offerte sur tout objet désactivé, et le refus du serveur dit comme
+tout autre (#532, pour L42) ; les filtres par colonne de `listResourceRoles`, `listCalendars` et
+`listOrgNodes` au-delà du libellé et du nœud, et le tri des heures d'un jour des calendriers,
+manquent au contrat (#533).
+EP-02/L41, sa partie L41c (#506), passe les comptes et les rôles d'habilitation sur la grille dense
+(#514, #515) : les comptes triés sur chaque colonne, cherchés, filtrés par origine, par nœud
+d'organisation et par état — les désactivés listés à moins que l'adresse ne les masque — et paginés
+par le serveur, sous les noms du contrat ; les rôles triés et cherchés par le serveur, en une page —
+le §4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, la matrice
+des permissions, déjà posée en lecture, montrant tous les rôles, chaque groupe nommé par sa fonction
+et jamais par son code de la FBS, qu'aucun écran ne montre (décision de l'auteur du 2026-10-08,
+#515). Sur décision de l'auteur du 2026-10-08 (#379, #515), des boutons seuls, qui disent être
+disponibles avec EP-03 (US-0360/L3, US-0380/L2) : une session qui peut modifier les comptes voit
+« Créer un compte local », « Modifier », « Désactiver » ou « Réactiver » et « Attribuer les rôles »,
+aucune suppression (WF-ADM-0060) ; une session qui peut modifier les rôles voit « Créer un rôle »,
+« Modifier » et « Supprimer » — la suppression logique du cadrage d'EP-03 (#456) —, indisponible tant
+qu'un compte porte le rôle, comme le serveur la refuserait (WF-ADM-0090) ; une autre session n'en
+voit aucun. Écart au contrat : WF-ADM-0120 refuse de désactiver le dernier compte qui porte les
+permissions d'administration, ou de lui retirer le rôle qui les porte, et `User` ne déclare ni ce
+refus ni la disponibilité de ces commandes (#540) — « Désactiver » et « Attribuer les rôles » sont
+offertes sur tout compte, et le refus du serveur se dira comme tout autre. Les filtres par colonne que le contrat ne porte pas — les rôles des comptes, la nature
+et les porteurs des rôles — et ce que lit la recherche des comptes sont #536.
 US-0250/L2 réalise l'administration (FBS-1.1 à 1.4), en lecture : les comptes, désactivés
 compris, chacun avec ses rôles et son rattachement nommés par le serveur, par pages ; les rôles
 d'habilitation et la matrice des permissions — une ligne par permission dans l'ordre de

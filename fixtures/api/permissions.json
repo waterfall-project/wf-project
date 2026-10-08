@@ -1,5 +1,5 @@
 {
-  "summary": "Le catalogue des permissions, livré : la consultation et la modification de chacune des vingt-quatre fonctions de second niveau, dans l'ordre de l'arborescence, puis les huit actions irréversibles — marquer, abandonner, désigner la référence, fusionner un différentiel, sortir du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer — et les deux permissions structurantes, créer un projet et consulter tous les projets (WF-ADM-0100).",
+  "summary": "Le catalogue des permissions, livré : la consultation et la modification de chacune des vingt-quatre fonctions de second niveau, dans l'ordre de l'arborescence, et la consultation du journal d'audit après celles de l'administration — la fonction que #518 propose d'ajouter sous elle, FBS-1.5, sans permission de modifier un journal qui ne se modifie pas (WF-SEC-0030) —, puis les huit actions irréversibles — marquer, abandonner, désigner la référence, fusionner un différentiel, sortir du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer — et les deux permissions structurantes, créer un projet et consulter tous les projets (WF-ADM-0100).",
   "value": [
     {
       "code": "users.read",
@@ -40,6 +40,11 @@
       "code": "backups.write",
       "kind": "function_write",
       "fbs_code": "FBS-1.4"
+    },
+    {
+      "code": "audit_log.read",
+      "kind": "function_read",
+      "fbs_code": "FBS-1.5"
     },
     {
       "code": "portfolio_projects.read",

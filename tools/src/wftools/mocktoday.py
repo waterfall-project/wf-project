@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext, mockwitness, mockwrites
 from wftools.mockcurves import Era, cost_curve, earned_value_curves, workload
+from wftools.mockids import universe
 from wftools.mockindicators import (
     PROJECT,
     READ_ON,
@@ -53,7 +54,6 @@ from wftools.mockwitness import (
     STUDIES_LINE,
     STUDIES_STARTED,
     fixture,
-    universe,
 )
 
 if TYPE_CHECKING:
@@ -569,6 +569,14 @@ def examples() -> dict[str, JsonObject]:
         **_curve_summaries(found),
         **_workload_summaries(found),
     }
+    for name in (
+        "estimate_indicators",
+        "remaining_indicators",
+        "project_indicators",
+        "cost_curve",
+        "earned_value_curves",
+    ):
+        summaries[name] = f"{summaries[name]} {mocktext.CORE_ONLY}"
     return {
         f"{name}.json": mocktext.example(summaries[name], value) for name, value in found.items()
     }

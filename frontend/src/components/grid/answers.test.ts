@@ -16,42 +16,43 @@ import {
 } from "./nodes";
 import { PLANNING_FIELDS, type PlanningNode } from "./planning";
 
-// The witness planning, and the link that reschedules the tasks after it (`predecessor_set`): the
-// mounting on site, not started, written two days after the factory acceptance, its summary
-// recalculated, the commissioning that follows it moved, and the tasks without a successor — the
-// design file of the planning among them — given more float as the end of the core moves away.
-const planning = example("nodes_planning") as NodeList;
-const linked = example("predecessor_set") as NodesWritten;
-const node = (number: number) => `01926f3a-7c00-7000-8000-000000000${number.toString()}`;
-const MOUNTING = node(562);
-const DESIGN_FILE = node(526);
-const FLOAT = { value: "189", unit: "d" };
+// A duration lengthened in the planning of the witness (`task_lengthened`), the core incrusted at
+// the head of the structure of a thousand tasks (#376): the task written, its two summaries
+// recalculated, and the tasks of its chain rescheduled — those before it given less float, their
+// dates as they were; its successor, and those after it in the chain, moved into 2027. The nodes
+// and their figures are read from the examples, never written here (#400).
+const volume = example("volume/nodes_thousand") as NodeList;
+const lengthened = example("volume/task_lengthened") as NodesWritten;
+const MOUNTING = lengthened.nodes[0]?.node_id ?? "";
+const [shrunk] = lengthened.rescheduled;
+const DESIGN_FILE = shrunk?.node_id ?? "";
+const FLOAT = shrunk?.total_float;
 
 /** The rows of the witness planning, as the grid of the planning reads them. */
-const rows = projectNodes(planning, PLANNING_FIELDS).items;
+const rows = projectNodes(volume, PLANNING_FIELDS).items;
 
 /** A row of the witness planning, by its node. */
 function row(id: string): PlanningNode {
   const found = rows.find((node) => node.node_id === id);
   if (found === undefined) {
-    throw new Error(`no node ${id} in the witness planning`);
+    throw new Error(`no node ${id} in the planning of the witness`);
   }
   return found;
 }
 
 describe("what a write answers, as a grid reads it", () => {
   it("gives the nodes written and their ancestors whole, and the tasks rescheduled by their schedule alone", () => {
-    const written = nodesWritten(linked, PLANNING_FIELDS, true);
+    const written = nodesWritten(lengthened, PLANNING_FIELDS, true);
     expect(written.rows.map(nodeKey)).toEqual([MOUNTING]);
-    expect(written.changed.map(nodeKey)).toEqual([521, 551, 541, 561].map(node));
-    expect(written.parts.map((part) => part.key)).toEqual([
-      DESIGN_FILE,
-      ...[542, 544, 565].map(node),
-    ]);
-    expect(written.totals).toEqual(linked.totals);
+    expect(written.changed.map(nodeKey)).toEqual(lengthened.ancestors.map(nodeKey));
+    expect(written.changed).toHaveLength(2);
+    expect(written.parts.map((part) => part.key)).toEqual(
+      lengthened.rescheduled.map((each) => each.node_id),
+    );
+    expect(written.totals).toEqual(lengthened.totals);
     expect(written.order).toBe(2);
 
-    // The schedule laid over the row shown, the rest of it as it was: more float, no date moved.
+    // The schedule laid over the row shown, the rest of it as it was: less float, no date moved.
     const [file] = written.parts;
     const later = file?.change(row(DESIGN_FILE));
     expect(later?.task).toEqual({ ...row(DESIGN_FILE).task, total_float: FLOAT });
@@ -59,18 +60,15 @@ describe("what a write answers, as a grid reads it", () => {
   });
 
   it("gives no schedule to a grid that reads no date, and no totals to a filtered one", () => {
-    const written = nodesWritten(linked, ESTIMATE_FIELDS, false);
+    // Its schedule alone: the amounts moved in time are the next test's.
+    const written = nodesWritten({ ...lengthened, reinflated: [] }, ESTIMATE_FIELDS, false);
     expect(written.parts).toEqual([]);
     expect(written.totals).toBeUndefined();
   });
 
-  // A duration lengthened in the planning of the volume (`task_lengthened`): « Revue 3.1.27 »
-  // finishes on 31 December 2026, and « Reprise 3.1.30 », which follows it, is pushed into 2027 —
-  // rescheduled, its lines corrected anew on the year they are now consumed, and the task itself,
-  // which sums them.
-  const volume = example("volume/nodes_thousand") as NodeList;
-  const lengthened = example("volume/task_lengthened") as NodesWritten;
-  const SUCCESSOR = "01926f3a-7c00-7000-8000-000100001387";
+  // The successor of the task lengthened, pushed into 2027: rescheduled, its lines corrected anew
+  // on the year they are now consumed, and the task itself, which sums them.
+  const SUCCESSOR = lengthened.reinflated[0]?.node_id ?? "";
   const amountOf = new Map(lengthened.reinflated.map((each) => [each.node_id, each]));
 
   it("lays the amounts the server answered over the lines and the task a write moved into the next year, the rest of each as it was", () => {
@@ -108,7 +106,10 @@ describe("what a write answers, as a grid reads it", () => {
   } as const satisfies AnyNodeFields;
   const bothRows = projectNodes(volume, BOTH).items;
   type BothRow = (typeof bothRows)[number];
-  const moved = { start: { date: "2027-01-01", hours: "0" }, inflated_amount: "87891.73" };
+  const moved = {
+    start: lengthened.rescheduled.find((each) => each.node_id === SUCCESSOR)?.start,
+    inflated_amount: lengthened.reinflated[0]?.inflated_amount,
+  };
 
   it("lays both the schedule and the amount of a task one write answers in both lists", () => {
     const written = nodesWritten(lengthened, BOTH, true);
@@ -145,7 +146,7 @@ describe("the answers of a reading", () => {
   it("lay a schedule answered later over a row an earlier write answers whole after it, never keeping that row out", () => {
     const answers = answersOf<PlanningNode, unknown>(rows);
     // The schedule of the next write arrives first, alone.
-    const later = nodesWritten(linked, PLANNING_FIELDS, true);
+    const later = nodesWritten(lengthened, PLANNING_FIELDS, true);
     take(answers, { ...later, rows: [], changed: [], order: 3 }, nodeKey);
     expect(shownRow(answers, nodeKey, DESIGN_FILE)?.task?.total_float).toEqual(FLOAT);
     // Then the earlier write answers the same task whole: its label and its version stand, the
@@ -153,7 +154,7 @@ describe("the answers of a reading", () => {
     const before = row(DESIGN_FILE);
     const task = before.task;
     if (task === undefined || task === null) {
-      throw new Error("the design file of the witness planning is a task");
+      throw new Error("a task of the chain lengthened is a task");
     }
     const renamed: PlanningNode = {
       ...before,
@@ -173,15 +174,15 @@ describe("the answers of a reading", () => {
 
   it("lay two parts of the calendar of one task answered in the wrong order so that the later wins, and let go of those a later row whole covers", () => {
     const answers = answersOf<PlanningNode, unknown>(rows);
-    // The design file given 189 days of float by the write of order 3, 188 by that of order 2;
-    // the later answers first.
-    const schedule = linked.rescheduled.find((each) => each.node_id === DESIGN_FILE);
+    // A task given its float by the write of order 3, another by that of order 2; the later
+    // answers first.
+    const schedule = lengthened.rescheduled.find((each) => each.node_id === DESIGN_FILE);
     if (schedule === undefined) {
-      throw new Error("the link of the witness reschedules the design file");
+      throw new Error("the duration lengthened reschedules a task of its chain");
     }
     const earlier: NodesWritten = {
-      ...linked,
-      rescheduled: [{ ...schedule, total_float: { value: "188", unit: "d" } }],
+      ...lengthened,
+      rescheduled: [{ ...schedule, total_float: { value: "1", unit: "d" } }],
     };
     const parts = (written: NodesWritten, order: number) => ({
       ...nodesWritten(written, PLANNING_FIELDS, true),
@@ -189,7 +190,7 @@ describe("the answers of a reading", () => {
       changed: [],
       order,
     });
-    take(answers, parts(linked, 3), nodeKey);
+    take(answers, parts(lengthened, 3), nodeKey);
     take(answers, parts(earlier, 2), nodeKey);
     expect(shownRow(answers, nodeKey, DESIGN_FILE)?.task?.total_float).toEqual(FLOAT);
     expect(answers.parts.get(DESIGN_FILE)?.map((part) => part.order)).toEqual([2, 3]);
@@ -209,7 +210,7 @@ describe("the answers of a reading", () => {
     expect(answers.parts.has(DESIGN_FILE)).toBe(false);
     // A part that comes after a later row whole is covered as it comes: never kept.
     take(answers, whole(5), nodeKey);
-    take(answers, parts(linked, 3), nodeKey);
+    take(answers, parts(lengthened, 3), nodeKey);
     expect(answers.parts.has(DESIGN_FILE)).toBe(false);
     expect(shownRow(answers, nodeKey, DESIGN_FILE)?.task?.total_float).toEqual(
       row(DESIGN_FILE).task?.total_float,
@@ -217,9 +218,9 @@ describe("the answers of a reading", () => {
   });
 
   it("keep no schedule that changes nothing of what the grid reads, which then keeps out no row", () => {
-    const estimateRows = projectNodes(planning, ESTIMATE_FIELDS).items;
+    const estimateRows = projectNodes(volume, ESTIMATE_FIELDS).items;
     const answers = answersOf<(typeof estimateRows)[number], unknown>(estimateRows);
-    const schedules = nodesWritten(linked, PLANNING_FIELDS, true).parts;
+    const schedules = nodesWritten(lengthened, PLANNING_FIELDS, true).parts;
     take(
       answers,
       {

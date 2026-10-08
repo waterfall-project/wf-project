@@ -51,7 +51,11 @@ interface Language {
     readonly indicators: string;
     readonly banner: string;
     readonly activeFilters: string;
-    readonly subprojectChip: string;
+    /**
+     * The chip of the sub-project of the indicators, which restricts the indicators and the earned
+     * value alone (#495).
+     */
+    readonly indicatorsChip: string;
     /** The chip of the sub-project of the remaining to commit, which restricts its grid alone. */
     readonly gridOnlyChip: string;
     readonly estimateGrid: string;
@@ -88,7 +92,7 @@ const FRENCH: Language = {
     indicators: "Indicateurs projets",
     banner: "Contexte de lecture",
     activeFilters: "Filtres actifs",
-    subprojectChip: `Sous-projet : ${SUBPROJECT_NAME}`,
+    indicatorsChip: `Sous-projet : ${SUBPROJECT_NAME}, sur les indicateurs et la valeur acquise seulement`,
     gridOnlyChip: `Sous-projet : ${SUBPROJECT_NAME}, sur la grille seulement`,
     estimateGrid: "Grille de devis",
     labelColumn: "Libellé",
@@ -98,8 +102,8 @@ const FRENCH: Language = {
   },
   // French separates thousands with a narrow no-break space (U+202F).
   figures: [
-    ["Reste à engager", "21\u202f534,56"],
-    ["Budget de référence", "120\u202f834,56"],
+    ["Reste à engager", "21\u202f234,56"],
+    ["Budget de référence", "120\u202f534,56"],
     ["Valeur planifiée", "101\u202f223,69"],
     ["Écart de délai", "-1\u202f223,69"],
     ["Indice de délai", "0,9879"],
@@ -128,7 +132,7 @@ const ENGLISH: Language = {
     indicators: "Project indicators",
     banner: "Reading context",
     activeFilters: "Active filters",
-    subprojectChip: `Subproject: ${SUBPROJECT_NAME}`,
+    indicatorsChip: `Subproject: ${SUBPROJECT_NAME}, on the indicators and the earned value only`,
     gridOnlyChip: `Subproject: ${SUBPROJECT_NAME}, on the grid only`,
     estimateGrid: "Estimate grid",
     labelColumn: "Label",
@@ -137,8 +141,8 @@ const ENGLISH: Language = {
     backToProject: "Back to the project",
   },
   figures: [
-    ["Remaining to commit", "21,534.56"],
-    ["Reference budget", "120,834.56"],
+    ["Remaining to commit", "21,234.56"],
+    ["Reference budget", "120,534.56"],
     ["Planned value", "101,223.69"],
     ["Schedule variance", "-1,223.69"],
     ["Schedule index", "0.9879"],
@@ -246,7 +250,7 @@ for (const language of [FRENCH, ENGLISH]) {
       // server, given the time the witness path gives them (#315).
       await page.getByRole("main").getByRole("link", { name: names.currentRevision }).click();
       await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
-      await expect(page.getByRole("grid", { name: names.planningGrid })).toBeVisible({
+      await expect(page.getByRole("treegrid", { name: names.planningGrid })).toBeVisible({
         timeout: WORKING,
       });
 
@@ -266,7 +270,7 @@ for (const language of [FRENCH, ENGLISH]) {
       await follow(page, language, names.remaining, { timeout: WORKING });
       await expect(page).toHaveURL(filtered("remaining"));
       await expect(chips).toHaveText([names.gridOnlyChip]);
-      await expect(page.getByRole("grid", { name: names.remainingGrid })).toBeVisible();
+      await expect(page.getByRole("treegrid", { name: names.remainingGrid })).toBeVisible();
 
       await follow(page, language, names.risks);
       await expect(page).toHaveURL(filtered("risks"));
@@ -275,7 +279,7 @@ for (const language of [FRENCH, ENGLISH]) {
       // The indicators read several answers on the server before they show.
       await follow(page, language, names.indicators, { timeout: WORKING });
       await expect(page).toHaveURL(filtered("indicators"));
-      await expect(chips).toHaveText([names.subprojectChip]);
+      await expect(chips).toHaveText([names.indicatorsChip]);
 
       // The amounts, the indices and the date of calculation are the API's, formatted in the
       // language, the date in the time zone of the workstation (WF-ARC-0020).
@@ -291,7 +295,7 @@ for (const language of [FRENCH, ENGLISH]) {
       // screen under load.
       await page.getByRole("link", { name: names.backToProject }).click();
       await expect(page).toHaveURL(filtered("indicators"), { timeout: WORKING });
-      await expect(chips).toHaveText([names.subprojectChip]);
+      await expect(chips).toHaveText([names.indicatorsChip]);
     });
   });
 }
@@ -321,15 +325,15 @@ const ENTRY_GRIDS: readonly EntryGrid[] = [
   {
     segment: "planning",
     name: ({ names }) => names.planningGrid,
-    row: 3,
-    label: "Préparation 1.1.1",
+    row: 2,
+    label: "Études de détail",
     entered: false,
   },
   {
     segment: "estimate",
     name: ({ names }) => names.estimateGrid,
-    row: 4,
-    label: "Heures d'ingénierie",
+    row: 3,
+    label: "Ingénierie de détail",
     entered: true,
   },
 ];
@@ -338,7 +342,7 @@ const ENTRY_GRIDS: readonly EntryGrid[] = [
 async function readGrid(page: Page, language: Language, entry: EntryGrid) {
   const { names } = language;
   await page.goto(`${IN_REVISION}/${entry.segment}`);
-  const grid = page.getByRole("grid", { name: entry.name(language) });
+  const grid = page.getByRole("treegrid", { name: entry.name(language) });
   await expect(grid).toBeVisible({ timeout: WORKING });
   const { label } = await columnsOf(grid, { label: names.labelColumn });
   const labels = await Promise.all(

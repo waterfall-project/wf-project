@@ -25,7 +25,9 @@
  * scrolled out of view, it closes, the focus kept on the active cell where it is.
  *
  * A cell that holds a link and takes no entry — the label of a risk, which leads to its detail —
- * follows it on Enter: the link is out of the order of tabulation, the grid being one stop.
+ * follows it on Enter: the link is out of the order of tabulation, the grid being one stop. So
+ * does a cell that holds a command — the reactivation of an object of the reference data, marked
+ * `data-cell-command` (`CELL_COMMAND`) — press it; the button that folds a row is no such command.
  *
  * The cell entered and the refusal follow their row by its identity: a reading anew that moves it
  * takes the active cell with it, and one that no longer holds it closes them — a later reading
@@ -247,14 +249,18 @@ interface CellNature<Row, Totals> {
   readonly entry: CellEntry<Row, Totals> | undefined;
 }
 
+/** The attribute that marks the command a cell holds, which Enter on the cell presses. */
+export const CELL_COMMAND = "data-cell-command";
+
 /**
- * Follow the link a cell holds, on Enter, as a click would: whether it held one. The cell is the
- * target of the key, the grid giving the focus to its cells, never to what they hold.
+ * Follow the link a cell holds, or press its command, on Enter, as a click would: whether it held
+ * one. The cell is the target of the key, the grid giving the focus to its cells, never to what
+ * they hold.
  */
 function followLink(event: KeyboardEvent<HTMLElement>): boolean {
   const link =
     event.key === "Enter" && event.target instanceof Element
-      ? event.target.querySelector("a[href]")
+      ? event.target.querySelector(`a[href], button[${CELL_COMMAND}]`)
       : null;
   if (!(link instanceof HTMLElement)) {
     return false;
@@ -528,6 +534,8 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     },
     /** Close the refusal, a click having taken the focus elsewhere. */
     dismissRefusal: dismiss,
+    /** Focus a cell — the active one, once the rows it is among changed —, brought into view. */
+    focusAt: focusCell,
     /**
      * Give the focus back to the active cell — a notice dismissed took it with it —, brought into
      * view: the grid may have been scrolled away from it meanwhile (#241).

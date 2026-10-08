@@ -8,7 +8,8 @@
  * (`TaskTree`). The tasks are read as the grid of the planning reads them — the tasks alone,
  * restricted to the filtered sub-project (`grid-screen.ts`) —, the server selecting the summaries
  * down to the depth asked (`summaries_only`, `max_level`, #463), the tree keeping them once more
- * against the fake back (`summaryTree`); of each the fields the tree reads.
+ * against the fake back (`summaryTree`); of each the fields the tree reads. The levels to choose
+ * are those the structure has, as the server says them (`meta.summary_depth`, #494).
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -20,7 +21,6 @@ import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
   depthHref,
   depthShown,
-  depthsOffered,
   readDepth,
   summaryTree,
   type TreeNode,
@@ -129,8 +129,8 @@ export default async function TaskTreePage({
     narrowed: { summaries_only: true, max_level: asked },
     fields: TREE_FIELDS,
   });
-  const levels = depthsOffered(screen.nodes.items, asked);
-  const depth = depthShown(screen.nodes.items, asked);
+  const levels = screen.summaryDepth;
+  const depth = depthShown(levels, asked);
   const query = searchQuery(search);
   return (
     <>

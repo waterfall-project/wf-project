@@ -1,5 +1,5 @@
 {
-  "summary": "Le même instant, le stockage des fichiers indisponible depuis 0 h 52 : la sauvegarde planifiée d'une heure a échoué, et l'écran d'état le signale par deux alertes en cours (WF-ADM-0130, WF-ADM-0170).",
+  "summary": "Le même instant, le stockage des fichiers indisponible depuis 0 h 52 : la sauvegarde planifiée d'une heure a échoué — la dernière copie externe reste celle de la veille —, et l'écran d'état le signale par deux alertes en cours (WF-ADM-0130, WF-ADM-0170).",
   "value": {
     "version": "1.0.0",
     "components": [
@@ -65,6 +65,11 @@
           "component": "object_storage"
         }
       }
+    },
+    "last_backup_copy": {
+      "at": "2026-06-02T01:14:00Z",
+      "succeeded": true,
+      "problem": null
     },
     "last_restore_test": {
       "at": "2026-06-01T03:00:00Z",

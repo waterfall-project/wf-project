@@ -6,7 +6,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { CostCategoryList, CostTypeList } from "@/components/reference/cost-lists";
 import type { RateGridProps } from "@/components/reference/rate-grid";
+import { CalendarList, OrgNodeList, ResourceRoleList } from "@/components/reference/resource-lists";
 import { RiskZonesTable } from "@/components/reference/setting-tables";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
@@ -42,10 +44,11 @@ vi.mock("@/components/reference/rate-grid", async (original) => {
     },
   };
 });
+const navigation = vi.hoisted(() => ({ pathname: "/reference/costs" }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
-  usePathname: () => "/reference/costs",
+  usePathname: () => navigation.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next/headers", () => ({
@@ -75,7 +78,48 @@ function rendered(page: unknown): string {
 
 /** Render the settings of the costs at the query given. */
 async function costsAt(search: PageSearchParams = {}) {
+  navigation.pathname = "/reference/costs";
   return rendered(await CostSettingsPage({ searchParams: Promise.resolve(search) }));
+}
+
+/** Render the settings of the resources at the query given. */
+async function resourcesAt(search: PageSearchParams = {}) {
+  navigation.pathname = "/reference/resources";
+  return rendered(await ResourceSettingsPage({ searchParams: Promise.resolve(search) }));
+}
+
+/** The node of the electrical design office, in the tree of the witness. */
+const BUREAU = "01926f3a-7c00-7000-8000-000000000471";
+
+/** The three lists of the settings of the resources. */
+const LISTS = [
+  "GET /reference/org-nodes",
+  "GET /reference/resource-roles",
+  "GET /reference/calendars",
+] as const;
+
+/** The queries the pages sent to an operation, each as its parameters. */
+function queriesOf(route: string): Record<string, string>[] {
+  return callsTo(route).map((call) => Object.fromEntries(call.query));
+}
+
+/** The headings of the columns a grid of a page sorts: those whose header holds a button. */
+function sortable(markup: string, table: string): string[] {
+  const found = [...markup.matchAll(/<table[^>]*aria-label="([^"]*)"[^>]*>(.*?)<\/table>/g)].find(
+    (match) => match[1] === table,
+  );
+  const head = /<thead[^>]*>(.*?)<\/thead>/.exec(found?.[2] ?? "")?.[1] ?? "";
+  return [...head.matchAll(/<th[^>]*>(.*?)<\/th>/g)]
+    .filter((header) => (header[1] ?? "").includes("<button"))
+    .map((header) => text(header[1] ?? ""));
+}
+
+/** The choices of the lists of a page, each by its value and its text as written. */
+function options(markup: string): (string | undefined)[][] {
+  return [...markup.matchAll(/<option value="([^"]+)">([^<]*)<\/option>/g)].map((option) => [
+    option[1],
+    option[2]?.replace(/&#x27;/g, "'"),
+  ]);
 }
 
 /** The calls the pages made to an operation. */
@@ -155,6 +199,51 @@ describe("the settings of the costs", () => {
     expect(categories).toContain("ACH-001 Sous-traitance Débours 604001 Actif");
   });
 
+  it("ask the active natures, categories and rates alone by default, the deactivated ones too when the address asks for them, and offer to show and hide them [WF-REF-0150-A]", async () => {
+    const reads = ["GET /reference/cost-types", "GET /reference/cost-categories", RATES] as const;
+    const shown = await costsAt();
+    for (const route of reads) {
+      expect(queriesOf(route)).toEqual([{}]);
+    }
+    expect(shown).toMatch(
+      /<a[^>]*href="\/reference\/costs\?include_inactive=true"[^>]*>.*?Afficher aussi les désactivés<\/a>/,
+    );
+    server.clients = [];
+    const hidden = await costsAt({ include_inactive: "true", search: "Automatisme" });
+    expect(queriesOf("GET /reference/cost-types")).toEqual([{ include_inactive: "true" }]);
+    expect(queriesOf("GET /reference/cost-categories")).toEqual([{ include_inactive: "true" }]);
+    expect(queriesOf(RATES)).toEqual([{ include_inactive: "true", search: "Automatisme" }]);
+    expect(hidden).toMatch(/<a[^>]*href="\/reference\/costs"[^>]*>.*?Masquer les désactivés<\/a>/);
+  });
+
+  it("offer the reactivation of a deactivated nature or category to a session that may modify the cost settings, and to no other [WF-REF-0150-A]", () => {
+    const [labour] = example("cost_types") as components["schemas"]["CostType"][];
+    const [category] = example("volume/cost_categories") as components["schemas"]["CostCategory"][];
+    if (labour === undefined || category === undefined) {
+      throw new Error("the examples hold a nature and a category");
+    }
+    const lists = (reactivable: boolean) =>
+      rendered(
+        <>
+          <CostTypeList types={[{ ...labour, is_active: false }]} reactivable={reactivable} />
+          <CostCategoryList
+            categories={[{ ...category, is_active: false }]}
+            reactivable={reactivable}
+          />
+        </>,
+      );
+    const offered = lists(true);
+    expect(rows(offered, "Natures de coût")[1]).toBe(
+      "MO Main-d'œuvre Main-d’œuvre Désactivé Réactiver",
+    );
+    expect(offered).toContain('aria-label="Réactiver «\u00a0Main-d&#x27;œuvre\u00a0»"');
+    expect(offered).toContain('aria-label="Réactiver «\u00a0Ingénierie électrique\u00a0»"');
+    const read = lists(false);
+    expect(rows(read, "Catégories de coût")[1]).toBe(
+      "MO-001 Ingénierie électrique Main-d'œuvre 641001 Désactivé",
+    );
+  });
+
   it("are not found when the API refuses or does not find the grid", async () => {
     server.answers = { ...server.answers, [RATES]: NOT_FOUND };
     await expect(costsAt()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
@@ -162,43 +251,169 @@ describe("the settings of the costs", () => {
 });
 
 describe("the settings of the resources", () => {
-  it("present the organisation as the tree the server orders, each node by its code and its depth", async () => {
-    const page = rendered(await ResourceSettingsPage());
+  it("present the organisation as a tree grid in the order the server gives, each node by its label set in by its depth, its code and its depth", async () => {
+    const page = await resourcesAt();
     expect(rows(page, "Arbre d’organisation")).toEqual([
-      "Code Libellé Niveau État",
-      "DT Direction technique 1 Actif",
-      "BE-ELEC Bureau d'études électricité 2 Actif",
-      "AT-CABL Atelier de câblage 3 Actif",
-      "ACHATS Service des achats 2 Actif",
+      "Libellé Code Niveau État",
+      "Direction technique DT 1 Actif",
+      "Bureau d'études électricité BE-ELEC 2 Actif",
+      "Atelier de câblage AT-CABL 3 Actif",
+      "Service des achats ACHATS 2 Actif",
+      "4 nœuds",
     ]);
-    // Each label set in under its parent by its depth.
-    expect(page).toContain('style="padding-inline-start:2.5rem"');
+    // A tree that folds, each node at its level; no header sorts it.
+    expect(page).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Arbre d’organisation"/);
+    expect(page).toContain('aria-level="3"');
+    expect(sortable(page, "Arbre d’organisation")).toEqual([]);
   });
 
-  it("present each role with its node, its category, its calendar and its capacity, named as the server resolves them — a calendar deactivated, which the list of the calendars does not hold, included", async () => {
-    const page = rendered(await ResourceSettingsPage());
+  it("present each role with its node, its category, its calendar and its capacity, named as the server resolves them, on a grid sorted by each of its columns [WF-IHM-0060-A]", async () => {
+    const page = await resourcesAt({ include_inactive: "true" });
     expect(rows(page, "Rôles de ressources")).toEqual([
       "Libellé Nœud d’organisation Catégorie de coût Calendrier Heures par mois Effectif État",
       "Ingénieur électricien Bureau d'études électricité Ingénierie électrique Semaine standard 658 654,00 3 800 Actif",
       "Technicien de mise en service Bureau d'études électricité Mise en service Semaine standard 485 324,00 2 800 Actif",
       "Monteur câbleur Atelier de câblage Ingénierie électrique Semaine de quatre jours 216 662,50 1 250 Actif",
-      "Automaticien Bureau d'études électricité Ingénierie électrique Semaine de trente-neuf heures 338,00 2 Désactivé",
+      "Automaticien Bureau d'études électricité Ingénierie électrique Semaine de trente-neuf heures 338,00 2 Désactivé Réactiver",
+      "4 rôles",
     ]);
     // The calendar of the deactivated role is not among those the page read: its name is the
     // answer's, never one the front would draw from another list.
     expect(rows(page, "Calendriers").join(" ")).not.toContain("trente-neuf");
+    expect(sortable(page, "Rôles de ressources")).toEqual([
+      "Libellé",
+      "Nœud d’organisation",
+      "Catégorie de coût",
+      "Calendrier",
+      "Heures par mois",
+      "Effectif",
+      "État",
+    ]);
+    // The roles are filtered by node, offered in the order of the tree, each set in by its depth.
+    expect(text(page)).toContain("Nœud d’organisation Tous les nœuds");
+    expect(options(page)).toEqual([
+      ["01926f3a-7c00-7000-8000-000000000470", "DT · Direction technique"],
+      [BUREAU, "\u2003BE-ELEC · Bureau d'études électricité"],
+      ["01926f3a-7c00-7000-8000-000000000472", "\u2003\u2003AT-CABL · Atelier de câblage"],
+      ["01926f3a-7c00-7000-8000-000000000473", "\u2003ACHATS · Service des achats"],
+    ]);
   });
 
-  it("present each calendar by its seven values of hours, the default one marked, and the units of duration", async () => {
-    const page = rendered(await ResourceSettingsPage());
+  it("present each calendar by its seven values of hours, the default one marked, sorted by its label, its mark and its state, and the units of duration", async () => {
+    const page = await resourcesAt();
     expect(rows(page, "Calendriers")).toEqual([
       "Libellé Lun. Mar. Mer. Jeu. Ven. Sam. Dim. Par défaut État",
       "Semaine standard 8 8 8 8 8 0 0 Calendrier par défaut Actif",
       "Semaine de quatre jours 10 10 10 10 0 0 0 Actif",
+      "2 calendriers",
     ]);
+    expect(sortable(page, "Calendriers")).toEqual(["Libellé", "Par défaut", "État"]);
     expect(text(page)).toContain(
       "Unités de durée Heures par jour 8 Heures par semaine 40 Jours par mois 20",
     );
+  });
+
+  it("ask each list of the server by the names of the contract, as the address asks it under the names of its grid [WF-IHM-0060-A]", async () => {
+    await resourcesAt({
+      org_search: "BE",
+      role_search: "Ingé",
+      role_sort_by: "monthly_hours",
+      role_sort_order: "desc",
+      role_org_node_id: BUREAU,
+      calendar_search: "Semaine",
+      calendar_sort_by: "is_default",
+      // The names of the contract alone belong to no grid of this screen.
+      search: "ignored",
+      sort_by: "label",
+    });
+    // The tree searched, and the tree whole, which the filter of the roles offers.
+    expect(queriesOf("GET /reference/org-nodes")).toEqual([{ search: "BE" }, {}]);
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([
+      { search: "Ingé", sort_by: "monthly_hours", sort_order: "desc", org_node_id: BUREAU },
+    ]);
+    expect(queriesOf("GET /reference/calendars")).toEqual([
+      { search: "Semaine", sort_by: "is_default", sort_order: "asc" },
+    ]);
+  });
+
+  it("read the tree once, and ask no sort nor search, when the address asks none", async () => {
+    await resourcesAt({ role_sort_by: "capacity", role_org_node_id: "not an identifier" });
+    expect(queriesOf("GET /reference/org-nodes")).toEqual([{}]);
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([{}]);
+    expect(queriesOf("GET /reference/calendars")).toEqual([{}]);
+  });
+
+  it("keep the grid of a list a search or a filter narrows to nothing, the search shown to be changed, and say empty a list nothing narrows", () => {
+    const query = { sort: undefined, search: "Personne" };
+    const narrowed = rendered(
+      <ResourceRoleList
+        rows={[]}
+        query={query}
+        preferences={undefined}
+        reactivable
+        nodes={[]}
+        orgNode={undefined}
+      />,
+    );
+    expect(rows(narrowed, "Rôles de ressources")).toContain("Aucune ligne ne répond à la demande.");
+    expect(narrowed).toContain('value="Personne"');
+    const filtered = rendered(
+      <ResourceRoleList
+        rows={[]}
+        query={{ sort: undefined, search: undefined }}
+        preferences={undefined}
+        reactivable
+        nodes={[]}
+        orgNode={BUREAU}
+      />,
+    );
+    expect(filtered).toContain('aria-label="Rôles de ressources"');
+    const none = rendered(
+      <CalendarList
+        rows={[]}
+        query={{ sort: undefined, search: undefined }}
+        preferences={undefined}
+        reactivable
+      />,
+    );
+    expect(text(none)).toBe("Calendriers Aucun calendrier.");
+    const tree = rendered(
+      <OrgNodeList rows={[]} query={query} preferences={undefined} reactivable={false} />,
+    );
+    expect(rows(tree, "Arbre d’organisation")).toContain("Aucune ligne ne répond à la demande.");
+  });
+
+  it("ask the active objects alone when the address does not ask for the deactivated ones, and offer to show them [WF-REF-0150-A]", async () => {
+    const page = await resourcesAt();
+    for (const route of LISTS) {
+      expect(queriesOf(route).every((query) => !("include_inactive" in query))).toBe(true);
+    }
+    expect(page).toMatch(
+      /<a[^>]*href="\/reference\/resources\?include_inactive=true"[^>]*>.*?Afficher aussi les désactivés<\/a>/,
+    );
+    // The fake back answers its example whatever is asked — the deactivated role among them —:
+    // what the screen asks is what this proves.
+  });
+
+  it("ask the deactivated objects too when the address asks for them, each said deactivated and offered to be reactivated, and offer to hide them [WF-REF-0150-A]", async () => {
+    const page = await resourcesAt({ include_inactive: "true" });
+    for (const route of LISTS) {
+      expect(queriesOf(route).map((query) => query.include_inactive)).not.toContain(undefined);
+    }
+    expect(page).toContain('aria-label="Réactiver «\u00a0Automaticien\u00a0»"');
+    expect(page).toMatch(
+      /<a[^>]*href="\/reference\/resources"[^>]*>.*?Masquer les désactivés<\/a>/,
+    );
+  });
+
+  it("never ask the deactivated objects of a session that may not read the settings of the resources, which the contract refuses, nor offer to show or reactivate them", async () => {
+    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    const page = await resourcesAt({ include_inactive: "true" });
+    for (const route of LISTS) {
+      expect(queriesOf(route).every((query) => !("include_inactive" in query))).toBe(true);
+    }
+    expect(text(page)).not.toContain("désactivés");
+    expect(text(page)).not.toContain("Réactiver");
   });
 });
 

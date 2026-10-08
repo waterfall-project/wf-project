@@ -21,7 +21,7 @@ import { estimateReference } from "@/test/reference";
 
 import type { EstimateReference } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
-import type { NodeFilters, NodeList, NodeSortColumn } from "./nodes";
+import type { NodeFilters, NodeList, NodeSortColumn, NodesWritten } from "./nodes";
 import type { GridQuery } from "./query";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
@@ -58,18 +58,29 @@ const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
 // line of labour « Raccordement des borniers », its disbursement « Borniers », its provision,
 // whose quantity and unit disbursement the server computes, then the subtree merged by the risk
 // that occurred, its summary first.
-const TASK_ROW = 1;
-const LABOUR = 2;
-const DISBURSEMENT = 3;
-const PROVISION = 4;
-const OCCURRED = 5;
 const estimate = example("nodes_estimate") as NodeList;
-// The whole core of the witness, read without a filter (`nodes_core`), whose totals the writes of
-// the core answer: the lot of the control station, its task and its line of labour, by their index.
-const core = example("nodes_core") as NodeList;
-const CORE_LOT = 7;
-const CORE_TASK = 8;
-const CORE_LABOUR = 9;
+/** The index of a row of the estimate, found by its label in the example (#400). */
+function rowOf(label: string): number {
+  return estimate.items.findIndex(
+    (node) => (node.task?.label ?? node.estimate_line?.label) === label,
+  );
+}
+const TASK_ROW = rowOf("Câblage des armoires");
+const LABOUR = rowOf("Raccordement des borniers");
+const DISBURSEMENT = rowOf("Borniers");
+const PROVISION = rowOf("Provision — risque de reprise du câblage");
+const OCCURRED = rowOf("Risque survenu — Retard de livraison des armoires");
+const nodeIdOf = (row: number) => estimate.items[row]?.node_id ?? "";
+const LINE_ANSWER = example("estimate_line_updated") as NodesWritten;
+// The whole structure of the witness, read without a filter, its core first (#376), whose totals
+// the writes of the core answer: the line of labour the write answers, its task and the lot of
+// the control station above it, found by their identifiers in the examples (#400).
+const core = example("volume/nodes_thousand") as NodeList;
+const indexOf = (id: string | null | undefined) =>
+  core.items.findIndex((node) => node.node_id === id);
+const CORE_LABOUR = indexOf(LINE_ANSWER.nodes[0]?.node_id);
+const CORE_TASK = indexOf(core.items[CORE_LABOUR]?.parent_id);
+const CORE_LOT = indexOf(core.items[CORE_TASK]?.parent_id);
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
@@ -114,7 +125,7 @@ function grid(
 /** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
 function cell(row: number, column: string): HTMLElement {
   const found = screen
-    .getByRole("grid")
+    .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
   if (found === null) {
     throw new Error(`no cell ${column} in the row ${row.toString()}`);
@@ -124,7 +135,7 @@ function cell(row: number, column: string): HTMLElement {
 
 /** The texts of the totals row, at the foot of the grid. */
 function totals(): (string | null)[] {
-  const row = screen.getByRole("grid").querySelector("tfoot tr");
+  const row = screen.getByRole("treegrid").querySelector("tfoot tr");
   return [...(row?.querySelectorAll("td") ?? [])].map((cell) => cell.textContent);
 }
 
@@ -172,7 +183,7 @@ describe("the keyboard of a grid", () => {
     expect(cell(DISBURSEMENT, "label")).toHaveFocus();
     expect(screen.queryByRole("textbox")).toBeNull();
     // Each cell left alone, the second and the next carrying the version the server answered.
-    const node = `${NODES}/01926f3a-7c00-7000-8000-000000000553/estimate-line`;
+    const node = `${NODES}/${nodeIdOf(LABOUR)}/estimate-line`;
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(5);
     });
@@ -211,7 +222,7 @@ describe("the keyboard of a grid", () => {
     });
     expect(written(client, TASK)).toEqual([
       {
-        path: `${NODES}/01926f3a-7c00-7000-8000-000000000552/task`,
+        path: `${NODES}/${nodeIdOf(TASK_ROW)}/task`,
         body: { label: "Câblage des armoires et repérage", lock_version: 1 },
       },
     ]);
@@ -776,17 +787,17 @@ describe("what a write answers besides the row written", () => {
     serve();
     render(grid("fr", core));
     expect(totals().slice(1)).toEqual([
-      "Total — 15 tâches, 9 lignes",
+      "Total — 1\u202f000 tâches, 5\u202f000 lignes",
       "",
       "",
       "",
-      "252,5",
+      "116\u202f270",
       "",
       "",
       "",
       "",
-      "121\u202f534,56",
-      "121\u202f534,56",
+      "65\u202f605\u202f723,89",
+      "68\u202f424\u202f191,06",
     ]);
     cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
@@ -799,17 +810,17 @@ describe("what a write answers besides the row written", () => {
     expect(cell(CORE_LOT, "inflated_amount")).toHaveTextContent(/3\s054,56$/);
     expect(cell(CORE_TASK, "inflated_amount")).toHaveTextContent(/2\s854,56$/);
     expect(totals().slice(1)).toEqual([
-      "Total — 15 tâches, 9 lignes",
+      "Total — 1\u202f000 tâches, 5\u202f000 lignes",
       "",
       "",
       "",
-      "254",
+      "116\u202f271,5",
       "",
       "",
       "",
       "",
-      "121\u202f654,56",
-      "121\u202f654,56",
+      "65\u202f605\u202f843,89",
+      "68\u202f424\u202f311,06",
     ]);
   });
 
@@ -886,7 +897,7 @@ describe("what a write answers besides the row written", () => {
     cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     await vi.waitFor(() => {
-      expect(totals()[5]).toBe("254");
+      expect(totals()[5]).toBe("116\u202f271,5");
     });
     expect(client.calls.map((call) => call.route)).toEqual([LINE]);
   });
@@ -935,7 +946,7 @@ describe("a grid the revision does not let the caller enter", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(cell(LABOUR, "hours")).toHaveAttribute("aria-readonly", "true");
     expect(
-      [...screen.getByRole("grid").querySelectorAll("td[data-column]")].every(
+      [...screen.getByRole("treegrid").querySelectorAll("td[data-column]")].every(
         (element) => element.getAttribute("aria-readonly") === "true",
       ),
     ).toBe(true);

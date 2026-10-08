@@ -9,8 +9,13 @@
  * The option of the payment delays is a parameter of the address of the screen, which the server
  * reads and sends to the API — the front shifts nothing and computes nothing (WF-ARC-0020); the
  * command keeps the other parameters of the address, the filters of the context among them.
+ *
+ * The tracking of the milestones and the cumulative costs are read for the project whole: their
+ * operations take no sub-project (#495). When the address filters one, each says it is not
+ * restricted to it, never in silence (WF-IHM-0020) — the banner says the sub-project restricts the
+ * indicators and the curves of earned value alone.
  */
-import { Banknote } from "lucide-react";
+import { Banknote, Info } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -57,19 +62,36 @@ function Said({ children }: { readonly children: ReactNode }) {
   return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
+/**
+ * What a figure says when the address filters a sub-project its operation does not take: that it
+ * is read for the project whole.
+ */
+export function WholeProject({ children }: { readonly children: ReactNode }) {
+  return (
+    <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <Info aria-hidden="true" className="size-4 shrink-0" />
+      {children}
+    </p>
+  );
+}
+
 /** The tracking of the milestones: its diagram, or that no milestone is tracked. */
 export function MilestoneSection({
   tracking,
   provenance,
+  wholeProject = false,
 }: {
   readonly tracking: MilestoneTracking;
   readonly provenance: ChartProvenance;
+  /** Whether the address filters a sub-project, which the tracking does not take. */
+  readonly wholeProject?: boolean;
 }) {
-  const t = useTranslations("projectIndicators.milestones");
+  const t = useTranslations("projectIndicators");
   return (
-    <Section title={t("title")}>
+    <Section title={t("milestones.title")}>
+      {wholeProject ? <WholeProject>{t("wholeProject.milestones")}</WholeProject> : null}
       {tracking.milestones.length === 0 ? (
-        <Said>{t("none")}</Said>
+        <Said>{t("milestones.none")}</Said>
       ) : (
         <MilestoneChart tracking={tracking} provenance={provenance} />
       )}
@@ -85,15 +107,20 @@ export function CostCurveSection({
   curves,
   address,
   provenance,
+  wholeProject = false,
 }: {
   readonly curves: CurveSeries;
   readonly address: ScreenAddress;
   readonly provenance: ChartProvenance;
+  /** Whether the address filters a sub-project, which the cumulative costs do not take. */
+  readonly wholeProject?: boolean;
 }) {
   const t = useTranslations("projectIndicators.costCurve");
+  const whole = useTranslations("projectIndicators.wholeProject");
   const shifted = curves.payment_delays;
   return (
     <Section title={t("title")}>
+      {wholeProject ? <WholeProject>{whole("costCurve")}</WholeProject> : null}
       <Link
         href={addressWith(address, PAYMENT_DELAYS, shifted ? undefined : "true")}
         scroll={false}

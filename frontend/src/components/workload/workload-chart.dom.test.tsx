@@ -129,7 +129,7 @@ afterEach(() => {
 roomForCharts();
 
 describe("the workload of a project", () => {
-  it("draws the load of each role by month in bars, its capacity across, as the API gave them [WF-DEV-0070-A]", async () => {
+  it("draws the load of each role by month in bars, as the API gave them, and no capacity nor ratio [WF-DEV-0070-A]", async () => {
     workload();
     const image = screen.getByRole("img", { name: /^Bars of the load of each resource role/ });
     await waitFor(() => {
@@ -151,16 +151,9 @@ describe("the workload of a project", () => {
       ["2026-06-01T00:00:00Z", "12.5"],
       ["2026-07-01T00:00:00Z", "22.44"],
     ]);
-    // The capacity of each role over the months of its load, a role without load left to the
-    // table.
-    expect(series.slice(0, 3).map((each) => each.type)).toEqual(["bar", "bar", "bar"]);
-    const capacities = series.slice(3);
-    expect(
-      capacities.map((each) => [each.type, each.name, (each.data as unknown[]).at(0)]),
-    ).toEqual([
-      ["line", "Capacity — Ingénieur électricien", ["2026-06-01T00:00:00Z", "658654"]],
-      ["line", "Capacity — Technicien de mise en service", ["2026-07-01T00:00:00Z", "485324"]],
-    ]);
+    // The bars alone: the capacity of each role, that of the whole installation, is in the table,
+    // in regard of its load, never drawn — a line that would crush the bars (#375, option b).
+    expect(series.map((each) => each.type)).toEqual(["bar", "bar", "bar"]);
     // Its months on an axis in UTC, a tick on the first of each, June 2026 to February 2027.
     expect(option.useUTC).toBe(true);
     // The instance gives back each of its components as a list.
@@ -173,23 +166,29 @@ describe("the workload of a project", () => {
     ]);
   });
 
-  it("lists each month of each role, its capacity, its ratio and its zone by the one signal, a role without load said so [WF-IHM-0070-A]", async () => {
+  it("lists each month of each role, its capacity in regard of its load, and its zone by the one signal, a role without load said so — no ratio [WF-DEV-0070-A] [WF-IHM-0070-A]", async () => {
+    // La capacité de chaque rôle est affichée : in the table, against the load of each month; the
+    // plan of a project presents no ratio of its load to it (#375, option b).
     const { container } = workload();
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "Role",
+      "Month",
+      "Load (h)",
+      "Capacity (h per month)",
+      "Zone",
+    ]);
     const rows = screen.getAllByRole("row").slice(1);
     const listed = rows.map((row) => row.textContent);
     expect(listed.slice(0, 2)).toEqual([
-      // The capacity of a role is that of the installation, at the scale of the portfolio: the
-      // load of one project is a share of it too small to be written to the hundredth.
-      "Ingénieur électricienJune 202612.5658,6540%Nominal",
-      "Ingénieur électricienJuly 202622.44658,6540%Nominal",
+      "Ingénieur électricienJune 202612.5658,654Nominal",
+      "Ingénieur électricienJuly 202622.44658,654Nominal",
     ]);
-    // The commissioning on site in December, the one month whose ratio is written: the format of
-    // a ratio of the portfolio's scale kept in proof.
-    expect(listed).toContain("Technicien de mise en serviceDecember 202676.55485,3240.02%Nominal");
+    expect(listed).toContain("Technicien de mise en serviceDecember 202676.55485,324Nominal");
     expect(listed.slice(-2)).toEqual([
-      "Technicien de mise en serviceJanuary 20278485,3240%Nominal",
+      "Technicien de mise en serviceJanuary 20278485,324Nominal",
       "Monteur câbleurNo load216,662.5",
     ]);
+    expect(listed.join("")).not.toContain("%");
     expect(listed).toHaveLength(7 + 7 + 1);
     expect(within(container).getByText(/^Computed on/)).toBeInTheDocument();
     await expectAccessible(container);
@@ -219,8 +218,6 @@ describe("the workload of a project", () => {
       "Ingénieur électricien",
       "Technicien de mise en service",
       "Monteur câbleur",
-      "Capacity — Ingénieur électricien",
-      "Capacity — Technicien de mise en service",
     ]);
     expect(option.animation).toBe(false);
     expect(canvas.images).toEqual([{ type: "png", pixelRatio: 2, backgroundColor: BACKGROUND }]);

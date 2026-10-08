@@ -11,11 +11,17 @@ export interface Examples {
   "GET /access-roles": {
     200: "access_roles";
   };
+  "GET /audit-events": {
+    200: "audit_events" | "audit_events_empty" | "audit_events_exited" | "audit_events_page" | "audit_events_project";
+  };
   "GET /backup-schedule": {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
   };
   "GET /backups": {
     200: "backups" | "backups_beyond" | "backups_empty";
+  };
+  "GET /external-backup-locations": {
+    200: "external_backup_locations" | "external_backup_locations_none";
   };
   "GET /installation": {
     200: "installation" | "installation_english";
@@ -54,7 +60,7 @@ export interface Examples {
     200: "projects" | "projects_empty";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_pricing" | "project_pricing_estimator" | "project_without_current_revision";
+    200: "project" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_without_current_revision";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
@@ -180,13 +186,13 @@ export interface Examples {
     200: "reference_settings";
   };
   "GET /session": {
-    200: "session" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_without_administration" | "session_without_preferences";
+    200: "session" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_manager" | "session_without_administration" | "session_without_preferences" | "session_without_roles";
   };
   "GET /session/providers": {
     200: "auth_providers" | "auth_providers_local";
   };
   "GET /system/status": {
-    200: "system_status" | "system_status_backup_failed" | "system_status_storage_full";
+    200: "system_status" | "system_status_backup_failed" | "system_status_copy_failed" | "system_status_storage_full";
   };
   "GET /tasks": {
     200: "tasks_none" | "tasks_running";
@@ -205,6 +211,9 @@ export interface Examples {
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";
+  };
+  "POST /external-backup-locations/{location_name}/test": {
+    200: "external_backup_location_test_failed" | "external_backup_location_tested";
   };
   "POST /file-uploads": {
     201: "file_upload";
@@ -243,6 +252,9 @@ export interface Examples {
     200: "remaining_reestimated";
   };
   "PUT /reference/cost-categories/{cost_category_id}/hourly-rates/{year}": {
-    200: "hourly_rate_corrected" | "hourly_rate_entered";
+    200: "hourly_rate_added_year" | "hourly_rate_corrected" | "hourly_rate_entered";
+  };
+  "PUT /reference/resource-roles/{resource_role_id}/activation": {
+    200: "resource_role_reactivated";
   };
 }

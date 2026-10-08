@@ -10,7 +10,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockwitness
+from wftools import mockcore, mockids, mockwitness
 from wftools.mockcalendar import (
     ORIGIN,
     START_TO_START,
@@ -21,7 +21,7 @@ from wftools.mockcalendar import (
     follow,
     to_hours,
 )
-from wftools.mockwitness import PREFIX
+from wftools.mockids import PREFIX
 
 
 def hours(*values: int) -> tuple[Decimal, ...]:
@@ -49,28 +49,28 @@ def test_today_is_the_instant_every_first_example_describes() -> None:
 
 
 def test_the_families_of_identifiers_lie_on_disjoint_ranges() -> None:
-    generated = sorted(family.generated for family in mockwitness.IDENTIFIERS if family.generated)
-    assert generated == [1, 2, 3, 4, 5, 6]
+    generated = sorted(family.generated for family in mockids.IDENTIFIERS if family.generated)
+    assert generated == [1, 2, 3, 4, 5, 6, 7, 8]
     tails = {f"{n:012d}" for n in range(1_000)} | {f"{n:012x}" for n in range(0x1000)}
     for tail in sorted(tails):
-        held = [family.what for family in mockwitness.IDENTIFIERS if family.holds(PREFIX + tail)]
+        held = [family.what for family in mockids.IDENTIFIERS if family.holds(PREFIX + tail)]
         assert len(held) <= 1, (tail, held)
     # A number of the other writing is not of a family, and says so without failing.
-    assert not any(family.holds(f"{PREFIX}00000000052a") for family in mockwitness.IDENTIFIERS)
+    assert not any(family.holds(f"{PREFIX}00000000052a") for family in mockids.IDENTIFIERS)
 
 
 def test_an_identifier_belongs_to_one_family() -> None:
-    node = mockwitness.universe(521)
+    node = mockids.universe(521)
     assert node == "01926f3a-7c00-7000-8000-000000000521"
-    assert [family.what for family in mockwitness.IDENTIFIERS if family.holds(node)] == [
+    assert [family.what for family in mockids.IDENTIFIERS if family.holds(node)] == [
         "nœuds de la structure"
     ]
-    drawn = mockwitness.identifier(mockwitness.NODES, 4)
+    drawn = mockids.identifier(mockids.NODES, 4)
     assert drawn == "01926f3a-7c00-7000-8000-000100000004"
-    assert [family.what for family in mockwitness.IDENTIFIERS if family.holds(drawn)] == [
+    assert [family.what for family in mockids.IDENTIFIERS if family.holds(drawn)] == [
         "nœuds engendrés"
     ]
-    assert not any(family.holds("an identifier") for family in mockwitness.IDENTIFIERS)
+    assert not any(family.holds("an identifier") for family in mockids.IDENTIFIERS)
 
 
 def _core(task: mockwitness.Task) -> list[mockwitness.Task | mockwitness.Line]:
@@ -80,10 +80,10 @@ def _core(task: mockwitness.Task) -> list[mockwitness.Task | mockwitness.Line]:
 def test_the_core_has_one_identifier_a_node_and_its_lineage_apart() -> None:
     numbers = [each.number for root in mockwitness.CORE for each in _core(root)]
     assert len(numbers) == len(set(numbers)) == 24
-    nodes = next(family for family in mockwitness.IDENTIFIERS if family.what.startswith("nœuds de"))
-    lineages = next(family for family in mockwitness.IDENTIFIERS if family.first == 600)
-    assert all(nodes.holds(mockwitness.universe(number)) for number in numbers)
-    assert all(lineages.holds(mockwitness.universe(number + 100)) for number in numbers)
+    nodes = next(family for family in mockids.IDENTIFIERS if family.what.startswith("nœuds de"))
+    lineages = next(family for family in mockids.IDENTIFIERS if family.first == 600)
+    assert all(nodes.holds(mockids.universe(number)) for number in numbers)
+    assert all(lineages.holds(mockids.universe(number + 100)) for number in numbers)
 
 
 def test_the_witness_employs_three_active_roles_on_two_calendars() -> None:
@@ -153,8 +153,37 @@ def test_a_duration_or_a_lag_of_work_is_converted_into_hours() -> None:
     assert to_hours(1, "w") == 40
     assert to_hours(1, "mo") == 160
     assert to_hours(30, "min") == Decimal("0.5")
+    assert to_hours(3, "min") == Decimal("0.05")
     with pytest.raises(ValueError, match="ed is not a unit of work"):
         to_hours(1, "ed")
+
+
+@pytest.mark.parametrize("minutes", [1, 2, 31])
+def test_minutes_that_make_no_exact_hour_are_refused_rather_than_rounded(minutes: int) -> None:
+    # WF-DAT-0100 counts exact hours: a minute is 0.01666… of an hour, which no decimal holds.
+    with pytest.raises(ValueError, match=f"{minutes} minutes make no exact decimal of an hour"):
+        to_hours(minutes, "min")
+
+
+@pytest.mark.parametrize("link_type", ["finish_to_finish", "start_to_finish"])
+def test_a_link_that_does_not_count_from_a_finish_to_a_start_or_from_starts_is_refused(
+    link_type: str,
+) -> None:
+    friday = Predecessor(at(1), at(5, 8), link_type)
+    with pytest.raises(ValueError, match=f"the link {link_type} is not placed here"):
+        follow(STANDARD, [friday], Decimal(8), at(1))
+
+
+def test_a_milestone_reads_the_end_of_a_day_only_when_a_finish_to_start_link_drives_it() -> None:
+    # Started with its start-to-start predecessor, without lag, a milestone sits at its first
+    # hour, the Monday, not the Friday before; without a predecessor, at the first hour of the
+    # origin (WF-PLA-0050).
+    monday = Predecessor(at(8), at(12, 8), START_TO_START)
+    assert follow(STANDARD, [monday], Decimal(0), at(1)) == (at(8), at(8))
+    assert follow(STANDARD, [], Decimal(0), at(8)) == (at(8), at(8))
+    # Both drive it to the same count: the finish-to-start link reads it as a finish.
+    friday = Predecessor(at(1), at(5, 8))
+    assert follow(STANDARD, [monday, friday], Decimal(0), at(1)) == (at(5, 8), at(5, 8))
 
 
 @pytest.mark.parametrize("start", [at(1), at(4, 10), at(5, 8), at(6), at(8, 3)])
@@ -225,7 +254,7 @@ def test_the_core_is_dated_by_its_links() -> None:
 
 def test_the_figures_of_the_core_are_those_of_the_other_examples() -> None:
     risks = {risk["risk_id"]: risk for risk in mockwitness.fixture("risks")["items"]}
-    delay, rework = risks[mockwitness.universe(752)], risks[mockwitness.universe(751)]
+    delay, rework = risks[mockids.universe(752)], risks[mockids.universe(751)]
     lines = {
         line.number: line
         for root in mockwitness.CORE
@@ -292,8 +321,20 @@ _KEYS = {
     ),
     "backup_id": ("sauvegardes",),
     "task_id": ("tâches de fond",),
-    "paste_id": ("collages et corrélations",),
-    "correlation_id": ("collages et corrélations",),
+    "paste_id": ("collages",),
+    "correlation_id": ("corrélations", "corrélations engendrées"),
+    "audit_event_id": ("inscriptions du journal d'audit",),
+    "object_id": (
+        "projets",
+        "révisions",
+        "structures",
+        "comptes",
+        "rôles d'habilitation",
+        "risques",
+        "sauvegardes",
+        "imports et téléversements",
+        "lignes de coût réel",
+    ),
     "upload_id": ("imports et téléversements",),
     "import_id": ("imports et téléversements",),
     "timeline_id": ("chronologies",),
@@ -321,7 +362,7 @@ def _identifiers(value: Any, key: str = "") -> list[tuple[str, str]]:
 
 
 def test_each_identifier_of_the_examples_is_of_the_family_its_key_names() -> None:
-    families = {family.what: family for family in mockwitness.IDENTIFIERS}
+    families = {family.what: family for family in mockids.IDENTIFIERS}
     trespasses: set[tuple[str, str]] = set()
     for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
         example = json.loads(path.read_text(encoding="utf-8"))

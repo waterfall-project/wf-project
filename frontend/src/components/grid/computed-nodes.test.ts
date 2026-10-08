@@ -10,24 +10,35 @@ import type { NodeList } from "./nodes";
 const estimate = example("nodes_estimate") as NodeList;
 const planning = example("nodes_planning") as NodeList;
 
+/** The label of a node, a task's or a line's. */
+function labelOf(node: NodeList["items"][number]): string | undefined {
+  return node.task?.label ?? node.estimate_line?.label;
+}
+
 describe("the cells of a structure the server computes", () => {
   it("are read node by node in its computed fields, never from its mode nor its nature", () => {
     const quantity = computedWhereNamed("estimate_line.quantity");
     const disbursement = computedWhereNamed("estimate_line.unit_disbursement");
     const hours = computedWhereNamed("estimate_line.hours");
+    // Named by their labels in the examples, never by a number written here (#400).
     const computed = (cells: typeof quantity) =>
-      estimate.items.filter((node) => cells.in(node)).map((node) => node.row_number);
-    // The provision of row 12 alone: its quantity and its unit disbursement come from its risk.
-    expect(computed(quantity)).toEqual([12]);
-    expect(computed(disbursement)).toEqual([12]);
+      estimate.items.filter((node) => cells.in(node)).map(labelOf);
+    // The provision alone: its quantity and its unit disbursement come from its risk.
+    const PROVISION = "Provision — risque de reprise du câblage";
+    expect(computed(quantity)).toEqual([PROVISION]);
+    expect(computed(disbursement)).toEqual([PROVISION]);
     expect(computed(hours)).toEqual([]);
     expect(quantity.whole).toBe(false);
 
     const finish = computedWhereNamed("task.finish");
-    // In the planning, the manual task of row 4 enters its dates; the others compute them.
-    expect(planning.items.filter((node) => finish.in(node)).map((node) => node.row_number)).toEqual(
-      [1, 2, 5, 6, 7],
-    );
+    // In the planning, the manual task enters its dates; the others compute them.
+    expect(planning.items.filter((node) => finish.in(node)).map(labelOf)).toEqual([
+      "Études",
+      "Études de détail",
+      "Revue de conception",
+      "Réception des études",
+      "Dossier de conception",
+    ]);
   });
 
   it("name the field of the contract each shows, which the refusal asks the server about", () => {
@@ -58,8 +69,13 @@ describe("the cells of a structure the server computes", () => {
     expect(amount.whole).toBe(true);
     expect(estimate.items.every((node) => amount.in(node))).toBe(true);
     expect(COMPUTED_FLOAT.whole).toBe(true);
-    expect(
-      estimate.items.filter((node) => COMPUTED_FLOAT.in(node)).map((node) => node.row_number),
-    ).toEqual([8, 9, 13, 14, 16, 18]);
+    expect(estimate.items.filter((node) => COMPUTED_FLOAT.in(node)).map(labelOf)).toEqual([
+      "Poste de commande",
+      "Câblage des armoires",
+      "Risque survenu — Retard de livraison des armoires",
+      "Relance du fournisseur",
+      "Transport exceptionnel",
+      "Réception usine",
+    ]);
   });
 });

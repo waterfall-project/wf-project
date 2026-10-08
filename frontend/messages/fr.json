@@ -28,9 +28,9 @@
   "projectSwitcher": {
     "none": "Aucun projet ouvert",
     "unnamed": "Projet ouvert",
-    "summary": "{code} · {state}",
     "allProjects": "Tous les projets",
-    "projectPage": "Page du projet"
+    "projectPage": "Page du projet",
+    "myProjects": "Mes projets"
   },
   "breadcrumbs": {
     "label": "Fil d’Ariane",
@@ -122,8 +122,17 @@
       "risks": "Registre des risques",
       "actualCosts": "Coûts réels",
       "hourlyRates": "Grille des taux horaires",
+      "orgNodes": "Arbre d’organisation",
+      "resourceRoles": "Rôles de ressources",
+      "calendars": "Calendriers",
+      "subprojects": "Sous-projets",
+      "contributors": "Contributeurs",
+      "workBreakdown": "Lotissement",
+      "users": "Comptes utilisateurs",
+      "accessRoles": "Rôles d’habilitation",
       "portfolioProjects": "Projets du portefeuille",
-      "remaining": "Grille de reste à engager"
+      "remaining": "Grille de reste à engager",
+      "projects": "Liste des projets"
     },
     "columns": {
       "rowNumber": "N°",
@@ -159,6 +168,38 @@
       "passthrough": "Colonnes conservées du fichier",
       "code": "Code",
       "hourlyRate": "Taux horaire",
+      "level": "Niveau",
+      "orgNode": "Nœud d’organisation",
+      "costCategory": "Catégorie de coût",
+      "calendar": "Calendrier",
+      "monthlyHours": "Heures par mois",
+      "headcount": "Effectif",
+      "monday": "Lun.",
+      "tuesday": "Mar.",
+      "wednesday": "Mer.",
+      "thursday": "Jeu.",
+      "friday": "Ven.",
+      "saturday": "Sam.",
+      "sunday": "Dim.",
+      "defaultCalendar": "Par défaut",
+      "erpCode": "Code ERP",
+      "actualCosts": "Coûts réels",
+      "name": "Nom",
+      "contributorKind": "Qualité",
+      "account": "Compte",
+      "breakdownKind": "Nature",
+      "lastName": "Nom",
+      "firstName": "Prénom",
+      "email": "Adresse électronique",
+      "origin": "Origine",
+      "accessRoles": "Rôles d’habilitation",
+      "attachment": "Rattachement",
+      "roleKind": "Nature",
+      "holders": "Comptes porteurs",
+      "modify": "Modifier",
+      "delete": "Supprimer",
+      "activation": "Activation",
+      "assignRoles": "Attribution des rôles",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
@@ -176,7 +217,8 @@
       "reestimatedAmount": "Montant réestimé",
       "description": "Description",
       "physicalProgress": "Avancement physique",
-      "gantt": "Gantt"
+      "gantt": "Gantt",
+      "updatedAt": "Modifié le"
     },
     "computed": "Calculé",
     "entry": {
@@ -191,6 +233,7 @@
     "empty": "Aucune ligne ne répond à la demande.",
     "search": {
       "label": "Rechercher un libellé",
+      "labelIn": "Rechercher dans « {grid} »",
       "placeholder": "Rechercher un libellé"
     },
     "undo": {
@@ -209,7 +252,21 @@
     },
     "columnsMenu": {
       "open": "Colonnes",
+      "openIn": "Colonnes de « {grid} »",
       "title": "Colonnes affichées"
+    },
+    "fold": {
+      "open": "Arbre",
+      "title": "Plier et déplier l’arbre",
+      "expandAll": "Tout déplier",
+      "expandAllKeys": "Alt+*",
+      "collapseAll": "Tout plier",
+      "level": "Jusqu’au niveau {level}",
+      "collapse": "Plier",
+      "expand": "Déplier",
+      "collapseRow": "Plier la ligne",
+      "expandRow": "Déplier la ligne",
+      "collapseAbove": "Plier « {label} »"
     },
     "paste": {
       "title": "Coller depuis un tableur",
@@ -224,7 +281,11 @@
       "apply": "Appliquer le collage",
       "abandon": "Abandonner",
       "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
-      "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit."
+      "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit.",
+      "foldedRows": "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut.",
+      "sortedRows": "Le bloc collé écrirait les lignes qui suivent la cellule dans l’ordre du plan, que le tri a déplacées : levez le tri avant de coller, ou collez un bloc moins haut.",
+      "unretainedRows": "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut.",
+      "beyondRows": "Le bloc collé s’étendrait au-delà des lignes que la grille montre sous la cellule : collez un bloc moins haut."
     }
   },
   "estimateGrid": {
@@ -418,7 +479,9 @@
     },
     "projects": {
       "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
-      "reason": " — {reason}"
+      "reason": " — {reason}",
+      "zones": "Filtre par zone des indices",
+      "everyZone": "Toutes les zones"
     },
     "pages": {
       "label": "Pages des projets",
@@ -586,11 +649,14 @@
     "filters": "Filtres actifs",
     "subproject": "Sous-projet : {subproject}",
     "subprojectName": "{code} — {label}",
-    "gridOnly": "{filter}, sur la grille seulement",
     "asOf": "Date de calcul : {date}",
     "computedOn": "Révision du calcul",
     "unnamedRevision": "sans nom",
-    "removeFilter": "Lever le filtre « {filter} »"
+    "removeFilter": "Lever le filtre « {filter} »",
+    "restricts": {
+      "grid": "{filter}, sur la grille seulement",
+      "indicators": "{filter}, sur les indicateurs et la valeur acquise seulement"
+    }
   },
   "indicator": {
     "names": {
@@ -713,12 +779,21 @@
       "month": "Mois",
       "past": "Décaissé",
       "forecast": "À décaisser"
+    },
+    "wholeProject": {
+      "history": "Cette évolution montre chaque maille du projet : elle ne se restreint pas au sous-projet filtré.",
+      "milestones": "Ce suivi porte sur les jalons du projet entier : il ne se restreint pas au sous-projet filtré.",
+      "costCurve": "Ces courbes portent sur le projet entier : elles ne se restreignent pas au sous-projet filtré."
+    },
+    "provenance": {
+      "subproject": "Sous-projet : {subproject}",
+      "wholeProject": "Projet entier, non restreint au sous-projet filtré"
     }
   },
   "workload": {
     "title": "Plan de charge du projet",
     "chartTitle": "Charge par rôle et par mois",
-    "description": "Barres de la charge de chaque rôle de ressource par mois, en heures, et sa capacité mensuelle en regard, en tirets.",
+    "description": "Barres de la charge de chaque rôle de ressource par mois, en heures ; la capacité mensuelle de chaque rôle est dans le tableau des valeurs, en regard de sa charge.",
     "basis": "Base",
     "markedRevision": "Révision marquée",
     "unnamedRevision": "Révision marquée sans nom",
@@ -731,9 +806,7 @@
     "month": "Mois",
     "hours": "Charge (h)",
     "capacity": "Capacité (h par mois)",
-    "loadRatio": "Charge rapportée à la capacité",
     "zone": "Zone",
-    "capacityOf": "Capacité — {role}",
     "noLoad": "Aucune charge",
     "none": "Aucun rôle n’a de charge sur cette base.",
     "noneInNode": "Aucun rôle du nœud « {node} » ni de ses descendants n’a de charge sur cette base.",
@@ -785,24 +858,14 @@
     "cancel": "Annuler"
   },
   "projectList": {
-    "label": "Liste des projets",
     "count": "{count, plural, one {# projet} other {# projets}}",
-    "columns": {
-      "label": "Projet",
-      "code": "Code",
-      "state": "État"
-    },
     "filter": {
       "label": "Filtre de la liste",
       "mine": "Projets dont vous êtes contributeur",
       "lift": "Voir tous les projets",
-      "apply": "N’afficher que mes projets"
-    },
-    "pages": {
-      "label": "Pages de la liste",
-      "beyond": "La page demandée est au-delà de la fin de la liste.",
-      "previous": "Projets précédents",
-      "next": "Projets suivants"
+      "apply": "N’afficher que mes projets",
+      "states": "Filtre par état",
+      "everyState": "Tous les états"
     }
   },
   "projectFacts": {
@@ -821,29 +884,24 @@
     "subprojects": {
       "title": "Sous-projets",
       "none": "Ce projet n’a aucun sous-projet.",
-      "code": "Code ERP",
-      "label": "Libellé",
-      "actualCosts": "Coûts réels",
       "charged": "Imputés",
-      "notCharged": "Aucun"
+      "notCharged": "Aucun",
+      "count": "{count, plural, =0 {Aucun sous-projet} one {# sous-projet} other {# sous-projets}}"
     },
     "contributors": {
       "title": "Contributeurs",
       "none": "Ce projet n’a aucun contributeur.",
-      "name": "Nom",
-      "kind": "Qualité",
-      "account": "Compte",
-      "active": "Actif",
-      "inactive": "Désactivé"
+      "count": "{count, plural, =0 {Aucun contributeur} one {# contributeur} other {# contributeurs}}",
+      "kindFilter": "Filtrer par qualité",
+      "everyKind": "Toutes les qualités"
     },
     "workBreakdown": {
       "title": "Lotissement",
       "none": "Ce projet n’a aucun poste.",
       "orderItem": "Poste",
       "workPackage": "Lot",
-      "deliverables": "Livrables",
-      "noWorkPackage": "Aucun lot",
-      "noDeliverable": "Aucun"
+      "deliverable": "Livrable",
+      "count": "{count, plural, =0 {Aucun poste} one {# poste} other {# postes}}"
     },
     "transitions": {
       "title": "Historique des états",
@@ -956,7 +1014,13 @@
     "currency": "Montants exprimés en {currency}, devise unique de l’installation.",
     "state": {
       "active": "Actif",
-      "inactive": "Désactivé"
+      "inactive": "Désactivé",
+      "reactivate": "Réactiver « {name} »",
+      "reactivateShort": "Réactiver"
+    },
+    "inactive": {
+      "show": "Afficher aussi les désactivés",
+      "hide": "Masquer les désactivés"
     },
     "columns": {
       "code": "Code",
@@ -964,7 +1028,16 @@
       "state": "État"
     },
     "rates": {
-      "caption": "Taux horaires en {currency}"
+      "caption": "Taux horaires en {currency}",
+      "addYear": {
+        "label": "Ajouter une année à la grille",
+        "year": "Année",
+        "submit": "Ajouter la colonne",
+        "remove": "Retirer la colonne {year}",
+        "added": "Colonne {year} ajoutée : elle reste vide jusqu’à son premier taux, que la saisie d’une cellule enregistre.",
+        "present": "L’année {year} a déjà sa colonne dans la grille.",
+        "outOfRange": "Une année va de {min} à {max}."
+      }
     },
     "costTypes": {
       "title": "Natures de coût",
@@ -979,33 +1052,22 @@
     },
     "orgNodes": {
       "title": "Arbre d’organisation",
-      "level": "Niveau",
       "choice": "{code} · {label}",
-      "none": "Aucun nœud d’organisation."
+      "none": "Aucun nœud d’organisation.",
+      "count": "{count, plural, one {# nœud} other {# nœuds}}"
     },
     "resourceRoles": {
       "title": "Rôles de ressources",
-      "orgNode": "Nœud d’organisation",
-      "costCategory": "Catégorie de coût",
-      "calendar": "Calendrier",
-      "monthlyHours": "Heures par mois",
-      "headcount": "Effectif",
-      "none": "Aucun rôle de ressource."
+      "none": "Aucun rôle de ressource.",
+      "orgNodeFilter": "Nœud d’organisation",
+      "everyNode": "Tous les nœuds",
+      "count": "{count, plural, one {# rôle} other {# rôles}}"
     },
     "calendars": {
       "title": "Calendriers",
-      "days": {
-        "monday": "Lun.",
-        "tuesday": "Mar.",
-        "wednesday": "Mer.",
-        "thursday": "Jeu.",
-        "friday": "Ven.",
-        "saturday": "Sam.",
-        "sunday": "Dim."
-      },
-      "default": "Par défaut",
       "isDefault": "Calendrier par défaut",
-      "none": "Aucun calendrier."
+      "none": "Aucun calendrier.",
+      "count": "{count, plural, one {# calendrier} other {# calendriers}}"
     },
     "durationUnits": {
       "title": "Unités de durée",
@@ -1048,33 +1110,51 @@
       "next": "Page suivante",
       "beyond": "Cette page est au-delà de la fin de la liste."
     },
+    "commands": {
+      "later": "{command} : disponible avec EP-03.",
+      "unmet": "{command} : {condition}"
+    },
     "users": {
       "title": "Comptes utilisateurs",
-      "lastName": "Nom",
-      "firstName": "Prénom",
-      "email": "Adresse électronique",
-      "origin": "Origine",
-      "roles": "Rôles d’habilitation",
-      "orgNode": "Rattachement",
       "noRole": "Aucun rôle",
       "noOrgNode": "Aucun",
       "none": "Aucun compte.",
-      "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}"
+      "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}",
+      "originFilter": "Filtrer par origine",
+      "everyOrigin": "Toutes les origines",
+      "create": "Créer un compte local",
+      "modify": "Modifier",
+      "deactivate": "Désactiver",
+      "reactivate": "Réactiver",
+      "assignRoles": "Attribuer les rôles",
+      "named": "{firstName} {lastName}",
+      "modifyUser": "Modifier « {name} »",
+      "deactivateUser": "Désactiver « {name} »",
+      "reactivateUser": "Réactiver « {name} »",
+      "assignRolesUser": "Attribuer les rôles de « {name} »",
+      "hideInactive": "Masquer les désactivés",
+      "showInactive": "Afficher les désactivés"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",
-      "kind": "Nature",
       "predefined": "Prédéfini",
       "composed": "Composé",
-      "holders": "Comptes porteurs",
-      "none": "Aucun rôle d’habilitation."
+      "none": "Aucun rôle d’habilitation.",
+      "count": "{count, plural, =0 {Aucun rôle} one {# rôle} other {# rôles}}",
+      "create": "Créer un rôle",
+      "modify": "Modifier",
+      "delete": "Supprimer",
+      "modifyRole": "Modifier « {name} »",
+      "deleteRole": "Supprimer « {name} »",
+      "heldBy": "Porté par {count, plural, one {# compte} other {# comptes}} : un rôle ne se supprime pas tant qu’un compte le porte."
     },
     "permissions": {
       "title": "Permissions par fonction",
       "function": "Fonction",
       "permission": "Permission",
       "held": "Accordée",
-      "notHeld": "Non accordée"
+      "notHeld": "Non accordée",
+      "auditLog": "Journal d’audit"
     },
     "status": {
       "version": "Version installée : {version}",
@@ -1089,6 +1169,7 @@
       "used": "Utilisé",
       "free": "Disponible",
       "storageDetail": "{used} employés, {available} libres",
+      "copyDetail": "{location} : {failure}",
       "operations": "Dernières opérations",
       "operation": "Opération",
       "at": "Date",
@@ -1099,6 +1180,7 @@
       "never": "Jamais effectuée",
       "directorySync": "Lecture des comptes du fournisseur d’identité",
       "backup": "Sauvegarde",
+      "backupCopy": "Copie externe de la sauvegarde",
       "restoreTest": "Test de restauration",
       "alerts": "Alertes en cours",
       "alert": "Alerte",
@@ -1128,6 +1210,10 @@
       "universalTime": "{time} UTC",
       "retained": "Rétention",
       "count": "{count, plural, one {# sauvegarde conservée} other {# sauvegardes conservées}}",
+      "externalCopy": "Copie externe",
+      "externalCopyNone": "Aucune",
+      "externalCopyTo": "Vers {location}, dossier {path} — {count, plural, one {# copie gardée} other {# copies gardées}}",
+      "externalCopySuspended": "Suspendue — vers {location}, dossier {path}, {count, plural, one {# copie gardée} other {# copies gardées}}",
       "weekdays": {
         "monday": "Lundi",
         "tuesday": "Mardi",
@@ -1231,6 +1317,8 @@
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
+    "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
+    "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
@@ -1244,6 +1332,7 @@
     "missing_prerequisites": "À compléter : {prerequisites}.",
     "projectState": "État du projet : {state}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
+    "minimum": "Valeur minimale : {minimum}.",
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
     "expected_version": "Version attendue : {version}."
@@ -1264,6 +1353,9 @@
     "backups": {
       "read": "Consulter les sauvegardes",
       "write": "Modifier les sauvegardes"
+    },
+    "audit_log": {
+      "read": "Consulter le journal d’audit"
     },
     "portfolio_projects": {
       "read": "Consulter le portefeuille de projets",
@@ -1376,6 +1468,7 @@
         "component_unavailable": "Composant indisponible",
         "task_queue_stalled": "File des traitements bloquée",
         "scheduled_backup_failed": "Échec de la sauvegarde planifiée",
+        "scheduled_backup_copy_failed": "Échec de la copie externe d’une sauvegarde planifiée",
         "directory_sync_failed": "Échec de la synchronisation de l’annuaire",
         "storage_nearly_full": "Stockage presque plein",
         "error_rate_abnormal": "Taux d’erreur anormal"
@@ -1463,6 +1556,55 @@
         "daily": "Quotidienne",
         "weekly": "Hebdomadaire"
       }
+    },
+    "ExternalBackupLocationKind": {
+      "s3": "Compartiment S3",
+      "mounted_share": "Partage réseau monté"
+    },
+    "ExternalBackupFailure": {
+      "location_unreachable": "Emplacement injoignable",
+      "access_denied": "Accès refusé",
+      "write_failed": "Écriture refusée",
+      "delete_failed": "Effacement refusé",
+      "storage_full": "Espace épuisé",
+      "timed_out": "Délai dépassé"
+    },
+    "AuditAction": {
+      "revision_mark": "Marquage d’une révision",
+      "reference_designate": "Désignation de la référence",
+      "amendment_merge": "Contractualisation d’un avenant",
+      "risk_occurrence": "Survenance d’un risque",
+      "project_exit": "Sortie du cycle de vie",
+      "cost_line_exclude": "Exclusion d’une ligne de coût",
+      "cost_line_reinstate": "Réintégration d’une ligne de coût",
+      "import_apply": "Application d’un import",
+      "user_create": "Création d’un compte",
+      "user_update": "Modification d’un compte",
+      "user_deactivate": "Désactivation d’un compte",
+      "user_reactivate": "Réactivation d’un compte",
+      "password_link_create": "Lien de mot de passe engendré",
+      "access_role_create": "Création d’un rôle",
+      "access_role_update": "Modification d’un rôle",
+      "access_role_delete": "Suppression d’un rôle",
+      "user_access_roles_set": "Attribution des rôles d’un compte",
+      "backup": "Sauvegarde",
+      "restore": "Restauration"
+    },
+    "AuditActorKind": {
+      "user": "Un compte",
+      "platform": "La plateforme"
+    },
+    "AuditObjectKind": {
+      "project": "Projet",
+      "revision": "Révision",
+      "cost_structure": "Structure de coûts",
+      "risk": "Risque",
+      "cost_line": "Ligne de coût",
+      "import": "Import",
+      "user": "Compte",
+      "access_role": "Rôle d’habilitation",
+      "backup": "Sauvegarde",
+      "external_backup_upload": "Sauvegarde déposée"
     },
     "ReferenceReadiness": {
       "missing": {

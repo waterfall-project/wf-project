@@ -86,7 +86,8 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (4) :
 - #301 — les tables du référentiel n'offrent aucun filtre ; WF-IHM-0130, les filtres de toute
   table, se clôt ici, reportée d'EP-02 (2026-10-07).
 - #313 — la liste du portefeuille n'offre pas le filtre par zone (WF-IHM-0130), reportée
-  d'EP-02 (2026-10-07).
+  d'EP-02 (2026-10-07), puis rangée dans EP-02/L41 (2026-10-08) : fait par EP-02/L41, qui offre
+  le filtre par zone au-dessus de la grille des projets, porté par l'adresse (`zones`).
 
 ## Préalables
 

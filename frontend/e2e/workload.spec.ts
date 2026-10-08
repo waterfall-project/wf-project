@@ -13,7 +13,7 @@ const ORG_NODE = "01926f3a-7c00-7000-8000-000000000471";
 
 test.use({ colorScheme: "light" });
 
-test("leads from the estimate to the workload, drawn in bars, which a node of organisation filters at the server's", async ({
+test("leads from the estimate to the workload, drawn in bars, the capacity in its table, which a node of organisation filters at the server's", async ({
   page,
 }) => {
   await compile(page.request, SCREEN);
@@ -27,6 +27,16 @@ test("leads from the estimate to the workload, drawn in bars, which a node of or
   await expect(
     figure.getByRole("img", { name: /^Barres de la charge/ }).locator("svg"),
   ).toBeVisible();
+  // The capacity of each role in the table of the values, in regard of its load; no ratio of the
+  // load to it in the plan of a project (#375, option b) [WF-DEV-0070-A].
+  await figure.getByText("Valeurs du graphique").click();
+  await expect(figure.getByRole("table").getByRole("columnheader")).toHaveText([
+    "Rôle",
+    "Mois",
+    "Charge (h)",
+    "Capacité (h par mois)",
+    "Zone",
+  ]);
   await region.getByLabel("Nœud d’organisation").selectOption(ORG_NODE);
   await region.getByRole("button", { name: "Afficher" }).click();
   // The choice is an address, the context kept: the server asks the API, the front filters nothing.

@@ -12,6 +12,7 @@ import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import type { NodeFilters, NodeList, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
+import { REMAINING_GRID, REMAINING_SORT_COLUMNS } from "./remaining";
 import { RemainingGrid } from "./remaining-grid";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
@@ -80,7 +81,7 @@ function grid(
 /** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
 function cell(row: number, column: string): HTMLElement {
   const found = screen
-    .getByRole("grid")
+    .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
   if (found === null) {
     throw new Error(`no cell ${column} in the row ${row.toString()}`);
@@ -103,12 +104,26 @@ afterEach(() => {
 });
 
 describe("the grid of the remaining to commit", () => {
+  it("keeps the sort of its columns, a tree whose lines the server sorts under each task, unlike the planning", () => {
+    // The planning sorts none of its columns (WF-IHM-0060-A, #525); the remaining to commit, as the
+    // estimate, sorts each column the contract names.
+    expect(REMAINING_SORT_COLUMNS).toEqual(
+      REMAINING_GRID.columns.flatMap((column) => column.contract ?? []),
+    );
+    expect(REMAINING_SORT_COLUMNS).toContain("reestimated_amount");
+    serve();
+    render(grid());
+    const table = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
+    const header = within(table).getByRole("columnheader", { name: "Calculé Montant réestimé" });
+    expect(within(header).getByRole("button")).toBeInTheDocument();
+  });
+
   it("presents of each line its budgeted amount, its figures and its amount re-estimated before and now, the amounts computed [WF-RAE-0040-A]", async () => {
     // Les montants et les grandeurs sont présents pour chaque ligne, au reste à engager précédent
     // et courant: the figures at the previous one first, then those of now (#424).
     serve();
     const { container } = render(grid());
-    const table = screen.getByRole("grid", { name: "Grille de reste à engager" });
+    const table = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
     const headers = within(table)
       .getAllByRole("columnheader")
       .map((header) => header.textContent);
@@ -199,6 +214,9 @@ describe("the grid of the remaining to commit", () => {
       { reestimated_amount_basis: { hours: "10" }, lock_version: 1 },
     ]);
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^10$/);
+    // The previous review stays as it was read: what is entered now never rewrites it (WF-RAE-0040).
+    expect(cell(LABOUR, "previous_hours")).toHaveTextContent(/^12,5$/);
+    expect(cell(LABOUR, "previous_reestimated_amount")).toHaveTextContent(/^1\s000,00$/);
     expect(cell(WIRING, "reestimated_amount")).toHaveTextContent(/2\s534,56$/);
     // The totals of the reading, narrowed to the tasks started, read anew by the same request —
     // never those of the whole structure the write answered.
@@ -210,7 +228,9 @@ describe("the grid of the remaining to commit", () => {
       progress: "started",
       fields: "node_id",
     });
-    expect(screen.getByRole("grid").querySelector("tfoot")).not.toHaveTextContent(/121\s334,56/);
+    expect(screen.getByRole("treegrid").querySelector("tfoot")).not.toHaveTextContent(
+      /121\s334,56/,
+    );
   });
 
   it("re-estimates a quantity, and a unit disbursement emptied, each figure alone", async () => {

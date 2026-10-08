@@ -556,6 +556,24 @@ EntryAvailability:
       type: array
       items: { $ref: projects.yaml#/CommandCondition }
 
+NodeListMeta:
+  type: object
+  required: [summary_depth]
+  description: >-
+    Ce que la lecture dit de la structure lue elle-même, et non des nœuds qu'elle rend : les
+    filtres, la recherche, `kinds` et `fields` n'y changent rien.
+  properties:
+    summary_depth:
+      type: integer
+      minimum: 0
+      description: >-
+        Le niveau (`level`) de la plus profonde récapitulative de la structure, le premier
+        niveau étant celui des tâches sans parent, quels que soient les filtres — `max_level`
+        compris —, la recherche et `kinds` ; 0 pour une structure sans récapitulative.
+        L'arborescence de tâches offre ainsi exactement les niveaux qui existent, du premier
+        à celui-ci, sans en deviner un de plus ni en cacher un au-delà du niveau qu'elle lit
+        (WF-PLA-0110).
+
 NodeTotals:
   type: object
   required:

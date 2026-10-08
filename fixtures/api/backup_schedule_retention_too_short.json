@@ -1,0 +1,17 @@
+{
+  "summary": "La planification enregistrée aujourd'hui avec trois copies gardées sur l'emplacement externe quand la plateforme garde sept sauvegardes : refusée, la rétention hors plateforme devant être au moins égale à celle de la plateforme, que le motif dit (WF-EXP-0050, WF-ADM-0170).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/external_copy/retained_count",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 7
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000987"
+  }
+}

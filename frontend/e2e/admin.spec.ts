@@ -3,7 +3,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { setExpanded } from "./hydration";
+import { setExpanded, sortUntilAddress, WORKING } from "./hydration";
 
 // The fake back serves the first example of each read: the session, whose role grants the whole
 // catalogue, so that every function is offered; the accounts, the roles, the catalogue of the
@@ -52,18 +52,21 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   page,
 }) => {
   await page.goto("/admin/users");
-  const accounts = page.getByRole("table", { name: "Comptes utilisateurs" });
-  await expect(accounts.getByRole("row")).toHaveCount(7);
+  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+  // The header, the six accounts, the totals: how many the server retained.
+  await expect(accounts.getByRole("row")).toHaveCount(8);
   await expect(
     accounts.getByRole("row", {
-      name: "Moreau Alix alix.moreau@example.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé",
+      name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall Chef de projet Bureau d'études électricité Désactivé/,
     }),
   ).toHaveCount(1);
-  await expect(page.getByText("6 comptes")).toBeVisible();
+  await expect(accounts.getByRole("row").last()).toHaveText("6 comptes");
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
-  await expect(matrix.getByRole("row")).toHaveCount(59);
+  // A header, the forty-eight permissions of the functions, the consultation of the journal of
+  // audit, and the ten permissions of their own.
+  await expect(matrix.getByRole("row")).toHaveCount(60);
   const restore = matrix.getByRole("row", { name: /^Restaurer la plateforme/ });
   await expect(restore.getByRole("cell")).toHaveText([
     "Accordée",
@@ -74,7 +77,7 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
     "Non accordée",
   ]);
   await expect(
-    matrix.getByRole("rowheader", { name: "FBS-1.4 Sauvegarde et restauration" }),
+    matrix.getByRole("rowheader", { name: "Sauvegarde et restauration", exact: true }),
   ).toBeVisible();
 
   await page.goto("/system");
@@ -84,11 +87,107 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   await expect(
     operations.getByRole("row", { name: /^Test de restauration/ }).locator("time"),
   ).not.toBeEmpty();
+  // The copy of the last backup outside the platform, verified (WF-EXP-0050, #488).
+  await expect(
+    operations.getByRole("row", { name: /^Copie externe de la sauvegarde/ }),
+  ).toContainText("Réussie");
   await expect(page.getByText("Aucune alerte en cours.")).toBeVisible();
 
   await page.goto("/admin/backups");
   await expect(page.getByRole("table", { name: "Sauvegardes" }).getByRole("row")).toHaveCount(9);
   await expect(page.getByText("7 sauvegardes conservées")).toBeVisible();
+  // Each scheduled backup copied to the location the installation declares, read only (#488).
+  await expect(
+    page.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
+  ).toBeVisible();
   // Neither a backup nor a restoration is started from here.
   await expect(page.getByRole("main").getByRole("button")).toHaveCount(0);
+});
+
+test("sorts, searches and filters the accounts by the server, under the names of the contract, back to their first page [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  await page.goto("/admin/users?offset=2");
+  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+  // A header asks the server for its sort, back to the first page.
+  await sortUntilAddress(
+    accounts.getByRole("columnheader", { name: "Rattachement" }),
+    accounts,
+    "/admin/users?sort_by=org_node&sort_order=asc",
+  );
+  // An origin chosen keeps the sort; a second keeps the first, in the order of the contract.
+  const origins = page.getByRole("group", { name: "Filtrer par origine" });
+  await origins.getByRole("button", { name: "Importé de l’annuaire" }).click();
+  await expect(page).toHaveURL("/admin/users?sort_by=org_node&sort_order=asc&origins=directory", {
+    timeout: WORKING,
+  });
+  await expect(origins.getByRole("button", { name: "Importé de l’annuaire" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await origins.getByRole("button", { name: "Créé dans Waterfall" }).click();
+  await expect(page).toHaveURL(
+    "/admin/users?sort_by=org_node&sort_order=asc&origins=local%2Cdirectory",
+    { timeout: WORKING },
+  );
+  await page
+    .getByRole("searchbox", { name: "Rechercher dans «\u00a0Comptes utilisateurs\u00a0»" })
+    .fill("Mor");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/origins=local%2Cdirectory&search=Mor$/, { timeout: WORKING });
+  // The deactivated accounts hidden, under the name of the contract.
+  await page.getByRole("link", { name: "Masquer les désactivés" }).click();
+  await expect(page).toHaveURL(/search=Mor&include_inactive=false$/, { timeout: WORKING });
+  await expect(page.getByRole("link", { name: "Afficher les désactivés" })).toBeVisible();
+  // The fake back answers its example whatever is asked: what the screen asks is what this proves.
+  await expect(accounts.getByRole("row").last()).toHaveText("6 comptes");
+});
+
+test("offers the commands of the accounts, each available with EP-03, and the deletion of none", async ({
+  page,
+}) => {
+  await page.goto("/admin/users");
+  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+  const told = page.getByRole("main").getByRole("status").filter({ hasText: /EP-03/ });
+  // No project is opened here, nothing witnesses the hydration: the command is pressed again
+  // until React answers.
+  await expect(async () => {
+    await accounts.getByRole("button", { name: "Réactiver «\u00a0Alix Moreau\u00a0»" }).click();
+    await expect(told).toHaveText(
+      "Réactiver «\u00a0Alix Moreau\u00a0»\u00a0: disponible avec EP-03.",
+      {
+        timeout: 1_000,
+      },
+    );
+  }).toPass({ timeout: WORKING });
+  await page.getByRole("button", { name: "Créer un compte local" }).click();
+  await expect(told).toHaveText("Créer un compte local\u00a0: disponible avec EP-03.");
+  await expect(page.getByRole("main").getByRole("button", { name: /Supprimer/ })).toHaveCount(0);
+});
+
+test("offers the commands of the access roles, each available with EP-03, and sorts the roles by the server", async ({
+  page,
+}) => {
+  await page.goto("/admin/access-roles");
+  const roles = page.getByRole("grid", { name: "Rôles d’habilitation" });
+  await sortUntilAddress(
+    roles.getByRole("columnheader", { name: "Comptes porteurs" }),
+    roles,
+    "/admin/access-roles?sort_by=holder_count&sort_order=asc",
+  );
+  const told = page.getByRole("main").getByRole("status").filter({ hasText: /EP-03/ });
+  // A role an account holds is not deleted: its deletion is unavailable, and says nothing.
+  await expect(
+    roles.getByRole("button", { name: "Supprimer «\u00a0Chiffreur\u00a0»" }),
+  ).toHaveAttribute("aria-disabled", "true");
+  await roles.getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }).click();
+  await expect(told).toHaveText(
+    "Supprimer «\u00a0Administrateur\u00a0»\u00a0: disponible avec EP-03.",
+  );
+  await page.getByRole("button", { name: "Créer un rôle" }).click();
+  await expect(told).toHaveText("Créer un rôle\u00a0: disponible avec EP-03.");
+  // Every role stays in the matrix, whatever the grid asks.
+  await expect(
+    page.getByRole("table", { name: "Permissions par fonction" }).getByRole("columnheader"),
+  ).toHaveCount(8);
 });

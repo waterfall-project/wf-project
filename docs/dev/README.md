@@ -80,13 +80,13 @@ l'écran de sa fonction y mène, dans le même contexte, et son entrée est marq
 mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
 que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
 (`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
-montre (`role` : `region`, `grid`, `columnheader` ou `heading`) et la clé de son nom (`name`) — le
-lotissement, FBS-4.2.1, est la région « Lotissement » des paramètres du projet ; le Gantt, FBS-4.3.3,
-la colonne « Gantt » de la grille de planning ; l'avancement financier, FBS-4.8.1, le titre de sa
-carte. Seul un fait d'une liste nommée se passe de rôle — un terme ne prend pas son nom de ce qu'il
-dit — : il se trouve par son texte dans la liste que nomme la clé `within`, comme le taux
-d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ; `functions.test.ts` refuse toute autre
-section sans rôle.
+montre (`role` : `region`, `grid`, `treegrid`, `columnheader` ou `heading`) et la clé de son nom
+(`name`) — le lotissement, FBS-4.2.1, est la région « Lotissement » des paramètres du projet ; le
+Gantt, FBS-4.3.3, la colonne « Gantt » de la grille de planning ; l'avancement financier,
+FBS-4.8.1, le titre de sa carte. Seul un fait d'une liste nommée se passe de rôle — un terme ne
+prend pas son nom de ce qu'il dit — : il se trouve par son texte dans la liste que nomme la clé
+`within`, comme le taux d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ;
+`functions.test.ts` refuse toute autre section sans rôle.
 
 *Contrôle* : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
 modification, puisqu'il lit la projection comme le front) confronte la table aux fonctions de
@@ -187,14 +187,36 @@ qu'il ait son squelette sans en donner un à toutes les pages) : filtrée par d�
 projets dont l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que
 l'écran montre et qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
 (`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture
-(WF-PRJ-0060). La barre latérale et le fil d'Ariane mènent à la liste filtrée, le choix du
-projet à la liste levée, « Tous les projets » ; `/projects`, l'ancienne adresse, renvoie à
-l'accueil. La liste dit combien de projets elle tient, et mène aux autres pages par la
-pagination de shadcn/ui ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière
-page : seule une liste qui ne tient aucun projet se dit vide. Les écrans du projet lui-même — le
+(WF-PRJ-0060). Le lien qui le lève n'est offert qu'à une session qui porte `all_projects_read`
+(WF-ADM-0110) : levé pour un autre, le filtre rendrait la même liste, et le lien promettrait ce
+qu'il ne fait pas (WF-IHM-0090, #522) ; sans cette permission, l'accueil reste filtré quoi que
+dise l'adresse — `?is_contributor=false` compris, la page demandant `is_contributor=true` —, le
+badge « Mes projets » affiché sans aucun lien, et le choix du projet mène à l'accueil plutôt qu'à la
+liste levée. La barre
+latérale et le fil d'Ariane mènent à la liste filtrée, le choix du projet à la liste levée,
+« Tous les projets » ; `/projects`, l'ancienne adresse, renvoie à l'accueil. Les projets sont
+une configuration de plus de la grille dense (`project-list-grid.tsx`, préférences sous la clé
+`projects`) : le libellé, lien qui ouvre le projet, le code, l'état par sa pastille et la date de
+modification, chaque colonne triée par le serveur (`sort_by`), cherchée par lui (`search`) et
+filtrée par état — des boutons pressés qui n'écrivent que l'adresse (`states`) ; une adresse qui
+n'en nomme aucun demande tous les états, l'accueil montrant tout ce que l'utilisateur peut
+ouvrir. Sa ligne de totaux dit combien de projets le serveur retient, et elle mène aux autres
+pages par `ListPages` ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière page :
+seule une liste qui ne tient aucun projet, sans état ni recherche, se dit vide. Les écrans du projet lui-même — le
 projet, ses paramètres avec ses sous-projets et ses contributeurs, son cycle de vie — sont en
 lecture ; la sortie du cycle de vie est la seule commande qu'ils exercent (`ExitCommand`),
-confirmée dans la page avant que son action serveur ne la demande.
+confirmée dans la page avant que son action serveur ne la demande. Les tables de données des
+paramètres sont trois grilles denses (#301, `settings-grids.tsx`), chacune avec sa clé de
+préférences et ses noms dans l'adresse (`breakdown_`, `subproject_`, `contributor_`) : le
+lotissement, une grille arborescente — chaque poste, ses lots sous lui, leurs livrables sous eux —,
+dans l'ordre saisi, qui ne se trie pas et se plie ; les sous-projets, cherchés par le serveur sur
+leur code et leur libellé (`subproject_search`) ; les contributeurs, filtrés par le serveur sur
+leur qualité (`contributor_kinds`, `kinds` du contrat), un bouton pressé par qualité
+(`ValuesFilter`, `filters.ts`). Le contrat ne trie ni les sous-projets ni les contributeurs, et ne
+cherche pas ces derniers : aucune de ces grilles ne trie, et celle des contributeurs n'offre pas
+de recherche ; ces manques, et les filtres des autres colonnes, sont #536, pour EP-02/L42. Les volumes du §4.6.2 — dix sous-projets, cinquante
+contributeurs par projet — tiennent en une page. L'historique des états, une liste de lecture,
+reste une table simple.
 
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
@@ -250,24 +272,33 @@ avant l'état En cours, qui n'en a conservé aucun, est refusée comme un projet
 cours, et l'écran le dit. Un avis en tête nomme, des indicateurs et de l'évolution des indices,
 celui qui est calculé sur une autre révision que celle du bandeau, et laquelle — l'évolution,
 toujours au jour sur la révision en cours (`ComputedElsewhere`) ; une courbe nomme la sienne dans
-l'image qu'elle exporte.
+l'image qu'elle exporte. Le sous-projet de l'adresse restreint ce que l'API lit pour lui — les
+indicateurs et les courbes de valeur acquise (`scope`) —, et la pastille du bandeau le dit
+(`restricts` de `ContextBanner`, comme pour la grille du reste à engager, #459) ; l'évolution des
+indices, le suivi des jalons et les coûts cumulés, dont les opérations ne prennent pas de
+sous-projet, disent chacun qu'ils portent sur le projet entier (`WholeProject`, #495).
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
 — clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
-celles de ses cellules que le serveur calcule, figée ou non, colonne `sort_by` du contrat, et,
+celles de ses cellules que le serveur calcule, figée ou non, la colonne du contrat qu'elle montre
+(`contract`) — celle par laquelle le serveur la trie et sur laquelle un collage la vise —, et,
 pour une colonne étroite, l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que
 rend sa cellule en place de la valeur formatée (`render`) — et, s'il y en a un, son arbre
-(niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des
+(niveau, icône de nature par `RowNatureIcon`). Trier est l'affaire de la grille, non de la
+colonne : une grille arborescente dont les lignes gardent l'ordre du plan n'en trie aucune
+(`sorts: false`), et son adresse n'en demande aucun — le planning (§3.4, WF-IHM-0060, #525). La
+configuration lit les lignes par des
 fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
 (`estimate-grid.tsx`, `planning-grid.tsx`), et la page, serveur, ne lui passe que des données —
 la structure lue et, de chaque nœud, les seuls champs que la grille lit : ceux de toute grille
-(identité, version, champs calculés, numéro, niveau, nature, libellé) et ceux de ses colonnes,
+(identité, version, champs calculés, numéro, niveau, parent, nature, libellé) et ceux de ses colonnes,
 que nomme sa configuration (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). La page les demande à
 `listNodes` (`fields`, `nodeFieldNames` : un champ d'une facette sous son nom, `task.label`) et
 les projette encore (`projectNodes`) : un serveur peut rendre plus qu'on ne lui demande — le faux
 back rend son exemple entier —, et les six mille nœuds entiers pèsent six mégaoctets et demi dans
-la page, projetés, de quarante-cinq à soixante-quatre pour cent ; la lecture de l'écran
+la page, projetés, de quarante-huit à soixante-cinq pour cent — le parent, par lequel l'arbre se
+plie, y a ajouté quatre points ; la lecture de l'écran
 (`readGridScreen`) ne rend que les lignes projetées et les totaux, jamais la réponse entière. Un
 champ d'une ligne qui ne dit rien — nul, ou faux pour un drapeau (`SPARSE_LINE_FIELDS`) — ne
 traverse pas, la cellule le lisant comme nul, et l'identifiant du sous-projet d'une ligne ne
@@ -334,7 +365,10 @@ quand la fenêtre bouge. Le React Compiler n'est pas activé dans ce front, mais
 React refuse l'adaptateur de TanStack Virtual, dont un rendu compilé figerait les réponses
 (`react-hooks/incompatible-library`). La hauteur d'une ligne suit la taille de la police
 racine (1,75 rem). L'en-tête et les totaux sont collés au haut et au pied de la grille, le
-numéro et le libellé à son début. La grille prend la hauteur que lui laisse son écran : un
+numéro et le libellé à son début. La ligne d'en-tête de toute table, liste comme grille dense, est
+sur le fond `muted` de la charte : `TableHead` le pose à l'en-tête d'une colonne, dans le `<thead>`,
+non à celui d'une ligne, et un `<thead>` écrit à la main le prend de même (#508), ce que
+`frontend/src/components/thead-guard.test.ts` vérifie dans les sources. La grille prend la hauteur que lui laisse son écran : un
 écran de grille est un `Screen` qui remplit la fenêtre (`fill`), la page bornée à sa hauteur
 (`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher —
 aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre trop basse pour ce
@@ -377,8 +411,9 @@ plus tard (`monthTicks`, `chart/ticks.ts`, sans ECharts). Une liaison joint l'en
 nomme sur le prédécesseur à celui qu'il nomme sur la tâche ; un prédécesseur hors de la réponse n'en
 dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâche une barre, pleine
 sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
-« critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie ni le
-pointeur. Les autres feuilles du planning ont leur écran, où son en-tête mène : l'arborescence de
+« critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
+seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
+déplier. Les autres feuilles du planning ont leur écran, où son en-tête mène : l'arborescence de
 tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
@@ -388,8 +423,10 @@ demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `ma
 chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
 chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre
 idempotent, qui ne change rien contre un serveur qui les tient, écart temporaire d'EP-02 retiré
-avec le back d'EP-03. Le contrat ne disant pas jusqu'où vont les récapitulatives, l'arborescence
-offre les niveaux de la réponse, et le suivant quand une récapitulative est au niveau demandé.
+avec le back d'EP-03. L'arborescence offre exactement les niveaux que la structure a, du premier à
+celui de sa plus profonde récapitulative, que le serveur dit quels que soient les filtres
+(`meta.summary_depth`, #494), et montre le niveau demandé, ou le plus profond quand on lui en
+demande un au-delà (`depthShown`).
 
 L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de
 ses opérations dans la révision de sa route (`revision_id`) : les totaux des provisions des
@@ -460,36 +497,97 @@ en attente —, il mène à leur première page.
 Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/components/reference/`,
 US-0250) sont hors projet, aux routes de leurs fonctions. Les paramètres de coûts disent la devise
 de l'installation et présentent la grille des taux horaires — une configuration de plus de la
-grille dense (`rate-grid.tsx`), une ligne par catégorie de main-d'œuvre, une colonne par année de
-la réponse, dont l'en-tête est l'année elle-même (`GridColumn.heading`) —, cherchée par le serveur
-(`search`) et sans tri ; une cellule saisie part seule par `setHourlyRate`, sans version au premier
-taux d'une année, avec celle du taux lu pour une correction, et le taux répondu prend sa place. La
-saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`). À côté,
-les natures et les catégories de coût — l'écran ne remplit la fenêtre qu'à partir de la grande
-largeur (`Screen`, `fillWide`) : en fenêtre étroite, la grille et les listes s'empilent et la page
-défile ; les paramètres de ressources présentent l'organisation,
-les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice et la
-zone de chaque case, placée par son rang dans l'ordre du contrat, ceux
-
-défile ; les paramètres de ressources présentent l'organisation — en arbre, dans l'ordre de
-`listOrgNodes`, chaque nœud par son code, son libellé décalé de sa profondeur (`level`) et son
-niveau —,
-les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice, ceux
-des indicateurs les seuils des indices et le délai entre deux revues. Un objet rattaché se nomme
+grille dense (`rate-grid.tsx`), une ligne par catégorie de main-d'œuvre, son état, une colonne par
+année de la réponse, dont l'en-tête est l'année elle-même (`GridColumn.heading`) —, cherchée par
+le serveur (`search`) et sans tri ; une cellule saisie part seule par `setHourlyRate`, sans version
+au premier taux d'une année, avec celle du taux lu pour une correction, et le taux répondu prend sa
+place. La saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`),
+comme l'ajout de la colonne d'une année que la grille n'a pas (WF-REF-0060, #299) : le contrat n'a
+aucune opération pour la créer — une année entre dans la grille par son premier taux —, si bien
+que la colonne est celle de la grille, vide, à sa place parmi les années, jusqu'à ce que la
+saisie d'une de ses cellules écrive ce premier taux, et elle se retire tant qu'aucun taux n'y est
+saisi ni en cours d'écriture ; une année déjà présente, ou hors des bornes de `Year`, est refusée
+dans la page. À côté, les natures et les catégories de coût — l'écran ne
+remplit la fenêtre qu'à partir de la grande largeur (`Screen`, `fillWide`) : en fenêtre étroite, la
+grille et les listes s'empilent et la page défile. Les paramètres de ressources présentent trois
+grilles denses (#301, #511) : l'organisation, une grille arborescente qui ne se trie pas, dans
+l'ordre de `listOrgNodes`, chaque nœud par son libellé décalé de sa profondeur (`level`), qui plie
+ce qui est sous lui comme les grilles de tâches (`GridTree.parent`, `fold.tsx`), son code et son
+niveau ; les rôles, triés par le serveur sur chacune de leurs colonnes et restreints au nœud que
+l'adresse nomme, offert dans l'ordre de l'arbre entier (`org_node_id`) ; les calendriers, triés
+sur leur libellé, leur marque de calendrier par défaut et leur état — le contrat ne trie que sur
+les heures de la semaine entière, qu'aucune colonne ne montre, et les heures d'un jour ne se
+trient pas ; les filtres des autres colonnes, que le contrat ne porte pas, et ce tri sont #533.
+Chacune est cherchée par le serveur, a sa clé de préférences, et écrit son tri et sa
+recherche dans l'adresse sous ses propres noms, ceux du contrat après son préfixe (`org_`,
+`role_`, `calendar_` : `role_search`, `role_sort_by`, `role_sort_order` et, pour la pagination à
+venir, `role_offset` ; `prefixedAddress` de `query.ts`, `GridConfig.address`) : trois grilles
+d'un même écran ne se lisent pas l'une l'autre, et la page demande l'API sous les noms du
+contrat ; l'arbre entier est relu quand une recherche le restreint, pour le filtre des rôles. Les
+unités de durée suivent. Les paramètres des risques présentent les bornes de la matrice et la zone
+de chaque case, placée par son rang dans l'ordre du contrat, ceux des indicateurs les seuils des
+indices et le délai entre deux revues : des matrices de taille fixe, qui restent des tables
+simples, sans tri ni filtre (décision de l'auteur du 2026-10-08, #508). Un objet rattaché se nomme
 par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
 listes dans le front ; une section se nomme par `aria-label` (#251).
 
+Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
+le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de
+l'écran écrit ou lève par un lien (`InactiveSwitch`) — à une session seulement qui porte la
+permission de lecture de leur partie du référentiel, sans laquelle le contrat le refuse (403,
+`inactiveQuery` d'`address.ts`), comme les listes du devis (#351). Un objet désactivé s'y dit par
+une marque et un mot, et, pour qui peut modifier cette partie (`platformOffer`), s'y réactive par
+la commande d'activation de sa nature (`reactivate`, une action serveur, depuis la version lue),
+puis la page relit ses listes ; le refus se dit au-dessus de la liste (`Reactivations`), qu'une
+cellule de grille n'a pas la place de dire, jusqu'à ce qu'on ferme l'avis — un succès après lui
+ne l'efface pas, et le focus revient à la cellule active de la grille, ou à la liste —, et
+seulement tant que la liste se lit comme au moment de la commande : les paramètres qu'elle lit
+(`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Écart : WF-REF-0080 ne réactive un nœud que sous un parent
+actif, et un rôle que sous un nœud actif ; le contrat ne déclare ni ce refus ni la disponibilité
+de la commande (#532), qui est donc offerte sur tout objet désactivé, et un refus du serveur,
+statut déclaré ou non, se dit comme tout autre. Dans une grille, la commande est hors de la
+tabulation, et Entrée sur sa cellule la presse (`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back
+ignorant `include_inactive` et ne gardant rien, les tests éprouvent ce que l'écran demande ; le
+service le tiendra en EP-05.
+
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les
-comptes, désactivés compris (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
-serveur ; les rôles d'habilitation et la matrice des permissions — une ligne par permission dans
-l'ordre du catalogue, les permissions consécutives d'une même fonction de second niveau, ou d'une
-même nature hors fonction, groupées sous un en-tête de groupe (`scope="rowgroup"`), une colonne par
-rôle, accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification,
-sans aucune commande. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en
-porte et mène aux pages voisines par `offset` (`AdminListPages`), les autres paramètres de l'adresse
-gardés, sans jamais montrer une page pour le tout ; elle ne se dit vide que si elle ne tient rien
-(`meta.total`), et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
+comptes, désactivés compris par défaut (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
+serveur, sur la grille dense (#514, `admin-grids.tsx`), triés sur chaque colonne, cherchés,
+filtrés par origine (`origins`, `ValuesFilter`), par nœud d'organisation (`org_node_id`, offert
+dans l'ordre de l'arbre, `OrgNodeFilter`) et par état — les désactivés listés, à moins que
+l'adresse ne dise `include_inactive=false`, qu'écrit le lien « Masquer les désactivés »
+(`AccountStateSwitch`) — et paginés par le serveur, sous les noms du contrat — un tri, une
+recherche ou un filtre ramenant à la première page —, la ligne des totaux disant combien le serveur
+en retient (`meta.total`), l'écran remplissant la fenêtre ; la recherche est nommée d'après la
+grille, le contrat ne disant pas ce qu'elle lit (#536). Les rôles d'habilitation sont sur la grille
+dense eux aussi (#515), triés sur chaque colonne et cherchés par le serveur, sans pagination — le
+§4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, et la matrice
+des permissions montre tous les rôles quelle que soit la demande de la grille — une ligne par
+permission dans l'ordre du catalogue, les permissions consécutives d'une même fonction de second
+niveau, ou d'une même nature hors fonction, groupées sous un en-tête de groupe
+(`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
+qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
+accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, sans
+aucune commande. Seule exception, décidée par l'auteur le 2026-10-08 (#379, #515) : des boutons
+seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
+`users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
+en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
+« Attribuer les rôles » — aucune suppression (WF-ADM-0060) ; à une session qui porte
+`access_roles.write`, l'écran des rôles offre « Créer un rôle » et, sur chaque rôle, « Modifier »
+et « Supprimer » — une suppression logique (#456) —, indisponible, `aria-disabled` et décrite par
+sa condition, tant qu'un compte porte le rôle, comme le serveur la refuserait (`deleteAccessRole`,
+409, WF-ADM-0090). Écart : WF-ADM-0120 refuse de désactiver le dernier compte qui porte les
+permissions de modifier les comptes et les rôles, ou de lui retirer le rôle qui les porte ; `User`
+ne déclare ni ce refus ni la disponibilité de ces commandes (#540) : « Désactiver » et « Attribuer
+les rôles » restent offertes sur tout compte, et le refus du serveur se dira comme tout autre. Un
+clic sur une commande disponible dit, dans une région annoncée rendue dès le départ, hors de la
+section de la liste, qu'elle est disponible avec EP-03 ; sur une commande indisponible, la
+condition qui lui manque, sans la lancer — chaque clic, le même répété aussi ; sans la permission,
+aucun bouton. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+mène aux pages voisines par `offset` (`ListPages` pour les comptes, `AdminListPages` pour les
+sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
+elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
 règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigation/pages.ts` (#317).
 L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
 heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été.
@@ -517,7 +615,11 @@ import. Chaque import est offert comme le projet offre sa commande (`importOffer
 révision en cours — sans elle, qui ne peut pas créer la révision voit l'import indisponible,
 `may_create_revision` nommée. Un projet sans révision, qu'aucune adresse de révision n'atteint,
 offre les mêmes imports sur son propre écran (`ImportPart`), et y montre le compte rendu de l'import
-que son adresse nomme (#332). La liste des imports, paginée par le serveur (`offset`,
+que son adresse nomme (#332). L'écran est gardé par les commandes qu'il exerce, et non par la seule
+lecture du planning (#521) : il se montre à une session qui lit le planning, dont il est la feuille,
+ou à laquelle le projet liste un import (`listsAnImport`) — un chiffreur, que le devis et le reste à
+engager y mènent quand le projet liste leur import, disponible ou non, l'écran le présentant alors
+avec ses conditions (`ExchangesLink`, WF-IHM-0090) ; il est introuvable pour tout autre. La liste des imports, paginée par le serveur (`offset`,
 `ListPages` de `components/costs/cost-pages.tsx`), mène au compte rendu de chacun ; la demande
 d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
@@ -575,7 +677,14 @@ celles que la grille montre (#200) : le front mesure donc le bloc sur ces colonn
 large qu'elles à partir de la cellule — comme le serveur le refuserait (`PASTE_TOO_WIDE`) — et
 un bloc dont la portée, de la colonne visée à la dernière colonne remplie dans cet ordre,
 atteint une colonne que la grille ne montre pas, masquée ou absente de sa configuration, qu'il
-nomme — par son en-tête, ou par son libellé du catalogue (`enums.NodeColumn`).
+nomme — par son en-tête, ou par son libellé du catalogue (`enums.NodeColumn`) ; il refuse de même
+un bloc dont une ligne ne tomberait pas sur celle que le serveur écrit : le serveur remplit les
+lignes du plan sous la ligne visée, que la grille connaît par leur numéro dans toute la structure
+(`row_number`), non les lignes affichées après elle. Une seule garde compare, de la cible à la
+dernière ligne du bloc, le numéro de chaque ligne affichée à celui qu'elle aurait dans l'ordre du
+plan — une grille qui colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
+(`fold.tsx`), déplacée par un tri, cachée par la recherche ou un filtre, ou au-delà de la dernière
+ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527).
 Sinon `previewPaste` rend le plan, que
 montre une boîte de dialogue de shadcn (`PasteDialog`, `ui/dialog.tsx`), dans une seule région
 annoncée — ce qui sera écrit, chaque ligne refusée par sa place dans le bloc, ses cellules
@@ -587,7 +696,8 @@ structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et 
 tait quand le collage a écrit sa ligne depuis. Un plan qui refuse
 une ligne ne s'applique pas : la boîte n'offre que l'abandon. Échap abandonne, une réponse
 arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien du
-contenu : la colonne visée part sous son nom de `sort_by`, et la confirmation porte la version
+contenu : la colonne visée part sous son nom de colonne du contrat (`NodeColumn`), que la grille
+la trie ou non, et la confirmation porte la version
 de la structure lue (`structureVersion`) — deux points que le contrat ne dit pas encore (#200,
 #201). Une grille sans `paste` dans sa configuration, en lecture seule, ne prend aucun collage.
 
@@ -605,6 +715,41 @@ dit dans une région annoncée. Un champ en cours de saisie — l'éditeur d'une
 recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 les branche sur
 `undoLastChange` et `redoLastUndo`, une annulation portée par le serveur, jamais une pile dans le
 navigateur.
+
+Les grilles arborescentes — planning, devis, reste à engager — se plient et se déplient
+(WF-PLA-0080, WF-PLA-0090, EP-02/L40, `frontend/src/components/grid/fold.tsx`) : une grille dont
+l'arbre nomme le parent de chaque ligne (`GridTree.parent`, `parent_id` de `listNodes`) est un
+`treegrid`, chaque ligne portant `aria-level`, `aria-posinset`, `aria-setsize` et, quand la réponse
+tient des lignes sous elle, `aria-expanded`. Une ligne pliée sort ses subordonnées des lignes de la
+grille : la virtualisation ne les rend plus, le clavier ne les parcourt plus, et le Gantt, une
+colonne de la même grille, les perd avec elle ; la cellule active reste sur sa ligne, ou passe à
+celle qui la porte. Le bouton du libellé — ou celui qui précède le crochet d'une récapitulative dans
+le Gantt — plie ou déplie sa ligne, hors de l'ordre de tabulation ; au clavier, comme dans Microsoft
+Project, Alt et moins plie la ligne de la cellule active — celle qui la porte, depuis une ligne
+sous laquelle rien ne se plie —, Alt et plus la déplie, Alt et * déplie tout, Maj ou non selon ce
+que la disposition du clavier demande pour taper le caractère, sur le pavé numérique aussi ; le
+caractère est celui que la touche a tapé, et, quand il ne nomme aucune commande, celui que la
+touche porte dans la disposition que le navigateur dit (`navigator.keyboard.getLayoutMap`) —
+jamais la seule place de la touche, qui porte un autre caractère sur une autre disposition. Ctrl
+et AltGr sont exclus ; Alt+Maj+flèches restent libres pour l'indentation d'EP-06. Ces raccourcis
+ne sont que des accélérateurs : sans `getLayoutMap`, sous Safari et Firefox pour Mac, Option et une
+touche tapent un autre caractère, et ils ne sont pas reconnus. Le menu contextuel des cellules
+(Maj+F10, touche Menu, clic droit), offert dans toute grille arborescente, Annuler et Rétablir ou
+non, les remplace partout : « Plier la ligne » — « Plier « libellé » », qui nomme la ligne qui
+la porte, depuis une ligne sous laquelle rien ne se plie —, « Déplier la ligne » quand elle l'est,
+« Tout déplier », offert même hors d'une cellule, si bien que le menu n'est jamais vide ; le focus
+revient à la cellule active. Les touches se disent par `aria-keyshortcuts` — Maj+F10 sur chaque
+cellule, celles du pliage sur le libellé d'une ligne qui se plie, dans le menu et dans la barre —,
+autant que le navigateur les reconnaît (`useFoldReach`, lu après l'hydratation) : toutes hors d'un
+Mac ; sur un Mac, Alt et moins, Alt et plus quand `getLayoutMap` existe, aucune sinon ; Alt et *
+hors d'un Mac seulement. Un
+bloc collé qui s'étendrait, à partir
+de la ligne visée, sur une ligne pliée est refusé sans rien demander, comme celui qui atteint une
+colonne masquée. Le menu « Arbre » de
+la barre plie tout, déplie tout, ou plie jusqu'à un niveau. Une recherche ou un filtre qui retient
+une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état plié se garde dans le
+stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien envoyer
+au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
 
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
@@ -714,8 +859,10 @@ chronologie, la suite d'une écriture faite aujourd'hui, ou une variante contref
 sans lire ni l'horloge ni le hasard — chaque valeur tirée vient de l'empreinte d'une graine fixe
 et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
 
-- dans `fixtures/api/volume/`, qu'on ne retouche pas, les volumes du §4.6.2 : la structure de
-  mille tâches et de cinq mille lignes (`wftools.mockstructure`), premier exemple de
+- dans `fixtures/api/volume/`, qu'on ne retouche pas, les volumes du §4.6.2 : la structure du
+  témoin, mille tâches et cinq mille lignes, son cœur lisible en tête et relié aux tâches tirées
+  autour de lui, datée en heures sur le calendrier de chaque tâche et lue aujourd'hui
+  (`wftools.mockstructure`, datée et émise par `wftools.mockcore`), premier exemple de
   `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
   durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; les trois cents projets de
   `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
@@ -730,7 +877,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `wftools.mockcurves`) ; ses coûts réels et le journal de leurs imports (`wftools.mockcosts`) ;
   et les vues du portefeuille dans le temps — plan de charge agrégé, courbe en S et sa variante
   au 31 décembre 2025, santé du pilotage —, qui somment le témoin à ses propres lectures et les autres projets par des
-  formules simples (`wftools.mockportfoliotime`).
+  formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de
+  la chronologie du témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes
+  (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule
@@ -750,7 +899,9 @@ pour la structure, `test_the_marks_the_portfolio_journey_reads` (`tools/tests/te
 pour le portefeuille et `test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`)
 pour la revue mensuelle : un changement du générateur qui les déplace échoue là, avant les
 parcours. Les tests de grille ne vérifient que des lignes qui restent dans la fenêtre que la grille
-virtualisée rend.
+virtualisée rend. Les tests du front lisent l'adresse d'un nœud du témoin dans l'exemple — son
+identifiant, son index ou son numéro trouvés par son libellé —, jamais un numéro écrit en dur,
+sauf là où le numéro est ce que le test éprouve (#400).
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde
@@ -1389,6 +1540,15 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   Qu'aucun écran ne distingue deux états par la seule couleur — une pastille, une ligne
   teintée sans forme ni texte —, c'est pour le reste la revue qui le tient ; les tests de
   `Signal` le prouvent pour le composant.
+- **L'état d'un projet passe par `ProjectStateBadge`** (`frontend/src/components/projects/`,
+  #523), partout où un écran le montre — l'accueil, la liste du portefeuille, la page, les
+  paramètres et le cycle de vie d'un projet : une pastille remplie du jeton de son état,
+  `--state-<état>`, son texte du jeton `--state-<état>-foreground`, dans la palette que l'auteur
+  a validée — gris clair pour Créé, bleu pour Chiffrage, vert pour En cours, gris foncé pour
+  Terminé, orange pour Perdu, rouge sourd pour Abandonné —, et toujours le mot de l'état et son
+  icône, propre à chacun et distincte des formes de `Signal`. `contrast.test.ts` mesure le texte
+  de chaque état sur sa pastille, et tient chaque jeton d'état à l'écart des jetons de zone :
+  un état ne se lit pas comme une alerte.
 - **shadcn/ui partout où un composant existe** : un composant s'ajoute en copiant son source
   dans `frontend/src/components/ui/` (`frontend/components.json` en donne les chemins), et
   seulement quand un écran l'emploie ; ce qu'il offre et qu'aucun écran n'emploie — une

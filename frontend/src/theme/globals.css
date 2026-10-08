@@ -57,6 +57,24 @@
   --signal-nominal: light-dark(#1f756c, #07a1a3);
   --signal-watch: light-dark(#923002, #f89228);
   --signal-alert: light-dark(#6b1d24, #fdb299);
+  /* The states of a project (#523), each the fill of its badge and the text written on it, in
+     the palette the author chose: a light grey for created, a blue for pricing, a green for in
+     progress, a dark grey for completed, an orange for lost, a muted red for abandoned. A state
+     is a fill where a signal is a coloured text, and each stays apart from the zone of its hue, so
+     that a state is never read as an alert (contrast.test.ts). The colour never says a state alone: the badge
+     writes its word and draws its icon (`ProjectStateBadge`). */
+  --state-created: light-dark(#e5e5e5, #a3a3a3);
+  --state-created-foreground: light-dark(#262626, #0a0a0a);
+  --state-pricing: light-dark(#1d4ed8, #1e40af);
+  --state-pricing-foreground: light-dark(#ffffff, #fafafa);
+  --state-in-progress: light-dark(#15803d, #166534);
+  --state-in-progress-foreground: light-dark(#ffffff, #fafafa);
+  --state-completed: light-dark(#525252, #404040);
+  --state-completed-foreground: light-dark(#ffffff, #fafafa);
+  --state-lost: light-dark(#f97316, #9a3412);
+  --state-lost-foreground: light-dark(#0a0a0a, #fafafa);
+  --state-abandoned: light-dark(#b84d4d, #7a2e2e);
+  --state-abandoned-foreground: light-dark(#ffffff, #fafafa);
   /* The series of a chart (US-0240), in the order a chart takes them: the blue of the logo,
      then an amber, a purple and a green, apart in hue and told apart without their colour by
      the symbol and the stroke of each series. Each draws on the page and on a card at 4.5:1. */
@@ -112,6 +130,18 @@
   --color-signal-nominal: var(--signal-nominal);
   --color-signal-watch: var(--signal-watch);
   --color-signal-alert: var(--signal-alert);
+  --color-state-created: var(--state-created);
+  --color-state-created-foreground: var(--state-created-foreground);
+  --color-state-pricing: var(--state-pricing);
+  --color-state-pricing-foreground: var(--state-pricing-foreground);
+  --color-state-in-progress: var(--state-in-progress);
+  --color-state-in-progress-foreground: var(--state-in-progress-foreground);
+  --color-state-completed: var(--state-completed);
+  --color-state-completed-foreground: var(--state-completed-foreground);
+  --color-state-lost: var(--state-lost);
+  --color-state-lost-foreground: var(--state-lost-foreground);
+  --color-state-abandoned: var(--state-abandoned);
+  --color-state-abandoned-foreground: var(--state-abandoned-foreground);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);

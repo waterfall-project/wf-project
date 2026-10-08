@@ -1,5 +1,5 @@
 {
-  "summary": "Les rôles d'habilitation de l'installation, par libellé : les trois prédéfinis tels que livrés — l'administrateur, que plus personne ne porte, le chef de projet, porté par Alix Moreau, désactivée, et le manager, porté par Dominique Bernard — et trois composés sur mesure : « Direction de projet », tout le catalogue, celui de Camille Martin ; « Chiffreur », celui de Lucas Petit ; « Pilotage de projet », le catalogue hors administration, celui d'Inès Roux (WF-ADM-0010, WF-ADM-0020, WF-ADM-0090) ; le chef de projet crée un projet, abandonne une révision en cours et fusionne un différentiel, trois permissions propres de WF-ADM-0100.",
+  "summary": "Les rôles d'habilitation de l'installation, par libellé : les trois prédéfinis tels que livrés — l'administrateur, que plus personne ne porte, la consultation du journal d'audit comprise (à confirmer par #518), le chef de projet, porté par Alix Moreau, désactivée, et le manager, porté par Dominique Bernard — et trois composés sur mesure : « Direction de projet », tout le catalogue, celui de Camille Martin ; « Chiffreur », celui de Lucas Petit ; « Pilotage de projet », le catalogue hors administration, celui d'Inès Roux (WF-ADM-0010, WF-ADM-0020, WF-ADM-0090) ; le chef de projet crée un projet, abandonne une révision en cours et fusionne un différentiel, trois permissions propres de WF-ADM-0100.",
   "value": [
     {
       "access_role_id": "01926f3a-7c00-7000-8000-000000000704",
@@ -13,6 +13,7 @@
         "system_status.write",
         "backups.read",
         "backups.write",
+        "audit_log.read",
         "platform_restore"
       ],
       "is_predefined": true,
@@ -122,6 +123,7 @@
         "system_status.write",
         "backups.read",
         "backups.write",
+        "audit_log.read",
         "portfolio_projects.read",
         "portfolio_projects.write",
         "portfolio_workload.read",

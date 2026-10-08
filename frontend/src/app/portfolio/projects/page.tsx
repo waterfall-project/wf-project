@@ -6,7 +6,8 @@
  * address asks (WF-PTF-0010) — the states, the period, the date of calculation, the node of
  * organisation, under the names of the contract, the nodes offered as the reference gives them —;
  * the list is a page of the projects the server retained, sorted, searched and paged as the
- * address asks (`sort_by`, `sort_order`, `search`, `offset`). Every figure as the API gives it: the
+ * address asks (`sort_by`, `sort_order`, `search`, `offset`), and filtered on the zones of their
+ * indices it names (`zones`, #313). Every figure as the API gives it: the
  * front computes, sorts, filters and pages nothing. A read the API refuses, or cannot answer, is
  * thrown for the pages of the shell to say.
  */
@@ -18,12 +19,18 @@ import { readPage } from "@/components/costs/address";
 import { ListPages } from "@/components/costs/cost-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { OFFSET, readGridQuery } from "@/components/grid/query";
-import { type Perimeter, perimeterQuery, readPerimeter } from "@/components/portfolio/address";
+import {
+  type Perimeter,
+  perimeterQuery,
+  readPerimeter,
+  readZones,
+} from "@/components/portfolio/address";
 import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
 import { PROJECT_GRID, PROJECT_SORT_COLUMNS } from "@/components/portfolio/portfolio-grid";
 import { PortfolioValueView } from "@/components/portfolio/portfolio-value";
 import { ProjectsGrid } from "@/components/portfolio/projects-grid";
+import { ZoneFilter } from "@/components/portfolio/zone-filter";
 import { Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -52,6 +59,7 @@ export default async function PortfolioProjectsPage({
   const search = pageSearch(await searchParams);
   const perimeter = readPerimeter(search);
   const offset = readPage(search, OFFSET);
+  const zones = readZones(search);
   const settings = requestSession().then(
     (session) => session?.user.display_preferences?.grids?.[PROJECT_GRID.key] ?? undefined,
   );
@@ -64,6 +72,7 @@ export default async function PortfolioProjectsPage({
         params: {
           query: {
             ...perimeterQuery(perimeter),
+            ...(zones.length === 0 ? {} : { zones: [...zones] }),
             ...(offset === 0 ? {} : { offset }),
             ...(query.search === undefined ? {} : { search: query.search }),
             ...(query.sort === undefined
@@ -85,6 +94,7 @@ export default async function PortfolioProjectsPage({
         <PerimeterBar perimeter={perimeter} retained={projects.scope.states} nodes={nodes} />
         <PortfolioValueView value={value} />
         <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <ZoneFilter zones={zones} />
           <ProjectsGrid
             projects={projects.items}
             page={projects.meta}

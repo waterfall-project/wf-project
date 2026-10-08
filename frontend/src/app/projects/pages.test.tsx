@@ -283,7 +283,7 @@ describe("the witness path", () => {
     );
     expect(text(html)).toContain("Structure principale · 6 tasks, 1 line");
     expect(html).toMatch(
-      /<table[^>]*role="grid"[^>]*aria-label="Estimate grid"[^>]*aria-rowcount="9"/,
+      /<table[^>]*role="treegrid"[^>]*aria-label="Estimate grid"[^>]*aria-rowcount="9"/,
     );
     // Each row shows the icon of its nature, named for it: a summary task, tasks, a line, the
     // milestone of the studies — the marks of the headers aside.
@@ -621,7 +621,7 @@ describe("the grid of the planning", () => {
     expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Planning<\/h1>/);
     expect(text(html)).toContain("Structure principale · 6 tasks");
     expect(html).toMatch(
-      /<table[^>]*role="grid"[^>]*aria-label="Planning grid"[^>]*aria-rowcount="8"/,
+      /<table[^>]*role="treegrid"[^>]*aria-label="Planning grid"[^>]*aria-rowcount="8"/,
     );
     expect(text(html)).toContain("Total — 6 tasks");
     // The totals the server gave, which `kinds` leaves as they are, are not the planning's to
@@ -651,7 +651,8 @@ describe("the grid of the planning", () => {
     expect(estimator.html).not.toContain('aria-label="Undo"');
   });
 
-  it("asks the server for the sort, the search and the filtered sub-project the address holds, besides the tasks", async () => {
+  it("asks the server for the search and the filtered sub-project the address holds, besides the tasks, and no sort [WF-IHM-0060-A]", async () => {
+    // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: none is asked.
     const search = Promise.resolve({
       sort_by: "total_float",
       sort_order: "desc",
@@ -663,12 +664,11 @@ describe("the grid of the planning", () => {
     );
     expect(nodesQuery()).toEqual({
       kinds: "task",
-      sort_by: "total_float",
-      sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
     });
-    expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Float/);
+    expect(html).toMatch(/<th[^>]*>(?:(?!<\/th>).)*Float/);
+    expect(html).not.toContain("aria-sort");
     // Its head leads to the imports and exports of the project, a leaf of the planning, in the
     // same context.
     expect(html).toMatch(
@@ -712,7 +712,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Estimate indicators Computed on Estimate total 121,534.56 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 121,534.56 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
     expect(html).toMatch(
@@ -772,7 +772,7 @@ describe("the indicators and the missing rates of the estimate", () => {
     expect(text(html)).toContain(
       "Ingénierie électrique — 2026 Enter the hourly rates Estimate indicators The estimate indicators are unavailable.",
     );
-    expect(html).toMatch(/<table[^>]*role="grid"[^>]*aria-label="Estimate grid"/);
+    expect(html).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Estimate grid"/);
   });
 
   it("does not swallow a failure of the service reading the indicators: the screen of failure names it by its correlation identifier", async () => {
@@ -953,9 +953,8 @@ describe("the rows a page hands its grid", () => {
   });
 
   /**
-   * Check that each row a grid was handed holds the fields of its list that its node has — the
-   * fields every grid reads and those of its columns —, and those alone, its facets alike; a field
-   * of a line that says nothing is left out (`SPARSE_LINE_FIELDS`).
+   * Check that each row a grid was handed holds the fields of its list its node has, and those
+   * alone, its facets alike; a field of a line that says nothing is left out (`SPARSE_LINE_FIELDS`).
    */
   function projected(items: readonly object[], fields: AnyNodeFields) {
     const answer = example(VOLUME) as NodeList;
@@ -964,14 +963,15 @@ describe("the rows a page hands its grid", () => {
       task: [...COMMON_FIELDS.task, ...fields.task],
       line: [...COMMON_FIELDS.line, ...fields.line],
     };
-    const sparse = new Set<string>(SPARSE_LINE_FIELDS);
+    const sparse = new Set<string>(SPARSE_LINE_FIELDS); // a delay of nought says something
+    const silent = (value: unknown) => value === null || value === false;
     const kept = (source: Readonly<Record<string, unknown>>, keys: readonly string[]) =>
-      keys.filter((key) => key in source && !(sparse.has(key) && !source[key])).sort();
+      keys.filter((key) => key in source && !(sparse.has(key) && silent(source[key]))).sort();
     expect(items).toHaveLength(answer.items.length);
     for (const [index, node] of answer.items.entries()) {
       const row = items[index] ?? {};
       expect(Object.keys(row).sort()).toEqual(kept(node, listed.node));
-      for (const left of ["lineage_id", "parent_id", "position"]) {
+      for (const left of ["lineage_id", "position"]) {
         expect(row).not.toHaveProperty(left);
       }
       const facets = row as { task?: object | null; estimate_line?: object | null };

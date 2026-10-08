@@ -21,6 +21,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { type SubmitEvent, useId, useState } from "react";
 
 import { usePendingAddress } from "@/components/grid/pending-address";
+import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,7 +58,10 @@ function useParameters() {
   };
 }
 
-/** The filter by state: a button for each state of a portfolio, pressed as retained. */
+/**
+ * The filter by state: a button for each state of a portfolio, pressed as retained, the state by
+ * its badge (#523), as the filter of the home shows it.
+ */
 function StatesFilter({
   asked,
   retained,
@@ -101,7 +105,7 @@ function StatesFilter({
             }}
           >
             <Icon aria-hidden="true" className="size-4" />
-            {t(`enums.ProjectState.${state}`)}
+            <ProjectStateBadge state={state} />
           </Button>
         );
       })}

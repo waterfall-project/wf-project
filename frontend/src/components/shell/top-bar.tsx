@@ -13,6 +13,7 @@ import { Search } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import type { components } from "@/api/generated/schema";
 import { TasksButton } from "@/components/tasks/task-tracker";
 import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -38,10 +39,12 @@ export interface TopBarProps {
   readonly account: MenuAccount | undefined;
   readonly language: LanguagePreference | undefined;
   readonly theme: ThemePreference | undefined;
+  /** The permissions of the session, which the breadcrumb links by: none without one. */
+  readonly permissions: readonly components["schemas"]["PermissionCode"][];
 }
 
 /** Render the bar of the shell. */
-export function TopBar({ navigable, account, language, theme }: TopBarProps) {
+export function TopBar({ navigable, account, language, theme, permissions }: TopBarProps) {
   const t = useTranslations();
   return (
     <header className="flex min-h-13 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2">
@@ -52,7 +55,7 @@ export function TopBar({ navigable, account, language, theme }: TopBarProps) {
           <Logo theme={theme} />
         </Link>
       )}
-      <Breadcrumbs />
+      <Breadcrumbs permissions={permissions} />
       <div role="search" className="relative hidden w-64 md:block">
         <Search
           aria-hidden="true"

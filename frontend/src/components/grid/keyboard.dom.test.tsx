@@ -41,12 +41,18 @@ const STRUCTURE = {
 // The rows of the estimate, by their index: the summary, the task « Câblage des armoires », its
 // line of labour, its disbursement, its provision — whose quantity and unit disbursement the
 // server computes —, the subtree merged by the risk that occurred, and the milestone last.
-const TASK = 1;
-const LABOUR = 2;
-const DISBURSEMENT = 3;
-const PROVISION = 4;
-const MILESTONE = 10;
 const estimate = example("nodes_estimate") as NodeList;
+/** The index of a row of the estimate, found by its label in the example (#400). */
+function rowOf(label: string): number {
+  return estimate.items.findIndex(
+    (node) => (node.task?.label ?? node.estimate_line?.label) === label,
+  );
+}
+const TASK = rowOf("Câblage des armoires");
+const LABOUR = rowOf("Raccordement des borniers");
+const DISBURSEMENT = rowOf("Borniers");
+const PROVISION = rowOf("Provision — risque de reprise du câblage");
+const MILESTONE = rowOf("Réception usine");
 // The height of a row at the default size of the root font.
 const ROW_HEIGHT = ROW_REM * 16;
 
@@ -80,7 +86,7 @@ function thousandRows(): NodeList {
 
 /** Scroll the grid to a row, as the wheel does. */
 function scrollTo(row: number): void {
-  const scroller = screen.getByRole("grid").parentElement;
+  const scroller = screen.getByRole("treegrid").parentElement;
   if (scroller !== null) {
     scroller.scrollTop = row * ROW_HEIGHT;
     fireEvent.scroll(scroller);
@@ -123,7 +129,7 @@ function without(nodes: NodeList, index: number): NodeList {
 function stops(): Element[] {
   return [
     ...screen
-      .getByRole("grid")
+      .getByRole("treegrid")
       .querySelectorAll(
         '[tabindex="0"], button:not([tabindex="-1"]), a[href]:not([tabindex="-1"])',
       ),
@@ -138,7 +144,7 @@ function header(name: string | RegExp): HTMLElement {
 /** The cell of a row, by its index among the rows of the answer, and of a column, if rendered. */
 function queryCell(row: number, column: string): HTMLElement | null {
   return screen
-    .getByRole("grid")
+    .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
 }
 
@@ -191,10 +197,14 @@ describe("the keyboard of a grid", () => {
     expect(stops()).toEqual([cell(DISBURSEMENT, "quantity")]);
     // Tab leaves the grid, and Shift+Tab too.
     await userEvent.tab();
-    expect(screen.getByRole("grid")).not.toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole("treegrid")).not.toContainElement(
+      document.activeElement as HTMLElement,
+    );
     cell(DISBURSEMENT, "quantity").focus();
     await userEvent.tab({ shift: true });
-    expect(screen.getByRole("grid")).not.toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole("treegrid")).not.toContainElement(
+      document.activeElement as HTMLElement,
+    );
   });
 
   it("reaches the header by the up arrow, sorts a column by Enter or Space, widens it by Shift and the arrows, one stop of the tabulation all along [WF-IHM-0100-A]", async () => {
@@ -316,7 +326,7 @@ describe("the keyboard of a grid", () => {
     cell(20, "base_amount").focus();
     await userEvent.keyboard("{Enter}");
     expect(refusal()).not.toBeNull();
-    const scroller = screen.getByRole("grid").parentElement;
+    const scroller = screen.getByRole("treegrid").parentElement;
     expect(scroller?.scrollTop).toBe(14 * ROW_HEIGHT);
     await userEvent.click(cell(18, "label"));
     expect(refusal()).toBeNull();

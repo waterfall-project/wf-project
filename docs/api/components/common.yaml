@@ -135,7 +135,10 @@ Problem:
         les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan
         de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une
         modification du contrat),
-        `max_columns` (collage trop large, WF-IHM-0050), `component` (un `PlatformComponent`,
+        `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur
+        admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un
+        champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la
+        plateforme, WF-EXP-0050), `component` (un `PlatformComponent`,
         WF-EXP-0040),
         `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un
         fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`,
@@ -151,7 +154,8 @@ Problem:
         WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous
         un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche
         qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`,
-        WF-RAE-0040).
+        WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne
+        déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170).
     fields:
       type: array
       description: Erreurs par champ, pour une entité refusée à la validation.
@@ -260,6 +264,13 @@ ErrorCode:
     # Une réestimation qui termine la tâche sans la date de terminaison que la validation
     # demande (`setLineRemaining`, WF-RAE-0040, WF-PLA-0130).
     - COMPLETION_DATE_REQUIRED
+    # Une copie externe des sauvegardes vers un emplacement que l'installation ne déclare pas
+    # (`setBackupSchedule`, `BackupExternalCopy.location`, WF-ADM-0170) ; `params.location`
+    # le nomme.
+    - UNKNOWN_EXTERNAL_BACKUP_LOCATION
+    # Un chemin dans un emplacement externe qui n'est pas relatif, ou qui en sortirait
+    # (`ExternalBackupPath`, WF-ADM-0170).
+    - PATH_INVALID
     # Motifs par champ du rattachement d'une tâche à un poste ou à un lot du lotissement
     # (`TaskFacetUpdate`, WF-PLA-0130) ; le dernier aussi d'un déplacement (`moveNodes`), d'une
     # ligne importée et d'une saisie du lotissement (`setWorkBreakdown`) qui sortiraient la

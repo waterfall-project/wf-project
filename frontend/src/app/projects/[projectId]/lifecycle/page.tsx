@@ -15,10 +15,10 @@ import { serverClient } from "@/api/server";
 import { LifecycleCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Project } from "@/components/context/reading";
+import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import { TransitionList } from "@/components/projects/project-tables";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { Badge } from "@/components/ui/badge";
 
 import { screenMetadata } from "../../../title";
 import {
@@ -49,7 +49,7 @@ function LifecycleHeader({ project }: { readonly project: Project }) {
       subtitle={
         <span className="inline-flex items-center gap-2">
           {t("projectFacts.state")}
-          <Badge>{t(`enums.ProjectState.${project.state}`)}</Badge>
+          <ProjectStateBadge state={project.state} />
         </span>
       }
       actions={<LifecycleCommands project={project} />}

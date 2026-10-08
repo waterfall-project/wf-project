@@ -30,6 +30,7 @@ import { CashOutChart, monthAfter, PortfolioCurveChart, QuarterlyChart } from ".
 import type { ProjectPage, ProjectRow } from "./portfolio-grid";
 import { PortfolioValueView } from "./portfolio-value";
 import { ProjectsGrid } from "./projects-grid";
+import { ZoneFilter } from "./zone-filter";
 
 // The server of Next, as far as the screen needs it: the preferences it writes, the address it
 // reads.
@@ -286,6 +287,39 @@ describe("the list of the projects of the portfolio", () => {
   });
 });
 
+describe("the filter of the list of the projects by zone", () => {
+  it("offers each zone of the contract by its signal, every zone pressed when the address names none, and asks the server for a zone chosen, back to the first page", async () => {
+    // #313, WF-IHM-0130: the zones `getPortfolioProjects` filters on, offered like the states.
+    page.search = "states=in_progress&offset=50";
+    const { container } = render(inLanguage(<ZoneFilter zones={[]} />));
+    const filter = screen.getByRole("group", { name: "Filtre par zone des indices" });
+    expect(within(filter).getByRole("button", { name: "Toutes les zones" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      within(filter)
+        .getAllByRole("button")
+        .slice(1)
+        .map((button) => button.textContent),
+    ).toEqual(["Nominal", "Vigilance", "Alerte"]);
+    await userEvent.click(within(filter).getByRole("button", { name: "Alerte" }));
+    expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress&zones=alert`);
+    await expectAccessible(container);
+  });
+
+  it("adds a zone to those asked, and releases one pressed", async () => {
+    page.search = "zones=watch,alert";
+    render(inLanguage(<ZoneFilter zones={["watch", "alert"]} />));
+    const alert = screen.getByRole("button", { name: "Alerte" });
+    expect(alert).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(alert);
+    expect(await lastAddress()).toBe(`${PATHNAME}?zones=watch`);
+    await userEvent.click(screen.getByRole("button", { name: "Toutes les zones" }));
+    expect(await lastAddress()).toBe(PATHNAME);
+  });
+});
+
 describe("the value of the portfolio", () => {
   it("says the period its statistics are computed on, and is accessible", async () => {
     const value = example("volume/portfolio_value") as Schemas["PortfolioValue"];
@@ -420,7 +454,7 @@ describe("the charts of the portfolio", () => {
     );
     expect(rows).toHaveLength(1 + 12 + 7 + 7);
     expect(rows.at(-1)).toHaveTextContent(
-      `Projection du chef de projet30 nov. 20262${NARROW}130${NARROW}889${NARROW}928,20`,
+      `Projection du chef de projet30 nov. 20262${NARROW}130${NARROW}889${NARROW}768,69`,
     );
     // Three curves in the order of the API, the actual cost by steps, the others by lines; an axis
     // of amounts that reaches down to the lowest value drawn.

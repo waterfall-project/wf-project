@@ -1,0 +1,14 @@
+{
+  "summary": "Le compartiment du site de secours de Lyon éprouvé aujourd'hui dans un dossier donné par un chemin absolu (« /sauvegardes ») : refusé, le champ du chemin désigné par son motif, sans que rien ne soit écrit (WF-ADM-0170).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/path",
+        "code": "PATH_INVALID"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000986"
+  }
+}

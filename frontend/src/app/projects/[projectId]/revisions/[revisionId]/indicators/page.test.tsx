@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SignedOut, UnexpectedAnswer } from "@/api/problem";
+import type { ChartProvenance } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { components } from "@/api/generated/schema";
 import {
@@ -36,6 +37,30 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The charts render as they would, and keep the provenance their exported image names.
+const exported = vi.hoisted((): { charts: [string, ChartProvenance][] } => ({ charts: [] }));
+vi.mock("@/components/indicators/curve-series-chart", async (original) => {
+  const actual = await original<typeof import("@/components/indicators/curve-series-chart")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    CurveSeriesChart: (props: Parameters<typeof actual.CurveSeriesChart>[0]) => {
+      exported.charts.push([props.file, props.provenance]);
+      return createElement(actual.CurveSeriesChart, props);
+    },
+  };
+});
+vi.mock("@/components/indicators/milestone-chart", async (original) => {
+  const actual = await original<typeof import("@/components/indicators/milestone-chart")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    MilestoneChart: (props: Parameters<typeof actual.MilestoneChart>[0]) => {
+      exported.charts.push(["milestones", props.provenance]);
+      return createElement(actual.MilestoneChart, props);
+    },
+  };
+});
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -138,7 +163,7 @@ describe("the screen of the indicators of a project", () => {
     // chart below: the milestones, the cumulative costs, the earned value.
     expect(page.match(/Computed on/g)).toHaveLength(5 + 2 + 3);
     expect(page).toContain(
-      "Financial progress Computed on Financial progress 83.03% Budget consumption 87.23% Actual cost",
+      "Financial progress Computed on Financial progress 83.23% Budget consumption 87.44% Actual cost",
     );
     expect(page).toContain("Evolution of the cost index Computed on");
     expect(page).toContain("Evolution of the schedule index Computed on");
@@ -147,9 +172,9 @@ describe("the screen of the indicators of a project", () => {
   it("shows the amounts as the API gives them, nothing summed nor divided", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page).toContain(
-      "Actual cost 105,400.00 Remaining to commit 21,534.56 Reference budget 120,834.56",
+      "Actual cost 105,400.00 Remaining to commit 21,234.56 Reference budget 120,534.56",
     );
-    expect(page).toContain("At budget 126,234.56 5,400.00 Project manager’s 126,934.56 6,100.00");
+    expect(page).toContain("At budget 125,934.56 5,400.00 Project manager’s 126,634.56 6,100.00");
     expect(page).toContain(
       "Schedule variance -1,223.69 Earned value 100,000.00 Planned value 101,223.69",
     );
@@ -200,13 +225,43 @@ describe("the screen of the indicators of a project", () => {
     const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT, as_of: "2026-05-31" })));
     const banner = page.slice(0, page.indexOf("</section>"));
     expect(text(banner)).toContain(
-      "Subproject: SP-CMD — Poste de commande Calculation date: 31 May 2026",
+      "Subproject: SP-CMD — Poste de commande, on the indicators and the earned value only Calculation date: 31 May 2026",
     );
     const screen = `/projects/${PROJECT}/revisions/${REVISION}/indicators`;
     expect(
       [...banner.matchAll(/href="([^"]*)"/g)].map((m) => m[1]?.replaceAll("&amp;", "&")),
     ).toEqual([`${screen}?as_of=2026-05-31`, `${screen}?subproject_id=${SUBPROJECT}`]);
     expect(banner).toContain('aria-label="Remove the filter “Calculation date: 31 May 2026”"');
+  });
+
+  it("says of each curve its operation does not restrict to the sub-project that it covers the project whole, and the chip what the sub-project restricts [WF-IHM-0020-A]", async () => {
+    // #495: the indicators and the curves of earned value take the sub-project (`scope`); the
+    // evolution of the indices, the tracking of the milestones and the cumulative costs do not.
+    const page = html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
+    expect(queryOf("GET /projects/{project_id}/indicators/earned-value-curves")).toEqual({
+      revision_id: REVISION,
+      scope: SUBPROJECT,
+    });
+    expect(queryOf("GET /projects/{project_id}/indicators/cost-curve")).toEqual({
+      revision_id: REVISION,
+    });
+    expect(queryOf("GET /projects/{project_id}/indicators/milestone-tracking")).toEqual({});
+    const said = text(page);
+    expect(said.match(/it is not restricted to the filtered subproject/g)).toHaveLength(3);
+    expect(said).toMatch(
+      /Milestone tracking This tracking covers the milestones of the whole project: it is not restricted to the filtered subproject\./,
+    );
+    expect(said).toMatch(
+      /Cumulative costs These curves cover the whole project: they are not restricted to the filtered subproject\./,
+    );
+    // The two evolutions of the indices, one in each card.
+    expect(
+      said.match(/This evolution shows every scope of the project: it is not restricted/g),
+    ).toHaveLength(2);
+    expect(said).not.toMatch(/Earned value curves [^.]*not restricted/);
+    // No sub-project filtered, nothing said.
+    server.clients = [];
+    expect(text(html(await IndicatorsPage(at())))).not.toContain("not restricted");
   });
 
   it("asks the indicators for the sub-project and the date the address filters, the evolution of the indices dated by its own calculation [WF-IHM-0020-A]", async () => {
@@ -439,6 +494,25 @@ describe("the provenance of the charts the screen exports", () => {
     expect(page.match(/Export as PNG/g)).toHaveLength(3);
     expect(page).toContain("Time/time diagram Export as PNG Computed on");
     expect(page).toContain("S-curve Export as PNG Computed on");
+  });
+
+  it("names in the image of each chart the sub-project it is computed on, or the project whole, when the address filters one (#495)", async () => {
+    exported.charts = [];
+    html(await IndicatorsPage(at({ subproject_id: SUBPROJECT })));
+    expect(exported.charts.map(([chart, provenance]) => [chart, provenance.detail])).toEqual([
+      ["milestones", "Whole project, not restricted to the filtered subproject"],
+      ["s-curve", "Whole project, not restricted to the filtered subproject"],
+      ["earned-value", "Subproject: SP-CMD — Poste de commande"],
+    ]);
+    // No sub-project filtered: every chart is the project whole, and says nothing more.
+    exported.charts = [];
+    server.clients = [];
+    html(await IndicatorsPage(at()));
+    expect(exported.charts.map(([, provenance]) => provenance.detail)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 
   it("reads the revision a chart is computed on when it is not the one of the address, once [WF-IHM-0020-A]", async () => {

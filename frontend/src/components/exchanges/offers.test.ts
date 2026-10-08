@@ -6,7 +6,7 @@ import type { Project } from "@/components/context/reading";
 import type { Revision } from "@/components/context/read-only";
 import { example } from "@/test/fixtures";
 
-import { exportOffers, importHref, importOffers } from "./offers";
+import { exportOffers, importHref, importOffers, listsAnImport, listsImport } from "./offers";
 
 const project = (name = "project") => example(name) as Project;
 const revision = (name: string) => example(name) as Revision;
@@ -49,6 +49,26 @@ describe("the imports a project offers", () => {
       remaining: undefined,
       actual_costs: undefined,
     });
+  });
+});
+
+describe("what guards the screen of the imports and exports, and leads to it (#521)", () => {
+  it("is an import the project lists, available or not: the caller has its permission", () => {
+    expect(listsAnImport(project())).toBe(true);
+    expect(listsAnImport(project("project_completed"))).toBe(true);
+    expect(listsAnImport(project("project_pricing_estimator"))).toBe(true);
+    // The project as one who may exercise none of its commands reads it: no import listed.
+    expect(listsAnImport(project("project_reader"))).toBe(false);
+  });
+
+  it("leads there from the screen of a function when the import of its kind is listed, available or not", () => {
+    expect(listsImport(project(), "estimate")).toBe(true);
+    expect(listsImport(project(), "remaining")).toBe(true);
+    // Listed unavailable: the screen presents it with what it lacks (WF-IHM-0090).
+    expect(listsImport(project("project_completed"), "estimate")).toBe(true);
+    expect(listsImport(project("project_pricing_estimator"), "estimate")).toBe(true);
+    expect(listsImport(project("project_pricing_estimator"), "remaining")).toBe(false);
+    expect(listsImport(project("project_reader"), "estimate")).toBe(false);
   });
 });
 

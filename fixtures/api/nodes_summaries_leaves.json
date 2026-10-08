@@ -1,8 +1,9 @@
 {
-  "summary": "Variante contrefactuelle : l'arborescence de tâches d'un planning composé uniquement de tâches feuilles — les tâches du cœur du témoin sans leurs récapitulatives —, demandée au niveau 2 (kinds=task, summaries_only, max_level=2) le 3 juin 2026 : aucune récapitulative, rien n'est rendu, et le front dessine une arborescence réduite au nœud du projet ; les totaux sont nuls (WF-PLA-0110).",
+  "summary": "Variante contrefactuelle : l'arborescence de tâches d'un planning composé uniquement de tâches feuilles — les tâches du cœur du témoin sans leurs récapitulatives —, demandée au niveau 2 (kinds=task, summaries_only, max_level=2) le 3 juin 2026 : aucune récapitulative, rien n'est rendu, la structure n'en portant aucune (meta.summary_depth à 0), et le front dessine une arborescence réduite au nœud du projet, sans niveau à choisir ; les totaux sont nuls (WF-PLA-0110, #494).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "items": [],
-    "totals": {"task_count":0,"estimate_line_count":0,"hours":"0","base_amount":"0.00","budgeted_amount":"0.00","reestimated_amount":"0.00","inflated_amount":"0.00"}
+    "totals": {"task_count":0,"estimate_line_count":0,"hours":"0","base_amount":"0.00","budgeted_amount":"0.00","reestimated_amount":"0.00","inflated_amount":"0.00"},
+    "meta": {"summary_depth":0}
   }
 }

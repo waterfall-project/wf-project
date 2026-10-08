@@ -212,7 +212,7 @@ describe("the grid of the risks", () => {
       within(cell(label, ZONE)).getByRole("img").getAttribute("aria-label");
     expect(zone("Risque de reprise du câblage")).toBe("Vigilance");
     expect(zone("Retard de livraison des armoires")).toBe("Nominal");
-    // 12 000 is under a tenth of the reference budget of the witness, 120 834,56: its cell is
+    // 12 000 is under a tenth of the reference budget of the witness, 120 534,56: its cell is
     // nominal at a probability of 5 %, as the server classes it.
     expect(zone("Indisponibilité de l'automaticien")).toBe("Nominal");
   });

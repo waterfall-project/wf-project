@@ -152,6 +152,13 @@ BackupId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
+ExternalBackupLocationName:
+  name: location_name
+  in: path
+  required: true
+  description: Le nom d'un emplacement externe que l'installation déclare.
+  schema: { $ref: schemas/platform.yaml#/ExternalBackupLocationName }
+
 TaskId:
   name: task_id
   in: path

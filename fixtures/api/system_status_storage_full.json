@@ -60,6 +60,11 @@
       "succeeded": true,
       "problem": null
     },
+    "last_backup_copy": {
+      "at": "2026-06-03T01:14:00Z",
+      "succeeded": true,
+      "problem": null
+    },
     "last_restore_test": {
       "at": "2026-06-01T03:00:00Z",
       "succeeded": true,

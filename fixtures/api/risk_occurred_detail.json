@@ -10,7 +10,7 @@
     "severity": "200.00",
     "provision_amount": "60.00",
     "state": "occurred",
-    "structure_id": "01926f3a-7c00-7000-8000-000000000215",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000205",
     "provision_node_id": null,
     "matrix_cell": {"probability_level":3,"severity_level":1,"zone":"nominal"},
     "last_review_on": "2026-02-20",

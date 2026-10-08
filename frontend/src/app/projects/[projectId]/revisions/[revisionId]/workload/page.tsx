@@ -6,7 +6,7 @@
  * context (WF-IHM-0020); the workload by role and by month as the API computes it
  * (`getProjectWorkload`) on the basis, the marked revision and the node of organisation the
  * address asks — the server filters, the front computes nothing —, the capacity of each role
- * against it, and its export as a PNG image (WF-IHM-0130). The choice offers the bases the project
+ * against it in the table of its values, never a ratio of the load to it (#375), and its export as a PNG image (WF-IHM-0130). The choice offers the bases the project
  * admits, the marked revisions of the project — every one of them, whatever the server pages
  * (`listRevisions`, `status=marked`, `readEveryPage`, #303) — and the nodes of organisation
  * (`listOrgNodes`).

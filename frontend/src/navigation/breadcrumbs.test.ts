@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
+import type { components } from "@/api/generated/schema";
+import { example } from "@/test/fixtures";
+
 import { ACCOUNT_PAGES, findAccountPage } from "./account";
 import { crumbsOf } from "./breadcrumbs";
 import { readContext } from "./context";
@@ -9,10 +12,13 @@ import { readContext } from "./context";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
-/** The steps of an address, its context read as the shell reads it. */
-function steps(address: string) {
+type Session = components["schemas"]["Session"];
+
+/** The steps of an address, its context read as the shell reads it, for a session of the contract. */
+function steps(address: string, session = "session") {
   const [pathname = "", query = ""] = address.split("?");
-  return crumbsOf(pathname, readContext(pathname, new URLSearchParams(query)));
+  const { permissions } = example(session) as Session;
+  return crumbsOf(pathname, readContext(pathname, new URLSearchParams(query)), permissions);
 }
 
 describe("the breadcrumb", () => {
@@ -97,6 +103,22 @@ describe("the breadcrumb", () => {
       },
       { kind: "label", label: "functions.exchanges" },
     ]);
+  });
+
+  it("names the planning without a link to a costing engineer who does not read it, on the imports and exports (#521)", () => {
+    const exchanges = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
+    expect(steps(exchanges, "session_estimator")[2]).toEqual({
+      kind: "label",
+      label: "functions.planning",
+    });
+    // The workload, a leaf of the estimate the estimator reads: its function is a link.
+    expect(
+      steps(`/projects/${PROJECT}/revisions/${REVISION}/workload`, "session_estimator")[2],
+    ).toEqual({
+      kind: "label",
+      label: "functions.estimate",
+      href: `/projects/${PROJECT}/revisions/${REVISION}/estimate`,
+    });
   });
 
   it("sits a function of a project whose address names none in its block alone", () => {

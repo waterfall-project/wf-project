@@ -33,7 +33,7 @@ describe("the summary of the remaining to commit", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary({ ...indicators, delta_to_previous_revision: null }));
     expect(html).toContain(
-      "Remaining to commit 21,534.56 Margin on the reference budget -6,100.00 By nature of cost",
+      "Remaining to commit 21,234.56 Margin on the reference budget -6,100.00 By nature of cost",
     );
     expect(html).not.toContain("previous review");
   });
@@ -43,7 +43,7 @@ describe("the summary of the remaining to commit", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary(indicators, "fr"));
     expect(html).toMatch(/Marge sur le budget de référence -6\s100,00/);
-    expect(html).toMatch(/Poste de commande\s: 20\s834,56, marge -2\s400,00/);
+    expect(html).toMatch(/Poste de commande\s: 20\s534,56, marge -2\s400,00/);
     expect(html).not.toContain("Écart au budget");
   });
 });

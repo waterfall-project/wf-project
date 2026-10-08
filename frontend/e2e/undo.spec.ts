@@ -19,7 +19,7 @@ test("places Undo and Redo in the grid, its menu and its keys, unavailable and s
   page,
 }) => {
   await openHydrated(page, ESTIMATE);
-  const grid = page.getByRole("grid", { name: "Grille de devis" });
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
   const reason = "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.";
   for (const name of ["Annuler", "Rétablir"]) {
     const button = page.getByRole("button", { name, exact: true });
@@ -28,7 +28,7 @@ test("places Undo and Redo in the grid, its menu and its keys, unavailable and s
   }
 
   // The menu of a cell, by a right click and from the keyboard, the focus back on the cell.
-  const cell = rowAt(grid, 4).getByRole("gridcell").nth(1);
+  const cell = rowAt(grid, 10).getByRole("gridcell").nth(1);
   const menu = page.getByRole("menu", { name: "Menu de la cellule" });
   await cell.click({ button: "right" });
   await expect(menu.getByRole("menuitem", { name: /^Annuler/ })).toContainText("Ctrl+Z");

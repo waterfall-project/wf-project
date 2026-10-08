@@ -88,7 +88,8 @@
     description: >-
       Disponibilité de chaque composant, espace de stockage, version installée,
       dernières synchronisation, sauvegarde et test de restauration, et alertes en
-      cours. Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
+      cours, dont l'échec d'une sauvegarde planifiée ou de sa copie externe (WF-OBS-0030,
+      WF-ADM-0170). Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
     responses:
       '200':
         description: État courant.
@@ -99,6 +100,7 @@
               witness: { $ref: ../../../fixtures/api/system_status.json }
               backup_failed: { $ref: ../../../fixtures/api/system_status_backup_failed.json }
               storage_full: { $ref: ../../../fixtures/api/system_status_storage_full.json }
+              copy_failed: { $ref: ../../../fixtures/api/system_status_copy_failed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
 

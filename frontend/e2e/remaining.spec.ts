@@ -31,7 +31,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
 
   // The indicators, dated, each figure as the server gives it, the coverage of the risks with them.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*21\s534,56/);
+  await expect(indicators).toContainText(/Reste à engager\s*21\s234,56/);
   await expect(indicators).toContainText("Calculé le");
   await expect(indicators.getByRole("region", { name: "Couverture des risques" })).toHaveText(
     /Réserve pour risques\s*910,00\s*Provisions restantes\s*500,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*210,00/,
@@ -43,7 +43,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(1);
 
   // The grid, its amounts computed, its totals those of the answer, in the window.
-  const grid = page.getByRole("grid", { name: "Grille de reste à engager" });
+  const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
   for (const name of [
     "Libellé",
     "Avancement",
@@ -59,14 +59,14 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   const totals = grid.getByRole("gridcell", { name: /^Total — 1\s000 tâches, 5\s000 lignes$/ });
   expect(await withinBox(grid, totals)).toBe(true);
   await expect(
-    grid.getByRole("row", { name: /^3 .*Préparation 1\.1\.1/ }).getByRole("img", {
+    grid.getByRole("row", { name: /^2 .*Études de détail/ }).getByRole("img", {
       name: "Terminée",
     }),
   ).toBeVisible();
-  // Row 15 is past the rows in view under the indicators: scrolled to, so that it is checked in the
-  // window whatever the height of the grid, never in the margin the grid renders around it.
-  const review = await scrollToPosition(grid, 15);
-  await expect(review).toHaveAccessibleName(/^15 .*Revue 1\.1\.3/);
+  // Row 9 may be past the rows in view under the indicators: scrolled to, so that it is checked in
+  // the window whatever the height of the grid, never in the margin the grid renders around it.
+  const review = await scrollToPosition(grid, 9);
+  await expect(review).toHaveAccessibleName(/^9 .*Câblage des armoires/);
   await expect(review.getByRole("img", { name: "Démarrée" })).toBeVisible();
   // The revision in progress may be re-estimated: undo and redo are placed, not wired yet.
   await expect(page.getByRole("button", { name: "Annuler" })).toHaveAttribute(

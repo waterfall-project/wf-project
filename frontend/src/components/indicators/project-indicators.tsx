@@ -27,6 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { formatMoney } from "@/i18n/format";
 
 import { type IndexHistory, IndexChart } from "./index-chart";
+import { WholeProject } from "./indicator-sections";
 
 /** The indicators of a project, as the API computes them. */
 export type ProjectIndicators = components["schemas"]["ProjectIndicators"];
@@ -101,7 +102,7 @@ function Projections({ indicators }: { readonly indicators: ProjectIndicators })
   return (
     <>
       <table className="w-full text-left text-sm">
-        <thead className="text-muted-foreground">
+        <thead className="bg-muted text-muted-foreground">
           <tr>
             <th scope="col">{t("hypothesis")}</th>
             <th scope="col" className="text-right">
@@ -152,10 +153,12 @@ function IndexCard({
   kind,
   indicators,
   history,
+  wholeProject,
 }: {
   readonly kind: "cost" | "schedule";
   readonly indicators: ProjectIndicators;
   readonly history: IndexHistory;
+  readonly wholeProject: boolean;
 }) {
   const t = useTranslations("projectIndicators");
   const index = kind === "cost" ? indicators.cost_index : indicators.schedule_index;
@@ -185,6 +188,8 @@ function IndexCard({
         {index.zone === null ? null : <Signal zone={index.zone} />}
       </div>
       <Figures figures={figures} />
+      {/* The evolution takes no sub-project: it shows every scope, whatever the address filters. */}
+      {wholeProject ? <WholeProject>{t("wholeProject.history")}</WholeProject> : null}
       <IndexChart kind={kind} history={history} />
     </IndicatorCard>
   );
@@ -194,10 +199,19 @@ function IndexCard({
 export interface ProjectIndicatorCardsProps {
   readonly indicators: ProjectIndicators;
   readonly history: IndexHistory;
+  /**
+   * Whether the address filters a sub-project, which the indicators take and the evolution of the
+   * indices does not (#495): each evolution then says so.
+   */
+  readonly wholeProject?: boolean;
 }
 
 /** Render the indicators of a project, one card for each function FBS-4.8.1 to FBS-4.8.5. */
-export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorCardsProps) {
+export function ProjectIndicatorCards({
+  indicators,
+  history,
+  wholeProject = false,
+}: ProjectIndicatorCardsProps) {
   const t = useTranslations("projectIndicators");
   const { context } = indicators;
   return (
@@ -243,8 +257,18 @@ export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorC
         />
       </IndicatorCard>
       <div className="grid gap-6 lg:col-span-2 lg:grid-cols-2">
-        <IndexCard kind="cost" indicators={indicators} history={history} />
-        <IndexCard kind="schedule" indicators={indicators} history={history} />
+        <IndexCard
+          kind="cost"
+          indicators={indicators}
+          history={history}
+          wholeProject={wholeProject}
+        />
+        <IndexCard
+          kind="schedule"
+          indicators={indicators}
+          history={history}
+          wholeProject={wholeProject}
+        />
       </div>
     </div>
   );

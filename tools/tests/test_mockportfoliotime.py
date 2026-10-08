@@ -12,9 +12,10 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcurves, mockindicators, mockportfolio, mockstructure, mockwitness
+from wftools import mockcurves, mockids, mockindicators, mockportfolio, mockstructure, mockwitness
 from wftools import mockportfoliotime as views
-from wftools.mockwitness import TODAY, universe
+from wftools.mockids import universe
+from wftools.mockwitness import TODAY
 
 type Node = dict[str, Any]
 
@@ -308,7 +309,7 @@ def test_each_signal_names_a_project_in_progress_as_its_row_does(rows: list[Node
     health = mockwitness.fixture("pilot_health")
     limit = mockwitness.fixture("reference_settings")["max_weeks_between_reviews"]
     by_id = {row["project_id"]: row for row in rows}
-    family = next(f for f in mockwitness.IDENTIFIERS if f.what == "jalons du portefeuille")
+    family = next(f for f in mockids.IDENTIFIERS if f.what == "jalons du portefeuille")
     codes: set[str] = set()
     for signal in health["signals"]:
         row = by_id[signal["project_id"]]

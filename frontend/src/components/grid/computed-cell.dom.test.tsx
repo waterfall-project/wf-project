@@ -51,6 +51,12 @@ const STRUCTURE_PATH = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.
 const PENDING = "Lecture de ce dont elle dépend…";
 const estimate = example("nodes_estimate") as NodeList;
 const planning = example("nodes_planning") as NodeList;
+// The summary of the planning, found by its label in the example (#400).
+const studiesId = planning.items.find((node) => node.task?.label === "Études")?.node_id ?? "";
+// The line of labour of the estimate, found by its label in the example (#400).
+const labourId =
+  estimate.items.find((node) => node.estimate_line?.label === "Raccordement des borniers")
+    ?.node_id ?? "";
 
 /** The answer of the planning read anew, the summary « Études » changed since: a new version. */
 function withSummaryChanged(): NodeList {
@@ -78,7 +84,13 @@ function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>, held = 0): Fa
 function planningOf(nodes: NodeList) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <PlanningGrid nodes={nodes} structure={STRUCTURE} query={NO_QUERY} preferences={undefined} />
+      <PlanningGrid
+        nodes={nodes}
+        structure={STRUCTURE}
+        filters={{}}
+        query={NO_QUERY}
+        preferences={undefined}
+      />
     </NextIntlClientProvider>
   );
 }
@@ -103,6 +115,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
         <PlanningGrid
           nodes={nodes ?? planning}
           structure={STRUCTURE}
+          filters={{}}
           query={NO_QUERY}
           preferences={undefined}
         />
@@ -208,10 +221,7 @@ describe("a value of a grid the server computes", () => {
       rows: [],
     });
     expect(asked(client)).toEqual([
-      [
-        `${STRUCTURE_PATH}/nodes/01926f3a-7c00-7000-8000-000000000553/dependencies`,
-        "estimate_line.base_amount",
-      ],
+      [`${STRUCTURE_PATH}/nodes/${labourId}/dependencies`, "estimate_line.base_amount"],
     ]);
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("spinbutton")).toBeNull();
@@ -241,7 +251,7 @@ describe("a value of a grid the server computes", () => {
       ],
     });
     expect(asked(client)).toEqual([
-      [`${STRUCTURE_PATH}/nodes/01926f3a-7c00-7000-8000-000000000521/dependencies`, "task.finish"],
+      [`${STRUCTURE_PATH}/nodes/${studiesId}/dependencies`, "task.finish"],
     ]);
     expect(within(refusal()).getByRole("list", { name: "Elle dépend de :" })).toBeInTheDocument();
     expect(cell("Études", FINISH)).toHaveAttribute("aria-expanded", "true");

@@ -113,7 +113,12 @@ describe("the grid of the hourly rates", () => {
     const headers = within(table)
       .getAllByRole("columnheader")
       .map((header) => header.textContent);
-    expect(headers).toEqual(["Code", "Libellé", ...grid.years.map((year) => year.toString())]);
+    expect(headers).toEqual([
+      "Code",
+      "Libellé",
+      "État",
+      ...grid.years.map((year) => year.toString()),
+    ]);
     expect(cell(0, 2026)).toHaveTextContent(/^80,00$/);
     // A year without a rate is an empty cell, never a zero.
     expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^$/);
@@ -214,7 +219,7 @@ describe("the grid of the hourly rates", () => {
     render(rates());
     cell(MECHANICAL, 2016).focus();
     await userEvent.keyboard("99{Escape}");
-    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(within(screen.getByRole("grid")).queryByRole("textbox")).toBeNull();
     expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^86,98$/);
     expect(cell(MECHANICAL, 2016)).toHaveFocus();
     expect(written(client)).toEqual([]);
@@ -267,6 +272,187 @@ describe("the grid of the hourly rates", () => {
     await userEvent.keyboard("{F2}85");
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(written(client)).toEqual([]);
+    // Nor the column of a year to add.
+    expect(screen.queryByRole("form", { name: "Ajouter une année à la grille" })).toBeNull();
+  });
+
+  it("says the state of each category, a deactivated one the page read on demand said so [WF-REF-0150-A]", () => {
+    serve();
+    const [first, second, ...rest] = fewRows.rows;
+    if (first === undefined || second === undefined) {
+      throw new Error("the grid of the volumes has its first rows");
+    }
+    render(
+      rates("fr", true, { ...fewRows, rows: [first, { ...second, is_active: false }, ...rest] }),
+    );
+    const state = (row: number) =>
+      screen
+        .getByRole("grid")
+        .querySelector(`td[data-row="${row.toString()}"][data-column="state"]`);
+    expect(state(0)).toHaveTextContent(/^Actif$/);
+    expect(state(1)).toHaveTextContent(/^Désactivé$/);
+  });
+
+  it("adds the column of a year the grid has none for, empty, in the order of the years, the rates of the other years unchanged [WF-REF-0060-A]", async () => {
+    const client = serve();
+    render(rates());
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    await userEvent.type(within(form).getByRole("textbox", { name: "Année" }), "2011");
+    await userEvent.click(within(form).getByRole("button", { name: "Ajouter la colonne" }));
+    const headers = within(screen.getByRole("grid"))
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent);
+    expect(headers).toEqual([
+      "Code",
+      "Libellé",
+      "État",
+      "2011",
+      ...grid.years.map((year) => year.toString()),
+    ]);
+    // The column added is empty, row by row; the rates of the years before are as they were.
+    for (let row = 0; row < FIRST_ROWS; row += 1) {
+      expect(cell(row, 2011)).toHaveTextContent(/^$/);
+    }
+    expect(cell(0, 2012)).toHaveTextContent(/^59,00$/);
+    expect(cell(0, 2026)).toHaveTextContent(/^80,00$/);
+    expect(within(form).getByRole("status")).toHaveTextContent(
+      "Colonne 2011 ajoutée : elle reste vide jusqu’à son premier taux",
+    );
+    // Nothing is written until a rate is entered in it: the contract has no column to create.
+    expect(written(client)).toEqual([]);
+  });
+
+  it("refuses the column of a year the grid already has, or that the contract does not take, and adds none [WF-REF-0060-A]", async () => {
+    serve();
+    render(rates());
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    const year = within(form).getByRole("textbox", { name: "Année" });
+    const add = within(form).getByRole("button", { name: "Ajouter la colonne" });
+    await userEvent.type(year, "2026");
+    await userEvent.click(add);
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "L’année 2026 a déjà sa colonne dans la grille.",
+    );
+    expect(year).toHaveAttribute("aria-invalid", "true");
+    expect(year).toHaveAccessibleDescription("L’année 2026 a déjà sa colonne dans la grille.");
+    const grid2026 = within(screen.getByRole("grid")).getAllByRole("columnheader", {
+      name: "2026",
+    });
+    expect(grid2026).toHaveLength(1);
+    await userEvent.clear(year);
+    await userEvent.type(year, "1999");
+    await userEvent.click(add);
+    expect(within(form).getByRole("alert")).toHaveTextContent("Une année va de 2000 à 2100.");
+    // A year added once is the grid's: a second time, it is refused as well.
+    await userEvent.clear(year);
+    await userEvent.type(year, "2011");
+    await userEvent.click(add);
+    expect(within(form).queryByRole("alert")).toBeNull();
+    await userEvent.type(year, "2011");
+    await userEvent.click(add);
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "L’année 2011 a déjà sa colonne dans la grille.",
+    );
+    expect(
+      within(screen.getByRole("grid")).getAllByRole("columnheader", { name: "2011" }),
+    ).toHaveLength(1);
+  });
+
+  it("enters the first rate of the year added without a version, and shows the rate the server answered [WF-REF-0060-A]", async () => {
+    const client = serve({ [RATE]: "hourly_rate_added_year" });
+    render(rates());
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    await userEvent.type(within(form).getByRole("textbox", { name: "Année" }), "2011");
+    await userEvent.click(within(form).getByRole("button", { name: "Ajouter la colonne" }));
+    cell(0, 2011).focus();
+    await userEvent.keyboard("57,5{Enter}");
+    await answered(0, 2011);
+    expect(cell(0, 2011)).toHaveTextContent(/^57,50$/);
+    expect(cell(0, 2012)).toHaveTextContent(/^59,00$/);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(written(client)).toEqual([
+      {
+        path: "/reference/cost-categories/01926f3a-7c00-7000-8000-000000000402/hourly-rates/2011",
+        body: { amount: "57.5" },
+      },
+    ]);
+  });
+
+  it("keeps the column of a year added through the entry of its rates and of the other years", async () => {
+    serve({ [RATE]: ["hourly_rate_added_year", "hourly_rate_corrected"] });
+    render(rates());
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    await userEvent.type(within(form).getByRole("textbox", { name: "Année" }), "2011");
+    await userEvent.click(within(form).getByRole("button", { name: "Ajouter la colonne" }));
+    cell(0, 2011).focus();
+    await userEvent.keyboard("57,5{Enter}");
+    await answered(0, 2011);
+    cell(MECHANICAL, 2016).focus();
+    await userEvent.keyboard("87{Enter}");
+    await answered(MECHANICAL, 2016);
+    expect(cell(MECHANICAL, 2016)).toHaveTextContent(/^87,20$/);
+    expect(cell(0, 2011)).toHaveTextContent(/^57,50$/);
+  });
+
+  it("takes away the column of a year added while it holds no rate, the headers as they were, and keeps one whose rate was entered", async () => {
+    serve({ [RATE]: "hourly_rate_added_year" });
+    render(rates());
+    const headers = () =>
+      within(screen.getByRole("grid"))
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent);
+    const before = headers();
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    const year = within(form).getByRole("textbox", { name: "Année" });
+    const add = within(form).getByRole("button", { name: "Ajouter la colonne" });
+    await userEvent.type(year, "2027");
+    await userEvent.click(add);
+    expect(headers()).toContain("2027");
+    await userEvent.click(within(form).getByRole("button", { name: "Retirer la colonne 2027" }));
+    expect(headers()).toEqual(before);
+    expect(within(form).queryByRole("button", { name: /^Retirer/ })).toBeNull();
+    // A column whose first rate was entered is the server's: it is no longer taken away.
+    await userEvent.type(year, "2011");
+    await userEvent.click(add);
+    cell(0, 2011).focus();
+    await userEvent.keyboard("57,5{Enter}");
+    await answered(0, 2011);
+    expect(within(form).queryByRole("button", { name: "Retirer la colonne 2011" })).toBeNull();
+    expect(headers()).toContain("2011");
+  });
+
+  it("offers no removal of the column of a year added while its first rate is being written", async () => {
+    let answer: (value?: unknown) => void = () => undefined;
+    serve(
+      { [RATE]: "hourly_rate_added_year" },
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    render(rates());
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    await userEvent.type(within(form).getByRole("textbox", { name: "Année" }), "2011");
+    await userEvent.click(within(form).getByRole("button", { name: "Ajouter la colonne" }));
+    expect(within(form).getByRole("button", { name: "Retirer la colonne 2011" })).toBeVisible();
+    cell(0, 2011).focus();
+    await userEvent.keyboard("57,5{Enter}");
+    expect(cell(0, 2011)).toHaveAttribute("aria-busy", "true");
+    expect(within(form).queryByRole("button", { name: /^Retirer/ })).toBeNull();
+    answer();
+    await answered(0, 2011);
+    expect(within(form).queryByRole("button", { name: /^Retirer/ })).toBeNull();
+  });
+
+  it("offers the removal again once the first rate of the column is refused", async () => {
+    serve({ [RATE]: { problem: { code: "VALUE_OUT_OF_RANGE", status: 422 } } });
+    render(rates());
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    await userEvent.type(within(form).getByRole("textbox", { name: "Année" }), "2011");
+    await userEvent.click(within(form).getByRole("button", { name: "Ajouter la colonne" }));
+    cell(0, 2011).focus();
+    await userEvent.keyboard("0{Enter}");
+    await answered(0, 2011);
+    expect(within(form).getByRole("button", { name: "Retirer la colonne 2011" })).toBeVisible();
   });
 
   it("is named and headed in English too", () => {

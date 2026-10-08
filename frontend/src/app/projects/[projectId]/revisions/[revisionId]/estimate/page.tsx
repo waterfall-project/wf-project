@@ -12,7 +12,8 @@
  * line is chosen from (US-0120) — the server names those a line bears (#305). The grid is entered from the keyboard, and takes
  * a block pasted from a spreadsheet, when the revision lists `edit_estimate` available to the caller
  * (WF-IHM-0040, WF-IHM-0050). Its head leads to the workload of the project, a leaf of the estimate
- * with a screen of its own (FBS-4.4.4), in the same context. A refused read of the rates
+ * with a screen of its own (FBS-4.4.4), in the same context, and, when the project lists the import
+ * of an estimate, to the imports and exports, where it is exercised (#521). A refused read of the rates
  * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
  * refused as expected are said unavailable, the rest of the screen shown: the screen never shows
  * a figure it did not read.
@@ -20,11 +21,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
+import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import {
   ESTIMATE_FIELDS,
   ESTIMATE_GRID,
@@ -182,16 +185,19 @@ const WorkloadIcon = LEAF_ICONS["FBS-4.4.4"];
 
 /**
  * The title of the grid, and what it holds: the structure, its tasks and lines retained; and the
- * link to the workload of the project, in the same context.
+ * links to the workload of the project and, when the project lists the import of an estimate, to the
+ * imports and exports (#521), in the same context.
  */
 function EstimateHeader({
   label,
   totals,
   workload,
+  exchanges,
 }: {
   readonly label: string;
   readonly totals: NodeTotals;
   readonly workload: string | undefined;
+  readonly exchanges: ReactNode;
 }) {
   const t = useTranslations();
   return (
@@ -205,12 +211,15 @@ function EstimateHeader({
         lines: totals.estimate_line_count,
       })}
       actions={
-        workload === undefined ? undefined : (
-          <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
-            <WorkloadIcon aria-hidden="true" />
-            {t(WORKLOAD.label)}
-          </Link>
-        )
+        <>
+          {workload === undefined ? null : (
+            <Link href={workload} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <WorkloadIcon aria-hidden="true" />
+              {t(WORKLOAD.label)}
+            </Link>
+          )}
+          {exchanges}
+        </>
       }
     />
   );
@@ -248,6 +257,9 @@ export default async function EstimatePage({
           label={screen.label}
           totals={screen.nodes.totals}
           workload={functionHref(WORKLOAD, at.context)}
+          exchanges={
+            <ExchangesLink project={screen.reading.project} kind="estimate" context={at.context} />
+          }
         />
         <EstimateSummary
           indicators={indicators}

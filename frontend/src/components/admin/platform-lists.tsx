@@ -165,8 +165,8 @@ function OperationRow({
 }
 
 /**
- * The last reading of the accounts of the identity provider, the last backup and the last
- * restoration test.
+ * The last reading of the accounts of the identity provider, the last backup, its last copy
+ * outside the platform (WF-EXP-0050) and the last restoration test.
  */
 export function OperationList({ status }: { readonly status: SystemStatus }) {
   const t = useTranslations("admin.status");
@@ -178,6 +178,7 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
       >
         <OperationRow name={t("directorySync")} outcome={status.last_directory_sync} />
         <OperationRow name={t("backup")} outcome={status.last_backup} />
+        <OperationRow name={t("backupCopy")} outcome={status.last_backup_copy} />
         <OperationRow name={t("restoreTest")} outcome={status.last_restore_test} />
       </ListTable>
     </ReferenceSection>
@@ -186,12 +187,33 @@ export function OperationList({ status }: { readonly status: SystemStatus }) {
 
 /**
  * What an alert names besides its code, as the server gives it: the component unavailable, the
- * storage used and free; nothing for an alert that names none.
+ * storage used and free, the external location a copy of a backup did not reach and why; nothing
+ * for an alert that names none.
  */
 function AlertDetail({ alert }: { readonly alert: Alert }) {
   const t = useTranslations();
   const locale = useLocale();
-  const { component, used_bytes: used, available_bytes: available } = alert.params ?? {};
+  const {
+    component,
+    used_bytes: used,
+    available_bytes: available,
+    location,
+    failure,
+  } = alert.params ?? {};
+  if (
+    alert.code === "scheduled_backup_copy_failed" &&
+    location !== undefined &&
+    failure !== undefined
+  ) {
+    return (
+      <span className="block text-muted-foreground">
+        {t("admin.status.copyDetail", {
+          location,
+          failure: t(`enums.ExternalBackupFailure.${failure}`),
+        })}
+      </span>
+    );
+  }
   if (alert.code === "component_unavailable" && component !== undefined) {
     return (
       <span className="block text-muted-foreground">
@@ -296,7 +318,12 @@ export function BackupList({
   );
 }
 
-/** The schedule of the backups — off, or how often, on which day, at what time — and their retention. */
+/**
+ * The schedule of the backups — off, or how often, on which day, at what time —, their retention,
+ * and the copy of each scheduled backup to an external location (WF-ADM-0170): none, or the
+ * location the installation declares, the folder in it and the copies kept there, suspended or
+ * not. Read only: the form that sets them comes with the commands of the backups (#519).
+ */
 export function BackupScheduleFacts({ schedule }: { readonly schedule: BackupSchedule }) {
   const t = useTranslations("admin.schedule");
   const frequencies = useTranslations("enums.BackupSchedule.frequency");
@@ -317,6 +344,16 @@ export function BackupScheduleFacts({ schedule }: { readonly schedule: BackupSch
     }
   }
   facts.push([t("retained"), t("count", { count: schedule.retained_count })]);
+  const copy = schedule.external_copy;
+  if (copy === undefined) {
+    facts.push([t("externalCopy"), t("externalCopyNone")]);
+  } else {
+    const named = { location: copy.location, path: copy.path, count: copy.retained_count };
+    facts.push([
+      t("externalCopy"),
+      copy.is_enabled ? t("externalCopyTo", named) : t("externalCopySuspended", named),
+    ]);
+  }
   return (
     <ReferenceSection title={t("title")} icon={CalendarClock}>
       <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">

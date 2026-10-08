@@ -1,0 +1,102 @@
+/audit-events:
+  get:
+    operationId: listAuditEvents
+    tags: [audit]
+    summary: Journal d'audit
+    description: >-
+      Les inscriptions du journal d'audit, chacune avec sa date, son auteur, son action, l'objet
+      concerné et le projet s'il y en a un (WF-SEC-0030) : les actions irréversibles ou
+      structurantes, de tous les projets et de la plateforme. Le journal est conservé aussi
+      longtemps que les projets : celui d'un projet terminé depuis des années se lit comme
+      celui d'un projet en cours, par le même filtre. Il ne se lit qu'ici : aucune opération
+      n'inscrit, ne modifie ni ne supprime une inscription, que seule l'action elle-même
+      produit, et une restauration ne le remplace pas : il est hors du périmètre qu'elle
+      restaure, et l'inscription de la restauration s'écrit une fois celle-ci faite (hypothèse
+      du contrat, #539). Les filtres se combinent ; le tri est celui des dates, les plus récentes
+      d'abord par défaut, deux inscriptions de même instant dans l'ordre de leur inscription,
+      inversé dans l'ordre décroissant ; le serveur pagine. Lisible sous la permission de consulter le journal
+      (`audit_log.read`, WF-ADM-0100), qui ouvre le journal entier : un projet s'y nomme par
+      son code et son libellé, que l'appelant en soit contributeur ou non ; le lien vers
+      l'objet ne vaut que pour qui peut le consulter (WF-ADM-0110).
+    parameters:
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
+      - name: from
+        in: query
+        description: Retient les inscriptions faites à cet instant ou après lui.
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: to
+        in: query
+        description: Retient les inscriptions faites avant cet instant, exclu.
+        schema: { $ref: ../components/common.yaml#/Timestamp }
+      - name: user_id
+        in: query
+        description: >-
+          Retient les inscriptions dont l'auteur est ce compte, désactivé compris
+          (WF-ADM-0060).
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: actor_kind
+        in: query
+        description: >-
+          Retient les inscriptions d'un compte (`user`) ou de la plateforme (`platform`) ;
+          absent, les deux.
+        schema: { $ref: ../components/schemas/audit.yaml#/AuditActorKind }
+      - name: actions
+        in: query
+        description: Retient les inscriptions de ces actions ; absent, toutes.
+        schema:
+          type: array
+          minItems: 1
+          items: { $ref: ../components/schemas/audit.yaml#/AuditAction }
+        explode: false
+      - name: project_id
+        in: query
+        description: >-
+          Retient les inscriptions de ce projet ; un projet qui n'en a aucune, ou qui n'existe
+          pas, ne retient rien.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: object_kind
+        in: query
+        description: Retient les inscriptions dont l'objet est de cette nature.
+        schema: { $ref: ../components/schemas/audit.yaml#/AuditObjectKind }
+      - name: object_id
+        in: query
+        description: >-
+          Retient les inscriptions de cet objet — l'histoire d'une révision, d'une ligne de
+          coût, d'un compte.
+        schema: { $ref: ../components/common.yaml#/Uuid }
+      - name: sort_order
+        in: query
+        description: >-
+          Sens du tri des dates ; absent, décroissant : les inscriptions les plus récentes
+          d'abord.
+        schema: { $ref: ../components/common.yaml#/SortOrder }
+    responses:
+      '200':
+        description: Inscriptions retenues, une page, et leur nombre.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, meta]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: ../components/schemas/audit.yaml#/AuditEvent }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
+            examples:
+              witness: { $ref: ../../../fixtures/api/audit_events.json }
+              page: { $ref: ../../../fixtures/api/audit_events_page.json }
+              project: { $ref: ../../../fixtures/api/audit_events_project.json }
+              exited: { $ref: ../../../fixtures/api/audit_events_exited.json }
+              empty: { $ref: ../../../fixtures/api/audit_events_empty.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : une période dont la fin précède le début, désignée dans
+          `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`). Aucune liste vide ne tient lieu de
+          refus.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }

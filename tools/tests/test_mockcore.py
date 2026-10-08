@@ -7,6 +7,7 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 """
 
 import json
+import re
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -14,8 +15,18 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockstructure, mockwitness, mockwrites
-from wftools.mockwitness import TODAY, Line, Task, universe
+from wftools import (
+    REPOSITORY,
+    mockcore,
+    mockdata,
+    mockhistory,
+    mockids,
+    mockstructure,
+    mockwitness,
+    mockwrites,
+)
+from wftools.mockids import universe
+from wftools.mockwitness import TODAY, Line, Task
 
 type Node = dict[str, Any]
 
@@ -67,7 +78,6 @@ def facet(node: Node) -> Node:
 LIST_NODES = (
     "nodes.json",
     "nodes_planning.json",
-    "nodes_core.json",
     "nodes_estimate.json",
     "nodes_installation.json",
     "nodes_milestone.json",
@@ -214,10 +224,14 @@ def test_the_readings_are_read_today_the_third_of_june(readings: dict[str, Any])
 
 def test_the_progress_is_read_at_the_day_given() -> None:
     # Read in the middle of April, the same tree tells where it was then.
+    # The reception of the studies is declared completed by a gesture made on 24 April: before it,
+    # nothing completes it by itself (WF-RAE-0030).
     then = {row.number: facet(row.node) for row in mockcore.core(today=date(2026, 4, 15))}
     assert then[DETAILED_STUDIES]["progress"] == "completed"
     assert then[REVIEW]["progress"] == "started"
     assert then[ACCEPTANCE]["progress"] == "not_started"
+    after = {row.number: facet(row.node) for row in mockcore.core(today=date(2026, 4, 24))}
+    assert after[ACCEPTANCE]["progress"] == "completed"
     assert then[WIRING]["progress"] == "not_started"
     assert "started_on" not in then[WIRING]
     # A started task past its finish is overdue; the desks, declared started, already were.
@@ -269,19 +283,15 @@ def test_the_critical_path_and_the_float_follow_the_links_of_the_core(
     installation = nodes(readings["nodes_installation.json"])
     tasks = {**tasks, **installation}
     critical = [n for n, node in tasks.items() if facet(node).get("is_critical")]
-    assert critical == [
-        DETAILED_STUDIES,
-        REVIEW,
-        ACCEPTANCE,
-        WIRING,
-        MILESTONE,
-        MOUNTING,
-        COMMISSIONING,
-    ]
+    # The core is linked to the tasks drawn about it (#376): the lots of the control station
+    # follow its factory acceptance, on the critical path of the whole structure, which ends in
+    # August 2029; the installation on site leads to the commissioning of the control station.
+    assert critical == [DETAILED_STUDIES, REVIEW, ACCEPTANCE, WIRING, MILESTONE]
     assert all(facet(tasks[n])["total_float"] == {"value": "0", "unit": "d"} for n in critical)
-    # The design file, two days before the detailed studies finish, may wait for the end of the
-    # core, the commissioning: 187 days of work between 15 April 2026 and 1 January 2027.
-    assert facet(planning[FILE])["total_float"] == {"value": "187", "unit": "d"}
+    assert facet(installation[MOUNTING])["total_float"] == {"value": "597.5", "unit": "d"}
+    assert facet(installation[COMMISSIONING])["total_float"] == {"value": "597.5", "unit": "d"}
+    # The design file, without a successor, may wait for the end of the whole structure.
+    assert facet(planning[FILE])["total_float"] == {"value": "880.5", "unit": "d"}
     assert facet(installation[COMMISSIONING])["finish"] == {"date": "2027-01-01", "hours": "8"}
     assert facet(planning[FILE])["start"] == {"date": "2026-04-09", "hours": "0"}
     # A task in manual mode shows no float and is never critical; its successor is.
@@ -292,8 +302,8 @@ def test_the_critical_path_and_the_float_follow_the_links_of_the_core(
     assert planning[DESKS]["computed_fields"] == []
     assert {"task.start", "task.finish"} <= set(planning[DESKS]["editable_fields"])
     # The two tasks of the occurrence, in parallel with the wiring, may wait for the end too.
-    assert facet(estimate[REMINDER])["total_float"] == {"value": "165", "unit": "d"}
-    assert facet(estimate[TRANSPORT])["total_float"] == {"value": "165", "unit": "d"}
+    assert facet(estimate[REMINDER])["total_float"] == {"value": "858.5", "unit": "d"}
+    assert facet(estimate[TRANSPORT])["total_float"] == {"value": "858.5", "unit": "d"}
 
 
 def test_a_milestone_is_a_task_of_no_duration_at_one_instant(readings: dict[str, Any]) -> None:
@@ -415,8 +425,8 @@ def test_the_physical_progress_of_a_summary_is_the_budget_of_its_completed_tasks
     assert "physical_progress" not in facet(planning[DETAILED_STUDIES])
 
 
-_STRUCTURE_NODES = next(f for f in mockwitness.IDENTIFIERS if f.what == "nœuds de la structure")
-_STRUCTURE_LINEAGES = next(f for f in mockwitness.IDENTIFIERS if f.first == 600)
+_STRUCTURE_NODES = next(f for f in mockids.IDENTIFIERS if f.what == "nœuds de la structure")
+_STRUCTURE_LINEAGES = next(f for f in mockids.IDENTIFIERS if f.first == 600)
 
 _RENAMED = {
     ("task_renamed.json", universe(WIRING)),
@@ -623,6 +633,50 @@ def test_the_task_tree_reads_the_summaries_down_to_the_level_asked(
     assert tree["totals"]["estimate_line_count"] == 0
 
 
+def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatever_it_retains() -> (
+    None
+):
+    # #494: each example of listNodes the contract cites says the depth of the structure it reads,
+    # whatever it retains — a filter, a search, a timeline, `kinds`, the level asked.
+    contract = (REPOSITORY / "docs/api/paths/revisions.yaml").read_text(encoding="utf-8")
+    block = contract[contract.index("operationId: listNodes") :]
+    block = block[: block.index("'400'")]
+    cited = set(re.findall(r"fixtures/api/(\S+)\.json", block))
+    current, alone = mockcore.current(), mockcore.alone()
+    nested = mockcore.alone(mockdata.nested())
+    structures = {
+        "volume/nodes_thousand": current,
+        "nodes": current,
+        "nodes_milestone": current,
+        "nodes_estimate": current,
+        "nodes_installation": current,
+        "nodes_planning": current,
+        "nodes_risk_occurred": current,
+        "nodes_timeline": current,
+        "nodes_core": alone,
+        "nodes_nested": nested,
+        "nodes_summaries": nested,
+    }
+    depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
+    depths["nodes_summaries_leaves"] = 0
+    assert set(depths) == cited
+    assert (depths["nodes"], depths["nodes_core"], depths["nodes_summaries"]) == (2, 2, 3)
+    for name, depth in depths.items():
+        assert mockwitness.fixture(name)["meta"] == {"summary_depth": depth}, name
+    # A reading without a filter renders every summary: its depth is that of its own items.
+    for name in ("volume/nodes_thousand", "nodes_core"):
+        read = mockwitness.fixture(name)
+        deepest = max(
+            node["level"]
+            for node in read["items"]
+            if node["kind"] == "task" and node["task"]["is_summary"]
+        )
+        assert read["meta"] == {"summary_depth": deepest}, name
+    # The tree asked at the level 2 is told the third exists, which it does not render.
+    shown = mockwitness.fixture("nodes_summaries")["items"]
+    assert max(node["level"] for node in shown) == 2
+
+
 def test_a_timeline_reads_the_tasks_inscribed_on_it_without_their_ancestors(
     readings: dict[str, Any],
 ) -> None:
@@ -745,7 +799,11 @@ def test_the_kanban_holds_every_task_by_its_state_the_milestones_to_complete_fla
 def test_a_line_of_today_shows_its_quantities_and_amount_at_the_previous_review() -> None:
     today = {row.number: row for row in mockcore.current()}
     marked = {row.number: row for row in mockcore.core(mockwitness.reference())}
-    lines = [row for row in today.values() if row.kind == mockcore.ESTIMATE_LINE]
+    lines = [
+        row
+        for row in today.values()
+        if row.kind == mockcore.ESTIMATE_LINE and row.number < mockwitness.GENERATED
+    ]
     assert len(lines) == 9
     for row in lines:
         facet = cast("Node", row.node["estimate_line"])
@@ -760,6 +818,15 @@ def test_a_line_of_today_shows_its_quantities_and_amount_at_the_previous_review(
         assert facet["previous_hours"] == was["hours"]
         assert facet["previous_unit_disbursement"] == was["unit_disbursement"]
         assert facet["previous_reestimated_amount"] == was["reestimated_amount"]
+    # A line drawn about the core was in the reference as it is today: nothing re-estimated.
+    drawn = next(
+        row
+        for row in today.values()
+        if row.kind == mockcore.ESTIMATE_LINE and row.number > mockwitness.GENERATED
+    )
+    line = cast("Node", drawn.node["estimate_line"])
+    assert line["previous_quantity"] == line["quantity"]
+    assert line["previous_reestimated_amount"] == line["reestimated_amount"]
     # The provision of 751, at 500 today, was at the 250 the reference knew.
     provision = cast("Node", today[PROVISION].node["estimate_line"])
     assert (provision["unit_disbursement"], provision["previous_unit_disbursement"]) == (
@@ -775,3 +842,82 @@ def test_a_marked_revision_shows_no_previous_review() -> None:
         if row.kind == mockcore.ESTIMATE_LINE:
             facet = cast("Node", row.node["estimate_line"])
             assert all(facet[name] is None for name in mockcore.PREVIOUS)
+
+
+def test_a_task_in_manual_mode_bounds_its_predecessors_whose_float_may_be_negative() -> None:
+    # WF-PLA-0100 (#402, #464): a date entered by hand downstream bounds its predecessors. The
+    # task of five days from 2 March finishes on Friday 6 March; its successor, set by hand to
+    # start on Wednesday 4 March, asks it to finish by Tuesday evening: three days late, critical.
+    first = Task(1, "Préparation", days=5)
+    imposed = Task(
+        2,
+        "Livraison imposée",
+        days=5,
+        links=(mockwitness.Link(1),),
+        manual=(date(2026, 3, 4), date(2026, 3, 10)),
+        progress="not_started",
+    )
+    rows = mockcore.core([Task(3, "Lot", children=(first, imposed))])
+    tasks = {row.number: cast("Node", row.node["task"]) for row in rows}
+    assert tasks[1]["finish"] == {"date": "2026-03-06", "hours": "8"}
+    assert tasks[1]["total_float"] == {"value": "-3", "unit": "d"}
+    assert tasks[1]["is_critical"] is True
+    # The task entered by hand shows no float itself.
+    assert (tasks[2]["total_float"], tasks[2]["is_critical"]) == (None, False)
+
+
+@pytest.mark.parametrize(
+    ("name", "number"),
+    [("nodes_installation.json", COMMISSIONING), ("nodes_planning.json", REVIEW)],
+)
+def test_a_reading_says_the_critical_path_only_where_its_task_is_on_it(
+    name: str, number: int
+) -> None:
+    # Said from the float the reading gives, never written by hand (#376).
+    example = mockdata.readings()[name]
+    task = facet(nodes(json.loads(mockdata.render(example))["value"])[number])
+    summary = str(example["summary"])
+    assert ("chemin critique" in summary) is task["is_critical"]
+    if not task["is_critical"]:
+        assert f"{task['total_float']['value'].replace('.', ',')} jours ouvrés de marge" in summary
+
+
+def test_the_comparison_names_the_lines_reestimated_without_being_designated() -> None:
+    example = mockhistory.examples()["comparison.json"]
+    changed = cast("list[Node]", cast("Node", example["value"])["changed"])
+    kept = [entry["label"] for entry in changed if entry["changes"] == ["reestimated_amount"]]
+    assert kept == ["Câblage sur site", "Mise en service sur site"]
+    assert all(f"« {label} »" in str(example["summary"]) for label in kept)
+
+
+def test_the_two_kanbans_read_the_same_structure_their_tasks_not_written_alike() -> None:
+    # Both read the whole structure, filtered to its core: a task the gesture does not write keeps
+    # the float the structure gives it, in one as in the other (#376).
+    readings = mockdata.readings()
+
+    def floats(name: str) -> dict[str, Any]:
+        value = cast("dict[str, list[Node]]", json.loads(mockdata.render(readings[name]))["value"])
+        return {
+            node["node_id"]: node["task"]["total_float"]
+            for column in value.values()
+            for node in column
+        }
+
+    today, gesture = floats("startable_tasks.json"), floats("startable_tasks_milestone.json")
+    written = {universe(WIRING), universe(MILESTONE)}
+    assert today.keys() == gesture.keys()
+    assert {key: today[key] for key in today.keys() - written} == {
+        key: gesture[key] for key in gesture.keys() - written
+    }
+    # The design file, without a successor, has the float of the whole structure, not the core's.
+    assert today[universe(FILE)] == {"value": "880.5", "unit": "d"}
+
+
+def test_a_quantity_is_an_exact_decimal_rendered_as_the_contract_carries_it() -> None:
+    # A quantity of 2.5 times a disbursement of 100: 250 exactly, the quantity written 2.5.
+    line = Line(
+        1, "Location", mockwitness.EQUIPMENT, unit=Decimal("100.00"), quantity=Decimal("2.5")
+    )
+    assert mockcore.price(line, 2026).base == Decimal(250)
+    [_, row] = mockcore.core([Task(2, "Tâche", days=1, lines=(line,))])
+    assert cast("Node", row.node["estimate_line"])["quantity"] == "2.5"

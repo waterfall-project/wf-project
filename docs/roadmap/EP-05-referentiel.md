@@ -95,9 +95,25 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (2) :
   la garde de `include_inactive` sur les lectures du référentiel, reportée d'EP-03 par son
   cadrage (2026-10-07).
 - #299 — ajouter une année à la grille des taux horaires (WF-REF-0060) : la commande appartient
-  au référentiel réel, reportée d'EP-02 (2026-10-07).
+  au référentiel réel, reportée d'EP-02 (2026-10-07). Rangé le 2026-10-08 dans EP-02/L41 (#506),
+  qui fait la part de la maquette (L41b) : la grille offre, à qui peut saisir les taux, d'ajouter
+  la colonne d'une année qu'elle n'a pas, vide, refusée pour une année déjà présente ou hors des
+  bornes de `Year`. Le contrat n'a aucune opération pour créer une colonne — une année entre dans
+  la grille par le premier taux qu'on y saisit (`getHourlyRateGrid`) — : la colonne est celle du
+  front jusqu'à ce premier taux, écrit par `setHourlyRate` sans version. Reste à EP-05 la part
+  du service : refuser un second taux pour la même année (WF-REF-0050) et rendre l'année dans
+  `years` dès son premier taux, que le parcours éprouvera contre le service réel. Le refus d'une
+  colonne déjà présente reste au front, faute d'opération qui crée une colonne.
 - #300 — les écrans du référentiel ne montrent ni ne réactivent les objets désactivés
-  (WF-REF-0150), reportée d'EP-02 (2026-10-07).
+  (WF-REF-0150), reportée d'EP-02 (2026-10-07). Rangé le 2026-10-08 dans EP-02/L41 (#506),
+  qui fait la part de la maquette (L41b) : les paramètres de coûts et de ressources lisent les
+  objets actifs seuls, et les désactivés aussi quand l'adresse le demande (`include_inactive`), à
+  une session qui porte la permission de lecture de leur partie du référentiel ; un objet
+  désactivé s'y réactive par la commande d'activation de sa nature, pour qui peut modifier
+  cette partie. Le faux back ignorant `include_inactive` et ne gardant rien, la maquette
+  n'éprouve que ce que l'écran demande. Reste à EP-05 la part du service : ne rendre les
+  désactivés qu'avec `include_inactive`, refuser celui-ci sans la permission (403), et appliquer
+  la réactivation, que le parcours éprouvera contre le service réel.
 
 ## Préalables
 

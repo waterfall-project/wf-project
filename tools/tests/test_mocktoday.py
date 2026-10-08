@@ -18,11 +18,13 @@ from wftools import (
     mockdata,
     mockhistory,
     mockindicators,
+    mockstructure,
     mocktext,
     mocktoday,
     mockwitness,
 )
-from wftools.mockwitness import COMMISSIONING, ELECTRICAL_ENGINEERING, universe
+from wftools.mockids import universe
+from wftools.mockwitness import COMMISSIONING, ELECTRICAL_ENGINEERING
 
 type Node = dict[str, Any]
 
@@ -143,7 +145,7 @@ def test_the_remaining_counts_each_line_by_the_state_of_its_task(today: dict[str
         "started": Decimal("2234.56"),
         "provision": Decimal("500.00"),
         "merged": Decimal("200.00"),
-        "not_started": Decimal("18600.00"),
+        "not_started": Decimal("18300.00"),
     }
     left = today["remaining_indicators"]
     assert Decimal(left["total"]) == sum(by_state.values())
@@ -225,7 +227,7 @@ def test_the_indicators_of_the_scopes_sum_to_those_of_the_project() -> None:
     # The studies, completed on 10 April, earn their budget; the occurrence earns nothing.
     assert project["earned_value"] == "100000.00"
     assert project["actual_cost"] == "105400.00"
-    assert project["reference_budget"] == "120834.56"
+    assert project["reference_budget"] == "120534.56"
 
 
 def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[str, Any]) -> None:
@@ -255,7 +257,7 @@ def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
         project["schedule_variance"],
         project["schedule_index"]["value"]["value"],
         project["cost_index"]["value"]["value"],
-    ) == ("21534.56", "120834.56", "101223.69", "-1223.69", "0.9879", "0.9488")
+    ) == ("21234.56", "120534.56", "101223.69", "-1223.69", "0.9879", "0.9488")
 
 
 def test_the_curves_reach_the_budget_and_the_projection_of_the_project_manager(
@@ -287,8 +289,8 @@ def test_an_amendment_steps_the_budget_by_two_points_at_its_date(today: dict[str
             assert (before, after) == ("23333.33", "26833.33")
         else:
             assert before == after == "0.00"
-    assert [step["amount"] for step in curve["steps"]] == ["3165.00", "15000.00"]
-    assert budget[-1]["amount"] == "135834.56"
+    assert [step["amount"] for step in curve["steps"]] == ["2865.00", "15000.00"]
+    assert budget[-1]["amount"] == "135534.56"
 
 
 def test_the_disbursements_to_come_sum_to_the_remaining(today: dict[str, Any]) -> None:
@@ -372,6 +374,23 @@ def test_the_evolution_of_the_indices_keeps_the_revisions_marked_in_progress(
     # The tracking of the milestones keeps the forecast of the offer.
     studies = today["milestone_tracking"]["milestones"][0]
     assert studies["points"][0]["marked_at"] == "2025-12-15T16:00:00Z"
+
+
+def test_the_state_at_a_marking_is_read_in_the_transitions_of_the_project_not_from_its_date() -> (
+    None
+):
+    # The offer was marked while pricing, the reference In progress (`state_transitions`).
+    assert mockindicators.state_at(mockwitness.OFFER_MARKED.instant) == "pricing"
+    assert mockindicators.state_at(mockwitness.AMENDMENT_MERGED.instant) == "in_progress"
+    assert mockindicators.state_at(mockwitness.INSTALLED.instant) is None
+    # Suspended after its order, a project marks no revision In progress, whatever the date; a
+    # transition at the very instant of the marking counts.
+    at = mockwitness.AMENDMENT_MERGED.instant
+    transitions: list[mockstructure.JsonObject] = [
+        {"to_state": "in_progress", "occurred_at": "2026-01-15T11:00:00Z"},
+        {"to_state": "suspended", "occurred_at": mockhistory.stamp(at)},
+    ]
+    assert mockindicators.state_at(at, transitions) == "suspended"
 
 
 def test_one_run_writes_the_portfolio_from_the_indicators_it_writes(

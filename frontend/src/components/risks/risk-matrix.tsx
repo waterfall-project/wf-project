@@ -49,7 +49,7 @@ export function RiskMatrixView({ matrix }: { readonly matrix: RiskMatrix }) {
           {t("title")}
         </h2>
       </caption>
-      <thead>
+      <thead className="bg-muted">
         <tr>
           <th scope="col" className="w-24 p-1 text-left align-bottom font-medium">
             {t("probability")}
