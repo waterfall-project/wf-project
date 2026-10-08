@@ -82,7 +82,11 @@ const COMPUTED_PREVIOUS: ComputedCells<GridNode> = {
   field: () => "estimate_line.previous_reestimated_amount",
 };
 
-/** The grid of the remaining to commit, read only. */
+/**
+ * The grid of the remaining to commit, read only. The server sorts the lines under each task and
+ * leaves the tasks in the order of the tree (`sort_by`, WF-IHM-0060, #526): the progress and the
+ * finish, columns of the task alone, would sort nothing, and offer no sort.
+ */
 export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotals> = {
   key: "remaining",
   searched: true,
@@ -100,6 +104,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
       width: 44,
       icon: Contrast,
       contract: "progress",
+      sorts: false,
       value: (node) => node.task?.progress,
       render: (node) => <ProgressCell node={node} />,
     },
@@ -111,6 +116,7 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
       format: "date",
       width: 100,
       contract: "finish",
+      sorts: false,
       value: (node) => node.task?.finish?.date,
     },
     // A narrow column headed by the icon of its mark; the server sorts by no such column.
@@ -210,7 +216,10 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
   ],
 };
 
-/** The columns of the contract the grid of the remaining to commit sorts by. */
+/**
+ * The columns of the contract the grid of the remaining to commit sorts by: those of the lines; a
+ * sort by a column of the task alone, in the address or kept by the account, is not asked.
+ */
 export const REMAINING_SORT_COLUMNS = sortColumns(REMAINING_GRID);
 
 /** What a write of the grid of the remaining to commit answers, as the grid reads it. */

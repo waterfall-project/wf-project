@@ -9,7 +9,8 @@ critical path found from its links (WF-PLA-0100), its lines priced at the rates 
 (WF-DEV-0020) and its summaries summed (WF-DEV-0050), and its nodes emitted as the server
 renders them, numbered from its first row (EP-02/L27, #376). The named examples of ``listNodes`` —
 ``nodes``, ``nodes_planning``, ``nodes_estimate``, ``nodes_milestone``, ``nodes_risk_occurred``
-— are readings of this one tree, by ``subtree_of``, ``kinds`` and ``search``, and the
+— are readings of this one tree, by ``subtree_of``, ``kinds``, ``search`` and the sort of the
+lines under each task (``wftools.mocksort``, #526), and the
 ``dependencies_*`` examples say what its computed values depend on: one identifier, one lineage
 and one figure for each node, whatever the example (EP-02/L21).
 
@@ -74,6 +75,8 @@ from wftools.mockwitness import (
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from datetime import date
+
+    from wftools.mocksort import LineSort
 
 READ_ON = TODAY.date()
 """The day the examples are read: the progress of the tasks is at that day."""
@@ -688,18 +691,24 @@ def alone(roots: Iterable[Task] = CORE) -> list[Row]:
 # --- The readings of listNodes ----------------------------------------------------------------
 
 
-def subtree(rows: list[Row], root: int, kinds: frozenset[str] | None = None) -> JsonObject:
+def subtree(
+    rows: list[Row],
+    root: int,
+    kinds: frozenset[str] | None = None,
+    sort: LineSort | None = None,
+) -> JsonObject:
     """Return the reading of the subtree of a task, it included, restricted to some kinds.
 
-    ``subtree_of``, then ``kinds``: the nodes under the task, in the order of the plan. The
-    totals are those of the subtree read, whatever ``kinds`` renders of it (#487).
+    ``subtree_of``, then ``kinds``: the nodes under the task, in the order of the plan, the lines
+    of each task in the order of ``sort`` when there is one. The totals are those of the subtree
+    read, whatever ``kinds`` renders of it (#487) and whatever the sort.
     """
     below = {root}
     for row in rows:
         if row.parent in below:
             below.add(row.number)
     retained = [row for row in rows if row.number in below]
-    return _answer(rows, retained, [], kinds)
+    return _answer(rows, retained, [], kinds, sort)
 
 
 def whole(rows: list[Row]) -> JsonObject:
@@ -807,8 +816,12 @@ def _answer(
     retained: list[Row],
     readable: list[Row],
     kinds: frozenset[str] | None = None,
+    sort: LineSort | None = None,
 ) -> JsonObject:
     """Return the answer of listNodes: the nodes in the order of the plan, the totals, the meta.
+
+    A sort moves the lines of each task among the places its lines hold, and nothing else: the
+    tasks, and the subtrees under them, keep the order of the plan (``mocksort.LineSort``, #526).
 
     The totals count the retained nodes and sum the retained lines (`NodeTotals`), never the
     amounts of the tasks, which would count the lines twice. ``kinds`` chooses what is rendered,
@@ -820,6 +833,8 @@ def _answer(
         (row for row in [*retained, *readable] if kinds is None or row.kind in kinds),
         key=lambda row: row.row,
     )
+    if sort is not None:
+        shown = _lines_sorted(shown, sort)
     lines = [row for row in retained if row.kind == ESTIMATE_LINE]
     amounts = sum((row.amounts for row in lines), Amounts())
     return {
@@ -832,6 +847,19 @@ def _answer(
         },
         "meta": {"summary_depth": summary_depth(structure)},
     }
+
+
+def _lines_sorted(shown: list[Row], sort: LineSort) -> list[Row]:
+    """Return the rows of a reading, the lines of each task sorted in the places they hold."""
+    places: dict[int | None, list[int]] = {}
+    for at, row in enumerate(shown):
+        if row.kind == ESTIMATE_LINE:
+            places.setdefault(row.parent, []).append(at)
+    found = list(shown)
+    for held in places.values():
+        for at, row in zip(held, sort.ordered([shown[at] for at in held]), strict=True):
+            found[at] = row
+    return found
 
 
 def summary_depth(rows: Iterable[Row]) -> int:

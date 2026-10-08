@@ -12,8 +12,8 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockaudit, mockdata, mockhistory, mockwitness
-from wftools.mockids import hex_identifier
+from wftools import mockaudit, mockcosts, mockdata, mockhistory, mockwitness
+from wftools.mockids import hex_identifier, universe
 from wftools.mocktext import PAGE
 from wftools.mockwitness import INSTALLED, TODAY, fixture
 
@@ -215,6 +215,54 @@ def test_each_actor_is_the_one_who_did_the_action(journal: dict[str, Node]) -> N
             assert event["actor"] == witness, event["action"]
         elif kind == "import":
             assert event["actor"] == journal_of_costs[imports[identifier]]["actor"]
+
+
+def test_the_designation_and_the_exclusion_stay_with_the_witness_whoever_updated_last(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # In the universe, Camille Martin did everything, so the test above cannot tell the actor of
+    # an action from the one who last updated its object (#543). Here someone else last updated
+    # the offer and the excluded line — Lucas Petit re-extracting the line on 11 May —: the marking
+    # of the offer, whose audit its marking dates, follows its audit; the designation and the
+    # exclusion, which their audits do not date, stay with the actor of the witness. The line is
+    # changed where the generator could read it, on the disk and in memory, as `mockcosts` writes
+    # it: whichever it read, the exclusion would follow it.
+    witness = fixture("project")["audit"]["created_by"]
+    users = {user["last_name"]: user for user in fixture("users")["items"]}
+    other = {"kind": "user", "user_id": users["Petit"]["user_id"], "display_name": "Lucas Petit"}
+    assert other != witness
+    offer, excluded = universe(100), hex_identifier(0xC04)
+    real = mockwitness.fixture
+
+    def updated_by_another(name: str) -> Any:
+        value = real(name)
+        if name == "revisions":
+            objects, key = value["items"], ("revision_id", offer)
+        elif name == "actual_costs":
+            objects, key = value["items"], ("cost_line_id", excluded)
+        else:
+            return value
+        [changed] = [each for each in objects if each[key[0]] == key[1]]
+        changed["audit"]["updated_by"] = other
+        return value
+
+    written = mockcosts.cost_line
+
+    def line_updated_by_another(line: mockwitness.CostLine) -> Any:
+        value = cast("Node", written(line))
+        if value["cost_line_id"] == excluded:
+            value["audit"]["updated_by"] = other
+        return value
+
+    monkeypatch.setattr(mockaudit, "fixture", updated_by_another)
+    monkeypatch.setattr(mockcosts, "cost_line", line_updated_by_another)
+    events = {
+        (event["action"], event["object"]["object_id"]): event["actor"]
+        for event in cast("list[Node]", mockaudit.journal())
+    }
+    assert events["revision_mark", offer] == other
+    assert events["reference_designate", offer] == witness
+    assert events["cost_line_exclude", excluded] == witness
 
 
 def test_the_journal_reads_no_example_the_same_command_writes(

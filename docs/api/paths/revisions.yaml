@@ -378,8 +378,10 @@
 
       La structure est rendue entière, sans pagination : une révision porte au plus dix
       mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et
-      les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien : le
-      tri ordonne les nœuds frères entre eux sans défaire l'arbre. Un filtre sur une
+      les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien. Une
+      grille arborescente ne se trie pas : les tâches gardent l'ordre de l'arbre, et le tri
+      n'y est qu'un tri des lignes de devis sous chaque tâche, chaque ligne restant sous la
+      sienne (WF-IHM-0060). Un filtre sur une
       tâche — avancement, criticité, sous-arbre, récapitulative, niveau, chronologie —
       retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur
       une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le
@@ -493,9 +495,24 @@
       - name: sort_by
         in: query
         description: >-
-          Colonne du tri ; absente, l'ordre du plan. Chaque colonne d'une grille se
-          trie dans les deux sens (WF-IHM-0060) : une colonne de grille qui manquerait
-          ici est un constat sur le contrat.
+          Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne
+          que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et
+          leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number`
+          (WF-IHM-0060) : trié par montant croissant, le devis rend sous chaque tâche
+          ses lignes du plus petit montant au plus grand, et ses tâches à leur place, celle de
+          montant nul comprise (`estimate_sorted`). Un nombre se compare par sa valeur ; le
+          libellé, en texte, et la catégorie, le rôle et le sous-projet, par leur libellé,
+          caractère par caractère dans l'ordre des points de code Unicode ; une ligne sans
+          valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres dans
+          l'ordre croissant, avant dans le décroissant (`estimate_hours`). Des lignes d'une
+          même valeur, ou toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la
+          seule tâche, de `description` à `work_breakdown`, que les lignes n'ont pas, les y
+          laisse toutes. Les grilles de devis
+          et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes
+          qu'elles présentent pour les lignes ; la grille de planning, qui ne rend pas les
+          lignes, ne propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou
+          une chronologie. Une colonne de ligne qui manquerait ici est un constat sur le
+          contrat.
         schema: { $ref: ../components/schemas/revisions.yaml#/NodeColumn }
       - $ref: ../components/parameters.yaml#/SortOrder
       - name: fields
@@ -531,6 +548,8 @@
               witness: { $ref: ../../../fixtures/api/nodes.json }
               milestone: { $ref: ../../../fixtures/api/nodes_milestone.json }
               estimate: { $ref: ../../../fixtures/api/nodes_estimate.json }
+              estimate_sorted: { $ref: ../../../fixtures/api/nodes_estimate_sorted.json }
+              estimate_hours: { $ref: ../../../fixtures/api/nodes_estimate_hours.json }
               installation: { $ref: ../../../fixtures/api/nodes_installation.json }
               core: { $ref: ../../../fixtures/api/nodes_core.json }
               planning: { $ref: ../../../fixtures/api/nodes_planning.json }

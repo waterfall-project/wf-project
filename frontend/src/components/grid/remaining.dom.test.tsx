@@ -19,9 +19,11 @@ import { RemainingGrid } from "./remaining-grid";
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+const push = vi.hoisted(() => vi.fn());
+
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push, refresh: vi.fn() }),
   usePathname: () => "/projects/p/revisions/r/remaining",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -48,10 +50,18 @@ const MERGED_LINE = 9;
 const ACCEPTANCE = 10;
 // The rows of the studies of the witness: the operator desks, started and past their finish.
 const DESKS = 3;
+// The columns of the task alone the grid shows: the contract accepts a sort by them, but the sort of
+// the server, of the lines under each task, would change nothing there (WF-IHM-0060, #526).
+const TASK_ALONE = ["progress", "finish"];
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(): FakeClient {
-  const client = fakeClient({ [REMAINING]: "remaining_reestimated", [NODES]: "nodes_estimate" });
+  const client = fakeClient({
+    [REMAINING]: "remaining_reestimated",
+    [NODES]: "nodes_estimate",
+    // A header that sorts keeps the sort in the preferences of the account.
+    "PATCH /me/preferences": "preferences",
+  });
   server.client = client;
   return client;
 }
@@ -104,11 +114,13 @@ afterEach(() => {
 });
 
 describe("the grid of the remaining to commit", () => {
-  it("keeps the sort of its columns, a tree whose lines the server sorts under each task, unlike the planning", () => {
+  it("keeps the sort of the columns of the lines, a tree whose lines the server sorts under each task, unlike the planning", () => {
     // The planning sorts none of its columns (WF-IHM-0060-A, #525); the remaining to commit, as the
-    // estimate, sorts each column the contract names.
+    // estimate, sorts each column of the lines the contract names, and none of the task alone.
     expect(REMAINING_SORT_COLUMNS).toEqual(
-      REMAINING_GRID.columns.flatMap((column) => column.contract ?? []),
+      REMAINING_GRID.columns.flatMap((column) =>
+        column.contract === undefined || TASK_ALONE.includes(column.key) ? [] : [column.contract],
+      ),
     );
     expect(REMAINING_SORT_COLUMNS).toContain("reestimated_amount");
     serve();
@@ -116,6 +128,56 @@ describe("the grid of the remaining to commit", () => {
     const table = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
     const header = within(table).getByRole("columnheader", { name: "Calculé Montant réestimé" });
     expect(within(header).getByRole("button")).toBeInTheDocument();
+  });
+
+  it("offers no sort on the progress nor the finish of a task, which the server leaves in the order of the tree (#526)", async () => {
+    // The server sorts the lines under each task alone (WF-IHM-0060): a sort by a column of the task
+    // alone would change nothing, and the grid does not present it. The columns keep the column of
+    // the contract they show all the same, which a paste lands on where the grid takes one (the
+    // planning, the estimate).
+    push.mockClear();
+    const client = serve();
+    render(grid());
+    const table = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
+    for (const name of ["Avancement", "Fin"]) {
+      const header = within(table).getByRole("columnheader", { name });
+      expect(within(header).queryByRole("button")).toBeNull();
+      expect(header).not.toHaveAttribute("aria-sort");
+      expect(header.getAttribute("aria-keyshortcuts") ?? "").not.toContain("Enter");
+      header.focus();
+      await userEvent.keyboard("{Enter} ");
+    }
+    expect(push).not.toHaveBeenCalled();
+    expect(client.calls).toEqual([]);
+    // Enter on a column of the lines sorts it.
+    const budgeted = within(table).getByRole("columnheader", { name: "Calculé Montant budgété" });
+    budgeted.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(String(push.mock.calls[0]?.[0])).toContain("sort_by=budgeted_amount");
+    const taskAlone = REMAINING_GRID.columns.filter((column) => TASK_ALONE.includes(column.key));
+    expect(taskAlone.map((column) => column.contract)).toEqual(["progress", "finish"]);
+  });
+
+  it("shows no sort by a column of the task alone the address would still ask", () => {
+    // A sort by the progress handed down anyway is shown on no header.
+    serve();
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <RemainingGrid
+          nodes={example("nodes_estimate") as NodeList}
+          structure={STRUCTURE}
+          filters={{ progress: ["started"] }}
+          editable
+          query={{ sort: { column: "progress", order: "desc" }, search: undefined }}
+          preferences={undefined}
+        />
+      </NextIntlClientProvider>,
+    );
+    const table = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
+    for (const header of within(table).getAllByRole("columnheader")) {
+      expect(header).not.toHaveAttribute("aria-sort");
+    }
   });
 
   it("presents of each line its budgeted amount, its figures and its amount re-estimated before and now, the amounts computed [WF-RAE-0040-A]", async () => {

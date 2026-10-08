@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { ESTIMATE_SORT_COLUMNS } from "./estimate";
 import { prefixedAddress, readGridQuery, SEARCH_LENGTH, searchHref, sortHref } from "./query";
+import { REMAINING_SORT_COLUMNS } from "./remaining";
 
 describe("what the address asks of a grid", () => {
   it("reads the sort by a column the grid sorts, ascending unless the address says descending", () => {
@@ -35,6 +36,20 @@ describe("what the address asks of a grid", () => {
     expect(read("", { column: "start", order: "asc" })).toBeUndefined();
     expect(read("", { column: "hours", order: "up" })).toEqual({ column: "hours", order: "asc" });
     expect(read("", null)).toBeUndefined();
+  });
+
+  it("asks no sort by a column of the task alone of a grid of the tree, in the address or kept, as by one it does not know (#526)", () => {
+    // The remaining to commit sorts the lines under each task: its progress and its finish, of the
+    // task alone, are not asked — a preference kept before them is passed over, without error.
+    const read = (query: string, kept: { column: string; order: string } | null = null) =>
+      readGridQuery(new URLSearchParams(query), REMAINING_SORT_COLUMNS, kept).sort;
+    expect(read("sort_by=progress&sort_order=desc")).toBeUndefined();
+    expect(read("sort_by=finish")).toBeUndefined();
+    expect(read("", { column: "progress", order: "desc" })).toBeUndefined();
+    expect(read("", { column: "finish", order: "asc" })).toBeUndefined();
+    // Passed over as an unknown sort is: the address that asks it falls back on the sort kept.
+    const kept = { column: "budgeted_amount", order: "desc" };
+    expect(read("sort_by=finish", kept)).toEqual({ column: "budgeted_amount", order: "desc" });
   });
 
   it("asks no sort, and falls back on none, when the address lifted it", () => {

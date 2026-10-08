@@ -197,8 +197,9 @@ dire laquelle faisait foi, sont retirés. Le thème suit la même forme — `def
 grille demande son tri par `sort_by` et `sort_order`, ses filtres par des paramètres nommés,
 et la réponse porte les totaux du périmètre retenu. Trier dans le front aurait exigé
 l'exception à la règle « le front ne réordonne pas ce que le back ordonne », et laissé les
-totaux mentir sous un filtre. Dans l'arbre, le tri ordonne les frères sans défaire l'arbre,
-et un filtre rend aussi les ancêtres des nœuds retenus. Le montant d'une récapitulative —
+totaux mentir sous un filtre. Dans l'arbre, le tri ne réordonne que les lignes de devis sous
+chaque tâche, et les tâches gardent l'ordre de l'arbre (#526, section « Le tri des grilles
+arborescentes ») ; un filtre rend aussi les ancêtres des nœuds retenus. Le montant d'une récapitulative —
 la somme de ce qu'elle porte et de ses subordonnées (WF-DEV-0050) — est de même rendu par
 la facette tâche. La préférence de tri d'une grille garde la forme de la requête, une
 colonne et un sens, pour être renvoyée telle quelle.
@@ -2720,6 +2721,41 @@ la désactivation de deux calendriers ; le client relit les listes, comme ces op
 `HourlyRateGrid.years` dit enfin ce que sont les colonnes sans `include_inactive` : les années que
 portent les catégories actives, une année que seules des désactivées portent n'en étant pas une.
 
+## Le tri des grilles arborescentes (EP-02/L42c)
+
+**Une grille arborescente ne trie que les lignes de devis sous chaque tâche** (#526, décision de
+l'auteur du 2026-10-08, option (a)). Le contrat disait que le tri de `listNodes` ordonnait les
+nœuds frères entre eux sans défaire l'arbre : trier le devis par montant aurait aussi déplacé les
+tâches. Il suit désormais la spécification (WF-IHM-0060) : les tâches et leurs sous-arbres gardent
+l'ordre de l'arbre, et le tri ne permute les lignes d'une tâche qu'entre les places que ses lignes
+tiennent. Des lignes d'une même valeur gardent l'ordre du plan, comme tout tri à égalité ; une
+colonne de la seule tâche, que les lignes n'ont pas, les y laisse donc toutes. `row_number` ne
+change pas, ni les totaux. La description de `sort_by` dit quelles grilles trient : le devis et le
+reste à engager, par les colonnes qu'ils présentent pour les lignes ; le planning ne trie plus
+depuis #525, ni le diagramme de Gantt, l'arborescence de tâches ou une chronologie. Écartée,
+l'option (b) : réviser §3.4 pour que le tri déplace les tâches — une tâche ne change pas de place
+parce qu'on trie des montants, et MS Project, que la spécification prend pour modèle, ne le fait
+pas.
+
+**Deux lignes se comparent comme partout ailleurs dans le contrat** (revue d'EP-02/L42c). Un
+nombre par sa valeur ; le libellé en texte, et la catégorie, le rôle et le sous-projet par leur
+libellé, caractère par caractère dans l'ordre des points de code Unicode, comme les textes des
+coûts réels et des tables plates (#292, #387) ; une ligne sans valeur — un débours sans heures, une
+ligne sans rôle ou sans sous-projet — vient après les autres dans l'ordre croissant, avant dans le
+décroissant, comme une ligne sans valeur des coûts réels ou une catégorie sans taux de la grille
+des taux (#509). La description de `sort_by` le dit ; celle de `NodeColumn` ne laisse plus croire
+que le planning trie.
+
+Deux exemples, engendrés par `wftools.mocksort` (`LineSort`, ses colonnes typées comme celles de
+la ligne que nomme `NodeColumn`) et ordonnés par `wftools.mockcore`, lisent le devis du lot
+« Poste de commande » : `estimate_sorted`, trié par montant à l'année de référence, croissant —
+sous le câblage, la provision, la main-d'œuvre puis le débours ; le jalon de réception usine, de
+montant nul, que le tri des frères aurait mis en tête, reste le dernier — et `estimate_hours`,
+trié par heures, décroissant — le débours et la provision, sans heures, d'abord, dans l'ordre du
+plan, puis la main-d'œuvre. Sous un tri, le
+collage d'un bloc qui écrirait dans une ligne du plan autre que celle affichée à la suite est
+refusé par le front, la garde de L41a, quelle que soit la colonne.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
@@ -2743,8 +2779,12 @@ une modification comme une autre, qui passe par l'API et s'inscrit dans l'audit.
 
 **Les schémas sont groupés par famille**, un fichier par famille, et non un fichier par schéma —
 l'ancien contrat en avait cent quatre-vingt-un. Cent quarante-sept fichiers d'une douzaine
-de lignes se relisent moins bien qu'une douzaine de fichiers cohérents, et les schémas
-d'une même famille se citent entre eux.
+de lignes se relisent moins bien que quelques fichiers cohérents, et les schémas d'une même
+famille se citent entre eux. Les chemins suivent la même règle, un fichier de `paths/` par
+famille ; l'inventaire (`make inventory`) déclare chaque famille sous son titre, et échoue en le
+nommant sur un fichier de `paths/` qu'il ne déclare pas, ou une famille sans fichier : une
+famille nouvelle n'échappe plus en silence au contrôle des exigences que cite chaque opération
+(#538).
 
 **Le lotissement s'écrit d'un coup**, `PUT /projects/{id}/work-breakdown` sur l'arbre
 entier, plutôt que trois familles de CRUD pour les postes, les lots et les livrables. C'est

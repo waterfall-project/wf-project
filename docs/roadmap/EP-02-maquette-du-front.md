@@ -811,6 +811,15 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 - écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier
   celles d'un autre. » est l'affaire de l'US-0190, et demande des comptes réels — EP-03.
 
+EP-02/L42, sa partie L42c (#507), aligne le contrat sur la spécification (#526, option (a) décidée
+par l'auteur le 2026-10-08) : dans le devis et le reste à engager, le tri ne réordonne que les
+lignes sous chaque tâche, les tâches gardant l'ordre de l'arbre ; `sort_by` de `listNodes` dit
+quelles grilles trient — ni le planning, ni le Gantt, ni l'arbre des tâches —, où vont les lignes
+sans valeur et comment se comparent textes et références. Le faux back rend deux devis triés
+(`estimate_sorted` par montant, `estimate_hours` par heures), où la ligne de devis se déplace
+sous sa tâche sans que la tâche bouge. Au reste à engager, l'avancement et la fin, colonnes de la
+seule tâche, ne proposent plus de tri (`GridColumn.sorts`).
+
 ## US-0120 — Grille dense : saisie au clavier seul
 
 - **statut** : fini

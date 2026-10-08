@@ -163,6 +163,16 @@ describe("the screen of the remaining to commit", () => {
     expect(queryOf(NODES)?.progress).toBe("started");
   });
 
+  it("asks no sort by the progress nor the finish of a task, which the server leaves in the order of the tree, and no header shows one (#526)", async () => {
+    for (const sort_by of ["progress", "finish"]) {
+      server.clients = [];
+      const page = await remainingAt({ sort_by, sort_order: "desc" });
+      expect(queryOf(NODES)?.sort_by).toBeUndefined();
+      expect(queryOf(NODES)?.sort_order).toBeUndefined();
+      expect(page).not.toContain("aria-sort");
+    }
+  });
+
   it("shows the indicators of the remaining to commit as the server gives them, dated, its deviations signed [WF-RAE-0020-A]", async () => {
     // Les écarts sont présents et signés. La couverture des risques présente la réserve de
     // référence, les provisions restantes, le coût des risques survenus et l'écart de couverture.

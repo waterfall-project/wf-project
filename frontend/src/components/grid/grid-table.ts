@@ -27,7 +27,14 @@ import {
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 
-import { type GridColumn, type GridConfig, MAX_WIDTH, MIN_WIDTH, ROW_NUMBER_KEY } from "./columns";
+import {
+  type GridColumn,
+  type GridConfig,
+  MAX_WIDTH,
+  MIN_WIDTH,
+  ROW_NUMBER_KEY,
+  sortedBy,
+} from "./columns";
 import type { GridSort } from "./query";
 import type { GridSettings } from "./settings";
 
@@ -80,7 +87,7 @@ function tableColumns<Row extends RowData, Sort extends string, Totals>(
         minSize: MIN_WIDTH,
         maxSize: MAX_WIDTH,
         enableHiding: column.pinned !== true,
-        enableSorting: config.sorts !== false && column.contract !== undefined,
+        enableSorting: sortedBy(config, column) !== undefined,
         sortDescFirst: false,
       }),
     ),
@@ -133,7 +140,9 @@ export function useGridTable<Row extends RowData, Sort extends string, Totals>({
     ],
     [config],
   );
-  const sortedKey = config.columns.find((column) => column.contract === sort?.column)?.key;
+  const sortedKey = config.columns.find(
+    (column) => sort !== undefined && sortedBy(config, column) === sort.column,
+  )?.key;
   const sorting: SortingState =
     sort === undefined || sortedKey === undefined
       ? []
@@ -156,7 +165,8 @@ export function useGridTable<Row extends RowData, Sort extends string, Totals>({
     },
     onSortingChange: (updater) => {
       const [next] = resolve(updater, sorting);
-      const by = next === undefined ? undefined : configColumn(config, next.id)?.contract;
+      const column = next === undefined ? undefined : configColumn(config, next.id);
+      const by = column === undefined ? undefined : sortedBy(config, column);
       onSort(by === undefined ? undefined : { column: by, order: next?.desc ? "desc" : "asc" });
     },
     onColumnVisibilityChange: (updater) => {
