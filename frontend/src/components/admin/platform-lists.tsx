@@ -28,7 +28,6 @@ import {
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import type { ListPage } from "@/components/admin/list-pages";
 import { LocalTime } from "@/components/local-time";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { ReferenceSection } from "@/components/reference/section";
@@ -36,6 +35,7 @@ import { Signal } from "@/components/signal/signal";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { formatBytes } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
+import type { ListPage } from "@/navigation/pages";
 
 type SystemStatus = components["schemas"]["SystemStatus"];
 type ComponentHealth = components["schemas"]["ComponentHealth"];

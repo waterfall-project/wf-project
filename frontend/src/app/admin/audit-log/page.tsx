@@ -26,6 +26,7 @@ import { readEveryPage } from "@/api/every-page";
 import { type Problem, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
+  AUDIT_LIST,
   type AuditFilters,
   auditQuery,
   narrows,
@@ -45,7 +46,7 @@ import {
   type ProjectChoice,
 } from "@/components/audit/audit-filters";
 import { AuditGrid } from "@/components/audit/audit-grid";
-import { ListPages } from "@/components/costs/cost-pages";
+import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, type GridSort, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -202,7 +203,12 @@ function Inscriptions({
         preferences={preferences}
         openable={openable}
       />
-      <ListPages list="audit" page={journal.meta} shown={journal.items.length} />
+      <ListPages
+        list={AUDIT_LIST}
+        texts="admin.pages"
+        page={journal.meta}
+        shown={journal.items.length}
+      />
     </>
   );
 }

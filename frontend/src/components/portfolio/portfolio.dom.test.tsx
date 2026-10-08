@@ -14,7 +14,7 @@ import {
   monthTicks,
   planningInstant,
 } from "@/components/chart/chart";
-import { ListPages } from "@/components/costs/cost-pages";
+import { ListPages } from "@/components/grid/list-pages";
 import { ROW_REM } from "@/components/grid/dense-grid";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -23,7 +23,7 @@ import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
 import { example, fakeClient } from "@/test/fixtures";
 
-import { type Perimeter, readPerimeter, type Takes } from "./address";
+import { type Perimeter, PROJECTS_LIST, readPerimeter, type Takes } from "./address";
 
 import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter";
 import { CashOutChart, monthAfter, PortfolioCurveChart, QuarterlyChart } from "./portfolio-charts";
@@ -274,7 +274,16 @@ describe("the list of the projects of the portfolio", () => {
 
   it("leads to the pages before and after the one shown, from the address", () => {
     page.search = "states=in_progress&offset=50";
-    render(inLanguage(<ListPages list="projects" page={PAGE.meta} shown={PAGE.items.length} />));
+    render(
+      inLanguage(
+        <ListPages
+          list={PROJECTS_LIST}
+          texts="portfolio.pages"
+          page={PAGE.meta}
+          shown={PAGE.items.length}
+        />,
+      ),
+    );
     const pages = screen.getByRole("navigation", { name: "Pages des projets" });
     expect(within(pages).getByRole("link", { name: /Projets précédents/ })).toHaveAttribute(
       "href",
@@ -284,6 +293,27 @@ describe("the list of the projects of the portfolio", () => {
       "href",
       `${PATHNAME}?states=in_progress&offset=100`,
     );
+  });
+  it("turns a page from a filter under way to the first page of the projects", async () => {
+    page.search = "offset=50";
+    render(
+      inLanguage(
+        <>
+          <ZoneFilter zones={[]} />
+          <ListPages
+            list={PROJECTS_LIST}
+            texts="portfolio.pages"
+            page={PAGE.meta}
+            shown={PAGE.items.length}
+          />
+        </>,
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Alerte" }));
+    expect(await lastAddress()).toBe(`${PATHNAME}?zones=alert`);
+    // The zone asked and not arrived: the projects read otherwise start from their first page.
+    await userEvent.click(screen.getByRole("link", { name: /Projets suivants/ }));
+    expect(await lastAddress()).toBe(`${PATHNAME}?zones=alert`);
   });
 });
 

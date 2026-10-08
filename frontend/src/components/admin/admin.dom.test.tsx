@@ -3,16 +3,17 @@
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { ListPages } from "@/components/grid/list-pages";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
 import { PermissionMatrix } from "./account-lists";
-import { AdminListPages } from "./list-pages";
+import { BACKUPS_LIST } from "./backup-address";
 import {
   AlertList,
   BackupList,
@@ -21,6 +22,16 @@ import {
   OperationList,
   StorageFacts,
 } from "./platform-lists";
+
+// The address of the screen of the backups, which the links of its pages keep.
+const page = vi.hoisted(() => ({ search: "" }));
+
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => "/admin/backups",
+  useSearchParams: () => new URLSearchParams(page.search),
+}));
 
 type Schemas = components["schemas"];
 
@@ -84,13 +95,13 @@ describe("the matrix of the permissions", () => {
 
 describe("the pages of a list of the administration", () => {
   it("break no rule of accessibility, the links of the pages keeping the rest of the address", async () => {
+    page.search = "include_inactive=true&offset=2";
     const { container } = rendered(
-      <AdminListPages
-        path="/admin/backups"
-        query={new URLSearchParams("include_inactive=true&offset=2")}
+      <ListPages
+        list={BACKUPS_LIST}
+        texts="admin.pages"
         page={{ limit: 2, offset: 2, total: 5 }}
         shown={2}
-        count="5"
       />,
     );
     expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
@@ -105,13 +116,13 @@ describe("the pages of a list of the administration", () => {
   });
 
   it("lead back to the last page from a page asked beyond the end", () => {
+    page.search = "offset=8";
     rendered(
-      <AdminListPages
-        path="/admin/backups"
-        query={new URLSearchParams("offset=8")}
+      <ListPages
+        list={BACKUPS_LIST}
+        texts="admin.pages"
         page={{ limit: 2, offset: 8, total: 5 }}
         shown={0}
-        count="5"
       />,
     );
     expect(screen.getByText("Cette page est au-delà de la fin de la liste.")).toBeInTheDocument();

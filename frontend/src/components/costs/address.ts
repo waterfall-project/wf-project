@@ -12,9 +12,11 @@
  *
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
-import { OFFSET } from "@/components/grid/query";
+import type { operations } from "@/api/generated/schema";
+import { CONTRACT_ADDRESS, type GridSort, OFFSET, pagedList } from "@/components/grid/query";
 import { isPlanningDate } from "@/i18n/format";
 import type { SearchParameters } from "@/navigation/context";
+import type { PagedList } from "@/navigation/pages";
 
 /** The parameter of the address the scope filtered on goes by, as the contract names it. */
 export const SCOPE = "in_tracked_scope";
@@ -27,6 +29,12 @@ export const SUBPROJECT = "subproject_id";
 export const COSTS_PAGE = OFFSET;
 /** The page of the journal of the imports, which shares the screen with the costs. */
 export const IMPORTS_PAGE = "imports_offset";
+
+/** The list of the costs: its sort, its search and its filters, the sub-project among them. */
+export const COSTS_LIST: PagedList = pagedList(CONTRACT_ADDRESS, SCOPE, FROM, TO, SUBPROJECT);
+
+/** The journal of the imports, which reads nothing of the address but its page. */
+export const IMPORTS_LIST: PagedList = { page: IMPORTS_PAGE, reads: [] };
 
 /** The line of the page whose place in the tracked scope the screen shows, to change it. */
 export const LINE = "line";
@@ -124,36 +132,28 @@ export function lineHref(pathname: string, query: URLSearchParams, line: string 
   return address(pathname, next);
 }
 
-/** The address of the same screen at another page of one of its lists, the rest of its query kept. */
-export function pageHref(
-  pathname: string,
-  query: URLSearchParams,
-  name: string,
-  offset: number,
-): string {
-  const next = new URLSearchParams(query);
-  put(next, name, offset > 0 ? String(offset) : undefined);
-  return address(pathname, next);
-}
-
-/** A query without some of its parameters, in a stable order. */
-function without(query: URLSearchParams, names: readonly string[]): string {
-  const rest = new URLSearchParams(query);
-  for (const name of names) {
-    rest.delete(name);
-  }
-  rest.sort();
-  return rest.toString();
-}
+/** What the screen asks `listActualCosts`: the query of the contract. */
+type CostsQuery = NonNullable<operations["listActualCosts"]["parameters"]["query"]>;
 
 /**
- * Whether two queries ask the same list but for the pages of the screen (`name`, and the page of
- * the other list, which reads nothing of the list): a page turned from a query that asks another
- * — a filter or a sort under way — starts that list from its first page, the place of a row in
- * the one shown meaning nothing in the other; the page of the journal turned meanwhile changes
- * nothing of the costs (#294).
+ * The query of the list of the costs, as the address asks it: its page, its sub-project, its
+ * filters and its sort — every parameter but the page read from `COSTS_LIST`, which says when two
+ * addresses read the same list. The costs offer no search.
  */
-export function sameList(query: URLSearchParams, shown: URLSearchParams, name: string): boolean {
-  const pages = [name, COSTS_PAGE, IMPORTS_PAGE];
-  return without(query, pages) === without(shown, pages);
+export function costsQuery<Sort extends NonNullable<CostsQuery["sort_by"]>>(asked: {
+  readonly offset: number;
+  readonly subproject: string | undefined;
+  readonly filters: CostFilters;
+  readonly sort: GridSort<Sort> | undefined;
+}): CostsQuery {
+  const { offset, subproject, filters, sort } = asked;
+  const scope = scopeParameter(filters.scope);
+  return {
+    ...(offset === 0 ? {} : { offset }),
+    ...(subproject === undefined ? {} : { subproject_id: subproject }),
+    ...(filters.from === undefined ? {} : { from: filters.from }),
+    ...(filters.to === undefined ? {} : { to: filters.to }),
+    ...(scope === undefined ? {} : { in_tracked_scope: scope }),
+    ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
+  };
 }

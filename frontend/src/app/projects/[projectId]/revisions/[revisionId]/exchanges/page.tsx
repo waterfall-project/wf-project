@@ -27,12 +27,13 @@ import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
 import { readPage } from "@/components/costs/address";
-import { ListPages } from "@/components/costs/cost-pages";
+import { ListPages } from "@/components/grid/list-pages";
 import { ExportForm } from "@/components/exchanges/export-form";
 import { ImportList } from "@/components/exchanges/import-list";
 import { ImportPart, Part } from "@/components/exchanges/import-part";
 import { ImportReport } from "@/components/exchanges/import-report";
 import {
+  EXCHANGES_LIST,
   EXCHANGES_PAGE,
   exportOffers,
   type ExportOffers,
@@ -168,7 +169,12 @@ export default async function ExchangesPage({
             current={shown?.import_id}
             start={start}
           >
-            <ListPages list="exchanges" page={imports.meta} shown={imports.items.length} />
+            <ListPages
+              list={EXCHANGES_LIST}
+              texts="actualCosts.pages.exchanges"
+              page={imports.meta}
+              shown={imports.items.length}
+            />
           </ImportList>
         </PendingAddress>
         <ExportPart revision={revision} offers={exportOffers(reading.revision)} />

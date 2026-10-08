@@ -14,13 +14,14 @@
 
 import { useTranslations } from "next-intl";
 
-import { ListPages } from "@/components/costs/cost-pages";
 import { DenseGrid } from "@/components/grid/dense-grid";
+import { ListPages } from "@/components/grid/list-pages";
 import { type GridQuery, OFFSET } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { ValuesFilter } from "@/components/grid/values-filter";
 import { PROJECT_STATES, type ProjectState, STATES_PARAMETER } from "@/navigation/home";
 
+import { HOME_LIST } from "./home-list";
 import {
   type ListedProjectPage,
   type ListedProjectRow,
@@ -69,7 +70,7 @@ export function ProjectListGrid({ projects, page, query, preferences }: ProjectL
         query={query}
         preferences={preferences}
       />
-      <ListPages list="projects" page={page} shown={projects.length} />
+      <ListPages list={HOME_LIST} texts="portfolio.pages" page={page} shown={projects.length} />
     </div>
   );
 }

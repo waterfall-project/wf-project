@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, startTransition } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
+import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
@@ -15,7 +16,6 @@ import { example } from "@/test/fixtures";
 
 import { listReads } from "./address";
 import { InactiveSwitch, StateFilter, TextFilter } from "./reference-filters";
-import { ReferencePages } from "./reference-pages";
 import {
   CALENDAR_ADDRESS,
   ORG_CODE,
@@ -64,7 +64,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  router.push.mockClear();
+  router.push.mockReset();
 });
 
 describe("the filters of a list of the reference data", () => {
@@ -130,6 +130,41 @@ describe("the filters of a list of the reference data", () => {
     expect(lastAddress()).toBe("/reference/resources?role_cost_category_id=mo-001");
     await userEvent.selectOptions(filter, "");
     expect(lastAddress()).toBe("/reference/resources");
+  });
+
+  it("show the object chosen while the server reads the list anew, and the address once it has answered", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    const filter = (chosen: string | undefined) =>
+      inFrench(
+        <ChoiceFilter
+          name={ROLE_COST_CATEGORY}
+          label="Catégorie de coût"
+          every="Toutes les catégories"
+          choices={[{ value: "mo-001", text: "MO-001 · Ingénierie électrique" }]}
+          chosen={chosen}
+        />,
+      );
+    const { rerender } = render(filter(undefined));
+    const select = screen.getByRole("combobox", { name: "Catégorie de coût" });
+    await userEvent.selectOptions(select, "mo-001");
+    expect(lastAddress()).toBe("/reference/resources?role_cost_category_id=mo-001");
+    // The address has not changed yet: the list shows the choice, never the address before it.
+    expect(select).toHaveValue("mo-001");
+    // The server answers: the address names the object, which the list goes on showing.
+    page.search = "role_cost_category_id=mo-001";
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(filter("mo-001"));
+    expect(select).toHaveValue("mo-001");
   });
 
   it("filter the tree on the code entered, lifted when emptied [WF-IHM-0130-A]", async () => {
@@ -206,9 +241,7 @@ describe("the pages of a list of the reference data", () => {
   it("lead to the pages before and after the one shown, named after the list, the rest of the address kept", async () => {
     page.search = "role_offset=50&calendar_sort_by=label";
     const { container } = render(
-      inFrench(
-        <ReferencePages list={ROLES} title="Rôles de ressources" page={MIDDLE} shown={50} />,
-      ),
+      inFrench(<ListPages list={ROLES} title="Rôles de ressources" page={MIDDLE} shown={50} />),
     );
     const pages = screen.getByRole("navigation", { name: "Pages de « Rôles de ressources »" });
     expect(pages).toBeInTheDocument();
@@ -234,7 +267,7 @@ describe("the pages of a list of the reference data", () => {
             chosen={undefined}
             page={RESOURCE_ROLE_ADDRESS.offset}
           />
-          <ReferencePages list={ROLES} title="Rôles" page={MIDDLE} shown={50} />
+          <ListPages list={ROLES} title="Rôles" page={MIDDLE} shown={50} />
         </>,
       ),
     );
@@ -244,7 +277,7 @@ describe("the pages of a list of the reference data", () => {
     expect(lastAddress()).toBe("/reference/resources?role_is_active=true");
     // Shown, the sort of another list under way leaves the place of the roles as it is.
     page.search = "role_offset=50&calendar_sort_by=label";
-    rerender(inFrench(<ReferencePages list={ROLES} title="Rôles" page={MIDDLE} shown={50} />));
+    rerender(inFrench(<ListPages list={ROLES} title="Rôles" page={MIDDLE} shown={50} />));
     await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
     expect(lastAddress()).toBe("/reference/resources?role_offset=100&calendar_sort_by=label");
   });
@@ -253,7 +286,7 @@ describe("the pages of a list of the reference data", () => {
     page.search = "role_offset=400";
     const beyond = { ...MIDDLE, offset: 400 };
     const { rerender } = render(
-      inFrench(<ReferencePages list={ROLES} title="Rôles" page={beyond} shown={0} />),
+      inFrench(<ListPages list={ROLES} title="Rôles" page={beyond} shown={0} />),
     );
     expect(screen.getByText("La page demandée est au-delà de la fin de la liste.")).toBeVisible();
     expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
@@ -262,7 +295,7 @@ describe("the pages of a list of the reference data", () => {
     );
     expect(screen.queryByRole("link", { name: /Page suivante/ })).toBeNull();
     const whole = { ...MIDDLE, offset: 0, total: 50 };
-    rerender(inFrench(<ReferencePages list={ROLES} title="Rôles" page={whole} shown={50} />));
+    rerender(inFrench(<ListPages list={ROLES} title="Rôles" page={whole} shown={50} />));
     expect(screen.queryByRole("navigation")).toBeNull();
   });
 });

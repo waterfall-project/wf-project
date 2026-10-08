@@ -13,8 +13,9 @@
  */
 import type { components, operations } from "@/api/generated/schema";
 import { readValues } from "@/components/grid/filters";
-import { OFFSET } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, OFFSET, pagedList } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
+import type { PagedList } from "@/navigation/pages";
 
 /** An action the journal records, as the contract names it. */
 export type AuditAction = components["schemas"]["AuditAction"];
@@ -40,6 +41,19 @@ export const OBJECT = "object_id";
 
 /** The parameter of the page of the journal, which every filter takes back to its first. */
 export const AUDIT_PAGE = OFFSET;
+
+/** The journal, its sort and every filter of it. */
+export const AUDIT_LIST: PagedList = pagedList(
+  CONTRACT_ADDRESS,
+  FROM,
+  TO,
+  USER,
+  ACTOR_KIND,
+  ACTIONS,
+  PROJECT,
+  OBJECT_KIND,
+  OBJECT,
+);
 
 /**
  * Each value of an enumeration of the contract, in its order: a record typed on the enumeration, so

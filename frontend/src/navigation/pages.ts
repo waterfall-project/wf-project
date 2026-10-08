@@ -6,7 +6,8 @@
  * the projects of the portfolio, the accounts, the backups (#317): the offset the address asks a
  * page by (`offset`, as the contract names it), and where the page shown stands in the list —
  * beyond its end, when the address asked a page the list has not, and the offsets of the pages
- * before and after it. Pure: a component draws the links from them.
+ * before and after it; and what a list reads of the address, which tells whether an address reads
+ * the list shown or another (`readingOf`). Pure: a component draws the links from them.
  */
 import type { components } from "@/api/generated/schema";
 
@@ -15,6 +16,30 @@ export type ListPage = components["schemas"]["PaginationMeta"];
 
 /** The parameter of the address that names the page of a list, as the contract names it. */
 export const OFFSET_PARAMETER = "offset";
+
+/** A list the server pages: its page in the address, and what it reads of it. */
+export interface PagedList {
+  /** The parameter of the address that names its page. */
+  readonly page: string;
+  /**
+   * The parameters of the address the list reads — its sort, its search, its filters —, its page
+   * among them or not; a parameter of another list of the screen, or of none — a detail opened —,
+   * is not one of them.
+   */
+  readonly reads: readonly string[];
+}
+
+/**
+ * What a list reads of the address: the values of the parameters it reads, in their order — a
+ * sort, a search or a page of another list of the screen leaves it as it is. The one rule that says
+ * whether two addresses read the same list. A parameter absent (`null`) is told from one given
+ * empty (`""`), as the address means them otherwise: `sort_by` empty is a sort lifted, the order of
+ * the plan, while absent it is the sort the account keeps (`readGridQuery`). Written as JSON, a
+ * value that holds `&` or `=` never reads as two.
+ */
+export function readingOf(address: URLSearchParams, reads: readonly string[]): string {
+  return JSON.stringify(reads.map((name) => address.get(name)));
+}
 
 /**
  * The offset of a page of a list the address asks for (`offset`), or none when it asks for none
@@ -47,18 +72,4 @@ export function pageOffsets(page: ListPage, shown: number): PageOffsets {
     previous: page.offset > 0 ? (beyond ? last : Math.max(0, page.offset - page.limit)) : undefined,
     next: page.offset + shown < page.total ? page.offset + shown : undefined,
   };
-}
-
-/**
- * The address of a page of a list: its path, the parameters kept — the filters of the list, its
- * sort —, and the page by its offset, left out for the first page.
- */
-export function pageHref(path: string, kept: URLSearchParams, offset: number): string {
-  const query = new URLSearchParams(kept);
-  query.delete(OFFSET_PARAMETER);
-  if (offset > 0) {
-    query.set(OFFSET_PARAMETER, String(offset));
-  }
-  const text = query.toString();
-  return text === "" ? path : `${path}?${text}`;
 }

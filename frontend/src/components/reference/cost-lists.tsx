@@ -23,6 +23,7 @@ import { useTranslations } from "next-intl";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid/filters";
+import { ListPages } from "@/components/grid/list-pages";
 import { CONTRACT_ADDRESS, type GridQuery } from "@/components/grid/query";
 import { RangeFilter } from "@/components/grid/range-filter";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -48,7 +49,6 @@ import {
 import { RATE_COLUMN, RATE_STATE, RATE_YEAR } from "./rate-columns";
 import { Reactivations } from "./reactivation";
 import { StateFilter } from "./reference-filters";
-import { ReferencePages } from "./reference-pages";
 import { ReferenceSection } from "./section";
 
 /** What a list of the natures or the categories shows. */
@@ -123,7 +123,7 @@ export function CostTypeList({
           preferences={preferences}
         />
       </Reactivations>
-      <ReferencePages
+      <ListPages
         list={{ page: offset, reads: COST_TYPE_READS }}
         title={title}
         page={page}
@@ -200,7 +200,7 @@ export function CostCategoryList({
           preferences={preferences}
         />
       </Reactivations>
-      <ReferencePages
+      <ListPages
         list={{ page: offset, reads: COST_CATEGORY_READS }}
         title={title}
         page={page}

@@ -23,7 +23,13 @@ import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
 import { USER_GRID_KEY, USER_SORTS } from "@/components/admin/admin-grids";
 import { CreateCommand, LaterCommands } from "@/components/admin/later-commands";
-import { ORG_NODE, ORIGINS, showsInactive, USER_ORIGINS } from "@/components/admin/user-address";
+import {
+  ORG_NODE,
+  ORIGINS,
+  showsInactive,
+  USER_ORIGINS,
+  usersQuery,
+} from "@/components/admin/user-address";
 import { platformOffer } from "@/components/commands/offer";
 import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
@@ -88,18 +94,7 @@ export default async function UsersPage({
   const [users, nodes] = await Promise.all([
     readOrFail("listUsers", () =>
       serverClient().GET("/users", {
-        params: {
-          query: {
-            include_inactive: inactive,
-            ...(offset === undefined ? {} : { offset }),
-            ...(query.search === undefined ? {} : { search: query.search }),
-            ...(origins.length === 0 ? {} : { origins: [...origins] }),
-            ...(orgNode === undefined ? {} : { org_node_id: orgNode }),
-            ...(query.sort === undefined
-              ? {}
-              : { sort_by: query.sort.column, sort_order: query.sort.order }),
-          },
-        },
+        params: { query: usersQuery({ query, origins, orgNode, inactive, offset }) },
       }),
     ),
     readNodes(),

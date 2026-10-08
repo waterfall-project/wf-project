@@ -1428,6 +1428,13 @@ sous-projet des coûts réels et la vue du portefeuille, et une seule adresse de
 dates du portefeuille, période du journal, code du référentiel — gardent le focus après
 application et oublient une saisie abandonnée quand l'adresse change ; la recherche et les bornes
 des grilles suivent (#553).
+EP-02/L41, sa partie L41g (#506), donne une seule navigation par pages (`ListPages`, #549) aux
+coûts réels, aux imports, aux échanges, au portefeuille, à l'accueil, aux comptes, au journal, aux
+sauvegardes et au référentiel, et une seule règle de « même liste » : chaque liste déclare les
+paramètres qu'elle lit, et une page tournée pendant qu'un filtre est en route ramène à la première
+page ; un paramètre absent n'y vaut pas un paramètre vide (`sort_by=` lève le tri, son absence
+garde celui du compte). Un test lie, pour chaque liste, ce qu'elle lit à ce qu'elle demande au
+serveur.
 
 ## US-0260 — Écran d'import en deux temps
 

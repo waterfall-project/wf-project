@@ -22,6 +22,7 @@ import { serverClient } from "@/api/server";
 import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { readGridQuery } from "@/components/grid/query";
+import { homeQuery } from "@/components/projects/home-list";
 import { ContributorFilter, ProjectList } from "@/components/projects/project-list";
 import {
   listedProject,
@@ -84,16 +85,7 @@ export default async function HomePage({
     readOrFail("listProjects", () =>
       client.GET("/projects", {
         params: {
-          query: {
-            ...(filtered ? { is_contributor: true } : {}),
-            // No state named, every state asked: the home lists every project the user may open.
-            states: [...(states.length === 0 ? PROJECT_STATES : states)],
-            ...(offset === undefined ? {} : { offset }),
-            ...(query.search === undefined ? {} : { search: query.search }),
-            ...(query.sort === undefined
-              ? {}
-              : { sort_by: query.sort.column, sort_order: query.sort.order }),
-          },
+          query: homeQuery({ filtered, states, query, offset }),
         },
       }),
     ),

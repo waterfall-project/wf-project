@@ -26,10 +26,13 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The path of the screen rendered, which the links of the client components keep.
+const shown = vi.hoisted(() => ({ path: "/admin/users" }));
+
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
-  usePathname: () => "/admin/users",
+  usePathname: () => shown.path,
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next/headers", () => ({
@@ -105,6 +108,7 @@ function buttons(markup: string): string[] {
 }
 
 beforeEach(() => {
+  shown.path = "/admin/users";
   server.clients = [];
   server.answers = {
     "GET /session": "session",
@@ -489,6 +493,7 @@ describe("the backups", () => {
 
   it("say a page asked beyond the end of the list is no empty list, and lead back to its last page", async () => {
     server.answers = { ...server.answers, "GET /backups": "backups_beyond" };
+    shown.path = "/admin/backups";
     const page = rendered(await BackupsPage(searched({ offset: "50" })));
     expect(queriesOf("GET /backups")).toEqual([{ offset: "50" }]);
     expect(text(page)).not.toContain("Aucune sauvegarde.");

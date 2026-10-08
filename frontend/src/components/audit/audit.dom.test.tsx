@@ -8,14 +8,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { ListPages } from "@/components/costs/cost-pages";
+import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
 
-import { type AuditFilters, readAuditFilters } from "./audit-address";
+import { AUDIT_LIST, type AuditFilters, readAuditFilters } from "./audit-address";
 import { type AuditEvent, type AuditSort, NEWEST_FIRST } from "./audit-columns";
 import { AuditFilterBar, type AuditFilterBarProps } from "./audit-filters";
 import { AuditGrid } from "./audit-grid";
@@ -88,7 +88,12 @@ function journal({
           preferences={undefined}
           openable={openable}
         />
-        <ListPages list="audit" page={shown.meta} shown={shown.items.length} />
+        <ListPages
+          list={AUDIT_LIST}
+          texts="admin.pages"
+          page={shown.meta}
+          shown={shown.items.length}
+        />
       </PendingAddress>
     </NextIntlClientProvider>
   );
@@ -225,6 +230,17 @@ describe("the grid of the journal", () => {
       "/admin/audit-log?actions=backup&sort_by=occurred_at&sort_order=asc&offset=20",
     );
     await expectAccessible(container);
+  });
+
+  it("turns a page from a filter under way to the first page of the journal", async () => {
+    page.search = "offset=10";
+    render(journal({ shown: second }));
+    const kinds = screen.getByRole("group", { name: "Filtrer par nature d’auteur" });
+    await userEvent.click(within(kinds).getByRole("button", { name: "La plateforme" }));
+    expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
+    // The filter asked and not arrived: the journal read otherwise starts from its first page.
+    await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
+    expect(lastAddress()).toBe("/admin/audit-log?actor_kind=platform");
   });
 
   it("keeps its grid when the filters retain no inscription", () => {

@@ -33,6 +33,7 @@ import {
   type RefusedBounds,
   refusedSides,
 } from "@/components/grid/filters";
+import { ListPages } from "@/components/grid/list-pages";
 import type { GridQuery } from "@/components/grid/query";
 import { RangeFilter } from "@/components/grid/range-filter";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -42,7 +43,6 @@ import type { ListPage } from "@/navigation/pages";
 import { listReads } from "./address";
 import { Reactivations } from "./reactivation";
 import { type NodeChoice, OrgNodeFilter, StateFilter, TextFilter } from "./reference-filters";
-import { ReferencePages } from "./reference-pages";
 import { ResourceGrid } from "./resource-grid";
 import {
   CALENDAR_ADDRESS,
@@ -337,7 +337,7 @@ export function ResourceRoleList({
               preferences={preferences}
             />
           </Reactivations>
-          <ReferencePages
+          <ListPages
             list={{ page: offset, reads: ROLE_READS }}
             title={title}
             page={page}
@@ -425,7 +425,7 @@ export function CalendarList({
               preferences={preferences}
             />
           </Reactivations>
-          <ReferencePages
+          <ListPages
             list={{ page: CALENDAR_ADDRESS.offset, reads: CALENDAR_READS }}
             title={title}
             page={page}

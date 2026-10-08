@@ -30,12 +30,13 @@ import { ContextBanner } from "@/components/context/context-banner";
 import { askSubprojects, readProjectContext } from "@/components/context/reading";
 import {
   type CostFilters,
+  COSTS_LIST,
+  costsQuery,
   COSTS_PAGE,
   IMPORTS_PAGE,
   readCostFilters,
   readCostLine,
   readPage,
-  scopeParameter,
 } from "@/components/costs/address";
 import { CostFilterBar } from "@/components/costs/cost-filters";
 import {
@@ -46,7 +47,7 @@ import {
   isKeptSort,
 } from "@/components/costs/cost-grid";
 import { CostLineScope } from "@/components/costs/cost-line-scope";
-import { ListPages } from "@/components/costs/cost-pages";
+import { ListPages } from "@/components/grid/list-pages";
 import { CostSummary } from "@/components/costs/cost-totals";
 import { CostsGrid } from "@/components/costs/costs-grid";
 import { ImportJournal } from "@/components/costs/import-journal";
@@ -111,21 +112,13 @@ async function readCosts(
   asked: Promise<GridQuery<CostSortColumn>>,
 ) {
   const { sort } = await asked;
-  const subproject = context.parameters.get("subproject_id");
-  const scope = scopeParameter(filters.scope);
+  const subproject = context.parameters.get("subproject_id") ?? undefined;
   const offset = readPage(address, COSTS_PAGE);
   const read = await readOrRefused("listActualCosts", FILTERS_REFUSED, () =>
     serverClient().GET("/projects/{project_id}/actual-costs", {
       params: {
         path: { project_id: revision.projectId },
-        query: {
-          ...(offset === 0 ? {} : { offset }),
-          ...(subproject === null ? {} : { subproject_id: subproject }),
-          ...(filters.from === undefined ? {} : { from: filters.from }),
-          ...(filters.to === undefined ? {} : { to: filters.to }),
-          ...(scope === undefined ? {} : { in_tracked_scope: scope }),
-          ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
-        },
+        query: costsQuery({ offset, subproject, filters, sort }),
       },
     }),
   );
@@ -275,7 +268,12 @@ export default async function ActualCostsPage({
                     preferences={preferences}
                     linked={exclusion !== undefined}
                   />
-                  <ListPages list="costs" page={costs.page} shown={costs.costs.items.length} />
+                  <ListPages
+                    list={COSTS_LIST}
+                    texts="actualCosts.pages.costs"
+                    page={costs.page}
+                    shown={costs.costs.items.length}
+                  />
                 </>
               )}
             </div>

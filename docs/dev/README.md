@@ -563,8 +563,9 @@ grilles d'un même écran ne se lisent pas l'une l'autre, et la page demande l'A
 contrat ; l'arbre entier est relu quand une recherche ou un filtre le restreint, pour les filtres
 des rôles. Un tri, une recherche ou un filtre ramènent leur liste à sa première page ; un lien de
 page part de la dernière adresse demandée, et mène à la première page quand elle lit la liste
-autrement que celle montrée — le tri d'une autre liste de l'écran n'y comptant pas (`ReferencePages`,
-nommé d'après sa liste) ; la ligne des totaux dit combien le serveur en retient (`meta.total`). Les
+autrement que celle montrée — le tri d'une autre liste de l'écran n'y comptant pas (`ListPages` de
+`components/grid/list-pages.tsx`, nommé d'après sa liste, la seule règle de « même liste » de
+`readingOf`) ; la ligne des totaux dit combien le serveur en retient (`meta.total`). Les
 unités de durée suivent. Les paramètres des risques présentent les bornes de la matrice et la zone
 de chaque case, placée par son rang dans l'ordre du contrat, ceux des indicateurs les seuils des
 indices et le délai entre deux revues : des matrices de taille fixe, qui restent des tables
@@ -633,8 +634,8 @@ clic sur une commande disponible dit, dans une région annoncée rendue dès le 
 section de la liste, qu'elle est disponible avec EP-03 ; sur une commande indisponible, la
 condition qui lui manque, sans la lancer — chaque clic, le même répété aussi ; sans la permission,
 aucun bouton. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
-mène aux pages voisines par `offset` (`ListPages` pour les comptes, `AdminListPages` pour les
-sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
+mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
+les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
 elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
 règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigation/pages.ts` (#317).
 L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
@@ -701,7 +702,7 @@ lecture du planning (#521) : il se montre à une session qui lit le planning, do
 ou à laquelle le projet liste un import (`listsAnImport`) — un chiffreur, que le devis et le reste à
 engager y mènent quand le projet liste leur import, disponible ou non, l'écran le présentant alors
 avec ses conditions (`ExchangesLink`, WF-IHM-0090) ; il est introuvable pour tout autre. La liste des imports, paginée par le serveur (`offset`,
-`ListPages` de `components/costs/cost-pages.tsx`), mène au compte rendu de chacun ; la demande
+`ListPages` de `components/grid/list-pages.tsx`), mène au compte rendu de chacun ; la demande
 d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
 l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
