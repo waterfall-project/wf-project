@@ -137,7 +137,7 @@ export function QuarterlyChart({
       exported={exported}
     >
       <table className="w-full text-left">
-        <thead className="text-muted-foreground">
+        <thead className="bg-muted text-muted-foreground">
           <tr>
             <th scope="col">{t("portfolio.performance.quarterColumn")}</th>
             <th scope="col">{t("portfolio.performance.cost_index")}</th>
@@ -229,7 +229,7 @@ export function PortfolioCurveChart({
       exported={exported}
     >
       <table className="w-full text-left">
-        <thead className="text-muted-foreground">
+        <thead className="bg-muted text-muted-foreground">
           <tr>
             <th scope="col">{t("portfolio.costCurve.series")}</th>
             <th scope="col">{t("portfolio.costCurve.date")}</th>
@@ -330,7 +330,7 @@ export function CashOutChart({
       exported={exported}
     >
       <table className="w-full text-left">
-        <thead className="text-muted-foreground">
+        <thead className="bg-muted text-muted-foreground">
           <tr>
             <th scope="col">{t("month")}</th>
             <th scope="col">{t("past")}</th>

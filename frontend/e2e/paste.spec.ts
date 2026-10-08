@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { createRequire } from "node:module";
-
 import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
 
+import { axeViolations } from "./axe";
 import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { rowAt, scrollToPosition } from "./scroll";
@@ -102,18 +101,6 @@ function argumentsWith(posted: readonly Request[], field: string): unknown[] | u
   const request = posted.find((each) => each.postData()?.includes(`"${field}"`) === true);
   const data = request?.postData();
   return data === null || data === undefined ? undefined : (JSON.parse(data) as unknown[]);
-}
-
-/** The violations of the rules of axe, WCAG A and AA, on an element of the page. */
-async function axeViolations(page: Page, selector: string): Promise<string[]> {
-  const require = createRequire(import.meta.url);
-  await page.addScriptTag({ path: require.resolve("axe-core/axe.min.js") });
-  return page.evaluate(async (scope) => {
-    const axe = (window as unknown as { axe: typeof import("axe-core") }).axe;
-    const tags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-    const results = await axe.run(scope, { runOnly: { type: "tag", values: tags } });
-    return results.violations.map((violation) => violation.id);
-  }, selector);
 }
 
 test("a block of three rows and four columns pasted from a spreadsheet produces a report before writing, then the three rows expected once confirmed [WF-IHM-0050-A]", async ({

@@ -238,7 +238,10 @@
       "abandon": "Abandonner",
       "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
       "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit.",
-      "foldedRows": "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut."
+      "foldedRows": "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut.",
+      "sortedRows": "Le bloc collé écrirait les lignes qui suivent la cellule dans l’ordre du plan, que le tri a déplacées : levez le tri avant de coller, ou collez un bloc moins haut.",
+      "unretainedRows": "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut.",
+      "beyondRows": "Le bloc collé s’étendrait au-delà des lignes que la grille montre sous la cellule : collez un bloc moins haut."
     }
   },
   "estimateGrid": {

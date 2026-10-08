@@ -211,7 +211,7 @@ export function HeaderCell<Row extends RowData>({
       onKeyDown={onKeyDown}
       style={{ left: pinning.left }}
       className={cn(
-        "relative h-8 bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        "relative h-8 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         pinning.className,
         end ? "text-right" : null,
         align === "center" ? "text-center" : null,

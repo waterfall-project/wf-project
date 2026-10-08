@@ -10,8 +10,10 @@
  * (`NodeColumn`) —; then the Gantt, row for row (`GanttCell`). The same component as the grid of the
  * estimate (`estimate.ts`): another configuration.
  *
- * Each column but the Gantt sorts by the column of the contract of the same name. The total float
- * and the physical progress are always computed (WF-PLA-0100, WF-IND-0060): columns computed whole. The dates, the duration and the progress are
+ * Each column but the Gantt shows the column of the contract of the same name, and none sorts: the
+ * grid is a tree, whose rows keep the order of the plan (§3.4, WF-IHM-0060) — no header offers a
+ * sort, and the address asks none. The total float and the physical progress are always computed
+ * (WF-PLA-0100, WF-IND-0060): columns computed whole. The dates, the duration and the progress are
  * computed for some tasks only — automatic, summary —, which `computed_fields` names node by
  * node: those cells are computed, the others entered (WF-IHM-0030).
  *
@@ -86,6 +88,7 @@ const COMPUTED_PHYSICAL_PROGRESS: ComputedCells<PlanningNode> = {
 export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals> = {
   key: "planning",
   searched: true,
+  sorts: false,
   name: "planning",
   rowKey: nodeKey,
   rowNumber: nodeNumber,
@@ -97,7 +100,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       label: "description",
       format: "text",
       width: 120,
-      sortBy: "description",
+      contract: "description",
       value: (node) => node.task?.description,
     },
     {
@@ -107,7 +110,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       align: "center",
       width: 44,
       icon: Zap,
-      sortBy: "scheduling_mode",
+      contract: "scheduling_mode",
       value: (node) => node.task?.scheduling_mode,
       render: (node) => <SchedulingModeCell node={node} />,
     },
@@ -117,7 +120,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       format: "decimal",
       width: 64,
       computed: computedWhereNamed("task.duration"),
-      sortBy: "duration",
+      contract: "duration",
       // The value in its unit (WF-PLA-0160): the cell writes the unit after it.
       value: (node) => node.task?.duration.value,
       render: (node) => <DurationCell duration={node.task?.duration} />,
@@ -130,7 +133,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       format: "date",
       width: 100,
       computed: computedWhereNamed("task.start"),
-      sortBy: "start",
+      contract: "start",
       value: (node) => node.task?.start?.date,
     },
     {
@@ -139,7 +142,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       format: "date",
       width: 100,
       computed: computedWhereNamed("task.finish"),
-      sortBy: "finish",
+      contract: "finish",
       value: (node) => node.task?.finish?.date,
     },
     {
@@ -150,7 +153,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       width: 44,
       icon: Contrast,
       computed: computedWhereNamed("task.progress"),
-      sortBy: "progress",
+      contract: "progress",
       value: (node) => node.task?.progress,
       render: (node) => <ProgressCell node={node} />,
     },
@@ -160,7 +163,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       format: "percent",
       width: 72,
       computed: COMPUTED_PHYSICAL_PROGRESS,
-      sortBy: "physical_progress",
+      contract: "physical_progress",
       value: (node) => node.task?.physical_progress?.value,
       render: (node) => <PhysicalProgressCell node={node} />,
     },
@@ -170,7 +173,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       format: "decimal",
       width: 72,
       computed: COMPUTED_FLOAT,
-      sortBy: "total_float",
+      contract: "total_float",
       value: (node) => node.task?.total_float?.value,
       render: (node) => <FloatCell node={node} />,
     },
@@ -179,9 +182,9 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       label: "predecessors",
       format: "text",
       width: 104,
-      sortBy: "predecessors",
-      // The accessor of the sort alone: the cell renders the links, named by row number.
-      value: (node) => node.predecessors?.length.toString(),
+      contract: "predecessors",
+      // Never shown: the cell renders the links, named by row number.
+      value: () => undefined,
       render: (node) => <PredecessorsCell node={node} />,
     },
     {
@@ -189,7 +192,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       label: "gantt",
       format: "text",
       width: 400,
-      // Neither sorted nor shown as a value: the cell draws the row of the task.
+      // No column of the contract, nor a value shown: the cell draws the row of the task.
       value: () => undefined,
       render: (node) => <GanttCell row={node} />,
       axis: (width) => <GanttAxis width={width} />,
@@ -197,5 +200,5 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
   ],
 };
 
-/** The columns of the contract the grid of the planning sorts by. */
+/** The columns of the contract the grid of the planning sorts by: none (§3.4, WF-IHM-0060). */
 export const PLANNING_SORT_COLUMNS = sortColumns(PLANNING_GRID);

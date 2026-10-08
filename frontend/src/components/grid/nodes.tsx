@@ -480,6 +480,6 @@ export const LABEL_COLUMN: Omit<GridColumn<GridNode, NodeSortColumn, NodeTotals>
   format: "text",
   width: 320,
   pinned: true,
-  sortBy: "label",
+  contract: "label",
   value: (node) => node.task?.label ?? node.estimate_line?.label,
 };

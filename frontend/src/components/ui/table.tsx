@@ -6,7 +6,8 @@
  * totals at its edges, the identifying columns at its start — sticks to it; the container
  * takes its own classes and a reference, which the virtualizer of the rows reads. The borders
  * are drawn by the cells, the table keeping them apart: collapsed borders would not follow a
- * sticky cell. No hover colour, no transition.
+ * sticky cell. No hover colour, no transition. The header row of every table, a list or a dense
+ * grid, is set on the muted background of the charter (#508).
  */
 import type { ComponentProps } from "react";
 
@@ -54,13 +55,17 @@ export function TableRow({ className, ...props }: ComponentProps<"tr">) {
   return <tr data-slot="table-row" className={className} {...props} />;
 }
 
-/** A header cell of a table. */
+/**
+ * A header cell of a table. A header of a column, in the head of its table, takes the muted
+ * background of the charter, whatever the table — a list, a dense grid, whose sticky header hides
+ * the rows scrolled under it —; a header of a row, in its body, stays on the background of its row.
+ */
 export function TableHead({ className, ...props }: ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
       className={cn(
-        "border-b px-2 text-left align-middle font-medium whitespace-nowrap text-muted-foreground not-last:border-r",
+        "border-b px-2 text-left align-middle font-medium whitespace-nowrap text-muted-foreground not-last:border-r in-[thead]:bg-muted",
         className,
       )}
       {...props}

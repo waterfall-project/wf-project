@@ -82,6 +82,7 @@ import {
   useFoldReach,
   FoldContext,
   FoldToggle,
+  isNarrowed,
   useFoldCommands,
   useGridFold,
   useTreeRow,
@@ -99,7 +100,7 @@ import {
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
-import { type Unshown, useGridPaste } from "./paste";
+import { type Unshown, type UnshownRows, useGridPaste } from "./paste";
 import { PasteDialog } from "./paste-dialog";
 import { usePendingAddress } from "./pending-address";
 import { useRootFontSize, useRowWindow } from "./row-window";
@@ -548,9 +549,17 @@ function EntryProblemNotice({
   );
 }
 
+/** The text that says why a block would fill rows the grid does not show, by their cause. */
+const ROWS_REFUSAL = {
+  folded: "foldedRows",
+  sorted: "sortedRows",
+  unretained: "unretainedRows",
+  beyond: "beyondRows",
+} as const satisfies Record<UnshownRows, string>;
+
 /**
  * Why a block pasted was refused before the server was asked: it would fill a column the grid hides
- * or does not present, or a row folded away.
+ * or does not present, or a row of the plan the grid does not show under the cell.
  */
 function UnshownNotice({
   unshown,
@@ -569,7 +578,7 @@ function UnshownNotice({
   } else if (unshown.shown === "absent") {
     text = t("absentColumn", { column: unshown.name });
   } else {
-    text = t("foldedRows");
+    text = t(ROWS_REFUSAL[unshown.shown]);
   }
   return (
     <p role="alert" className="text-sm text-destructive">
@@ -739,7 +748,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     columns: shownColumns,
     writes,
     scroller,
-    folded: fold.foldedFrom,
+    answered: writes.rows,
+    narrowed: isNarrowed(narrowing),
   });
   const undo = useUndoShortcut(undoable);
   const foldReach = useFoldReach();

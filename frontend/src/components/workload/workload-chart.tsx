@@ -78,7 +78,7 @@ function WorkloadValues({ workload }: { readonly workload: WorkloadPlan }) {
     value === undefined ? null : formatDecimal(value, locale);
   return (
     <table className="w-full text-left">
-      <thead className="text-muted-foreground">
+      <thead className="bg-muted text-muted-foreground">
         <tr>
           <th scope="col">{t("role")}</th>
           <th scope="col">{t("month")}</th>

@@ -22,7 +22,7 @@ import type { GridPreferences } from "./settings";
 
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn, NodesWritten } from "./nodes";
-import type { GridQuery } from "./query";
+import type { GridSort } from "./query";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -36,7 +36,6 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined };
 const PREVIEW =
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview";
 const APPLY =
@@ -89,19 +88,30 @@ function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
   return client;
 }
 
-/** The grid of the estimate on the rows, open to entry or not, with the settings kept if any. */
-function renderGrid(editable = true, preferences?: GridPreferences) {
+/** What a reading asked besides the rows, and the rows it answered. */
+interface Reading {
+  readonly nodes: NodeList;
+  readonly search?: string;
+  readonly sort?: GridSort<NodeSortColumn>;
+}
+
+/**
+ * The grid of the estimate on the rows, open to entry or not, with the settings kept if any — or on
+ * the rows a reading answered, searched or sorted.
+ */
+function renderGrid(editable = true, preferences?: GridPreferences, reading?: Reading) {
+  const search = reading?.search;
   return render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
-        filters={{}}
-        nodes={nodes}
+        filters={search === undefined ? {} : { search }}
+        nodes={reading?.nodes ?? nodes}
         structure={STRUCTURE}
         structureVersion={STRUCTURE_VERSION}
         reference={estimateReference()}
         editable={editable}
         tasksEditable
-        query={NO_QUERY}
+        query={{ sort: reading?.sort, search }}
         preferences={preferences}
       />
     </NextIntlClientProvider>,
@@ -161,7 +171,38 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  window.sessionStorage.clear();
 });
+
+/**
+ * The rows a search retains: the lines it names and the tasks above them. Under the first task, the
+ * hours of engineering and of commissioning, then the hours of supervision — not the material
+ * between them, which the server would fill under the hours of commissioning.
+ */
+const SEARCH = "Heures";
+const retained: NodeList = {
+  ...nodes,
+  items: nodes.items.filter((node) => node.estimate_line?.label.includes(SEARCH) ?? true),
+};
+/** The refusals of a block whose rows the grid does not show under its cell, by their cause. */
+const UNSHOWN_ROWS = {
+  folded:
+    "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut.",
+  sorted:
+    "Le bloc collé écrirait les lignes qui suivent la cellule dans l’ordre du plan, que le tri a déplacées : levez le tri avant de coller, ou collez un bloc moins haut.",
+  unretained:
+    "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut.",
+  beyond:
+    "Le bloc collé s’étendrait au-delà des lignes que la grille montre sous la cellule : collez un bloc moins haut.",
+};
+
+/** Paste a block on a cell, and expect it refused, saying why, nothing asked. */
+async function expectRefused(client: FakeClient, target: HTMLElement, text: string, why: string) {
+  await pasteOn(target, text);
+  expect(await screen.findByRole("alert")).toHaveTextContent(why);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(bodies(client, PREVIEW)).toEqual([]);
+}
 
 describe("a block pasted from a spreadsheet", () => {
   it("of three rows and four columns produces a report before writing, then the three rows expected once confirmed [WF-IHM-0050-A]", async () => {
@@ -566,6 +607,114 @@ describe("a block pasted from a spreadsheet", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
     expect(labels()).toEqual(READ);
+  });
+
+  it("reaching a row of the plan the search hides is refused, saying so, and no preview is asked (#527)", async () => {
+    const client = serve();
+    const commissioning = retained.items.findIndex((node) => node.row_number === ROW + 1);
+    expect(retained.items[commissioning + 1]?.row_number).toBeGreaterThan(ROW + 2);
+    renderGrid(true, undefined, { search: SEARCH, nodes: retained });
+    await expectRefused(client, cell(commissioning, "label"), "a\nb", UNSHOWN_ROWS.unretained);
+    // A block of one row writes the line pasted on alone; a block of two rows from the line above,
+    // the next row of the plan shown, writes the two lines the grid shows: both asked.
+    await pasteOn(cell(commissioning, "label"), "a");
+    await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.keyboard("{Escape}");
+    await pasteOn(cell(commissioning - 1, "label"), "a\nb");
+    await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    expect(bodies(client, PREVIEW)).toEqual([
+      {
+        target_node_id: retained.items[commissioning]?.node_id,
+        target_column: "label",
+        rows: [["a"]],
+      },
+      { target_node_id: LINE_4, target_column: "label", rows: [["a"], ["b"]] },
+    ]);
+  });
+
+  it("reaching a row of the plan the sort moved is refused, saying so, and no preview is asked (#527)", async () => {
+    const client = serve();
+    // Sorted by amount, the lines of the first task come back reordered under it: the material
+    // first, then the hours of engineering and of commissioning. Under the material, the grid shows
+    // the hours of engineering, where the server would write the subcontracting, next in the plan.
+    const lines = nodes.items.slice(FIRST, FIRST + 3);
+    const [engineering, commissioning, material] = lines;
+    const sorted: NodeList = {
+      ...nodes,
+      items: [
+        ...nodes.items.slice(0, FIRST),
+        ...(material === undefined ? [] : [material]),
+        ...(engineering === undefined ? [] : [engineering]),
+        ...(commissioning === undefined ? [] : [commissioning]),
+        ...nodes.items.slice(FIRST + 3),
+      ],
+    };
+    const sort = { column: "base_amount", order: "asc" } as const;
+    renderGrid(true, undefined, { nodes: sorted, sort });
+    expect(cell(FIRST, "label")).toHaveTextContent("Matériel");
+    await expectRefused(client, cell(FIRST, "label"), "a\nb", UNSHOWN_ROWS.sorted);
+    // From the hours of engineering, the hours of commissioning follow in the plan as on the
+    // screen: asked.
+    await pasteOn(cell(FIRST + 1, "label"), "a\nb");
+    await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    expect(bodies(client, PREVIEW)).toEqual([
+      { target_node_id: LINE_4, target_column: "label", rows: [["a"], ["b"]] },
+    ]);
+  });
+
+  it("reaching past the last row shown is refused alike, with a search or without", async () => {
+    // Without a search, from the last row of the answer.
+    const client = serve();
+    const { unmount } = renderGrid();
+    await expectRefused(client, cell(nodes.items.length - 1, "label"), "a\nb", UNSHOWN_ROWS.beyond);
+    unmount();
+    // Under the search, from the last row it retains: the end of the plan, or rows the search left
+    // out — the grid cannot tell which, and says neither.
+    renderGrid(true, undefined, { search: SEARCH, nodes: retained });
+    await expectRefused(
+      client,
+      cell(retained.items.length - 1, "label"),
+      "a\nb",
+      UNSHOWN_ROWS.beyond,
+    );
+  });
+
+  it("tells a row folded away before the search that leaves out others in the same span", async () => {
+    const client = serve();
+    renderGrid(true, undefined, { search: SEARCH, nodes: retained });
+    // The first task folded over its lines: from the task above it, a block of five rows would
+    // fill the task, its hours of engineering and of commissioning, folded away, then the material
+    // the search hides.
+    const task = retained.items.findIndex((node) => node.row_number === ROW - 1);
+    expect(retained.items.some((node) => node.row_number === ROW + 2)).toBe(false);
+    await userEvent.click(within(cell(task, "label")).getByRole("button"));
+    await expectRefused(client, cell(task - 1, "label"), "a\nb\nc\nd\ne", UNSHOWN_ROWS.folded);
+  });
+
+  it("tells the sort of a row of the plan shown above the cell, the cell the last row shown", async () => {
+    const client = serve();
+    // Sorted, the lines of the last task come back with its first line, the highest in the plan,
+    // last of all: the next row of the plan is shown, above it.
+    const at = nodes.items.length - 3;
+    const [first, ...others] = nodes.items.slice(at);
+    const sorted: NodeList = {
+      ...nodes,
+      items: [...nodes.items.slice(0, at), ...others, ...(first === undefined ? [] : [first])],
+    };
+    renderGrid(true, undefined, { nodes: sorted, sort: { column: "base_amount", order: "asc" } });
+    await expectRefused(client, cell(nodes.items.length - 1, "label"), "a\nb", UNSHOWN_ROWS.sorted);
+  });
+
+  it("tells the search that leaves out the next row of the plan, under a sort that moves nothing", async () => {
+    const client = serve();
+    const commissioning = retained.items.findIndex((node) => node.row_number === ROW + 1);
+    renderGrid(true, undefined, {
+      search: SEARCH,
+      nodes: retained,
+      sort: { column: "base_amount", order: "asc" },
+    });
+    expect(cell(commissioning, "label")).toHaveTextContent("Heures de mise en service");
+    await expectRefused(client, cell(commissioning, "label"), "a\nb", UNSHOWN_ROWS.unretained);
   });
 
   it("from the column of the row numbers lands on the first column, the label", async () => {

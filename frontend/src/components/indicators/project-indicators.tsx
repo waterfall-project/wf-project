@@ -101,7 +101,7 @@ function Projections({ indicators }: { readonly indicators: ProjectIndicators })
   return (
     <>
       <table className="w-full text-left text-sm">
-        <thead className="text-muted-foreground">
+        <thead className="bg-muted text-muted-foreground">
           <tr>
             <th scope="col">{t("hypothesis")}</th>
             <th scope="col" className="text-right">

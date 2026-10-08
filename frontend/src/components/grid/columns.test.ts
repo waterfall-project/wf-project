@@ -80,7 +80,7 @@ describe("the columns of the grid of the estimate", () => {
       ["base_amount", "referenceAmount"],
       ["inflated_amount", "inflatedAmount"],
     ]);
-    const shown = ESTIMATE_GRID.columns.map((column) => column.sortBy);
+    const shown = ESTIMATE_GRID.columns.map((column) => column.contract);
     expect(shown).not.toContain("budgeted_amount");
     expect(shown).not.toContain("reestimated_amount");
   });

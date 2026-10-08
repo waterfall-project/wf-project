@@ -238,7 +238,10 @@
       "abandon": "Abandon",
       "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block.",
       "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block.",
-      "foldedRows": "The pasted block would reach folded rows: unfold them before pasting, or paste a shorter block."
+      "foldedRows": "The pasted block would reach folded rows: unfold them before pasting, or paste a shorter block.",
+      "sortedRows": "The pasted block would write the rows that follow the cell in the order of the plan, which the sort has moved: lift the sort before pasting, or paste a shorter block.",
+      "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block.",
+      "beyondRows": "The pasted block would reach past the rows the grid shows under the cell: paste a shorter block."
     }
   },
   "estimateGrid": {

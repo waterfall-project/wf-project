@@ -80,7 +80,7 @@ function tableColumns<Row extends RowData, Sort extends string, Totals>(
         minSize: MIN_WIDTH,
         maxSize: MAX_WIDTH,
         enableHiding: column.pinned !== true,
-        enableSorting: column.sortBy !== undefined,
+        enableSorting: config.sorts !== false && column.contract !== undefined,
         sortDescFirst: false,
       }),
     ),
@@ -132,7 +132,7 @@ export function useGridTable<Row extends RowData, Sort extends string, Totals>({
     ],
     [config],
   );
-  const sortedKey = config.columns.find((column) => column.sortBy === sort?.column)?.key;
+  const sortedKey = config.columns.find((column) => column.contract === sort?.column)?.key;
   const sorting: SortingState =
     sort === undefined || sortedKey === undefined
       ? []
@@ -154,7 +154,7 @@ export function useGridTable<Row extends RowData, Sort extends string, Totals>({
     },
     onSortingChange: (updater) => {
       const [next] = resolve(updater, sorting);
-      const by = next === undefined ? undefined : configColumn(config, next.id)?.sortBy;
+      const by = next === undefined ? undefined : configColumn(config, next.id)?.contract;
       onSort(by === undefined ? undefined : { column: by, order: next?.desc ? "desc" : "asc" });
     },
     onColumnVisibilityChange: (updater) => {

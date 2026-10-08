@@ -102,7 +102,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       format: "text",
       width: 240,
       pinned: true,
-      sortBy: "label",
+      contract: "label",
       value: (risk) => risk.label,
       render: (risk) => <RiskLabelCell risk={risk} />,
     },
@@ -111,7 +111,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       label: "probability",
       format: "percent",
       width: 88,
-      sortBy: "probability",
+      contract: "probability",
       value: (risk) => risk.probability,
     },
     {
@@ -120,7 +120,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       format: "money",
       width: 120,
       computed: computedInEveryRisk("severity"),
-      sortBy: "severity",
+      contract: "severity",
       value: (risk) => risk.severity,
     },
     {
@@ -129,7 +129,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       format: "money",
       width: 120,
       computed: computedInEveryRisk("provision_amount"),
-      sortBy: "provision_amount",
+      contract: "provision_amount",
       value: (risk) => risk.provision_amount,
       total: (totals) => totals.total,
     },
@@ -138,7 +138,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       label: "state",
       format: "text",
       width: 96,
-      sortBy: "state",
+      contract: "state",
       // The accessor of the sort alone: the cell names the state in the language of the interface.
       value: (risk) => risk.state,
       render: (risk) => <RiskStateCell state={risk.state} />,
@@ -148,7 +148,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       label: "lastReview",
       format: "date",
       width: 104,
-      sortBy: "last_review_on",
+      contract: "last_review_on",
       value: (risk) => risk.last_review_on,
     },
     {

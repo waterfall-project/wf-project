@@ -963,7 +963,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
           label: "finishDate",
           format: "date",
           width: 120,
-          sortBy: "finish",
+          contract: "finish",
           value: (node) => node.task?.finish?.date,
         },
       ],
