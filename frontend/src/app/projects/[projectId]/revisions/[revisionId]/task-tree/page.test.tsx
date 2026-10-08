@@ -123,10 +123,29 @@ describe("the screen of the task tree", () => {
     );
     expect(page).toContain(`href="${SCREEN}?subproject_id=${SUBPROJECT}&amp;depth=1"`);
     expect(page).toMatch(/aria-current="true"[^>]*>Level 2</);
-    // A summary at the second level may have summaries under it: the third is offered.
+    // The structure has a summary at the third level, which the server says though it does not
+    // render it: the third is offered.
     expect(page).toContain(`href="${SCREEN}?subproject_id=${SUBPROJECT}&amp;depth=3"`);
     const first = await treeAt({ depth: "1" });
     expect(first).toMatch(/aria-current="true"[^>]*>Level 1</);
+  });
+
+  it("offers exactly the levels the structure has, as the server says them, whatever the level shown", async () => {
+    // From the first, the third is offered at once, and no fourth, which the structure does not
+    // have (#494).
+    const first = await treeAt({ depth: "1" });
+    expect(first.match(/>Level \d</g)).toEqual([">Level 1<", ">Level 2<", ">Level 3<"]);
+    expect(first).toContain(`href="${SCREEN}?depth=3"`);
+    expect(first).not.toContain("depth=4");
+    // A structure of two levels whose second holds a summary offers no third (#494).
+    server.answers = { ...server.answers, [NODES]: "nodes_core" };
+    server.clients = [];
+    const core = await treeAt({ depth: "2" });
+    expect(core.match(/>Level \d</g)).toEqual([">Level 1<", ">Level 2<"]);
+    // Asked deeper than the structure goes, the tree is whole, its deepest level the one shown.
+    const deeper = await treeAt({ depth: "5" });
+    expect(deeper).toMatch(/aria-current="true"[^>]*>Level 2</);
+    expect(deeper).not.toContain("depth=5");
   });
 
   it("is the project alone, with no level to choose, for a plan of leaves alone [WF-PLA-0110-A]", async () => {

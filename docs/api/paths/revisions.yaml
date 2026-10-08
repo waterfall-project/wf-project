@@ -393,8 +393,10 @@
 
       L'arborescence de tâches lit `kinds=task`, `summaries_only` et `max_level` : les seules
       récapitulatives, jusqu'au niveau demandé, sous le nœud du projet que le front dessine
-      (WF-PLA-0110) ; une chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le
-      front ne trie ni ne sélectionne rien de ce qu'il reçoit.
+      (WF-PLA-0110), et offre les niveaux que `meta.summary_depth` dit exister, celui de la
+      plus profonde récapitulative de la structure, quels que soient les filtres ; une
+      chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le front ne trie ni ne
+      sélectionne rien de ce qu'il reçoit.
 
       `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du
       plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche
@@ -510,17 +512,20 @@
         explode: false
     responses:
       '200':
-        description: Nœuds, en parcours profondeur d'abord, et leurs totaux.
+        description: >-
+          Nœuds, en parcours profondeur d'abord, leurs totaux, et ce que la lecture dit de la
+          structure elle-même.
         content:
           application/json:
             schema:
               type: object
-              required: [items, totals]
+              required: [items, totals, meta]
               properties:
                 items:
                   type: array
                   items: { $ref: ../components/schemas/revisions.yaml#/Node }
                 totals: { $ref: ../components/schemas/revisions.yaml#/NodeTotals }
+                meta: { $ref: ../components/schemas/revisions.yaml#/NodeListMeta }
             examples:
               volume: { $ref: ../../../fixtures/api/volume/nodes_thousand.json }
               witness: { $ref: ../../../fixtures/api/nodes.json }

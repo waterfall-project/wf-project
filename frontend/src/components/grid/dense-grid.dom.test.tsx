@@ -192,6 +192,7 @@ function thousandRows(): NodeList {
   return {
     items: [summary, ...lines],
     totals: { ...witness.totals, task_count: 1, estimate_line_count: 999 },
+    meta: { summary_depth: 1 },
   };
 }
 
@@ -579,7 +580,8 @@ describe("the sort, the search and the totals, asked of the server", () => {
   });
 
   it("says no row matches when the server retains none, between the header and the totals", () => {
-    renderGrid({ items: [], totals: { ...witness.totals, task_count: 0, estimate_line_count: 0 } });
+    const none = { ...witness.totals, task_count: 0, estimate_line_count: 0 };
+    renderGrid({ ...witness, items: [], totals: none });
     expect(grid()).toHaveAttribute("aria-rowcount", "3");
     expect(texts(rowAt(2))).toEqual(["Aucune ligne ne répond à la demande."]);
     expect(texts(rowAt(3))[1]).toBe("Total — aucune tâche, aucune ligne");

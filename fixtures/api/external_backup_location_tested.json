@@ -1,0 +1,9 @@
+{
+  "summary": "Le compartiment du site de secours de Lyon éprouvé aujourd'hui à 14 h 05, dans le dossier des copies : le fichier témoin y a été écrit puis effacé (WF-ADM-0170).",
+  "value": {
+    "location": "secours-lyon",
+    "path": "waterfall/sauvegardes",
+    "tested_at": "2026-06-03T14:05:00Z",
+    "failure": null
+  }
+}

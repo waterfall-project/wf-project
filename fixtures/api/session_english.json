@@ -46,6 +46,7 @@
       "system_status.write",
       "backups.read",
       "backups.write",
+      "audit_log.read",
       "portfolio_projects.read",
       "portfolio_projects.write",
       "portfolio_workload.read",

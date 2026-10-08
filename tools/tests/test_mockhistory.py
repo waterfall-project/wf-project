@@ -17,6 +17,7 @@ from typing import Any, cast
 import pytest
 
 from wftools import mockcore, mockdata, mockhistory, mockstructure, mockwitness, mockwrites
+from wftools.mockids import universe
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CREATED,
@@ -25,7 +26,6 @@ from wftools.mockwitness import (
     ORDER_RECEIVED,
     REGISTER,
     TODAY,
-    universe,
 )
 
 type Node = dict[str, Any]

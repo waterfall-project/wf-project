@@ -44,6 +44,8 @@ tags:
     description: Rôles d'habilitation et catalogue des permissions (FBS-1.2).
   - name: platform
     description: Sauvegarde et restauration (FBS-1.4).
+  - name: audit
+    description: Journal d'audit des actions irréversibles ou structurantes, en lecture seule (WF-SEC-0030).
   - name: reference
     description: Référentiel commun de l'entreprise (FBS-3).
   - name: projects
@@ -142,8 +144,14 @@ paths:
     $ref: ./paths/platform.yaml#/~1backups~1{backup_id}~1content
   /backup-schedule:
     $ref: ./paths/platform.yaml#/~1backup-schedule
+  /external-backup-locations:
+    $ref: ./paths/platform.yaml#/~1external-backup-locations
+  /external-backup-locations/{location_name}/test:
+    $ref: ./paths/platform.yaml#/~1external-backup-locations~1{location_name}~1test
   /restores:
     $ref: ./paths/platform.yaml#/~1restores
+  /audit-events:
+    $ref: ./paths/audit.yaml#/~1audit-events
   /reference/readiness:
     $ref: ./paths/reference.yaml#/~1reference~1readiness
   /reference/settings:

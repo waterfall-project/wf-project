@@ -131,6 +131,15 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("says the minimum a value falls short of", () => {
+    // The retention of the copies outside the platform, at least that of the platform (#488).
+    const problem: ProblemText = { code: "VALUE_OUT_OF_RANGE", params: { minimum: 7 } };
+    expect(say(problem, "fr")).toBe(
+      "La valeur sort des limites admises. Valeur minimale\u00A0: 7.",
+    );
+    expect(say(problem, "en")).toMatch(/ Minimum value: 7\.$/);
+  });
+
   it("names the unavailable component", () => {
     const problem: ProblemText = {
       code: "COMPONENT_UNAVAILABLE",

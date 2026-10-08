@@ -552,7 +552,10 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
   jusqu'au niveau demandé, tâches inscrites à la chronologie —, filtre idempotent qui ne change rien
   contre un serveur qui les tient ; il se retire quand le back d'EP-03 les tiendra. Le contrat ne dit
   pas jusqu'à quel niveau vont les récapitulatives : l'arborescence offre les niveaux de la réponse,
-  et le suivant quand une récapitulative est au niveau demandé.
+  et le suivant quand une récapitulative est au niveau demandé — revue d'EP-02/L36, ouvert en #494.
+  Corrigé par EP-02/L42 (décision de l'auteur du 2026-10-08) : `listNodes` rend dans son `meta` le
+  niveau de la plus profonde récapitulative de la structure, quels que soient les filtres
+  (`summary_depth`), et l'arborescence offre exactement les niveaux qui existent.
 - Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
   US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
   tests ne peuvent pas le simuler sur ces opérations. Corrigé par EP-02/L8 : cent dix
@@ -660,6 +663,8 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
 - `getBackgroundTaskResult` ne déclare ni le nom du fichier rendu (`Content-Disposition`) ni sa nature au-delà de `application/octet-stream` — revue d'US-0260/L1, ouvert en #323. D'ici là, le front transmet le `Content-Disposition` de l'API quand il vient, et pose sinon `attachment`, avec `X-Content-Type-Options: nosniff`.
 - Le contrat ne borne pas la taille d'un fichier déposé (`uploadFile`, 413 sans maximum) — revue d'US-0260/L1, ouvert en #324. D'ici là, l'écran refuse dans la page un fichier de plus de 10 Mio, la plus grande taille d'import du §4.6.2 (un fichier MS Project), et la borne des actions serveur de Next (`next.config.ts`) est réglée un peu au-dessus, l'enveloppe multipart comprise.
 - `getWorkBreakdown` n'avait aucun exemple, et aucun écran ne lisait le lotissement, qu'US-0220 citait pourtant : la feuille FBS-4.2.1 n'était adressable nulle part — EP-02/L3, ouvert en #503. Corrigé par ce lot, sur la décision de #503 (option a) : l'exemple `work_breakdown`, engendré du témoin par `make mock-data` — le poste 711, « Fourniture et montage des armoires », que porte la récapitulative « Poste de commande », son lot 712, « Armoires », et un livrable —, que l'écran des paramètres du projet présente en lecture ; la saisie (`setWorkBreakdown`) reste à EP-04.
+- `BackupSchedule` ne portait aucun paramètre de la copie externe automatique des sauvegardes planifiées que WF-ADM-0170 révisée prévoit — EP-02/L25, ouvert en #488. Corrigé par EP-02/L42 (proposition retenue avec l'auteur le 2026-10-08) : `BackupSchedule.external_copy` nomme un emplacement que l'installation déclare (`listExternalBackupLocations`, sans aucun secret), un dossier relatif et les copies gardées, au moins autant que la plateforme en garde (WF-EXP-0050) ; `testExternalBackupLocation` écrit puis efface un fichier témoin et rend l'issue en code ; l'échec d'une copie planifiée est une alerte de l'état du système (`scheduled_backup_copy_failed`), qui dit aussi la dernière copie (`last_backup_copy`). L'écran des sauvegardes la dit en lecture ; le formulaire et le test viennent avec EP-02/L43 (#519), la déclaration des emplacements et la copie avec EP-13.
+- Aucune opération ne lisait le journal d'audit de WF-SEC-0030 — relevé avec l'auteur le 2026-10-08, ouvert en #516. Corrigé par EP-02/L42 : `listAuditEvents`, en lecture seule, filtré par période, auteur, action, projet et objet, trié par date et paginé, sous une permission de consultation, `audit_log.read`, dont l'attribution au rôle d'administrateur et la fonction FBS-1.5 attendent #518 ; exemples engendrés du témoin. L'écran est EP-02/L41e (#517).
 
 ### Ordre de construction
 

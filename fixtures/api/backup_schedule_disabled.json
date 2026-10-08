@@ -1,11 +1,17 @@
 {
-  "summary": "Une planification suspendue : aucune sauvegarde n'est prise d'elle-même, et la rétention de sept reste réglée (WF-ADM-0170).",
+  "summary": "Une planification suspendue : aucune sauvegarde n'est prise d'elle-même, ni donc copiée ; la rétention de sept et la copie vers le site de secours de Lyon restent réglées (WF-ADM-0170).",
   "value": {
     "is_enabled": false,
     "frequency": "daily",
     "at_time": "01:00",
     "weekday": null,
     "retained_count": 7,
+    "external_copy": {
+      "is_enabled": true,
+      "location": "secours-lyon",
+      "path": "waterfall/sauvegardes",
+      "retained_count": 30
+    },
     "lock_version": 3
   }
 }

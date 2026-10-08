@@ -1153,7 +1153,8 @@
       "function": "Function",
       "permission": "Permission",
       "held": "Granted",
-      "notHeld": "Not granted"
+      "notHeld": "Not granted",
+      "auditLog": "Audit log"
     },
     "status": {
       "version": "Installed version: {version}",
@@ -1168,6 +1169,7 @@
       "used": "Used",
       "free": "Available",
       "storageDetail": "{used} used, {available} free",
+      "copyDetail": "{location}: {failure}",
       "operations": "Last operations",
       "operation": "Operation",
       "at": "Date",
@@ -1178,6 +1180,7 @@
       "never": "Never run",
       "directorySync": "Reading of the identity provider accounts",
       "backup": "Backup",
+      "backupCopy": "External copy of the backup",
       "restoreTest": "Restoration test",
       "alerts": "Current alerts",
       "alert": "Alert",
@@ -1207,6 +1210,10 @@
       "universalTime": "{time} UTC",
       "retained": "Retention",
       "count": "{count, plural, one {# backup kept} other {# backups kept}}",
+      "externalCopy": "External copy",
+      "externalCopyNone": "None",
+      "externalCopyTo": "To {location}, folder {path} — {count, plural, one {# copy kept} other {# copies kept}}",
+      "externalCopySuspended": "Suspended — to {location}, folder {path}, {count, plural, one {# copy kept} other {# copies kept}}",
       "weekdays": {
         "monday": "Monday",
         "tuesday": "Tuesday",
@@ -1310,6 +1317,8 @@
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
+    "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "External location the installation does not declare.",
+    "PATH_INVALID": "Invalid path: it must be relative, without “..”.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "A task bears an order item or a work package, never both.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "This order item or work package is already borne by another task.",
@@ -1323,6 +1332,7 @@
     "missing_prerequisites": "Still missing: {prerequisites}.",
     "projectState": "State of the project: {state}.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
+    "minimum": "Minimum value: {minimum}.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
     "expected_version": "Expected version: {version}."
@@ -1343,6 +1353,9 @@
     "backups": {
       "read": "View backups",
       "write": "Edit backups"
+    },
+    "audit_log": {
+      "read": "View the audit log"
     },
     "portfolio_projects": {
       "read": "View the project portfolio",
@@ -1455,6 +1468,7 @@
         "component_unavailable": "Component unavailable",
         "task_queue_stalled": "Task queue stalled",
         "scheduled_backup_failed": "Scheduled backup failed",
+        "scheduled_backup_copy_failed": "External copy of a scheduled backup failed",
         "directory_sync_failed": "Directory synchronisation failed",
         "storage_nearly_full": "Storage nearly full",
         "error_rate_abnormal": "Abnormal error rate"
@@ -1542,6 +1556,55 @@
         "daily": "Daily",
         "weekly": "Weekly"
       }
+    },
+    "ExternalBackupLocationKind": {
+      "s3": "S3 bucket",
+      "mounted_share": "Mounted network share"
+    },
+    "ExternalBackupFailure": {
+      "location_unreachable": "Location unreachable",
+      "access_denied": "Access denied",
+      "write_failed": "Write refused",
+      "delete_failed": "Deletion refused",
+      "storage_full": "No space left",
+      "timed_out": "Timed out"
+    },
+    "AuditAction": {
+      "revision_mark": "Revision marked",
+      "reference_designate": "Reference designated",
+      "amendment_merge": "Amendment contracted",
+      "risk_occurrence": "Risk occurred",
+      "project_exit": "Exit from the lifecycle",
+      "cost_line_exclude": "Cost line excluded",
+      "cost_line_reinstate": "Cost line reinstated",
+      "import_apply": "Import applied",
+      "user_create": "Account created",
+      "user_update": "Account edited",
+      "user_deactivate": "Account deactivated",
+      "user_reactivate": "Account reactivated",
+      "password_link_create": "Password link generated",
+      "access_role_create": "Role created",
+      "access_role_update": "Role edited",
+      "access_role_delete": "Role deleted",
+      "user_access_roles_set": "Roles of an account assigned",
+      "backup": "Backup",
+      "restore": "Restoration"
+    },
+    "AuditActorKind": {
+      "user": "An account",
+      "platform": "The platform"
+    },
+    "AuditObjectKind": {
+      "project": "Project",
+      "revision": "Revision",
+      "cost_structure": "Cost structure",
+      "risk": "Risk",
+      "cost_line": "Cost line",
+      "import": "Import",
+      "user": "Account",
+      "access_role": "Access role",
+      "backup": "Backup",
+      "external_backup_upload": "Uploaded backup"
     },
     "ReferenceReadiness": {
       "missing": {

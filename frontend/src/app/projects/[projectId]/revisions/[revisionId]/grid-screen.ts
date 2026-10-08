@@ -111,6 +111,11 @@ export interface GridScreen<Row> {
   readonly structureVersion: number;
   readonly nodes: NodeRows<Row>;
   /**
+   * The level of the deepest summary of the structure, whatever the reading retains
+   * (`meta.summary_depth`): the depths the task tree offers (#494).
+   */
+  readonly summaryDepth: number;
+  /**
    * What the reading asked of the nodes besides their fields and their sort — the kinds, the
    * search, the filters —, as it was sent: one that asks any has totals of its own, never those
    * of the structure a write answers, and reads them anew (`NodesWritten.totals`, #218).
@@ -174,6 +179,7 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
     structure,
     structureVersion: main.lock_version,
     nodes: projectNodes(answer, fields),
+    summaryDepth: answer.meta.summary_depth,
     filters,
   };
 }

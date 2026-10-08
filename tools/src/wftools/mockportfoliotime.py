@@ -51,18 +51,16 @@ from wftools import (
     mocktext,
     mocktoday,
 )
+from wftools.mockids import MILESTONES, identifier, universe
 from wftools.mockportfolio import Earned, earned, identified_risks, portfolio, role_shares
 from wftools.mockstructure import CENT, JsonObject, JsonValue, decimal, draw, money
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     COST_IMPORTS,
     IDENTIFIED,
-    MILESTONES,
     REGISTER,
     TODAY,
     fixture,
-    identifier,
-    universe,
 )
 
 if TYPE_CHECKING:

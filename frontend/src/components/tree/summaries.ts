@@ -14,10 +14,9 @@
  * hangs each summary under its parent, as the API names it, and orders and computes nothing. The
  * depth goes by the address (`depth`), so that a link shared shows the same tree.
  *
- * The contract does not say how deep the summaries go: the depths offered are those of the
- * summaries of the answer, and the next one when one is at the depth asked, which may have
- * summaries under it — a summary that has none shows the same tree one level deeper. Pure, and
- * neither server nor client.
+ * The server says how deep the summaries of the structure go, whatever it renders
+ * (`meta.summary_depth`, #494): the tree offers exactly the depths that exist, from the first to
+ * that one, and guesses none. Pure, and neither server nor client.
  */
 import type { SearchParameters } from "@/navigation/context";
 
@@ -60,24 +59,13 @@ function retained(tasks: readonly TreeTask[], depth: number): readonly TreeTask[
 }
 
 /**
- * The depths the tree offers, read at a depth: down to the deepest summary of the answer, and one
- * more when that summary is at the depth asked; none for a plan without a summary. An answer that
- * holds deeper summaries than asked — the fake back's — offers them.
+ * The depth the tree shows: the one asked, or the deepest that exists when the structure holds no
+ * summary that deep — the tree is then whole —; none for a plan without a summary. `deepest` is
+ * the level of the deepest summary of the structure, as the server says it
+ * (`meta.summary_depth`): the depths offered are those from the first to it.
  */
-export function depthsOffered(tasks: readonly TreeTask[], depth: number): number {
-  const deepest = tasks.reduce(
-    (level, node) => (node.task?.is_summary === true ? Math.max(level, node.level) : level),
-    0,
-  );
-  return deepest === depth ? deepest + 1 : deepest;
-}
-
-/**
- * The depth the tree shows, read at a depth: the one asked, or the deepest of the answer when the
- * answer holds no summary that deep — the tree is then whole.
- */
-export function depthShown(tasks: readonly TreeTask[], depth: number): number {
-  return Math.min(depth, depthsOffered(tasks, depth));
+export function depthShown(deepest: number, depth: number): number {
+  return Math.min(depth, deepest);
 }
 
 /**

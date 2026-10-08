@@ -90,6 +90,7 @@ const DETAILS: readonly Reader[] = [
   },
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,
+  ({ minimum }) => (typeof minimum === "number" ? ["minimum", { minimum }] : undefined),
   ({ component }, label) => {
     const name = label("enums.PlatformComponent", component);
     return name === undefined ? undefined : ["component", { component: name }];

@@ -305,8 +305,13 @@ describe("the access roles", () => {
 
   it("present the permissions of the catalogue in its order, under the function of the second level each covers, and whether each role holds it", async () => {
     const matrix = rows(rendered(await AccessRolesPage(searched())), "Permissions par fonction");
-    // A header, forty-eight permissions of the functions, eight irreversible and two structuring.
-    expect(matrix).toHaveLength(59);
+    // A header, forty-eight permissions of the functions, the consultation of the journal of
+    // audit, eight irreversible and two structuring.
+    expect(matrix).toHaveLength(60);
+    // Named by the catalogue, never by a code of the FBS (#518).
+    expect(matrix).toContain(
+      "Journal d’audit Consulter le journal d’audit Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
+    );
     expect(matrix.slice(0, 3)).toEqual([
       "Fonction Permission Administrateur Chef de projet Chiffreur Direction de projet Manager Pilotage de projet",
       "Gestion des utilisateurs Consulter les utilisateurs Accordée Non accordée Non accordée Accordée Non accordée Non accordée",
@@ -360,12 +365,14 @@ describe("the state of the system", () => {
       "Opération Date Résultat Motif",
       "Lecture des comptes du fournisseur d’identité Réussie",
       "Sauvegarde Réussie",
+      "Copie externe de la sauvegarde Réussie",
       "Test de restauration Réussie",
     ]);
     expect(instants(page)).toEqual(
       expect.arrayContaining([
         "2026-06-03T02:00:00Z",
         "2026-06-03T01:00:00Z",
+        "2026-06-03T01:14:00Z",
         "2026-06-01T03:00:00Z",
       ]),
     );
@@ -412,6 +419,20 @@ describe("the state of the system", () => {
     );
     expect(rows(page, "Composants")).toContain("Stockage des fichiers Indisponible");
   });
+
+  it("signal the failure of the external copy of a scheduled backup as an alert under way, with its location and its motive [WF-ADM-0170-A]", async () => {
+    // Un échec planifié, de sauvegarde ou de copie, apparaît comme alerte sur l'écran d'état.
+    server.answers = { ...server.answers, "GET /system/status": "system_status_copy_failed" };
+    const page = rendered(await SystemStatusPage());
+    expect(rows(page, "Alertes en cours")).toEqual([
+      "Niveau Alerte Depuis",
+      "Alerte Échec de la copie externe d’une sauvegarde planifiée secours-lyon : Espace épuisé",
+    ]);
+    expect(rows(page, "Dernières opérations").slice(2, 4)).toEqual([
+      "Sauvegarde Réussie",
+      "Copie externe de la sauvegarde Échouée",
+    ]);
+  });
 });
 
 describe("the backups", () => {
@@ -441,11 +462,19 @@ describe("the backups", () => {
     expect(links(page)).toEqual([]);
   });
 
-  it("name the day of a weekly schedule", async () => {
+  it("present the external copy of the scheduled backups, the location by the name the installation declares", async () => {
+    // The screen reads the copy the schedule sets; the form comes with the commands (#519).
+    const page = rendered(await BackupsPage(searched()));
+    expect(text(page)).toContain(
+      "Copie externe Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées",
+    );
+  });
+
+  it("name the day of a weekly schedule, and say it has no external copy", async () => {
     server.answers = { ...server.answers, "GET /backup-schedule": "backup_schedule_weekly" };
     const page = rendered(await BackupsPage(searched()));
     expect(text(page)).toContain(
-      "Fréquence Hebdomadaire Jour Dimanche Heure 02:30 UTC Rétention 4 sauvegardes conservées",
+      "Fréquence Hebdomadaire Jour Dimanche Heure 02:30 UTC Rétention 4 sauvegardes conservées Copie externe Aucune",
     );
   });
 

@@ -1,0 +1,9 @@
+{
+  "summary": "Variante contrefactuelle : le partage du siège éprouvé aujourd'hui à 14 h 05, à sa racine, si son compte de service n'y avait plus accès : l'écriture du fichier témoin est refusée, et le motif dit en code (WF-ADM-0170, WF-ARC-0110).",
+  "value": {
+    "location": "nas-siege",
+    "path": null,
+    "tested_at": "2026-06-03T14:05:00Z",
+    "failure": "access_denied"
+  }
+}

@@ -11,11 +11,17 @@ export interface Examples {
   "GET /access-roles": {
     200: "access_roles";
   };
+  "GET /audit-events": {
+    200: "audit_events" | "audit_events_empty" | "audit_events_exited" | "audit_events_page" | "audit_events_project";
+  };
   "GET /backup-schedule": {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
   };
   "GET /backups": {
     200: "backups" | "backups_beyond" | "backups_empty";
+  };
+  "GET /external-backup-locations": {
+    200: "external_backup_locations" | "external_backup_locations_none";
   };
   "GET /installation": {
     200: "installation" | "installation_english";
@@ -186,7 +192,7 @@ export interface Examples {
     200: "auth_providers" | "auth_providers_local";
   };
   "GET /system/status": {
-    200: "system_status" | "system_status_backup_failed" | "system_status_storage_full";
+    200: "system_status" | "system_status_backup_failed" | "system_status_copy_failed" | "system_status_storage_full";
   };
   "GET /tasks": {
     200: "tasks_none" | "tasks_running";
@@ -205,6 +211,9 @@ export interface Examples {
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_renamed" | "volume/task_lengthened";
+  };
+  "POST /external-backup-locations/{location_name}/test": {
+    200: "external_backup_location_test_failed" | "external_backup_location_tested";
   };
   "POST /file-uploads": {
     201: "file_upload";

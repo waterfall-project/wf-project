@@ -60,12 +60,15 @@ describe("the matrix of the permissions", () => {
       "Non accordée",
     ]);
     // Each of the twenty-four functions heads its group by its name alone: no code of the FBS is
-    // shown to the user (decision of the author on #515).
+    // shown to the user (decision of the author on #515); the consultation of the journal of
+    // audit heads its own by a name of the catalogue, its function still to come (#518).
+    expect(within(matrix).getByRole("rowheader", { name: "Journal d’audit" })).toBeInTheDocument();
     expect(
       within(matrix).getByRole("rowheader", { name: "Gestion des rôles d’habilitation" }),
     ).toHaveAttribute("rowspan", "2");
-    // Twenty-four functions, and the irreversible and the structuring actions.
-    expect(matrix.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(26);
+    // Twenty-four functions, the journal of audit, and the irreversible and the structuring
+    // actions.
+    expect(matrix.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(27);
     expect(matrix.textContent).not.toContain("FBS-");
     await expectAccessible(container);
   });
@@ -147,6 +150,10 @@ describe("the state of the platform and its backups", () => {
     expect(screen.getByText("Désactivée")).toBeInTheDocument();
     expect(screen.getByText("7 sauvegardes conservées")).toBeInTheDocument();
     expect(screen.queryByText("Fréquence")).toBeNull();
+    // A schedule suspended keeps its copy set, as it keeps its retention.
+    expect(
+      screen.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
+    ).toBeInTheDocument();
     await expectAccessible(container);
   });
 });

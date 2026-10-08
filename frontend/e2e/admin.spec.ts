@@ -64,7 +64,9 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
-  await expect(matrix.getByRole("row")).toHaveCount(59);
+  // A header, the forty-eight permissions of the functions, the consultation of the journal of
+  // audit, and the ten permissions of their own.
+  await expect(matrix.getByRole("row")).toHaveCount(60);
   const restore = matrix.getByRole("row", { name: /^Restaurer la plateforme/ });
   await expect(restore.getByRole("cell")).toHaveText([
     "Accordée",
@@ -85,11 +87,19 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   await expect(
     operations.getByRole("row", { name: /^Test de restauration/ }).locator("time"),
   ).not.toBeEmpty();
+  // The copy of the last backup outside the platform, verified (WF-EXP-0050, #488).
+  await expect(
+    operations.getByRole("row", { name: /^Copie externe de la sauvegarde/ }),
+  ).toContainText("Réussie");
   await expect(page.getByText("Aucune alerte en cours.")).toBeVisible();
 
   await page.goto("/admin/backups");
   await expect(page.getByRole("table", { name: "Sauvegardes" }).getByRole("row")).toHaveCount(9);
   await expect(page.getByText("7 sauvegardes conservées")).toBeVisible();
+  // Each scheduled backup copied to the location the installation declares, read only (#488).
+  await expect(
+    page.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
+  ).toBeVisible();
   // Neither a backup nor a restoration is started from here.
   await expect(page.getByRole("main").getByRole("button")).toHaveCount(0);
 });

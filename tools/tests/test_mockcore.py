@@ -7,6 +7,7 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 """
 
 import json
+import re
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -14,8 +15,18 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockhistory, mockstructure, mockwitness, mockwrites
-from wftools.mockwitness import TODAY, Line, Task, universe
+from wftools import (
+    REPOSITORY,
+    mockcore,
+    mockdata,
+    mockhistory,
+    mockids,
+    mockstructure,
+    mockwitness,
+    mockwrites,
+)
+from wftools.mockids import universe
+from wftools.mockwitness import TODAY, Line, Task
 
 type Node = dict[str, Any]
 
@@ -414,8 +425,8 @@ def test_the_physical_progress_of_a_summary_is_the_budget_of_its_completed_tasks
     assert "physical_progress" not in facet(planning[DETAILED_STUDIES])
 
 
-_STRUCTURE_NODES = next(f for f in mockwitness.IDENTIFIERS if f.what == "nœuds de la structure")
-_STRUCTURE_LINEAGES = next(f for f in mockwitness.IDENTIFIERS if f.first == 600)
+_STRUCTURE_NODES = next(f for f in mockids.IDENTIFIERS if f.what == "nœuds de la structure")
+_STRUCTURE_LINEAGES = next(f for f in mockids.IDENTIFIERS if f.first == 600)
 
 _RENAMED = {
     ("task_renamed.json", universe(WIRING)),
@@ -620,6 +631,50 @@ def test_the_task_tree_reads_the_summaries_down_to_the_level_asked(
     assert all(facet(node)["is_summary"] and node["level"] <= 2 for node in found.values())
     assert tree["totals"]["task_count"] == 3
     assert tree["totals"]["estimate_line_count"] == 0
+
+
+def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatever_it_retains() -> (
+    None
+):
+    # #494: each example of listNodes the contract cites says the depth of the structure it reads,
+    # whatever it retains — a filter, a search, a timeline, `kinds`, the level asked.
+    contract = (REPOSITORY / "docs/api/paths/revisions.yaml").read_text(encoding="utf-8")
+    block = contract[contract.index("operationId: listNodes") :]
+    block = block[: block.index("'400'")]
+    cited = set(re.findall(r"fixtures/api/(\S+)\.json", block))
+    current, alone = mockcore.current(), mockcore.alone()
+    nested = mockcore.alone(mockdata.nested())
+    structures = {
+        "volume/nodes_thousand": current,
+        "nodes": current,
+        "nodes_milestone": current,
+        "nodes_estimate": current,
+        "nodes_installation": current,
+        "nodes_planning": current,
+        "nodes_risk_occurred": current,
+        "nodes_timeline": current,
+        "nodes_core": alone,
+        "nodes_nested": nested,
+        "nodes_summaries": nested,
+    }
+    depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
+    depths["nodes_summaries_leaves"] = 0
+    assert set(depths) == cited
+    assert (depths["nodes"], depths["nodes_core"], depths["nodes_summaries"]) == (2, 2, 3)
+    for name, depth in depths.items():
+        assert mockwitness.fixture(name)["meta"] == {"summary_depth": depth}, name
+    # A reading without a filter renders every summary: its depth is that of its own items.
+    for name in ("volume/nodes_thousand", "nodes_core"):
+        read = mockwitness.fixture(name)
+        deepest = max(
+            node["level"]
+            for node in read["items"]
+            if node["kind"] == "task" and node["task"]["is_summary"]
+        )
+        assert read["meta"] == {"summary_depth": deepest}, name
+    # The tree asked at the level 2 is told the third exists, which it does not render.
+    shown = mockwitness.fixture("nodes_summaries")["items"]
+    assert max(node["level"] for node in shown) == 2
 
 
 def test_a_timeline_reads_the_tasks_inscribed_on_it_without_their_ancestors(

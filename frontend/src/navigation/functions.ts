@@ -23,12 +23,15 @@ import table from "./functions.json";
 
 type PermissionCode = components["schemas"]["PermissionCode"];
 type Readable<P> = P extends `${infer F}.read` ? F : never;
+type Writable<P> = P extends `${infer F}.write` ? F : never;
 
 /**
  * The name of a function in the catalogue of permissions: `planning` stands for
- * `planning.read` and `planning.write`.
+ * `planning.read` and `planning.write`. The consultation of the journal of audit, which has no
+ * permission to modify (`audit_log.read`, WF-SEC-0030), is no such function until the FBS gives
+ * it one and the navigation a screen (#518, #517).
  */
-export type FunctionPermission = Readable<PermissionCode>;
+export type FunctionPermission = Readable<PermissionCode> & Writable<PermissionCode>;
 
 /**
  * The functions outside any project, by the name of their permissions: those whose commands

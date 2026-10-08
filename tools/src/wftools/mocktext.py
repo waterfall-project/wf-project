@@ -9,8 +9,11 @@ saying that the example is generated and is not edited by hand.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import TYPE_CHECKING, cast
+
+from wftools import REPOSITORY
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -20,6 +23,20 @@ if TYPE_CHECKING:
 CORE_ONLY = "Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528)."
 """What an example read on the core alone says of itself, until EP-02/L45 reads the whole
 structure (#376): its figures are not those of the thousand tasks that carry the core."""
+
+
+def _default_limit() -> int:
+    """Return the default of the parameter `Limit` of the contract: one page of a list."""
+    text = (REPOSITORY / "docs/api/components/parameters.yaml").read_text(encoding="utf-8")
+    found = re.search(r"^Limit:\n(?:[ \t].*\n)*?.*default:\s*(\d+)", text, re.MULTILINE)
+    if found is None:
+        message = "the parameter Limit of the contract has no default"
+        raise ValueError(message)
+    return int(found.group(1))
+
+
+PAGE = _default_limit()
+"""The page of a list when none is asked: the default of `Limit`, read from the contract."""
 
 DESCRIPTION = "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas."
 

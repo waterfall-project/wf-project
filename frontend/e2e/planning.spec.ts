@@ -179,6 +179,9 @@ test("leads from the planning to its task tree, read only, its depth in the addr
   await expect(tree.getByRole("treeitem", { level: 2 })).toHaveCount(12, { timeout: WORKING });
   await expect(tree.getByRole("treeitem", { name: /^8 Poste de commande/ })).toBeVisible();
   await expect(tree.getByText("Préparation 1.1.1")).toHaveCount(0);
+  // The levels the structure has, as the server says them, and not one more (#494).
+  const depths = page.getByRole("navigation", { name: "Niveau affiché" });
+  await expect(depths.getByRole("link")).toHaveText(["Niveau 1", "Niveau 2"]);
   // One stop of the tabulation, whose arrows go through it.
   await tree.getByRole("treeitem").first().focus();
   await page.keyboard.press("ArrowRight");

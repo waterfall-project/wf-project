@@ -15,9 +15,10 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockstructure, mockwitness
+from wftools import mockcore, mockdata, mockids, mockstructure, mockwitness
 from wftools.mockcalendar import Calendar, Instant
-from wftools.mockwitness import GENERATED, PREFIX, N
+from wftools.mockids import PREFIX
+from wftools.mockwitness import GENERATED, N
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
 TODAY = mockwitness.TODAY.date().isoformat()
@@ -101,7 +102,7 @@ def test_the_tasks_drawn_are_linked_to_the_core(items: list[Node]) -> None:
     for node in tasks(items):
         for link in node.get("predecessors", []):
             followers.setdefault(link["predecessor_node_id"], []).append(node["task"]["label"])
-    universe = mockwitness.universe
+    universe = mockids.universe
     assert followers[universe(N.FACTORY_ACCEPTANCE)] == [
         "Montage des armoires sur site",
         "Préparation 1.1.1",
@@ -318,7 +319,7 @@ def test_the_one_provision_is_that_of_the_risk_identified(items: list[Node]) -> 
     # A line of provision is created by the declaration of a risk alone (WF-DEV-0020,
     # WF-RIS-0010): none is drawn; the core's, of 751, is budgeted at what the reference knew.
     provisions = [node for node in lines(items) if node["estimate_line"]["is_computed"]]
-    assert [node["node_id"] for node in provisions] == [mockwitness.universe(N.PROVISION)]
+    assert [node["node_id"] for node in provisions] == [mockids.universe(N.PROVISION)]
     [line] = [node["estimate_line"] for node in provisions]
     assert (line["base_amount"], line["budgeted_amount"]) == ("500.00", "250.00")
 
