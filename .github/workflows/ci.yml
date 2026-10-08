@@ -8,6 +8,8 @@
 #
 # Two tiers: the fast one on every push to a pull request, the full one in the merge queue,
 # on the result of the merge, before it is accepted (US-0310). Every step calls the Makefile.
+# The front family runs in two workflows side by side: front.yml for all but the end-to-end
+# paths, e2e.yml for the paths, in the full tier only and spread over several runners (#492).
 name: chain
 
 on:
@@ -36,6 +38,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
+      # The tier, decided once: full in the merge queue, the one chosen when run by hand.
+      tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
       spec: ${{ steps.families.outputs.spec }}
       contract: ${{ steps.families.outputs.contract }}
       back: ${{ steps.families.outputs.back }}
@@ -75,14 +79,21 @@ jobs:
     if: needs.changes.outputs.back == 'true'
     uses: ./.github/workflows/back.yml
     with:
-      tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
+      tier: ${{ needs.changes.outputs.tier }}
 
   front:
     needs: changes
     if: needs.changes.outputs.front == 'true'
     uses: ./.github/workflows/front.yml
     with:
-      tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
+      tier: ${{ needs.changes.outputs.tier }}
+
+  # The other half of the front family: skipped in the fast tier as when the front is not
+  # touched, which the gate does not count as a failure.
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.front == 'true' && needs.changes.outputs.tier == 'full'
+    uses: ./.github/workflows/e2e.yml
 
   roadmap:
     needs: changes
@@ -90,7 +101,9 @@ jobs:
     uses: ./.github/workflows/roadmap.yml
 
   gate:
-    needs: [changes, repo, spec, contract, back, front, roadmap]
+    # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
+    # a failure as soon as one of its parts failed or was cancelled.
+    needs: [changes, repo, spec, contract, back, front, e2e, roadmap]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

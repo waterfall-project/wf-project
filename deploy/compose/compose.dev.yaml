@@ -23,11 +23,15 @@ services:
       - "4010"
     volumes:
       - ../../docs/api/waterfall.mock.json:/contract/waterfall.mock.json:ro
+      # npx keeps Prism in the npm cache: in a named volume, it is downloaded once, not at
+      # every start. Mounted on the home of the image's user, which owns it: Docker gives a new
+      # named volume the owner of the directory it is mounted on, so user 1000 can write there.
+      - mock-npm:/home/node
     ports:
       - "4010:4010"
     user: "1000:1000"
     environment:
-      npm_config_cache: /tmp/npm
+      npm_config_cache: /home/node/.npm
 
   front:
     build:
@@ -43,3 +47,6 @@ services:
       - ../../frontend/src:/app/src
     depends_on:
       - mock
+
+volumes:
+  mock-npm:

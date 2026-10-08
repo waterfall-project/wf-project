@@ -401,9 +401,15 @@ def test_a_failure_points_to_the_guide(tmp_path: Path, capsys: pytest.CaptureFix
 @pytest.mark.requirement("WF-QUA-0070-A")
 def test_the_chain_runs_the_check_of_the_catalogues() -> None:
     makefile = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
-    rule = re.search(r"^check-front:([^#\n]*)", makefile, re.MULTILINE)
-    assert rule is not None
-    assert "catalogs" in rule.group(1).split()
+
+    def prerequisites(target: str) -> list[str]:
+        rule = re.search(rf"^{target}:([^#\n]*)", makefile, re.MULTILINE)
+        assert rule is not None, target
+        return rule.group(1).split()
+
+    # The front's check runs it in its first half, the one front.yml runs in every tier.
+    assert "check-front-code" in prerequisites("check-front")
+    assert "catalogs" in prerequisites("check-front-code")
     recipe = re.search(r"^catalogs:.*\n((?:\t.*\n)+)", makefile, re.MULTILINE)
     assert recipe is not None
     command = (
@@ -411,7 +417,7 @@ def test_the_chain_runs_the_check_of_the_catalogues() -> None:
     )
     assert f"\t{command}\n" in recipe.group(1)
     workflow = (REPOSITORY / ".github/workflows/front.yml").read_text(encoding="utf-8")
-    assert "run: make check-front" in workflow
+    assert "run: make check-front-code\n" in workflow
 
 
 def test_without_catalogues_the_problems_are_those_of_the_contract() -> None:

@@ -23,12 +23,18 @@ const VARIABLES = [
   "E2E_API_PORT",
   "E2E_FRONT_PORT",
   "E2E_PRODUCTION_PORT",
+  "E2E_PART",
 ];
 
 /** The configuration of the harness, read anew under the environment of the test. */
 async function harness(): Promise<PlaywrightTestConfig> {
   vi.resetModules();
   return (await import("../../playwright.config")).default;
+}
+
+/** The projects the harness plays, by name, each with the projects it waits for. */
+function projectsOf(config: PlaywrightTestConfig) {
+  return (config.projects ?? []).map((project) => [project.name, project.dependencies ?? []]);
 }
 
 /** The servers the harness starts. */
@@ -113,5 +119,36 @@ describe("the end-to-end harness", () => {
     for (const server of servers) {
       expect(server.env).toEqual({ WATERFALL_API_ADDRESS: "http://api.example:8080" });
     }
+  });
+
+  it("plays the paths, then the measure once they all passed", async () => {
+    expect(projectsOf(await harness())).toEqual([
+      ["chromium", []],
+      ["production", ["chromium"]],
+    ]);
+  });
+
+  it("plays the paths alone, which can be spread over runners, with no production build", async () => {
+    vi.stubEnv("E2E_PART", "paths");
+    const config = await harness();
+    expect(projectsOf(config)).toEqual([["chromium", []]]);
+    const commands = serversOf(config).map((server) => server.command);
+    expect(commands).toHaveLength(2);
+    expect(commands).not.toContainEqual(expect.stringContaining("pnpm build"));
+  });
+
+  it("plays the measure alone, with no development server", async () => {
+    vi.stubEnv("E2E_PART", "measure");
+    const config = await harness();
+    expect(projectsOf(config)).toEqual([["production", []]]);
+    const commands = serversOf(config).map((server) => server.command);
+    expect(commands).toHaveLength(2);
+    expect(commands).not.toContainEqual(expect.stringContaining("pnpm dev"));
+    expect(commands).toContainEqual(expect.stringContaining("pnpm build"));
+  });
+
+  it.each(["both", "chromium", "Paths"])("refuses %j as a part", async (named) => {
+    vi.stubEnv("E2E_PART", named);
+    await expect(harness()).rejects.toThrow("E2E_PART must be one of paths, measure");
   });
 });
