@@ -34,7 +34,8 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
 
 And the named examples of ``listNodes`` and of ``getComputedValueDependencies``, written under
 ``fixtures/api/`` by their name — ``nodes``, ``nodes_core``, ``nodes_planning``,
-``nodes_estimate``, ``nodes_installation``, ``nodes_milestone``, ``nodes_risk_occurred``,
+``nodes_estimate``, ``nodes_estimate_sorted`` and ``nodes_estimate_hours`` (sorted by
+``wftools.mocksort``), ``nodes_installation``, ``nodes_milestone``, ``nodes_risk_occurred``,
 ``dependencies_summary``, ``dependencies_summary_moved``, ``dependencies_labour``,
 ``dependencies_task_amount``, ``dependencies_provision``, ``dependencies_manual_float`` —:
 readings of the readable core of the witness, described once in ``wftools.mockwitness`` and
@@ -73,6 +74,7 @@ from wftools import (
     mockids,
     mockportfoliotime,
     mockreference,
+    mocksort,
     mocktext,
     mocktoday,
     mockwitness,
@@ -457,6 +459,7 @@ def readings() -> dict[str, JsonObject]:
             f"WF-RIS-0060, WF-INTF-0180, WF-DAT-0100).",
             estimate,
         ),
+        **mocksort.examples(rows),
         "nodes_installation.json": _example(
             f"L'installation sur site, lue avec ses lignes (subtree_of) le {day} : après la "
             f"réception usine, le montage des armoires sur site, "

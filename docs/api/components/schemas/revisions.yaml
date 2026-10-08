@@ -409,7 +409,8 @@ EditableField:
 NodeColumn:
   type: string
   description: >-
-    Colonne d'une grille de la structure, nommée comme le tri de `listNodes` la nomme : les
+    Colonne d'une grille de la structure, nommée comme `sort_by` de `listNodes` et
+    `PastePreview.target_column` la nomment : les
     colonnes de la grille de planning (WF-PLA-0080), puis celles de la grille de devis et de
     la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille
     les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le
@@ -420,7 +421,9 @@ NodeColumn:
     grille de devis (WF-DEV-0050), les montants budgété et réestimé, que présente celle de reste à
     engager, et, au reste à engager précédent, les grandeurs puis le montant réestimé
     (WF-RAE-0040). C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la
-    colonne visée (`PastePreview.target_column`, WF-IHM-0050).
+    colonne visée (`PastePreview.target_column`, WF-IHM-0050). Seules les grilles de devis et
+    de reste à engager trient, par les colonnes de la ligne : la grille de planning n'en trie
+    aucune (`sort_by`, WF-IHM-0060).
   enum:
     - label
     - description

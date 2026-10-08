@@ -7,7 +7,10 @@ services dont une réponse s'en écarte (WF-ARC-0060, annexe C de la spécificat
 
 La spécification est dans `../spec`. Chaque opération cite dans ses propres mots — résumé
 ou description — les exigences qu'elle réalise : c'est ce qui rend la traçabilité vérifiable
-dans les deux sens, et `make inventory` échoue sur une opération qui n'en cite aucune.
+dans les deux sens, et `make inventory` échoue sur une opération qui n'en cite aucune. Il échoue
+aussi, avant d'écrire, sur un fichier de `paths/` dont il ne déclare pas la famille, ou une famille
+déclarée sans fichier : une famille nouvelle se déclare dans `tools/inventory.py`, sous son titre,
+pour que ses opérations n'échappent pas à ce contrôle (#538).
 
 ## Organisation
 

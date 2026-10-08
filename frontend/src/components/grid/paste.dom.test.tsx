@@ -20,6 +20,7 @@ import { estimateReference } from "@/test/reference";
 
 import type { GridPreferences } from "./settings";
 
+import { ROW_NUMBER_KEY } from "./columns";
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn, NodesWritten } from "./nodes";
 import type { GridSort } from "./query";
@@ -195,6 +196,13 @@ const UNSHOWN_ROWS = {
   beyond:
     "Le bloc collé s’étendrait au-delà des lignes que la grille montre sous la cellule : collez un bloc moins haut.",
 };
+
+/**
+ * The estimate of the control station sorted by amount, as the server answers it: the lines
+ * reordered under each task, the tasks in the order of the tree (#526).
+ */
+const estimateSorted = example("nodes_estimate_sorted") as NodeList;
+const BY_AMOUNT = { column: "base_amount", order: "asc" } as const;
 
 /** Paste a block on a cell, and expect it refused, saying why, nothing asked. */
 async function expectRefused(client: FakeClient, target: HTMLElement, text: string, why: string) {
@@ -703,6 +711,36 @@ describe("a block pasted from a spreadsheet", () => {
     };
     renderGrid(true, undefined, { nodes: sorted, sort: { column: "base_amount", order: "asc" } });
     await expectRefused(client, cell(nodes.items.length - 1, "label"), "a\nb", UNSHOWN_ROWS.sorted);
+  });
+
+  it("shows the estimate sorted by amount in the order of the answer, the lines reordered under each task and the tasks in place [WF-IHM-0060-A]", () => {
+    // Dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche sans
+    // déplacer les tâches: the server sorts (`estimate_sorted`, #526), the grid shows its order.
+    serve();
+    renderGrid(true, undefined, { nodes: estimateSorted, sort: BY_AMOUNT });
+    const rows = estimateSorted.items.map((_, row) => cell(row, ROW_NUMBER_KEY).textContent);
+    expect(rows).toEqual(["8", "9", "12", "10", "11", "13", "14", "15", "16", "17", "18"]);
+    expect(amounts([2, 3, 4])).toEqual(["500,00", "1\u202f000,00", "1\u202f234,56"]);
+    // The factory acceptance, a milestone of no amount, stays the last, as in the tree.
+    expect(cell(estimateSorted.items.length - 1, "label")).toHaveTextContent("Réception usine");
+  });
+
+  it("refuses a block from the first line the sort of the estimate moved under its task, saying so, and takes one whose rows follow in the plan (#526)", async () => {
+    const client = serve();
+    renderGrid(true, undefined, { nodes: estimateSorted, sort: BY_AMOUNT });
+    // From the provision, moved first under its task, a block of two rows would write the row
+    // after it in the plan, the next task, which the grid shows elsewhere: refused (L41a).
+    await expectRefused(client, cell(2, "label"), "a\nb", UNSHOWN_ROWS.sorted);
+    // From the labour, the disbursement follows in the plan as on the screen: asked.
+    await pasteOn(cell(3, "label"), "a\nb");
+    await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    expect(bodies(client, PREVIEW)).toEqual([
+      {
+        target_node_id: estimateSorted.items[3]?.node_id,
+        target_column: "label",
+        rows: [["a"], ["b"]],
+      },
+    ]);
   });
 
   it("tells the search that leaves out the next row of the plan, under a sort that moves nothing", async () => {
