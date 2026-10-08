@@ -11,6 +11,7 @@ import {
   SubprojectList,
   TransitionList,
 } from "@/components/projects/project-tables";
+import { WorkBreakdownList } from "@/components/projects/project-tables";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -39,6 +40,7 @@ const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const BANNER = '<section aria-label="Reading context"';
 
 type StateTransition = components["schemas"]["StateTransition"];
+type WorkBreakdown = components["schemas"]["WorkBreakdown"];
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -85,6 +87,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/contributors": "contributors",
+    "GET /projects/{project_id}/work-breakdown": "work_breakdown",
     "GET /projects/{project_id}/state-transitions": "state_transitions",
   };
 });
@@ -138,6 +141,46 @@ describe("the settings of a project", () => {
       /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Project settings<\/h1>/,
     );
     expect(text(page)).toContain("Annual inflation rate 3% Probability of winning 100%");
+  });
+
+  it("shows the work breakdown of the project, read by the server, in a region of its own: each work package under its order item, with its deliverables", async () => {
+    const page = html(await SettingsPage(at()));
+    expect(paths()["GET /projects/{project_id}/work-breakdown"]).toBe(
+      `/projects/${PROJECT}/work-breakdown`,
+    );
+    const region = /<section aria-label="Work breakdown"[^>]*>(.*?)<\/section>/.exec(page)?.[1];
+    expect(region).toMatch(
+      /<h2[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Work breakdown<\/h2>/,
+    );
+    expect(text(region ?? "")).toBe(
+      "Work breakdown Order item Work package Deliverables " +
+        "Fourniture et montage des armoires Armoires Procès-verbal de réception usine des armoires",
+    );
+    expect(region).toMatch(/<table[^>]*aria-label="Work breakdown"/);
+  });
+
+  it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/work-breakdown": "work_breakdown_default",
+    };
+    const page = html(await SettingsPage(at()));
+    const region = /<section aria-label="Work breakdown"[^>]*>(.*?)<\/section>/.exec(page)?.[1];
+    expect(text(region ?? "")).toBe(
+      "Work breakdown Order item Work package Deliverables Commande Lot unique None",
+    );
+  });
+
+  it("says an order item without a work package on a row of its own, and a work breakdown without an order item empty", () => {
+    const fallback = example("work_breakdown_default") as WorkBreakdown;
+    const [item] = fallback.order_items;
+    const bare = { ...fallback, order_items: item ? [{ ...item, work_packages: [] }] : [] };
+    expect(text(html(<WorkBreakdownList breakdown={bare} />))).toBe(
+      "Work breakdown Order item Work package Deliverables Commande No work package None",
+    );
+    expect(text(html(<WorkBreakdownList breakdown={{ ...fallback, order_items: [] }} />))).toBe(
+      "Work breakdown This project has no order item.",
+    );
   });
 
   it("lists the sub-projects of the project, each by its ERP code, and whether actual costs are charged to it", async () => {

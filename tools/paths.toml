@@ -115,6 +115,8 @@ paths = [
     "fixtures/api/dependencies_manual_float.json",
     "fixtures/api/startable_tasks.json",
     "fixtures/api/timelines.json",
+    "fixtures/api/work_breakdown.json",
+    "fixtures/api/work_breakdown_default.json",
     "fixtures/api/timelines_empty.json",
     "fixtures/api/startable_tasks_milestone.json",
     "fixtures/api/task_renamed.json",

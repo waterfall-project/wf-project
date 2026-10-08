@@ -44,11 +44,15 @@ export async function generateMetadata({
   return screenMetadata("functions.planning", projectId);
 }
 
-/** The leaves of the planning with a screen of their own, in the order of the FBS. */
-const LEAVES = (["FBS-4.3.1", "FBS-4.3.4", "FBS-4.3.5"] as const).map((code) => ({
-  leaf: leafOf(code),
-  Icon: LEAF_ICONS[code],
-}));
+/**
+ * The leaves of the planning with a screen of their own, in the order of the FBS, each named by
+ * `leafOf`, by which `make screens` knows the page leads to it.
+ */
+const LEAVES = [
+  { leaf: leafOf("FBS-4.3.1"), Icon: LEAF_ICONS["FBS-4.3.1"] },
+  { leaf: leafOf("FBS-4.3.4"), Icon: LEAF_ICONS["FBS-4.3.4"] },
+  { leaf: leafOf("FBS-4.3.5"), Icon: LEAF_ICONS["FBS-4.3.5"] },
+];
 
 /**
  * The title of the grid, and what it holds: the structure, and its tasks retained; and the links to

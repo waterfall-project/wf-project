@@ -69,15 +69,44 @@ La coquille (`frontend/src/components/shell/`) tire sa navigation de
 `frontend/src/navigation/functions.json` : pour chaque fonction de second niveau de la FBS,
 son code, la clé de son libellé, sa route, sa portée et la permission qui la laisse
 consulter ; une fonction dont la session n'a pas la permission `<fonction>.read` n'y figure
-pas. La table ne porte encore que le second niveau : les feuilles adressables y entrent avec
-le contrôle de complétude des écrans, que le lot EP-02/L3 (#125) ajoute. Une feuille qui a déjà
-son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même
+pas. La table porte aussi les feuilles de la FBS, chacune adressée de l'une de deux façons. Une
+feuille qui a son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même
 permission : les chronologies, FBS-4.3.1, les imports et exports, FBS-4.3.4, et l'arborescence de
 tâches, FBS-4.3.5, sous le planning (`/projects/[projectId]/revisions/[revisionId]/timelines`,
-`…/exchanges`, `…/task-tree`), et le plan de charge du projet,
-FBS-4.4.4, sous le devis (`…/workload`). La navigation ne l'offre pas —
+`…/exchanges`, `…/task-tree`), le plan de charge du projet,
+FBS-4.4.4, sous le devis (`…/workload`), et le Kanban, FBS-4.5.3, sous le reste à engager
+(`…/kanban`). La navigation ne l'offre pas —
 l'écran de sa fonction y mène, dans le même contexte, et son entrée est marquée courante —,
-mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle.
+mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
+que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
+(`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
+montre (`role` : `region`, `grid`, `columnheader` ou `heading`) et la clé de son nom (`name`) — le
+lotissement, FBS-4.2.1, est la région « Lotissement » des paramètres du projet ; le Gantt, FBS-4.3.3,
+la colonne « Gantt » de la grille de planning ; l'avancement financier, FBS-4.8.1, le titre de sa
+carte. Seul un fait d'une liste nommée se passe de rôle — un terme ne prend pas son nom de ce qu'il
+dit — : il se trouve par son texte dans la liste que nomme la clé `within`, comme le taux
+d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ; `functions.test.ts` refuse toute autre
+section sans rôle.
+
+*Contrôle* : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
+modification, puisqu'il lit la projection comme le front) confronte la table aux fonctions de
+la FBS de la projection — les boîtes des figures de l'arborescence et de chaque bloc, qui les
+nomment toutes, et les titres de leurs paragraphes, lus en protection ; une flèche dont l'enfant ne
+prolonge pas le code de son parent fait échouer la lecture — et aux pages de `frontend/src/app` ; il
+échoue, en nommant la feuille ou la route, sur une feuille sans route dans la table, sur un code
+de la table qui n'est pas une fonction de la FBS ou une feuille rangée sous une autre fonction que
+la sienne, sur une route à laquelle aucune page ne répond — la page de `[...path]`, qui dit
+« introuvable », ne répond à aucune —, et sur une feuille à écran propre que la page de sa
+fonction ne nomme pas par `leafOf("FBS-…")`, et ne peut donc pas mener. Une feuille qui n'a pas
+encore d'écran se déclarerait, avec sa raison et l'issue qui la suit, dans `WITHOUT_SCREEN` de
+`tools/src/wftools/screens.py`, vide aujourd'hui ; la déclaration échoue dès que la table adresse
+la feuille. Le parcours `frontend/e2e/screens.spec.ts` (`make e2e`, palier complet) prouve les liens
+dans un navigateur, un parcours par route, tiré de la table : une fonction s'atteint par un clic sur
+un lien de la navigation — depuis l'écran d'une autre fonction de son bloc, ou d'une révision pour
+une fonction d'un projet —, une feuille à écran propre par un clic sur un lien de l'écran de sa
+fonction ; le lien doit être visible, la route est compilée d'avance (`compile`), et un écran de
+projet de départ s'ouvre hydraté (`openHydrated`). Chaque écran atteint nomme sa fonction et montre
+ses sections. Une route ajoutée à la table a donc son parcours.
 Trois portées : hors projet ; `project`, les fonctions du projet lui-même — révisions,
 paramètres, cycle de vie —, sous `/projects/[projectId]/…`,
 qu'un projet sans révision offre ; `revision`, les autres, sous

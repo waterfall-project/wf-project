@@ -159,6 +159,83 @@ describe("the leaves of the table", () => {
   });
 });
 
+describe("the sections of the table", () => {
+  const sections = FUNCTIONS.flatMap((fn) =>
+    (fn.sections ?? []).map((section) => ({ fn, section })),
+  );
+
+  it("are the leaves the screens of the settings, the planning, the estimate, the remaining to commit, the risks and the indicators show themselves", () => {
+    expect(
+      FUNCTIONS.filter((fn) => fn.sections !== undefined).map((fn) => [
+        fn.code,
+        (fn.sections ?? []).map((section) => section.code),
+      ]),
+    ).toEqual([
+      ["FBS-3.1", ["FBS-3.1.1", "FBS-3.1.2"]],
+      ["FBS-3.2", ["FBS-3.2.1", "FBS-3.2.2", "FBS-3.2.3"]],
+      ["FBS-4.2", ["FBS-4.2.1", "FBS-4.2.2", "FBS-4.2.3", "FBS-4.2.4", "FBS-4.2.5"]],
+      ["FBS-4.3", ["FBS-4.3.2", "FBS-4.3.3"]],
+      ["FBS-4.4", ["FBS-4.4.1", "FBS-4.4.2", "FBS-4.4.3"]],
+      ["FBS-4.5", ["FBS-4.5.1", "FBS-4.5.2"]],
+      ["FBS-4.6", ["FBS-4.6.1", "FBS-4.6.2"]],
+      [
+        "FBS-4.8",
+        [
+          "FBS-4.8.1",
+          "FBS-4.8.2",
+          "FBS-4.8.3",
+          "FBS-4.8.4",
+          "FBS-4.8.5",
+          "FBS-4.8.6",
+          "FBS-4.8.7",
+          "FBS-4.8.8",
+        ],
+      ],
+    ]);
+  });
+
+  it("are under the code of their function, and none is a leaf with a screen of its own", () => {
+    const screens = new Set(FUNCTIONS.flatMap((fn) => (fn.leaves ?? []).map((leaf) => leaf.code)));
+    for (const { fn, section } of sections) {
+      expect(section.code.startsWith(`${fn.code}.`), section.code).toBe(true);
+      expect(screens.has(section.code), section.code).toBe(false);
+    }
+  });
+
+  it("are found on their screen by a role a browser exposes, named by a key of both catalogues", () => {
+    for (const { section } of sections) {
+      expect(["region", "grid", "columnheader", "heading", undefined], section.code).toContain(
+        section.role,
+      );
+      expect(text(CATALOGUES.fr, section.name), section.code).toEqual(expect.any(String));
+      expect(text(CATALOGUES.en, section.name), section.code).toEqual(expect.any(String));
+    }
+  });
+
+  it("are found by their text only within a list of facts named explicitly, and only so", () => {
+    for (const { section } of sections) {
+      if (section.role === undefined) {
+        expect(section.within, section.code).toEqual(expect.any(String));
+        expect(text(CATALOGUES.fr, section.within ?? ""), section.code).toEqual(expect.any(String));
+        expect(text(CATALOGUES.en, section.within ?? ""), section.code).toEqual(expect.any(String));
+      } else {
+        expect(section.within, section.code).toBeUndefined();
+      }
+    }
+    expect(
+      sections
+        .filter(({ section }) => section.role === undefined)
+        .map(({ section }) => section.code),
+    ).toEqual(["FBS-4.2.2", "FBS-4.2.5"]);
+  });
+
+  it("are not offered by the navigation, nor found as screens of their own", () => {
+    expect(readableGroups(["planning.read"]).flatMap((group) => group.functions)).toHaveLength(1);
+    expect(() => leafOf("FBS-4.3.2")).toThrow("the table of functions has no leaf FBS-4.3.2");
+    expect(findScreen(["reference", "resources"])?.fn.code).toBe("FBS-3.2");
+  });
+});
+
 describe("the functions offered", () => {
   it("are all of them to a session granted the whole catalogue", () => {
     expect(offered("session")).toEqual([

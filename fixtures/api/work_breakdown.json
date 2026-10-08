@@ -1,0 +1,10 @@
+{
+  "summary": "Le lotissement du projet témoin le 3 juin 2026 (WF-PRJ-0020) : un poste, « Fourniture et montage des armoires », que porte la récapitulative « Poste de commande » ; son lot « Armoires », qu'aucune tâche ne porte (WF-PLA-0130) ; et le livrable de ce lot.",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "order_items": [
+      {"order_item_id":"01926f3a-7c00-7000-8000-000000000711","label":"Fourniture et montage des armoires","work_packages":[{"work_package_id":"01926f3a-7c00-7000-8000-000000000712","label":"Armoires","deliverables":[{"deliverable_id":"01926f3a-7c00-7000-8000-000000000713","label":"Procès-verbal de réception usine des armoires"}]}]}
+    ],
+    "lock_version": 1
+  }
+}

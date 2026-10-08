@@ -48,7 +48,7 @@ interface Routed {
  * of their own: `lifecycle`, `planning`, `workload`…
  */
 function screens(scope: string): ReadonlySet<string> {
-  const functions: readonly Routed[] = table.groups.flatMap((group) => group.functions);
+  const functions = table.groups.flatMap((group): readonly Routed[] => group.functions);
   const routes = functions
     .flatMap((fn) => [fn, ...(fn.leaves ?? [])])
     .filter((fn) => fn.scope === scope)

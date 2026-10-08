@@ -98,14 +98,43 @@
           "label": "functions.costSettings",
           "route": "/reference/costs",
           "scope": "platform",
-          "permission": "cost_settings"
+          "permission": "cost_settings",
+          "sections": [
+            {
+              "code": "FBS-3.1.1",
+              "role": "region",
+              "name": "reference.costTypes.title"
+            },
+            {
+              "code": "FBS-3.1.2",
+              "role": "grid",
+              "name": "grid.names.hourlyRates"
+            }
+          ]
         },
         {
           "code": "FBS-3.2",
           "label": "functions.resourceSettings",
           "route": "/reference/resources",
           "scope": "platform",
-          "permission": "resource_settings"
+          "permission": "resource_settings",
+          "sections": [
+            {
+              "code": "FBS-3.2.1",
+              "role": "region",
+              "name": "reference.orgNodes.title"
+            },
+            {
+              "code": "FBS-3.2.2",
+              "role": "region",
+              "name": "reference.resourceRoles.title"
+            },
+            {
+              "code": "FBS-3.2.3",
+              "role": "region",
+              "name": "reference.calendars.title"
+            }
+          ]
         },
         {
           "code": "FBS-3.3",
@@ -140,7 +169,34 @@
           "label": "functions.projectSettings",
           "route": "/projects/[projectId]/settings",
           "scope": "project",
-          "permission": "project_settings"
+          "permission": "project_settings",
+          "sections": [
+            {
+              "code": "FBS-4.2.1",
+              "role": "region",
+              "name": "projectLists.workBreakdown.title"
+            },
+            {
+              "code": "FBS-4.2.2",
+              "within": "projectFacts.settings",
+              "name": "projectFacts.inflationRate"
+            },
+            {
+              "code": "FBS-4.2.3",
+              "role": "region",
+              "name": "projectLists.subprojects.title"
+            },
+            {
+              "code": "FBS-4.2.4",
+              "role": "region",
+              "name": "projectLists.contributors.title"
+            },
+            {
+              "code": "FBS-4.2.5",
+              "within": "projectFacts.settings",
+              "name": "projectFacts.winProbability"
+            }
+          ]
         },
         {
           "code": "FBS-4.3",
@@ -148,6 +204,18 @@
           "route": "/projects/[projectId]/revisions/[revisionId]/planning",
           "scope": "revision",
           "permission": "planning",
+          "sections": [
+            {
+              "code": "FBS-4.3.2",
+              "role": "grid",
+              "name": "grid.names.planning"
+            },
+            {
+              "code": "FBS-4.3.3",
+              "role": "columnheader",
+              "name": "grid.columns.gantt"
+            }
+          ],
           "leaves": [
             {
               "code": "FBS-4.3.1",
@@ -178,6 +246,23 @@
           "route": "/projects/[projectId]/revisions/[revisionId]/estimate",
           "scope": "revision",
           "permission": "estimate",
+          "sections": [
+            {
+              "code": "FBS-4.4.1",
+              "role": "region",
+              "name": "estimateSummary.title"
+            },
+            {
+              "code": "FBS-4.4.2",
+              "role": "grid",
+              "name": "grid.names.estimate"
+            },
+            {
+              "code": "FBS-4.4.3",
+              "role": "columnheader",
+              "name": "grid.columns.referenceAmount"
+            }
+          ],
           "leaves": [
             {
               "code": "FBS-4.4.4",
@@ -194,6 +279,18 @@
           "route": "/projects/[projectId]/revisions/[revisionId]/remaining",
           "scope": "revision",
           "permission": "remaining",
+          "sections": [
+            {
+              "code": "FBS-4.5.1",
+              "role": "region",
+              "name": "remainingSummary.title"
+            },
+            {
+              "code": "FBS-4.5.2",
+              "role": "grid",
+              "name": "grid.names.remaining"
+            }
+          ],
           "leaves": [
             {
               "code": "FBS-4.5.3",
@@ -209,7 +306,19 @@
           "label": "functions.risks",
           "route": "/projects/[projectId]/revisions/[revisionId]/risks",
           "scope": "revision",
-          "permission": "risks"
+          "permission": "risks",
+          "sections": [
+            {
+              "code": "FBS-4.6.1",
+              "role": "grid",
+              "name": "grid.names.risks"
+            },
+            {
+              "code": "FBS-4.6.2",
+              "role": "region",
+              "name": "risks.provisions.title"
+            }
+          ]
         },
         {
           "code": "FBS-4.7",
@@ -223,7 +332,49 @@
           "label": "functions.projectIndicators",
           "route": "/projects/[projectId]/revisions/[revisionId]/indicators",
           "scope": "revision",
-          "permission": "project_indicators"
+          "permission": "project_indicators",
+          "sections": [
+            {
+              "code": "FBS-4.8.1",
+              "role": "heading",
+              "name": "projectIndicators.financial.title"
+            },
+            {
+              "code": "FBS-4.8.2",
+              "role": "heading",
+              "name": "projectIndicators.projections.title"
+            },
+            {
+              "code": "FBS-4.8.3",
+              "role": "heading",
+              "name": "projectIndicators.physical.title"
+            },
+            {
+              "code": "FBS-4.8.4",
+              "role": "heading",
+              "name": "projectIndicators.cost.title"
+            },
+            {
+              "code": "FBS-4.8.5",
+              "role": "heading",
+              "name": "projectIndicators.schedule.title"
+            },
+            {
+              "code": "FBS-4.8.6",
+              "role": "region",
+              "name": "projectIndicators.milestones.title"
+            },
+            {
+              "code": "FBS-4.8.7",
+              "role": "region",
+              "name": "projectIndicators.costCurve.title"
+            },
+            {
+              "code": "FBS-4.8.8",
+              "role": "region",
+              "name": "projectIndicators.earnedValue.title"
+            }
+          ]
         },
         {
           "code": "FBS-4.9",

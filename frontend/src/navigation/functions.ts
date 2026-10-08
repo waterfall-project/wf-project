@@ -7,9 +7,13 @@
  * it (WF-ADM-0100). The navigation is drawn from this table. A leaf of the FBS with a screen of its own — the workload of the
  * project, FBS-4.4.4 — is a leaf of its function in the table: of the same scope and permission,
  * reached from the screen of its function rather than from the navigation, and read in its
- * context as its function is.
+ * context as its function is. A leaf the screen of its function shows itself — the calendars on the
+ * settings of the resources, FBS-3.2.3 — is a section of its function: addressed by its route, and
+ * found on its screen by its role and its name, or by its text in the named list of its facts.
  *
- * The table is data: functions.test.ts checks it against the catalogues and the FBS.
+ * The table is data: functions.test.ts checks it against the catalogues, `make screens` against
+ * the FBS of the specification and the pages of the application, and `e2e/screens.spec.ts` reaches
+ * each of its routes from a link.
  */
 import type { components } from "@/api/generated/schema";
 import type { Catalogue } from "@/i18n/catalogues";
@@ -59,6 +63,26 @@ export type PlatformFunction = (typeof PLATFORM_FUNCTIONS)[number];
  */
 export type Scope = "platform" | "project" | "revision";
 
+/** The roles of what shows a section of a screen, as a browser exposes them. */
+export type SectionRole = "region" | "grid" | "columnheader" | "heading";
+
+/**
+ * A leaf of the FBS the screen of its function shows itself — a section, a grid, a column, a
+ * card, a fact —, where the ergonomics gathered it: addressed by the route of its function.
+ */
+export interface ScreenSection {
+  readonly code: string;
+  /**
+   * The role of what shows it on the screen, found by it and its name; none for a fact of a list,
+   * a term, which takes no name from what it says, and is found by its text in its list.
+   */
+  readonly role?: SectionRole;
+  /** The key, in the catalogues, of the name of the list a fact is found in, which names it. */
+  readonly within?: string;
+  /** The key, in the catalogues, of its name on the screen: the title of a section, a card. */
+  readonly name: string;
+}
+
 /** A function of the second level of the FBS, as the navigation offers it. */
 export interface NavigationFunction {
   readonly code: string;
@@ -70,6 +94,8 @@ export interface NavigationFunction {
   readonly route: string;
   readonly scope: Scope;
   readonly permission: FunctionPermission;
+  /** Its leaves that its screen shows itself. */
+  readonly sections?: readonly ScreenSection[];
   /** Its leaves that have a screen of their own, which its screen leads to. */
   readonly leaves?: readonly NavigationFunction[];
 }
@@ -153,8 +179,8 @@ export function leafOf(code: string): NavigationFunction {
 /**
  * The function of the table of a code of the FBS — `FBS-1.1` —, as a permission of the catalogue
  * names the function it covers (`Permission.fbs_code`); `undefined` for a code the table has not.
- * The table holds the functions of the second level only: a leaf of the FBS — `FBS-4.3.2` — is not
- * found, nor is a block of the first level.
+ * Only the functions of the second level are searched, as permissions cover them: a leaf of the
+ * FBS — `FBS-4.3.2`, a section of the planning — is not found, nor is a block of the first level.
  */
 export function functionAt(code: string): NavigationFunction | undefined {
   return functions().find((fn) => fn.code === code);
