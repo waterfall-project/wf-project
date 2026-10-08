@@ -12,7 +12,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockcore, mockdata, mockstructure, mockwitness, mockwrites
+from wftools import REPOSITORY, mockcore, mockdata, mockstructure, mocktext, mockwitness, mockwrites
 from wftools.mockwitness import CABLE_FITTER, CORE, universe
 
 type Node = dict[str, Any]
@@ -37,14 +37,14 @@ def _json(value: Any) -> Any:
 
 @pytest.fixture(scope="module")
 def whole() -> dict[str, Any]:
-    """Read the whole core today, as an unfiltered reading of the structure gives it."""
+    """Read the whole structure today, the core first, as an unfiltered reading gives it."""
     return cast("dict[str, Any]", _json(mockcore.whole(mockcore.current())))
 
 
 @pytest.fixture(scope="module")
 def answer() -> dict[str, Any]:
     """Make the structure of a thousand tasks once, as the JSON the fake back serves."""
-    return cast("dict[str, Any]", _json(mockstructure.structure().nodes))
+    return cast("dict[str, Any]", _json(mockcore.whole(mockcore.current())))
 
 
 @pytest.fixture(scope="module")
@@ -58,7 +58,11 @@ def by_id(items: list[Node]) -> dict[str, Node]:
 
 def numbered(nodes: list[Node]) -> dict[int, Node]:
     """Return the nodes of the core an answer gives, by the number of their identifier."""
-    return {int(node["node_id"][-3:]): node for node in nodes}
+    return {
+        int(node["node_id"][-3:]): node
+        for node in nodes
+        if node["node_id"].startswith(mockwitness.PREFIX + "0000")
+    }
 
 
 def facet(node: Node) -> Node:
@@ -91,13 +95,25 @@ def test_a_duration_lengthened_pushes_a_successor_into_the_next_year(
     assert task["task"]["finish"]["date"] == "2026-12-31"
     assert task["lock_version"] == 2
     moved = {entry["node_id"]: entry for entry in written["rescheduled"]}
-    [successor] = [entry for entry in moved.values() if entry["start"]["date"] >= "2027"]
-    assert before[successor["node_id"]]["task"]["start"]["date"] == "2026-12-30"
-    # Within the float: the dates of no other task move, their float alone.
+    later = [
+        entry
+        for node_id, entry in moved.items()
+        if entry["start"] != before[node_id]["task"]["start"]
+    ]
+    # Its successor in the chain moves into 2027, and what follows it in the chain after it.
+    successor = later[0]
+    assert before[successor["node_id"]]["task"]["start"]["date"] == "2026-12-28"
+    assert successor["start"]["date"] == "2027-01-01"
+    assert all(entry["start"]["date"] >= "2027" for entry in later)
+    # Within the float: the tasks before it in the chain keep their dates, their float alone
+    # shrinks, and no milestone moves.
     for node_id, entry in moved.items():
-        if node_id != successor["node_id"]:
-            assert entry["start"] == before[node_id]["task"]["start"]
+        assert not before[node_id]["task"]["is_milestone"]
+        if entry not in later:
             assert entry["finish"] == before[node_id]["task"]["finish"]
+            assert int(entry["total_float"]["value"]) < int(
+                before[node_id]["task"]["total_float"]["value"]
+            )
     # The lines of the successor, consumed in 2027, and the successor itself, which sums them.
     lines_of = [node for node in items if node["parent_id"] == successor["node_id"]]
     amounts = {entry["node_id"]: entry for entry in written["reinflated"]}
@@ -149,7 +165,7 @@ def test_a_write_of_the_core_answers_the_node_written_its_summaries_and_the_whol
     assert summary["task"]["work_breakdown_label"] == mockwitness.ASSEMBLY.label
     assert (renamed["rescheduled"], renamed["reinflated"]) == ([], [])
     assert renamed["totals"] == whole["totals"]
-    assert renamed["totals"]["task_count"] == 15
+    assert renamed["totals"]["task_count"] == 1_000
     assert renamed["structure_lock_version"] == 2
     # The same summary, rendered by every write of the wiring, is the reading's node, recalculated.
     estimate = numbered(mockwitness.fixture("nodes_estimate")["items"])
@@ -198,9 +214,9 @@ def test_a_link_set_on_a_task_not_started_redates_what_follows_and_nothing_past(
 ) -> None:
     # The mounting on site, not started, two days after the factory acceptance: it and the
     # commissioning move, the commissioning still starts in 2026 — nothing is moved in time —,
-    # and the tasks without a successor gain float; the acceptance stays on 30 June (C13).
+    # within the float the commissioning of the control station leaves them: nothing else moves,
+    # the end of the structure is where it was (#376); the acceptance stays on 30 June (C13).
     linked = write("predecessor_set")
-    read = numbered(whole["items"])
     [mounting] = linked["nodes"]
     assert mounting["predecessors"] == [
         {
@@ -214,14 +230,11 @@ def test_a_link_set_on_a_task_not_started_redates_what_follows_and_nothing_past(
         "2026-07-03",
         "2026-12-22",
     )
-    moved = numbered(linked["rescheduled"])
-    assert list(moved) == [DESIGN_FILE, 542, 544, COMMISSIONING]
-    for number in (DESIGN_FILE, 542, 544):
-        assert moved[number]["start"] == read[number]["task"]["start"]
-        assert moved[number]["finish"] == read[number]["task"]["finish"]
-    assert moved[COMMISSIONING]["start"]["date"] == "2026-12-23"
+    assert [entry["node_id"] for entry in linked["rescheduled"]] == [universe(COMMISSIONING)]
+    [moved] = linked["rescheduled"]
+    assert moved["start"]["date"] == "2026-12-23"
     assert linked["reinflated"] == []
-    assert sorted(numbered(linked["ancestors"])) == [STUDIES, 541, CONTROL_STATION, INSTALLATION]
+    assert sorted(numbered(linked["ancestors"])) == [INSTALLATION]
     assert linked["totals"] == whole["totals"]
 
 
@@ -277,8 +290,8 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     assert moved[MOUNTING]["finish"] == above[MOUNTING]["task"]["finish"]
     assert read[COMMISSIONING]["task"]["start"]["date"] < "2027"
     assert moved[COMMISSIONING]["start"]["date"] >= "2027"
-    for number in (DESIGN_FILE, 542, 544):
-        assert moved[number]["start"] == read[number]["task"]["start"]
+    assert sorted(moved) == [MOUNTING, COMMISSIONING]
+    assert len(redated["rescheduled"]) == len(moved)
     # Its line consumed a year later, corrected anew at the inflation of the witness, and the
     # commissioning, which sums it; the mounting, still started in 2026, keeps its lines' year.
     amounts = {int(entry["node_id"][-3:]): entry for entry in redated["reinflated"]}
@@ -312,27 +325,30 @@ def test_a_label_entered_on_the_volume_changes_nothing_else(answer: dict[str, An
         "lock_version": 1,
         "estimate_line": {**line["estimate_line"], "label": "x"},
     } == {
-        **read[mockwrites.LINE_4],
-        "estimate_line": {**read[mockwrites.LINE_4]["estimate_line"], "label": "x"},
+        **read[mockwitness.node_id(mockwrites.LINE)],
+        "estimate_line": {
+            **read[mockwitness.node_id(mockwrites.LINE)]["estimate_line"],
+            "label": "x",
+        },
     }
-    assert [node["row_number"] for node in entered["ancestors"]] == [1, 2, 3]
+    assert [node["row_number"] for node in entered["ancestors"]] == [25, 26, 27]
     assert all(node == read[node["node_id"]] for node in entered["ancestors"])
     assert entered["totals"] == answer["totals"]
     assert entered["structure_lock_version"] == 3
 
 
 def test_a_block_is_planned_by_the_categories_and_roles_the_reference_names() -> None:
-    assert mockwrites.paste_plan(mockwrites.BLOCK, universe(971)) == {
-        "paste_id": universe(971),
+    assert mockwrites.paste_plan(mockwrites.BLOCK, universe(991)) == {
+        "paste_id": universe(991),
         "accepted": 3,
         "rejected": [],
     }
-    assert mockwrites.paste_plan(mockwrites.UNKNOWN_CATEGORY, universe(972))["rejected"] == [
+    assert mockwrites.paste_plan(mockwrites.UNKNOWN_CATEGORY, universe(992))["rejected"] == [
         {"row": 1, "column": "cost_category", "code": "UNKNOWN_COST_CATEGORY"}
     ]
     unknown_role = [("Heures", "Ingénierie électrique", "Soudeur", "1")]
-    assert mockwrites.paste_plan(unknown_role, universe(972)) == {
-        "paste_id": universe(972),
+    assert mockwrites.paste_plan(unknown_role, universe(992)) == {
+        "paste_id": universe(992),
         "accepted": 0,
         "rejected": [{"row": 0, "column": "resource_role", "code": "UNKNOWN_RESOURCE_ROLE"}],
     }
@@ -344,11 +360,11 @@ def test_a_block_applied_writes_its_rows_and_their_amounts_climb_to_the_totals(
     applied = write("paste_applied")
     read = by_id(answer["items"])
     rows = applied["nodes"]
-    assert [node["row_number"] for node in rows] == [4, 5, 6]
+    assert [node["row_number"] for node in rows] == [28, 29, 30]
     assert [node["estimate_line"]["label"] for node in rows] == [row[0] for row in mockwrites.BLOCK]
     third = rows[2]["estimate_line"]
     was = read[rows[2]["node_id"]]["estimate_line"]
-    assert (was["quantity"], third["quantity"]) == ("16", "24")
+    assert (was["quantity"], third["quantity"]) == ("2", "24")
     assert money(third["base_amount"]) == 24 * money(third["unit_disbursement"])
     assert third["reestimated_amount"] == third["base_amount"]
     assert third["budgeted_amount"] == was["budgeted_amount"]
@@ -434,3 +450,94 @@ def test_a_reestimation_follows_the_figures_entered_and_leaves_the_budget(
     totals = reestimated["totals"]
     assert money(totals["reestimated_amount"]) == money(whole["totals"]["reestimated_amount"]) - 200
     assert totals["budgeted_amount"] == whole["totals"]["budgeted_amount"]
+
+
+@pytest.mark.parametrize(
+    ("name", "previous"),
+    [
+        (
+            "estimate_line_updated",
+            {"previous_hours": "12.5", "previous_reestimated_amount": "1000.00"},
+        ),
+        (
+            "remaining_reestimated",
+            {"previous_hours": "12.5", "previous_reestimated_amount": "1000.00"},
+        ),
+        ("paste_applied", {"previous_quantity": "2"}),
+    ],
+)
+def test_a_write_leaves_the_previous_review_as_it_was_read(
+    name: str, previous: dict[str, str], whole: dict[str, Any], answer: dict[str, Any]
+) -> None:
+    # The previous review is the reference as marked (WF-RAE-0040): what a write enters changes
+    # the figures of today, never those of the review before them.
+    read = by_id(answer["items"] if name in VOLUME_WRITES else whole["items"])
+    answered = write(name)
+    for node in answered["nodes"]:
+        line, was = node["estimate_line"], read[node["node_id"]]["estimate_line"]
+        assert {key: line[key] for key in mockcore.PREVIOUS} == {
+            key: was[key] for key in mockcore.PREVIOUS
+        }
+    first = answered["nodes"][-1 if name == "paste_applied" else 0]["estimate_line"]
+    assert {key: first[key] for key in previous} == previous
+
+
+@pytest.mark.parametrize("name", ["predecessor_set", "estimate_line_redated"])
+def test_the_summary_of_a_write_names_the_tasks_it_redates_none_without_a_successor(
+    name: str, whole: dict[str, Any]
+) -> None:
+    # Said from what the write answers, never written by hand: each task redated by its label; and
+    # none is a task without a successor, the end of the structure staying where it is (#376).
+    example = mockwrites.writes()[f"{name}.json"]
+    answered = _json(example["value"])
+    read = by_id(whole["items"])
+    followed = {
+        link["predecessor_node_id"]
+        for node in whole["items"]
+        for link in node.get("predecessors", [])
+    }
+    assert answered["rescheduled"]
+    for entry in answered["rescheduled"]:
+        assert entry["node_id"] in followed
+        assert f"« {read[entry['node_id']]['task']['label']} »" in str(example["summary"])
+    assert "sans successeur" not in str(example["summary"])
+
+
+@pytest.mark.parametrize(
+    ("name", "roots"),
+    [
+        (
+            "predecessor_set",
+            mockwrites.amended(
+                CORE,
+                mockwrites.on_task(
+                    MOUNTING, links=(mockwitness.Link(MILESTONE, lag=mockwrites.SITE_DELAY),)
+                ),
+            ),
+        ),
+        (
+            "estimate_line_redated",
+            mockwrites.amended(CORE, line=mockwrites.on_line(ON_SITE, role=CABLE_FITTER)),
+        ),
+    ],
+)
+def test_a_write_says_the_end_of_the_structure_as_the_readings_give_it(
+    name: str, roots: tuple[mockwitness.Task, ...], whole: dict[str, Any]
+) -> None:
+    # The end of the structure, read before and after the write, is the same: the summary says so
+    # from the readings, agreed to the number of the tasks redated (#376).
+    after = _json(mockcore.whole(mockcore.current(mockstructure.described(roots))))
+    assert mockwrites.latest_finish(after["items"]) == mockwrites.latest_finish(whole["items"])
+    example = mockwrites.writes()[f"{name}.json"]
+    answered = _json(example["value"])
+    assert mockwrites.end_after(answered, whole) == mockwrites.latest_finish(after["items"])
+    summary = str(example["summary"])
+    assert "la fin de la structure ne bouge pas" in summary
+    one = len(answered["rescheduled"]) == 1
+    assert ("que lui laisse" if one else "que leur laisse") in summary
+
+
+def test_a_list_of_nothing_says_nothing() -> None:
+    assert mocktext.listed([]) == ""
+    assert mocktext.listed(["A"]) == "A"
+    assert mocktext.listed(["A", "B", "C"]) == "A, B et C"

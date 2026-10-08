@@ -169,12 +169,12 @@ describe("the screen of the remaining to commit", () => {
     const summary = section(await remainingAt(), "Remaining to commit indicators");
     expect(summary).toMatch(/Computed on <time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(summary)).toContain(
-      "Remaining to commit 21,534.56 Margin on the reference budget -6,100.00 " +
+      "Remaining to commit 21,234.56 Margin on the reference budget -6,100.00 " +
         "Deviation from the previous review -100,210.00 By nature of cost",
     );
     // Each amount bears the one mark of a computed value.
     expect(summary.match(/aria-label="Computed"/g)).toHaveLength(7);
-    expect(text(summary)).toContain("Débours: 1,434.56 (6.66%)");
+    expect(text(summary)).toContain("Débours: 1,434.56 (6.76%)");
     expect(text(summary)).toContain(
       "Risk reserve 910.00 Remaining provisions 500.00 Cost of the occurred risks 200.00 Coverage variance 210.00",
     );
@@ -188,7 +188,7 @@ describe("the screen of the remaining to commit", () => {
     server.answers = { ...server.answers, [INDICATORS]: "remaining_indicators_over_budget" };
     const markup = section(await remainingAt(), "Remaining to commit indicators");
     const summary = text(markup);
-    expect(summary).toContain("Poste de commande: 20,634.56, margin -2,200.00");
+    expect(summary).toContain("Poste de commande: 20,334.56, margin -2,200.00");
     expect(summary).toContain("No subproject: 700.00, margin -3,700.00");
     // Each by the zone the server gives it, named: the whole without sub-project is over its
     // budget too, the invoice of the studies and the purchases under unknown codes beyond it.

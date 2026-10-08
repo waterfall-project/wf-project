@@ -5,11 +5,11 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 
-// The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
-// (EP-02/L2). The journeys read it by marks the generator writes, which
-// `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds: row 1, the phase
-// « Études », a summary whose subordinates are the lots of rows 2, 201 and 401; row 4, a line of
-// labour, « Heures d'ingénierie ». What a computed value depends on, the refusal asks the server
+// The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
+// of §4.6.2, its core first (#376). The journeys read it by marks the generator writes, which
+// `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds: row 1, the studies,
+// « Études », a summary whose subordinates are the tasks of rows 2, 4, 5, 6 and 7; row 10, a line
+// of labour, « Raccordement des borniers », 12,5 hours. What a computed value depends on, the refusal asks the server
 // (`getComputedValueDependencies`), whose first example the fake back serves whatever the value
 // tried: the finish date of row 1, its subordinates named from the same structure. What another
 // value depends on is proven on its own example by the tests of the cell
@@ -38,7 +38,7 @@ test("shows the amount of a line of labour as computed, apart from its effort in
 }) => {
   await openHydrated(page, `${REVISION_PATH}/estimate`);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
-  const labour = grid.getByRole("row", { name: /^4 .*Heures d'ingénierie/ });
+  const labour = grid.getByRole("row", { name: /^10 .*Raccordement des borniers/ });
   await expect(labour.getByRole("img", { name: "Ligne de main-d’œuvre" })).toBeVisible();
   // The effort and the amount, found by their heading (`columnsOf`).
   const at = await columnsOf(grid, { hours: "Charge (h)", reference: "Montant (année de réf.)" });
@@ -47,7 +47,7 @@ test("shows the amount of a line of labour as computed, apart from its effort in
 
   // The effort is entered: its figure alone. The amount is computed: marked Σ, named so, on
   // another background — the mark reads without the colour.
-  await expect(hours).toHaveText(/^\d+$/);
+  await expect(hours).toHaveText(/^\d+(,\d+)?$/);
   await expect(hours.getByRole("img")).toHaveCount(0);
   await expect(amount).toHaveAccessibleName(/^Calculé [\d\s]+,\d\d$/);
   await expect(amount.getByRole("img", { name: "Calculé" })).toBeVisible();
@@ -109,9 +109,11 @@ test("refuses to change the finish date of a summary task, from the keyboard, na
     .getByRole("list", { name: /^Elle dépend de\s:$/ })
     .getByRole("listitem");
   await expect(subordinates).toHaveText([
-    /^2\s*Études — Poste de commande$/,
-    /^201\s*Études — Ligne d'essais$/,
-    /^401\s*Études — Utilités$/,
+    /^2\s*Études de détail$/,
+    /^4\s*Pupitres opérateurs$/,
+    /^5\s*Revue de conception$/,
+    /^6\s*Réception des études$/,
+    /^7\s*Dossier de conception$/,
   ]);
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);

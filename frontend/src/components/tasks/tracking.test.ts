@@ -21,7 +21,7 @@ function following(given: BackgroundTask): Tracking {
 
 describe("what the tracker follows", () => {
   it("drops the answer to a task a relaunch has replaced since it was asked", () => {
-    const relaunched = { ...task("task_running"), task_id: "01926f3a-7c00-7000-8000-000000000999" };
+    const relaunched = { ...task("task_running"), task_id: "01926f3a-7c00-7000-8000-000000000959" };
     const before = tracking(following(task("task_failed")), {
       type: "answer",
       source: "read",

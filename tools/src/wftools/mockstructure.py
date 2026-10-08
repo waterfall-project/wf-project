@@ -1,66 +1,63 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The structure of a thousand tasks the fake back serves, and its estimate indicators.
+"""The structure of a thousand tasks of the witness, and the indicators of its estimate.
 
-The main structure of the witness project at the sizes of §4.6.2: a thousand tasks — phases,
-lots, their work tasks and milestones — and five lines per task as §4.6.2 counts them. Each
-work task carries five lines; the lines the summaries and milestones do not carry are
-provisions, a sixth line spread evenly over the work tasks. The tasks are dated in working
-days from their finish-to-start links, with their total float, and their progress is the
-one of the day the examples of the contract are read. A task lasts whole working days: its
-duration is in days, it starts at the first hour of its first day and finishes at the last
-of its last (WF-DAT-0100, WF-PLA-0160). Amounts are ``Decimal``, summed exactly as the lines
-are made, so that the indicators of the estimate are those of the lines the grid shows; the
-amount of a line corrected for inflation is its amount projected on the year its task
-starts, at the inflation rate of the witness project (WF-DEV-0040), and a task and the totals
-sum both, the amount at the year of reference and the one corrected. A line names its category,
-its role and its subproject by the labels of the universe, as the server resolves them.
+The main structure of the witness project at the sizes of §4.6.2 (#376): its readable core first
+(``mockwitness.CORE``), then a thousand tasks less the core's, drawn about it and linked to it —
+phases, lots, their work tasks and milestones — and five thousand lines less the core's, five on
+each work task and a sixth on some, as §4.6.2 counts five a task. The tasks drawn follow the core:
+the lots of the control station after its factory acceptance, the others after the reception of
+its studies; the commissioning of the core leads to the milestone of the commissioning of the lot
+of the control station. So the float and the critical path of the core are those of the whole
+structure. The whole is described here as the core is, in tasks and lines of ``mockwitness``, and
+dated in hours of work on the calendar of each task, priced and emitted by ``wftools.mockcore``,
+read today (WF-PLA-0010, WF-PLA-0160): the wiring, given to the cable fitter, works his week of four
+days of ten hours, the rest the standard week. No line drawn is a provision: a line of provision is
+created by the declaration of a risk alone (WF-DEV-0020, WF-RIS-0010), and the witness has three.
 
-Nothing here reads the clock or draws at random: every drawn value comes from a hash of a
-fixed seed and of what it describes, so that two runs make the same structure, whatever the
-version of Python. ``wftools.mockdata`` writes it, and ``wftools.mockwrites`` the writes made
-in it.
+A line names its category, its role and its subproject by the labels of the universe, as the
+server resolves them. Amounts are ``Decimal``. Nothing here reads the clock or draws at random:
+every drawn value comes from a hash of a fixed seed and of what it describes, so that two runs make
+the same structure, whatever the version of Python. ``wftools.mockdata`` writes it, and
+``wftools.mockwrites`` the writes made in it.
 """
 
 from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from wftools.mockcalendar import HOURS_PER_DAY
 from wftools.mockwitness import (
+    CABLE_FITTER,
     COMMISSIONING,
     COMMISSIONING_TECHNICIAN,
+    CORE,
     ELECTRICAL_ENGINEERING,
     ENGINEER,
     EQUIPMENT,
-    LINEAGES,
-    NODES,
+    GENERATED,
+    PAYMENT_DELAY,
     PROVISIONS,
     SUBCONTRACTING,
     SUBPROJECT_CONTROL,
+    Line,
+    Link,
+    N,
+    Task,
     fixture,
-    identifier,
     universe,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
 type JsonValue = str | int | bool | list[JsonValue] | dict[str, JsonValue] | None
 type JsonObject = dict[str, JsonValue]
 
 SEED = "waterfall-4.6.2"
 """The seed every drawn value is hashed with: changing it changes every volume."""
-
-PROJECT_START = date(2026, 3, 2)
-"""The first working day of the structure, a Monday, as in the witness structure."""
-
-AS_OF = date(2026, 3, 16)
-"""The day the examples of the contract are read: the progress of the tasks is at that day."""
 
 TASK_COUNT = 1_000
 LINES_PER_TASK = 5
@@ -117,18 +114,6 @@ def draw(key: str, low: int, high: int) -> int:
     return low + int.from_bytes(digest[:8]) % (high - low + 1)
 
 
-def working_day(offset: int) -> date:
-    """Return the date of a working day, counted from the start: Monday to Friday."""
-    weeks, day = divmod(offset, 5)
-    return PROJECT_START + timedelta(days=weeks * 7 + day)
-
-
-def working_offset(day: date) -> int:
-    """Return the offset of a working day from the start: the inverse of working_day."""
-    weeks, rest = divmod((day - PROJECT_START).days, 7)
-    return weeks * 5 + rest
-
-
 def money(value: Decimal) -> str:
     """Return an amount as the contract carries it: two decimals, never a float."""
     return str(value.quantize(CENT))
@@ -143,14 +128,6 @@ def inflated(amount: Decimal, year: int) -> Decimal:
     return (amount * (1 + INFLATION_RATE) ** (year - REFERENCE_YEAR)).quantize(CENT)
 
 
-def work_instant(offset: int, hours: Decimal) -> JsonObject:
-    """Return an instant of work on a working day.
-
-    Its date, and the hours of work elapsed that day (WF-DAT-0100).
-    """
-    return {"date": working_day(offset).isoformat(), "hours": decimal(hours)}
-
-
 def decimal(value: Decimal) -> str:
     """Return an exact decimal without trailing zeros: 12.5, 40."""
     text = format(value, "f")
@@ -159,8 +136,7 @@ def decimal(value: Decimal) -> str:
 
 # --- The structure of a thousand tasks --------------------------------------------------
 
-_PHASES = (
-    "Études",
+PHASES = (
     "Approvisionnements",
     "Génie civil",
     "Fabrication",
@@ -171,7 +147,12 @@ _PHASES = (
     "Mise en service",
     "Réception",
 )
-_LOTS = (
+"""The phases drawn after the core, which holds the studies: each lot goes through them in turn."""
+
+CABLING, COMMISSIONING_PHASE = 5, 8
+"""The phase the cable fitter works, and the one the commissioning of the core leads to."""
+
+LOTS = (
     ("Poste de commande", SUBPROJECT_CONTROL),
     ("Ligne d'essais", SUBPROJECT_TESTS),
     ("Utilités", None),
@@ -186,236 +167,151 @@ _VERBS = (
     "Documentation",
     "Validation",
 )
-_TASKS_PER_LOT = 31
-# The work tasks of a lot run in three chains, each task after the one three places before.
 _CHAINS = 3
+"""The work tasks of a lot run in three chains, each task after the one three places before."""
+
+_CORE_TASKS, _CORE_LINES = 15, 9
+"""The tasks and the lines of the core, which the thousand tasks and five thousand lines count."""
 
 
 @dataclass(frozen=True, slots=True)
 class LineKind:
-    """What the n-th line of a work task is: its label, category, role and rate."""
+    """What the n-th line of a work task is: its label, its category and its role."""
 
     label: str
     category: str
     role: str | None = None
-    rate: Decimal | None = None
-    is_provision: bool = False
-
-    @property
-    def cost_type(self) -> str:
-        """Return the nature of cost of the line's category."""
-        if self.is_provision:
-            return PROVISION
-        return NON_LABOR if self.rate is None else LABOR
 
 
 LINE_KINDS = (
-    LineKind("Heures d'ingénierie", ELECTRICAL_ENGINEERING, ENGINEER, ELECTRICAL_RATE),
-    LineKind(
-        "Heures de mise en service", COMMISSIONING, COMMISSIONING_TECHNICIAN, COMMISSIONING_RATE
-    ),
+    LineKind("Heures d'ingénierie", ELECTRICAL_ENGINEERING, ENGINEER),
+    LineKind("Heures de mise en service", COMMISSIONING, COMMISSIONING_TECHNICIAN),
     LineKind("Matériel", EQUIPMENT),
     LineKind("Sous-traitance", SUBCONTRACTING),
-    LineKind("Heures de supervision", ELECTRICAL_ENGINEERING, ENGINEER, ELECTRICAL_RATE),
-    LineKind("Provision — aléas de réalisation", PROVISIONS, is_provision=True),
+    LineKind("Heures de supervision", ELECTRICAL_ENGINEERING, ENGINEER),
+    LineKind("Transport et manutention", SUBCONTRACTING),
 )
-"""The lines of a work task, in order; the sixth, a provision, only on some of them.
+"""The lines of a work task, in order; the sixth on some of them only."""
 
-The rate of a labour line is its category's for the reference year of the estimate.
-"""
-
-
-@dataclass(eq=False, slots=True)
-class Task:
-    """A task of the plan: a summary, a work task or a milestone, scheduled in working days."""
-
-    label: str
-    duration: int = 0
-    is_milestone: bool = False
-    subproject: str | None = None
-    children: list[Task] = field(default_factory=list["Task"])
-    predecessors: list[Task] = field(default_factory=list["Task"])
-    successors: list[Task] = field(default_factory=list["Task"])
-    lines: int = 0
-    start: int = 0
-    end: int = 0
-    late_end: int = 0
-    row: int = 0
-
-    @property
-    def is_summary(self) -> bool:
-        """Whether the task sums its subordinates."""
-        return bool(self.children)
+CABLING_KINDS = (
+    LineKind("Heures de câblage", ELECTRICAL_ENGINEERING, CABLE_FITTER),
+    LineKind("Heures de raccordement", ELECTRICAL_ENGINEERING, CABLE_FITTER),
+    *LINE_KINDS[2:4],
+    LineKind("Heures de repérage", ELECTRICAL_ENGINEERING, CABLE_FITTER),
+    LINE_KINDS[5],
+)
+"""The lines of a work task of the wiring: its labour all the cable fitter's, on the week of four
+days, so that the task works his calendar alone (WF-PLA-0010)."""
 
 
-def plan() -> tuple[list[Task], list[Task]]:
-    """Return the phases of the structure, and its work tasks and milestones in link order."""
+def network(core: Sequence[Task] = CORE) -> tuple[Task, ...]:
+    """Return the phases drawn after the core, numbered after its rows, linked to it.
+
+    Each phase holds the three lots, each lot its work tasks in three chains and a milestone after
+    the last of each; a lot of a phase follows the milestone of the same lot in the phase before.
+    The lots of the first phase follow the core: the control station its factory acceptance, the
+    others the reception of the studies. The commissioning of the core leads to the milestone of
+    the commissioning of the control station. The tasks a lot holds, thirty-four or thirty-five,
+    make the count of a thousand with the core's; their lines, five thousand.
+    """
+    plan = _Plan(_rows(core))
+    work = TASK_COUNT - _CORE_TASKS - len(PHASES) * (1 + 2 * len(LOTS))
+    lots = len(PHASES) * len(LOTS)
+    extra = TASK_COUNT * LINES_PER_TASK - _CORE_LINES - work * LINES_PER_TASK
+    previous: list[int] = [N.FACTORY_ACCEPTANCE, N.STUDIES_RECEIVED, N.STUDIES_RECEIVED]
     roots: list[Task] = []
-    activities: list[Task] = []
-    previous: list[Task | None] = [None] * len(_LOTS)
-    for p, phase in enumerate(_PHASES, start=1):
-        summary = Task(phase)
-        for n, (lot, subproject) in enumerate(_LOTS, start=1):
-            tasks = [
-                Task(
-                    f"{_VERBS[(k - 1) % len(_VERBS)]} {p}.{n}.{k}",
-                    duration=draw(f"duration/{p}.{n}.{k}", 3, 12),
-                    subproject=subproject,
+    done = 0
+    for p, phase in enumerate(PHASES, start=1):
+        summary = plan.number()
+        children: list[Task] = []
+        for n, (lot, subproject) in enumerate(LOTS, start=1):
+            index = (p - 1) * len(LOTS) + n - 1
+            count = (index + 1) * work // lots - index * work // lots
+            lot_number = plan.number()
+            tasks: list[Task] = []
+            for k in range(1, count + 1):
+                before = tasks[k - 1 - _CHAINS].number if k > _CHAINS else previous[n - 1]
+                sixth = (done + 1) * extra // work - done * extra // work
+                done += 1
+                tasks.append(
+                    plan.task(f"{p}.{n}.{k}", (Link(before),), subproject, LINES_PER_TASK + sixth)
                 )
-                for k in range(1, _TASKS_PER_LOT + 1)
-            ]
-            for k, task in enumerate(tasks):
-                before = tasks[k - _CHAINS] if k >= _CHAINS else previous[n - 1]
-                if before is not None:
-                    _link(before, task)
-            milestone = Task(f"Fin du lot {p}.{n}", is_milestone=True, subproject=subproject)
-            for task in tasks[-_CHAINS:]:
-                _link(task, milestone)
-            previous[n - 1] = milestone
-            summary.children.append(Task(f"{phase} — {lot}", children=[*tasks, milestone]))
-            activities.extend([*tasks, milestone])
-        roots.append(summary)
-    return roots, activities
+            ends = [Link(task.number) for task in tasks[-_CHAINS:]]
+            if p == COMMISSIONING_PHASE and n == 1:
+                ends.append(Link(N.COMMISSIONING))
+            milestone = Task(
+                plan.number(), f"Fin du lot {p}.{n}", is_milestone=True, links=tuple(ends)
+            )
+            previous[n - 1] = milestone.number
+            children.append(Task(lot_number, f"{phase} — {lot}", children=(*tasks, milestone)))
+        roots.append(Task(summary, phase, children=tuple(children)))
+    return tuple(roots)
 
 
-def _link(predecessor: Task, successor: Task) -> None:
-    predecessor.successors.append(successor)
-    successor.predecessors.append(predecessor)
-
-
-def schedule(roots: list[Task], activities: list[Task]) -> None:
-    """Date the tasks from their finish-to-start links, and find their total float."""
-    for task in activities:
-        earliest = max((before.end + 1 for before in task.predecessors), default=0)
-        # A milestone sits at the end of the day its predecessors finish.
-        task.end = earliest + task.duration - 1
-        task.start = task.end - max(task.duration, 1) + 1
-    finish = max(task.end for task in activities)
-    for task in reversed(activities):
-        task.late_end = min(
-            (after.late_end - after.duration for after in task.successors), default=finish
-        )
-    for root in roots:
-        _roll_up(root)
-
-
-def _roll_up(task: Task) -> None:
-    if not task.children:
-        return
-    for child in task.children:
-        _roll_up(child)
-    task.start = min(child.start for child in task.children)
-    task.end = max(child.end for child in task.children)
-    task.duration = task.end - task.start + 1
-
-
-def spread_lines(activities: list[Task]) -> None:
-    """Give each work task its five lines, and the provisions evenly among them."""
-    work = [task for task in activities if not task.is_milestone]
-    extra = TASK_COUNT * LINES_PER_TASK - len(work) * LINES_PER_TASK
-    for index, task in enumerate(work):
-        task.lines = LINES_PER_TASK + (index + 1) * extra // len(work) - index * extra // len(work)
-
-
-def number(tasks: list[Task], row: int = 1) -> int:
-    """Give each task its row, depth first, its lines after it; return the next free row."""
-    for task in tasks:
-        task.row = row
-        row = number(task.children, row + 1 + task.lines)
-    return row
-
-
-def progress(task: Task) -> str:
-    """Return the progress of a task at the day the examples are read."""
-    today = working_offset(AS_OF)
-    if task.children:
-        states = {progress(child) for child in task.children}
-        return states.pop() if len(states) == 1 else "started"
-    if task.end < today:
-        return "completed"
-    if task.start <= today and not task.is_milestone:
-        return "started"
-    return "not_started"
+def _rows(core: Iterable[Task]) -> int:
+    """Return how many rows the core takes: its tasks and their lines."""
+    return sum(1 + len(task.lines) + _rows(task.children) for task in core)
 
 
 @dataclass(slots=True)
-class Totals:
-    """The totals of the structure, summed exactly as the lines are made."""
+class _Plan:
+    """The tasks drawn, numbered in the order of their rows after those of the core."""
 
-    tasks: int = 0
-    lines: int = 0
-    hours: Decimal = Decimal(0)
-    amount: Decimal = Decimal(0)
-    inflated: Decimal = Decimal(0)
-    by_cost_type: dict[str, Decimal] = field(default_factory=dict[str, Decimal])
-    by_subproject: dict[str | None, Decimal] = field(default_factory=dict[str | None, Decimal])
+    row: int
 
-    def add(self, kind: LineKind, subproject: str | None, amounts: Amounts, hours: Decimal) -> None:
-        """Count a line: its hours, its amounts, the base one under its nature and subproject."""
-        amount = amounts.base
-        self.lines += 1
-        self.hours += hours
-        self.amount += amount
-        self.inflated += amounts.inflated
-        self.by_cost_type[kind.cost_type] = (
-            self.by_cost_type.get(kind.cost_type, Decimal(0)) + amount
+    def number(self) -> int:
+        """Return the number of the next row."""
+        self.row += 1
+        return GENERATED + self.row
+
+    def task(self, key: str, links: tuple[Link, ...], subproject: str | None, lines: int) -> Task:
+        """Return a work task, its duration drawn, its lines after it."""
+        p = int(key.split(".", maxsplit=1)[0])
+        verb = _VERBS[(int(key.rsplit(".", maxsplit=1)[1]) - 1) % len(_VERBS)]
+        number = self.number()
+        kinds = CABLING_KINDS if p == CABLING else LINE_KINDS
+        drawn = tuple(
+            _line(self.number(), kinds[index], f"{key}/{index}", subproject)
+            for index in range(lines)
         )
-        self.by_subproject[subproject] = self.by_subproject.get(subproject, Decimal(0)) + amount
+        return Task(
+            number,
+            f"{verb} {key}",
+            days=draw(f"duration/{key}", 3, 12),
+            links=links,
+            lines=drawn,
+        )
 
 
-@dataclass(frozen=True, slots=True)
-class Amounts:
-    """The amounts of a line or of a task: at the year of reference, and corrected for inflation."""
+def _line(number: int, kind: LineKind, key: str, subproject: str | None) -> Line:
+    """Return a line drawn: hours for labour, a quantity and a unit disbursement otherwise.
 
-    base: Decimal = Decimal(0)
-    inflated: Decimal = Decimal(0)
-
-    def __add__(self, other: Amounts) -> Amounts:
-        return Amounts(self.base + other.base, self.inflated + other.inflated)
-
-
-@dataclass(frozen=True, slots=True)
-class Structure:
-    """The answer of listNodes for the structure, and the totals its lines sum to."""
-
-    nodes: JsonObject
-    totals: Totals
-
-
-def structure() -> Structure:
-    """Plan, date and number the structure of a thousand tasks, and make its nodes."""
-    roots, _ = planned()
-    return emitted(roots)
+    The other lines are paid a month after their work, as the subcontracting of the core; the
+    labour as it is worked (WF-DEV-0020, WF-IND-0100).
+    """
+    if kind.role is not None:
+        hours = Decimal(draw(f"hours/{key}", 8, 160)) / 2
+        return Line(
+            number, kind.label, kind.category, hours=hours, role=kind.role, subproject=subproject
+        )
+    return Line(
+        number,
+        kind.label,
+        kind.category,
+        unit=Decimal(draw(f"unit/{key}", 1_000, 500_000)) / 100,
+        subproject=subproject,
+        payment_delay_days=PAYMENT_DELAY,
+        quantity=Decimal(draw(f"quantity/{key}", 1, 20)),
+    )
 
 
-def planned() -> tuple[list[Task], list[Task]]:
-    """Plan, date and number the structure: its phases, and its work tasks and milestones."""
-    roots, activities = plan()
-    schedule(roots, activities)
-    spread_lines(activities)
-    number(roots)
-    return roots, activities
+NETWORK = network()
+"""The phases drawn after the core, numbered once."""
 
 
-def emitted(roots: list[Task]) -> Structure:
-    """Make the nodes of a structure planned, and its totals."""
-    emitter = _Emitter(labels())
-    for position, root in enumerate(roots):
-        emitter.task(root, _Place(None, position, 1))
-    totals = emitter.totals
-    answer: JsonObject = {
-        "items": emitter.items,
-        "totals": {
-            "task_count": totals.tasks,
-            "estimate_line_count": totals.lines,
-            "hours": decimal(totals.hours),
-            "base_amount": money(totals.amount),
-            "budgeted_amount": money(totals.amount),
-            "reestimated_amount": money(totals.amount),
-            "inflated_amount": money(totals.inflated),
-        },
-    }
-    return Structure(answer, totals)
+def described(core: Iterable[Task] = CORE) -> tuple[Task, ...]:
+    """Return the whole structure: the core given, as described or as a write leaves it, first."""
+    return (*core, *NETWORK)
 
 
 def labels() -> dict[str, str]:
@@ -427,134 +323,11 @@ def labels() -> dict[str, str]:
 
 
 @dataclass(frozen=True, slots=True)
-class _Place:
-    """Where a node sits: under which task, at which rank among its siblings, how deep."""
-
-    parent: Task | None
-    position: int
-    level: int
-
-
-@dataclass(slots=True)
-class _Emitter:
-    """The nodes of the structure, depth first, and their totals as they are made."""
-
-    labels: Mapping[str, str]
-    items: list[JsonValue] = field(default_factory=list["JsonValue"])
-    totals: Totals = field(default_factory=Totals)
-
-    def task(self, task: Task, place: _Place) -> Amounts:
-        """Append a task, its lines and its subordinates; return the amounts they carry."""
-        facet = _task_facet(task)
-        fields = task_fields(is_summary=task.is_summary, is_milestone=task.is_milestone)
-        node = _node(task.row, place, "task", facet, fields)
-        if task.predecessors:
-            node["predecessors"] = [
-                {
-                    "predecessor_node_id": identifier(NODES, before.row),
-                    "predecessor_row_number": before.row,
-                    "link_type": "finish_to_start",
-                    "lag": {"value": "0", "unit": "d"},
-                }
-                for before in task.predecessors
-            ]
-        self.items.append(node)
-        self.totals.tasks += 1
-        amounts = Amounts()
-        for index in range(task.lines):
-            amounts += self._line(
-                task, index, place.level + 1, completed=facet["progress"] == "completed"
-            )
-        for rank, child in enumerate(task.children):
-            amounts += self.task(child, _Place(task, rank, place.level + 1))
-        facet.update(_amounts(amounts))
-        return amounts
-
-    def _line(self, task: Task, index: int, level: int, *, completed: bool) -> Amounts:
-        line, amounts, hours = _line(task, index, self.labels, completed=completed)
-        kind = LINE_KINDS[index]
-        place = _Place(task, index, level)
-        fields = line_fields(is_labour=kind.rate is not None, is_provision=kind.is_provision)
-        self.items.append(_node(task.row + 1 + index, place, "estimate_line", line, fields))
-        self.totals.add(kind, _subproject(task, kind), amounts, hours)
-        return amounts
-
-
-def _amounts(amounts: Amounts) -> JsonObject:
-    """Return the four amounts of a task or a line.
-
-    Three at the year of reference, then the one corrected for inflation: the budget and the
-    re-estimate are the amount as it is made.
-    """
-    base = money(amounts.base)
-    return {
-        "base_amount": base,
-        "budgeted_amount": base,
-        "reestimated_amount": base,
-        "inflated_amount": money(amounts.inflated),
-    }
-
-
-@dataclass(frozen=True, slots=True)
 class Fields:
     """What a node says of the fields of its facet: those computed here, those it accepts."""
 
     computed: list[JsonValue]
     editable: list[JsonValue]
-
-
-def _node(row: int, place: _Place, kind: str, facet: JsonObject, fields: Fields) -> JsonObject:
-    return {
-        "node_id": identifier(NODES, row),
-        "lineage_id": identifier(LINEAGES, row),
-        "kind": kind,
-        "parent_id": None if place.parent is None else identifier(NODES, place.parent.row),
-        "position": place.position,
-        "row_number": row,
-        "level": place.level,
-        "lock_version": 1,
-        kind: facet,
-        "computed_fields": fields.computed,
-        "editable_fields": fields.editable,
-    }
-
-
-def _task_facet(task: Task) -> JsonObject:
-    state = progress(task)
-    facet: JsonObject = {
-        "label": task.label,
-        "scheduling_mode": "automatic",
-        "duration": {"value": str(task.duration), "unit": "d"},
-        **_span(task),
-        "progress": state,
-        # A started task finishes after the day the examples are read: none is overdue.
-        "finish_overdue": False,
-    }
-    if state != "not_started" and not task.is_summary:
-        facet["started_on"] = working_day(task.start).isoformat()
-    if state == "completed" and not task.is_summary:
-        facet["completed_on"] = working_day(task.end).isoformat()
-    facet["is_summary"] = task.is_summary
-    facet["is_milestone"] = task.is_milestone
-    facet.update(_amounts(Amounts()))
-    if not task.is_summary:
-        facet["total_float"] = {"value": str(task.late_end - task.end), "unit": "d"}
-        facet["is_critical"] = task.late_end == task.end
-    return facet
-
-
-def _span(task: Task) -> JsonObject:
-    """Return the start and the finish of a task.
-
-    The first hour of its first day and the last of its last. A milestone, of no duration,
-    sits at one instant: where its predecessors finish, or the first hour of its day when it
-    has none (WF-PLA-0050).
-    """
-    if task.is_milestone:
-        at = work_instant(task.end, HOURS_PER_DAY if task.predecessors else Decimal(0))
-        return {"start": at, "finish": at}
-    start = work_instant(task.start, Decimal(0))
-    return {"start": start, "finish": work_instant(task.end, HOURS_PER_DAY)}
 
 
 def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False) -> Fields:
@@ -609,68 +382,38 @@ def line_fields(*, is_labour: bool, is_provision: bool) -> Fields:
     return Fields([], editable)
 
 
-def _line(
-    task: Task, index: int, labels: Mapping[str, str], *, completed: bool
-) -> tuple[JsonObject, Amounts, Decimal]:
-    """Return an estimate line of a work task, its amounts and its hours.
-
-    Its category, its role and its subproject are named by their labels, as the server resolves
-    them.
-    """
-    kind = LINE_KINDS[index]
-    key = f"{task.row}/{index}"
-    hours: Decimal | None = None
-    unit: Decimal | None = None
-    quantity = 1
-    if kind.rate is not None:
-        hours = Decimal(draw(f"hours/{key}", 8, 160)) / 2
-        amount = hours * kind.rate
-    else:
-        unit = Decimal(draw(f"unit/{key}", 1_000, 500_000)) / 100
-        if not kind.is_provision:
-            quantity = draw(f"quantity/{key}", 1, 20)
-        amount = quantity * unit
-    year = working_day(task.start).year
-    amounts = Amounts(amount, inflated(amount, year))
-    subproject = _subproject(task, kind)
-    line: JsonObject = {
-        "label": kind.label,
-        "cost_category_id": kind.category,
-        "cost_category_label": labels[kind.category],
-        "resource_role_id": kind.role,
-        "resource_role_label": None if kind.role is None else labels[kind.role],
-        "quantity": str(quantity),
-        "hours": None if hours is None else decimal(hours),
-        "unit_disbursement": None if unit is None else money(unit),
-        "subproject_id": subproject,
-        "subproject_label": None if subproject is None else labels[subproject],
-        **_amounts(amounts),
-        "previous_quantity": None,
-        "previous_hours": None,
-        "previous_unit_disbursement": None,
-        "previous_reestimated_amount": None,
-        "consumption_year": year,
-        "is_computed": kind.is_provision,
-        "uses_inactive_object": False,
-        "remaining_entry": {
-            "is_available": not completed,
-            "missing_conditions": ["task_not_completed"] if completed else [],
-        },
-    }
-    return line, amounts, hours or Decimal(0)
-
-
-def _subproject(task: Task, kind: LineKind) -> str | None:
-    """Return the subproject of a line: its task's, but a provision stays outside."""
-    return None if kind.is_provision else task.subproject
-
-
 # --- The indicators of its estimate -------------------------------------------------------
 
 
 def computable(value: str) -> JsonObject:
     """Return a value under the envelope of what may not be computable, computed (WF-IND-0010)."""
     return {"is_computable": True, "value": value, "reason": None}
+
+
+@dataclass(slots=True)
+class Totals:
+    """The amounts of the lines of a structure at the year of reference, summed as they are read."""
+
+    amount: Decimal = Decimal(0)
+    by_cost_type: dict[str, Decimal] = field(default_factory=dict[str, Decimal])
+    by_subproject: dict[str | None, Decimal] = field(default_factory=dict[str | None, Decimal])
+    by_order_item: dict[tuple[str, str], Decimal] = field(
+        default_factory=dict[tuple[str, str], Decimal]
+    )
+
+    def add(
+        self,
+        amount: Decimal,
+        cost_type: str,
+        subproject: str | None,
+        order_item: tuple[str, str] | None,
+    ) -> None:
+        """Count a line: its amount, under its nature, its subproject and its order item."""
+        self.amount += amount
+        self.by_cost_type[cost_type] = self.by_cost_type.get(cost_type, Decimal(0)) + amount
+        self.by_subproject[subproject] = self.by_subproject.get(subproject, Decimal(0)) + amount
+        if order_item is not None:
+            self.by_order_item[order_item] = self.by_order_item.get(order_item, Decimal(0)) + amount
 
 
 def estimate_indicators(
@@ -680,7 +423,8 @@ def estimate_indicators(
 
     Every rate is set: each amount is computable. The calculation context and the gaps to the
     reference and to the previous revision are the witness's, the labels of the natures and
-    subprojects those of the universe; the structure is phased, not cut in order items.
+    subprojects those of the universe; the order item the lot of the control station bears is
+    a part of the total, not a partition of it (WF-DEV-0060).
     """
     natures = [(nature, totals.by_cost_type[nature]) for nature in (LABOR, NON_LABOR, PROVISION)]
     subprojects = [
@@ -692,7 +436,15 @@ def estimate_indicators(
         "total": computable(money(totals.amount)),
         "by_cost_type": breakdown(natures, totals.amount, labels),
         "by_subproject": breakdown(subprojects, totals.amount, labels),
-        "by_order_item": None,
+        "by_order_item": [
+            {
+                "key": key,
+                "label": label,
+                "amount": computable(money(amount)),
+                "share": computable(decimal((amount / totals.amount).quantize(SHARE))),
+            }
+            for (key, label), amount in totals.by_order_item.items()
+        ],
         "provisions_identified": money(totals.by_cost_type[PROVISION]),
         "delta_to_reference": witness["delta_to_reference"],
         "delta_to_previous_revision": witness["delta_to_previous_revision"],

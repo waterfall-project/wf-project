@@ -153,8 +153,37 @@ def test_a_duration_or_a_lag_of_work_is_converted_into_hours() -> None:
     assert to_hours(1, "w") == 40
     assert to_hours(1, "mo") == 160
     assert to_hours(30, "min") == Decimal("0.5")
+    assert to_hours(3, "min") == Decimal("0.05")
     with pytest.raises(ValueError, match="ed is not a unit of work"):
         to_hours(1, "ed")
+
+
+@pytest.mark.parametrize("minutes", [1, 2, 31])
+def test_minutes_that_make_no_exact_hour_are_refused_rather_than_rounded(minutes: int) -> None:
+    # WF-DAT-0100 counts exact hours: a minute is 0.01666… of an hour, which no decimal holds.
+    with pytest.raises(ValueError, match=f"{minutes} minutes make no exact decimal of an hour"):
+        to_hours(minutes, "min")
+
+
+@pytest.mark.parametrize("link_type", ["finish_to_finish", "start_to_finish"])
+def test_a_link_that_does_not_count_from_a_finish_to_a_start_or_from_starts_is_refused(
+    link_type: str,
+) -> None:
+    friday = Predecessor(at(1), at(5, 8), link_type)
+    with pytest.raises(ValueError, match=f"the link {link_type} is not placed here"):
+        follow(STANDARD, [friday], Decimal(8), at(1))
+
+
+def test_a_milestone_reads_the_end_of_a_day_only_when_a_finish_to_start_link_drives_it() -> None:
+    # Started with its start-to-start predecessor, without lag, a milestone sits at its first
+    # hour, the Monday, not the Friday before; without a predecessor, at the first hour of the
+    # origin (WF-PLA-0050).
+    monday = Predecessor(at(8), at(12, 8), START_TO_START)
+    assert follow(STANDARD, [monday], Decimal(0), at(1)) == (at(8), at(8))
+    assert follow(STANDARD, [], Decimal(0), at(8)) == (at(8), at(8))
+    # Both drive it to the same count: the finish-to-start link reads it as a finish.
+    friday = Predecessor(at(1), at(5, 8))
+    assert follow(STANDARD, [monday, friday], Decimal(0), at(1)) == (at(5, 8), at(5, 8))
 
 
 @pytest.mark.parametrize("start", [at(1), at(4, 10), at(5, 8), at(6), at(8, 3)])
@@ -292,8 +321,8 @@ _KEYS = {
     ),
     "backup_id": ("sauvegardes",),
     "task_id": ("tâches de fond",),
-    "paste_id": ("collages et corrélations",),
-    "correlation_id": ("collages et corrélations",),
+    "paste_id": ("collages",),
+    "correlation_id": ("corrélations",),
     "upload_id": ("imports et téléversements",),
     "import_id": ("imports et téléversements",),
     "timeline_id": ("chronologies",),

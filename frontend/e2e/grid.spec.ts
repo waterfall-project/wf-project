@@ -2,22 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, type Request, test } from "@playwright/test";
 
-import {
-  rowAt,
-  scrollPageToGrid,
-  scroller,
-  scrollToFoot,
-  scrollToPosition,
-  withinBox,
-} from "./scroll";
+import { scrollPageToGrid, scroller, scrollToFoot, scrollToPosition, withinBox } from "./scroll";
 import { openHydrated, WORKING } from "./hydration";
 
-// The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
-// (EP-02/L2): a thousand tasks and five thousand lines, six thousand rows, of which the grid
-// renders those in view. The journeys read it by marks the generator writes, which
+// The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
+// of §4.6.2, its core first (#376): a thousand tasks and five thousand lines, six thousand rows, of
+// which the grid renders those in view. The journeys read it by marks the generator writes, which
 // `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds — the summary task
-// of row 1, « Études », the lot of row 2, the task of row 3, the milestone of row 6000, the totals
-// of the answer —, and never count the rows rendered: the row count of the grid says how many
+// of row 1, « Études », the task of row 2, the first line drawn after the core, row 28, the
+// milestone of row 6000, the totals of the answer —, and never count the rows rendered: the row count of the grid says how many
 // there are. The second of §4.6.2 is measured in `opening.spec.ts`. Each path opens the grid
 // hydrated (`openHydrated`) before it scrolls or clicks: the rows follow the scroll, and the sort
 // answers its header, once React does. An address that follows a click which reads the six
@@ -49,7 +42,7 @@ function edges(page: Page) {
     header: grid(page).getByRole("columnheader", { name: "Libellé" }),
     totals: grid(page).getByRole("gridcell", { name: /^Total — 1\s000 tâches, 5\s000 lignes$/ }),
     first: grid(page).getByRole("row", { name: /^1 .*Études/ }),
-    last: grid(page).getByRole("row", { name: /^6000 .*Fin du lot 10\.3/ }),
+    last: grid(page).getByRole("row", { name: /^6000 .*Fin du lot 9\.3/ }),
   };
 }
 
@@ -63,7 +56,7 @@ test("opens the estimate of a thousand tasks and five thousand lines, and scroll
   // its header and its totals are in view, the totals those of the answer under their column.
   expect(await withinBox(grid(page), header)).toBe(true);
   expect(await withinBox(grid(page), totals)).toBe(true);
-  await expect(await totalUnder(page, "Charge (h)")).toHaveText(/^116\s348$/);
+  await expect(await totalUnder(page, "Charge (h)")).toHaveText(/^116\s270$/);
   await expect(first).toBeVisible();
   await expect(last).toHaveCount(0);
 
@@ -71,7 +64,7 @@ test("opens the estimate of a thousand tasks and five thousand lines, and scroll
   await expect(last).toBeVisible();
   await expect(last).toHaveAttribute("aria-rowindex", "6001");
   // The rows of the top are gone, but the first, the row of the active cell, kept rendered.
-  await expect(grid(page).getByRole("row", { name: /^2 .*Poste de commande/ })).toHaveCount(0);
+  await expect(grid(page).getByRole("row", { name: /^2 .*Études de détail/ })).toHaveCount(0);
   await expect(first).not.toBeInViewport();
   expect(await withinBox(grid(page), header)).toBe(true);
   expect(await withinBox(grid(page), totals)).toBe(true);
@@ -137,7 +130,7 @@ test.describe("on a low window", () => {
     await page.evaluate(() => window.dispatchEvent(new Event("resize")));
     const first = await edges(page).first.boundingBox();
     const second = await grid(page)
-      .getByRole("row", { name: /^2 .*Études — Poste de commande/ })
+      .getByRole("row", { name: /^2 .*Études de détail/ })
       .boundingBox();
     // 1.75 rem at 24 pixels: 42 pixels from one row to the next.
     expect((second?.y ?? 0) - (first?.y ?? 0)).toBeCloseTo(42, 0);
@@ -156,7 +149,7 @@ test.describe("on a narrow window", () => {
     page,
   }) => {
     await openHydrated(page, GRID);
-    const label = grid(page).getByRole("gridcell", { name: /Préparation 1\.1\.1$/ });
+    const label = grid(page).getByRole("gridcell", { name: /Études de détail$/ });
     const { totals } = edges(page);
     const box = scroller(grid(page));
     await expect(label).toBeInViewport({ ratio: 1 });
@@ -261,8 +254,9 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
     await route.continue().catch(() => undefined);
   });
   await openHydrated(page, `${GRID}?search=revue`);
-  // The label of row 4, a line of labour, entered: the fake back answers its line.
-  const label = rowAt(grid(page), 4).getByRole("gridcell").nth(1);
+  // The label of row 28, the first line drawn after the core, entered: the fake back answers its
+  // line. Past the rows in view as the grid opens: scrolled to first.
+  const label = (await scrollToPosition(grid(page), 28)).getByRole("gridcell").nth(1);
   await label.click();
   await page.keyboard.type("Heures de câblage");
   const retotal = page.waitForRequest(isRetotal);

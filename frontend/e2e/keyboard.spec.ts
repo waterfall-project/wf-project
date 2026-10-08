@@ -8,9 +8,9 @@ import { rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2), which the journeys read by marks the generator writes
-// (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py): row 1, the phase
-// « Études »; row 21, a provision, whose quantity and unit disbursement the server computes; six
-// thousand rows in all.
+// (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py): row 1, the studies of
+// the core, « Études »; row 12, the provision of its risk 751, whose quantity and unit disbursement
+// the server computes; six thousand rows in all.
 //
 // Every gesture is a key: the grid is reached by Tab, as a user who never takes the mouse.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -100,20 +100,20 @@ test("is one stop of the tabulation, and reaches the header by the arrows, which
 
 test("stops on the computed cells without entering them, and refuses a try", async ({ page }) => {
   const { grid, at } = await tabIntoGrid(page);
-  for (let row = 1; row < 21; row += 1) {
+  for (let row = 1; row < 12; row += 1) {
     await page.keyboard.press("ArrowDown");
   }
-  await expect(rowAt(grid, 21)).toContainText("Provision");
-  await expect(cellAt(grid, 21, at.label)).toBeFocused();
-  await expect(cellAt(grid, 21, at.label)).toBeInViewport();
+  await expect(rowAt(grid, 12)).toContainText("Provision");
+  await expect(cellAt(grid, 12, at.label)).toBeFocused();
+  await expect(cellAt(grid, 12, at.label)).toBeInViewport();
 
   // The arrows stop on the quantity the server computes, which opens no entry, and go past it.
   await press(page, ...times("ArrowRight", at.quantity - at.label));
-  const quantity = cellAt(grid, 21, at.quantity);
+  const quantity = cellAt(grid, 12, at.quantity);
   await expect(quantity).toBeFocused();
   await expect(quantity).toHaveAttribute("aria-readonly", "true");
   await press(page, ...times("ArrowRight", at.disbursement - at.quantity));
-  await expect(cellAt(grid, 21, at.disbursement)).toBeFocused();
+  await expect(cellAt(grid, 12, at.disbursement)).toBeFocused();
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 
   // A try is refused, naming what the value depends on, with no field; Escape comes back.
@@ -123,11 +123,11 @@ test("stops on the computed cells without entering them, and refuses a try", asy
   await expect(page.getByRole("textbox", { name: "Débours unit." })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(refusal).toHaveCount(0);
-  await expect(cellAt(grid, 21, at.disbursement)).toBeFocused();
+  await expect(cellAt(grid, 12, at.disbursement)).toBeFocused();
   await press(page, "ArrowLeft", ...times("ArrowRight", at.reference - at.disbursement + 1));
-  await expect(cellAt(grid, 21, at.reference)).toBeFocused();
+  await expect(cellAt(grid, 12, at.reference)).toBeFocused();
   // The effort of a provision, which its node does not accept, is read only as well (#219).
-  await expect(cellAt(grid, 21, at.hours)).toHaveAttribute("aria-readonly", "true");
+  await expect(cellAt(grid, 12, at.hours)).toHaveAttribute("aria-readonly", "true");
 });
 
 test("keeps the active cell in the window, clear of the header and the totals, from the first row to the six thousandth", async ({

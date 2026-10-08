@@ -21,7 +21,7 @@ import { estimateReference } from "@/test/reference";
 import type { GridPreferences } from "./settings";
 
 import { EstimateGrid } from "./estimate-grid";
-import type { NodeList, NodeSortColumn } from "./nodes";
+import type { NodeList, NodeSortColumn, NodesWritten } from "./nodes";
 import type { GridQuery } from "./query";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
@@ -53,13 +53,17 @@ const STRUCTURE = {
 const STRUCTURE_VERSION = 1;
 const NODES = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/structures/${STRUCTURE.structure_id}/nodes`;
 
-// The first twelve rows of the structure of the volumes, which the fake back serves: the rows 4
-// to 6 are the lines « Heures d'ingénierie », « Heures de mise en service » and « Matériel », on
-// which the plan and the rows applied of the examples land (`paste_plan`, `paste_applied`).
+// Twelve rows of the structure the fake back serves, from the first phase drawn after the core:
+// the phase, its lot, its first task, then its lines « Heures d'ingénierie », « Heures de mise en
+// service » and « Matériel », on which the rows applied of the examples land (`paste_applied`),
+// found by their identifiers in the examples, never by a number written here (#400).
 const volume = example("volume/nodes_thousand") as NodeList;
-const nodes: NodeList = { ...volume, items: volume.items.slice(0, 12) };
+const LINE_4 = (example("paste_applied") as NodesWritten).nodes[0]?.node_id ?? "";
 const FIRST = 3;
-const LINE_4 = "01926f3a-7c00-7000-8000-000100000004";
+const START = volume.items.findIndex((node) => node.node_id === LINE_4) - FIRST;
+const nodes: NodeList = { ...volume, items: volume.items.slice(START, START + 12) };
+// The number of the first line written, as the structure numbers it.
+const ROW = nodes.items[FIRST]?.row_number ?? 0;
 
 // A block of three rows and four columns — label, category, role, quantity —, as a spreadsheet
 // copies it; the same, its second row naming a category the reference does not know.
@@ -173,7 +177,7 @@ describe("a block pasted from a spreadsheet", () => {
     expect(client.calls[0]?.path).toBe(`${NODES}/paste-preview`);
     // The report says what was pasted, from where, and what the server would write and refuse.
     expect(dialog).toHaveAccessibleDescription(
-      "Bloc de 3 lignes sur 4 colonnes, à partir de la ligne 4, colonne « Libellé » : rien n’est écrit avant votre confirmation.",
+      `Bloc de 3 lignes sur 4 colonnes, à partir de la ligne ${ROW.toString()}, colonne « Libellé » : rien n’est écrit avant votre confirmation.`,
     );
     // One announced region holds the waiting, then the report.
     await within(dialog).findByText("3 lignes seront écrites.");
@@ -190,7 +194,7 @@ describe("a block pasted from a spreadsheet", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
     expect(bodies(client, APPLY)).toEqual([
-      { paste_id: "01926f3a-7c00-7000-8000-000000000971", confirmed: true, lock_version: 1 },
+      { paste_id: "01926f3a-7c00-7000-8000-000000000991", confirmed: true, lock_version: 1 },
     ]);
     expect(client.calls.at(-1)?.path).toBe(`${NODES}/paste`);
     // The three rows the server wrote, in place of those read.
@@ -200,17 +204,17 @@ describe("a block pasted from a spreadsheet", () => {
       "Matériel de câblage",
     ]);
     expect(cell(FIRST + 2, "quantity")).toHaveTextContent("24");
-    expect(cell(FIRST + 2, "base_amount")).toHaveTextContent(/^25\s985,28/);
-    expect(cell(FIRST + 2, "inflated_amount")).toHaveTextContent(/^25\s985,28/);
+    expect(cell(FIRST + 2, "base_amount")).toHaveTextContent(/^42\s379,44/);
+    expect(cell(FIRST + 2, "inflated_amount")).toHaveTextContent(/^42\s379,44/);
     // The tasks above them, recalculated, and the totals of the structure, as the server answered.
     expect(amounts([0, 1, 2])).toEqual([
-      "5\u202f564\u202f371,76",
-      "1\u202f969\u202f505,61",
-      "44\u202f871,01",
+      "7\u202f469\u202f299,12",
+      "2\u202f607\u202f299,00",
+      "63\u202f757,17",
     ]);
-    expect(totalAmount()).toBe("60\u202f562\u202f283,12");
+    expect(totalAmount()).toBe("65\u202f644\u202f571,71");
     // The total corrected for inflation, as the server answered it: lines of later years in it.
-    expect(totalInflated()).toBe("62\u202f871\u202f529,90");
+    expect(totalInflated()).toBe("68\u202f463\u202f038,88");
     expect(screen.queryByRole("alert")).toBeNull();
     await vi.waitFor(() => {
       expect(cell(FIRST, "label")).toHaveFocus();
@@ -398,11 +402,11 @@ describe("a block pasted from a spreadsheet", () => {
       ]);
     });
     expect(amounts([0, 1, 2])).toEqual([
-      "5\u202f564\u202f371,76",
-      "1\u202f969\u202f505,61",
-      "44\u202f871,01",
+      "7\u202f469\u202f299,12",
+      "2\u202f607\u202f299,00",
+      "63\u202f757,17",
     ]);
-    expect(totalAmount()).toBe("60\u202f562\u202f283,12");
+    expect(totalAmount()).toBe("65\u202f644\u202f571,71");
     expect(bodies(client, LINE)).toEqual([{ label: "X", lock_version: 1 }]);
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -512,11 +516,11 @@ describe("a block pasted from a spreadsheet", () => {
       "Matériel de câblage",
     ]);
     expect(amounts([0, 1, 2])).toEqual([
-      "5\u202f564\u202f371,76",
-      "1\u202f969\u202f505,61",
-      "44\u202f871,01",
+      "7\u202f469\u202f299,12",
+      "2\u202f607\u202f299,00",
+      "63\u202f757,17",
     ]);
-    expect(totalAmount()).toBe("60\u202f562\u202f283,12");
+    expect(totalAmount()).toBe("65\u202f644\u202f571,71");
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
     const second = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await userEvent.click(

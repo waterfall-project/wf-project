@@ -3,12 +3,12 @@
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "scope": {"states":["in_progress"],"as_of":"2026-06-03","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":269},
-    "reference_budget": "2597310334.56",
+    "reference_budget": "2597310034.56",
     "cost_index": {"value":{"is_computable":true,"value":"0.94","reason":null},"zone":"nominal"},
     "schedule_index": {"value":{"is_computable":true,"value":"0.91","reason":null},"zone":"nominal"},
     "cost_variance": "-75883408.50",
     "schedule_variance": "-121159223.29",
-    "projections": {"at_budget":"2673193743.06","project_manager":"2726821304.56","at_observed_rate":{"is_computable":true,"value":"2760474365.53","reason":null},"variance_at_budget":"75883408.50","variance_project_manager":"129510970.00","variance_at_observed_rate":"163164030.97"},
+    "projections": {"at_budget":"2673193443.06","project_manager":"2726821004.56","at_observed_rate":{"is_computable":true,"value":"2760474046.69","reason":null},"variance_at_budget":"75883408.50","variance_project_manager":"129510970.00","variance_at_observed_rate":"163164012.13"},
     "zone_distribution": [
       {"index":"cost","zone":"nominal","project_count":169},
       {"index":"cost","zone":"watch","project_count":47},

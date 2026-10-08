@@ -714,8 +714,10 @@ chronologie, la suite d'une écriture faite aujourd'hui, ou une variante contref
 sans lire ni l'horloge ni le hasard — chaque valeur tirée vient de l'empreinte d'une graine fixe
 et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
 
-- dans `fixtures/api/volume/`, qu'on ne retouche pas, les volumes du §4.6.2 : la structure de
-  mille tâches et de cinq mille lignes (`wftools.mockstructure`), premier exemple de
+- dans `fixtures/api/volume/`, qu'on ne retouche pas, les volumes du §4.6.2 : la structure du
+  témoin, mille tâches et cinq mille lignes, son cœur lisible en tête et relié aux tâches tirées
+  autour de lui, datée en heures sur le calendrier de chaque tâche et lue aujourd'hui
+  (`wftools.mockstructure`, datée et émise par `wftools.mockcore`), premier exemple de
   `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
   durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; les trois cents projets de
   `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
@@ -750,7 +752,9 @@ pour la structure, `test_the_marks_the_portfolio_journey_reads` (`tools/tests/te
 pour le portefeuille et `test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`)
 pour la revue mensuelle : un changement du générateur qui les déplace échoue là, avant les
 parcours. Les tests de grille ne vérifient que des lignes qui restent dans la fenêtre que la grille
-virtualisée rend.
+virtualisée rend. Les tests du front lisent l'adresse d'un nœud du témoin dans l'exemple — son
+identifiant, son index ou son numéro trouvés par son libellé —, jamais un numéro écrit en dur,
+sauf là où le numéro est ce que le test éprouve (#400).
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde

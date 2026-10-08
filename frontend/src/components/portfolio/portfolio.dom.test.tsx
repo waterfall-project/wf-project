@@ -420,7 +420,7 @@ describe("the charts of the portfolio", () => {
     );
     expect(rows).toHaveLength(1 + 12 + 7 + 7);
     expect(rows.at(-1)).toHaveTextContent(
-      `Projection du chef de projet30 nov. 20262${NARROW}130${NARROW}889${NARROW}928,20`,
+      `Projection du chef de projet30 nov. 20262${NARROW}130${NARROW}889${NARROW}768,69`,
     );
     // Three curves in the order of the API, the actual cost by steps, the others by lines; an axis
     // of amounts that reaches down to the lowest value drawn.

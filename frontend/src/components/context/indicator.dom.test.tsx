@@ -61,7 +61,7 @@ describe("an indicator", () => {
     const { container } = render(page("indicator.names.physicalProgress", PHYSICAL_PROGRESS));
     expect(screen.getByRole("term")).toHaveTextContent("Avancement physique");
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
-      "82,76\u00a0%",
+      "82,96\u00a0%",
       "Calculé le 3 juin 2026, 07:05",
     ]);
     const time = container.querySelector("time");
@@ -81,7 +81,7 @@ describe("an indicator", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["82.76%"]);
+    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["82.96%"]);
   });
 
   it("shows a cost index without actual cost as not computable, with its reason and its date", async () => {

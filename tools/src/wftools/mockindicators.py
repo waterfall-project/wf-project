@@ -48,11 +48,9 @@ from wftools.mockstructure import (
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CORE,
-    FACTORY_ACCEPTANCE,
     OFFER_MARKED,
-    ORDER_RECEIVED,
-    STUDIES_RECEIVED,
     TODAY,
+    TRACKED,
     Task,
     fixture,
 )
@@ -69,10 +67,6 @@ END_OF_DAY = Decimal(24)
 
 PROJECT, UNASSIGNED = "project", "unassigned"
 """The scopes that are not a subproject: the whole project, and what belongs to none."""
-
-MILESTONES = (STUDIES_RECEIVED, FACTORY_ACCEPTANCE)
-"""The milestones of the core tracked by the time/time chart: the reception of the studies and
-the factory acceptance (WF-IND-0090)."""
 
 _NO_ACTUAL, _NO_PLANNED, _NO_EARNED = "no_actual_cost", "no_planned_value", "no_earned_value"
 _NO_BUDGET, _NO_SPENDING = "no_reference_budget", "no_actual_or_remaining"
@@ -718,6 +712,23 @@ def project_indicators(
     }
 
 
+IN_PROGRESS = "in_progress"
+
+
+def state_at(at: datetime, transitions: Sequence[JsonObject] | None = None) -> str | None:
+    """Return the state of the project at an instant: that of its last transition by then.
+
+    The transitions are those the project went through (``state_transitions``, written by hand):
+    a transition at the very instant counts. None before the project was created.
+    """
+    found = fixture("state_transitions") if transitions is None else transitions
+    state: str | None = None
+    for transition in sorted(found, key=lambda each: cast("str", each["occurred_at"])):
+        if cast("str", transition["occurred_at"]) <= mockhistory.stamp(at):
+            state = cast("str", transition["to_state"])
+    return state
+
+
 @dataclass(frozen=True, slots=True)
 class Point:
     """A revision at the instant its indicators are read: its marking, or today."""
@@ -733,10 +744,12 @@ def index_history(points: Sequence[Point], costs: list[Cost]) -> JsonObject:
     A point for each revision marked from the state In progress, at its marking, as it kept them
     — one marked while pricing kept the indicators of its estimate alone (WF-DAT-0040,
     WF-IND-0010) —; the last for the current revision, today; the thresholds of the installation
-    beside. The Vérif of WF-IND-0130, a point for every marked revision, is questioned on #468.
+    beside. Whether a revision was marked In progress is read in the transitions of the state of
+    the project (``state_transitions``), at the instant of its marking — not from its date. The
+    Vérif of WF-IND-0130, a point for every marked revision, is questioned on #468.
     """
     current = points[-1]
-    kept = [point for point in points if point.reading.at >= ORDER_RECEIVED.instant]
+    kept = [point for point in points if state_at(point.reading.at) == IN_PROGRESS]
     entries: list[JsonValue] = []
     for scope, label in scopes():
         series: list[JsonValue] = []
@@ -771,7 +784,7 @@ def milestone_tracking(marked: Sequence[Point], current: Point) -> JsonObject:
     """
     now = current.reading
     entries: list[JsonValue] = []
-    for number in MILESTONES:
+    for number in TRACKED:
         completed = now.completed_on(number)
         points: list[JsonValue] = [
             {

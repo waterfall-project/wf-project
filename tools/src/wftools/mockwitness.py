@@ -5,14 +5,13 @@
 PRJ-001, « Modernisation du poste de commande », at one instant, today: its chronology, the
 families of the identifiers of the universe, the roles its lines employ and their calendars,
 and the readable core of its structure — the tasks and the lines whose identifiers and
-figures are fixed, which the structure of a thousand tasks is to carry before the tasks
-it draws, linked to them (EP-02/L27, #376). The other examples of the contract are read
-from this: another reading of the same state, an earlier instant of the same chronology, the
-immediate sequel of a write made today, or a counterfactual variant declared as such.
+figures are fixed, which the structure of a thousand tasks carries before the tasks it
+draws, linked to them (``mockstructure``, EP-02/L27, #376). The other examples of the contract
+are read from this: another reading of the same state, an earlier instant of the same chronology,
+the immediate sequel of a write made today, or a counterfactual variant declared as such.
 
-What the reference data says — the labels and calendars of the roles, the hours of the
-calendars — is read from its fixtures (``resource_roles``, ``calendars``), written by hand:
-this module names the roles the witness employs, it does not copy them.
+What the reference data says — the roles, the calendars — is read from its fixtures, written by
+hand (``resource_roles``, ``calendars``): this module names what the witness employs, never copies.
 """
 
 from __future__ import annotations
@@ -208,7 +207,8 @@ IDENTIFIERS = (
     Family("sous-projets", 800, 899),
     Family("sauvegardes", 900, 919),
     Family("tâches de fond", 920, 959),
-    Family("collages et corrélations", 960, 999),
+    Family("corrélations", 960, 989),
+    Family("collages", 990, 999),
     Family("chronologies", 1000, 1009),
     Family("imports et téléversements", 0xA00, 0xAFF, hexadecimal=True),
     Family("lignes de coût réel", 0xC00, 0xC0F, hexadecimal=True),
@@ -222,16 +222,38 @@ IDENTIFIERS = (
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 
-Every example keeps to it (#287, C16): EP-02/L25 moved the background tasks off the range of
-the backups (901 to 905, now 931 to 935), and the pastes and the correlations onto theirs (911 to
-913, now 971 to 973; 921 to 927, now 975 to 982). The order item 711, « Fourniture et montage des
-armoires », is the one order item of the witness, which the lot « Poste de commande » bears
-(WF-PLA-0130); its work package 712, « Armoires », is borne by no task: the refusal to attach it
-outside the subtree of the task of its order item speaks of it
+Every example keeps to it (#287, C16; DECISIONS, EP-02/L25 and L27). The order item 711,
+« Fourniture et montage des armoires », is the one order item of the witness, which the lot
+« Poste de commande » bears (WF-PLA-0130); its work package 712, « Armoires », is borne by no task:
+the refusal to attach it outside the subtree of the task of its order item speaks of it
 (`task_attach_outside_order_item`), and the work breakdown names it, with its one deliverable 713
-(`work_breakdown`, WF-PRJ-0020). The order item 714 and its work package 715 make the work breakdown
-of a project whose order was not entered (`work_breakdown_default`).
+(`work_breakdown`, WF-PRJ-0020). The order item 714 and its work package 715 make the work
+breakdown of a project whose order was not entered (`work_breakdown_default`).
 """
+
+GENERATED = 1_000_000
+"""Where the numbers of the generated nodes start: the row r of the structure as described is
+GENERATED + r, the identifier r of the family of the generated nodes and the lineage r of theirs,
+numbered once: a write that adds or removes a row leaves every identifier as it was."""
+
+
+def node_id(number: int) -> str:
+    """Return the identifier of a node of the structure: 5nn for the core, generated otherwise."""
+    if number < GENERATED:
+        return universe(number)
+    return identifier(NODES, number - GENERATED)
+
+
+def lineage_id(number: int) -> str:
+    """Return the identifier of the lineage of a node: 6nn for the node 5nn of the core."""
+    if number < GENERATED:
+        return universe(number + LINEAGE_OFFSET)
+    return identifier(LINEAGES, number - GENERATED)
+
+
+LINEAGE_OFFSET = 100
+"""What separates the lineage of a node of the core from its node: 5nn is of the lineage 6nn."""
+
 
 # --- The roles, their calendars ---------------------------------------------------------------
 
@@ -308,14 +330,12 @@ class Link:
 class Line:
     """A line of the core: its node is its number, 5nn, its lineage 6nn.
 
-    A labour line has its hours and its role, at the rate of its category; another its
-    quantity and its unit disbursement. Its budget is its amount, but where the reference
-    revision gives it another: nothing for a line merged by the occurrence of a risk
-    (WF-RIS-0060) or added after the reference (WF-DEV-0020); for a provision, the provision
-    the risk had when the reference was marked, which counts to the reserve for risks, never
-    to the reference budget (WF-RIS-0050). Every line has a payment delay, the days after its work
-    it is paid, which shifts it on the curve of the disbursements: nought unless said, as for the
-    labour and the provision (WF-DEV-0020, WF-IND-0100).
+    A labour line has its hours and its role, at the one rate of its category for the reference
+    year of its revision; another its quantity, a decimal, and its unit disbursement. Its budget is
+    its amount, but where the reference gives another: nothing for a line merged by an occurrence
+    (WF-RIS-0060) or added after the reference (WF-DEV-0020); for a provision, the one the reference
+    knew, counted to the reserve, never to the budget (WF-RIS-0050); the offer's for a line the
+    amendment 1 did not designate (#467). Its payment delay, nought unless said (WF-IND-0100).
     """
 
     number: int
@@ -328,6 +348,7 @@ class Line:
     budgeted: Decimal | None = None
     is_provision: bool = False
     payment_delay_days: int = 0
+    quantity: Decimal = Decimal(1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -371,6 +392,43 @@ class OrderItem:
     work_packages: tuple[WorkPackage, ...] = ()
 
 
+class N:
+    """The numbers of the nodes of the core, said once — the node 5nn, its lineage 6nn.
+
+    Every module names the core by this table, never by its digits, so that it is renumbered in
+    one place alone (#376, revue d'EP-02/L24).
+    """
+
+    STUDIES = 521
+    DETAILED_STUDIES = 522
+    DESKS = 523
+    DESIGN_REVIEW = 524
+    STUDIES_RECEIVED = 525
+    DESIGN_FILE = 526
+    STUDIES_LINE = 527
+    MERGED = 541
+    REMINDER = 542
+    REMINDER_LINE = 543
+    TRANSPORT = 544
+    TRANSPORT_LINE = 545
+    CONTROL_STATION = 551
+    WIRING = 552
+    LABOUR = 553
+    BLOCKS = 554
+    PROVISION = 555
+    FACTORY_ACCEPTANCE = 556
+    REFERENCE_PROVISION_752 = 557
+    INSTALLATION = 561
+    MOUNTING = 562
+    WIRING_ON_SITE = 563
+    TESTS_LINE = 564
+    COMMISSIONING = 565
+    COMMISSIONING_LINE = 566
+    REFERENCE_PROVISION_753 = 567
+    SITE_TRIALS = 568
+    SITE_TRIALS_LINE = 569
+
+
 CABINETS = WorkPackage(
     universe(712),
     "Armoires",
@@ -399,29 +457,29 @@ TIMELINES = ((STEERING, "Comité de pilotage"), (CUSTOMER, "Revue client"))
 their reception, the factory acceptance and the commissioning; the customer, the two receptions."""
 
 INSCRIBED: dict[int, tuple[str, ...]] = {
-    521: (STEERING,),
-    525: (STEERING, CUSTOMER),
-    556: (STEERING, CUSTOMER),
-    565: (STEERING,),
+    N.STUDIES: (STEERING,),
+    N.STUDIES_RECEIVED: (STEERING, CUSTOMER),
+    N.FACTORY_ACCEPTANCE: (STEERING, CUSTOMER),
+    N.COMMISSIONING: (STEERING,),
 }
 """The tasks of the core inscribed to each timeline, by their number (WF-PLA-0060)."""
 
-TRACKED = frozenset({525, 556})
+TRACKED = (N.STUDIES_RECEIVED, N.FACTORY_ACCEPTANCE)
 """The milestones of the core inscribed to the time/time tracking, those ``milestone_tracking``
 follows (WF-PLA-0060, WF-IND-0090)."""
 
 
 STUDIES = Task(
-    521,
+    N.STUDIES,
     "Études",
     children=(
         Task(
-            522,
+            N.DETAILED_STUDIES,
             "Études de détail",
             days=30,
             lines=(
                 Line(
-                    527,
+                    N.STUDIES_LINE,
                     "Ingénierie de détail",
                     SUBCONTRACTING,
                     unit=Decimal("100000.00"),
@@ -430,20 +488,27 @@ STUDIES = Task(
             ),
         ),
         Task(
-            523,
+            N.DESKS,
             "Pupitres opérateurs",
             days=40,
             manual=(date(2026, 3, 2), date(2026, 4, 24)),
             progress="started",
         ),
-        Task(524, "Revue de conception", days=10, links=(Link(522),)),
+        Task(N.DESIGN_REVIEW, "Revue de conception", days=10, links=(Link(N.DETAILED_STUDIES),)),
         Task(
-            525,
+            N.STUDIES_RECEIVED,
             "Réception des études",
             is_milestone=True,
-            links=(Link(524), Link(523, START_TO_START, 1, "w")),
+            links=(Link(N.DESIGN_REVIEW), Link(N.DESKS, START_TO_START, 1, "w")),
+            # Nothing completes by itself (WF-RAE-0030): the reception was declared on its day.
+            progress="completed",
         ),
-        Task(526, "Dossier de conception", days=5, links=(Link(522, lag=-2),)),
+        Task(
+            N.DESIGN_FILE,
+            "Dossier de conception",
+            days=5,
+            links=(Link(N.DETAILED_STUDIES, lag=-2),),
+        ),
     ),
 )
 """The studies: the detailed studies, finished before today; the operator desks, in manual
@@ -452,18 +517,18 @@ at its end, also a week after the desks started; and the design file, two days b
 detailed studies finish, with float (WF-PLA-0030, WF-PLA-0080, WF-PLA-0100)."""
 
 CONTROL_STATION = Task(
-    551,
+    N.CONTROL_STATION,
     "Poste de commande",
     order_item=ASSEMBLY,
     children=(
         Task(
-            552,
+            N.WIRING,
             "Câblage des armoires",
             days=42,
-            links=(Link(525, lag=1, unit="w"),),
+            links=(Link(N.STUDIES_RECEIVED, lag=1, unit="w"),),
             lines=(
                 Line(
-                    553,
+                    N.LABOUR,
                     "Raccordement des borniers",
                     ELECTRICAL_ENGINEERING,
                     hours=Decimal("12.5"),
@@ -471,7 +536,7 @@ CONTROL_STATION = Task(
                     subproject=SUBPROJECT_CONTROL,
                 ),
                 Line(
-                    554,
+                    N.BLOCKS,
                     "Borniers",
                     EQUIPMENT,
                     unit=Decimal("1234.56"),
@@ -479,7 +544,7 @@ CONTROL_STATION = Task(
                     payment_delay_days=PAYMENT_DELAY,
                 ),
                 Line(
-                    555,
+                    N.PROVISION,
                     "Provision — risque de reprise du câblage",
                     PROVISIONS,
                     unit=Decimal("500.00"),
@@ -489,17 +554,17 @@ CONTROL_STATION = Task(
             ),
         ),
         Task(
-            541,
+            N.MERGED,
             "Risque survenu — Retard de livraison des armoires",
             children=(
                 Task(
-                    542,
+                    N.REMINDER,
                     "Relance du fournisseur",
                     days=5,
-                    links=(Link(552, START_TO_START),),
+                    links=(Link(N.WIRING, START_TO_START),),
                     lines=(
                         Line(
-                            543,
+                            N.REMINDER_LINE,
                             "Frais de relance",
                             EQUIPMENT,
                             unit=Decimal("120.00"),
@@ -508,13 +573,13 @@ CONTROL_STATION = Task(
                     ),
                 ),
                 Task(
-                    544,
+                    N.TRANSPORT,
                     "Transport exceptionnel",
                     days=5,
-                    links=(Link(542),),
+                    links=(Link(N.REMINDER),),
                     lines=(
                         Line(
-                            545,
+                            N.TRANSPORT_LINE,
                             "Affrètement",
                             EQUIPMENT,
                             unit=Decimal("80.00"),
@@ -524,7 +589,7 @@ CONTROL_STATION = Task(
                 ),
             ),
         ),
-        Task(556, "Réception usine", is_milestone=True, links=(Link(552),)),
+        Task(N.FACTORY_ACCEPTANCE, "Réception usine", is_milestone=True, links=(Link(N.WIRING),)),
     ),
 )
 """The lot of the control station: the wiring of the cabinets a week after the reception of the
@@ -533,26 +598,32 @@ of the risk 751, budgeted at the 250 the reference knew; the subtree merged into
 revision by the occurrence of the risk 752, its lines of 120 and 80 budgeted nothing
 (WF-RIS-0060); and the factory acceptance at the end of the wiring."""
 
+OFFER_BUDGETS = {N.WIRING_ON_SITE: Decimal("9420.00"), N.COMMISSIONING_LINE: Decimal("5880.00")}
+"""The budgets the offer fixed to the lines the amendment 1 did not designate, at the rates of 2025
+(``mockhistory.offer``): they keep them, the merge changing the budgets of the lines it designates
+alone (WF-REV-0050, #467), their amounts at the one rate of 2026 of their category (WF-DEV-0020)."""
+
 INSTALLATION = Task(
-    561,
+    N.INSTALLATION,
     "Installation sur site",
     children=(
         Task(
-            562,
+            N.MOUNTING,
             "Montage des armoires sur site",
             days=123,
-            links=(Link(556),),
+            links=(Link(N.FACTORY_ACCEPTANCE),),
             lines=(
                 Line(
-                    563,
+                    N.WIRING_ON_SITE,
                     "Câblage sur site",
                     ELECTRICAL_ENGINEERING,
                     hours=Decimal(120),
                     role=ENGINEER,
                     subproject=SUBPROJECT_CONTROL,
+                    budgeted=OFFER_BUDGETS[N.WIRING_ON_SITE],
                 ),
                 Line(
-                    564,
+                    N.TESTS_LINE,
                     "Assistance aux essais de câblage",
                     COMMISSIONING,
                     hours=Decimal(40),
@@ -562,18 +633,19 @@ INSTALLATION = Task(
             ),
         ),
         Task(
-            565,
+            N.COMMISSIONING,
             "Mise en service",
             days=10,
-            links=(Link(562),),
+            links=(Link(N.MOUNTING),),
             lines=(
                 Line(
-                    566,
+                    N.COMMISSIONING_LINE,
                     "Mise en service sur site",
                     COMMISSIONING,
                     hours=Decimal(80),
                     role=COMMISSIONING_TECHNICIAN,
                     subproject=SUBPROJECT_CONTROL,
+                    budgeted=OFFER_BUDGETS[N.COMMISSIONING_LINE],
                 ),
             ),
         ),
@@ -581,20 +653,18 @@ INSTALLATION = Task(
 )
 """The installation on site, after the factory acceptance: the cabinets mounted on site from
 1 July to 18 December 2026, wired by the electrical engineer and tested with the commissioning
-technician, both on the standard week; and the commissioning, which follows, from 21 December
-2026 into January 2027, its line consumed in 2026, the year it starts (WF-DEV-0040). The wiring
-on site given to the cable fitter, on the week of four days, puts the mounting on the days both
-its roles work, four of eight hours (WF-PLA-0010): it finishes in 2027, and the commissioning
-starts and is consumed there (EP-02/L22)."""
+technician, both on the standard week, budgeted as the offer did (#467); and the commissioning,
+which follows, into January 2027, its line consumed in 2026, the year it starts (WF-DEV-0040). The
+wiring on site given to the cable fitter, on the week of four days, puts the mounting on the days
+both its roles work, four of eight hours (WF-PLA-0010): it finishes in 2027, and the
+commissioning starts and is consumed there (EP-02/L22)."""
 
 CORE = (STUDIES, CONTROL_STATION, INSTALLATION)
-"""The readable core, to be the first roots of the structure, its rows its first rows (#376)."""
+"""The readable core, the first roots of the structure, its rows its first rows (#376)."""
 
-STUDIES_RECEIVED, STUDIES_LINE = 525, 527
-WIRING, LABOUR, FACTORY_ACCEPTANCE = 552, 553, 556
-"""The nodes of the core several readings name, said once: the reception of the studies and the
-line of the detailed studies; the wiring of the cabinets, its labour line, and the factory
-acceptance."""
+STUDIES_RECEIVED, STUDIES_LINE = N.STUDIES_RECEIVED, N.STUDIES_LINE
+WIRING, LABOUR, FACTORY_ACCEPTANCE = N.WIRING, N.LABOUR, N.FACTORY_ACCEPTANCE
+"""Short names, from N, of the nodes of the core several readings name."""
 
 # --- The risks ---------------------------------------------------------------------------------
 
@@ -624,7 +694,9 @@ class Risk:
     the line of provision it bears in the structure of the current revision, while identified;
     ``reference_provision_line`` the one the reference revision bore, which the reserve for risks
     counts (WF-RIS-0050) — none for a risk identified after the reference was marked;
-    ``own_structure`` its own cost structure in the current revision;
+    ``own_structure`` its own cost structure in the current revision, of an identifier of its
+    own, apart from the one the reference bore (``structures``, ``structures_amendments``;
+    WF-DAT-0030, #461);
     ``merged`` the task of the core its occurrence merged its own estimate under (WF-RIS-0060).
     """
 
@@ -659,39 +731,39 @@ REWORK = Risk(
     "Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre "
     "sur site.",
     "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
-    214,
+    204,
     (
         Review(RISKS_IDENTIFIED.instant, Decimal("0.25"), Decimal("1000.00")),
         Review(RISK_751_REVIEWED.instant, Decimal("0.25"), Decimal("1250.00")),
         Review(STUDIES_STARTED.instant, Decimal("0.4"), Decimal("1250.00")),
     ),
-    reference_provision_line=555,
-    provision_line=555,
+    reference_provision_line=N.PROVISION,
+    provision_line=N.PROVISION,
 )
 DELIVERY_DELAY = Risk(
     752,
     "Retard de livraison des armoires",
     "Le fournisseur des armoires annonce un retard de livraison possible.",
     "Relance hebdomadaire du fournisseur ; transport exceptionnel réservé.",
-    215,
+    205,
     (
         Review(_at(RISKS_IDENTIFIED, 10, 30), Decimal("0.3"), Decimal("200.00")),
         Review(RISK_752_OCCURRED.instant, Decimal("0.3"), Decimal("200.00"), OCCURRED),
     ),
-    reference_provision_line=557,
-    merged=541,
+    reference_provision_line=N.REFERENCE_PROVISION_752,
+    merged=N.MERGED,
 )
 AUTOMATION_ENGINEER = Risk(
     753,
     "Indisponibilité de l'automaticien",
     "L'automaticien du client pourrait ne pas être disponible pour la mise en service.",
     None,
-    216,
+    206,
     (
         Review(_at(RISKS_IDENTIFIED, 11), Decimal("0.05"), Decimal("12000.00")),
         Review(_at(RISK_751_REVIEWED, 14), Decimal("0.05"), Decimal("12000.00"), DISMISSED),
     ),
-    reference_provision_line=567,
+    reference_provision_line=N.REFERENCE_PROVISION_753,
 )
 REGISTER = (REWORK, DELIVERY_DELAY, AUTOMATION_ENGINEER)
 """The register of the witness, in the order of declaration: the rework of the wiring, still
@@ -703,17 +775,27 @@ lines 555, 557 and 567 of its structure (``mockhistory``)."""
 
 # --- The reference, as marked -----------------------------------------------------------------
 
-MERGED, COMMISSIONING_TASK = 541, 565
+MERGED, COMMISSIONING_TASK = N.MERGED, N.COMMISSIONING
 """The subtree the occurrence of 752 merged into the current revision, and the commissioning."""
 
 REFERENCE_PROVISIONS = {
     752: (
         WIRING,
-        Line(557, "Provision — retard de livraison des armoires", PROVISIONS, is_provision=True),
+        Line(
+            N.REFERENCE_PROVISION_752,
+            "Provision — retard de livraison des armoires",
+            PROVISIONS,
+            is_provision=True,
+        ),
     ),
     753: (
         COMMISSIONING_TASK,
-        Line(567, "Provision — indisponibilité de l'automaticien", PROVISIONS, is_provision=True),
+        Line(
+            N.REFERENCE_PROVISION_753,
+            "Provision — indisponibilité de l'automaticien",
+            PROVISIONS,
+            is_provision=True,
+        ),
     ),
 }
 """The lines of provision the reference bore and the current revision no longer does, by risk,
@@ -742,8 +824,11 @@ def reference_provision(risk: Risk) -> Decimal:
     return (known.severity * known.probability).quantize(Decimal("0.01"))
 
 
-def reference() -> tuple[Task, ...]:
+def reference(roots: Iterable[Task] | None = None) -> tuple[Task, ...]:
     """Return the reference 101 as marked on 1 February 2026, from the core of today.
+
+    From the structure given, the core by default: the tasks the core does not name are as today,
+    nothing of them started.
 
     Nothing was started — the studies start on 2 March —, the subtree the occurrence of 752
     merged on 20 February is not there yet, and each identified risk bears its line of provision
@@ -774,7 +859,7 @@ def reference() -> tuple[Task, ...]:
         children = tuple(child for child in task.children if child.number != MERGED)
         return replace(task, lines=lines + added, children=children, progress=None)
 
-    return rewritten(CORE, change)
+    return rewritten(CORE if roots is None else roots, change)
 
 
 # --- The actual costs --------------------------------------------------------------------------

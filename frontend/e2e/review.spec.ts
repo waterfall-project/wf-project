@@ -98,8 +98,8 @@ const FRENCH: Language = {
   },
   // French separates thousands with a narrow no-break space (U+202F).
   figures: [
-    ["Reste à engager", "21\u202f534,56"],
-    ["Budget de référence", "120\u202f834,56"],
+    ["Reste à engager", "21\u202f234,56"],
+    ["Budget de référence", "120\u202f534,56"],
     ["Valeur planifiée", "101\u202f223,69"],
     ["Écart de délai", "-1\u202f223,69"],
     ["Indice de délai", "0,9879"],
@@ -137,8 +137,8 @@ const ENGLISH: Language = {
     backToProject: "Back to the project",
   },
   figures: [
-    ["Remaining to commit", "21,534.56"],
-    ["Reference budget", "120,834.56"],
+    ["Remaining to commit", "21,234.56"],
+    ["Reference budget", "120,534.56"],
     ["Planned value", "101,223.69"],
     ["Schedule variance", "-1,223.69"],
     ["Schedule index", "0.9879"],
@@ -321,15 +321,15 @@ const ENTRY_GRIDS: readonly EntryGrid[] = [
   {
     segment: "planning",
     name: ({ names }) => names.planningGrid,
-    row: 3,
-    label: "Préparation 1.1.1",
+    row: 2,
+    label: "Études de détail",
     entered: false,
   },
   {
     segment: "estimate",
     name: ({ names }) => names.estimateGrid,
-    row: 4,
-    label: "Heures d'ingénierie",
+    row: 3,
+    label: "Ingénierie de détail",
     entered: true,
   },
 ];

@@ -953,9 +953,8 @@ describe("the rows a page hands its grid", () => {
   });
 
   /**
-   * Check that each row a grid was handed holds the fields of its list that its node has — the
-   * fields every grid reads and those of its columns —, and those alone, its facets alike; a field
-   * of a line that says nothing is left out (`SPARSE_LINE_FIELDS`).
+   * Check that each row a grid was handed holds the fields of its list its node has, and those
+   * alone, its facets alike; a field of a line that says nothing is left out (`SPARSE_LINE_FIELDS`).
    */
   function projected(items: readonly object[], fields: AnyNodeFields) {
     const answer = example(VOLUME) as NodeList;
@@ -964,9 +963,10 @@ describe("the rows a page hands its grid", () => {
       task: [...COMMON_FIELDS.task, ...fields.task],
       line: [...COMMON_FIELDS.line, ...fields.line],
     };
-    const sparse = new Set<string>(SPARSE_LINE_FIELDS);
+    const sparse = new Set<string>(SPARSE_LINE_FIELDS); // a delay of nought says something
+    const silent = (value: unknown) => value === null || value === false;
     const kept = (source: Readonly<Record<string, unknown>>, keys: readonly string[]) =>
-      keys.filter((key) => key in source && !(sparse.has(key) && !source[key])).sort();
+      keys.filter((key) => key in source && !(sparse.has(key) && silent(source[key]))).sort();
     expect(items).toHaveLength(answer.items.length);
     for (const [index, node] of answer.items.entries()) {
       const row = items[index] ?? {};

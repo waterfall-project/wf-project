@@ -65,12 +65,13 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
 def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None:
     nodes = volumes["nodes_thousand.json"]["summary"]
     assert "1 000 tâches" in nodes
-    assert "930 tâches de travail et leurs 30 jalons" in nodes
+    assert "9 phases tirées autour de lui et reliées à lui, 27 lots" in nodes
+    assert "922 tâches de travail" in nodes
+    assert "27 jalons" in nodes
     assert "5 000 lignes de devis" in nodes
-    assert "provision de plus sur 350" in nodes
     total = volumes["estimate_indicators_volume.json"]["value"]["total"]
-    assert total == mockstructure.computable("60553621.36")
-    assert "60 553 621,36 au total" in volumes["estimate_indicators_volume.json"]["summary"]
+    assert total == mockstructure.computable("65605723.89")
+    assert "65 605 723,89 au total" in volumes["estimate_indicators_volume.json"]["summary"]
     assert "Les 300 projets" in volumes["portfolio_projects.json"]["summary"]
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
@@ -126,17 +127,23 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
     lines = [node["estimate_line"] for node in nodes["items"] if node["kind"] == "estimate_line"]
     # Every rate of the universe is set: every amount is computable (WF-DEV-0010).
     total = indicators["total"]
-    assert total == mockstructure.computable(nodes["totals"]["budgeted_amount"])
-    provisions = sum(Decimal(line["budgeted_amount"]) for line in lines if line["is_computed"])
-    assert Decimal(indicators["provisions_identified"]) == provisions
+    assert total == mockstructure.computable(nodes["totals"]["base_amount"])
+    # The one provision is the core's, of the risk identified: none is drawn (WF-RIS-0010).
+    provisions = [Decimal(line["base_amount"]) for line in lines if line["is_computed"]]
+    assert provisions == [Decimal(indicators["provisions_identified"])] == [Decimal(500)]
     for name in ("by_cost_type", "by_subproject"):
         parts = indicators[name]
         assert all(part["amount"]["is_computable"] for part in parts)
         assert sum(Decimal(part["amount"]["value"]) for part in parts) == Decimal(total["value"])
         assert sum(Decimal(part["share"]["value"]) for part in parts) == 1
-    assert indicators["by_order_item"] is None
+    # The order item the lot « Poste de commande » bears holds its lines (WF-DEV-0060).
+    [item] = indicators["by_order_item"]
+    assert (item["label"], item["amount"]) == (
+        "Fourniture et montage des armoires",
+        mockstructure.computable("2934.56"),
+    )
     unassigned = sum(
-        (Decimal(line["budgeted_amount"]) for line in lines if not line["subproject_id"]),
+        (Decimal(line["base_amount"]) for line in lines if not line["subproject_id"]),
         Decimal(0),
     )
     assert indicators["by_subproject"][-1] == {

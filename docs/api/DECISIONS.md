@@ -1626,13 +1626,14 @@ porteur d'un coût réel) par L25 ; C4 (deux instants du portefeuille) et C7 (so
 C5 et C6 (tâches de fond au même instant, sessions sur un même compte) par L25 ; C8 tombe avec la
 spécification révisée (L23) ; C9 et C10 (écriture qui redate, passage par `reinflated`) par L22 ;
 C11 à C13 (chronologie, comparaison, réception usine) par L23 et L24 ; C14 et C17 par L21 ; C15
-par L24 ; C16 (identifiants à double emploi) par L20 et L25. Reste la structure de mille tâches
-datée en heures, le cœur incrusté en tête (EP-02/L27, #376), et avec elle la décision 4 du cadrage
-— 751 et 753 à l'échelle de cette structure —, décidée par l'auteur le 2026-10-07 (option (a)),
-à appliquer par L27.
+par L24 ; C16 (identifiants à double emploi) par L20 et L25. La structure de mille tâches est
+datée en heures, le cœur incrusté en tête et relié au réseau engendré, depuis EP-02/L27 (#376).
+Reste la décision 4 du cadrage — 751 et 753 à l'échelle de cette structure —, décidée par l'auteur
+le 2026-10-07 (option (a)), et avec elle les lectures du témoin qui somment encore son seul cœur,
+qu'EP-02/L45 (#528) reprend : la sous-section d'EP-02/L27 dit ce qui en reste.
 
 Les sous-sections disent, lot par lot, ce que chacun a fait ; ce qu'une sous-section laisse est
-repris par une suivante, ou renvoyé à EP-02/L27 (#376). Ce qu'une sous-section décrit et qu'une
+repris par une suivante, ou renvoyé à EP-02/L27 (#376), puis à EP-02/L45 (#528). Ce qu'une sous-section décrit et qu'une
 suivante a changé — la capacité des rôles, le cours des projets du portefeuille — se lit dans la
 dernière qui en parle.
 
@@ -2199,6 +2200,111 @@ prouvé par des colonnes vides.
 (#376) ; d'ici là, les lignes de `volume/nodes_thousand.json` portent leurs grandeurs précédentes
 nulles, la structure engendrée n'ayant pas de revue précédente. Aucun écart au contrat : la liste dit déjà un projet non consultable sous son libellé et
 son code, sans lien (`can_open`, WF-PTF-0030).
+
+### La structure en heures (EP-02/L27)
+
+**La structure de mille tâches est celle du témoin, son cœur en tête, datée en heures** (#376 ;
+WF-PLA-0010, WF-PLA-0160). `wftools.mockstructure` décrit, comme le cœur l'est dans
+`mockwitness`, en tâches et en lignes, neuf phases tirées après lui — les approvisionnements à la
+réception, les études étant le cœur —, chacune des trois lots, chaque lot ses tâches de travail en
+trois chaînes et un jalon ; `wftools.mockcore` date le tout ensemble, en heures de travail sur le
+calendrier des rôles de chaque tâche, le chiffre et l'émet. Les compteurs du §4.6.2 sont gardés :
+mille tâches, dont les quinze du cœur, et cinq mille lignes, dont ses neuf — cinq sur chacune des
+922 tâches de travail tirées et une sixième sur 381 d'entre elles. **Deux calendriers** : le
+câblage est confié au monteur câbleur, toutes ses heures de main-d'œuvre, et ses 103 tâches
+travaillent la semaine de quatre jours de dix heures (482) ; les autres, la semaine standard. Les
+nœuds tirés ont des identifiants de leur famille, numérotés une fois d'après leur ligne de la
+structure décrite (`mockwitness.GENERATED`) : une écriture qui retire ou ajoute une ligne au-dessus
+ne les change pas.
+
+**Le cœur est relié au réseau** (décision de l'utilisateur du 2026-10-05) : les lots « Poste de
+commande » suivent sa réception usine, les deux autres la réception des études, et sa mise en
+service mène au jalon de la mise en service du poste de commande. La structure finit le 30 août
+2029. Le chemin critique part du cœur — études de détail, revue de conception, réception des
+études, câblage des armoires, réception usine, qui reste au 30 juin (C13) — et suit les lots du
+poste de commande ; les marges du cœur sont celles de toute la structure : 880,5 jours pour le
+dossier de conception, sans successeur, 858,5 pour les tâches de la survenance, 597,5 pour le
+montage sur site et la mise en service. Une marge se compte sur le calendrier de sa tâche : une
+tâche qui suit une tâche du câblage en garde des demi-journées. **Une tâche manuelle borne ses
+prédécesseurs** (WF-PLA-0100, #402, #464) : sa date posée à la main est leur fin au plus tard, une
+marge peut être négative, et le chemin critique compte les marges nulles ou négatives.
+
+**La structure est lue aujourd'hui, le 3 juin 2026.** **Rien ne se termine seul** (WF-RAE-0030) :
+le générateur tient chaque fin automatique passée pour un geste fait à sa date, et seuls les jalons
+attendent le leur — un jalon dont la date est passée reste non démarré tant qu'un geste ne le
+termine pas ; la réception des études du cœur est déclarée terminée par un geste du 24 avril,
+avant lequel elle se lit non démarrée, et aucun jalon tiré ne l'est.
+Chaque récapitulative porte son avancement physique, comme celles du cœur ; chaque ligne son délai
+de paiement — trente jours hors main-d'œuvre, zéro pour la main-d'œuvre, et dans le cœur zéro aussi
+pour les lignes fusionnées par la survenance et pour la provision — ; chaque ligne tirée ses
+grandeurs à la revue précédente, la référence, qui la portait telle qu'elle est. **La revue
+précédente se lit une fois**, sur la structure décrite (`mockcore.REFERENCE`), jamais sur celle
+qu'une écriture laisse : ce qu'une écriture saisit change les grandeurs d'aujourd'hui, jamais celles
+de la revue (WF-RAE-0040), et une ligne qu'une écriture ajouterait n'en aurait pas.
+**Aucune ligne tirée n'est une provision** : une ligne de provision n'est créée que par la
+déclaration d'un risque (WF-DEV-0020, WF-RIS-0010), et le témoin en a trois ; la sixième ligne
+est un transport, et le budget d'une ligne tirée est son montant. La seule provision de la
+structure est celle de 751, budgétée aux 250 que la référence connaissait. Les lectures nommées du
+cœur (`nodes`, `nodes_estimate`…) sont des lectures de cette structure, aux marges de toute la
+structure ; `nodes_core`, `nodes_nested` et `nodes_summaries` sont désormais des variantes
+contrefactuelles déclarées, le cœur lu seul (`mockcore.alone`) — marges jusqu'à la fin du cœur,
+totaux du cœur —, ce que dit leur résumé. Les deux Kanban (`startable_tasks`,
+`startable_tasks_milestone`) lisent toute la structure et n'en présentent que les tâches du cœur,
+faute d'un filtre de `listStartableTasks` qui écarte les 985 autres : une tâche que le geste
+n'écrit pas y a la même marge dans l'un et dans l'autre. Les phrases des exemples qui disent une
+date, une marge, le chemin critique ou les tâches redatées sont tirées des valeurs, et un test
+confronte chacune à ce qu'elle dit.
+
+**Les écritures sont des différences de deux lectures de toute la structure** : leurs totaux sont
+ceux des mille tâches, comme le contrat le veut, et les tâches qu'elles redatent celles de toute la
+structure. Le montage sur site et la mise en service ayant de la marge jusqu'au jalon qu'ils
+précèdent, `predecessor_set` ne redate que la mise en service, `estimate_line_redated` le montage
+et la mise en service, et aucune marge de tâche sans successeur ne grandit : la fin de la
+structure ne bouge pas. Les écritures que font les parcours portent sur les premières lignes tirées
+après le cœur, les lignes 28 à 30 (`estimate_line_entered`, `paste_applied`), et `paste_applied`
+passe par le même calcul que les autres, sans second chemin ; `task_lengthened` allonge
+« Revue 2.1.27 » de quatre jours ouvrés, qui pousse « Reprise 2.1.30 » en 2027.
+
+**La fusion de l'avenant 1 ne change que les montants budgétés des lignes que son différentiel
+désigne** (WF-REV-0050, décision de l'auteur sur #467). Le câblage sur site et la mise en service
+sur site, que l'avenant ne désigne pas, gardent le budget que l'offre leur avait fixé
+(`mockwitness.OFFER_BUDGETS`), 9 420 et 5 880 : la révision 102 copie ces budgétés de la
+référence, non des taux. Une révision n'a qu'un taux par catégorie, celui de son année de
+référence (WF-DEV-0020, WF-REV-0060) : leurs montants réestimés, dans 101 comme dans 102, sont
+ceux de 2026, 9 600 et 6 000 : la mise à jour des taux, acceptée à la création de 101
+(`rate_update`), a changé les taux, donc les réestimés, jamais les budgétés que la fusion ne désigne
+pas.
+Le budget de référence passe à 120 534,56 et la marche de l'avenant à 2 865 ; la comparaison de
+l'offre et de la référence dit ces deux lignes réestimées, non budgétées, et l'écart de
+main-d'œuvre à l'année de référence reste 3 515 ; le devis d'aujourd'hui vaut 121 534,56, et le
+reste à engager 21 234,56, ces deux tâches non démarrées y comptant leur budget projeté
+(WF-RAE-0010). Un test d'invariant tient le budget de l'offre de toute ligne que l'avenant ne
+désigne pas, un autre l'unicité du taux d'une catégorie dans chaque révision.
+
+**Le reste des points repris** : les risques lus dans 102 citent les structures de 102, à leurs
+identifiants propres, 204 à 206 (`structures`, #461 ; WF-DAT-0030) ; l'évolution des indices
+choisit ses révisions d'après l'état du projet au marquage, lu dans `state_transitions`, et non
+d'après la date ; les jalons suivis n'ont qu'une source (`mockwitness.TRACKED`), qu'un test
+confronte aux inscriptions des nœuds ; les numéros du cœur sont rassemblés dans `mockwitness.N` ;
+les corrélations gardent 960 à 989 et les collages prennent 990 à 999, 971 et 972 devenant 991 et
+992 ; un jalon de durée nulle ne se lit en fin de journée que pour une liaison fin à début qui
+l'entraîne, les minutes qui ne font pas un nombre exact d'heures sont refusées, et le refus des
+liaisons FF et SF est éprouvé. Les tests de grille lisent l'adresse des nœuds dans les exemples
+(#400).
+
+**Ce que ce lot laisse**, à EP-02/L45 (#528) : **la décision 4 du cadrage n'est pas appliquée**.
+Les indicateurs, l'histoire (offre, référence, comparaison), les risques et leur matrice, les
+courbes, le plan de charge, les coûts réels et la ligne du témoin au portefeuille lisent encore le
+seul cœur : le budget de référence qu'ils disent, 120 534,56, est celui du cœur, quand les lignes
+de la structure en budgètent 65,6 millions. Porter 751 et 753 à l'échelle suppose que ces lectures
+somment la structure entière — l'offre et la référence décrites sur les mille tâches, et des coûts
+réels pour les tâches tirées déjà terminées —, ce qui déplace la réserve, les totaux et la
+couverture. Le Kanban de toute la structure reste aussi à faire. Les résumés des indicateurs du
+projet, de la courbe des coûts, du registre des risques, du Kanban et de la liste du portefeuille le
+disent (« sur le seul cœur, jusqu'à EP-02/L45 »). Les écarts de `estimate_indicators_volume`, qui
+rapportent le devis de la structure à la référence du seul cœur, mêlent les deux échelles ; les
+dire non calculables demanderait un motif que `NotComputableReason` n'a pas : ils restent ceux du
+témoin, en attendant L45.
 
 ## Les commandes manquantes et les mineurs des relectures (EP-02/L38)
 
