@@ -105,7 +105,9 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
 test("leads from the planning to its task tree, read only, its depth in the address", async ({
   page,
 }) => {
-  // The leaf, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
+  // The leaf, a screen of its own reached by a click, compiled first (`e2e/compile.ts`). The tree
+  // asks the server for the summaries down to its depth (`summaries_only`, `max_level`), and keeps
+  // them once more of what the fake back renders, the volumes whole (#463).
   await compile(page.request, `${IN_REVISION}/task-tree`);
   await page.goto(`${IN_REVISION}/planning`);
   await page.getByRole("link", { name: "Arborescence de tâches" }).click();
@@ -133,7 +135,12 @@ test("leads from the planning to the timelines of the project, read only", async
   await page.goto(`${IN_REVISION}/planning`);
   await page.getByRole("link", { name: "Chronologies" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/timelines`);
-  // The timelines of the project; the structure of the volumes inscribes no task to them.
+  await expect(page).toHaveTitle("Chronologies · Modernisation du poste de commande — Waterfall");
+  await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
+    "Modernisation du poste de commande",
+  );
+  // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`), and
+  // keeps those inscribed to it of what the fake back renders: the volumes inscribe none (#463).
   await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
     "aria-current",
     "true",

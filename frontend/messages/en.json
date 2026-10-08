@@ -169,6 +169,9 @@
       "lastMarkedAt": "Last marked revision",
       "finishOverdue": "Finish overdue",
       "budgetedAmount": "Budgeted amount",
+      "previousQuantity": "Qty at the previous review",
+      "previousHours": "Effort (h) at the previous review",
+      "previousUnitDisbursement": "Unit disbursement at the previous review",
       "previousReestimatedAmount": "Re-estimated at the previous review",
       "reestimatedAmount": "Re-estimated amount",
       "description": "Description",
@@ -546,15 +549,17 @@
     "balance": "{name}: {remaining}, margin {variance}"
   },
   "kanban": {
-    "summary": "The tasks of the revision in progress, not started and started. A task is started or it is not: no percentage is entered.",
+    "summary": "The tasks of the revision in progress, not started, started and completed. A task is started or it is not: no percentage is entered.",
     "inProgressOnly": "The Kanban presents the tasks of the revision in progress: a marked revision has none to start.",
     "notStarted": "Not started",
     "started": "Started",
+    "completed": "Completed",
     "empty": "No task.",
     "milestone": "Milestone",
     "milestoneDue": "Its predecessors are completed: milestone to complete.",
     "finish": "Finish on {date}",
-    "finishOverdue": "Finish overdue"
+    "finishOverdue": "Finish overdue",
+    "completedOn": "Completed on {date}"
   },
   "contextBanner": {
     "label": "Reading context",
@@ -566,6 +571,7 @@
     "filters": "Active filters",
     "subproject": "Subproject: {subproject}",
     "subprojectName": "{code} — {label}",
+    "gridOnly": "{filter}, on the grid only",
     "asOf": "Calculation date: {date}",
     "computedOn": "Revision of the calculation",
     "unnamedRevision": "unnamed",

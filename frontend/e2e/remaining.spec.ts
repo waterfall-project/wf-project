@@ -16,7 +16,7 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
 const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 
-test("reads the remaining to commit of a revision: its indicators, its grid, the tasks not started on demand, and the Kanban without any percentage to enter [WF-RAE-0030-A]", async ({
+test("reads the remaining to commit of a revision: its indicators, its grid, the tasks not started on demand, and the Kanban of the three states without any percentage to enter [WF-RAE-0030-A]", async ({
   page,
 }) => {
   // The Kanban, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
@@ -46,6 +46,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     "Avancement",
     "Fin",
     "Calculé Montant budgété",
+    "Charge (h) à la revue précédente",
     "Calculé Réestimé à la revue précédente",
     "Charge (h)",
     "Calculé Montant réestimé",
@@ -82,7 +83,8 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     page.getByRole("link", { name: "Ne montrer que les tâches démarrées" }),
   ).toBeVisible();
 
-  // The Kanban, in the same context: the tasks not started and those started, no figure to enter.
+  // The Kanban, in the same context: the tasks not started, started and completed, no figure to
+  // enter.
   await page.getByRole("link", { name: "Kanban — démarrage des tâches" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/kanban?subproject_id=${SUBPROJECT}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Kanban — démarrage des tâches");
@@ -99,6 +101,16 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     /^9\s*Câblage des armoires\s*Fin le 30\/06\/2026$/,
   ]);
   await expect(started.getByRole("img", { name: "Fin dépassée" })).toHaveCount(1);
+  // The tasks completed, each with the date it was, which the Kanban reopens (#425).
+  const completed = page.getByRole("region", { name: "Terminées" });
+  await expect(completed.getByRole("listitem")).toHaveText([
+    /^2\s*Études de détail\s*Terminée le 10\/04\/2026$/,
+    /^5\s*Revue de conception\s*Terminée le 24\/04\/2026$/,
+    /^6\s*Jalon\s*Réception des études\s*Terminée le 24\/04\/2026$/,
+    /^7\s*Dossier de conception\s*Terminée le 15\/04\/2026$/,
+    /^14\s*Relance du fournisseur\s*Terminée le 08\/05\/2026$/,
+    /^16\s*Transport exceptionnel\s*Terminée le 15\/05\/2026$/,
+  ]);
   const main = page.getByRole("main");
   for (const role of ["textbox", "spinbutton", "slider", "button", "combobox"] as const) {
     await expect(main.getByRole(role)).toHaveCount(0);

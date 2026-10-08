@@ -75,7 +75,7 @@ beforeEach(() => {
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
-    [NODES]: "nodes_core",
+    [NODES]: "nodes_summaries",
     "GET /projects/{project_id}/timelines": "timelines",
   };
 });
@@ -98,24 +98,59 @@ describe("the screen of the task tree", () => {
     expect(metadata.title).toBe("Task tree · Modernisation du poste de commande — Waterfall");
   });
 
-  it("reads the tasks of the main structure, their parents, for the sub-project its banner shows", async () => {
+  it("asks the server for the summaries down to the depth of the address, their parents, for the sub-project its banner shows [WF-PLA-0110-A]", async () => {
+    // Sur un planning de quatre niveaux, l'affichage demandé au niveau 2 ne représente que les
+    // récapitulatives des deux premiers niveaux : the server selects them, the screen asks it.
     await treeAt({ subproject_id: SUBPROJECT });
     const { fields, ...query } = queryOf(NODES) ?? {};
-    expect(query).toEqual({ kinds: "task", subproject_id: SUBPROJECT });
+    expect(query).toEqual({
+      kinds: "task",
+      subproject_id: SUBPROJECT,
+      summaries_only: "true",
+      max_level: "2",
+    });
     expect(fields?.split(",")).toContain("parent_id");
-    expect(fields?.split(",")).toContain("task.is_summary");
+    server.clients = [];
+    await treeAt({ depth: "1" });
+    expect(queryOf(NODES)).toMatchObject({ summaries_only: "true", max_level: "1" });
   });
 
-  it("shows the summaries of the first two levels under the project, and the levels to choose, the one shown current", async () => {
+  it("draws the summaries the server renders under the project, and the levels to choose, the one shown current [WF-PLA-0110-A]", async () => {
     const page = await treeAt({ subproject_id: SUBPROJECT });
     expect(page).toMatch(/role="tree" aria-label="Tree of the summary tasks"/);
     expect(text(page)).toContain(
-      "Modernisation du poste de commande 1 Études 8 Poste de commande 13 Risque survenu",
+      "Modernisation du poste de commande 1 Études 8 Installation sur site 9 Poste de commande",
     );
     expect(page).toContain(`href="${SCREEN}?subproject_id=${SUBPROJECT}&amp;depth=1"`);
     expect(page).toMatch(/aria-current="true"[^>]*>Level 2</);
+    // A summary at the second level may have summaries under it: the third is offered.
+    expect(page).toContain(`href="${SCREEN}?subproject_id=${SUBPROJECT}&amp;depth=3"`);
     const first = await treeAt({ depth: "1" });
-    expect(text(first)).not.toContain("Risque survenu");
     expect(first).toMatch(/aria-current="true"[^>]*>Level 1</);
+  });
+
+  it("is the project alone, with no level to choose, for a plan of leaves alone [WF-PLA-0110-A]", async () => {
+    // Un planning composé uniquement de tâches feuilles produit une arborescence réduite au nœud
+    // du projet.
+    server.answers = { ...server.answers, [NODES]: "nodes_summaries_leaves" };
+    const page = await treeAt();
+    expect(page).toMatch(/role="tree" aria-label="Tree of the summary tasks"/);
+    expect(page.match(/role="treeitem"/g)).toHaveLength(1);
+    expect(page).not.toContain('aria-label="Level shown"');
+    expect(text(page)).toContain(
+      "This plan has no summary task: the tree comes down to the project.",
+    );
+  });
+
+  it("keeps the summaries down to the depth asked of an answer that holds more, as the fake back renders it [WF-PLA-0110-A]", async () => {
+    // Aucun jalon ni aucune tâche feuille n'apparaît, quel que soit le niveau demandé.
+    server.answers = { ...server.answers, [NODES]: "nodes_core" };
+    const page = await treeAt();
+    expect(text(page)).toContain(
+      "Modernisation du poste de commande 1 Études 8 Poste de commande 13 Risque survenu",
+    );
+    for (const absent of ["Réception des études", "Câblage des armoires", "Réception usine"]) {
+      expect(text(page)).not.toContain(absent);
+    }
   });
 });

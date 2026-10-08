@@ -504,10 +504,17 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
   précédent (WF-RAE-0040) : `EstimateLineFacet` n'en porte qu'un jeu, celui de la révision lue, et
   le seul montant précédent — US-0230/L1, ouvert en #424. D'ici là, la grille présente le montant
   budgété, le montant réestimé précédent, les grandeurs courantes, saisies par `setLineRemaining`,
-  et le montant réestimé courant.
+  et le montant réestimé courant. Corrigé par EP-02/L35 : `EstimateLineFacet.previous_quantity`,
+  `previous_hours` et `previous_unit_disbursement`, valeurs conservées, nulles avant la première
+  revue ; la grille les présente avant le montant réestimé précédent, puis les grandeurs et le
+  montant courants (EP-02/L36). Les lignes du témoin les portent encore nulles (EP-02/L26, #375).
 - `listStartableTasks` ne rend pas les tâches terminées, que le Kanban rouvre (WF-RAE-0030), ni les
   tâches non démarrées dont un prédécesseur ne l'est pas — US-0230/L1, ouvert en #425. D'ici là, le
-  Kanban présente les deux colonnes que l'opération rend, non démarrées et démarrées.
+  Kanban présente les deux colonnes que l'opération rend, non démarrées et démarrées. Corrigé par
+  EP-02/L35 : `listStartableTasks` rend trois colonnes, toutes les tâches non démarrées — chacune
+  disant si ses prédécesseurs sont terminés (`predecessors_completed`), par quoi le Kanban signale
+  un jalon à terminer —, les démarrées et les terminées avec leur date (`completed_on`) ; le Kanban
+  présente les trois (EP-02/L36), sans commande, que la maquette n'offre pas.
 - `listTimelines` n'avait aucun exemple, et aucune tâche témoin ne portait d'inscription
   (`TaskFacet.tracking`) : l'écran des chronologies n'aurait rien eu à montrer — US-0220/L2. Corrigé
   par ce lot, par des exemples engendrés du cœur du témoin (`make mock-data`) : `timelines` (le
@@ -521,6 +528,14 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
   l'arborescence garde, des tâches que le serveur rend dans l'ordre du plan, les récapitulatives
   dont le niveau que l'API calcule est dans la profondeur demandée (`depth`, dans l'adresse), et
   une chronologie les tâches dont les inscriptions la nomment, sans rien ordonner ni calculer.
+  Corrigé par EP-02/L35 : `summaries_only`, `max_level` et `timeline_id`, une lecture par
+  chronologie ne rendant pas les ancêtres ; l'arborescence et les chronologies les demandent
+  (EP-02/L36). Écart temporaire, décision de la revue d'EP-02/L36 : le faux back ignore les filtres
+  de `listNodes`, et le front applique encore à la réponse le même critère — récapitulatives seules
+  jusqu'au niveau demandé, tâches inscrites à la chronologie —, filtre idempotent qui ne change rien
+  contre un serveur qui les tient ; il se retire quand le back d'EP-03 les tiendra. Le contrat ne dit
+  pas jusqu'à quel niveau vont les récapitulatives : l'arborescence offre les niveaux de la réponse,
+  et le suivant quand une récapitulative est au niveau demandé.
 - Le 401 n'est pas déclaré sur la plupart des opérations gardées par la session —
   US-0170/L1, ouvert en #141. D'ici là, le décodeur le traite quand il arrive, mais les
   tests ne peuvent pas le simuler sur ces opérations. Corrigé par EP-02/L8 : cent dix

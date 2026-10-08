@@ -532,6 +532,7 @@
               risk_occurred: { $ref: ../../../fixtures/api/nodes_risk_occurred.json }
               nested: { $ref: ../../../fixtures/api/nodes_nested.json }
               summaries: { $ref: ../../../fixtures/api/nodes_summaries.json }
+              summaries_leaves: { $ref: ../../../fixtures/api/nodes_summaries_leaves.json }
               timeline: { $ref: ../../../fixtures/api/nodes_timeline.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }

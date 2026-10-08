@@ -3,8 +3,8 @@
 /**
  * The Kanban of the start of the tasks (FBS-4.5.3, WF-RAE-0030, US-0230), a leaf of the remaining
  * to commit with a screen of its own, whose head leads here in the same context: the banner of its
- * reading context (WF-IHM-0020), which shows no filter — the Kanban takes none —, and the tasks to
- * start and those started, as the API gives them (`listStartableTasks`). The API reads them in the
+ * reading context (WF-IHM-0020), which shows no filter — the Kanban takes none —, and the tasks not
+ * started, started and completed, as the API gives them (`listStartableTasks`). The API reads them in the
  * revision in progress of the project, whatever revision the address names: a marked revision,
  * whose tasks it would not show, says so and asks nothing, rather than showing the tasks of another
  * revision under its banner. No percentage is entered, no command offered (`Kanban`).
