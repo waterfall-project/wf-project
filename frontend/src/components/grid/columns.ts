@@ -268,6 +268,11 @@ export interface GridTree<Row> {
   readonly nature: (row: Row) => ReactNode;
   /** Whether its label is set in bold — a summary — or muted — what nobody enters. */
   readonly emphasis?: (row: Row) => "strong" | "muted" | undefined;
+  /**
+   * The identity of the row a row is under, as the API gives it — none at the root —: given, the
+   * tree folds and unfolds, a row under which the answer holds others folding them (`fold.tsx`).
+   */
+  readonly parent?: (row: Row) => string | null;
 }
 
 /** A grid: its columns, its rows and how to tell them apart, its tree if it has one. */

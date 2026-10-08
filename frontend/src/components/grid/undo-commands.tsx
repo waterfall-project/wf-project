@@ -40,6 +40,9 @@ import {
 } from "@/components/ui/context-menu";
 import { cn } from "@/components/ui/utils";
 
+import { type CellFolding, FoldMenuItems } from "./fold";
+import { type CellPosition, positionOf } from "./grid-keyboard";
+
 /** The two commands. */
 export type UndoCommand = "undo" | "redo";
 
@@ -196,15 +199,20 @@ function openFromKeyboard(event: KeyboardEvent<HTMLElement>): boolean {
 
 /**
  * Give the cells of a grid their menu — by a right click, Shift+F10 or the Menu key —, which holds
- * undo and redo, unavailable and saying why: on the body of a grid that offers them, nothing
- * otherwise. The menu adds no stop to the order of tabulation.
+ * undo and redo, unavailable and saying why, on the body of a grid that offers them; and, in a tree
+ * grid, the folding of the row of the cell, which the keys of the folding do not reach in every
+ * browser (`FoldMenuItems`). Nothing in a grid that offers neither. The menu adds no stop to the
+ * order of tabulation; once a row is folded from it, the focus goes back to the active cell.
  */
 export function CellMenu({
   offered,
+  folding,
   disabled,
   children,
 }: {
   readonly offered: boolean | undefined;
+  /** The folding of a tree grid; none for a grid that is no tree. */
+  readonly folding?: { readonly menu: CellFolding; readonly refocus: () => void } | undefined;
   /**
    * Whether a cell is being entered: the menu then opens on nothing, and the browser's — paste,
    * spelling — stays the field's, whose entry a menu taking the focus would validate.
@@ -216,7 +224,10 @@ export function CellMenu({
   const reason = useId();
   // When a key last opened the menu: the native echo of that key moves nothing.
   const keyed = useRef(Number.NEGATIVE_INFINITY);
-  if (offered !== true) {
+  // The cell the menu opened on, whose row it folds; and whether it folded one.
+  const [at, setAt] = useState<CellPosition>();
+  const folded = useRef(false);
+  if (offered !== true && folding === undefined) {
     return children;
   }
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -228,7 +239,10 @@ export function CellMenu({
     if (!KEYED.has(event.nativeEvent) && event.timeStamp - keyed.current < KEY_ECHO_MS) {
       // Prevented, it reaches neither the browser nor the menu, already open.
       event.preventDefault();
+      return;
     }
+    const { target } = event;
+    setAt(positionOf(target instanceof Element ? target.closest("td[data-column]") : null));
   };
   return (
     <ContextMenu>
@@ -240,31 +254,71 @@ export function CellMenu({
       >
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent aria-label={t("menu")} className="max-w-64">
-        <ContextMenuLabel id={reason} className="text-xs font-normal text-muted-foreground">
-          {t("unavailable")}
-        </ContextMenuLabel>
-        <ContextMenuSeparator />
-        {COMMANDS.map((command) => (
-          <ContextMenuItem
-            key={command}
-            aria-disabled
-            aria-describedby={reason}
-            aria-keyshortcuts={KEYS[command]}
-            className={UNAVAILABLE}
-            // Pressed, it does nothing, and the menu stays open on the reason.
-            onSelect={(event) => {
-              event.preventDefault();
+      <ContextMenuContent
+        aria-label={t("menu")}
+        className="max-w-64"
+        onCloseAutoFocus={(event) => {
+          // A row folded: the cell that held the focus may be folded away with it.
+          if (folded.current) {
+            folded.current = false;
+            event.preventDefault();
+            folding?.refocus();
+          }
+        }}
+      >
+        {folding === undefined ? null : (
+          <FoldMenuItems
+            folding={folding.menu}
+            at={at}
+            onRun={() => {
+              folded.current = true;
             }}
-          >
-            {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
-            {t(command)}
-            <kbd className="ml-auto pl-4 font-sans text-xs text-muted-foreground">
-              {t(`shortcut.${command}`)}
-            </kbd>
-          </ContextMenuItem>
-        ))}
+          />
+        )}
+        {offered === true ? (
+          <UndoMenuItems reason={reason} separated={folding !== undefined} />
+        ) : null}
       </ContextMenuContent>
     </ContextMenu>
+  );
+}
+
+/** Undo and redo in the menu of a cell, unavailable, and why. */
+function UndoMenuItems({
+  reason,
+  separated,
+}: {
+  readonly reason: string;
+  /** Whether the folding comes before them. */
+  readonly separated: boolean;
+}) {
+  const t = useTranslations("grid.undo");
+  return (
+    <>
+      {separated ? <ContextMenuSeparator /> : null}
+      <ContextMenuLabel id={reason} className="text-xs font-normal text-muted-foreground">
+        {t("unavailable")}
+      </ContextMenuLabel>
+      <ContextMenuSeparator />
+      {COMMANDS.map((command) => (
+        <ContextMenuItem
+          key={command}
+          aria-disabled
+          aria-describedby={reason}
+          aria-keyshortcuts={KEYS[command]}
+          className={UNAVAILABLE}
+          // Pressed, it does nothing, and the menu stays open on the reason.
+          onSelect={(event) => {
+            event.preventDefault();
+          }}
+        >
+          {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
+          {t(command)}
+          <kbd className="ml-auto pl-4 font-sans text-xs text-muted-foreground">
+            {t(`shortcut.${command}`)}
+          </kbd>
+        </ContextMenuItem>
+      ))}
+    </>
   );
 }

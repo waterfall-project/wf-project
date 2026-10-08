@@ -528,6 +528,8 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     },
     /** Close the refusal, a click having taken the focus elsewhere. */
     dismissRefusal: dismiss,
+    /** Focus a cell — the active one, once the rows it is among changed —, brought into view. */
+    focusAt: focusCell,
     /**
      * Give the focus back to the active cell — a notice dismissed took it with it —, brought into
      * view: the grid may have been scrolled away from it meanwhile (#241).

@@ -114,7 +114,7 @@ function grid(
 /** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
 function cell(row: number, column: string): HTMLElement {
   const found = screen
-    .getByRole("grid")
+    .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
   if (found === null) {
     throw new Error(`no cell ${column} in the row ${row.toString()}`);
@@ -124,7 +124,7 @@ function cell(row: number, column: string): HTMLElement {
 
 /** The texts of the totals row, at the foot of the grid. */
 function totals(): (string | null)[] {
-  const row = screen.getByRole("grid").querySelector("tfoot tr");
+  const row = screen.getByRole("treegrid").querySelector("tfoot tr");
   return [...(row?.querySelectorAll("td") ?? [])].map((cell) => cell.textContent);
 }
 
@@ -935,7 +935,7 @@ describe("a grid the revision does not let the caller enter", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(cell(LABOUR, "hours")).toHaveAttribute("aria-readonly", "true");
     expect(
-      [...screen.getByRole("grid").querySelectorAll("td[data-column]")].every(
+      [...screen.getByRole("treegrid").querySelectorAll("td[data-column]")].every(
         (element) => element.getAttribute("aria-readonly") === "true",
       ),
     ).toBe(true);

@@ -50,7 +50,7 @@ async function tabIntoGrid(page: Page): Promise<{
 }> {
   test.slow();
   await openHydrated(page, ESTIMATE);
-  const grid = page.getByRole("grid", { name: "Grille de devis" });
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
   const active = grid.locator('td[tabindex="0"]');
   await expect(active).toHaveCount(1);
   await expect

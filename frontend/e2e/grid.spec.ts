@@ -10,7 +10,7 @@ import {
   scrollToPosition,
   withinBox,
 } from "./scroll";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated, openMenu, WORKING } from "./hydration";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2): a thousand tasks and five thousand lines, six thousand rows, of which the grid
@@ -31,7 +31,7 @@ const ROW_COUNT = "6002";
 
 /** The grid of the estimate. */
 function grid(page: Page) {
-  return page.getByRole("grid", { name: "Grille de devis" });
+  return page.getByRole("treegrid", { name: "Grille de devis" });
 }
 
 /** The cell of the totals under the header of a column. */
@@ -290,4 +290,44 @@ test("hides a column chosen in the menu of the columns, and searches the labels 
   await page.getByRole("searchbox", { name: "Rechercher un libellé" }).fill("revue");
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(`${GRID}?search=revue`, { timeout: WORKING });
+});
+
+test("folds a task over its lines and the tree down to a level, the keyboard going through the rows that stay", async ({
+  page,
+}) => {
+  await openHydrated(page, GRID);
+  await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
+  const task = grid(page).getByRole("row", { name: /^3 .*Préparation 1\.1\.1/ });
+  const line = grid(page).getByRole("row", { name: /^4 .*Heures d'ingénierie/ });
+  await expect(task).toHaveAttribute("aria-expanded", "true");
+  await expect(line).toBeVisible();
+
+  // Alt and minus on a cell of the task folds its lines; the down arrow goes to the next task.
+  const label = task.getByRole("gridcell").nth(1);
+  await label.click();
+  await page.keyboard.press("Alt+Minus");
+  await expect(task).toHaveAttribute("aria-expanded", "false");
+  await expect(line).toHaveCount(0);
+  await expect(label).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(rowAt(grid(page), 4).getByRole("gridcell").nth(1)).toBeFocused();
+  await expect(rowAt(grid(page), 4)).toHaveAttribute("aria-level", "3");
+
+  // The bar folds the tree whole, down to a level, and unfolds it whole.
+  const tree = page.getByRole("button", { name: "Arbre" });
+  const menu = page.getByRole("menu");
+  await openMenu(tree, menu);
+  await menu.getByRole("menuitem", { name: "Tout plier" }).click();
+  const first = edges(page).first;
+  await expect(first).toHaveAttribute("aria-expanded", "false");
+  await expect(task).toHaveCount(0);
+  await expect(rowAt(grid(page), 2)).toHaveAttribute("aria-level", "1");
+  await openMenu(tree, menu);
+  await menu.getByRole("menuitem", { name: "Jusqu’au niveau 3" }).click();
+  await expect(task).toHaveAttribute("aria-expanded", "false");
+  await expect(line).toHaveCount(0);
+  await openMenu(tree, menu);
+  await menu.getByRole("menuitem", { name: "Tout déplier" }).click();
+  await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
+  await expect(line).toBeVisible();
 });

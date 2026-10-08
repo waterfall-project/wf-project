@@ -123,7 +123,7 @@ function renderGrid(
 
 /** The grid of the estimate. */
 function grid(): HTMLElement {
-  return screen.getByRole("grid", { name: "Grille de devis" });
+  return screen.getByRole("treegrid", { name: "Grille de devis" });
 }
 
 /** The element that scrolls the grid. */
@@ -837,11 +837,14 @@ describe("a grid configured without its options", () => {
         />
       </NextIntlClientProvider>,
     );
+    // Without a tree, a grid and not a tree grid.
+    const flat = screen.getByRole("grid", { name: "Grille de devis" });
     expect(screen.queryByRole("columnheader", { name: "N°" })).toBeNull();
     expect(texts(rowAt(3)).slice(0, 2)).toEqual(["Études de détail", ""]);
-    expect(within(grid()).queryAllByRole("img", { name: /Tâche|Ligne/ })).toEqual([]);
+    expect(within(flat).queryAllByRole("img", { name: /Tâche|Ligne/ })).toEqual([]);
+    expect(within(flat).queryAllByRole("button", { name: /Plier|Déplier/ })).toEqual([]);
     expect(
-      [...grid().querySelectorAll<HTMLElement>("td, th")].filter((cell) => cell.style.left !== ""),
+      [...flat.querySelectorAll<HTMLElement>("td, th")].filter((cell) => cell.style.left !== ""),
     ).toEqual([]);
     // Without row numbers, the label is the first column: the caption of the totals is its.
     expect(texts(rowAt(9))[0]).toBe("—");

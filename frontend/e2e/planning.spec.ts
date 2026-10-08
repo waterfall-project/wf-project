@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
-import { scrollToPosition, withinBox } from "./scroll";
+import { rowAt, scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
 // the volumes of §4.6.2 (EP-02/L2), a thousand tasks and their lines —: its lines show here too,
@@ -24,7 +24,7 @@ test("opens the grid of the planning: its icons named, the critical path marked,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
   await expect(page).toHaveTitle("Planification · Modernisation du poste de commande — Waterfall");
-  const grid = page.getByRole("grid", { name: "Grille de planning" });
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   for (const name of [
     "N°",
     "Libellé",
@@ -74,7 +74,7 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
-  const grid = page.getByRole("grid", { name: "Grille de planning" });
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { gantt: "Gantt" });
   // Its axis, in its header, the months of the plan.
   await expect(grid.getByRole("columnheader", { name: "Gantt" })).toContainText("janv. 27");
@@ -104,6 +104,49 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   await expect(grid.getByRole("textbox")).toHaveCount(0);
   await expect(criticalBar).toHaveAccessibleName("Du 24/03/2026 au 06/04/2026 — critique");
   expect(sent).toEqual([]);
+});
+
+test("folds a summary in the grid and the Gantt follows, unfolds it from the Gantt and the grid follows, and keeps the fold for the session [WF-PLA-0090-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });
+  const lot = grid.getByRole("row", { name: /^2 .*Études — Poste de commande/ });
+  const task = grid.getByRole("row", { name: /^3 .*Préparation 1\.1\.1/ });
+  await expect(lot).toHaveAttribute("aria-expanded", "true");
+  await expect(lot).toHaveAttribute("aria-level", "2");
+  await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
+
+  // Une récapitulative pliée dans la grille l'est dans le Gantt: the rows under it leave both,
+  // the row after it is its next sibling, and its bracket in the Gantt offers to unfold it.
+  await lot.getByRole("gridcell").nth(at.label).getByRole("button", { name: "Plier" }).click();
+  await expect(lot).toHaveAttribute("aria-expanded", "false");
+  await expect(task).toHaveCount(0);
+  await expect(rowAt(grid, 3)).toHaveAttribute("aria-level", "2");
+  await expect(grid).not.toHaveAttribute("aria-rowcount", "6002");
+  const ganttOfLot = lot.getByRole("gridcell").nth(at.gantt);
+  await expect(ganttOfLot.getByRole("img")).toBeVisible();
+
+  // Et réciproquement: unfolded from the Gantt, the grid unfolds.
+  await ganttOfLot.getByRole("button", { name: "Déplier" }).click();
+  await expect(lot).toHaveAttribute("aria-expanded", "true");
+  await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
+  await expect(grid).toHaveAttribute("aria-rowcount", "6002");
+
+  // By the keys of Microsoft Project, on the cell of the Gantt; kept for the session, read back
+  // once the page is opened anew.
+  await ganttOfLot.click();
+  await page.keyboard.press("Alt+Minus");
+  await expect(lot).toHaveAttribute("aria-expanded", "false");
+  await expect(ganttOfLot).toBeFocused();
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  await expect(lot).toHaveAttribute("aria-expanded", "false", { timeout: WORKING });
+  await expect(task).toHaveCount(0);
+  await lot.getByRole("gridcell").nth(at.label).click();
+  await page.keyboard.press("Alt+Shift+Equal");
+  await expect(lot).toHaveAttribute("aria-expanded", "true");
+  await expect(task).toBeVisible();
 });
 
 test("leads from the planning to its task tree, read only, its depth in the address", async ({

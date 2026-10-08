@@ -4,11 +4,13 @@
  * The bar above a dense grid: the search on the labels, asked of the server when entered — the
  * grid shows what it retains, and the totals of what it retains —, and the choice of the
  * columns shown, a menu whose entries stay open while several are set; for a grid that enters a
- * revision in progress, undo and redo, placed but not wired yet (`UndoCommands`).
+ * revision in progress, undo and redo, placed but not wired yet (`UndoCommands`); for a tree, the
+ * menu that unfolds it whole, folds it whole, or folds it down to a level, as the « Afficher » of
+ * Microsoft Project (`fold.tsx`).
  */
 "use client";
 
-import { Columns3, Search } from "lucide-react";
+import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type SubmitEvent, useState } from "react";
 
@@ -17,12 +19,14 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
+import { useFoldReach } from "./fold";
 import { SEARCH_LENGTH } from "./query";
 import { UndoCommands } from "./undo-commands";
 
@@ -32,6 +36,15 @@ export interface ToggledColumn {
   readonly label: string;
   readonly visible: boolean;
   readonly toggle: (visible: boolean) => void;
+}
+
+/** How the bar folds the tree of a grid. */
+export interface GridOutline {
+  /** The deepest level of a row that folds: the tree is folded down to each level up to it. */
+  readonly levels: number;
+  readonly expandAll: () => void;
+  /** Fold the tree to show it down to a level — the first, folded whole. */
+  readonly collapseTo: (level: number) => void;
 }
 
 /** What the bar of a grid offers. */
@@ -47,6 +60,8 @@ export interface GridToolbarProps {
   readonly onSearch: ((search: string) => void) | undefined;
   /** Whether the grid enters a revision in progress, whose entries undo and redo will act on. */
   readonly undoable: boolean | undefined;
+  /** How the tree of the grid folds; none for a grid that is no tree. */
+  readonly outline?: GridOutline | undefined;
 }
 
 /** The search on the labels, sent when entered. */
@@ -84,8 +99,61 @@ function SearchField({
   );
 }
 
+/**
+ * The menu that folds a tree: unfolded whole — as Alt+* does —, folded whole, or down to
+ * each level that has rows to fold.
+ */
+function OutlineMenu({ outline }: { readonly outline: GridOutline }) {
+  const t = useTranslations("grid.fold");
+  // Alt and * off a Mac alone, where Option types no * (`useFoldReach`).
+  const reach = useFoldReach();
+  const levels = Array.from({ length: Math.max(outline.levels - 1, 0) }, (_, at) => at + 2);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+          <ListTree aria-hidden="true" />
+          {t("open")}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>{t("title")}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={outline.expandAll}
+          aria-keyshortcuts={reach === "all" ? "Alt+*" : undefined}
+        >
+          {t("expandAll")}
+          {reach === "all" ? (
+            <span aria-hidden="true" className="ml-auto text-xs text-muted-foreground">
+              {t("expandAllKeys")}
+            </span>
+          ) : null}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            outline.collapseTo(1);
+          }}
+        >
+          {t("collapseAll")}
+        </DropdownMenuItem>
+        {levels.map((level) => (
+          <DropdownMenuItem
+            key={level}
+            onSelect={() => {
+              outline.collapseTo(level);
+            }}
+          >
+            {t("level", { level })}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /** Render the bar of a grid. */
-export function GridToolbar({ columns, search, onSearch, undoable }: GridToolbarProps) {
+export function GridToolbar({ columns, search, onSearch, undoable, outline }: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -95,6 +163,7 @@ export function GridToolbar({ columns, search, onSearch, undoable }: GridToolbar
       )}
       <div className="flex-1" />
       {undoable === true ? <UndoCommands /> : null}
+      {outline === undefined ? null : <OutlineMenu outline={outline} />}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline" size="sm" className="h-7 text-xs">

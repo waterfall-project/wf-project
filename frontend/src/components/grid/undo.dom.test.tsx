@@ -76,7 +76,7 @@ function estimateGrid(editable = true, locale: Locale = "fr") {
 /** The first cell of the labels, given the focus as a click on it would. */
 function focusLabel(): HTMLElement {
   const found = screen
-    .getByRole("grid")
+    .getByRole("treegrid")
     .querySelector<HTMLElement>('td[data-row="1"][data-column="label"]');
   if (found === null) {
     throw new Error("no cell of label in the second row");
@@ -167,10 +167,11 @@ describe("undo and redo, placed in the grids", () => {
 
   it("announces the menu on each cell by the key that opens it, where the grid offers one", () => {
     render(estimateGrid());
-    const cells = screen.getByRole("grid").querySelectorAll("td[data-column]");
+    const cells = screen.getByRole("treegrid").querySelectorAll("td[data-column]");
     expect(cells.length).toBeGreaterThan(0);
+    // The label of a row that folds tells the keys of the folding after it.
     for (const cell of cells) {
-      expect(cell).toHaveAttribute("aria-keyshortcuts", "Shift+F10");
+      expect(cell).toHaveAttribute("aria-keyshortcuts", expect.stringMatching(/^Shift\+F10( |$)/));
     }
   });
 
@@ -205,10 +206,15 @@ describe("undo and redo, placed in the grids", () => {
     render(estimateGrid());
     const cell = focusLabel();
     await userEvent.pointer({ keys: "[MouseRight]", target: cell });
-    expect(within(cellMenu()).getAllByRole("menuitem")).toHaveLength(2);
+    // Undo and redo, after the folding of the row, the grid being a tree.
+    expect(
+      within(cellMenu())
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Plier la ligne", "Tout déplier", "AnnulerCtrl+Z", "RétablirCtrl+Maj+Z"]);
     await userEvent.keyboard("{Escape}");
     // The grid stays one stop: its active cell, the only one in the order of tabulation.
-    expect(screen.getByRole("grid").querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+    expect(screen.getByRole("treegrid").querySelectorAll('[tabindex="0"]')).toHaveLength(1);
   });
 
   it("takes Ctrl+Z and Ctrl+Shift+Z on the grid, and tells each unavailable", () => {
@@ -261,6 +267,7 @@ describe("undo and redo, placed in the grids", () => {
         <PlanningGrid
           nodes={example("nodes_planning") as NodeList}
           structure={STRUCTURE}
+          filters={{}}
           query={NO_QUERY}
           preferences={undefined}
           undoable
@@ -298,12 +305,19 @@ describe("what no command undoes", () => {
     expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Rétablir" })).toBeNull();
     const cell = focusLabel();
-    expect(cell).not.toHaveAttribute("aria-keyshortcuts");
     expect(press(cell)).toBe(true);
-    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
-    await userEvent.pointer({ keys: "[MouseRight]", target: cell });
-    expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
+    // The menu of the cell holds the folding of its row, a tree grid's, and neither command.
+    await userEvent.pointer({ keys: "[MouseRight]", target: cell });
+    expect(
+      within(screen.getByRole("menu")).queryByRole("menuitem", { name: /Annuler|Rétablir/ }),
+    ).toBeNull();
+    await userEvent.keyboard("{Escape}");
+    cell.focus();
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    const menu = screen.getByRole("menu", { name: "Menu de la cellule" });
+    expect(within(menu).getByRole("menuitem", { name: "Plier la ligne" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: /Annuler|Rétablir/ })).toBeNull();
   });
 
   it("offers no undo of the exclusion of a line of actual cost: its grid places neither command nor takes the shortcut [WF-IHM-0110-A]", async () => {
