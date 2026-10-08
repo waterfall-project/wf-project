@@ -6,12 +6,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import { TransitionList } from "@/components/projects/project-tables";
 import {
   ContributorList,
   SubprojectList,
-  TransitionList,
-} from "@/components/projects/project-tables";
-import { WorkBreakdownList } from "@/components/projects/project-tables";
+  WorkBreakdownList,
+} from "@/components/projects/settings-lists";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
@@ -30,6 +30,13 @@ vi.mock("@/api/server", () => ({
     server.clients.push(client);
     return client;
   },
+}));
+const navigation = vi.hoisted(() => ({ search: "" }));
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
+  usePathname: () => "/projects/01926f3a-7c00-7000-8000-000000000001/settings",
+  useSearchParams: () => new URLSearchParams(navigation.search),
 }));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
@@ -72,6 +79,38 @@ function paths(): Record<string, string> {
   return Object.fromEntries(
     server.clients.flatMap((client) => client.calls).map((call) => [call.route, call.path]),
   );
+}
+
+/** The calls the pages made to an operation, each by its query. */
+function queriesOf(route: string): Record<string, string>[] {
+  return server.clients
+    .flatMap((client) => client.calls)
+    .filter((call) => call.route === route)
+    .map((call) => Object.fromEntries(call.query));
+}
+
+/** The table a page names, its inner markup. */
+function table(markup: string, name: string): string {
+  const found = [...markup.matchAll(/<table[^>]*aria-label="([^"]*)"[^>]*>(.*?)<\/table>/g)].find(
+    (match) => match[1] === name,
+  );
+  expect(found).toBeDefined();
+  return found?.[2] ?? "";
+}
+
+/** The texts of the rows of a table of a page, by its name. */
+function rows(markup: string, name: string): string[] {
+  return [...table(markup, name).matchAll(/<tr[^>]*>(.*?)<\/tr>/g)].map((row) =>
+    text(row[1] ?? ""),
+  );
+}
+
+/** The headings of the columns a grid sorts — those whose header holds a button —, of all its grids. */
+function sortable(markup: string, name?: string): string[] {
+  const head = /<thead[^>]*>(.*?)<\/thead>/.exec(name === undefined ? markup : table(markup, name));
+  return [...(head?.[1] ?? "").matchAll(/<th[^>]*>(.*?)<\/th>/g)]
+    .filter((header) => (header[1] ?? "").includes("<button"))
+    .map((header) => text(header[1] ?? ""));
 }
 
 /** The names of the buttons of a page. */
@@ -143,7 +182,7 @@ describe("the settings of a project", () => {
     expect(text(page)).toContain("Annual inflation rate 3% Probability of winning 100%");
   });
 
-  it("shows the work breakdown of the project, read by the server, in a region of its own: each work package under its order item, with its deliverables", async () => {
+  it("shows the work breakdown of the project, read by the server, in a region of its own: a tree of each order item, its work packages under it and their deliverables under them, which sorts nothing and folds", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/work-breakdown"]).toBe(
       `/projects/${PROJECT}/work-breakdown`,
@@ -152,11 +191,18 @@ describe("the settings of a project", () => {
     expect(region).toMatch(
       /<h2[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Work breakdown<\/h2>/,
     );
-    expect(text(region ?? "")).toBe(
-      "Work breakdown Order item Work package Deliverables " +
-        "Fourniture et montage des armoires Armoires Procès-verbal de réception usine des armoires",
-    );
-    expect(region).toMatch(/<table[^>]*aria-label="Work breakdown"/);
+    expect(rows(region ?? "", "Work breakdown")).toEqual([
+      "Label Kind",
+      "Fourniture et montage des armoires Order item",
+      "Armoires Work package",
+      "Procès-verbal de réception usine des armoires Deliverable",
+      "1 order item",
+    ]);
+    expect(region).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Work breakdown"/);
+    expect(region).toContain('aria-level="3"');
+    expect(sortable(region ?? "")).toEqual([]);
+    // The operation has no search: the grid offers none.
+    expect(region).not.toContain('type="search"');
   });
 
   it("shows the work breakdown by default of a project whose order was not entered: one order item, one work package, no deliverable", async () => {
@@ -165,58 +211,102 @@ describe("the settings of a project", () => {
       "GET /projects/{project_id}/work-breakdown": "work_breakdown_default",
     };
     const page = html(await SettingsPage(at()));
-    const region = /<section aria-label="Work breakdown"[^>]*>(.*?)<\/section>/.exec(page)?.[1];
-    expect(text(region ?? "")).toBe(
-      "Work breakdown Order item Work package Deliverables Commande Lot unique None",
-    );
+    expect(rows(page, "Work breakdown").slice(1)).toEqual([
+      "Commande Order item",
+      "Lot unique Work package",
+      "1 order item",
+    ]);
   });
 
-  it("says an order item without a work package on a row of its own, and a work breakdown without an order item empty", () => {
+  it("shows an order item without a work package alone, and says a work breakdown without an order item empty", () => {
     const fallback = example("work_breakdown_default") as WorkBreakdown;
     const [item] = fallback.order_items;
     const bare = { ...fallback, order_items: item ? [{ ...item, work_packages: [] }] : [] };
-    expect(text(html(<WorkBreakdownList breakdown={bare} />))).toBe(
-      "Work breakdown Order item Work package Deliverables Commande No work package None",
-    );
-    expect(text(html(<WorkBreakdownList breakdown={{ ...fallback, order_items: [] }} />))).toBe(
-      "Work breakdown This project has no order item.",
-    );
+    expect(
+      rows(html(<WorkBreakdownList breakdown={bare} project={PROJECT} />), "Work breakdown"),
+    ).toEqual(["Label Kind", "Commande Order item", "1 order item"]);
+    expect(
+      text(
+        html(<WorkBreakdownList breakdown={{ ...fallback, order_items: [] }} project={PROJECT} />),
+      ),
+    ).toBe("Work breakdown This project has no order item.");
   });
 
-  it("lists the sub-projects of the project, each by its ERP code, and whether actual costs are charged to it", async () => {
+  it("lists the sub-projects of the project on a grid, each by its ERP code, and whether actual costs are charged to it, searched by the server and sorted by none", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/subprojects"]).toBe(
       `/projects/${PROJECT}/subprojects`,
     );
     expect(page).toMatch(/<h2[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Subprojects<\/h2>/);
-    expect(text(page)).toContain(
-      "Subprojects ERP code Label Actual costs SP-CMD Poste de commande Charged SP-ESS Essais et mise en service None",
-    );
+    expect(rows(page, "Subprojects")).toEqual([
+      "ERP code Label Actual costs",
+      "SP-CMD Poste de commande Charged",
+      "SP-ESS Essais et mise en service None",
+      "2 subprojects",
+    ]);
+    expect(sortable(page, "Subprojects")).toEqual([]);
+    expect(page).toContain('aria-label="Search in “Subprojects”"');
   });
 
-  it("lists the contributors of the project, the project manager told from a contributor in words and by an icon, an account deactivated since said so", async () => {
+  it("lists the contributors of the project on a grid, the project manager told from a contributor in words and by an icon, an account deactivated since said so, filtered by capacity", async () => {
     const page = html(await SettingsPage(at()));
     expect(paths()["GET /projects/{project_id}/contributors"]).toBe(
       `/projects/${PROJECT}/contributors`,
     );
-    expect(text(page)).toContain(
-      "Contributors Name Capacity Account " +
-        "Camille Martin Project manager Active Alix Moreau Contributor Deactivated " +
-        "Lucas Petit Contributor Active Inès Roux Contributor Active",
-    );
+    expect(rows(page, "Contributors")).toEqual([
+      "Name Capacity Account",
+      "Camille Martin Project manager Active",
+      "Alix Moreau Contributor Deactivated",
+      "Lucas Petit Contributor Active",
+      "Inès Roux Contributor Active",
+      "4 contributors",
+    ]);
+    expect(sortable(page, "Contributors")).toEqual([]);
     // The project manager alone bears the icon, beside the words that say it.
-    const capacities = [...page.matchAll(/<td[^>]*>(.*?)<\/td>/g)]
-      .map((match) => match[1] ?? "")
-      .filter((cell) => /Project manager|^Contributor$/.test(text(cell)));
+    const capacities = [
+      ...table(page, "Contributors").matchAll(/<td[^>]*data-column="kind"[^>]*>(.*?)<\/td>/g),
+    ].map((match) => match[1] ?? "");
     expect(capacities).toHaveLength(4);
     expect(capacities[0]).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>.*<\/svg>Project manager/);
-    expect(capacities.slice(1)).toEqual(["Contributor", "Contributor", "Contributor"]);
+    expect(capacities.slice(1).every((cell) => !cell.includes("<svg"))).toBe(true);
+    expect(text(page)).toContain("Contributors Every capacity Project manager Contributor");
+  });
+
+  it("asks the server for the search of the sub-projects and the capacities of the contributors the address names, under the names of the contract", async () => {
+    await SettingsPage(
+      at({
+        subproject_search: "SP-C",
+        contributor_kinds: "contributor,unknown,project_manager",
+        // The names of the contract alone belong to no grid of this screen.
+        search: "ignored",
+        kinds: "contributor",
+      }),
+    );
+    expect(queriesOf("GET /projects/{project_id}/subprojects")).toEqual([{ search: "SP-C" }]);
+    expect(queriesOf("GET /projects/{project_id}/contributors")).toEqual([
+      { kinds: "project_manager,contributor" },
+    ]);
+  });
+
+  it("keeps the grid of a list a search or a filter narrows to nothing", () => {
+    const searched = html(
+      <SubprojectList
+        subprojects={[]}
+        shown={{ query: { sort: undefined, search: "XX" }, preferences: undefined }}
+      />,
+    );
+    expect(rows(searched, "Subprojects")).toContain("No row matches the request.");
+    const filtered = html(<ContributorList contributors={[]} kinds={["project_manager"]} />);
+    expect(rows(filtered, "Contributors")).toContain("No row matches the request.");
   });
 
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
     const page = html(await SettingsPage(at()));
-    expect(buttons(page)).toEqual([]);
-    expect(page).not.toContain("<form");
+    expect(buttons(page).filter((name) => /Create|Add|Modify|Delete|Edit/.test(name))).toEqual([]);
+    // The one form is the search of the sub-projects.
+    expect([...page.matchAll(/<form[^>]*>/g)].map((form) => form[0])).toEqual([
+      expect.stringContaining('role="search"'),
+    ]);
   });
 
   it("is not found for a project the API does not find, as the other screens of a project", async () => {

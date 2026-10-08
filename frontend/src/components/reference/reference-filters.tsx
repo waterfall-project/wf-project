@@ -3,9 +3,10 @@
 /**
  * What the screens of the reference data filter their lists by, besides the search of each grid:
  * whether they show the deactivated objects too (WF-REF-0150, `include_inactive`), and the node
- * of organisation the resource roles are restricted to (`org_node_id`, WF-IHM-0130). Each only
- * changes the address, and the server answers anew; the front filters nothing. A change goes on
- * from the address last asked (`usePendingAddress`): a sort or a search under way is kept.
+ * of organisation the resource roles are restricted to (`org_node_id`, WF-IHM-0130) — as the
+ * accounts of the administration are, their list paged by the server. Each only changes the
+ * address, and the server answers anew; the front filters nothing. A change goes on from the
+ * address last asked (`usePendingAddress`): a sort or a search under way is kept.
  */
 "use client";
 
@@ -15,6 +16,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { filterHref } from "@/components/grid/filters";
 import { usePendingAddress, usePendingLink } from "@/components/grid/pending-address";
 import { buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -55,19 +57,22 @@ export interface NodeChoice {
 }
 
 /**
- * The filter of the roles by node of organisation, the nodes offered in the order of the tree the
- * server gives, each set in by its depth; a node the address names that is not offered — none the
- * session reads — stays chosen under its identifier, to be cleared.
+ * The filter of a list by node of organisation — the roles, the accounts —, the nodes offered in the
+ * order of the tree the server gives, each set in by its depth; a node the address names that is
+ * not offered — none the session reads — stays chosen under its identifier, to be cleared.
  */
 export function OrgNodeFilter({
   name,
   nodes,
   chosen,
+  page,
 }: {
   /** The parameter of the address the filter writes. */
   readonly name: string;
   readonly nodes: readonly NodeChoice[];
   readonly chosen: string | undefined;
+  /** The parameter of the page of a list the server pages, which a node chosen takes back to its first. */
+  readonly page?: string;
 }) {
   const t = useTranslations("reference.resourceRoles");
   const named = useTranslations("reference.orgNodes");
@@ -83,7 +88,7 @@ export function OrgNodeFilter({
         value={chosen ?? ""}
         onChange={(event) => {
           const value = event.target.value === "" ? undefined : event.target.value;
-          request((query) => parameterHref(pathname, query, name, value));
+          request((query) => filterHref(pathname, query, name, value, page));
         }}
         className="w-64"
       >

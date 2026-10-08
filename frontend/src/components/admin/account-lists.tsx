@@ -1,24 +1,33 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The accounts and the access roles (FBS-1.1, FBS-1.2, US-0250), in dense tables, in the order
- * the server gave them: each account with its origin, its access roles and the node it is attached
- * to — named as the server resolves them — and whether it is active, a deactivated one staying
- * listed (WF-ADM-0050, WF-ADM-0060); each access role, predefined or composed, with how many
- * accounts hold it (WF-ADM-0010, WF-ADM-0090); and the matrix of the permissions, a row for each
- * permission of the catalogue as `listPermissions` gives it, gathered under the function of the
- * second level it covers — or the kind of the action it guards —, a column for each role, which
- * holds it or not (WF-ADM-0100). Read only: the forms belong to the epic of the administration,
+ * The accounts and the access roles (FBS-1.1, FBS-1.2, US-0250), each a dense grid under its title
+ * (#514, #515), in the order the server gave them: each account with its origin, its access roles
+ * and the node it is attached to — named as the server resolves them — and whether it is active, a
+ * deactivated one staying listed unless the address hides them (WF-ADM-0050, WF-ADM-0060), filtered
+ * by origin, by node and by state, a page of the list the server pages, and the commands of the
+ * accounts for a session that may modify them, which EP-03 wires; each access role, predefined or
+ * composed, with how many accounts hold it (WF-ADM-0010, WF-ADM-0090), and the commands of the
+ * roles for a session that may modify them, which EP-03 wires; and the matrix of the permissions, a
+ * row for each permission of the catalogue as `listPermissions` gives it, gathered under the name
+ * of the function of the second level it covers — or the kind of the action it guards —, a column
+ * for each role, which holds it or not (WF-ADM-0100), where EP-03 modifies a role. The forms belong to the epic of the administration,
  * and no screen creates a permission.
+ *
+ * A list says it is empty only when nothing narrows it: a search or a filter that retains nothing
+ * keeps its grid, the search shown to be changed.
  */
 import { Check, KeyRound, ShieldCheck, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import type { ListPage } from "@/components/admin/list-pages";
-import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
-import { ActiveState, ReferenceSection } from "@/components/reference/section";
-import { Badge } from "@/components/ui/badge";
+import { ListPages } from "@/components/costs/cost-pages";
+import { OFFSET, type GridQuery } from "@/components/grid/query";
+import type { GridPreferences } from "@/components/grid/settings";
+import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
+import { CELL, ICON } from "@/components/projects/project-tables";
+import { type NodeChoice, OrgNodeFilter } from "@/components/reference/reference-filters";
+import { ReferenceSection } from "@/components/reference/section";
 import {
   Table,
   TableBody,
@@ -29,100 +38,127 @@ import {
 } from "@/components/ui/table";
 import { functionAt } from "@/navigation/functions";
 
-type User = components["schemas"]["User"];
+import { AccessRoleGrid, UserGrid } from "./admin-grid";
+import type { AccessRoleSort, User, UserPage, UserSort } from "./admin-grids";
+import { AccountStateSwitch } from "./account-filters";
+import { CreateCommand, LaterCommands, LaterNotice } from "./later-commands";
+import { ORG_NODE, ORIGINS, USER_ORIGINS, type UserOrigin } from "./user-address";
+
 type AccessRole = components["schemas"]["AccessRole"];
 type Permission = components["schemas"]["Permission"];
 
 /**
- * The accounts of a page of the list, or that the installation has none — only when the list holds
- * none at all: a page asked beyond its end is no empty list, and shows no table; its pages say where
- * it stands (`ListPages`).
+ * The accounts of a page of the list, filtered by origin, by node and by state, or that the
+ * installation has none — only when the list holds none at all and nothing narrows it: a page asked
+ * beyond its end is no empty list; its pages say where it stands (`ListPages`). For a session that
+ * may modify the accounts, the region that says what their commands do, which the screen shares
+ * with the command of its header (`LaterCommands`) — before the list, so that it speaks when the
+ * list is empty too.
  */
 export function UserList({
   users,
   page,
+  query,
+  preferences,
+  origins,
+  nodes,
+  orgNode,
+  inactive,
+  editable,
 }: {
   readonly users: readonly User[];
-  readonly page: ListPage;
+  readonly page: UserPage;
+  readonly query: GridQuery<UserSort>;
+  readonly preferences: GridPreferences | undefined;
+  /** The origins the address restricts the accounts to; none, every one. */
+  readonly origins: readonly UserOrigin[];
+  /** The nodes of organisation the accounts may be restricted to, in the order of the tree. */
+  readonly nodes: readonly NodeChoice[];
+  /** The node the address restricts the accounts to, if any. */
+  readonly orgNode: string | undefined;
+  /** Whether the deactivated accounts are listed: unless the address hides them. */
+  readonly inactive: boolean;
+  /** Whether the session may modify the accounts (`platformOffer`). */
+  readonly editable: boolean;
 }) {
   const t = useTranslations("admin.users");
-  const columns = useTranslations("reference.columns");
-  const origins = useTranslations("enums.UserOrigin");
+  const named = useTranslations("enums.UserOrigin");
+  const narrowed =
+    query.search !== undefined || origins.length > 0 || orgNode !== undefined || !inactive;
+  const choices: FilterValue<UserOrigin>[] = USER_ORIGINS.map((origin) => ({
+    value: origin,
+    text: named(origin),
+  }));
   return (
-    <ReferenceSection
-      title={t("title")}
-      icon={Users}
-      empty={page.total === 0 ? t("none") : undefined}
-    >
-      {users.length === 0 ? null : (
-        <ListTable
-          label={t("title")}
-          columns={[
-            t("lastName"),
-            t("firstName"),
-            t("email"),
-            t("origin"),
-            t("roles"),
-            t("orgNode"),
-            columns("state"),
-          ]}
-        >
-          {users.map((user) => (
-            <TableRow key={user.user_id}>
-              <TableCell className={CELL}>{user.last_name}</TableCell>
-              <TableCell className={CELL}>{user.first_name}</TableCell>
-              <TableCell className={CELL}>{user.email}</TableCell>
-              <TableCell className={CELL}>{origins(user.origin)}</TableCell>
-              <TableCell className={CELL}>
-                {user.access_role_labels.length === 0 ? (
-                  <span className="text-muted-foreground">{t("noRole")}</span>
-                ) : (
-                  <ul className="flex flex-wrap gap-1">
-                    {user.access_role_labels.map((label, at) => (
-                      <li key={user.access_role_ids[at] ?? label}>
-                        <Badge variant="secondary">{label}</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </TableCell>
-              <TableCell className={CELL}>
-                {user.org_node_label ?? (
-                  <span className="text-muted-foreground">{t("noOrgNode")}</span>
-                )}
-              </TableCell>
-              <TableCell className={CELL}>
-                <ActiveState active={user.is_active} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </ListTable>
-      )}
-    </ReferenceSection>
+    <>
+      {/* Outside the section, which an empty list empties: the command of the header is told. */}
+      {editable ? <LaterNotice /> : null}
+      <ReferenceSection
+        title={t("title")}
+        icon={Users}
+        empty={page.total === 0 && !narrowed ? t("none") : undefined}
+        fill
+      >
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ValuesFilter
+            name={ORIGINS}
+            label={t("originFilter")}
+            every={t("everyOrigin")}
+            values={choices}
+            chosen={origins}
+            page={OFFSET}
+          />
+          <OrgNodeFilter name={ORG_NODE} nodes={nodes} chosen={orgNode} page={OFFSET} />
+          <AccountStateSwitch shown={inactive} />
+        </div>
+        <UserGrid
+          users={users}
+          page={page}
+          query={query}
+          preferences={preferences}
+          editable={editable}
+        />
+        <ListPages list="users" page={page} shown={users.length} />
+      </ReferenceSection>
+    </>
   );
 }
 
-/** The access roles, each predefined or composed, with how many accounts hold it. */
-export function AccessRoleList({ roles }: { readonly roles: readonly AccessRole[] }) {
+/**
+ * The access roles, each predefined or composed, with how many accounts hold it; for a session
+ * that may modify them, the command that creates one, and those that modify and delete each.
+ */
+export function AccessRoleList({
+  roles,
+  query,
+  preferences,
+  editable,
+}: {
+  readonly roles: readonly AccessRole[];
+  readonly query: GridQuery<AccessRoleSort>;
+  readonly preferences: GridPreferences | undefined;
+  /** Whether the session may modify the access roles (`platformOffer`). */
+  readonly editable: boolean;
+}) {
   const t = useTranslations("admin.accessRoles");
-  const columns = useTranslations("reference.columns");
+  // Empty only when no search narrows it; the command that creates a role is offered all the same.
+  const list =
+    roles.length === 0 && query.search === undefined ? (
+      <p className="text-sm text-muted-foreground">{t("none")}</p>
+    ) : (
+      <AccessRoleGrid roles={roles} query={query} preferences={preferences} editable={editable} />
+    );
   return (
-    <ReferenceSection
-      title={t("title")}
-      icon={ShieldCheck}
-      empty={roles.length === 0 ? t("none") : undefined}
-    >
-      <ListTable label={t("title")} columns={[columns("label"), t("kind"), t("holders")]}>
-        {roles.map((role) => (
-          <TableRow key={role.access_role_id}>
-            <TableCell className={CELL}>{role.label}</TableCell>
-            <TableCell className={CELL}>
-              {role.is_predefined ? t("predefined") : t("composed")}
-            </TableCell>
-            <TableCell className={`${CELL} text-right tabular-nums`}>{role.holder_count}</TableCell>
-          </TableRow>
-        ))}
-      </ListTable>
+    <ReferenceSection title={t("title")} icon={ShieldCheck}>
+      {editable ? (
+        <LaterCommands>
+          <CreateCommand kind="role" />
+          <LaterNotice />
+          {list}
+        </LaterCommands>
+      ) : (
+        list
+      )}
     </ReferenceSection>
   );
 }
@@ -152,20 +188,16 @@ function sameRun(one: Permission, other: Permission): boolean {
   return fbs === (other.fbs_code ?? null) && (fbs !== null || one.kind === other.kind);
 }
 
-/** What heads a run: the code and the name of its function, or the kind of its actions. */
+/**
+ * What heads a run: the name of its function — never its code of the FBS, an internal key the user
+ * has no use for (decision of the author on #515, 2026-10-08) —, or the kind of its actions; a
+ * function the navigation does not know is named by the kind of its permission.
+ */
 function RunHeading({ head }: { readonly head: Permission }) {
   const t = useTranslations();
   const fbs = head.fbs_code ?? null;
-  if (fbs === null) {
-    return t(`enums.Permission.kind.${head.kind}`);
-  }
-  const fn = functionAt(fbs);
-  return (
-    <span className="flex flex-col">
-      <span className="text-xs text-muted-foreground tabular-nums">{fbs}</span>
-      {fn === undefined ? null : <span>{t(fn.label)}</span>}
-    </span>
-  );
+  const fn = fbs === null ? undefined : functionAt(fbs);
+  return fn === undefined ? t(`enums.Permission.kind.${head.kind}`) : t(fn.label);
 }
 
 /** Whether a role holds a permission — said by a mark and a word, not by colour. */

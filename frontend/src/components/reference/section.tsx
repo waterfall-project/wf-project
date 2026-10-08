@@ -18,16 +18,25 @@ export function ReferenceSection({
   title,
   icon: Icon,
   empty,
+  fill = false,
   children,
 }: {
   readonly title: string;
   readonly icon: LucideIcon;
   /** What the section says when its list is empty; `undefined` when it is not. */
   readonly empty?: string | undefined;
+  /**
+   * Whether the section fills what its screen leaves it — the one grid of a screen that fills the
+   * window (`Screen fill`) —, the grid shrinking to it.
+   */
+  readonly fill?: boolean;
   readonly children: ReactNode;
 }) {
   return (
-    <section aria-label={title} className="space-y-2">
+    <section
+      aria-label={title}
+      className={fill ? "flex min-h-0 flex-1 flex-col gap-2" : "space-y-2"}
+    >
       <h2 className="flex items-center gap-2 text-base font-semibold">
         <Icon aria-hidden="true" className={ICON} />
         {title}

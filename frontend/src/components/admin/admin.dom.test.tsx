@@ -11,7 +11,7 @@ import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
-import { AccessRoleList, PermissionMatrix, UserList } from "./account-lists";
+import { PermissionMatrix } from "./account-lists";
 import { AdminListPages } from "./list-pages";
 import {
   AlertList,
@@ -26,7 +26,6 @@ type Schemas = components["schemas"];
 
 const roles = example("access_roles") as Schemas["AccessRole"][];
 const permissions = example("permissions") as Schemas["Permission"][];
-const users = example("users") as { items: Schemas["User"][]; meta: Schemas["PaginationMeta"] };
 const failed = example("system_status_backup_failed") as Schemas["SystemStatus"];
 const backups = example("backups") as {
   items: Schemas["Backup"][];
@@ -60,12 +59,14 @@ describe("the matrix of the permissions", () => {
       "Non accordée",
       "Non accordée",
     ]);
-    // Each of the twenty-four functions heads its group by its code, then by its name.
-    expect(within(matrix).getAllByRole("rowheader", { name: /^FBS-/ })).toHaveLength(24);
-    expect(within(matrix).getAllByRole("rowheader", { name: /^FBS-\d+\.\d+ \S/ })).toHaveLength(24);
+    // Each of the twenty-four functions heads its group by its name alone: no code of the FBS is
+    // shown to the user (decision of the author on #515).
     expect(
-      within(matrix).getByRole("rowheader", { name: "FBS-1.2 Gestion des rôles d’habilitation" }),
+      within(matrix).getByRole("rowheader", { name: "Gestion des rôles d’habilitation" }),
     ).toHaveAttribute("rowspan", "2");
+    // Twenty-four functions, and the irreversible and the structuring actions.
+    expect(matrix.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(26);
+    expect(matrix.textContent).not.toContain("FBS-");
     await expectAccessible(container);
   });
 
@@ -78,28 +79,24 @@ describe("the matrix of the permissions", () => {
   });
 });
 
-describe("the lists of the accounts and the roles", () => {
+describe("the pages of a list of the administration", () => {
   it("break no rule of accessibility, the links of the pages keeping the rest of the address", async () => {
     const { container } = rendered(
-      <>
-        <UserList users={users.items} page={users.meta} />
-        <AdminListPages
-          path="/admin/users"
-          query={new URLSearchParams("include_inactive=true&offset=2")}
-          page={{ limit: 2, offset: 2, total: 5 }}
-          shown={2}
-          count="5"
-        />
-        <AccessRoleList roles={roles} />
-      </>,
+      <AdminListPages
+        path="/admin/backups"
+        query={new URLSearchParams("include_inactive=true&offset=2")}
+        page={{ limit: 2, offset: 2, total: 5 }}
+        shown={2}
+        count="5"
+      />,
     );
     expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
       "href",
-      "/admin/users?include_inactive=true",
+      "/admin/backups?include_inactive=true",
     );
     expect(screen.getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
       "href",
-      "/admin/users?include_inactive=true&offset=4",
+      "/admin/backups?include_inactive=true&offset=4",
     );
     await expectAccessible(container);
   });
@@ -119,11 +116,6 @@ describe("the lists of the accounts and the roles", () => {
       "href",
       "/admin/backups?offset=4",
     );
-  });
-
-  it("say an empty list", () => {
-    rendered(<AccessRoleList roles={[]} />);
-    expect(screen.getByText("Aucun rôle d’habilitation.")).toBeInTheDocument();
   });
 });
 
