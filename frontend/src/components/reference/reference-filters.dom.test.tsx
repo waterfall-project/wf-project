@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, startTransition } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChoiceFilter } from "@/components/grid/choice-filter";
@@ -64,7 +64,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  router.push.mockClear();
+  router.push.mockReset();
 });
 
 describe("the filters of a list of the reference data", () => {
@@ -130,6 +130,41 @@ describe("the filters of a list of the reference data", () => {
     expect(lastAddress()).toBe("/reference/resources?role_cost_category_id=mo-001");
     await userEvent.selectOptions(filter, "");
     expect(lastAddress()).toBe("/reference/resources");
+  });
+
+  it("show the object chosen while the server reads the list anew, and the address once it has answered", async () => {
+    let arrive: () => void = () => undefined;
+    const navigation = new Promise<void>((resolve) => {
+      arrive = resolve;
+    });
+    // A navigation of Next stays pending until the server has answered for the new address.
+    router.push.mockImplementation(() => {
+      startTransition(() => navigation);
+    });
+    const filter = (chosen: string | undefined) =>
+      inFrench(
+        <ChoiceFilter
+          name={ROLE_COST_CATEGORY}
+          label="Catégorie de coût"
+          every="Toutes les catégories"
+          choices={[{ value: "mo-001", text: "MO-001 · Ingénierie électrique" }]}
+          chosen={chosen}
+        />,
+      );
+    const { rerender } = render(filter(undefined));
+    const select = screen.getByRole("combobox", { name: "Catégorie de coût" });
+    await userEvent.selectOptions(select, "mo-001");
+    expect(lastAddress()).toBe("/reference/resources?role_cost_category_id=mo-001");
+    // The address has not changed yet: the list shows the choice, never the address before it.
+    expect(select).toHaveValue("mo-001");
+    // The server answers: the address names the object, which the list goes on showing.
+    page.search = "role_cost_category_id=mo-001";
+    await act(async () => {
+      arrive();
+      await navigation;
+    });
+    rerender(filter("mo-001"));
+    expect(select).toHaveValue("mo-001");
   });
 
   it("filter the tree on the code entered, lifted when emptied [WF-IHM-0130-A]", async () => {

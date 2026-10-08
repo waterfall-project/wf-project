@@ -11,12 +11,14 @@ import { type Locator, type Page, expect } from "@playwright/test";
 
 /**
  * The bound of a screen of grid, in milliseconds: a dense grid — of the estimate, the planning,
- * the remaining, the risks, the actual costs, the portfolio — or a screen that reads the structure
- * of a thousand tasks (`listNodes`) — the Kanban, the tree, the timelines —, to show, to hydrate,
- * or to read anew after a click. A bound of its working under load, not a measure (#315); the
- * risks and the actual costs, read anew, overran five seconds under load: measures in #500, which
- * is still to be decided. Any other screen keeps the five seconds of an assertion; the helpers
- * below give a page that long to hydrate.
+ * the remaining, the risks, the actual costs, the portfolio, the reference data — or a screen that
+ * reads the structure of a thousand tasks (`listNodes`) — the Kanban, the tree, the timelines —,
+ * to show, to hydrate, or to read anew after a click. A bound of its working under load, not a
+ * measure (#315); the risks and the actual costs, read anew, overran five seconds under load:
+ * measures in #500, which is still to be decided. The settings of the costs, read anew for a
+ * nature chosen, took from two to seven seconds under six workers on four processors — the read of
+ * the server and the commit of the page up to four each (EP-02/L41g). Any other screen keeps the
+ * five seconds of an assertion; the helpers below give a page that long to hydrate.
  */
 export const WORKING = 15_000;
 

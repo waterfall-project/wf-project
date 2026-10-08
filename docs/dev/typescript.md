@@ -282,3 +282,13 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     d'origine, et affirment le focus et la valeur (`costs.dom.test.tsx`, `portfolio.dom.test.tsx`,
     `reference-filters.dom.test.tsx`, `audit.dom.test.tsx`, `actual-costs.spec.ts`) ; aucun outil ne
     le tient : la revue le cherche.
+21. **Liste contrôlée qui montre l'adresse pendant la navigation.** Un `<select>` dont la valeur est
+    celle de l'adresse revient, dès le choix fait, à la valeur d'avant, jusqu'à ce que la page lue à
+    nouveau arrive — plusieurs secondes sur le serveur de développement chargé : le choix paraît
+    perdu, et un parcours qui choisit à nouveau tant que l'adresse n'a pas changé remplace chaque
+    navigation par la suivante (EP-02/L41g). Le choix se montre jusqu'à la réponse du serveur
+    (`useOptimistic` dans la transition qui navigue, `ChoiceFilter`) ; un parcours choisit à
+    nouveau jusqu'à ce que la navigation parte (`page.waitForRequest`), jamais jusqu'à ce qu'elle
+    arrive, et attend l'adresse dans la borne de l'écran (`WORKING` pour un écran de grilles
+    denses). `reference-filters.dom.test.tsx` le prouve ; aucun outil ne le tient : la revue le
+    cherche.

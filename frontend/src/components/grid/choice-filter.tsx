@@ -8,7 +8,8 @@
  * names that is not offered — none the session reads — stays chosen, under the name given or its
  * identifier, to be cleared. A choice only changes the address, under the name of the contract,
  * back to the first page of a list the server pages (`filterHref`); the page reads the list anew,
- * which the server filters. A choice goes on from the address last asked (`usePendingAddress`).
+ * which the server filters, the choice shown meanwhile. A choice goes on from the address last
+ * asked (`usePendingAddress`).
  *
  * Every prop is data — the texts are given translated —, never a function: a server component
  * hands it over (défaut n° 12 de `typescript.md`).
@@ -16,7 +17,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useId } from "react";
+import { useId, useOptimistic, useTransition } from "react";
 
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -61,6 +62,11 @@ export function ChoiceFilter({
   const select = id ?? own;
   const pathname = usePathname();
   const { request } = usePendingAddress();
+  // The object chosen, shown until the server answers for it: a controlled list would otherwise
+  // show the address until the navigation arrives — the choice seemingly undone for as long as
+  // the page is read anew —, and again the address should another navigation replace it.
+  const [shown, show] = useOptimistic(chosen ?? "");
+  const [, startTransition] = useTransition();
   const offered = chosen === undefined || choices.some((choice) => choice.value === chosen);
   return (
     <div className="flex items-center gap-2 text-sm">
@@ -70,10 +76,13 @@ export function ChoiceFilter({
       <div className="w-56 shrink-0">
         <NativeSelect
           id={select}
-          value={chosen ?? ""}
+          value={shown}
           onChange={(event) => {
             const value = event.target.value;
-            request((query) => filterHref(pathname, query, name, value, page));
+            startTransition(() => {
+              show(value);
+              request((query) => filterHref(pathname, query, name, value, page));
+            });
           }}
         >
           <option value="">{every}</option>

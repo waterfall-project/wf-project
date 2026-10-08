@@ -185,11 +185,11 @@ test("sorts and searches each list of the settings of the resources by the serve
     .getByRole("searchbox", { name: "Rechercher dans «\u00a0Arbre d’organisation\u00a0»" })
     .fill("BE");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/role_sort_by=monthly_hours.*&org_search=BE$/);
+  await expect(page).toHaveURL(/role_sort_by=monthly_hours.*&org_search=BE$/, { timeout: WORKING });
 
   // The deactivated objects asked of the server, each offered to be reactivated.
   await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
-  await expect(page).toHaveURL(/include_inactive=true/);
+  await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
   await expect(page.getByRole("link", { name: "Masquer les désactivés" })).toBeVisible();
   // The reactivation is a server action, which carries the role: its answer awaited, from before
   // the click.
@@ -239,10 +239,15 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
     rates,
     "/reference/costs?sort_by=rate.2026&sort_order=asc",
   );
-  // The categories filtered by nature, under the names of their grid, the sort of the rates kept.
-  await page.getByRole("combobox", { name: "Nature" }).selectOption({ label: "MO · Main-d'œuvre" });
+  // The categories filtered by nature, under the names of their grid, the sort of the rates kept:
+  // the nature shows chosen at once, and the address carries it once the server has read the
+  // screen anew — its three dense grids, in the bound of a grid (`WORKING`).
+  const nature = page.getByRole("combobox", { name: "Nature" });
+  await nature.selectOption({ label: "MO · Main-d'œuvre" });
+  await expect(nature).toHaveValue("01926f3a-7c00-7000-8000-000000000461");
   await expect(page).toHaveURL(
     /sort_by=rate\.2026&sort_order=asc&category_cost_type_id=01926f3a-7c00-7000-8000-000000000461$/,
+    { timeout: WORKING },
   );
   // The rate of a year between bounds, under the names of the contract (#545), the rest kept.
   const rateBounds = page.getByRole("form", {
@@ -251,20 +256,33 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
   await rateBounds.getByRole("combobox", { name: "Année du taux" }).selectOption("2026");
   await rateBounds.getByRole("textbox", { name: "Taux horaire, min." }).fill("110,5");
   await rateBounds.getByRole("button", { name: "Filtrer" }).click();
-  await expect(page).toHaveURL(/category_cost_type_id=[\w-]+&rate_min=110\.5&rate_year=2026$/);
+  await expect(page).toHaveURL(/category_cost_type_id=[\w-]+&rate_min=110\.5&rate_year=2026$/, {
+    timeout: WORKING,
+  });
 
   // The roles filtered by calendar, back to their first page. No project is opened here, nothing
-  // witnesses the hydration: the calendar is chosen again until React answers.
+  // witnesses the hydration: the calendar is chosen again until React answers — until the
+  // navigation it asks leaves —, and never once it has: chosen anew, the list would ask again,
+  // and each navigation would replace the one before. A choice made before the hydration stays in
+  // the list, which React then takes for none: the list is emptied first.
   await page.goto("/reference/resources?role_offset=50");
   const calendar = page.getByRole("combobox", { name: "Calendrier" });
+  const standard = "01926f3a-7c00-7000-8000-000000000481";
   await expect(async () => {
-    await calendar.selectOption("");
-    await calendar.selectOption({ label: "Semaine standard" });
-    await expect(page).toHaveURL(
-      "/reference/resources?role_calendar_id=01926f3a-7c00-7000-8000-000000000481",
-      { timeout: 1_000 },
-    );
+    await Promise.all([
+      page.waitForRequest((request) => request.url().includes(`role_calendar_id=${standard}`), {
+        timeout: 1_000,
+      }),
+      (async () => {
+        await calendar.selectOption("");
+        await calendar.selectOption({ label: "Semaine standard" });
+      })(),
+    ]);
   }).toPass({ timeout: WORKING });
+  await expect(calendar).toHaveValue(standard);
+  await expect(page).toHaveURL(`/reference/resources?role_calendar_id=${standard}`, {
+    timeout: WORKING,
+  });
   // The monthly hours of the roles bounded, entered as French writes a number.
   const roleBounds = page.getByRole("form", {
     name: "Bornes de «\u00a0Rôles de ressources\u00a0»",
@@ -273,5 +291,6 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
   await roleBounds.getByRole("button", { name: "Filtrer" }).click();
   await expect(page).toHaveURL(
     "/reference/resources?role_calendar_id=01926f3a-7c00-7000-8000-000000000481&role_monthly_hours_min=300000",
+    { timeout: WORKING },
   );
 });
