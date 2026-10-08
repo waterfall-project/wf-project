@@ -80,7 +80,7 @@ function grid(
 /** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
 function cell(row: number, column: string): HTMLElement {
   const found = screen
-    .getByRole("grid")
+    .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
   if (found === null) {
     throw new Error(`no cell ${column} in the row ${row.toString()}`);
@@ -108,7 +108,7 @@ describe("the grid of the remaining to commit", () => {
     // et courant: the figures at the previous one first, then those of now (#424).
     serve();
     const { container } = render(grid());
-    const table = screen.getByRole("grid", { name: "Grille de reste à engager" });
+    const table = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
     const headers = within(table)
       .getAllByRole("columnheader")
       .map((header) => header.textContent);
@@ -213,7 +213,9 @@ describe("the grid of the remaining to commit", () => {
       progress: "started",
       fields: "node_id",
     });
-    expect(screen.getByRole("grid").querySelector("tfoot")).not.toHaveTextContent(/121\s334,56/);
+    expect(screen.getByRole("treegrid").querySelector("tfoot")).not.toHaveTextContent(
+      /121\s334,56/,
+    );
   });
 
   it("re-estimates a quantity, and a unit disbursement emptied, each figure alone", async () => {

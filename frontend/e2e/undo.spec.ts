@@ -19,7 +19,7 @@ test("places Undo and Redo in the grid, its menu and its keys, unavailable and s
   page,
 }) => {
   await openHydrated(page, ESTIMATE);
-  const grid = page.getByRole("grid", { name: "Grille de devis" });
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
   const reason = "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.";
   for (const name of ["Annuler", "Rétablir"]) {
     const button = page.getByRole("button", { name, exact: true });

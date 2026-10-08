@@ -14,7 +14,8 @@
  * structure — is read as the
  * grid reads it (`nodesWritten`, #218), the totals taken only by a grid read without a search nor
  * a filter, whose totals are those of the structure; a grid read with either reads its own anew by
- * the same request, once its writes answered (`readNodeTotals`).
+ * the same request, once its writes answered (`readNodeTotals`). Its tree folds as the planning's,
+ * the folds kept for the revision; a filter on a sub-project unfolds the rows above those it retains.
  */
 "use client";
 
@@ -43,6 +44,7 @@ import { nodeDependencies } from "./node-dependencies";
 import {
   type NodeColumn,
   type NodeFilters,
+  nodeNarrowing,
   type NodeRows,
   type NodesWritten,
   type NodeSortColumn,
@@ -231,6 +233,8 @@ export function EstimateGrid({
       query={query}
       preferences={preferences}
       dependencies={dependencies}
+      foldScope={structure.revision_id}
+      narrowing={nodeNarrowing(filters)}
       undoable={editable}
     />
   );

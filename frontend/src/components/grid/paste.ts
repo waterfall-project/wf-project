@@ -15,7 +15,8 @@
  * cell — as the server would refuse it (`PASTE_TOO_WIDE`) — and a block whose span, from the column
  * of the cell to the last one filled in that order, reaches a column the grid does not show —
  * hidden, or that the grid does not present at all —, which would write what the user cannot see
- * (`hidden`), named. Otherwise the server says what it would write and refuse, with the reason of
+ * (`hidden`), named; and a block whose rows, from the cell's on, reach a row folded away in the tree
+ * of the grid, which the server would fill unseen (`folded`, `fold.tsx`). Otherwise the server says what it would write and refuse, with the reason of
  * each refusal, and writes nothing (`GridPaste.preview`); the grid shows that plan, and applies it
  * once confirmed, in one operation (`GridPaste.apply`), what the server wrote taking the place of
  * what was read (`CellWrites.applied`). A paste abandoned asks nothing more, and an answer that
@@ -150,6 +151,9 @@ export type UnshownColumn =
   | { readonly shown: "hidden"; readonly column: ColumnName }
   | { readonly shown: "absent"; readonly name: string };
 
+/** What a refused block would fill that the grid does not show: a column, or a row folded away. */
+export type Unshown = UnshownColumn | { readonly shown: "folded" };
+
 /** The refusal the front opposes itself, before asking anything (#200, #223). */
 interface LocalRefusal {
   readonly outcome: Outcome<never> | undefined;
@@ -200,6 +204,11 @@ export interface GridPasteOptions<Row extends RowData, Sort extends string, Tota
   readonly writes: CellWrites<Row, Totals>;
   /** The element the grid scrolls in: a paste is taken only when the focus is within it. */
   readonly scroller: RefObject<HTMLElement | null>;
+  /**
+   * Whether a row folded away is among those a block of rows fills from a row; none for a grid
+   * whose tree does not fold.
+   */
+  readonly folded?: ((row: Row, count: number) => boolean) | undefined;
 }
 
 /** Paste a block into a grid: read it, show its plan, apply it once confirmed, or abandon it. */
@@ -209,11 +218,12 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   columns,
   writes,
   scroller,
+  folded,
 }: GridPasteOptions<Row, Sort, Totals>) {
   const [pasting, setPasting] = useState<Pasting>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   // The column the grid does not show a refused block would reach, named to the user (#200).
-  const [hidden, setHidden] = useState<UnshownColumn>();
+  const [hidden, setHidden] = useState<Unshown>();
   // The paste an answer belongs to: one abandoned, or another started, drops the answer.
   const current = useRef(0);
   // The cell the block was pasted on, which has the focus back once the report closes.
@@ -221,7 +231,7 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
   const { paste } = config;
 
   /** Refuse a block here, asking nothing: too wide, or reaching a column the grid does not show. */
-  const refuse = (told: Outcome<never> | undefined, masked: UnshownColumn | undefined) => {
+  const refuse = (told: Outcome<never> | undefined, masked: Unshown | undefined) => {
     setOutcome(told);
     setHidden(masked);
   };
@@ -272,6 +282,10 @@ export function useGridPaste<Row extends RowData, Sort extends string, Totals>({
     const refused = localRefusal(config, paste, landed, block, columns);
     if (refused !== undefined) {
       refuse(refused.outcome, refused.hidden);
+      return;
+    }
+    if (folded?.(landed.row, block.length) === true) {
+      refuse(undefined, { shown: "folded" });
       return;
     }
     origin.current = focused instanceof HTMLElement ? focused : undefined;

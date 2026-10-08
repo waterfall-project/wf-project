@@ -68,6 +68,20 @@ export type NodeFilters = Omit<
   "fields" | "sort_by" | "sort_order"
 >;
 
+/**
+ * What a reading of the nodes is narrowed by, as a grid unfolds for it: what it asked besides its
+ * fields and its sort, but the kinds of node it renders and what else is the scope of the grid —
+ * the states of the tasks of the remaining to commit (WF-RAE-0040) —, which retain no row of their
+ * own and are the same for every reading of the grid.
+ */
+export function nodeNarrowing(
+  filters: NodeFilters,
+  baseline: readonly (keyof NodeFilters)[] = [],
+): Readonly<Record<string, unknown>> {
+  const scope = new Set<string>(["kinds", ...baseline]);
+  return Object.fromEntries(Object.entries(filters).filter(([name]) => !scope.has(name)));
+}
+
 /** A column of the contract the server sorts the nodes by. */
 export type NodeSortColumn = NonNullable<
   NonNullable<operations["listNodes"]["parameters"]["query"]>["sort_by"]
@@ -102,8 +116,9 @@ export type AnyNodeFields = NodeFields<NodeField, keyof TaskFacet, keyof Estimat
 
 /**
  * The fields every grid of a structure reads: the identity and the version of a node, which an
- * entry sends back, the fields the server computes on it and those it accepts (#219), its number
- * and its level, its kind and the flags of its nature, its label.
+ * entry sends back, the fields the server computes on it and those it accepts (#219), its number,
+ * its level and the node it is under, which the tree folds by, its kind and the flags of its
+ * nature, its label.
  */
 export const COMMON_FIELDS = {
   node: [
@@ -113,6 +128,7 @@ export const COMMON_FIELDS = {
     "editable_fields",
     "row_number",
     "level",
+    "parent_id",
     "kind",
   ],
   task: ["label", "is_summary", "is_milestone"],
@@ -433,11 +449,15 @@ function emphasis(node: GridNode): "strong" | "muted" | undefined {
   return nature === "provision" ? "muted" : undefined;
 }
 
-/** The tree of a structure: the level the API computes, the icon of the nature of a node. */
+/**
+ * The tree of a structure: the level the API computes, the icon of the nature of a node, and its
+ * parent, by which it folds — a summary over its tasks, a task over its lines.
+ */
 export const NODE_TREE: GridTree<GridNode> = {
   level: (node) => node.level,
   nature: (node) => <RowNatureIcon node={node} />,
   emphasis,
+  parent: (node) => node.parent_id,
 };
 
 /** The identity of a node, stable from one answer to the next. */

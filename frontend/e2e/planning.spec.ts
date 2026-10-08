@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
-import { scrollToPosition, withinBox } from "./scroll";
+import { rowAt, scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
 // the witness at the sizes of §4.6.2, its core first, a thousand tasks and their lines (#376) —:
@@ -14,7 +14,8 @@ import { scrollToPosition, withinBox } from "./scroll";
 // generator writes, which `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py)
 // holds: row 7, a task of the core completed off the critical path; row 311, started, which follows
 // row 291; row 39, a task of the critical path not started, which follows the factory acceptance of
-// row 18 — where the fake back numbers the rows as it orders them.
+// row 18; row 13, a summary of the second level over the task of row 14, before row 18 — where the
+// fake back numbers the rows as it orders them.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
@@ -24,7 +25,7 @@ test("opens the grid of the planning: its icons named, the critical path marked,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
   await expect(page).toHaveTitle("Planification · Modernisation du poste de commande — Waterfall");
-  const grid = page.getByRole("grid", { name: "Grille de planning" });
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   for (const name of [
     "N°",
     "Libellé",
@@ -75,7 +76,7 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
-  const grid = page.getByRole("grid", { name: "Grille de planning" });
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { gantt: "Gantt" });
   // Its axis, in its header, the months of the plan.
   await expect(grid.getByRole("columnheader", { name: "Gantt" })).toContainText("janv. 27");
@@ -105,6 +106,52 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   await expect(grid.getByRole("textbox")).toHaveCount(0);
   await expect(criticalBar).toHaveAccessibleName("Du 01/07/2026 au 16/07/2026 — critique");
   expect(sent).toEqual([]);
+});
+
+test("folds a summary in the grid and the Gantt follows, unfolds it from the Gantt and the grid follows, and keeps the fold for the session [WF-PLA-0090-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });
+  // A summary of the core at the second level, over the task of row 14, before its next sibling,
+  // the factory acceptance of row 18.
+  const summary = grid.getByRole("row", { name: /^13 .*Risque survenu — Retard de livraison/ });
+  const task = grid.getByRole("row", { name: /^14 .*Relance du fournisseur/ });
+  await expect(summary).toHaveAttribute("aria-expanded", "true");
+  await expect(summary).toHaveAttribute("aria-level", "2");
+  await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
+
+  // Une récapitulative pliée dans la grille l'est dans le Gantt: the rows under it leave both,
+  // the row after it is its next sibling, and its bracket in the Gantt offers to unfold it.
+  await summary.getByRole("gridcell").nth(at.label).getByRole("button", { name: "Plier" }).click();
+  await expect(summary).toHaveAttribute("aria-expanded", "false");
+  await expect(task).toHaveCount(0);
+  await expect(rowAt(grid, 14)).toHaveAccessibleName(/^18 .*Réception usine/);
+  await expect(rowAt(grid, 14)).toHaveAttribute("aria-level", "2");
+  await expect(grid).not.toHaveAttribute("aria-rowcount", "6002");
+  const ganttOfSummary = summary.getByRole("gridcell").nth(at.gantt);
+  await expect(ganttOfSummary.getByRole("img")).toBeVisible();
+
+  // Et réciproquement: unfolded from the Gantt, the grid unfolds.
+  await ganttOfSummary.getByRole("button", { name: "Déplier" }).click();
+  await expect(summary).toHaveAttribute("aria-expanded", "true");
+  await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
+  await expect(grid).toHaveAttribute("aria-rowcount", "6002");
+
+  // By the keys of Microsoft Project, on the cell of the Gantt; kept for the session, read back
+  // once the page is opened anew.
+  await ganttOfSummary.click();
+  await page.keyboard.press("Alt+Minus");
+  await expect(summary).toHaveAttribute("aria-expanded", "false");
+  await expect(ganttOfSummary).toBeFocused();
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  await expect(summary).toHaveAttribute("aria-expanded", "false", { timeout: WORKING });
+  await expect(task).toHaveCount(0);
+  await summary.getByRole("gridcell").nth(at.label).click();
+  await page.keyboard.press("Alt+Shift+Equal");
+  await expect(summary).toHaveAttribute("aria-expanded", "true");
+  await expect(task).toBeVisible();
 });
 
 test("leads from the planning to its task tree, read only, its depth in the address", async ({

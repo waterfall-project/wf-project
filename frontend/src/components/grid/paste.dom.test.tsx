@@ -111,7 +111,7 @@ function renderGrid(editable = true, preferences?: GridPreferences) {
 /** The cell of a row, by its index among the rows of the answer, and of a column, by its key. */
 function cell(row: number, column: string): HTMLElement {
   const found = screen
-    .getByRole("grid", { hidden: true })
+    .getByRole("treegrid", { hidden: true })
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
   if (found === null) {
     throw new Error(`no cell ${column} in the row ${row.toString()}`);
@@ -131,13 +131,13 @@ function amounts(rows: readonly number[]): string[] {
 
 /** The total amount at the year of reference, at the foot of the grid. */
 function totalAmount(): string | null | undefined {
-  const row = screen.getByRole("grid", { hidden: true }).querySelector("tfoot tr");
+  const row = screen.getByRole("treegrid", { hidden: true }).querySelector("tfoot tr");
   return row?.querySelectorAll("td")[10]?.textContent;
 }
 
 /** The total amount corrected for inflation, at the foot of the grid. */
 function totalInflated(): string | null | undefined {
-  const row = screen.getByRole("grid", { hidden: true }).querySelector("tfoot tr");
+  const row = screen.getByRole("treegrid", { hidden: true }).querySelector("tfoot tr");
   return row?.querySelectorAll("td")[11]?.textContent;
 }
 
@@ -447,7 +447,7 @@ describe("a block pasted from a spreadsheet", () => {
     });
     // Each write answered: no cell shows what was validated any more.
     await vi.waitFor(() => {
-      expect(screen.getByRole("grid").querySelector('[aria-busy="true"]')).toBeNull();
+      expect(screen.getByRole("treegrid").querySelector('[aria-busy="true"]')).toBeNull();
     });
     return client;
   }

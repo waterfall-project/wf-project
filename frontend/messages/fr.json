@@ -211,6 +211,19 @@
       "open": "Colonnes",
       "title": "Colonnes affichées"
     },
+    "fold": {
+      "open": "Arbre",
+      "title": "Plier et déplier l’arbre",
+      "expandAll": "Tout déplier",
+      "expandAllKeys": "Alt+*",
+      "collapseAll": "Tout plier",
+      "level": "Jusqu’au niveau {level}",
+      "collapse": "Plier",
+      "expand": "Déplier",
+      "collapseRow": "Plier la ligne",
+      "expandRow": "Déplier la ligne",
+      "collapseAbove": "Plier « {label} »"
+    },
     "paste": {
       "title": "Coller depuis un tableur",
       "block": "Bloc de {rows, plural, one {# ligne} other {# lignes}} sur {columns, plural, one {# colonne} other {# colonnes}}, à partir de la ligne {row}, colonne « {column} » : rien n’est écrit avant votre confirmation.",
@@ -224,7 +237,8 @@
       "apply": "Appliquer le collage",
       "abandon": "Abandonner",
       "hiddenColumn": "Le bloc collé s’étendrait sous la colonne « {column} », qui est masquée : affichez-la avant de coller, ou collez un bloc plus étroit.",
-      "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit."
+      "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit.",
+      "foldedRows": "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut."
     }
   },
   "estimateGrid": {

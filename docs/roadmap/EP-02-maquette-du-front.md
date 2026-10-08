@@ -288,8 +288,8 @@ verrou.
   - En-têtes et totaux figés au défilement vertical, colonnes d'identification figées au
     défilement horizontal ; colonnes et largeurs dans les préférences de compte, par clé de
     grille stable, écrites avec anti-rebond.
-  - Saisie : une seule cellule dans l'ordre de tabulation, `role="grid"`, `aria-rowcount`
-    malgré la virtualisation ; Entrée ou F2 entre en saisie, Entrée valide et avance,
+  - Saisie : une seule cellule dans l'ordre de tabulation, `role="grid"` — `role="treegrid"`
+    pour une grille arborescente —, `aria-rowcount` malgré la virtualisation ; Entrée ou F2 entre en saisie, Entrée valide et avance,
     Échap abandonne ; chaque cellule validée part seule, par une action serveur. Une
     cellule est saisissable si son champ est au schéma d'écriture et que le nœud ne le
     déclare pas calculé (`computed_fields`) ; une cellule calculée est traversée, et une
@@ -297,6 +297,18 @@ verrou.
     format de la langue et repart dans le décimal exact du contrat.
   - Collage : lecture TSV du presse-papiers, `previewPaste`, compte rendu, `applyPaste`
     après confirmation ; le front ne juge rien du contenu.
+  - **Arbre pliable** (EP-02/L40, WF-PLA-0080, WF-PLA-0090) : une grille dont les lignes nomment
+    leur parent (`parent_id` de `listNodes`) se plie et se déplie, purement dans le front — rien
+    n'est demandé au serveur ni ne lui est envoyé. Une ligne pliée retire ses subordonnées des
+    lignes de la grille, que la virtualisation, le clavier et le Gantt — une colonne de la même
+    grille — ne voient plus ; une recherche ou un filtre déplie les ancêtres des lignes qu'il
+    retient ; l'état plié se garde dans le stockage de session de l'onglet, par grille et par
+    révision. Raccourcis de Microsoft Project : Alt et moins, Alt et plus, Alt et *, Maj ou non
+    selon la disposition du clavier, en accélérateurs, et « Plier la ligne », « Déplier la ligne »
+    et « Tout déplier » au menu contextuel des cellules, qui marche dans tous les navigateurs ;
+    Alt+Maj+flèches restent libres pour l'indentation d'EP-06. Un collage qui s'étendrait sur une
+    ligne pliée est refusé localement. Écarté : déduire la parenté de l'ordre et du niveau — le
+    front ne déduit pas ce que l'API dit, et `parent_id` le dit.
   - **Annuler et Rétablir sont posées, pas branchées** : leur place — grille, menu,
     Ctrl+Z/Ctrl+Maj+Z —, leur état, et rien d'autre ; EP-06 les branchera sur
     `undoLastChange` et `redoLastUndo`. Le menu est le menu contextuel de la cellule (clic
@@ -1174,12 +1186,31 @@ the keyboard [WF-PLA-0090-A] » (`frontend/src/components/gantt/gantt.dom.test.t
 parcours « draws the Gantt beside the grid, row for row, the critical path told in words, and
 modifies no task [WF-PLA-0090-A] » (`frontend/e2e/planning.spec.ts`) et, pour l'arborescence, par
 « is one stop of the tabulation, whose arrows go through the items as in any tree, and change
-nothing » (`frontend/src/components/tree/task-tree.dom.test.tsx`). Le pliage commun de la grille et
-du Gantt (WF-PLA-0090), qui suppose l'arbre pliable de la grille (WF-PLA-0080), et l'export PNG de
-l'arborescence et des chronologies (WF-PLA-0120, WF-PLA-0140) restent à EP-06, comme le menu
-contextuel des cellules — Annuler et Rétablir —, qui s'ouvre aussi sur une cellule du Gantt, où
-rien ne se saisit : EP-06, qui branche ces commandes, décide où le menu s'offre (revue 1
-d'US-0220/L2). Une arborescence de quatre niveaux s'éprouve sur `nodes_nested`, une variante
+nothing » (`frontend/src/components/tree/task-tree.dom.test.tsx`). L'arbre pliable et dépliable des
+grilles de planning, de devis et du reste à engager, et le pliage commun de la grille et du Gantt, ont
+été faits par EP-02/L40 (#505, décision de l'auteur du 2026-10-08, après le report à EP-06 de la
+revue 1 d'US-0220/L2) : WF-PLA-0080 et WF-PLA-0090 sont donc partiels, le pliage fait par
+EP-02/L40 ; le tableau d'EP-06 les garde « entière », EP-06 les vérifiant en entier sur le
+service, et US-0220 n'en cite aucune. Une ligne sous laquelle la réponse en tient d'autres — une
+récapitulative sur ses tâches, une tâche sur ses lignes — se plie à la souris, par le bouton de son
+libellé ou celui qui précède son crochet dans le Gantt, au clavier comme dans Microsoft Project —
+Alt et moins plie la ligne de la cellule active, ou celle qui la porte, Alt et plus la déplie,
+Alt et * déplie tout, Maj ou non selon la disposition du clavier, et partout par le menu
+contextuel des cellules (Maj+F10), que Safari et Firefox pour Mac demandent —, et par le menu « Arbre » de
+la barre : tout plier, tout déplier, jusqu'à un niveau ; la grille est un `treegrid`, chaque ligne disant son niveau, sa place parmi ses sœurs
+et son état. Une ligne pliée retire ses subordonnées des lignes de la grille — celles qu'elle rend,
+numérote et parcourt, celles du Gantt —, une recherche ou un filtre qui retient une ligne pliée
+déplie ses ancêtres, et l'état plié se garde pour la session de l'onglet, par grille et par
+révision, sans rien envoyer au serveur. Les tests portent « presents the same tree in the Gantt,
+folded alike […] [WF-PLA-0090-A] » et « unfolds the rows above those a search retains […]
+[WF-PLA-0080-A] » (`frontend/src/components/grid/fold.dom.test.tsx`), et les parcours « folds a
+summary in the grid and the Gantt follows […] [WF-PLA-0090-A] » (`frontend/e2e/planning.spec.ts`)
+et « folds a task over its lines and the tree down to a level […] » (`frontend/e2e/grid.spec.ts`).
+La saisie dans la grille de planning, le menu contextuel des cellules — Annuler et Rétablir —, qui
+s'ouvre aussi sur une cellule du Gantt, où rien ne se saisit, et le branchement des commandes
+restent à EP-06, qui décide où le menu s'offre (revue 1 d'US-0220/L2), comme l'export PNG de
+l'arborescence et des chronologies (WF-PLA-0120, WF-PLA-0140). Une arborescence de quatre
+niveaux s'éprouve sur `nodes_nested`, une variante
 contrefactuelle du cœur du témoin — le lot du poste de commande rangé sous l'installation sur
 site —, engendrée par `make mock-data`.
 

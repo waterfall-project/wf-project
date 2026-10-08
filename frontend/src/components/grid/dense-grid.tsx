@@ -25,6 +25,15 @@
  * from a spreadsheet on the active cell is shown as the server would write and refuse it, and
  * written once confirmed, in one operation (WF-IHM-0050, `useGridPaste`). A grid that enters a
  * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`).
+ *
+ * A grid whose rows name their parents is a tree, which folds and unfolds (WF-PLA-0080,
+ * `useGridFold`): a `treegrid`, each row telling its level, its place among its siblings and
+ * whether it is unfolded; a row folded takes the rows under it out of the grid — out of those it
+ * renders, numbers and moves through —, and the Gantt, a column of the grid, folds with it
+ * (WF-PLA-0090). The button in a label folds its row; Alt and minus and Alt and plus fold and
+ * unfold the row of the active cell — the row above it, from a row under which nothing folds —, Alt
+ * and * unfolds the whole tree, Shift or not, as in Microsoft Project; the bar folds the tree down to a
+ * level. The active cell stays on its row, or goes to the row folded over it.
  */
 "use client";
 
@@ -56,6 +65,7 @@ import type { Locale } from "@/i18n/locale";
 
 import {
   alignment,
+  type ColumnName,
   type DependencyReader,
   type EntryKind,
   formatCell,
@@ -67,6 +77,15 @@ import { CellEditor } from "./cell-editor";
 import type { EntryProblem } from "./cell-values";
 import { useCellWrites } from "./cell-writes";
 import { ComputedCell, type ComputedColumn } from "./computed-cell";
+import {
+  FOLD_KEYS,
+  useFoldReach,
+  FoldContext,
+  FoldToggle,
+  useFoldCommands,
+  useGridFold,
+  useTreeRow,
+} from "./fold";
 import {
   type CellDraft,
   type CellPosition,
@@ -80,7 +99,7 @@ import {
 import { configColumn, type GridFeatures, type GridTable, useGridTable } from "./grid-table";
 import { GridToolbar, type ToggledColumn } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
-import { useGridPaste } from "./paste";
+import { type Unshown, useGridPaste } from "./paste";
 import { PasteDialog } from "./paste-dialog";
 import { usePendingAddress } from "./pending-address";
 import { useRootFontSize, useRowWindow } from "./row-window";
@@ -147,6 +166,16 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * around the grid, never a prop of each row (défaut n° 14).
    */
   readonly around?: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined;
+  /**
+   * What the folds of a tree are kept for in the session, besides the grid: the revision it reads.
+   */
+  readonly foldScope?: string | undefined;
+  /**
+   * What the reading asked of the server besides its fields and its sort — the search, the filters —,
+   * as it was sent: a reading so narrowed unfolds the rows above those it retains. None, or nothing
+   * in it, for a reading not narrowed.
+   */
+  readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
 }
 
 /** How a cell of a column is pinned: its classes, and its offset from the start. */
@@ -201,6 +230,7 @@ function TreeLabel<Row extends RowData, Sort extends string, Totals>({
       )}
       style={{ paddingLeft: (tree.level(row) - 1) * INDENT }}
     >
+      <FoldToggle rowKey={config.rowKey(row)} placeholder />
       {tree.nature(row)}
       <span className="truncate">{text}</span>
     </span>
@@ -250,6 +280,8 @@ interface CellStates<Row extends RowData, Sort extends string, Totals> {
   readonly dismissRefusal: () => void;
   /** Whether the cells have a menu, which they announce. */
   readonly menu: boolean;
+  /** The keys of the folding a row that folds tells, as far as they reach; none, none told. */
+  readonly foldKeys: string | undefined;
 }
 
 /** What a cell of the body is doing: active, entered, written, its refusal shown. */
@@ -274,18 +306,32 @@ function cellAttributes(
   state: CellState,
   enterable: boolean,
   computed: boolean,
-  menu: boolean,
+  shortcuts: readonly string[],
 ) {
   return {
     "data-row": position.row,
     "data-column": position.column,
     tabIndex: state.active ? 0 : -1,
-    "aria-keyshortcuts": menu ? MENU_KEY : undefined,
+    "aria-keyshortcuts": shortcuts.length === 0 ? undefined : shortcuts.join(" "),
     "aria-readonly": enterable ? undefined : true,
     "aria-busy": state.pending === undefined ? undefined : true,
     "aria-haspopup": computed ? ("dialog" as const) : undefined,
     "aria-expanded": computed ? state.refused : undefined,
   };
+}
+
+/**
+ * The keys a cell tells, as `aria-keyshortcuts` names them: those of the menu of the cells, where
+ * the grid offers it, and in the column of the labels of a row that folds, those of the folding.
+ */
+function cellKeys(
+  menu: boolean,
+  folding: { readonly folds: boolean; readonly keys: string | undefined },
+  column: string,
+  label: { readonly key: string } | undefined,
+): string[] {
+  const told = folding.folds && column === label?.key ? folding.keys : undefined;
+  return [...(menu ? [MENU_KEY] : []), ...(told === undefined ? [] : [told])];
 }
 
 /**
@@ -299,6 +345,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   dependencies,
   cells,
   row,
+  folds,
   position,
   locale,
 }: {
@@ -307,6 +354,8 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   readonly dependencies: DependencyReader<Row> | undefined;
   readonly cells: CellStates<Row, Sort, Totals>;
   readonly row: Row;
+  /** Whether the row folds: its label tells the keys that fold it. */
+  readonly folds: boolean;
   readonly position: CellPosition;
   readonly locale: Locale;
 }) {
@@ -342,7 +391,13 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   }
   return (
     <TableCell
-      {...cellAttributes(position, state, column?.entry?.in(row) === true, computed, cells.menu)}
+      {...cellAttributes(
+        position,
+        state,
+        column?.entry?.in(row) === true,
+        computed,
+        cellKeys(cells.menu, { folds, keys: cells.foldKeys }, position.column, config.columns[0]),
+      )}
       style={{ left: pinning.left }}
       className={cn(
         "overflow-hidden text-ellipsis outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
@@ -373,13 +428,23 @@ function BodyRow<Row extends RowData, Sort extends string, Totals>({
   readonly index: number;
   readonly locale: Locale;
 }) {
+  // In a tree, where the row stands, and whether it is unfolded.
+  const tree = useTreeRow(shared.config.rowKey(row.original));
   return (
-    <TableRow aria-rowindex={index + 2} className="h-7">
+    <TableRow
+      aria-rowindex={index + 2}
+      aria-level={tree?.level}
+      aria-posinset={tree?.position}
+      aria-setsize={tree?.siblings}
+      aria-expanded={tree?.expanded}
+      className="h-7"
+    >
       {row.getVisibleCells().map((cell) => (
         <BodyCell
           key={cell.id}
           {...shared}
           row={row.original}
+          folds={tree?.expanded !== undefined}
           position={{ row: index, column: cell.column.id }}
         />
       ))}
@@ -483,6 +548,36 @@ function EntryProblemNotice({
   );
 }
 
+/**
+ * Why a block pasted was refused before the server was asked: it would fill a column the grid hides
+ * or does not present, or a row folded away.
+ */
+function UnshownNotice({
+  unshown,
+  heading,
+}: {
+  readonly unshown: Unshown | undefined;
+  readonly heading: (column: ColumnName) => string;
+}) {
+  const t = useTranslations("grid.paste");
+  if (unshown === undefined) {
+    return null;
+  }
+  let text: string;
+  if (unshown.shown === "hidden") {
+    text = t("hiddenColumn", { column: heading(unshown.column) });
+  } else if (unshown.shown === "absent") {
+    text = t("absentColumn", { column: unshown.name });
+  } else {
+    text = t("foldedRows");
+  }
+  return (
+    <p role="alert" className="text-sm text-destructive">
+      {text}
+    </p>
+  );
+}
+
 /** The columns the user may show or hide, for the bar of the grid. */
 function toggledColumns<Row extends RowData, Sort extends string, Totals>(
   table: GridTable<Row>,
@@ -526,6 +621,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   dependencies,
   undoable,
   around,
+  foldScope,
+  narrowing,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const locale = useLocale();
@@ -580,9 +677,19 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const writes = useCellWrites<Row, Totals>(rows, config.rowKey, config.retotal);
   // The totals the writes last answered, or those of the answer.
   const shownTotals = writes.totals ?? totals;
+  // The rows the tree leaves unfolded, which the grid renders and moves through.
+  const fold = useGridFold({
+    tree: config.tree,
+    rowKey: config.rowKey,
+    rows: writes.rows,
+    grid: config.key,
+    scope: foldScope,
+    narrowing,
+  });
+  const shownRows = fold.shown;
   const table = useGridTable({
     config,
-    rows: writes.rows,
+    rows: shownRows,
     sort,
     onSort: changeSort,
     settings,
@@ -612,7 +719,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const keyboard = useGridKeyboard({
     config,
     cursor,
-    rows: writes.rows,
+    rows: shownRows,
     columns: shownColumns,
     scroller,
     scrollToIndex,
@@ -628,12 +735,25 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   });
   const paste = useGridPaste({
     config,
-    rows: writes.rows,
+    rows: shownRows,
     columns: shownColumns,
     writes,
     scroller,
+    folded: fold.foldedFrom,
   });
   const undo = useUndoShortcut(undoable);
+  const foldReach = useFoldReach();
+  const folding = useFoldCommands({
+    fold,
+    rowKey: config.rowKey,
+    cursor,
+    scroller,
+    focusAt: keyboard.focusAt,
+    labelOf: (row) => {
+      const label = config.columns[0];
+      return label === undefined ? "" : formatCell(label.format, label.value(row), locale);
+    },
+  });
   const invalid = useId();
   const cells: CellStates<Row, Sort, Totals> = {
     cursor: cursor.active,
@@ -642,7 +762,8 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
     pending: writes.pending,
     closeRefusal: keyboard.closeRefusal,
     dismissRefusal: keyboard.dismissRefusal,
-    menu: undoable === true,
+    menu: undoable === true || folding.menu !== undefined,
+    foldKeys: FOLD_KEYS[foldReach],
     editor: (draft, column) =>
       column.entry === undefined ? null : (
         <CellEditor
@@ -665,6 +786,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         search={query.search}
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
+        outline={folding.outline}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),
         )}
@@ -688,15 +810,10 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         onDismissed={keyboard.refocus}
         dismissible
       />
-      {paste.hidden === undefined ? null : (
-        <p role="alert" className="text-sm text-destructive">
-          {paste.hidden.shown === "hidden"
-            ? t("paste.hiddenColumn", {
-                column: headingOf(paste.hidden.column, (key) => t(`columns.${key}`)),
-              })
-            : t("paste.absentColumn", { column: paste.hidden.name })}
-        </p>
-      )}
+      <UnshownNotice
+        unshown={paste.hidden}
+        heading={(column) => headingOf(column, (key) => t(`columns.${key}`))}
+      />
       {paste.pasting === undefined ? null : (
         <PasteDialog
           pasting={paste.pasting}
@@ -711,7 +828,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         kind={configColumn(config, keyboard.draft?.column ?? "")?.entry?.kind}
       />
       <Table
-        role="grid"
+        role={folding.role}
         aria-label={t(`names.${config.name}`)}
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
@@ -754,8 +871,25 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
             })}
           </TableRow>
         </TableHeader>
-        <CellMenu offered={undoable} disabled={keyboard.draft !== undefined}>
-          <TableBody {...keyboard.body}>
+        <CellMenu
+          offered={undoable}
+          folding={
+            folding.menu === undefined
+              ? undefined
+              : { menu: folding.menu, refocus: keyboard.refocus }
+          }
+          disabled={keyboard.draft !== undefined}
+        >
+          <TableBody
+            {...keyboard.body}
+            onKeyDown={(event) => {
+              if (folding.onKeyDown(event)) {
+                event.preventDefault();
+              } else {
+                keyboard.body.onKeyDown(event);
+              }
+            }}
+          >
             {items.map((item, position) => {
               const row = model[item.index];
               return row === undefined ? null : (
@@ -796,5 +930,5 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
       </Table>
     </div>
   );
-  return held(grid, writes.rows, around);
+  return held(<FoldContext value={folding.view}>{grid}</FoldContext>, shownRows, around);
 }

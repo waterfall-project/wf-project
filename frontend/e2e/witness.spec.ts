@@ -29,7 +29,7 @@ test("opens the list of projects, a project, and reads its planning and its esti
   // five seconds of an assertion on a loaded runner, the time this one is given (#315).
   await page.getByRole("link", { name: "Référence" }).click();
   await expect(page).toHaveURL(new RegExp(`${REFERENCE}/planning`), { timeout: WORKING });
-  const planning = page.getByRole("grid", { name: "Grille de planning" });
+  const planning = page.getByRole("treegrid", { name: "Grille de planning" });
   await expect(planning.getByRole("gridcell", { name: /Études de détail$/ })).toBeVisible({
     timeout: WORKING,
   });
@@ -39,7 +39,7 @@ test("opens the list of projects, a project, and reads its planning and its esti
   // those in view rendered, the row count says them all —, the totals of the answer. The six
   // thousand rows the server renders, given the time of a screen of grid (#315).
   await page.getByRole("link", { name: "Chiffrage et devis" }).click();
-  const estimate = page.getByRole("grid", { name: "Grille de devis" });
+  const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
   await expect(estimate).toHaveAttribute("aria-rowcount", "6002", { timeout: WORKING });
   await expect(estimate.getByRole("columnheader", { name: "Libellé" })).toBeVisible();
   await expect(

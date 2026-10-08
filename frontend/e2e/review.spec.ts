@@ -246,7 +246,7 @@ for (const language of [FRENCH, ENGLISH]) {
       // server, given the time the witness path gives them (#315).
       await page.getByRole("main").getByRole("link", { name: names.currentRevision }).click();
       await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
-      await expect(page.getByRole("grid", { name: names.planningGrid })).toBeVisible({
+      await expect(page.getByRole("treegrid", { name: names.planningGrid })).toBeVisible({
         timeout: WORKING,
       });
 
@@ -266,7 +266,7 @@ for (const language of [FRENCH, ENGLISH]) {
       await follow(page, language, names.remaining, { timeout: WORKING });
       await expect(page).toHaveURL(filtered("remaining"));
       await expect(chips).toHaveText([names.gridOnlyChip]);
-      await expect(page.getByRole("grid", { name: names.remainingGrid })).toBeVisible();
+      await expect(page.getByRole("treegrid", { name: names.remainingGrid })).toBeVisible();
 
       await follow(page, language, names.risks);
       await expect(page).toHaveURL(filtered("risks"));
@@ -338,7 +338,7 @@ const ENTRY_GRIDS: readonly EntryGrid[] = [
 async function readGrid(page: Page, language: Language, entry: EntryGrid) {
   const { names } = language;
   await page.goto(`${IN_REVISION}/${entry.segment}`);
-  const grid = page.getByRole("grid", { name: entry.name(language) });
+  const grid = page.getByRole("treegrid", { name: entry.name(language) });
   await expect(grid).toBeVisible({ timeout: WORKING });
   const { label } = await columnsOf(grid, { label: names.labelColumn });
   const labels = await Promise.all(

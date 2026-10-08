@@ -394,6 +394,28 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "estimate_line.payment_delay_days",
         "estimate_line.subproject_id",
     ]
+    # Row 13, a summary of the second level, folds over rows 14 to 17, before the milestone of row
+    # 18; row 14, a task of the third level with its dates, over its line, row 15, before its
+    # sibling of row 16.
+    assert [
+        (row(n)["level"], (row(n).get("task") or row(n)["estimate_line"])["label"])
+        for n in (13, 14, 15, 16, 18)
+    ] == [
+        (2, "Risque survenu — Retard de livraison des armoires"),
+        (3, "Relance du fournisseur"),
+        (4, "Frais de relance"),
+        (3, "Transport exceptionnel"),
+        (2, "Réception usine"),
+    ]
+    assert task(13)["is_summary"] is True
+    assert task(14)["start"] is not None
+    assert [row(n)["parent_id"] for n in (14, 15, 16, 17, 18)] == [
+        row(13)["node_id"],
+        row(14)["node_id"],
+        row(13)["node_id"],
+        row(16)["node_id"],
+        row(13)["parent_id"],
+    ]
     # Row 25, the first phase drawn; rows 28 to 30, the first lines drawn, where a label is
     # entered and a block pasted.
     assert (task(25)["label"], task(26)["label"], task(27)["label"]) == (

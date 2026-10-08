@@ -119,6 +119,7 @@ export default async function PlanningPage({
         <PlanningGrid
           nodes={screen.nodes}
           structure={screen.structure}
+          filters={screen.filters}
           query={screen.query}
           preferences={screen.preferences}
           undoable={screen.reading.edits.has("edit_planning")}

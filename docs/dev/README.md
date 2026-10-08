@@ -80,13 +80,13 @@ l'écran de sa fonction y mène, dans le même contexte, et son entrée est marq
 mais `readContext` la lit comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
 que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
 (`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
-montre (`role` : `region`, `grid`, `columnheader` ou `heading`) et la clé de son nom (`name`) — le
-lotissement, FBS-4.2.1, est la région « Lotissement » des paramètres du projet ; le Gantt, FBS-4.3.3,
-la colonne « Gantt » de la grille de planning ; l'avancement financier, FBS-4.8.1, le titre de sa
-carte. Seul un fait d'une liste nommée se passe de rôle — un terme ne prend pas son nom de ce qu'il
-dit — : il se trouve par son texte dans la liste que nomme la clé `within`, comme le taux
-d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ; `functions.test.ts` refuse toute autre
-section sans rôle.
+montre (`role` : `region`, `grid`, `treegrid`, `columnheader` ou `heading`) et la clé de son nom
+(`name`) — le lotissement, FBS-4.2.1, est la région « Lotissement » des paramètres du projet ; le
+Gantt, FBS-4.3.3, la colonne « Gantt » de la grille de planning ; l'avancement financier,
+FBS-4.8.1, le titre de sa carte. Seul un fait d'une liste nommée se passe de rôle — un terme ne
+prend pas son nom de ce qu'il dit — : il se trouve par son texte dans la liste que nomme la clé
+`within`, comme le taux d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ;
+`functions.test.ts` refuse toute autre section sans rôle.
 
 *Contrôle* : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
 modification, puisqu'il lit la projection comme le front) confronte la table aux fonctions de
@@ -262,12 +262,13 @@ rend sa cellule en place de la valeur formatée (`render`) — et, s'il y en a u
 fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
 (`estimate-grid.tsx`, `planning-grid.tsx`), et la page, serveur, ne lui passe que des données —
 la structure lue et, de chaque nœud, les seuls champs que la grille lit : ceux de toute grille
-(identité, version, champs calculés, numéro, niveau, nature, libellé) et ceux de ses colonnes,
+(identité, version, champs calculés, numéro, niveau, parent, nature, libellé) et ceux de ses colonnes,
 que nomme sa configuration (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). La page les demande à
 `listNodes` (`fields`, `nodeFieldNames` : un champ d'une facette sous son nom, `task.label`) et
 les projette encore (`projectNodes`) : un serveur peut rendre plus qu'on ne lui demande — le faux
 back rend son exemple entier —, et les six mille nœuds entiers pèsent six mégaoctets et demi dans
-la page, projetés, de quarante-cinq à soixante-quatre pour cent ; la lecture de l'écran
+la page, projetés, de quarante-huit à soixante-cinq pour cent — le parent, par lequel l'arbre se
+plie, y a ajouté quatre points ; la lecture de l'écran
 (`readGridScreen`) ne rend que les lignes projetées et les totaux, jamais la réponse entière. Un
 champ d'une ligne qui ne dit rien — nul, ou faux pour un drapeau (`SPARSE_LINE_FIELDS`) — ne
 traverse pas, la cellule le lisant comme nul, et l'identifiant du sous-projet d'une ligne ne
@@ -377,8 +378,9 @@ plus tard (`monthTicks`, `chart/ticks.ts`, sans ECharts). Une liaison joint l'en
 nomme sur le prédécesseur à celui qu'il nomme sur la tâche ; un prédécesseur hors de la réponse n'en
 dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâche une barre, pleine
 sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
-« critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie ni le
-pointeur. Les autres feuilles du planning ont leur écran, où son en-tête mène : l'arborescence de
+« critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
+seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
+déplier. Les autres feuilles du planning ont leur écran, où son en-tête mène : l'arborescence de
 tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
@@ -605,6 +607,41 @@ dit dans une région annoncée. Un champ en cours de saisie — l'éditeur d'une
 recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 les branche sur
 `undoLastChange` et `redoLastUndo`, une annulation portée par le serveur, jamais une pile dans le
 navigateur.
+
+Les grilles arborescentes — planning, devis, reste à engager — se plient et se déplient
+(WF-PLA-0080, WF-PLA-0090, EP-02/L40, `frontend/src/components/grid/fold.tsx`) : une grille dont
+l'arbre nomme le parent de chaque ligne (`GridTree.parent`, `parent_id` de `listNodes`) est un
+`treegrid`, chaque ligne portant `aria-level`, `aria-posinset`, `aria-setsize` et, quand la réponse
+tient des lignes sous elle, `aria-expanded`. Une ligne pliée sort ses subordonnées des lignes de la
+grille : la virtualisation ne les rend plus, le clavier ne les parcourt plus, et le Gantt, une
+colonne de la même grille, les perd avec elle ; la cellule active reste sur sa ligne, ou passe à
+celle qui la porte. Le bouton du libellé — ou celui qui précède le crochet d'une récapitulative dans
+le Gantt — plie ou déplie sa ligne, hors de l'ordre de tabulation ; au clavier, comme dans Microsoft
+Project, Alt et moins plie la ligne de la cellule active — celle qui la porte, depuis une ligne
+sous laquelle rien ne se plie —, Alt et plus la déplie, Alt et * déplie tout, Maj ou non selon ce
+que la disposition du clavier demande pour taper le caractère, sur le pavé numérique aussi ; le
+caractère est celui que la touche a tapé, et, quand il ne nomme aucune commande, celui que la
+touche porte dans la disposition que le navigateur dit (`navigator.keyboard.getLayoutMap`) —
+jamais la seule place de la touche, qui porte un autre caractère sur une autre disposition. Ctrl
+et AltGr sont exclus ; Alt+Maj+flèches restent libres pour l'indentation d'EP-06. Ces raccourcis
+ne sont que des accélérateurs : sans `getLayoutMap`, sous Safari et Firefox pour Mac, Option et une
+touche tapent un autre caractère, et ils ne sont pas reconnus. Le menu contextuel des cellules
+(Maj+F10, touche Menu, clic droit), offert dans toute grille arborescente, Annuler et Rétablir ou
+non, les remplace partout : « Plier la ligne » — « Plier « libellé » », qui nomme la ligne qui
+la porte, depuis une ligne sous laquelle rien ne se plie —, « Déplier la ligne » quand elle l'est,
+« Tout déplier », offert même hors d'une cellule, si bien que le menu n'est jamais vide ; le focus
+revient à la cellule active. Les touches se disent par `aria-keyshortcuts` — Maj+F10 sur chaque
+cellule, celles du pliage sur le libellé d'une ligne qui se plie, dans le menu et dans la barre —,
+autant que le navigateur les reconnaît (`useFoldReach`, lu après l'hydratation) : toutes hors d'un
+Mac ; sur un Mac, Alt et moins, Alt et plus quand `getLayoutMap` existe, aucune sinon ; Alt et *
+hors d'un Mac seulement. Un
+bloc collé qui s'étendrait, à partir
+de la ligne visée, sur une ligne pliée est refusé sans rien demander, comme celui qui atteint une
+colonne masquée. Le menu « Arbre » de
+la barre plie tout, déplie tout, ou plie jusqu'à un niveau. Une recherche ou un filtre qui retient
+une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état plié se garde dans le
+stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien envoyer
+au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
 
 Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
 absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que

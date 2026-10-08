@@ -2,19 +2,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, type Request, test } from "@playwright/test";
 
-import { scrollPageToGrid, scroller, scrollToFoot, scrollToPosition, withinBox } from "./scroll";
-import { openHydrated, WORKING } from "./hydration";
+import {
+  rowAt,
+  scrollPageToGrid,
+  scroller,
+  scrollToFoot,
+  scrollToPosition,
+  withinBox,
+} from "./scroll";
+import { openHydrated, openMenu, WORKING } from "./hydration";
 
 // The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
 // of §4.6.2, its core first (#376): a thousand tasks and five thousand lines, six thousand rows, of
 // which the grid renders those in view. The journeys read it by marks the generator writes, which
 // `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds — the summary task
-// of row 1, « Études », the task of row 2, the first line drawn after the core, row 28, the
-// milestone of row 6000, the totals of the answer —, and never count the rows rendered: the row count of the grid says how many
-// there are. The second of §4.6.2 is measured in `opening.spec.ts`. Each path opens the grid
-// hydrated (`openHydrated`) before it scrolls or clicks: the rows follow the scroll, and the sort
-// answers its header, once React does. An address that follows a click which reads the six
-// thousand rows anew is awaited with the bound of the screens of grids (`WORKING`, #315, #419).
+// of row 1, « Études », the task of row 2, the task of row 14 over its line and before its sibling
+// of row 16, the first line drawn after the core, row 28, the milestone of row 6000, the totals of
+// the answer —, and never count the rows rendered: the row count of the grid says how many there
+// are. The second of §4.6.2 is measured in `opening.spec.ts`. Each path opens the grid hydrated
+// (`openHydrated`) before it scrolls or clicks: the rows follow the scroll, and the sort answers
+// its header, once React does. An address that follows a click which reads the six thousand rows
+// anew is awaited with the bound of the screens of grids (`WORKING`, #315, #419).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
@@ -24,7 +32,7 @@ const ROW_COUNT = "6002";
 
 /** The grid of the estimate. */
 function grid(page: Page) {
-  return page.getByRole("grid", { name: "Grille de devis" });
+  return page.getByRole("treegrid", { name: "Grille de devis" });
 }
 
 /** The cell of the totals under the header of a column. */
@@ -284,4 +292,46 @@ test("hides a column chosen in the menu of the columns, and searches the labels 
   await page.getByRole("searchbox", { name: "Rechercher un libellé" }).fill("revue");
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(`${GRID}?search=revue`, { timeout: WORKING });
+});
+
+test("folds a task over its lines and the tree down to a level, the keyboard going through the rows that stay", async ({
+  page,
+}) => {
+  await openHydrated(page, GRID);
+  await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
+  // A task of the core at the third level, over its line, before its next sibling, row 16.
+  const task = grid(page).getByRole("row", { name: /^14 .*Relance du fournisseur/ });
+  const line = grid(page).getByRole("row", { name: /^15 .*Frais de relance/ });
+  await expect(task).toHaveAttribute("aria-expanded", "true");
+  await expect(line).toBeVisible();
+
+  // Alt and minus on a cell of the task folds its lines; the down arrow goes to the next task.
+  const label = task.getByRole("gridcell").nth(1);
+  await label.click();
+  await page.keyboard.press("Alt+Minus");
+  await expect(task).toHaveAttribute("aria-expanded", "false");
+  await expect(line).toHaveCount(0);
+  await expect(label).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(rowAt(grid(page), 15).getByRole("gridcell").nth(1)).toBeFocused();
+  await expect(rowAt(grid(page), 15)).toHaveAccessibleName(/^16 .*Transport exceptionnel/);
+  await expect(rowAt(grid(page), 15)).toHaveAttribute("aria-level", "3");
+
+  // The bar folds the tree whole, down to a level, and unfolds it whole.
+  const tree = page.getByRole("button", { name: "Arbre" });
+  const menu = page.getByRole("menu");
+  await openMenu(tree, menu);
+  await menu.getByRole("menuitem", { name: "Tout plier" }).click();
+  const first = edges(page).first;
+  await expect(first).toHaveAttribute("aria-expanded", "false");
+  await expect(task).toHaveCount(0);
+  await expect(rowAt(grid(page), 2)).toHaveAttribute("aria-level", "1");
+  await openMenu(tree, menu);
+  await menu.getByRole("menuitem", { name: "Jusqu’au niveau 3" }).click();
+  await expect(task).toHaveAttribute("aria-expanded", "false");
+  await expect(line).toHaveCount(0);
+  await openMenu(tree, menu);
+  await menu.getByRole("menuitem", { name: "Tout déplier" }).click();
+  await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
+  await expect(line).toBeVisible();
 });

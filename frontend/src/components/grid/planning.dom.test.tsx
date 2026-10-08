@@ -63,7 +63,13 @@ function at(key: string): number {
 function renderPlanning(nodes: NodeList = planning, locale: Locale = "fr") {
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <PlanningGrid nodes={nodes} structure={STRUCTURE} query={NO_QUERY} preferences={undefined} />
+      <PlanningGrid
+        nodes={nodes}
+        structure={STRUCTURE}
+        filters={{}}
+        query={NO_QUERY}
+        preferences={undefined}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -121,6 +127,7 @@ describe("the grids of the planning and of the estimate", () => {
         <PlanningGrid
           nodes={planning}
           structure={STRUCTURE}
+          filters={{}}
           query={NO_QUERY}
           preferences={undefined}
         />
@@ -144,12 +151,12 @@ describe("the grids of the planning and of the estimate", () => {
     // Both are the same grid: numbered, the tree and the label pinned first, the search and
     // the choice of the columns above; they differ by their columns.
     for (const name of ["Grille de planning", "Grille de devis"]) {
-      const grid = screen.getByRole("grid", { name });
+      const grid = screen.getByRole("treegrid", { name });
       expect(within(grid).getByRole("columnheader", { name: "N°" })).toBeInTheDocument();
       expect(within(grid).getByRole("columnheader", { name: "Libellé" })).toBeInTheDocument();
     }
     expect(screen.getAllByRole("search")).toHaveLength(2);
-    const planningGrid = screen.getByRole("grid", { name: "Grille de planning" });
+    const planningGrid = screen.getByRole("treegrid", { name: "Grille de planning" });
     expect(within(planningGrid).queryByRole("columnheader", { name: /Budgété/ })).toBeNull();
     expect(
       within(planningGrid).getByRole("columnheader", { name: "Calculé Marge" }),
@@ -281,7 +288,7 @@ describe("the grid of the planning", () => {
 
   it("names the icon columns in their headers, and asks the server for their sort", async () => {
     renderPlanning();
-    const grid = screen.getByRole("grid", { name: "Grille de planning" });
+    const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
     // Each named by its heading, which shows on hover too.
     for (const name of ["Mode de planification", "Avancement"]) {
       const header = within(grid).getByRole("columnheader", { name });

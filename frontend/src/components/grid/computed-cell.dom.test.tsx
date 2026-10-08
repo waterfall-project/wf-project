@@ -84,7 +84,13 @@ function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>, held = 0): Fa
 function planningOf(nodes: NodeList) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
-      <PlanningGrid nodes={nodes} structure={STRUCTURE} query={NO_QUERY} preferences={undefined} />
+      <PlanningGrid
+        nodes={nodes}
+        structure={STRUCTURE}
+        filters={{}}
+        query={NO_QUERY}
+        preferences={undefined}
+      />
     </NextIntlClientProvider>
   );
 }
@@ -109,6 +115,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
         <PlanningGrid
           nodes={nodes ?? planning}
           structure={STRUCTURE}
+          filters={{}}
           query={NO_QUERY}
           preferences={undefined}
         />

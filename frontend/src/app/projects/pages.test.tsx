@@ -283,7 +283,7 @@ describe("the witness path", () => {
     );
     expect(text(html)).toContain("Structure principale · 6 tasks, 1 line");
     expect(html).toMatch(
-      /<table[^>]*role="grid"[^>]*aria-label="Estimate grid"[^>]*aria-rowcount="9"/,
+      /<table[^>]*role="treegrid"[^>]*aria-label="Estimate grid"[^>]*aria-rowcount="9"/,
     );
     // Each row shows the icon of its nature, named for it: a summary task, tasks, a line, the
     // milestone of the studies — the marks of the headers aside.
@@ -621,7 +621,7 @@ describe("the grid of the planning", () => {
     expect(html).toMatch(/<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Planning<\/h1>/);
     expect(text(html)).toContain("Structure principale · 6 tasks");
     expect(html).toMatch(
-      /<table[^>]*role="grid"[^>]*aria-label="Planning grid"[^>]*aria-rowcount="8"/,
+      /<table[^>]*role="treegrid"[^>]*aria-label="Planning grid"[^>]*aria-rowcount="8"/,
     );
     expect(text(html)).toContain("Total — 6 tasks");
     // The totals the server gave, which `kinds` leaves as they are, are not the planning's to
@@ -772,7 +772,7 @@ describe("the indicators and the missing rates of the estimate", () => {
     expect(text(html)).toContain(
       "Ingénierie électrique — 2026 Enter the hourly rates Estimate indicators The estimate indicators are unavailable.",
     );
-    expect(html).toMatch(/<table[^>]*role="grid"[^>]*aria-label="Estimate grid"/);
+    expect(html).toMatch(/<table[^>]*role="treegrid"[^>]*aria-label="Estimate grid"/);
   });
 
   it("does not swallow a failure of the service reading the indicators: the screen of failure names it by its correlation identifier", async () => {
@@ -971,7 +971,7 @@ describe("the rows a page hands its grid", () => {
     for (const [index, node] of answer.items.entries()) {
       const row = items[index] ?? {};
       expect(Object.keys(row).sort()).toEqual(kept(node, listed.node));
-      for (const left of ["lineage_id", "parent_id", "position"]) {
+      for (const left of ["lineage_id", "position"]) {
         expect(row).not.toHaveProperty(left);
       }
       const facets = row as { task?: object | null; estimate_line?: object | null };
