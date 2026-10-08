@@ -125,6 +125,11 @@
       "orgNodes": "Arbre d’organisation",
       "resourceRoles": "Rôles de ressources",
       "calendars": "Calendriers",
+      "subprojects": "Sous-projets",
+      "contributors": "Contributeurs",
+      "workBreakdown": "Lotissement",
+      "users": "Comptes utilisateurs",
+      "accessRoles": "Rôles d’habilitation",
       "portfolioProjects": "Projets du portefeuille",
       "remaining": "Grille de reste à engager",
       "projects": "Liste des projets"
@@ -177,6 +182,24 @@
       "saturday": "Sam.",
       "sunday": "Dim.",
       "defaultCalendar": "Par défaut",
+      "erpCode": "Code ERP",
+      "actualCosts": "Coûts réels",
+      "name": "Nom",
+      "contributorKind": "Qualité",
+      "account": "Compte",
+      "breakdownKind": "Nature",
+      "lastName": "Nom",
+      "firstName": "Prénom",
+      "email": "Adresse électronique",
+      "origin": "Origine",
+      "accessRoles": "Rôles d’habilitation",
+      "attachment": "Rattachement",
+      "roleKind": "Nature",
+      "holders": "Comptes porteurs",
+      "modify": "Modifier",
+      "delete": "Supprimer",
+      "activation": "Activation",
+      "assignRoles": "Attribution des rôles",
       "referenceBudget": "Budget de référence",
       "currentEstimate": "Devis courant",
       "winProbability": "Probabilité de gain",
@@ -861,29 +884,24 @@
     "subprojects": {
       "title": "Sous-projets",
       "none": "Ce projet n’a aucun sous-projet.",
-      "code": "Code ERP",
-      "label": "Libellé",
-      "actualCosts": "Coûts réels",
       "charged": "Imputés",
-      "notCharged": "Aucun"
+      "notCharged": "Aucun",
+      "count": "{count, plural, =0 {Aucun sous-projet} one {# sous-projet} other {# sous-projets}}"
     },
     "contributors": {
       "title": "Contributeurs",
       "none": "Ce projet n’a aucun contributeur.",
-      "name": "Nom",
-      "kind": "Qualité",
-      "account": "Compte",
-      "active": "Actif",
-      "inactive": "Désactivé"
+      "count": "{count, plural, =0 {Aucun contributeur} one {# contributeur} other {# contributeurs}}",
+      "kindFilter": "Filtrer par qualité",
+      "everyKind": "Toutes les qualités"
     },
     "workBreakdown": {
       "title": "Lotissement",
       "none": "Ce projet n’a aucun poste.",
       "orderItem": "Poste",
       "workPackage": "Lot",
-      "deliverables": "Livrables",
-      "noWorkPackage": "Aucun lot",
-      "noDeliverable": "Aucun"
+      "deliverable": "Livrable",
+      "count": "{count, plural, =0 {Aucun poste} one {# poste} other {# postes}}"
     },
     "transitions": {
       "title": "Historique des états",
@@ -1092,26 +1110,43 @@
       "next": "Page suivante",
       "beyond": "Cette page est au-delà de la fin de la liste."
     },
+    "commands": {
+      "later": "{command} : disponible avec EP-03.",
+      "unmet": "{command} : {condition}"
+    },
     "users": {
       "title": "Comptes utilisateurs",
-      "lastName": "Nom",
-      "firstName": "Prénom",
-      "email": "Adresse électronique",
-      "origin": "Origine",
-      "roles": "Rôles d’habilitation",
-      "orgNode": "Rattachement",
       "noRole": "Aucun rôle",
       "noOrgNode": "Aucun",
       "none": "Aucun compte.",
-      "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}"
+      "count": "{count, plural, =0 {Aucun compte} one {# compte} other {# comptes}}",
+      "originFilter": "Filtrer par origine",
+      "everyOrigin": "Toutes les origines",
+      "create": "Créer un compte local",
+      "modify": "Modifier",
+      "deactivate": "Désactiver",
+      "reactivate": "Réactiver",
+      "assignRoles": "Attribuer les rôles",
+      "named": "{firstName} {lastName}",
+      "modifyUser": "Modifier « {name} »",
+      "deactivateUser": "Désactiver « {name} »",
+      "reactivateUser": "Réactiver « {name} »",
+      "assignRolesUser": "Attribuer les rôles de « {name} »",
+      "hideInactive": "Masquer les désactivés",
+      "showInactive": "Afficher les désactivés"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",
-      "kind": "Nature",
       "predefined": "Prédéfini",
       "composed": "Composé",
-      "holders": "Comptes porteurs",
-      "none": "Aucun rôle d’habilitation."
+      "none": "Aucun rôle d’habilitation.",
+      "count": "{count, plural, =0 {Aucun rôle} one {# rôle} other {# rôles}}",
+      "create": "Créer un rôle",
+      "modify": "Modifier",
+      "delete": "Supprimer",
+      "modifyRole": "Modifier « {name} »",
+      "deleteRole": "Supprimer « {name} »",
+      "heldBy": "Porté par {count, plural, one {# compte} other {# comptes}} : un rôle ne se supprime pas tant qu’un compte le porte."
     },
     "permissions": {
       "title": "Permissions par fonction",

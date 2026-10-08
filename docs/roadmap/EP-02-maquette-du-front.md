@@ -1158,6 +1158,18 @@ qu'ils ont à montrer.
 - propre à l'US : tout manque du contrat constaté ici est écrit dans cet EPIC, puis corrigé
   dans `docs/api` ou ouvert en issue.
 
+**Notes de réalisation.** EP-02/L41, sa partie L41c (#506), passe les tables de données des
+paramètres du projet sur la grille dense, sur la décision de l'auteur du 2026-10-08 (#301) : le
+lotissement, une grille arborescente dans l'ordre saisi, qui ne se trie pas et se plie ; les
+sous-projets, cherchés par le serveur ; les contributeurs, filtrés par le serveur sur leur qualité
+(`kinds`) — chacune avec sa clé de préférences et ses noms dans l'adresse. L'historique des états,
+une liste de lecture, reste une table simple. Écarts au contrat relevés par L41c, pour EP-02/L42
+(#536) : `listSubprojects` ne trie pas, `listContributors` ne cherche ni ne trie ; aucune de ces
+grilles ne trie donc, et celle des contributeurs n'offre pas de recherche ; aucune des trois ne
+filtre ses autres colonnes. Aucune pagination ne
+manque : le §4.6.2 compte dix sous-projets et cinquante contributeurs par projet, qui tiennent en
+une page.
+
 ## US-0220 — Écrans du planning et du devis
 
 - **statut** : fini
@@ -1335,6 +1347,24 @@ commande — la réactivation est offerte sur tout objet désactivé, et le refu
 tout autre (#532, pour L42) ; les filtres par colonne de `listResourceRoles`, `listCalendars` et
 `listOrgNodes` au-delà du libellé et du nœud, et le tri des heures d'un jour des calendriers,
 manquent au contrat (#533).
+EP-02/L41, sa partie L41c (#506), passe les comptes et les rôles d'habilitation sur la grille dense
+(#514, #515) : les comptes triés sur chaque colonne, cherchés, filtrés par origine, par nœud
+d'organisation et par état — les désactivés listés à moins que l'adresse ne les masque — et paginés
+par le serveur, sous les noms du contrat ; les rôles triés et cherchés par le serveur, en une page —
+le §4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, la matrice
+des permissions, déjà posée en lecture, montrant tous les rôles, chaque groupe nommé par sa fonction
+et jamais par son code de la FBS, qu'aucun écran ne montre (décision de l'auteur du 2026-10-08,
+#515). Sur décision de l'auteur du 2026-10-08 (#379, #515), des boutons seuls, qui disent être
+disponibles avec EP-03 (US-0360/L3, US-0380/L2) : une session qui peut modifier les comptes voit
+« Créer un compte local », « Modifier », « Désactiver » ou « Réactiver » et « Attribuer les rôles »,
+aucune suppression (WF-ADM-0060) ; une session qui peut modifier les rôles voit « Créer un rôle »,
+« Modifier » et « Supprimer » — la suppression logique du cadrage d'EP-03 (#456) —, indisponible tant
+qu'un compte porte le rôle, comme le serveur la refuserait (WF-ADM-0090) ; une autre session n'en
+voit aucun. Écart au contrat : WF-ADM-0120 refuse de désactiver le dernier compte qui porte les
+permissions d'administration, ou de lui retirer le rôle qui les porte, et `User` ne déclare ni ce
+refus ni la disponibilité de ces commandes (#540) — « Désactiver » et « Attribuer les rôles » sont
+offertes sur tout compte, et le refus du serveur se dira comme tout autre. Les filtres par colonne que le contrat ne porte pas — les rôles des comptes, la nature
+et les porteurs des rôles — et ce que lit la recherche des comptes sont #536.
 US-0250/L2 réalise l'administration (FBS-1.1 à 1.4), en lecture : les comptes, désactivés
 compris, chacun avec ses rôles et son rattachement nommés par le serveur, par pages ; les rôles
 d'habilitation et la matrice des permissions — une ligne par permission dans l'ordre de

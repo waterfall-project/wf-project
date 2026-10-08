@@ -205,7 +205,18 @@ pages par `ListPages` ; une page demandée au-delà de sa fin le dit, et ramène
 seule une liste qui ne tient aucun projet, sans état ni recherche, se dit vide. Les écrans du projet lui-même — le
 projet, ses paramètres avec ses sous-projets et ses contributeurs, son cycle de vie — sont en
 lecture ; la sortie du cycle de vie est la seule commande qu'ils exercent (`ExitCommand`),
-confirmée dans la page avant que son action serveur ne la demande.
+confirmée dans la page avant que son action serveur ne la demande. Les tables de données des
+paramètres sont trois grilles denses (#301, `settings-grids.tsx`), chacune avec sa clé de
+préférences et ses noms dans l'adresse (`breakdown_`, `subproject_`, `contributor_`) : le
+lotissement, une grille arborescente — chaque poste, ses lots sous lui, leurs livrables sous eux —,
+dans l'ordre saisi, qui ne se trie pas et se plie ; les sous-projets, cherchés par le serveur sur
+leur code et leur libellé (`subproject_search`) ; les contributeurs, filtrés par le serveur sur
+leur qualité (`contributor_kinds`, `kinds` du contrat), un bouton pressé par qualité
+(`ValuesFilter`, `filters.ts`). Le contrat ne trie ni les sous-projets ni les contributeurs, et ne
+cherche pas ces derniers : aucune de ces grilles ne trie, et celle des contributeurs n'offre pas
+de recherche ; ces manques, et les filtres des autres colonnes, sont #536, pour EP-02/L42. Les volumes du §4.6.2 — dix sous-projets, cinquante
+contributeurs par projet — tiennent en une page. L'historique des états, une liste de lecture,
+reste une table simple.
 
 Un écran de données de projet lit son contexte par `readAddress` de
 `frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
@@ -539,15 +550,42 @@ service le tiendra en EP-05.
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les
-comptes, désactivés compris (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
-serveur ; les rôles d'habilitation et la matrice des permissions — une ligne par permission dans
-l'ordre du catalogue, les permissions consécutives d'une même fonction de second niveau, ou d'une
-même nature hors fonction, groupées sous un en-tête de groupe (`scope="rowgroup"`), une colonne par
-rôle, accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification,
-sans aucune commande. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en
-porte et mène aux pages voisines par `offset` (`AdminListPages`), les autres paramètres de l'adresse
-gardés, sans jamais montrer une page pour le tout ; elle ne se dit vide que si elle ne tient rien
-(`meta.total`), et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
+comptes, désactivés compris par défaut (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
+serveur, sur la grille dense (#514, `admin-grids.tsx`), triés sur chaque colonne, cherchés,
+filtrés par origine (`origins`, `ValuesFilter`), par nœud d'organisation (`org_node_id`, offert
+dans l'ordre de l'arbre, `OrgNodeFilter`) et par état — les désactivés listés, à moins que
+l'adresse ne dise `include_inactive=false`, qu'écrit le lien « Masquer les désactivés »
+(`AccountStateSwitch`) — et paginés par le serveur, sous les noms du contrat — un tri, une
+recherche ou un filtre ramenant à la première page —, la ligne des totaux disant combien le serveur
+en retient (`meta.total`), l'écran remplissant la fenêtre ; la recherche est nommée d'après la
+grille, le contrat ne disant pas ce qu'elle lit (#536). Les rôles d'habilitation sont sur la grille
+dense eux aussi (#515), triés sur chaque colonne et cherchés par le serveur, sans pagination — le
+§4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, et la matrice
+des permissions montre tous les rôles quelle que soit la demande de la grille — une ligne par
+permission dans l'ordre du catalogue, les permissions consécutives d'une même fonction de second
+niveau, ou d'une même nature hors fonction, groupées sous un en-tête de groupe
+(`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
+qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
+accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, sans
+aucune commande. Seule exception, décidée par l'auteur le 2026-10-08 (#379, #515) : des boutons
+seuls, posés avant qu'EP-03 ne les branche (`later-commands.tsx`). À une session qui porte
+`users.write` (`platformOffer`), l'écran des comptes offre « Créer un compte local » dans son
+en-tête et, sur chaque compte, « Modifier », « Désactiver » ou « Réactiver » selon son état, et
+« Attribuer les rôles » — aucune suppression (WF-ADM-0060) ; à une session qui porte
+`access_roles.write`, l'écran des rôles offre « Créer un rôle » et, sur chaque rôle, « Modifier »
+et « Supprimer » — une suppression logique (#456) —, indisponible, `aria-disabled` et décrite par
+sa condition, tant qu'un compte porte le rôle, comme le serveur la refuserait (`deleteAccessRole`,
+409, WF-ADM-0090). Écart : WF-ADM-0120 refuse de désactiver le dernier compte qui porte les
+permissions de modifier les comptes et les rôles, ou de lui retirer le rôle qui les porte ; `User`
+ne déclare ni ce refus ni la disponibilité de ces commandes (#540) : « Désactiver » et « Attribuer
+les rôles » restent offertes sur tout compte, et le refus du serveur se dira comme tout autre. Un
+clic sur une commande disponible dit, dans une région annoncée rendue dès le départ, hors de la
+section de la liste, qu'elle est disponible avec EP-03 ; sur une commande indisponible, la
+condition qui lui manque, sans la lancer — chaque clic, le même répété aussi ; sans la permission,
+aucun bouton. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
+mène aux pages voisines par `offset` (`ListPages` pour les comptes, `AdminListPages` pour les
+sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
+elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
 règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigation/pages.ts` (#317).
 L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
 heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été.

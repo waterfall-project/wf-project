@@ -125,6 +125,11 @@
       "orgNodes": "Organisation tree",
       "resourceRoles": "Resource roles",
       "calendars": "Calendars",
+      "subprojects": "Subprojects",
+      "contributors": "Contributors",
+      "workBreakdown": "Work breakdown",
+      "users": "User accounts",
+      "accessRoles": "Access roles",
       "portfolioProjects": "Portfolio projects",
       "remaining": "Remaining to commit grid",
       "projects": "List of projects"
@@ -177,6 +182,24 @@
       "saturday": "Sat",
       "sunday": "Sun",
       "defaultCalendar": "Default",
+      "erpCode": "ERP code",
+      "actualCosts": "Actual costs",
+      "name": "Name",
+      "contributorKind": "Capacity",
+      "account": "Account",
+      "breakdownKind": "Kind",
+      "lastName": "Last name",
+      "firstName": "First name",
+      "email": "Email address",
+      "origin": "Origin",
+      "accessRoles": "Access roles",
+      "attachment": "Attached to",
+      "roleKind": "Kind",
+      "holders": "Holding accounts",
+      "modify": "Modify",
+      "delete": "Delete",
+      "activation": "Activation",
+      "assignRoles": "Role assignment",
       "referenceBudget": "Reference budget",
       "currentEstimate": "Current estimate",
       "winProbability": "Win probability",
@@ -861,29 +884,24 @@
     "subprojects": {
       "title": "Subprojects",
       "none": "This project has no subproject.",
-      "code": "ERP code",
-      "label": "Label",
-      "actualCosts": "Actual costs",
       "charged": "Charged",
-      "notCharged": "None"
+      "notCharged": "None",
+      "count": "{count, plural, =0 {No subproject} one {# subproject} other {# subprojects}}"
     },
     "contributors": {
       "title": "Contributors",
       "none": "This project has no contributor.",
-      "name": "Name",
-      "kind": "Capacity",
-      "account": "Account",
-      "active": "Active",
-      "inactive": "Deactivated"
+      "count": "{count, plural, =0 {No contributor} one {# contributor} other {# contributors}}",
+      "kindFilter": "Filter by capacity",
+      "everyKind": "Every capacity"
     },
     "workBreakdown": {
       "title": "Work breakdown",
       "none": "This project has no order item.",
       "orderItem": "Order item",
       "workPackage": "Work package",
-      "deliverables": "Deliverables",
-      "noWorkPackage": "No work package",
-      "noDeliverable": "None"
+      "deliverable": "Deliverable",
+      "count": "{count, plural, =0 {No order item} one {# order item} other {# order items}}"
     },
     "transitions": {
       "title": "History of states",
@@ -1092,26 +1110,43 @@
       "next": "Next page",
       "beyond": "This page is beyond the end of the list."
     },
+    "commands": {
+      "later": "{command}: available with EP-03.",
+      "unmet": "{command}: {condition}"
+    },
     "users": {
       "title": "User accounts",
-      "lastName": "Last name",
-      "firstName": "First name",
-      "email": "Email address",
-      "origin": "Origin",
-      "roles": "Access roles",
-      "orgNode": "Attached to",
       "noRole": "No role",
       "noOrgNode": "None",
       "none": "No account.",
-      "count": "{count, plural, =0 {No account} one {# account} other {# accounts}}"
+      "count": "{count, plural, =0 {No account} one {# account} other {# accounts}}",
+      "originFilter": "Filter by origin",
+      "everyOrigin": "Every origin",
+      "create": "Create a local account",
+      "modify": "Modify",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "assignRoles": "Assign the roles",
+      "named": "{firstName} {lastName}",
+      "modifyUser": "Modify “{name}”",
+      "deactivateUser": "Deactivate “{name}”",
+      "reactivateUser": "Reactivate “{name}”",
+      "assignRolesUser": "Assign the roles of “{name}”",
+      "hideInactive": "Hide the deactivated",
+      "showInactive": "Show the deactivated"
     },
     "accessRoles": {
       "title": "Access roles",
-      "kind": "Kind",
       "predefined": "Predefined",
       "composed": "Composed",
-      "holders": "Holding accounts",
-      "none": "No access role."
+      "none": "No access role.",
+      "count": "{count, plural, =0 {No role} one {# role} other {# roles}}",
+      "create": "Create a role",
+      "modify": "Modify",
+      "delete": "Delete",
+      "modifyRole": "Modify “{name}”",
+      "deleteRole": "Delete “{name}”",
+      "heldBy": "Held by {count, plural, one {# account} other {# accounts}}: a role is not deleted while an account holds it."
     },
     "permissions": {
       "title": "Permissions by function",
