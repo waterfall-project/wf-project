@@ -285,9 +285,17 @@ celles de ses cellules que le serveur calcule, figée ou non, la colonne du cont
 (`contract`) — celle par laquelle le serveur la trie et sur laquelle un collage la vise —, et,
 pour une colonne étroite, l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que
 rend sa cellule en place de la valeur formatée (`render`) — et, s'il y en a un, son arbre
-(niveau, icône de nature par `RowNatureIcon`). Trier est l'affaire de la grille, non de la
-colonne : une grille arborescente dont les lignes gardent l'ordre du plan n'en trie aucune
-(`sorts: false`), et son adresse n'en demande aucun — le planning (§3.4, WF-IHM-0060, #525). La
+(niveau, icône de nature par `RowNatureIcon`). Trier est d'abord l'affaire de la grille : une
+grille arborescente dont les lignes gardent l'ordre du plan n'en trie aucune (`sorts: false`), et
+son adresse n'en demande aucun — le planning (§3.4, WF-IHM-0060, #525). Le devis et le reste à
+engager, dont le serveur ne trie que les lignes sous chaque tâche, les tâches gardant l'ordre de
+l'arbre (WF-IHM-0060, #526), ne trient pas par une colonne de la seule tâche, que le contrat
+accepte mais dont le tri ne changerait rien : la colonne le dit elle-même
+(`GridColumn.sorts: false`), en gardant sa colonne du contrat, que vise un collage là où la grille
+en prend un (le planning, le devis) — l'avancement et la fin au reste à engager, qui n'offre ainsi
+que ce qui agit (dans l'esprit de WF-IHM-0090). Ni son en-tête ni l'adresse n'en
+offrent le tri, et un tri par elle, dans l'adresse ou gardé par le compte, est ignoré comme un tri
+inconnu (`sortColumns`). La
 configuration lit les lignes par des
 fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
 (`estimate-grid.tsx`, `planning-grid.tsx`), et la page, serveur, ne lui passe que des données —
@@ -944,7 +952,8 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   aussi par le taux d'une année (`wftools.mockreference`) ;
 - sous `fixtures/api/`, par leur nom, les exemples du témoin, déclarés engendrés dans
   `tools/paths.toml` : les lectures de son cœur (`wftools.mockcore`, décrit une fois dans
-  `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`) ; les réponses des
+  `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`, ses lignes triées sous
+  chaque tâche par `wftools.mocksort`) ; les réponses des
   écritures de grille, différence de deux lectures (`wftools.mockwrites`) ; son histoire, ses
   révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui (`wftools.mocktoday`, `wftools.mockindicators`,

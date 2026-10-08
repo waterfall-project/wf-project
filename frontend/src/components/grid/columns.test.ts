@@ -10,6 +10,7 @@ import { example } from "@/test/fixtures";
 import { alignment, formatCell, sortColumns } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { NODE_COLUMNS, type NodeList, pasteSpan } from "./nodes";
+import { REMAINING_GRID } from "./remaining";
 
 // The schemas of the contract the nodes of a structure are written in.
 const SCHEMAS = join(import.meta.dirname, "../../../../docs/api/components/schemas/revisions.yaml");
@@ -48,6 +49,33 @@ describe("a cell of a grid", () => {
     expect(alignment({ format: "text" })).toBe("start");
     expect(alignment({ format: "money" })).toBe("end");
     expect(alignment({ format: "date", align: "start" })).toBe("start");
+  });
+});
+
+describe("the sort of a grid of the tree", () => {
+  it.each([
+    ["estimate", ESTIMATE_GRID],
+    ["remaining to commit", REMAINING_GRID],
+  ] as const)(
+    "of the %s is by each column of the lines it shows, and by none of the task alone (#526)",
+    (_, grid) => {
+      // The server sorts the lines under each task, the tasks in the order of the tree: a column of
+      // the task alone, from the description to the work breakdown, would sort nothing.
+      const columns = contractEnum("NodeColumn");
+      const taskAlone = columns.slice(
+        columns.indexOf("description"),
+        columns.indexOf("cost_category"),
+      );
+      const shown = grid.columns.flatMap((column) => column.contract ?? []);
+      expect(sortColumns(grid)).toEqual(shown.filter((column) => !taskAlone.includes(column)));
+    },
+  );
+
+  it("is by no column whose own say is no, whatever the grid says", () => {
+    const columns = [{ contract: "a" }, { contract: "b", sorts: false as const }, {}];
+    expect(sortColumns({ columns })).toEqual(["a"]);
+    expect(sortColumns({ sorts: true, columns })).toEqual(["a"]);
+    expect(sortColumns({ sorts: false, columns })).toEqual([]);
   });
 });
 
