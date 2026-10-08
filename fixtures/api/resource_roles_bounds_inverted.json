@@ -1,0 +1,17 @@
+{
+  "summary": "Les rôles demandés entre 1 000 et 500 heures mensuelles : la borne supérieure précède la borne inférieure, et monthly_hours_max est refusée, désignée par /query/monthly_hours_max, la borne inférieure nommée (WF-IHM-0130).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/monthly_hours_max",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": "1000"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000972"
+  }
+}

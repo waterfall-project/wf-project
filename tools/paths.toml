@@ -93,7 +93,8 @@ by = "make fixtures"
 # revisions compared and its risks (wftools.mockhistory) —, its indicators today
 # (wftools.mocktoday), its actual costs with the journal of their imports (wftools.mockcosts), and
 # the views of the portfolio over time that sum it with the other projects
-# (wftools.mockportfoliotime), and the journal of audit of the universe (wftools.mockaudit).
+# (wftools.mockportfoliotime), the journal of audit of the universe (wftools.mockaudit), and the
+# readings of the lists of the reference written by hand (wftools.mockreference).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -175,6 +176,12 @@ paths = [
     "fixtures/api/audit_events_project.json",
     "fixtures/api/audit_events_exited.json",
     "fixtures/api/audit_events_empty.json",
+    "fixtures/api/org_nodes_reader.json",
+    "fixtures/api/resource_roles_reader.json",
+    "fixtures/api/resource_roles_bounded.json",
+    "fixtures/api/calendars_reader.json",
+    "fixtures/api/cost_types_reader.json",
+    "fixtures/api/org_node_reactivated.json",
 ]
 by = "make mock-data"
 

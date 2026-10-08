@@ -34,7 +34,7 @@ from wftools.mockindicators import (
     remaining_of,
 )
 from wftools.mockstructure import CENT, JsonObject, JsonValue, decimal, money
-from wftools.mockwitness import TODAY, fixture
+from wftools.mockwitness import TODAY, by_identifier, fixture
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -286,7 +286,7 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
     """
     kept = None if org is None else org_subtree(org)
     roles: list[JsonValue] = []
-    for role in fixture("resource_roles"):
+    for role in by_identifier("resource_roles", "resource_role_id"):
         if not role["is_active"] or (kept is not None and role["org_node_id"] not in kept):
             continue
         lines = [

@@ -398,7 +398,7 @@ TOO_WIDE_CORRELATION = universe(973)
 
 def _known() -> tuple[dict[str, str], dict[str, str]]:
     """Return the categories and the roles of the universe by their label."""
-    roles = {role["label"]: role["resource_role_id"] for role in fixture("resource_roles")}
+    roles = {role["label"]: role["resource_role_id"] for role in fixture("resource_roles")["items"]}
     return {label: key for key, label in CATEGORY_LABELS.items()}, roles
 
 

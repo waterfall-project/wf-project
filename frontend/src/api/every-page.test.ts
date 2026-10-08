@@ -5,7 +5,13 @@ import { describe, expect, it } from "vitest";
 import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
 
-import { PAGE_LIMIT, type PageAnswered, type PageAsked, readEveryPage } from "./every-page";
+import {
+  PAGE_LIMIT,
+  type PageAnswered,
+  type PageAsked,
+  readEveryPage,
+  readEveryPageUnlessRefused,
+} from "./every-page";
 import { type Answer, UnexpectedAnswer } from "./problem";
 
 type Revision = components["schemas"]["Revision"];
@@ -61,5 +67,38 @@ describe("a list read whole", () => {
         response: new Response(null, { status: 500 }),
       });
     await expect(readEveryPage("listRevisions", refused)).rejects.toBeInstanceOf(UnexpectedAnswer);
+  });
+});
+
+describe("a list read whole that the screen can do without", () => {
+  const refusal = (status: number) => (): Promise<Answer<Revisions>> =>
+    Promise.resolve({
+      error: { code: status === 403 ? "PERMISSION_MISSING" : "INTERNAL_ERROR", status },
+      response: new Response(null, { status }),
+    });
+
+  it("is none when its first page is refused as the screen expects", async () => {
+    const read = await readEveryPageUnlessRefused("listRevisions", [{ status: 403 }], refusal(403));
+    expect(read).toBeUndefined();
+  });
+
+  it("reads every page otherwise, as a list the screen cannot do without", async () => {
+    const pages: PageAsked[] = [];
+    const read = await readEveryPageUnlessRefused(
+      "listRevisions",
+      [{ status: 403 }],
+      paging(2, pages),
+    );
+    expect(read).toEqual(REVISIONS.items);
+    expect(pages).toEqual([
+      { limit: 500, offset: 0 },
+      { limit: 500, offset: 2 },
+    ]);
+  });
+
+  it("follows the rule of the reads on a refusal it does not expect", async () => {
+    await expect(
+      readEveryPageUnlessRefused("listRevisions", [{ status: 403 }], refusal(500)),
+    ).rejects.toBeInstanceOf(UnexpectedAnswer);
   });
 });

@@ -11,9 +11,70 @@ ActiveFlag:
       type: boolean
       description: Faux pour un objet désactivé, qui n'est plus proposé à la saisie (WF-REF-0010).
 
+ReferenceCommand:
+  type: string
+  enum: [deactivate, reactivate]
+  description: >-
+    Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource,
+    calendrier, nature et catégorie de coût (WF-IHM-0090) : le désactiver et le réactiver, par
+    l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`,
+    `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le
+    supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il
+    est actif, `reactivate` s'il est désactivé. L'une et l'autre relèvent de la permission de
+    modification de sa fonction — `resource_settings.write` pour les nœuds, les rôles et les
+    calendriers, `cost_settings.write` pour les natures et les catégories (WF-ADM-0100). La
+    réactivation d'un nœud dont le parent est désactivé est indisponible,
+    `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé,
+    `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut,
+    `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute
+    autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation
+    d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
+
+ReferenceCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/ReferenceCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
+
+ReferenceCommands:
+  type: array
+  maxItems: 1
+  description: >-
+    Commandes de l'objet que l'appelant a la permission d'exercer, chacune disponible ou non,
+    avec les conditions qui lui manquent (WF-IHM-0090, `ReferenceCommand`) : au plus une, celle
+    qui change son état. Une commande absente de la liste n'est pas présentée ; la liste est vide
+    pour qui lit l'objet sans la permission de modifier sa fonction — un rôle ou une catégorie
+    lus pour choisir ceux d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est
+    refusé par son code d'erreur.
+  items: { $ref: '#/ReferenceCommandAvailability' }
+
+ReferenceObjectCommands:
+  type: object
+  required: [available_commands]
+  description: >-
+    Ce qu'un objet du référentiel lu aujourd'hui ajoute à son image : ses commandes. Une image
+    figée par une révision marquée n'en porte pas (`EmployedReference`).
+  properties:
+    available_commands: { $ref: '#/ReferenceCommands' }
+
 OrgNode:
   type: object
-  required: [org_node_id, code, label, parent_id, parent_label, level, is_active, audit, lock_version]
+  required:
+    - org_node_id
+    - code
+    - label
+    - parent_id
+    - parent_label
+    - level
+    - is_active
+    - available_commands
+    - audit
+    - lock_version
   description: >-
     Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte
     aucune habilitation (WF-REF-0070).
@@ -46,6 +107,7 @@ OrgNode:
         son parent plus un pour les autres — un arbre de six niveaux va de 1 à 6
         (WF-REF-0070).
     is_active: { type: boolean }
+    available_commands: { $ref: '#/ReferenceCommands' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -72,6 +134,14 @@ OrgNodeUpdate:
         lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ResourceRole:
+  description: >-
+    Rôle de ressource tel que le référentiel le lit aujourd'hui : son image, et ses commandes
+    (`available_commands`, WF-IHM-0090).
+  allOf:
+    - $ref: '#/ResourceRoleImage'
+    - $ref: '#/ReferenceObjectCommands'
+
+ResourceRoleImage:
   type: object
   required:
     - resource_role_id
@@ -88,7 +158,8 @@ ResourceRole:
     - lock_version
   description: >-
     Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût
-    et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100).
+    et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100). L'image
+    seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`).
   properties:
     resource_role_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 200 }
@@ -145,12 +216,21 @@ ResourceRoleUpdate:
         lock_version: { $ref: ../common.yaml#/LockVersion }
 
 Calendar:
+  description: >-
+    Calendrier tel que le référentiel le lit aujourd'hui : son image, et ses commandes
+    (`available_commands`, WF-IHM-0090).
+  allOf:
+    - $ref: '#/CalendarImage'
+    - $ref: '#/ReferenceObjectCommands'
+
+CalendarImage:
   type: object
   required: [calendar_id, label, weekly_hours, is_default, is_active, audit, lock_version]
   description: >-
     Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni
     temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut
-    (WF-REF-0120).
+    (WF-REF-0120). L'image seule, sans commandes : celle qu'une révision marquée fige
+    (`EmployedReference`).
   properties:
     calendar_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, maxLength: 200 }
@@ -199,7 +279,7 @@ CostTypeKind:
 
 CostType:
   type: object
-  required: [cost_type_id, code, label, kind, is_active, audit, lock_version]
+  required: [cost_type_id, code, label, kind, is_active, available_commands, audit, lock_version]
   description: Nature de coût (WF-REF-0030).
   properties:
     cost_type_id: { $ref: ../common.yaml#/Uuid }
@@ -207,6 +287,7 @@ CostType:
     label: { type: string, minLength: 1, maxLength: 200 }
     kind: { $ref: '#/CostTypeKind' }
     is_active: { type: boolean }
+    available_commands: { $ref: '#/ReferenceCommands' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -230,9 +311,19 @@ CostTypeUpdate:
         lock_version: { $ref: ../common.yaml#/LockVersion }
 
 CostCategory:
+  description: >-
+    Catégorie de coût telle que le référentiel la lit aujourd'hui : son image, et ses commandes
+    (`available_commands`, WF-IHM-0090).
+  allOf:
+    - $ref: '#/CostCategoryImage'
+    - $ref: '#/ReferenceObjectCommands'
+
+CostCategoryImage:
   type: object
   required: [cost_category_id, code, label, cost_type_id, cost_type_label, is_active, audit, lock_version]
-  description: Catégorie de coût, rattachée à une nature (WF-REF-0040).
+  description: >-
+    Catégorie de coût, rattachée à une nature (WF-REF-0040). L'image seule, sans commandes :
+    celle qu'une révision marquée fige (`EmployedReference`).
   properties:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     code: { type: string, minLength: 1, maxLength: 20 }
@@ -290,22 +381,32 @@ HourlyRate:
 
 HourlyRateGrid:
   type: object
-  required: [years, rows]
+  required: [years, rows, meta]
   description: >-
-    La grille des taux horaires en une lecture : une ligne par catégorie de main-d'œuvre,
-    une colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour
+    Une page de la grille des taux horaires : une ligne par catégorie de main-d'œuvre, une
+    colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour
     une catégorie est une cellule vide, et aucune colonne n'est créée d'elle-même : une année
-    s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Cent cinquante catégories et
-    quinze ans (§4.6.2) tiennent en une réponse.
+    s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les colonnes sont celles de toute
+    la grille, quelles que soient la page, la recherche et le tri : une colonne ne disparaît pas
+    d'une page à l'autre.
   properties:
     years:
       type: array
-      description: Les années de la grille, croissantes ; les colonnes.
+      description: >-
+        Les années de toute la grille, croissantes ; les colonnes. Elles ne dépendent que de la
+        portée de la lecture : les années où une catégorie active porte un taux, et où une
+        catégorie active ou désactivée en porte un quand `include_inactive` est vrai ou
+        `is_active` faux. Elles ne dépendent jamais d'`is_active` vrai, de la recherche, des
+        bornes, du tri ni de la page : une colonne ne disparaît pas d'une page ou d'un filtre à
+        l'autre.
       items: { $ref: ../common.yaml#/Year }
     rows:
       type: array
-      description: Les catégories de main-d'œuvre, dans l'ordre de `listCostCategories`.
+      description: >-
+        Les catégories de main-d'œuvre de la page, dans l'ordre demandé (`sort_by`) — absent,
+        celui du code.
       items: { $ref: '#/HourlyRateRow' }
+    meta: { $ref: ../common.yaml#/PaginationMeta }
 
 HourlyRateRow:
   type: object

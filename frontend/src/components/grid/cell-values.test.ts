@@ -9,8 +9,8 @@ import { firstChoice, startingText } from "./cell-values";
 const { categories = [], roles = [] } = estimateReference();
 
 describe("a choice searched by what was typed", () => {
-  it("is the first of the list whose name starts with it: « M » is the commissioning", () => {
-    expect(firstChoice(categories, "M", "fr")?.id).toBe("01926f3a-7c00-7000-8000-000000000405");
+  it("is the first of the list whose name starts with it: « Mi » is the commissioning", () => {
+    expect(firstChoice(categories, "Mi", "fr")?.id).toBe("01926f3a-7c00-7000-8000-000000000405");
     expect(firstChoice(categories, "Mise en service", "fr")?.label).toBe("Mise en service");
   });
 
@@ -22,7 +22,8 @@ describe("a choice searched by what was typed", () => {
   it("opens a list at the first choice the character typed starts, at the one made otherwise", () => {
     const kind = { type: "choice", choices: () => categories, nullable: false } as const;
     const made = "01926f3a-7c00-7000-8000-000000000402";
-    expect(startingText(kind, made, "M", "fr")).toBe("01926f3a-7c00-7000-8000-000000000405");
+    // The categories come by code: « M » starts the electrical equipment first.
+    expect(startingText(kind, made, "M", "fr")).toBe("01926f3a-7c00-7000-8000-000000000403");
     expect(startingText(kind, made, undefined, "fr")).toBe(made);
     expect(startingText(kind, made, "§", "fr")).toBe(made);
   });

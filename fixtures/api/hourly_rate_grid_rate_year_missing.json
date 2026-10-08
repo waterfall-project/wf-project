@@ -1,0 +1,14 @@
+{
+  "summary": "La grille des taux demandée avec un taux d'au moins 100, sans l'année qu'il borne : rate_year est exigée, désignée par /query/rate_year (WF-IHM-0130).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/rate_year",
+        "code": "VALUE_REQUIRED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000985"
+  }
+}

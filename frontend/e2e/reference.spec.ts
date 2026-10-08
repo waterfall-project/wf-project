@@ -28,7 +28,7 @@ test("reads the settings of the reference data outside any project, and enters a
   await expect(grid).toHaveAttribute("aria-rowcount", "152");
   await expect(grid.getByRole("columnheader", { name: "2012", exact: true })).toBeVisible();
   await expect(grid.getByRole("columnheader", { name: "2026", exact: true })).toHaveCount(1);
-  const totals = grid.getByRole("gridcell", { name: "Taux horaires en EUR" });
+  const totals = grid.getByRole("gridcell", { name: "150 catégories, taux horaires en EUR" });
   expect(await withinBox(grid, totals)).toBe(true);
 
   // The first rate of 2015 of the third category, entered from the keyboard and answered.
@@ -53,24 +53,22 @@ test("reads the settings of the reference data outside any project, and enters a
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(rowAt(grid, 4).getByRole("gridcell").nth(6)).toBeFocused();
 
-  // Beside it, the natures and the categories of cost.
-  await expect(page.getByRole("table", { name: "Natures de coût" }).getByRole("row")).toHaveCount(
-    4,
-  );
-  await expect(
-    page.getByRole("table", { name: "Catégories de coût" }).getByRole("row", {
-      name: "MO-001 Ingénierie électrique Main-d'œuvre 641001 Actif",
-    }),
-  ).toHaveCount(1);
+  // Beside it, the natures and the categories of cost, on the dense grid: the header, the three
+  // natures, the totals; the categories, of which the server retains two hundred.
+  await expect(page.getByRole("grid", { name: "Natures de coût" }).getByRole("row")).toHaveCount(5);
+  const categories = page.getByRole("grid", { name: "Catégories de coût" });
+  await expect(categories).toHaveAttribute("aria-rowcount", "202");
+  // By code, as the list without sort gives them: the subcontracting first.
+  await expect(rowAt(categories, 1)).toContainText("ACH-001Sous-traitance");
 
   // The deactivated objects asked too: the automation engineer, deactivated, is among the roles
   // only then (WF-REF-0150), whatever the fake back answers without the parameter.
   await page.goto("/reference/resources?include_inactive=true");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de ressources");
-  // The header, the four roles, the totals; the header, the two calendars, the totals.
+  // The header, the five roles, the totals; the header, the two calendars, the totals.
   await expect(
     page.getByRole("grid", { name: "Rôles de ressources" }).getByRole("row"),
-  ).toHaveCount(6);
+  ).toHaveCount(7);
   await expect(page.getByRole("grid", { name: "Calendriers" }).getByRole("row")).toHaveCount(4);
   await expect(page.getByRole("treegrid", { name: "Arbre d’organisation" })).toBeVisible();
 
@@ -90,20 +88,41 @@ test("reads the settings of the reference data outside any project, and enters a
   await expect(page.getByText("8 semaines")).toBeVisible();
 });
 
+test("keeps the header and the totals row of the grid of the rates in a wide window, under its filters (US-0250)", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/reference/costs");
+  const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
+  await expect(
+    page.getByRole("form", { name: "Bornes de «\u00a0Grille des taux horaires\u00a0»" }),
+  ).toBeInViewport();
+  // The screen fills the window: the grid scrolls in its box, its header and its totals in view,
+  // in the window and not only in their container (défaut n° 13 de `typescript.md`).
+  await expect(grid.getByRole("columnheader", { name: "Code", exact: true })).toBeInViewport();
+  const totals = grid.getByRole("gridcell", { name: "150 catégories, taux horaires en EUR" });
+  await expect(totals).toBeInViewport();
+  expect(await withinBox(grid, totals)).toBe(true);
+  // The fake back answers the grid in one page, which offers no pages; the box the grid scrolls
+  // in, where they would come below, ends within the window.
+  const foot = await scroller(grid).boundingBox();
+  expect((foot?.y ?? 0) + (foot?.height ?? 0)).toBeLessThanOrEqual(1080);
+});
+
 test("stacks the grid of the rates and the natures of cost in a narrow window, neither over the other (US-0250)", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 800, height: 720 });
   await page.goto("/reference/costs");
   const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
-  const totals = grid.getByRole("gridcell", { name: "Taux horaires en EUR" });
+  const totals = grid.getByRole("gridcell", { name: "150 catégories, taux horaires en EUR" });
   // The page scrolls, not the screen: the foot of the box of the grid brought into the window
   // brings its totals.
   await scroller(grid).evaluate((element) => {
     element.scrollIntoView({ block: "end" });
   });
   await expect(totals).toBeInViewport();
-  const natures = page.getByRole("table", { name: "Natures de coût" });
+  const natures = page.getByRole("grid", { name: "Natures de coût" });
   await natures.scrollIntoViewIfNeeded();
   await expect(natures).toBeInViewport();
   // The natures come below the box the grid scrolls in, never over it.
@@ -182,9 +201,77 @@ test("sorts and searches each list of the settings of the resources by the serve
   );
   await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();
   expect((await reactivated).status()).toBe(200);
-  await expect(roles.getByRole("button", { name: /^Réactiver/ })).not.toHaveAttribute(
-    "aria-busy",
-    "true",
-  );
+  await expect(
+    roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }),
+  ).not.toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+
+  // The programmer of automata, under a node deactivated: its reactivation is unavailable, named
+  // by its condition, and a press says it without asking anything (WF-REF-0080, WF-IHM-0090).
+  const programmer = roles.getByRole("button", {
+    name: "Réactiver «\u00a0Programmeur d'automates\u00a0»",
+  });
+  await expect(programmer).toHaveAttribute("aria-disabled", "true");
+  await expect(programmer).toHaveAccessibleDescription(
+    "Condition non remplie : nœud d’organisation actif.",
+  );
+  // Playwright clicks no button marked unavailable: the press is dispatched as a pointer would.
+  await programmer.dispatchEvent("click");
+  await expect(
+    page
+      .getByRole("region", { name: "Rôles de ressources" })
+      .getByRole("status")
+      .filter({ hasText: "indisponible" }),
+  ).toHaveText(
+    "La réactivation de «\u00a0Programmeur d'automates\u00a0» est indisponible. Condition non remplie\u00a0: nœud d’organisation actif.",
+  );
+});
+
+test("sorts the grid of the hourly rates by the rate of a year, filters the categories and the roles, and bounds the rates and the hours of the roles by the server [WF-IHM-0060-A] [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  test.slow();
+  await page.goto("/reference/costs");
+  const rates = page.getByRole("grid", { name: "Grille des taux horaires" });
+  // A year's header asks the server for its sort, under the names of the contract.
+  await sortUntilAddress(
+    rates.getByRole("columnheader", { name: "2026", exact: true }),
+    rates,
+    "/reference/costs?sort_by=rate.2026&sort_order=asc",
+  );
+  // The categories filtered by nature, under the names of their grid, the sort of the rates kept.
+  await page.getByRole("combobox", { name: "Nature" }).selectOption({ label: "MO · Main-d'œuvre" });
+  await expect(page).toHaveURL(
+    /sort_by=rate\.2026&sort_order=asc&category_cost_type_id=01926f3a-7c00-7000-8000-000000000461$/,
+  );
+  // The rate of a year between bounds, under the names of the contract (#545), the rest kept.
+  const rateBounds = page.getByRole("form", {
+    name: "Bornes de «\u00a0Grille des taux horaires\u00a0»",
+  });
+  await rateBounds.getByRole("combobox", { name: "Année du taux" }).selectOption("2026");
+  await rateBounds.getByRole("textbox", { name: "Taux horaire, min." }).fill("110,5");
+  await rateBounds.getByRole("button", { name: "Filtrer" }).click();
+  await expect(page).toHaveURL(/category_cost_type_id=[\w-]+&rate_min=110\.5&rate_year=2026$/);
+
+  // The roles filtered by calendar, back to their first page. No project is opened here, nothing
+  // witnesses the hydration: the calendar is chosen again until React answers.
+  await page.goto("/reference/resources?role_offset=50");
+  const calendar = page.getByRole("combobox", { name: "Calendrier" });
+  await expect(async () => {
+    await calendar.selectOption("");
+    await calendar.selectOption({ label: "Semaine standard" });
+    await expect(page).toHaveURL(
+      "/reference/resources?role_calendar_id=01926f3a-7c00-7000-8000-000000000481",
+      { timeout: 1_000 },
+    );
+  }).toPass({ timeout: WORKING });
+  // The monthly hours of the roles bounded, entered as French writes a number.
+  const roleBounds = page.getByRole("form", {
+    name: "Bornes de «\u00a0Rôles de ressources\u00a0»",
+  });
+  await roleBounds.getByRole("textbox", { name: "Heures par mois, min." }).fill("300 000");
+  await roleBounds.getByRole("button", { name: "Filtrer" }).click();
+  await expect(page).toHaveURL(
+    "/reference/resources?role_calendar_id=01926f3a-7c00-7000-8000-000000000481&role_monthly_hours_min=300000",
+  );
 });

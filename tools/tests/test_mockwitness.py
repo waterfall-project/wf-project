@@ -87,7 +87,9 @@ def test_the_core_has_one_identifier_a_node_and_its_lineage_apart() -> None:
 
 
 def test_the_witness_employs_three_active_roles_on_two_calendars() -> None:
-    roles = {role["resource_role_id"]: role for role in mockwitness.fixture("resource_roles")}
+    roles = {
+        role["resource_role_id"]: role for role in mockwitness.fixture("resource_roles")["items"]
+    }
     fitter = roles[mockwitness.CABLE_FITTER]
     assert (fitter["label"], fitter["is_active"]) == ("Monteur câbleur", True)
     assert fitter["cost_category_id"] == mockwitness.ELECTRICAL_ENGINEERING
@@ -323,6 +325,7 @@ _KEYS = {
     "task_id": ("tâches de fond",),
     "paste_id": ("collages",),
     "correlation_id": ("corrélations", "corrélations engendrées"),
+    "conflicting_object_id": ("nœuds d'organisation",),
     "audit_event_id": ("inscriptions du journal d'audit",),
     "object_id": (
         "projets",

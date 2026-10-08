@@ -101,30 +101,30 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 | GET | `/reference/readiness` | Référentiel minimal exigé pour créer un projet | WF-CYC-0120 |
 | GET | `/reference/settings` | Devise, langue par défaut, matrice de risques, seuils et délai de revue | WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | PATCH | `/reference/settings` | Régler les paramètres communs | WF-REF-0140, WF-REF-0170 |
-| GET | `/reference/org-nodes` | Arbre d'organisation | WF-REF-0070 |
+| GET | `/reference/org-nodes` | Arbre d'organisation | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0070, WF-REF-0080 |
 | POST | `/reference/org-nodes` | Créer un nœud d'organisation | WF-REF-0070 |
 | PATCH | `/reference/org-nodes/{org_node_id}` | Modifier un nœud d'organisation | WF-REF-0070, WF-REF-0130 |
-| PUT | `/reference/org-nodes/{org_node_id}/activation` | Désactiver ou réactiver un nœud | WF-REF-0010, WF-REF-0080 |
-| GET | `/reference/resource-roles` | Rôles de ressources | WF-ADM-0100, WF-DEV-0020, WF-REF-0090, WF-REF-0100, WF-REF-0150 |
+| PUT | `/reference/org-nodes/{org_node_id}/activation` | Désactiver ou réactiver un nœud | WF-ADM-0100, WF-REF-0010, WF-REF-0080 |
+| GET | `/reference/resource-roles` | Rôles de ressources | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0080, WF-REF-0090, WF-REF-0100, WF-REF-0150 |
 | POST | `/reference/resource-roles` | Créer un rôle de ressource | WF-REF-0090, WF-REF-0100 |
 | PATCH | `/reference/resource-roles/{resource_role_id}` | Modifier un rôle de ressource | WF-REF-0090, WF-REF-0130 |
-| PUT | `/reference/resource-roles/{resource_role_id}/activation` | Désactiver ou réactiver un rôle de ressource | WF-REF-0010, WF-REF-0020 |
+| PUT | `/reference/resource-roles/{resource_role_id}/activation` | Désactiver ou réactiver un rôle de ressource | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0080 |
 | GET | `/reference/duration-units` | Constantes de conversion des unités de durée | WF-PLA-0160 |
 | PUT | `/reference/duration-units` | Régler les constantes de conversion des unités de durée | WF-ADM-0100, WF-PLA-0160, WF-REF-0130 |
-| GET | `/reference/calendars` | Calendriers | WF-REF-0110, WF-REF-0120 |
+| GET | `/reference/calendars` | Calendriers | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0110, WF-REF-0120 |
 | POST | `/reference/calendars` | Créer un calendrier | WF-REF-0110 |
 | PATCH | `/reference/calendars/{calendar_id}` | Modifier un calendrier | WF-REF-0110, WF-REF-0130 |
 | PUT | `/reference/calendars/{calendar_id}/default` | Désigner le calendrier par défaut | WF-PLA-0010, WF-REF-0120 |
-| PUT | `/reference/calendars/{calendar_id}/activation` | Désactiver ou réactiver un calendrier | WF-REF-0120 |
-| GET | `/reference/cost-types` | Natures de coût | WF-REF-0030, WF-REF-0150 |
+| PUT | `/reference/calendars/{calendar_id}/activation` | Désactiver ou réactiver un calendrier | WF-ADM-0100, WF-REF-0010, WF-REF-0120 |
+| GET | `/reference/cost-types` | Natures de coût | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0150 |
 | POST | `/reference/cost-types` | Créer une nature de coût | WF-REF-0030 |
 | PATCH | `/reference/cost-types/{cost_type_id}` | Modifier une nature de coût | WF-REF-0030 |
-| PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-REF-0010, WF-REF-0020 |
-| GET | `/reference/cost-categories` | Catégories de coût | WF-ADM-0100, WF-DEV-0020, WF-REF-0040, WF-REF-0150 |
+| PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020 |
+| GET | `/reference/cost-categories` | Catégories de coût | WF-ADM-0100, WF-DEV-0020, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0040, WF-REF-0150 |
 | POST | `/reference/cost-categories` | Créer une catégorie de coût | WF-REF-0040 |
 | PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0040, WF-REF-0130 |
-| PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-REF-0010, WF-REF-0020 |
-| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
+| PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-ADM-0100, WF-REF-0010, WF-REF-0020 |
+| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-IHM-0060, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
 | GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0050, WF-REF-0130 |
 

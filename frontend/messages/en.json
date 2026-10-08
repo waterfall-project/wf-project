@@ -125,6 +125,8 @@
       "orgNodes": "Organisation tree",
       "resourceRoles": "Resource roles",
       "calendars": "Calendars",
+      "costTypes": "Cost types",
+      "costCategories": "Cost categories",
       "subprojects": "Subprojects",
       "contributors": "Contributors",
       "workBreakdown": "Work breakdown",
@@ -182,6 +184,9 @@
       "saturday": "Sat",
       "sunday": "Sun",
       "defaultCalendar": "Default",
+      "costTypeKind": "Kind",
+      "costType": "Cost type",
+      "accountingCode": "Accounting code",
       "erpCode": "ERP code",
       "actualCosts": "Actual costs",
       "name": "Name",
@@ -286,6 +291,16 @@
       "sortedRows": "The pasted block would write the rows that follow the cell in the order of the plan, which the sort has moved: lift the sort before pasting, or paste a shorter block.",
       "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block.",
       "beyondRows": "The pasted block would reach past the rows the grid shows under the cell: paste a shorter block."
+    },
+    "range": {
+      "min": "{column}, min",
+      "max": "{column}, max",
+      "minShort": "min",
+      "maxShort": "max",
+      "apply": "Filter",
+      "lift": "Lift the bounds",
+      "inverted": "The upper bound may not precede the lower one, {minimum}.",
+      "money": "Two decimals at most."
     }
   },
   "estimateGrid": {
@@ -1016,19 +1031,28 @@
       "active": "Active",
       "inactive": "Deactivated",
       "reactivate": "Reactivate “{name}”",
-      "reactivateShort": "Reactivate"
+      "reactivateShort": "Reactivate",
+      "unavailable": "Reactivating “{name}” is unavailable. {unmet}"
     },
     "inactive": {
       "show": "Show the deactivated ones too",
       "hide": "Hide the deactivated ones"
     },
-    "columns": {
-      "code": "Code",
-      "label": "Label",
-      "state": "State"
+    "stateFilter": {
+      "of": "State of the objects of “{list}”",
+      "every": "Every state",
+      "active": "Active",
+      "inactive": "Deactivated"
     },
+    "pages": {
+      "label": "Pages of “{list}”",
+      "previous": "Previous page",
+      "next": "Next page",
+      "beyond": "The page asked for is beyond the end of the list."
+    },
+    "codedChoice": "{code} · {label}",
     "rates": {
-      "caption": "Hourly rates in {currency}",
+      "caption": "{count, plural, one {# category} other {# categories}}, hourly rates in {currency}",
       "addYear": {
         "label": "Add a year to the grid",
         "year": "Year",
@@ -1037,30 +1061,44 @@
         "added": "Column {year} added: it stays empty until its first rate, which entering a cell records.",
         "present": "The year {year} already has its column in the grid.",
         "outOfRange": "A year runs from {min} to {max}."
+      },
+      "bounds": {
+        "year": "Year of the rate",
+        "rate": "Hourly rate"
       }
     },
     "costTypes": {
       "title": "Cost types",
-      "kind": "Kind",
-      "none": "No cost type."
+      "none": "No cost type.",
+      "kindFilter": "Kinds of cost type",
+      "everyKind": "Every kind",
+      "count": "{count, plural, one {# cost type} other {# cost types}}"
     },
     "costCategories": {
       "title": "Cost categories",
-      "costType": "Cost type",
-      "accountingCode": "Accounting code",
-      "none": "No cost category."
+      "none": "No cost category.",
+      "costTypeFilter": "Cost type",
+      "everyCostType": "Every cost type",
+      "count": "{count, plural, one {# category} other {# categories}}"
     },
     "orgNodes": {
       "title": "Organisation tree",
       "choice": "{code} · {label}",
       "none": "No organisation node.",
-      "count": "{count, plural, one {# node} other {# nodes}}"
+      "count": "{count, plural, one {# node} other {# nodes}}",
+      "codeFilter": "Code of the node",
+      "levelFilter": "Level",
+      "everyLevel": "Every level"
     },
     "resourceRoles": {
       "title": "Resource roles",
       "none": "No resource role.",
       "orgNodeFilter": "Organisation node",
       "everyNode": "Every node",
+      "costCategoryFilter": "Cost category",
+      "everyCostCategory": "Every category",
+      "calendarFilter": "Calendar",
+      "everyCalendar": "Every calendar",
       "count": "{count, plural, one {# role} other {# roles}}"
     },
     "calendars": {
@@ -1101,7 +1139,9 @@
     "reviews": {
       "title": "Pace of the reviews",
       "maxWeeks": "Longest delay between two marked revisions of a project in progress: {weeks, plural, one {# week} other {# weeks}}."
-    }
+    },
+    "boundsOf": "Bounds of “{list}”",
+    "boundsRefused": "The list is not read: the server refuses the bounds asked."
   },
   "admin": {
     "pages": {
@@ -1282,7 +1322,6 @@
     "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
     "LAST_PROJECT_MANAGER": "A project keeps at least one project manager.",
     "ACCESS_ROLE_IN_USE": "This access role is still assigned to accounts.",
-    "DEFAULT_CALENDAR_REQUIRED": "A default calendar is required.",
     "HAS_ACTUAL_COSTS": "Actual costs are booked against it.",
     "TASK_ALREADY_STARTED": "The task has already started.",
     "TASK_COMPLETED": "The task is completed.",
@@ -1665,7 +1704,10 @@
       "may_create_revision": "holding the permission to create a revision",
       "risk_not_cited": "risk cited by no marked revision",
       "risk_not_occurred": "risk not occurred",
-      "risk_identified": "risk identified"
+      "risk_identified": "risk identified",
+      "org_node_parent_active": "parent node active",
+      "org_node_active": "organisation node active",
+      "calendar_not_default": "calendar other than the default one"
     },
     "ProjectExit": {
       "to_state": {
@@ -1948,6 +1990,10 @@
       "review": "Review the risk",
       "declare_occurrence": "Declare the risk occurred",
       "delete": "Delete the risk"
+    },
+    "ReferenceCommand": {
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate"
     },
     "RiskComputedField": {
       "field": {

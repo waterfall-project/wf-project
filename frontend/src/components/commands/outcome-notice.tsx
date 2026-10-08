@@ -42,8 +42,8 @@ export interface OutcomeNoticeProps {
   /** Whether the notice offers to dismiss it, forgetting the outcome. */
   readonly dismissible?: boolean | undefined;
   /**
-   * Once dismissed: where the screen gives the focus back, which the notice took away with its
-   * button — never left to fall to the page.
+   * Once dismissed — or the screen reloaded from a stale object —: where the screen gives the focus
+   * back, which the notice took away with its button — never left to fall to the page.
    */
   readonly onDismissed?: (() => void) | undefined;
 }
@@ -143,7 +143,8 @@ export function OutcomeNotice({
       {reference === undefined ? null : <p>{failure("reference", { reference })}</p>}
       {name === undefined ? null : <p>{t("conflictingObject", { name })}</p>}
       {kind === "signed_out" ? <SignIn /> : null}
-      {kind === "stale" ? <Reload onClear={onClear} /> : null}
+      {/* Reloading forgets the outcome as dismissing it does, the focus given back the same way. */}
+      {kind === "stale" ? <Reload onClear={dismissed} /> : null}
       {dismiss}
     </div>
   );

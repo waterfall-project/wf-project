@@ -15,10 +15,15 @@ type CostCategory = components["schemas"]["CostCategory"];
 type ResourceRole = components["schemas"]["ResourceRole"];
 type Subproject = components["schemas"]["Subproject"];
 
+/** A page of a list the server pages, as its example holds it. */
+interface Page<T> {
+  readonly items: readonly T[];
+}
+
 /** The categories and the roles of the examples, as the page hands them to the grid. */
 export function estimateReference(): EstimateReference {
-  const categories = example("volume/cost_categories") as CostCategory[];
-  const roles = example("resource_roles") as ResourceRole[];
+  const categories = (example("volume/cost_categories") as Page<CostCategory>).items;
+  const roles = (example("resource_roles") as Page<ResourceRole>).items;
   const subprojects = example("subprojects") as Subproject[];
   return {
     subprojects: subprojects.map((subproject) => ({

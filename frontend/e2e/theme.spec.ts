@@ -66,8 +66,9 @@ function backgroundOf(cell: Locator): Promise<string> {
   return cell.evaluate((element) => getComputedStyle(element).backgroundColor);
 }
 
-// The settings of costs set a list and a dense grid side by side: the natures of cost, and the grid
-// of the hourly rates (#508).
+// The access roles set a dense grid and a list one above the other: the grid of the roles, and the
+// matrix of the permissions (#508) — the settings of costs, which set them side by side before, hold
+// dense grids alone since EP-02/L42a.
 for (const mode of ["light", "dark"] as const) {
   test.describe(`the tables of a workstation in ${mode} mode`, () => {
     test.use({ colorScheme: mode });
@@ -75,11 +76,11 @@ for (const mode of ["light", "dark"] as const) {
     test("sets the header row of a list and of a dense grid on the same muted background, its text legible [WF-IHM-0100-A]", async ({
       page,
     }) => {
-      await page.goto("/reference/costs");
-      const list = page.getByRole("table", { name: "Natures de coût" });
-      const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
+      await page.goto("/admin/access-roles");
+      const list = page.getByRole("table", { name: "Permissions par fonction" });
+      const grid = page.getByRole("grid", { name: "Rôles d’habilitation" });
       const listHeader = list.getByRole("columnheader").first();
-      const gridHeader = grid.getByRole("columnheader", { name: "2012", exact: true });
+      const gridHeader = grid.getByRole("columnheader", { name: "Comptes porteurs" });
       await expect(gridHeader).toBeVisible();
       const header = await backgroundOf(listHeader);
       expect(await backgroundOf(gridHeader)).toBe(header);

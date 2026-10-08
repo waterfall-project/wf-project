@@ -7,17 +7,19 @@
  * address (`prefixedAddress`), under which its page asks the API by the names of the contract.
  *
  * - The organisation is a tree (WF-REF-0070, no limit of depth): it sorts by no column
- *   (`sorts: false`) — the order is the tree's, as `listOrgNodes` gives it —, folds and unfolds as the grids of the tasks do
- *   (`GridTree.parent`, `fold.tsx`), and is searched by the server, which gives the nodes retained
- *   with their ancestors (WF-PLA-0080).
- * - The roles are a flat table: each column the contract sorts by sorts (WF-IHM-0060), searched
- *   by the server, filtered by node (`org_node_id`).
- * - The calendars are a flat table: the label, the default one and the state sort; the hours of a
- *   day do not, the contract sorting by those of the whole week alone, which no column shows.
+ *   (`sorts: false`) — the order is the tree's, as `listOrgNodes` gives it —, is read whole, never
+ *   by pages, folds and unfolds as the grids of the tasks do (`GridTree.parent`, `fold.tsx`), and is
+ *   searched and filtered by the server — its code, its depth, its state —, which gives the nodes
+ *   retained with their ancestors (WF-PLA-0080).
+ * - The roles are a flat table: each column sorts (WF-IHM-0060), searched by the server, filtered
+ *   by node, category, calendar and state, and paged by it.
+ * - The calendars are a flat table: each column sorts, the hours of each day too, filtered by state
+ *   and paged by the server.
  *
- * The contract filters the roles by their label and their node alone, the calendars and the tree
- * by their label alone, and sorts no hours of a day: the filters of the other columns, and that
- * sort, are #533.
+ * The columns of figures — the monthly hours and the headcount of a role, the hours of each day of
+ * a calendar — are bounded, the least and the most retained, under `<column>_min` and
+ * `<column>_max` after the prefix of the grid, as the contract names them for every list (#545,
+ * `RangeFilter`).
  *
  * Neither server nor client: the page reads the keys, the names and the columns sorted; the grids,
  * in the browser, the rest — the functions that read a row never cross to the server.
@@ -30,7 +32,7 @@ import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid
 import { prefixedAddress } from "@/components/grid/query";
 import { ICON } from "@/components/projects/project-tables";
 
-import { StateCell } from "./reactivation";
+import { type Conflict, type ReferenceCommands, StateCell } from "./reactivation";
 
 /** A node of the organisation, as the contract gives it. */
 export type OrgNode = components["schemas"]["OrgNode"];
@@ -61,11 +63,37 @@ export const ORG_NODE_ADDRESS = prefixedAddress("org_");
 export const RESOURCE_ROLE_ADDRESS = prefixedAddress("role_");
 export const CALENDAR_ADDRESS = prefixedAddress("calendar_");
 
-/** The node the roles are restricted to, in the address: `org_node_id` of the contract. */
+/**
+ * The filters of each grid in the address: those of the contract, after the prefix of its grid —
+ * the node, the category, the calendar and the state of the roles, the state of the calendars, the
+ * code, the depth and the state of the nodes.
+ */
 export const ROLE_ORG_NODE = "role_org_node_id";
+export const ROLE_COST_CATEGORY = "role_cost_category_id";
+export const ROLE_CALENDAR = "role_calendar_id";
+export const ROLE_STATE = "role_is_active";
+export const CALENDAR_STATE = "calendar_is_active";
+export const ORG_CODE = "org_code";
+export const ORG_LEVEL = "org_level";
+export const ORG_STATE = "org_is_active";
+
+/**
+ * The columns of figures each grid bounds, as the address names them after its prefix: their bounds
+ * are `<column>_min` and `<column>_max` (`boundNames`).
+ */
+export const ROLE_MONTHLY_HOURS = "role_monthly_hours";
+export const ROLE_HEADCOUNT = "role_headcount";
+
+/** The column of the hours of a day of the calendars, as the address names it after its prefix. */
+export function calendarDay(day: Day): string {
+  return `calendar_${day}`;
+}
+
+/** The longest code of a node the contract filters on (`code` of `listOrgNodes`). */
+export const ORG_CODE_LENGTH = 20;
 
 /** The seven days of a calendar, from Monday, as the contract names them. */
-const DAYS = [
+export const DAYS = [
   "monday",
   "tuesday",
   "wednesday",
@@ -75,17 +103,25 @@ const DAYS = [
   "sunday",
 ] as const satisfies readonly (keyof Calendar["weekly_hours"])[];
 
+/** A day of a calendar, as the contract names it. */
+export type Day = (typeof DAYS)[number];
+
 /** The width of the column of the state, its command of reactivation beside the mark. */
 const STATE_WIDTH = 190;
 
-/** The column of the state of an object, and the command that reactivates it where allowed. */
-function stateColumn<Row, Sort extends string>(
-  read: (row: Row) => {
-    readonly active: boolean;
-    readonly target: Parameters<typeof StateCell>[0]["target"];
-    readonly name: string;
-  },
-  reactivable: boolean,
+/** What the column of the state reads of an object: its state, what its command needs and names. */
+export interface StateRead {
+  readonly active: boolean;
+  readonly target: Parameters<typeof StateCell>[0]["target"];
+  readonly name: string;
+  readonly commands: ReferenceCommands;
+  /** The object a refusal of its reactivation may name; none when the row knows none. */
+  readonly conflict?: Conflict | undefined;
+}
+
+/** The column of the state of an object, and its command of reactivation as the server lists it. */
+export function stateColumn<Row, Sort extends string>(
+  read: (row: Row) => StateRead,
   contract: Sort | undefined,
 ): GridColumn<Row, Sort, null> {
   return {
@@ -95,10 +131,7 @@ function stateColumn<Row, Sort extends string>(
     width: STATE_WIDTH,
     ...(contract === undefined ? {} : { contract }),
     value: (row) => (read(row).active ? "active" : "inactive"),
-    render: (row) => {
-      const { active, target, name } = read(row);
-      return <StateCell active={active} target={target} name={name} reactivable={reactivable} />;
-    },
+    render: (row) => <StateCell {...read(row)} />,
   };
 }
 
@@ -106,7 +139,7 @@ function stateColumn<Row, Sort extends string>(
  * The tree of the organisation: each node by its label, set in by its depth under its parent and
  * folding the nodes under it, its code, its depth and its state.
  */
-export function orgNodeGrid(reactivable: boolean): GridConfig<OrgNode, never, null> {
+export function orgNodeGrid(): GridConfig<OrgNode, never, null> {
   return {
     key: ORG_NODE_GRID_KEY,
     name: "orgNodes",
@@ -141,8 +174,13 @@ export function orgNodeGrid(reactivable: boolean): GridConfig<OrgNode, never, nu
           active: node.is_active,
           target: { kind: "org_node", id: node.org_node_id, lockVersion: node.lock_version },
           name: node.label,
+          commands: node.available_commands,
+          // The parent to reactivate first (WF-REF-0080), named as the node names it.
+          conflict:
+            node.parent_id === null || node.parent_label === null
+              ? undefined
+              : { id: node.parent_id, name: node.parent_label },
         }),
-        reactivable,
         undefined,
       ),
     ],
@@ -154,9 +192,7 @@ export function orgNodeGrid(reactivable: boolean): GridConfig<OrgNode, never, nu
  * resolves them, active or not (WF-REF-0150) —, its capacity in hours a month and the headcount it
  * stands for (WF-REF-0090, WF-REF-0100), and its state; each column sorted by the server.
  */
-export function resourceRoleGrid(
-  reactivable: boolean,
-): GridConfig<ResourceRole, ResourceRoleSort, null> {
+export function resourceRoleGrid(): GridConfig<ResourceRole, ResourceRoleSort, null> {
   return {
     key: RESOURCE_ROLE_GRID_KEY,
     name: "resourceRoles",
@@ -222,8 +258,10 @@ export function resourceRoleGrid(
             lockVersion: role.lock_version,
           },
           name: role.label,
+          commands: role.available_commands,
+          // The node to reactivate first (WF-REF-0080), named as the role names it.
+          conflict: { id: role.org_node_id, name: role.org_node_label },
         }),
-        reactivable,
         "is_active",
       ),
     ],
@@ -243,9 +281,9 @@ function DefaultCalendar({ calendar }: { readonly calendar: Calendar }) {
 
 /**
  * The calendars: each by its seven values of hours from Monday, the default one marked
- * (WF-REF-0110, WF-REF-0120), and its state.
+ * (WF-REF-0110, WF-REF-0120), and its state; each column sorted by the server.
  */
-export function calendarGrid(reactivable: boolean): GridConfig<Calendar, CalendarSort, null> {
+export function calendarGrid(): GridConfig<Calendar, CalendarSort, null> {
   return {
     key: CALENDAR_GRID_KEY,
     name: "calendars",
@@ -267,6 +305,7 @@ export function calendarGrid(reactivable: boolean): GridConfig<Calendar, Calenda
         label: day,
         format: "decimal",
         width: 60,
+        contract: day,
         value: (calendar) => calendar.weekly_hours[day],
       })),
       {
@@ -287,8 +326,8 @@ export function calendarGrid(reactivable: boolean): GridConfig<Calendar, Calenda
             lockVersion: calendar.lock_version,
           },
           name: calendar.label,
+          commands: calendar.available_commands,
         }),
-        reactivable,
         "is_active",
       ),
     ],
@@ -296,5 +335,5 @@ export function calendarGrid(reactivable: boolean): GridConfig<Calendar, Calenda
 }
 
 /** The columns of the contract the server sorts the roles and the calendars by. */
-export const RESOURCE_ROLE_SORTS = sortColumns(resourceRoleGrid(false));
-export const CALENDAR_SORTS = sortColumns(calendarGrid(false));
+export const RESOURCE_ROLE_SORTS = sortColumns(resourceRoleGrid());
+export const CALENDAR_SORTS = sortColumns(calendarGrid());

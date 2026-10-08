@@ -60,6 +60,7 @@ from wftools.mockwitness import (
     IDENTIFIED,
     REGISTER,
     TODAY,
+    by_identifier,
     fixture,
 )
 
@@ -133,7 +134,7 @@ def _rates() -> dict[str, Decimal]:
     """Return the hourly rate of each active role, that of its category for the reference year."""
     return {
         role["resource_role_id"]: mockcore.LABOUR_RATES[role["cost_category_id"]]
-        for role in fixture("resource_roles")
+        for role in fixture("resource_roles")["items"]
         if role["is_active"]
     }
 
@@ -297,7 +298,7 @@ def portfolio_workload(rows: list[JsonObject], org: str | None = None) -> JsonOb
     witness = _witness_hours() if _holds_witness(rows) else {}
     courses = [found for row in rows if row["project_id"] != witness_id and (found := course(row))]
     roles: list[JsonValue] = []
-    for role in fixture("resource_roles"):
+    for role in by_identifier("resource_roles", "resource_role_id"):
         if not role["is_active"] or (kept is not None and role["org_node_id"] not in kept):
             continue
         identifier_ = role["resource_role_id"]
@@ -767,7 +768,7 @@ def _roles_said(plan: JsonObject) -> str:
     """Say each role of a workload: its headcount, and the months out of its nominal zone."""
     headcounts = {
         role["resource_role_id"]: Decimal(role["capacity"]["headcount"])
-        for role in fixture("resource_roles")
+        for role in fixture("resource_roles")["items"]
     }
     said: list[str] = []
     for role in cast("list[JsonObject]", plan["roles"]):

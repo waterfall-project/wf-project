@@ -479,11 +479,11 @@ def test_the_hours_of_a_role_are_its_headcount_by_its_weekly_hours_by_fifty_two_
         entry["calendar_id"]: sum(
             (Decimal(hours) for hours in entry["weekly_hours"].values()), Decimal(0)
         )
-        for entry in fixture("calendars")
+        for entry in fixture("calendars")["items"]
     }
     # The semaine de trente-neuf heures, deactivated, is not listed: its hours are its label's.
     weeks.setdefault(universe(483), Decimal(39))
-    for role in fixture("resource_roles"):
+    for role in fixture("resource_roles")["items"]:
         # The monthly hours are the role's, all its people counted (WF-REF-0100).
         each = (weeks[role["calendar_id"]] * 52 / 12).quantize(Decimal("0.01"))
         capacity = role["capacity"]

@@ -156,31 +156,31 @@ export interface Examples {
     200: "workload" | "workload_marked_remaining" | "workload_org_node" | "workload_reference_budget";
   };
   "GET /reference/calendars": {
-    200: "calendars";
+    200: "calendars" | "calendars_reader" | "calendars_with_inactive";
   };
   "GET /reference/cost-categories": {
-    200: "volume/cost_categories";
+    200: "volume/cost_categories" | "volume/cost_categories_page" | "volume/cost_categories_reader";
   };
   "GET /reference/cost-categories/{cost_category_id}/hourly-rates": {
     200: "volume/hourly_rates";
   };
   "GET /reference/cost-types": {
-    200: "cost_types";
+    200: "cost_types" | "cost_types_reader";
   };
   "GET /reference/duration-units": {
     200: "duration_units";
   };
   "GET /reference/hourly-rates": {
-    200: "volume/hourly_rate_grid";
+    200: "volume/hourly_rate_grid" | "volume/hourly_rate_grid_bounded" | "volume/hourly_rate_grid_by_rate";
   };
   "GET /reference/org-nodes": {
-    200: "org_nodes";
+    200: "org_nodes" | "org_nodes_reader" | "org_nodes_with_inactive";
   };
   "GET /reference/readiness": {
     200: "reference_readiness" | "reference_readiness_incomplete";
   };
   "GET /reference/resource-roles": {
-    200: "resource_roles";
+    200: "resource_roles" | "resource_roles_bounded" | "resource_roles_reader";
   };
   "GET /reference/settings": {
     200: "reference_settings";
@@ -253,6 +253,9 @@ export interface Examples {
   };
   "PUT /reference/cost-categories/{cost_category_id}/hourly-rates/{year}": {
     200: "hourly_rate_added_year" | "hourly_rate_corrected" | "hourly_rate_entered";
+  };
+  "PUT /reference/org-nodes/{org_node_id}/activation": {
+    200: "org_node_reactivated";
   };
   "PUT /reference/resource-roles/{resource_role_id}/activation": {
     200: "resource_role_reactivated";

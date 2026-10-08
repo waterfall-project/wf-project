@@ -1,15 +1,19 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The three dense grids of the settings of the resources in the page (FBS-3.2, #511), one component
- * that takes its configuration by its kind: the dense grid, given its configuration here, on the side of the browser — a configuration reads the rows
- * by functions, which never cross from a server component to a client one. The page hands each
- * data only: the rows of the answer, what the address asked, the settings the session read, and
- * whether the session may reactivate what it shows deactivated. Read only: no cell is entered.
+ * The dense grids of the reference data in their pages (FBS-3.1, FBS-3.2, #510, #511): the tree of
+ * the organisation, the roles and the calendars of the settings of the resources, one component
+ * that takes its configuration by its kind — the natures and the categories of cost are given theirs
+ * the same way (`cost-grid.tsx`). The dense grid is given its configuration here, on the side of the
+ * browser: a configuration reads the rows by functions, which never cross from a server component to
+ * a client one. The page hands each data only: the rows of the answer, where the page stands in the
+ * list for a list the server pages, what the address asked and the settings the session read. Read
+ * only: no cell is entered; the reactivation of an object follows the commands it carries.
  *
- * The totals row says how many rows the answer holds — the search and the filter applying to it
- * (WF-IHM-0130) —, never a sum; for the tree, the ancestors the server gives with the nodes a
- * search retains included.
+ * The totals row says how many the list holds — as the server counts those it retained
+ * (`meta.total`), the search and the filters applying to it (WF-IHM-0130), never a count of the
+ * page; for the tree, read whole, the rows of the answer, the ancestors the server gives with the
+ * nodes retained included —, never a sum.
  */
 "use client";
 
@@ -20,6 +24,7 @@ import type { GridConfig } from "@/components/grid/columns";
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
+import type { ListPage } from "@/navigation/pages";
 
 import {
   type Calendar,
@@ -32,47 +37,63 @@ import {
   resourceRoleGrid,
 } from "./resource-grids";
 
-/** What a grid of the settings of the resources shows, by its kind. */
-interface GridProps<Row, Sort extends string> {
+/** What a grid of the reference data shows, by its kind. */
+export interface ReferenceGridProps<Row, Sort extends string> {
   readonly rows: readonly Row[];
   readonly query: GridQuery<Sort>;
   readonly preferences: GridPreferences | undefined;
-  /** Whether the session may modify the settings of the resources (`platformOffer`). */
-  readonly reactivable: boolean;
 }
 
-/** The three grids, by their kind: the tree of the organisation, the roles, the calendars. */
-export type ResourceGridProps =
-  | ({ readonly kind: "orgNodes" } & GridProps<OrgNode, never>)
-  | ({ readonly kind: "resourceRoles" } & GridProps<ResourceRole, ResourceRoleSort>)
-  | ({ readonly kind: "calendars" } & GridProps<Calendar, CalendarSort>);
+/** What a list the server pages adds: where its page stands in it. */
+interface Paged {
+  readonly page: ListPage;
+}
 
-/** A grid of its configuration, made once for whether the session may reactivate. */
-function ReferenceGrid<Row extends object, Sort extends string>({
+/**
+ * What the tree adds: what narrows it — its search and its filters —, which unfolds the ancestors
+ * of the rows it retains, once for each narrowing.
+ */
+interface Narrowed {
+  readonly narrowing: Readonly<Record<string, unknown>>;
+}
+
+/** The three grids of the settings of the resources, by their kind. */
+export type ResourceGridProps =
+  | ({ readonly kind: "orgNodes" } & ReferenceGridProps<OrgNode, never> & Narrowed)
+  | ({ readonly kind: "resourceRoles" } & ReferenceGridProps<ResourceRole, ResourceRoleSort> &
+      Paged)
+  | ({ readonly kind: "calendars" } & ReferenceGridProps<Calendar, CalendarSort> & Paged);
+
+/**
+ * A grid of its configuration, made once: its totals row the number the server retained for a list
+ * it pages, the rows of the answer otherwise.
+ */
+export function ReferenceGrid<Row extends object, Sort extends string>({
   make,
   count,
-  tree,
   rows,
   query,
   preferences,
-  reactivable,
-}: GridProps<Row, Sort> & {
-  readonly make: (reactivable: boolean) => GridConfig<Row, Sort, null>;
-  /** What the totals row says of the rows of the answer. */
+  page,
+  narrowing,
+}: ReferenceGridProps<Row, Sort> & {
+  readonly make: () => GridConfig<Row, Sort, null>;
+  /** What the totals row says of the number of rows the list holds. */
   readonly count: (rows: number) => string;
-  /** Whether the grid is a tree, which a search unfolds above the rows it retains. */
-  readonly tree: boolean;
+  /** Where the page stands in the list the server pages; none for the tree, read whole. */
+  readonly page?: ListPage | undefined;
+  readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
 }) {
-  const config = useMemo(() => make(reactivable), [make, reactivable]);
+  const config = useMemo(() => make(), [make]);
   return (
     <DenseGrid
       config={config}
       rows={rows}
       totals={null}
-      totalsCaption={() => count(rows.length)}
+      totalsCaption={() => count(page === undefined ? rows.length : page.total)}
       query={query}
       preferences={preferences}
-      narrowing={tree ? { search: query.search } : undefined}
+      narrowing={narrowing}
     />
   );
 }
@@ -87,7 +108,6 @@ export function ResourceGrid(props: ResourceGridProps) {
           {...props}
           make={orgNodeGrid}
           count={(count) => t("orgNodes.count", { count })}
-          tree
         />
       );
     case "resourceRoles":
@@ -96,7 +116,6 @@ export function ResourceGrid(props: ResourceGridProps) {
           {...props}
           make={resourceRoleGrid}
           count={(count) => t("resourceRoles.count", { count })}
-          tree={false}
         />
       );
     case "calendars":
@@ -105,7 +124,6 @@ export function ResourceGrid(props: ResourceGridProps) {
           {...props}
           make={calendarGrid}
           count={(count) => t("calendars.count", { count })}
-          tree={false}
         />
       );
   }

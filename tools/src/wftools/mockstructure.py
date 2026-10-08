@@ -317,7 +317,9 @@ def described(core: Iterable[Task] = CORE) -> tuple[Task, ...]:
 def labels() -> dict[str, str]:
     """Return the labels of the categories, the roles and the subprojects of the universe."""
     labels = dict(CATEGORY_LABELS)
-    labels.update((role["resource_role_id"], role["label"]) for role in fixture("resource_roles"))
+    labels.update(
+        (role["resource_role_id"], role["label"]) for role in fixture("resource_roles")["items"]
+    )
     labels.update((entry["subproject_id"], entry["label"]) for entry in fixture("subprojects"))
     return labels
 

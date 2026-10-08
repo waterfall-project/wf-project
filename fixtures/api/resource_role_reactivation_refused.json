@@ -1,0 +1,12 @@
+{
+  "summary": "La réactivation du programmeur d'automates refusée : son nœud, le bureau d'études automatismes, est désactivé, et se réactive d'abord ; rien n'est écrit (WF-REF-0080).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "org_node_active",
+      "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000474"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000966"
+  }
+}

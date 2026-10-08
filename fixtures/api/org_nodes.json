@@ -1,5 +1,5 @@
 {
-  "summary": "L'arbre d'organisation de l'installation sur trois niveaux, dans l'ordre de l'arbre, chaque nœud suivi de ses descendants, les enfants d'un parent par libellé : la direction technique ; sous elle, le bureau d'études électricité, où relèvent l'ingénieur électricien, le technicien de mise en service et l'automaticien, puis, sous lui, l'atelier de câblage, où relève le monteur câbleur ; enfin le service des achats, qui n'en porte aucun. Chaque nœud porte son code unique et sa profondeur, et nomme son parent, nul pour la racine (WF-REF-0070).",
+  "summary": "L'arbre d'organisation de l'installation sur trois niveaux, dans l'ordre de l'arbre, chaque nœud suivi de ses descendants, les enfants d'un parent par libellé : la direction technique ; sous elle, le bureau d'études électricité, où relèvent l'ingénieur électricien, le technicien de mise en service et l'automaticien, puis, sous lui, l'atelier de câblage, où relève le monteur câbleur ; enfin le service des achats, qui n'en porte aucun. Chaque nœud porte son code unique et sa profondeur, et nomme son parent, nul pour la racine (WF-REF-0070) ; chacun, actif, porte la commande qui le désactive, lue par une session qui peut modifier les paramètres de ressources (WF-IHM-0090).",
   "value": [
     {
       "org_node_id": "01926f3a-7c00-7000-8000-000000000470",
@@ -9,6 +9,13 @@
       "parent_label": null,
       "level": 1,
       "is_active": true,
+      "available_commands": [
+        {
+          "command": "deactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
       "audit": {
         "created_at": "2025-09-01T09:00:00Z",
         "created_by": {
@@ -33,6 +40,13 @@
       "parent_label": "Direction technique",
       "level": 2,
       "is_active": true,
+      "available_commands": [
+        {
+          "command": "deactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
       "audit": {
         "created_at": "2025-09-01T09:00:00Z",
         "created_by": {
@@ -57,6 +71,13 @@
       "parent_label": "Bureau d'études électricité",
       "level": 3,
       "is_active": true,
+      "available_commands": [
+        {
+          "command": "deactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
       "audit": {
         "created_at": "2025-09-01T09:00:00Z",
         "created_by": {
@@ -81,6 +102,13 @@
       "parent_label": "Direction technique",
       "level": 2,
       "is_active": true,
+      "available_commands": [
+        {
+          "command": "deactivate",
+          "is_available": true,
+          "missing_conditions": []
+        }
+      ],
       "audit": {
         "created_at": "2025-09-01T09:00:00Z",
         "created_by": {

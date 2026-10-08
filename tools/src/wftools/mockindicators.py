@@ -484,11 +484,12 @@ def _parts(
 
 
 def natures(lines: list[mockcore.Row]) -> list[Group]:
-    """Return some lines by nature of cost, in the order of the natures of the installation."""
+    """Return some lines by nature of cost, in the order of the identifiers of the natures."""
     return [
         Group(key, label, [line for line in lines if mockhistory.nature(line) == key])
         for key, label in (
-            (nature["cost_type_id"], nature["label"]) for nature in fixture("cost_types")
+            (nature["cost_type_id"], nature["label"])
+            for nature in mockwitness.by_identifier("cost_types", "cost_type_id")
         )
         if any(mockhistory.nature(line) == key for line in lines)
     ]

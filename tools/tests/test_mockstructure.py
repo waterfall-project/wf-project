@@ -330,7 +330,8 @@ def test_a_line_names_its_category_role_and_subproject_as_the_universe_does(
     categories = cast("list[dict[str, str]]", mockdata.categories())
     names = {category["cost_category_id"]: category["label"] for category in categories}
     names.update(
-        (role["resource_role_id"], role["label"]) for role in mockwitness.fixture("resource_roles")
+        (role["resource_role_id"], role["label"])
+        for role in mockwitness.fixture("resource_roles")["items"]
     )
     names.update(
         (entry["subproject_id"], entry["label"]) for entry in mockwitness.fixture("subprojects")

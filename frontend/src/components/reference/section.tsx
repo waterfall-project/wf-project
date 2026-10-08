@@ -4,7 +4,8 @@
  * The pieces the screens of the reference data share (US-0250): a section under its title, named
  * by it — by `aria-label`, never by an identifier of `useId`, which a server component may share
  * with a client one of the shell (#251) —; the state of an object, active or deactivated — a
- * deactivated one stays readable (WF-REF-0150).
+ * deactivated one stays readable (WF-REF-0150) —; what stands for a list whose bounds the API
+ * refused (#545).
  */
 import { CircleOff, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -57,4 +58,10 @@ export function ActiveState({ active }: { readonly active: boolean }) {
       {t("inactive")}
     </Badge>
   );
+}
+
+/** What stands for the grid of a list whose bounds the API refused (422), the list unread. */
+export function BoundsRefused() {
+  const t = useTranslations("reference");
+  return <p className="text-sm text-destructive">{t("boundsRefused")}</p>;
 }

@@ -22,6 +22,9 @@ from wftools import mockhistory, mocktoday
 from wftools.mockids import PROJECTS, RISKS, identifier, universe
 from wftools.mockstructure import (
     CENT,
+    LABOR,
+    NON_LABOR,
+    PROVISION,
     JsonObject,
     JsonValue,
     decimal,
@@ -32,6 +35,7 @@ from wftools.mocktext import PAGE
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     TODAY,
+    by_identifier,
     fixture,
 )
 
@@ -446,11 +450,14 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
     sums = _progressing(rows)
     budget = sum((each.budget for each in sums), Decimal(0))
     remaining = sum((each.remaining for each in sums), Decimal(0))
-    natures = [(nature["cost_type_id"], nature["label"]) for nature in fixture("cost_types")]
+    natures = [
+        (nature["cost_type_id"], nature["label"])
+        for nature in by_identifier("cost_types", "cost_type_id")
+    ]
     budgets = _parts(budget, (_LABOR_SHARE, _NON_LABOR_SHARE))
     org_node = next(
         role["org_node_id"]
-        for role in fixture("resource_roles")
+        for role in fixture("resource_roles")["items"]
         if role["resource_role_id"] == ENGINEER
     )
     label = next(node["label"] for node in fixture("org_nodes") if node["org_node_id"] == org_node)
@@ -462,19 +469,32 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
             _parts(remaining, (_REMAINING_LABOR_SHARE, _REMAINING_NON_LABOR_SHARE)),
             remaining,
         ),
-        "labor_by_org_node": _by_key([(org_node, label)], budgets[:1], budgets[0]),
+        "labor_by_org_node": _by_key(
+            [(org_node, label)], {org_node: budgets[LABOR]}, budgets[LABOR]
+        ),
     }
 
 
-def _parts(total: Decimal, shares: tuple[Decimal, Decimal]) -> list[Decimal]:
-    first, second = ((total * share).quantize(CENT) for share in shares)
-    return [first, second, total - first - second]
+def _parts(total: Decimal, shares: tuple[Decimal, Decimal]) -> dict[str, Decimal]:
+    """Part a total by nature: the labour and the non-labour their shares, the provision the rest.
+
+    Each part is named by its nature, never by its place among the natures of the universe.
+    """
+    labour, non_labour = ((total * share).quantize(CENT) for share in shares)
+    return {LABOR: labour, NON_LABOR: non_labour, PROVISION: total - labour - non_labour}
 
 
-def _by_key(keys: list[tuple[str, str]], amounts: list[Decimal], total: Decimal) -> list[JsonValue]:
+def _by_key(
+    keys: list[tuple[str, str]], amounts: dict[str, Decimal], total: Decimal
+) -> list[JsonValue]:
     return [
-        {"key": key, "label": label, "amount": money(amount), "share": _ratio(amount, total)}
-        for (key, label), amount in zip(keys, amounts, strict=True)
+        {
+            "key": key,
+            "label": label,
+            "amount": money(amounts[key]),
+            "share": _ratio(amounts[key], total),
+        }
+        for key, label in keys
     ]
 
 
