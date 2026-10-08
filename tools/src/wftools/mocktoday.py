@@ -569,6 +569,14 @@ def examples() -> dict[str, JsonObject]:
         **_curve_summaries(found),
         **_workload_summaries(found),
     }
+    for name in (
+        "estimate_indicators",
+        "remaining_indicators",
+        "project_indicators",
+        "cost_curve",
+        "earned_value_curves",
+    ):
+        summaries[name] = f"{summaries[name]} {mocktext.CORE_ONLY}"
     return {
         f"{name}.json": mocktext.example(summaries[name], value) for name, value in found.items()
     }

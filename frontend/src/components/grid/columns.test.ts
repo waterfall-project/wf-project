@@ -99,7 +99,7 @@ describe("the columns of the grid of the estimate", () => {
       const column = ESTIMATE_GRID.columns.find((each) => each.key === key);
       return column === undefined ? undefined : formatCell("money", column.value(later), "fr");
     };
-    expect([shown("base_amount"), shown("inflated_amount")]).toEqual(["2 400,00", "2 546,16"]);
+    expect([shown("base_amount"), shown("inflated_amount")]).toEqual(["5 080,00", "5 389,37"]);
   });
 
   it("show a summary, a task and the totals at their amount and at their amount corrected for inflation, as the server sums them [WF-DEV-0050-A]", () => {
@@ -109,16 +109,21 @@ describe("the columns of the grid of the estimate", () => {
         const column = ESTIMATE_GRID.columns.find((each) => each.key === key);
         return node === undefined ? undefined : formatCell("money", column?.value(node), "fr");
       });
-    const row = (number: number) => volume.items.find((node) => node.row_number === number);
-    // « Génie civil », a summary whose lines run past the year of reference, and « Conception
-    // 3.1.26 », a task of 2027: each shows two different amounts.
-    expect(row(1201)?.task?.is_summary).toBe(true);
-    expect(amounts(row(1201))).toEqual(["5\u202f857\u202f362,07", "5\u202f892\u202f847,53"]);
-    expect(amounts(row(1362))).toEqual(["40\u202f980,52", "42\u202f209,94"]);
+    // Found by their labels, never by a number written here (#400).
+    const row = (label: string) => volume.items.find((node) => node.task?.label === label);
+    // « Génie civil », a summary whose lines run past the year of reference, and « Reprise
+    // 2.1.22 », a task of 2027: each shows two different amounts.
+    expect(row("Génie civil")?.task?.is_summary).toBe(true);
+    expect(amounts(row("Génie civil"))).toEqual([
+      "7\u202f828\u202f839,16",
+      "7\u202f847\u202f988,93",
+    ]);
+    expect(row("Reprise 2.1.22")?.task?.start?.date).toBe("2027-01-06");
+    expect(amounts(row("Reprise 2.1.22"))).toEqual(["40\u202f758,82", "41\u202f981,58"]);
     const totals = ESTIMATE_GRID.columns
       .filter((column) => column.key === "base_amount" || column.key === "inflated_amount")
       .map((column) => column.total?.(volume.totals));
-    expect(totals).toEqual(["60553621.36", "62862868.14"]);
+    expect(totals).toEqual(["65605723.89", "68424191.06"]);
   });
 
   it("have the label alone pinned, the two amounts computed whole, and the figures of a line where its node says so", () => {

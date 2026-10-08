@@ -8,13 +8,14 @@ import { openHydrated, WORKING } from "./hydration";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
-// the volumes of §4.6.2 (EP-02/L2), a thousand tasks and their lines —: its lines show here too,
-// where the service renders the tasks alone — the component and page tests prove that the
-// planning asks for them. The journey reads the structure by marks the generator writes, which
-// `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds: row 3, a task
-// completed off the critical path; row 22, started, which follows it; row 453, a task of the
-// critical path not started, which follows row 434, further down — where the fake back numbers
-// the rows as it orders them.
+// the witness at the sizes of §4.6.2, its core first, a thousand tasks and their lines (#376) —:
+// its lines show here too, where the service renders the tasks alone — the component and page
+// tests prove that the planning asks for them. The journey reads the structure by marks the
+// generator writes, which `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py)
+// holds: row 7, a task of the core completed off the critical path; row 311, started, which follows
+// row 291; row 39, a task of the critical path not started, which follows the factory acceptance of
+// row 18; row 13, a summary of the second level over the task of row 14, before row 18 — where the
+// fake back numbers the rows as it orders them.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
@@ -40,27 +41,28 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   expect(
     await withinBox(grid, grid.getByRole("gridcell", { name: /^Total — 1\s000 tâches$/ })),
   ).toBe(true);
-  const completed = grid.getByRole("row", { name: /^3 .*Préparation 1\.1\.1/ });
+  const completed = grid.getByRole("row", { name: /^7 .*Dossier de conception/ });
   await expect(completed.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Automatique" })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Terminée" })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Chemin critique" })).toHaveCount(0);
   const at = await columnsOf(grid, { predecessors: "Prédécesseurs" });
-  // Row 22 is past the rows in view as the grid opens: scrolled to, so that it is checked in the
-  // window whatever the height of the grid, never in the margin the grid renders around it.
-  const follower = await scrollToPosition(grid, 22);
-  await expect(follower).toHaveAccessibleName(/^22 .*Réalisation 1\.1\.4/);
-  await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
-  await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("3");
-
-  // Further down, the critical path: marked by its icon, whatever the colour.
-  const critical = await scrollToPosition(grid, 453);
-  await expect(critical).toHaveAccessibleName(/^453 .*Préparation 1\.3\.9/);
+  // Row 39 is past the rows in view as the grid opens: scrolled to, so that it is checked in the
+  // window whatever the height of the grid, never in the margin the grid renders around it. The
+  // critical path, marked by its icon, whatever the colour.
+  const critical = await scrollToPosition(grid, 39);
+  await expect(critical).toHaveAccessibleName(/^39 .*Revue 1\.1\.3/);
   await expect(critical.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Automatique" })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Non démarrée" })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Chemin critique" })).toBeVisible();
-  await expect(critical.getByRole("gridcell").nth(at.predecessors)).toHaveText("434");
+  await expect(critical.getByRole("gridcell").nth(at.predecessors)).toHaveText("18");
+
+  // Further down, a task started, which follows another by its row number.
+  const follower = await scrollToPosition(grid, 311);
+  await expect(follower).toHaveAccessibleName(/^311 .*Revue 1\.2\.11/);
+  await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
+  await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
 
   // A header asks the server for its sort: the address says it.
   await grid
@@ -79,12 +81,12 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   // Its axis, in its header, the months of the plan.
   await expect(grid.getByRole("columnheader", { name: "Gantt" })).toContainText("janv. 27");
   // Each bar by the dates the API gives, on the row of its task.
-  const completed = grid.getByRole("row", { name: /^3 .*Préparation 1\.1\.1/ });
+  const completed = grid.getByRole("row", { name: /^7 .*Dossier de conception/ });
   const bar = completed.getByRole("gridcell").nth(at.gantt).getByRole("img");
-  await expect(bar).toHaveAccessibleName("Du 02/03/2026 au 13/03/2026");
-  const critical = await scrollToPosition(grid, 453);
+  await expect(bar).toHaveAccessibleName("Du 09/04/2026 au 15/04/2026");
+  const critical = await scrollToPosition(grid, 39);
   const criticalBar = critical.getByRole("gridcell").nth(at.gantt).getByRole("img");
-  await expect(criticalBar).toHaveAccessibleName("Du 24/03/2026 au 06/04/2026 — critique");
+  await expect(criticalBar).toHaveAccessibleName("Du 01/07/2026 au 16/07/2026 — critique");
 
   // Aucune action de la souris ou du clavier ne modifie une tâche depuis le Gantt: no request but
   // a read leaves the page while it is handled.
@@ -102,7 +104,7 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
     await page.keyboard.press(key);
   }
   await expect(grid.getByRole("textbox")).toHaveCount(0);
-  await expect(criticalBar).toHaveAccessibleName("Du 24/03/2026 au 06/04/2026 — critique");
+  await expect(criticalBar).toHaveAccessibleName("Du 01/07/2026 au 16/07/2026 — critique");
   expect(sent).toEqual([]);
 });
 
@@ -112,40 +114,43 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   await openHydrated(page, `${IN_REVISION}/planning`);
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });
-  const lot = grid.getByRole("row", { name: /^2 .*Études — Poste de commande/ });
-  const task = grid.getByRole("row", { name: /^3 .*Préparation 1\.1\.1/ });
-  await expect(lot).toHaveAttribute("aria-expanded", "true");
-  await expect(lot).toHaveAttribute("aria-level", "2");
+  // A summary of the core at the second level, over the task of row 14, before its next sibling,
+  // the factory acceptance of row 18.
+  const summary = grid.getByRole("row", { name: /^13 .*Risque survenu — Retard de livraison/ });
+  const task = grid.getByRole("row", { name: /^14 .*Relance du fournisseur/ });
+  await expect(summary).toHaveAttribute("aria-expanded", "true");
+  await expect(summary).toHaveAttribute("aria-level", "2");
   await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
 
   // Une récapitulative pliée dans la grille l'est dans le Gantt: the rows under it leave both,
   // the row after it is its next sibling, and its bracket in the Gantt offers to unfold it.
-  await lot.getByRole("gridcell").nth(at.label).getByRole("button", { name: "Plier" }).click();
-  await expect(lot).toHaveAttribute("aria-expanded", "false");
+  await summary.getByRole("gridcell").nth(at.label).getByRole("button", { name: "Plier" }).click();
+  await expect(summary).toHaveAttribute("aria-expanded", "false");
   await expect(task).toHaveCount(0);
-  await expect(rowAt(grid, 3)).toHaveAttribute("aria-level", "2");
+  await expect(rowAt(grid, 14)).toHaveAccessibleName(/^18 .*Réception usine/);
+  await expect(rowAt(grid, 14)).toHaveAttribute("aria-level", "2");
   await expect(grid).not.toHaveAttribute("aria-rowcount", "6002");
-  const ganttOfLot = lot.getByRole("gridcell").nth(at.gantt);
-  await expect(ganttOfLot.getByRole("img")).toBeVisible();
+  const ganttOfSummary = summary.getByRole("gridcell").nth(at.gantt);
+  await expect(ganttOfSummary.getByRole("img")).toBeVisible();
 
   // Et réciproquement: unfolded from the Gantt, the grid unfolds.
-  await ganttOfLot.getByRole("button", { name: "Déplier" }).click();
-  await expect(lot).toHaveAttribute("aria-expanded", "true");
+  await ganttOfSummary.getByRole("button", { name: "Déplier" }).click();
+  await expect(summary).toHaveAttribute("aria-expanded", "true");
   await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
   await expect(grid).toHaveAttribute("aria-rowcount", "6002");
 
   // By the keys of Microsoft Project, on the cell of the Gantt; kept for the session, read back
   // once the page is opened anew.
-  await ganttOfLot.click();
+  await ganttOfSummary.click();
   await page.keyboard.press("Alt+Minus");
-  await expect(lot).toHaveAttribute("aria-expanded", "false");
-  await expect(ganttOfLot).toBeFocused();
+  await expect(summary).toHaveAttribute("aria-expanded", "false");
+  await expect(ganttOfSummary).toBeFocused();
   await openHydrated(page, `${IN_REVISION}/planning`);
-  await expect(lot).toHaveAttribute("aria-expanded", "false", { timeout: WORKING });
+  await expect(summary).toHaveAttribute("aria-expanded", "false", { timeout: WORKING });
   await expect(task).toHaveCount(0);
-  await lot.getByRole("gridcell").nth(at.label).click();
+  await summary.getByRole("gridcell").nth(at.label).click();
   await page.keyboard.press("Alt+Shift+Equal");
-  await expect(lot).toHaveAttribute("aria-expanded", "true");
+  await expect(summary).toHaveAttribute("aria-expanded", "true");
   await expect(task).toBeVisible();
 });
 
@@ -168,8 +173,9 @@ test("leads from the planning to its task tree, read only, its depth in the addr
   // The summaries of the first two levels, under the project; no leaf, no milestone. The tree
   // reads the structure of a thousand tasks: the bound of a grid.
   const tree = page.getByRole("tree", { name: "Arborescence des tâches récapitulatives" });
-  await expect(tree.getByRole("treeitem", { level: 2 })).toHaveCount(10, { timeout: WORKING });
-  await expect(tree.getByRole("treeitem", { name: /^2 Études — Poste de commande/ })).toBeVisible();
+  // The three roots of the core, then the nine phases drawn about it.
+  await expect(tree.getByRole("treeitem", { level: 2 })).toHaveCount(12, { timeout: WORKING });
+  await expect(tree.getByRole("treeitem", { name: /^8 Poste de commande/ })).toBeVisible();
   await expect(tree.getByText("Préparation 1.1.1")).toHaveCount(0);
   // One stop of the tabulation, whose arrows go through it.
   await tree.getByRole("treeitem").first().focus();
@@ -193,7 +199,7 @@ test("leads from the planning to the timelines of the project, read only", async
     "Modernisation du poste de commande",
   );
   // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`), and
-  // keeps those inscribed to it of what the fake back renders: the volumes inscribe none (#463).
+  // keeps those inscribed to it of what the fake back renders (#463): those of the core.
   // They read the structure of a thousand tasks: the bound of a grid.
   await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
     "aria-current",
@@ -207,7 +213,9 @@ test("leads from the planning to the timelines of the project, read only", async
     "true",
     { timeout: WORKING },
   );
+  // The customer follows the two receptions of the core, the structure its first rows (#376).
+  await expect(page.getByRole("main")).toContainText("Réception usine");
   await expect(
     page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });

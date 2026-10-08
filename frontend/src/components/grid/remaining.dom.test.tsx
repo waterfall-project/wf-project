@@ -199,6 +199,9 @@ describe("the grid of the remaining to commit", () => {
       { reestimated_amount_basis: { hours: "10" }, lock_version: 1 },
     ]);
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^10$/);
+    // The previous review stays as it was read: what is entered now never rewrites it (WF-RAE-0040).
+    expect(cell(LABOUR, "previous_hours")).toHaveTextContent(/^12,5$/);
+    expect(cell(LABOUR, "previous_reestimated_amount")).toHaveTextContent(/^1\s000,00$/);
     expect(cell(WIRING, "reestimated_amount")).toHaveTextContent(/2\s534,56$/);
     // The totals of the reading, narrowed to the tasks started, read anew by the same request —
     // never those of the whole structure the write answered.

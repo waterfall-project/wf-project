@@ -452,7 +452,7 @@ marquage (`RiskOccurrence` sans `version_name`, `steps[].cause` à `amendment` s
 devient la courbe en S du portefeuille, une seule opération `getPortfolioCostCurve` avec
 `payment_delays`, `getPortfolioCashOut` retirée, permission `portfolio_cost_curve`. Les exemples
 `nodes_risk_occurred`, `risks`, `risk_matrix`, `remaining_indicators*` et les volumes suivent ;
-l'univers témoin reste à refaire sur ce modèle (L20 à L27, #287). Ce que la révision demande et
+l'univers témoin reste à refaire sur ce modèle (L20 à L27 et L45, #287, #528). Ce que la révision demande et
 que le contrat ne portait pas a été ouvert en constats #381 à #389, fermés par EP-02/L29 (#392) :
 l'année de référence d'une révision, le rattachement d'une récapitulative au lotissement, le compte
 rendu d'import en aller-retour, les trois permissions de WF-ADM-0100, `deleteRisk`, le code de

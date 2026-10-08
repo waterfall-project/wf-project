@@ -24,31 +24,27 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mocktext
+from wftools import REPOSITORY, mockcore, mocktext, mockwitness
 from wftools.mockstructure import (
     CATEGORY_LABELS,
+    NETWORK,
     REFERENCE_YEAR,
     JsonObject,
     JsonValue,
-    emitted,
-    inflated,
-    money,
-    planned,
-    schedule,
-    structure,
+    described,
 )
 from wftools.mockwitness import (
     CABLE_FITTER,
     CORE,
     FACTORY_ACCEPTANCE,
+    GENERATED,
     LABOUR,
-    NODES,
     WIRING,
     Line,
     Link,
+    N,
     Task,
     fixture,
-    identifier,
     universe,
 )
 
@@ -204,7 +200,10 @@ def core_write(
     *,
     following: Iterable[Task] | None = None,
 ) -> JsonObject:
-    """Return what a write of the core answers: the core read whole today, then as amended.
+    """Return what a write of the core answers: the structure read whole today, then as amended.
+
+    The core amended, the thousand tasks drawn about it as they are: the tasks the write redates
+    and the totals are those of the whole structure, the core incrusted in it (#376).
 
     A write that follows another reads the core as that one left it, the nodes it wrote one
     version further, and leaves the structure one version further still: two answers never
@@ -213,11 +212,11 @@ def core_write(
     if following is None:
         before, version = mockcore.whole(mockcore.current()), 2
     else:
-        before, version = mockcore.whole(mockcore.current(following)), 3
+        before, version = copy.deepcopy(mockcore.whole(mockcore.current(described(following)))), 3
         for node in cast("list[Node]", before["items"]):
             if node["node_id"] in {universe(number) for number in writes}:
                 node["lock_version"] += 1
-    after = mockcore.whole(mockcore.current(roots))
+    after = mockcore.whole(mockcore.current(described(roots)))
     return written(
         before,
         after,
@@ -228,8 +227,13 @@ def core_write(
 
 
 MILESTONE = FACTORY_ACCEPTANCE
-CONTROL_STATION, BLOCKS = 551, 554
-MOUNTING, WIRING_ON_SITE, COMMISSIONING_TASK, COMMISSIONING_LINE = 562, 563, 565, 566
+CONTROL_STATION, BLOCKS = N.CONTROL_STATION, N.BLOCKS
+MOUNTING, WIRING_ON_SITE, COMMISSIONING_TASK, COMMISSIONING_LINE = (
+    N.MOUNTING,
+    N.WIRING_ON_SITE,
+    N.COMMISSIONING,
+    N.COMMISSIONING_LINE,
+)
 """The nodes of the core the writes are about (``mockwitness``)."""
 
 RENAMED = "Câblage et repérage des armoires"
@@ -314,58 +318,68 @@ def estimate_line_redated() -> JsonObject:
 
 # --- The writes the journeys make on the structure of a thousand tasks -----------------------
 
-LENGTHENED = "Revue 3.1.27"
-"""The work task whose duration the example lengthens: it finishes on 29 December 2026, with
-33 working days of float, and its one successor in its chain, « Reprise 3.1.30 », starts the
-next day."""
+LENGTHENED = "Revue 2.1.27"
+"""The work task whose duration the example lengthens: it finishes on Friday 25 December 2026,
+with forty days of float, and its one successor in its chain, « Reprise 2.1.30 », starts the
+Monday after."""
 
-LENGTHENED_BY = 2
+LENGTHENED_BY = 4
 """The working days the duration grows by: the task finishes on 31 December, and its successor
 starts on the first working day of 2027 — its lines are consumed a year later, corrected anew at
 the inflation of the witness project (WF-DEV-0040) —, within the float: the milestone of the lot
 does not move, nor anything after it."""
 
 
+def volume_write(
+    roots: Iterable[Task],
+    writes: Sequence[int],
+    *,
+    before: JsonObject | None = None,
+    structure_version: int = 2,
+) -> JsonObject:
+    """Return what a write of the structure answers: the whole structure read, then as amended."""
+    read = mockcore.whole(mockcore.current()) if before is None else before
+    after = mockcore.whole(mockcore.current(roots))
+    return written(
+        read,
+        after,
+        [mockwitness.node_id(number) for number in writes],
+        structure_version=structure_version,
+    )
+
+
 def task_lengthened() -> JsonObject:
     """Return what updateTaskFacet answers when the duration of LENGTHENED grows by its days."""
-    roots, activities = planned()
-    before = emitted(roots).nodes
-    task = next(each for each in activities if each.label == LENGTHENED)
-    task.duration += LENGTHENED_BY
-    schedule(roots, activities)
-    return written(before, emitted(roots).nodes, [identifier(NODES, task.row)])
+    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if each.label == LENGTHENED]
+    roots = amended(described(), on_task(task.number, days=task.days + LENGTHENED_BY))
+    return volume_write(roots, [task.number])
 
 
-LINE_4 = identifier(NODES, 4)
-"""The first line of the structure, « Heures d'ingénierie », on which the journeys enter a label
-and paste a block (`test_the_marks_the_journeys_read`)."""
+LINE = NETWORK[0].children[0].children[0].lines[0].number
+"""The first line drawn after the core, « Heures d'ingénierie », on which the journeys enter a
+label and paste a block (`test_the_marks_the_journeys_read`)."""
+
+ROW = LINE - GENERATED
+"""The row of LINE in the structure as described."""
 
 ENTERED = "Heures de câblage"
 
 
 def estimate_line_entered() -> JsonObject:
-    """Return what updateEstimateLine answers to the label of the first line entered.
+    """Return what updateEstimateLine answers to the label of LINE entered.
 
     The structure is at its third version: the line and the structure were written twice since
     they were read, and this answer is the second (#178).
     """
-    before = structure().nodes
-    return written(before, _entered(before), [LINE_4], structure_version=ENTERED_VERSION)
+    return volume_write(
+        amended(described(), line=on_line(LINE, label=ENTERED)),
+        [LINE],
+        structure_version=ENTERED_VERSION,
+    )
 
 
 ENTERED_VERSION = 3
 """The version of the structure the label entered leaves: the paste follows it (#421)."""
-
-
-def _entered(before: JsonObject, *, versioned: bool = False) -> JsonObject:
-    """Return the structure with the label of LINE_4 entered; its version one further if asked."""
-    after = copy.deepcopy(before)
-    line = _by_id(after)[LINE_4]
-    line["estimate_line"]["label"] = ENTERED
-    if versioned:
-        line["lock_version"] += 1
-    return after
-
 
 BLOCK = (
     ("Heures de câblage et repérage", "Ingénierie électrique", "Ingénieur électricien", "1"),
@@ -378,7 +392,7 @@ copies it, pasted on the label of the first line: the rows of the journeys and o
 UNKNOWN_CATEGORY = (BLOCK[0], ("Heures d'essais", "Essais", "", "1"), BLOCK[2])
 """The same block, its second row naming a category the reference data does not know."""
 
-PASTES = (universe(971), universe(972))
+PASTES = (universe(991), universe(992))
 TOO_WIDE_CORRELATION = universe(973)
 
 
@@ -409,54 +423,40 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
 
 
 def paste_applied() -> JsonObject:
-    """Return what applyPaste answers for the block: its rows written on the lines under LINE_4.
+    """Return what applyPaste answers for the block: its rows written on the lines from LINE.
 
     Each line takes the label, the category, the role and the quantity of its row; its amount
     follows its quantity, its budget, the reference's, does not (WF-DEV-0020); its task and the
-    summaries above follow its amount, and the totals. The paste follows the label entered on
-    LINE_4 (`estimate_line_entered`): it reads the line at the version that write left, so that
-    two answers never render one node at one version with two contents (#421).
+    summaries above follow its amount, and the totals — read again from the structure written,
+    as any write of the structure (#376). The paste follows the label entered on LINE
+    (`estimate_line_entered`): it reads the line at the version that write left, so that two
+    answers never render one node at one version with two contents (#421).
     """
-    before = _entered(structure().nodes, versioned=True)
-    after = copy.deepcopy(before)
-    items = cast("list[Node]", after["items"])
-    first = next(index for index, node in enumerate(items) if node["node_id"] == LINE_4)
-    targets = items[first : first + len(BLOCK)]
+    entered = amended(described(), line=on_line(LINE, label=ENTERED))
+    before = copy.deepcopy(mockcore.whole(mockcore.current(entered)))
+    for node in cast("list[Node]", before["items"]):
+        if node["node_id"] == mockwitness.node_id(LINE):
+            node["lock_version"] += 1
+    [task] = [each for each in mockcore.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
+    targets = [line.number for line in task.lines[: len(BLOCK)]]
     categories, roles = _known()
-    labels = {key: label for label, key in [*categories.items(), *roles.items()]}
-    nodes = _by_id(after)
-    for node, (label, category, role, quantity) in zip(targets, BLOCK, strict=True):
-        line = node["estimate_line"]
-        old = {key: Decimal(line[key]) for key in _AMOUNTS}
-        line["label"] = label
-        line["cost_category_id"] = categories[category]
-        line["cost_category_label"] = labels[categories[category]]
-        line["resource_role_id"] = roles.get(role)
-        line["resource_role_label"] = role or None
-        line["quantity"] = quantity
-        each = (
-            Decimal(line["hours"]) * mockcore.LABOUR_RATES[line["cost_category_id"]]
-            if line["hours"] is not None
-            else Decimal(line["unit_disbursement"])
+    roots = entered
+    for number, (label, category, role, quantity) in zip(targets, BLOCK, strict=True):
+        roots = amended(
+            roots,
+            line=on_line(
+                number,
+                label=label,
+                category=categories[category],
+                role=roles.get(role),
+                quantity=Decimal(quantity),
+            ),
         )
-        amount = Decimal(quantity) * each
-        line["base_amount"] = line["reestimated_amount"] = money(amount)
-        line["inflated_amount"] = money(inflated(amount, line["consumption_year"]))
-        delta = {key: Decimal(line[key]) - old[key] for key in _AMOUNTS}
-        for above in [nodes[parent] for parent in _ancestors(nodes, [node["node_id"]])]:
-            _add(above["task"], delta)
-        _add(cast("Node", after["totals"]), delta)
-    return written(
-        before,
-        after,
-        [node["node_id"] for node in targets],
-        structure_version=ENTERED_VERSION + 1,
-    )
+    return volume_write(roots, targets, before=before, structure_version=ENTERED_VERSION + 1)
 
 
-def _add(amounts: Node, delta: dict[str, Decimal]) -> None:
-    for key, value in delta.items():
-        amounts[key] = money(Decimal(amounts[key]) + value)
+def _numbers(lines: Iterable[Line]) -> list[int]:
+    return [line.number for line in lines]
 
 
 NODE_COLUMNS = REPOSITORY / "docs" / "api" / "components" / "schemas" / "revisions.yaml"
@@ -522,6 +522,83 @@ def _totals(answer: JsonObject) -> str:
     )
 
 
+def latest_finish(nodes: Iterable[Node]) -> tuple[str, Decimal]:
+    """Return the latest finish of the tasks of a reading: the end of the structure."""
+    return max(
+        (node["task"]["finish"]["date"], Decimal(node["task"]["finish"]["hours"]))
+        for node in nodes
+        if node["kind"] == "task"
+    )
+
+
+def end_after(answer: JsonObject, before: JsonObject) -> tuple[str, Decimal]:
+    """Return the end of the structure a write leaves: the reading before, as the answer redates."""
+    nodes = _by_id(before)
+    for node in [*cast("list[Node]", answer["nodes"]), *cast("list[Node]", answer["ancestors"])]:
+        nodes[node["node_id"]] = node
+    for entry in cast("list[Node]", answer["rescheduled"]):
+        nodes[entry["node_id"]] = {
+            **nodes[entry["node_id"]],
+            "task": {**nodes[entry["node_id"]]["task"], "finish": entry["finish"]},
+        }
+    return latest_finish(nodes.values())
+
+
+def _margin(answer: JsonObject, before: JsonObject) -> str:
+    """Say what bounds the tasks a write redates, and where the end of the structure goes.
+
+    Their successors that the write does not redate — milestones, or tasks —, agreed to their
+    number; and the end of the structure, the same or moved, from the readings themselves.
+    """
+    entries = cast("list[Node]", answer["rescheduled"])
+    if not entries:
+        return ""
+    nodes, moved = _by_id(before), {entry["node_id"] for entry in entries}
+    followers = [
+        node
+        for node in nodes.values()
+        if node["node_id"] not in moved
+        and any(link["predecessor_node_id"] in moved for link in node.get("predecessors", []))
+    ]
+    one, alone = len(entries) == 1, len(followers) == 1
+    kind = "jalon" if all(node["task"]["is_milestone"] for node in followers) else "tâche"
+    article = ("le " if kind == "jalon" else "la ") if alone else "les "
+    what = f"{article}{kind}{'' if alone else 's'}"
+    bound = (
+        f"dans la marge que {'lui' if one else 'leur'} {'laisse' if alone else 'laissent'} "
+        f"{what} qu'{'elle précède' if one else 'elles précèdent'}"
+    )
+    was, now = latest_finish(nodes.values()), end_after(answer, before)
+    end = (
+        "la fin de la structure ne bouge pas"
+        if was == now
+        else f"la fin de la structure passe du {mocktext.day(date.fromisoformat(was[0]))} au "
+        f"{mocktext.day(date.fromisoformat(now[0]))}"
+    )
+    return f"{bound} : {end}"
+
+
+def _redated(answer: JsonObject, rows: dict[int, mockcore.Row]) -> str:
+    """Say the tasks a write redates, from what it answers: each by its label and its dates."""
+    labels = {mockwitness.node_id(number): row.label for number, row in rows.items()}
+    return mocktext.listed(
+        [
+            f"« {labels[entry['node_id']]} », {mocktext.span(entry)}"
+            for entry in cast("list[Node]", answer["rescheduled"])
+        ]
+    )
+
+
+def _plural(answer: JsonObject) -> str:
+    return "" if len(cast("list[Node]", answer["rescheduled"])) == 1 else "s"
+
+
+def _which(answer: JsonObject) -> str:
+    return (
+        "la tâche qu'" if len(cast("list[Node]", answer["rescheduled"])) == 1 else "les tâches qu'"
+    )
+
+
 def writes() -> dict[str, JsonObject]:
     """Return the named examples of the writes of the grids, by file name."""
     return {**_core_writes(), **_volume_writes()}
@@ -534,7 +611,8 @@ def _core_writes() -> dict[str, JsonObject]:
     deleted, linked, redated = node_deleted(), predecessor_set(), estimate_line_redated()
     [line] = cast("list[Node]", updated["nodes"])
     [mounting] = cast("list[Node]", linked["nodes"])
-    moved = {entry["node_id"]: entry for entry in cast("list[Node]", linked["rescheduled"])}
+    unmoved = "" if linked["reinflated"] else " — aucun montant corrigé de l'inflation ne change —"
+    whole = mockcore.whole(mockcore.current())
     later = {entry["node_id"]: entry for entry in cast("list[Node]", redated["rescheduled"])}
     priced = {entry["node_id"]: entry for entry in cast("list[Node]", redated["reinflated"])}
     commissioning = universe(COMMISSIONING_TASK)
@@ -604,14 +682,12 @@ def _core_writes() -> dict[str, JsonObject]:
             f"la réception usine du {_on(acceptance['finish'])}, en fin à début, avec "
             f"{SITE_DELAY} jours ouvrés de décalage, le temps d'acheminer les armoires. Le "
             f"montage, écrit, part le {_on(mounting['task']['start'])} et finit le "
-            f"{_on(mounting['task']['finish'])} ; une version de plus. Sans être écrites, les "
-            f"tâches qu'il redate : la mise en service qui le suit, du "
-            f"{_on(moved[commissioning]['start'])} au {_on(moved[commissioning]['finish'])}, "
-            f"démarrée encore en 2026 — aucun montant corrigé de l'inflation ne change —, et, la "
-            f"fin du cœur repoussée, les tâches sans successeur, dont seule la marge grandit. "
-            f"Aucune date passée ne bouge : la réception usine reste au 30 juin. Les "
-            f"récapitulatives au-dessus, entières ; les totaux de la structure ne changent pas "
-            f"(WF-PLA-0020, WF-PLA-0030, WF-PLA-0100).",
+            f"{_on(mounting['task']['finish'])} ; une version de plus. Sans être écrite"
+            f"{_plural(linked)}, {_which(linked)}il redate : {_redated(linked, before)}"
+            f"{unmoved}, {_margin(linked, whole)}. Aucune date passée ne bouge : la réception "
+            f"usine reste au "
+            f"{_on(acceptance['finish'])}. Les récapitulatives au-dessus, entières ; les totaux de "
+            f"la structure ne changent pas (WF-PLA-0020, WF-PLA-0030, WF-PLA-0100).",
             linked,
         ),
         "estimate_line_redated.json": mocktext.example(
@@ -627,10 +703,11 @@ def _core_writes() -> dict[str, JsonObject]:
             f"3 % du projet, {_money(priced[universe(COMMISSIONING_LINE)]['inflated_amount'])} "
             f"au lieu de {mocktext.amount(before[COMMISSIONING_LINE].amounts.inflated)}, et la "
             f"mise en service avec elle (reinflated) ; leur montant à l'année de référence ne "
-            f"change pas. Avec la fin du cœur, les marges des tâches sans successeur grandissent ; "
-            f"le montage et les récapitulatives au-dessus des tâches redatées, entiers ; les "
-            f"totaux, dont le seul montant corrigé change (WF-PLA-0010, WF-PLA-0020, "
-            f"WF-DEV-0040).",
+            f"change pas. Redatée{_plural(redated)}, {_redated(redated, before)} "
+            f"{'reste' if len(cast('list[Node]', redated['rescheduled'])) == 1 else 'restent'} "
+            f"{_margin(redated, whole)} ; le montage et les récapitulatives "
+            f"au-dessus des tâches redatées, entiers ; les totaux, dont le seul montant corrigé "
+            f"change (WF-PLA-0010, WF-PLA-0020, WF-DEV-0040).",
             redated,
         ),
     }
@@ -643,7 +720,8 @@ def _volume_writes() -> dict[str, JsonObject]:
     columns = node_columns()
     return {
         "estimate_line_entered.json": mocktext.example(
-            f"La ligne 4 de la structure des volumes, « Heures d'ingénierie », dont le libellé "
+            f"La ligne {ROW} de la structure du témoin, « Heures d'ingénierie », première ligne "
+            f"tirée après le cœur, dont le libellé "
             f"est saisi « {ENTERED} » : rien d'autre ne change, pas même ses montants ; une "
             f"version de plus. Avec elle, ses trois ancêtres, inchangés, les totaux de la "
             f"structure, et son compteur, passé à 3 après deux écritures. Le faux back la rend à "
@@ -652,9 +730,9 @@ def _volume_writes() -> dict[str, JsonObject]:
             estimate_line_entered(),
         ),
         "paste_plan.json": mocktext.example(
-            "Un bloc de trois lignes et quatre colonnes — libellé, catégorie, rôle, quantité — "
-            "collé sur le libellé de la ligne 4 de la structure des volumes : les trois lignes "
-            "seront écrites, aucune n'est refusée ; rien n'est encore écrit (WF-IHM-0050).",
+            f"Un bloc de trois lignes et quatre colonnes — libellé, catégorie, rôle, quantité — "
+            f"collé sur le libellé de la ligne {ROW} de la structure du témoin : les trois lignes "
+            f"seront écrites, aucune n'est refusée ; rien n'est encore écrit (WF-IHM-0050).",
             paste_plan(BLOCK, PASTES[0]),
         ),
         "paste_plan_unknown_category.json": mocktext.example(
@@ -672,13 +750,13 @@ def _volume_writes() -> dict[str, JsonObject]:
             paste_too_wide(),
         ),
         "paste_applied.json": mocktext.example(
-            f"Le bloc de trois lignes et quatre colonnes appliqué sur les lignes 4 à 6 de la "
-            f"structure des volumes : leurs libellés « {BLOCK[0][0]} », « {BLOCK[1][0]} » et "
+            f"Le bloc de trois lignes et quatre colonnes appliqué sur les lignes {ROW} à {ROW + 2} "
+            f"de la structure du témoin : leurs libellés « {BLOCK[0][0]} », « {BLOCK[1][0]} » et "
             f"« {BLOCK[2][0]} », la quantité de la troisième portée à {line['quantity']} et son "
             f"montant réestimé recalculé, {_money(line['reestimated_amount'])} — "
             f"{line['quantity']} fois {_money(line['unit_disbursement'])} —, le budgété inchangé, "
             f"{_money(line['budgeted_amount'])}, fixé par la référence ; une version de plus "
-            f"chacune — la ligne 4, écrite d'abord par la saisie de son libellé "
+            f"chacune — la ligne {ROW}, écrite d'abord par la saisie de son libellé "
             f"(estimate_line_entered), passe à la version 3. Avec elles, leurs trois ancêtres, "
             f"dont le montant réestimé suit, les totaux de la structure, et le compteur de la "
             f"structure, passé à {ENTERED_VERSION + 1}, celui que la saisie laissait plus un. "

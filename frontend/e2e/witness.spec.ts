@@ -24,13 +24,13 @@ test("opens the list of projects, a project, and reads its planning and its esti
     "Modernisation du poste de commande",
   );
   // A revision opens on its planning, the first function of a revision. The fake back serves
-  // the structure of the volumes of §4.6.2 (EP-02/L2): its first rows are in view.
+  // the structure of the witness at the sizes of §4.6.2, its core first: its first rows in view.
   // The redirect, then the six thousand rows the server renders for the planning: more than the
   // five seconds of an assertion on a loaded runner, the time this one is given (#315).
   await page.getByRole("link", { name: "Référence" }).click();
   await expect(page).toHaveURL(new RegExp(`${REFERENCE}/planning`), { timeout: WORKING });
   const planning = page.getByRole("treegrid", { name: "Grille de planning" });
-  await expect(planning.getByRole("gridcell", { name: /Préparation 1\.1\.1$/ })).toBeVisible({
+  await expect(planning.getByRole("gridcell", { name: /Études de détail$/ })).toBeVisible({
     timeout: WORKING,
   });
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification");
@@ -42,7 +42,9 @@ test("opens the list of projects, a project, and reads its planning and its esti
   const estimate = page.getByRole("treegrid", { name: "Grille de devis" });
   await expect(estimate).toHaveAttribute("aria-rowcount", "6002", { timeout: WORKING });
   await expect(estimate.getByRole("columnheader", { name: "Libellé" })).toBeVisible();
-  await expect(estimate.getByRole("row", { name: /^4 .*Heures d'ingénierie/ })).toBeVisible();
+  await expect(
+    estimate.getByRole("row", { name: /^10 .*Raccordement des borniers/ }),
+  ).toBeVisible();
   await expect(
     estimate.getByRole("gridcell", { name: /^Total — 1\s000 tâches, 5\s000 lignes$/ }),
   ).toBeVisible();
@@ -50,5 +52,5 @@ test("opens the list of projects, a project, and reads its planning and its esti
   // lines as the structure the grid shows (EP-02/L2), and says the same total.
   const indicators = page.getByRole("region", { name: "Indicateurs du devis" });
   await expect(indicators.getByRole("term").first()).toHaveText("Total du devis");
-  await expect(indicators).toContainText(/60\s553\s621,36/);
+  await expect(indicators).toContainText(/65\s605\s723,89/);
 });

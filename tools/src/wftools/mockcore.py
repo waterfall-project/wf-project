@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The readable core of the witness structure, dated and priced, read as ``listNodes`` reads it.
 
-The core is described once in ``wftools.mockwitness`` (#287): here it is dated in hours of work
+The core is described once in ``wftools.mockwitness`` (#287), the thousand tasks drawn about it
+in ``wftools.mockstructure``: here the whole structure, the core first, is dated in hours of work
 on the calendar of each task (``wftools.mockcalendar``, WF-PLA-0010), its total float and its
-critical path found from its own links (WF-PLA-0100), its lines priced at the rates of the
-universe (WF-DEV-0020) and its summaries summed (WF-DEV-0050), and its nodes emitted as the
-server renders them, numbered from the first row of the structure, where the structure of a
-thousand tasks is to carry them (EP-02/L27, #376). The named examples of ``listNodes`` —
+critical path found from its links (WF-PLA-0100), its lines priced at the rates of the universe
+(WF-DEV-0020) and its summaries summed (WF-DEV-0050), and its nodes emitted as the server
+renders them, numbered from its first row (EP-02/L27, #376). The named examples of ``listNodes`` —
 ``nodes``, ``nodes_planning``, ``nodes_estimate``, ``nodes_milestone``, ``nodes_risk_occurred``
 — are readings of this one tree, by ``subtree_of``, ``kinds`` and ``search``, and the
 ``dependencies_*`` examples say what its computed values depend on: one identifier, one lineage
@@ -24,6 +24,8 @@ revision show the quantities and the amount of its previous review, the referenc
 
 from __future__ import annotations
 
+import functools
+import heapq
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
@@ -45,6 +47,7 @@ from wftools.mockstructure import (
     JsonValue,
     computable,
     decimal,
+    described,
     inflated,
     labels,
     line_fields,
@@ -62,9 +65,10 @@ from wftools.mockwitness import (
     Line,
     Task,
     default_calendar,
+    lineage_id,
+    node_id,
     reference,
     role_calendars,
-    universe,
 )
 
 if TYPE_CHECKING:
@@ -77,8 +81,6 @@ READ_ON = TODAY.date()
 LABOUR_RATES = {ELECTRICAL_ENGINEERING: ELECTRICAL_RATE, COMMISSIONING: COMMISSIONING_RATE}
 """The hourly rate of each labour category the core employs, for the reference year."""
 
-LINEAGE = 100
-"""What separates the lineage of a node of the core from its node: 5nn is of the lineage 6nn."""
 
 TASK, ESTIMATE_LINE = "task", "estimate_line"
 
@@ -97,8 +99,8 @@ SHARE = Decimal("0.0001")
 
 
 def lineage(number: int) -> str:
-    """Return the identifier of the lineage of a node of the core."""
-    return universe(number + LINEAGE)
+    """Return the identifier of the lineage of a node: 6nn for the core, generated otherwise."""
+    return lineage_id(number)
 
 
 # --- Dating the core --------------------------------------------------------------------------
@@ -125,7 +127,11 @@ class Dated:
 
     @property
     def total_float(self) -> Decimal | None:
-        """Return the float in days of work: the hours from the finish to the latest finish."""
+        """Return the float in days of work: the hours from the finish to the latest finish.
+
+        Negative when a date entered by hand downstream asks the task to finish earlier than it
+        can (WF-PLA-0100).
+        """
         if self.late_finish is None:
             return None
         return self.calendar.work_between(self.finish, self.late_finish) / HOURS_PER_DAY
@@ -194,22 +200,29 @@ def in_link_order(tasks: list[Task]) -> list[Task]:
 
     A link that closes a loop is refused, as the server refuses it (WF-PLA-0030).
     """
-    placed: set[int] = set()
+    rank = {task.number: index for index, task in enumerate(tasks)}
+    waits = {task.number: len(task.links) for task in tasks}
+    followers: dict[int, list[Task]] = {}
+    for task in tasks:
+        for link in task.links:
+            followers.setdefault(link.predecessor, []).append(task)
+    entries = [(rank[task.number], task.number) for task in tasks if not task.links]
+    heapq.heapify(entries)
+    by_number = {task.number: task for task in tasks}
     ordered: list[Task] = []
-    waiting = list(tasks)
-    while waiting:
-        ready = next(
-            (task for task in waiting if all(link.predecessor in placed for link in task.links)),
-            None,
-        )
-        if ready is None:
-            # Each task left waits for another left: a loop, and what follows it.
-            names = ", ".join(task.label for task in waiting)
-            message = f"the links close a loop among the tasks left undated: {names}"
-            raise ValueError(message)
-        waiting.remove(ready)
-        placed.add(ready.number)
-        ordered.append(ready)
+    while entries:
+        _, number = heapq.heappop(entries)
+        ordered.append(by_number[number])
+        for follower in followers.get(number, []):
+            waits[follower.number] -= 1
+            if waits[follower.number] == 0:
+                heapq.heappush(entries, (rank[follower.number], follower.number))
+    if len(ordered) < len(tasks):
+        # Each task left waits for another left: a loop, and what follows it.
+        placed = {task.number for task in ordered}
+        names = ", ".join(task.label for task in tasks if task.number not in placed)
+        message = f"the links close a loop among the tasks left undated: {names}"
+        raise ValueError(message)
     return ordered
 
 
@@ -219,7 +232,9 @@ def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
     Its successors, each by its link, say where it must finish or start: a finish-to-start
     link, its lag before the successor's latest start; a start-to-start link, there for the
     task's start, its own duration after. The lag is placed on the successor's calendar, as the
-    forward pass places it. A successor in manual mode imposes nothing: its dates are entered.
+    forward pass places it. A successor in manual mode bounds its predecessors by the dates
+    entered, its latest start being its start (WF-PLA-0100, #402): a predecessor that cannot
+    finish in time has a negative float.
     """
     activities = [each for each in dated.values() if not each.task.children]
     core_finish = max(each.finish for each in activities)
@@ -235,10 +250,13 @@ def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
             continue
         latest = core_finish
         for successor, lag, link_type in successors.get(task.number, []):
-            if successor.late_finish is None:
-                continue
             calendar = successor.calendar
-            latest_start = calendar.elapsed(successor.late_finish) - successor.hours - lag
+            if successor.task.manual is not None:
+                latest_start = calendar.elapsed(successor.start) - lag
+            elif successor.late_finish is None:
+                continue
+            else:
+                latest_start = calendar.elapsed(successor.late_finish) - successor.hours - lag
             if link_type == FINISH_TO_START:
                 bound = calendar.instant(latest_start, finish=True)
             else:
@@ -259,8 +277,15 @@ def progress_at(dated: Mapping[int, Dated], number: int, today: date) -> str:
     if placed.task.children:
         states = {progress_at(dated, child.number, today) for child in placed.task.children}
         return states.pop() if len(states) == 1 else "started"
-    if placed.task.progress is not None:
-        return placed.task.progress
+    declared = placed.task.progress
+    # A completion declared is a gesture made on the day the task completed: before it, the
+    # task reads as its dates say (WF-PLA-0130).
+    if declared is not None and not (declared == "completed" and placed.finish.day > today):
+        return declared
+    if placed.task.is_milestone:
+        # Nothing completes by itself (WF-RAE-0030): a milestone is completed by a gesture
+        # alone, its date passed or not.
+        return "not_started"
     if placed.finish.day < today:
         return "completed"
     if placed.start.day <= today and not placed.task.is_milestone:
@@ -316,12 +341,13 @@ def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) ->
     (WF-DEV-0030); the budget is what the reference revision gives it, the amount unless the
     line says otherwise; the re-estimate is the amount; the amount corrected for inflation is
     the amount projected on the year of consumption (WF-DEV-0040). The hourly rates are those
-    of the reference year of the revision priced: by default, the core's, of 2026.
+    of the reference year of the revision priced, one for each category: by default, the core's,
+    of 2026 (WF-DEV-0020, WF-REV-0060).
     """
     if line.hours is not None:
-        amount = line.hours * rates[line.category]
+        amount = line.quantity * line.hours * rates[line.category]
     elif line.unit is not None:
-        amount = line.unit
+        amount = line.quantity * line.unit
     else:
         message = f"the line {line.number} has neither hours nor a unit disbursement"
         raise ValueError(message)
@@ -384,7 +410,7 @@ class _Emitter:
         if task.links:
             node["predecessors"] = [
                 {
-                    "predecessor_node_id": universe(link.predecessor),
+                    "predecessor_node_id": node_id(link.predecessor),
                     "predecessor_row_number": self.row_of[link.predecessor],
                     "link_type": link.link_type,
                     "lag": {"value": str(link.lag), "unit": link.unit},
@@ -423,7 +449,7 @@ class _Emitter:
             "cost_category_label": self.labels[line.category],
             "resource_role_id": line.role,
             "resource_role_label": None if line.role is None else self.labels[line.role],
-            "quantity": "1",
+            "quantity": decimal(line.quantity),
             "hours": None if line.hours is None else decimal(line.hours),
             "unit_disbursement": None if line.unit is None else money(line.unit),
             "payment_delay_days": payment_delay(line),
@@ -461,7 +487,7 @@ class _Emitter:
         if before is None:
             return dict.fromkeys(PREVIOUS)
         return {
-            "previous_quantity": "1",
+            "previous_quantity": decimal(before.quantity),
             "previous_hours": None if before.hours is None else decimal(before.hours),
             "previous_unit_disbursement": None if before.unit is None else money(before.unit),
             "previous_reestimated_amount": money(price(before, year, self.rates).reestimated),
@@ -507,7 +533,8 @@ class _Emitter:
             facet["total_float"] = (
                 None if total_float is None else {"value": decimal(total_float), "unit": "d"}
             )
-            facet["is_critical"] = total_float is not None and total_float == 0
+            # The critical path counts the floats nil or negative (WF-PLA-0100, #402).
+            facet["is_critical"] = total_float is not None and total_float <= 0
         return facet
 
     def _dates_of(self, task: Task, state: str) -> tuple[date | None, date | None]:
@@ -557,10 +584,10 @@ class _Emitter:
     @staticmethod
     def _node(number: int, place: Place, kind: str, facet: JsonObject) -> JsonObject:
         return {
-            "node_id": universe(number),
-            "lineage_id": lineage(number),
+            "node_id": node_id(number),
+            "lineage_id": lineage_id(number),
             "kind": kind,
-            "parent_id": None if place.parent is None else universe(place.parent.number),
+            "parent_id": None if place.parent is None else node_id(place.parent.number),
             "position": place.position,
             "row_number": place.row,
             "level": place.level,
@@ -622,15 +649,40 @@ def core(
     return emitter.rows
 
 
-def current(roots: Iterable[Task] = CORE) -> list[Row]:
+def current(roots: Iterable[Task] | None = None) -> list[Row]:
     """Return the current revision 102 today, as described or as a write leaves it.
 
-    Its lines show the quantities of its previous review, the reference 101, marked on
-    1 February 2026 while the project was in progress, and the amount it re-estimated them at:
-    what ``remaining_indicators`` compares the remaining to commit of today with (WF-RAE-0020,
-    WF-RAE-0040).
+    Its whole structure, the core first, then the thousand tasks drawn about it
+    (``mockstructure.described``), dated together. Its lines show the quantities of its previous
+    review, the reference 101, marked on 1 February 2026 while the project was in progress, and
+    the amount it re-estimated them at: what ``remaining_indicators`` compares the remaining to
+    commit of today with (WF-RAE-0020, WF-RAE-0040).
     """
-    return core(roots, previous=reference())
+    return list(_current(described() if roots is None else tuple(roots)))
+
+
+@functools.cache
+def _current(roots: tuple[Task, ...]) -> tuple[Row, ...]:
+    """Read a structure once: the readings and the writes read the same one again and again.
+
+    Its nodes are shared by every reading of it: a caller that changes one copies it first. Its
+    previous review is the reference as it was marked, from the structure as described — never
+    from the one a write leaves, which would rewrite the review with what the write entered
+    (WF-RAE-0040): a line a write adds has none.
+    """
+    return tuple(core(roots, previous=REFERENCE))
+
+
+REFERENCE = reference(described())
+"""The reference 101 as marked, the previous review of the current revision, read once."""
+
+
+def alone(roots: Iterable[Task] = CORE) -> list[Row]:
+    """Return the core read alone, as if the structure bore nothing else: a declared variant.
+
+    Its float runs to the end of the core, not of the structure; its totals are its own.
+    """
+    return core(roots, previous=reference(CORE))
 
 
 # --- The readings of listNodes ----------------------------------------------------------------
@@ -807,12 +859,12 @@ def dependencies(rows: list[Row], number: int, name: str, inserted_above: int = 
         message = f"{name} of {row.label} is not a computed value the core explains"
         raise ValueError(message)
     return {
-        "node_id": universe(number),
+        "node_id": node_id(number),
         "field": name,
         "depends_on": rules,
         "rows": [
             {
-                "node_id": universe(each.number),
+                "node_id": node_id(each.number),
                 "row_number": each.row + inserted_above,
                 "label": each.label,
             }

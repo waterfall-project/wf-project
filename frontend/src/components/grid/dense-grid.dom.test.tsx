@@ -71,6 +71,13 @@ const VIEW = 20 * ROW_HEIGHT;
 
 const witness = example("nodes") as NodeList;
 
+/** The number of a row of the estimate, read in the example by its label (#400). */
+function numberOf(label: string): string {
+  const { items } = example("nodes_estimate") as NodeList;
+  const node = items.find((each) => (each.task ?? each.estimate_line)?.label === label);
+  return String(node?.row_number);
+}
+
 /** Serve the fake back, and give it back to read its calls. */
 function serve(
   answers: FakeAnswers = { [PREFERENCES]: "preferences" },
@@ -690,9 +697,7 @@ describe("the columns and their widths, a display preference of the account", ()
   });
 
   it("tells a setting the API refused, and only the outcome of the last one", async () => {
-    serve({
-      [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } },
-    });
+    serve({ [PREFERENCES]: { problem: { code: "SESSION_REQUIRED", status: 401 } } });
     renderGrid(witness);
     const handle = screen.getByRole("separator", { name: "Largeur de la colonne Libellé" });
     handle.focus();
@@ -884,7 +889,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
     // Number, label, category, role, quantity, hours, unit disbursement, sub-project, payment
     // delay, deactivated object, amount at the year of reference, amount corrected for inflation.
     expect(french.row).toEqual([
-      "11",
+      numberOf("Borniers"),
       "Borniers",
       "Matériel électrique",
       "",
@@ -898,7 +903,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "1 234,56",
     ]);
     expect(english.row).toEqual([
-      "11",
+      numberOf("Borniers"),
       "Borniers",
       "Matériel électrique",
       "",
@@ -982,8 +987,9 @@ describe("the figures and the dates of a grid, in the language of the interface"
             />
           </NextIntlClientProvider>,
         );
-        const milestone = bodyRows().find((row) => texts(row)[1] === "Réception usine");
-        expect(texts(milestone)).toEqual(["18", "Réception usine", "30/06/2026"]);
+        const label = "Réception usine";
+        const milestone = bodyRows().find((row) => texts(row)[1] === label);
+        expect(texts(milestone)).toEqual([numberOf(label), label, "30/06/2026"]);
         expect(screen.getByRole("columnheader", { name: "Fin" })).toBeInTheDocument();
       },
     );

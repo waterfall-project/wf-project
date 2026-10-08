@@ -70,6 +70,7 @@ from wftools import (
     mockportfoliotime,
     mocktext,
     mocktoday,
+    mockwitness,
     mockwrites,
     paths,
 )
@@ -96,11 +97,12 @@ from wftools.mockstructure import (
     PROVISION,
     JsonObject,
     JsonValue,
+    Totals,
+    described,
     draw,
     estimate_indicators,
     hourly_rate,
     money,
-    structure,
 )
 from wftools.mockwitness import (
     ASSEMBLY,
@@ -111,19 +113,17 @@ from wftools.mockwitness import (
     DEFAULT_BREAKDOWN,
     ELECTRICAL_ENGINEERING,
     EQUIPMENT,
-    FACTORY_ACCEPTANCE,
     FIXTURES,
     INSTALLATION,
     INSTALLED,
-    LABOUR,
     PROVISIONS,
     STEERING,
     STUDIES,
     SUBCONTRACTING,
     TIMELINES,
     TODAY,
-    WIRING,
     WORK_BREAKDOWN,
+    N,
     fixture,
     identifier,
 )
@@ -295,9 +295,9 @@ def hourly_rate_grid() -> JsonObject:
 
 # --- The readings of the witness ------------------------------------------------------------
 
-_WIRING, _ACCEPTANCE, _LABOUR, _PROVISION = WIRING, FACTORY_ACCEPTANCE, LABOUR, 555
-_DESKS = 523
-_RISK_OCCURRED = 541
+_WIRING, _ACCEPTANCE, _LABOUR, _PROVISION = N.WIRING, N.FACTORY_ACCEPTANCE, N.LABOUR, N.PROVISION
+_DESKS = N.DESKS
+_RISK_OCCURRED = N.MERGED
 _MILESTONE = "Réception usine"
 """The nodes of the core the readings and the dependencies are about (``mockwitness``)."""
 
@@ -378,6 +378,14 @@ def wiring_completed() -> tuple[Task, ...]:
     )
 
 
+def of_core(rows: Iterable[mockcore.Row]) -> list[mockcore.Row]:
+    """Return the rows of the core in a reading of the whole structure: those the Kanban shows.
+
+    ``listStartableTasks`` has no filter that would leave out the 985 tasks drawn about the core.
+    """
+    return [row for row in rows if row.number < mockwitness.GENERATED]
+
+
 def readings() -> dict[str, JsonObject]:
     """Return the named examples read from the core of the witness, by file name.
 
@@ -385,6 +393,9 @@ def readings() -> dict[str, JsonObject]:
     search —, or what a computed value of one of its nodes depends on.
     """
     rows = mockcore.current()
+    facets = {
+        row.number: cast("JsonObject", row.node["task"]) for row in rows if row.kind == "task"
+    }
     day = _day(TODAY.date())
     studies = mockcore.subtree(rows, STUDIES.number)
     estimate = mockcore.subtree(rows, CONTROL_STATION.number)
@@ -400,20 +411,23 @@ def readings() -> dict[str, JsonObject]:
             studies,
         ),
         "nodes_core.json": _example(
-            f"Le cœur du témoin lu entier, sans filtre, le {day} : les études, le lot « Poste de "
-            f"commande » et l'installation sur site, avec leurs lignes, et les totaux de la "
-            f"structure entière — ceux que rendent les écritures du cœur (NodeTotals, "
-            f"WF-DEV-0050, WF-PLA-0080).",
-            mockcore.whole(rows),
+            f"Variante contrefactuelle : le cœur du témoin lu seul, sans filtre, comme si la "
+            f"structure ne portait que lui, le {day} — marges jusqu'à la fin du cœur, totaux du "
+            f"cœur, et non ceux de la structure de mille tâches qui le porte en tête : les études, "
+            f"le lot « Poste de commande » et l'installation sur site, avec leurs lignes "
+            f"(NodeTotals, WF-DEV-0050, WF-PLA-0080).",
+            mockcore.whole(mockcore.alone()),
         ),
         "nodes_planning.json": _example(
             f"Le planning du groupe « Études », lu sans ses lignes (subtree_of, kinds=task) le "
             f"{day} : la récapitulative, les études de détail terminées et la revue de conception "
-            f"qui les suit, sur le chemin critique, les pupitres opérateurs en mode manuel, sans "
+            f"qui les suit, {mocktext.float_said(facets[N.DESIGN_REVIEW])}, les pupitres "
+            f"opérateurs en mode manuel, sans "
             f"marge, démarrés et en dépassement de fin, le jalon de réception, lié en fin à début "
             f"à la revue et en début à début aux pupitres avec une semaine de décalage, et le "
-            f"dossier de conception, lié avec deux jours d'avance, qui porte sa marge jusqu'à la "
-            f"fin du cœur (WF-PLA-0030, WF-PLA-0040, WF-PLA-0080, WF-PLA-0100). Les numéros "
+            f"dossier de conception, lié avec deux jours d'avance, sans successeur, "
+            f"{mocktext.float_said(facets[N.DESIGN_FILE])} jusqu'à la fin de la structure "
+            f"(WF-PLA-0030, WF-PLA-0040, WF-PLA-0080, WF-PLA-0100). Les numéros "
             f"de ligne sont ceux de toute la structure : la ligne des études de détail, que le "
             f"planning ne rend pas, garde le numéro 3 ; les totaux sont ceux du sous-arbre lu, "
             f"sa ligne comprise, que `kinds` ne rend pas (#487).",
@@ -437,11 +451,14 @@ def readings() -> dict[str, JsonObject]:
         ),
         "nodes_installation.json": _example(
             f"L'installation sur site, lue avec ses lignes (subtree_of) le {day} : après la "
-            f"réception usine, le montage des armoires sur site, du 1er juillet au 18 décembre "
-            f"2026, son câblage par l'ingénieur électricien et l'assistance du technicien de mise "
-            f"en service aux essais, tous deux sur la semaine standard, et la mise en service qui "
-            f"le suit, démarrée en 2026 et consommée cette année-là, sur le chemin critique "
-            f"jusqu'à la fin du cœur (WF-PLA-0010, WF-DEV-0040, WF-DEV-0050).",
+            f"réception usine, le montage des armoires sur site, "
+            f"{mocktext.span(facets[N.MOUNTING])}, son câblage par l'ingénieur électricien et "
+            f"l'assistance du technicien de mise en service aux essais, tous deux sur la semaine "
+            f"standard, et la mise en service qui le suit, "
+            f"{mocktext.span(facets[N.COMMISSIONING])}, "
+            f"consommée l'année où elle démarre, {mocktext.float_said(facets[N.COMMISSIONING])} "
+            f"jusqu'au jalon de la mise en service du poste de commande (WF-PLA-0010, "
+            f"WF-DEV-0040, WF-DEV-0050).",
             mockcore.subtree(rows, INSTALLATION.number),
         ),
         "nodes_milestone.json": _example(
@@ -451,23 +468,25 @@ def readings() -> dict[str, JsonObject]:
             mockcore.search(rows, _MILESTONE),
         ),
         "nodes_nested.json": _example(
-            f"Variante contrefactuelle du planning du témoin, lue sans ses lignes (subtree_of, "
+            f"Variante contrefactuelle du planning du témoin, son cœur lu seul — marges jusqu'à la "
+            f"fin du cœur, totaux du cœur —, lue sans ses lignes (subtree_of, "
             f"kinds=task) le {day} : le lot « Poste de commande » rangé sous l'installation sur "
             f"site, de sorte que l'arbre a quatre niveaux de tâches — l'installation, le lot, le "
             f"sous-arbre fusionné par la survenance du risque 752, récapitulative du troisième "
             f"niveau, et ses deux tâches au quatrième (WF-PLA-0040, WF-PLA-0110).",
-            mockcore.subtree(mockcore.current(nested()), INSTALLATION.number, _TASKS),
+            mockcore.subtree(mockcore.alone(nested()), INSTALLATION.number, _TASKS),
         ),
         "nodes_summaries.json": _example(
-            f"L'arborescence de tâches de la variante à quatre niveaux du planning du témoin, "
-            f"demandée au niveau 2 (kinds=task, summaries_only, max_level=2) le {day} : les "
+            f"L'arborescence de tâches de la variante à quatre niveaux du planning du témoin, son "
+            f"cœur lu seul — totaux du cœur —, demandée au niveau 2 (kinds=task, summaries_only, "
+            f"max_level=2) le {day} : les "
             f"récapitulatives des deux premiers niveaux — les études, l'installation sur site et "
             f"le lot « Poste de commande » rangé sous elle —, que le front dessine sous le nœud "
             f"du projet ; ni le sous-arbre fusionné par la survenance, récapitulative du "
             f"troisième niveau, ni aucune feuille ni aucun jalon ; les totaux sont ceux de ces "
             f"récapitulatives et des lignes qu'elles portent elles-mêmes, aucune (WF-PLA-0110, "
             f"#487).",
-            mockcore.summaries(mockcore.current(nested()), 2),
+            mockcore.summaries(mockcore.alone(nested()), 2),
         ),
         "nodes_summaries_leaves.json": _example(
             f"Variante contrefactuelle : l'arborescence de tâches d'un planning composé "
@@ -478,7 +497,7 @@ def readings() -> dict[str, JsonObject]:
             mockcore.summaries(
                 [
                     row
-                    for row in rows
+                    for row in mockcore.alone()
                     if row.kind != mockcore.TASK
                     or not cast("JsonObject", row.node["task"])["is_summary"]
                 ],
@@ -537,8 +556,8 @@ def readings() -> dict[str, JsonObject]:
             f"armoires ; terminées, avec leur date, les études de détail, la revue de conception, "
             f"la réception des études, le dossier de conception et les deux tâches fusionnées "
             f"par la survenance, que le Kanban rouvre. Jamais une récapitulative, dont l'état "
-            f"dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040).",
-            mockcore.startable(rows),
+            f"dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040). {mocktext.CORE_ONLY}",
+            mockcore.startable(of_core(rows)),
         ),
         "startable_tasks_milestone.json": _example(
             f"Le Kanban du cœur du témoin le {day}, le câblage des armoires déclaré terminé ce "
@@ -547,8 +566,8 @@ def readings() -> dict[str, JsonObject]:
             f"terminer (predecessors_completed) ; les autres tâches non démarrées, dont un "
             f"prédécesseur ne l'est pas ; les pupitres opérateurs toujours démarrés, en "
             f"dépassement de fin ; le câblage parmi les terminées, à la date du geste "
-            f"(WF-RAE-0030, WF-PLA-0130).",
-            mockcore.startable(mockcore.current(wiring_completed())),
+            f"(WF-RAE-0030, WF-PLA-0130). {mocktext.CORE_ONLY}",
+            mockcore.startable(of_core(mockcore.current(described(wiring_completed())))),
         ),
         "dependencies_summary.json": _example(
             "Ce dont dépend la date de fin de la récapitulative « Études » du planning : ses cinq "
@@ -592,37 +611,42 @@ def readings() -> dict[str, JsonObject]:
 
 def volumes() -> dict[str, JsonObject]:
     """Return every volume, as the example of the contract its file holds, by file name."""
-    built = structure()
+    rows = mockcore.current()
+    nodes = mockcore.whole(rows)
+    totals = summed(rows)
     # The witness is read in memory, never from the file the same command writes.
     witness = mocktoday.estimate_today()
     labels = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")}
     labels.update((entry["subproject_id"], entry["label"]) for entry in fixture("subprojects"))
-    indicators = estimate_indicators(built.totals, witness, labels)
+    indicators = estimate_indicators(totals, witness, labels)
     projects = portfolio()
     rows = cast("list[JsonObject]", projects["items"])
     return {
-        "nodes_thousand.json": _example(_structure_summary(built.nodes), built.nodes),
+        "nodes_thousand.json": _example(_structure_summary(nodes), nodes),
         "summary_dependencies.json": _example(
             "Ce dont dépend la date de fin de la première récapitulative de la structure aux "
             "volumes du §4.6.2 : ses subordonnées directes, nommées par leur numéro et leur "
             "libellé (WF-IHM-0030, WF-PLA-0040).",
-            summary_dependencies(built.nodes),
+            summary_dependencies(nodes),
         ),
         "task_lengthened.json": _example(
-            "La durée de « Revue 3.1.27 » allongée de deux jours ouvrés dans la structure aux "
-            "volumes du §4.6.2 : la tâche finit le 31 décembre 2026, dans sa marge, et « Reprise "
-            "3.1.30 », qui la suit, glisse au premier jour ouvré de 2027 ; ses lignes sont "
-            "consommées un an plus tard, leur montant corrigé de l'inflation et le sien changent "
-            "(reinflated), sa marge diminue (rescheduled), les récapitulatives au-dessus et les "
+            f"La durée de « {mockwrites.LENGTHENED} » allongée de "
+            f"{mocktext.count(mockwrites.LENGTHENED_BY)} jours ouvrés dans la structure du témoin "
+            "aux volumes du §4.6.2 : la tâche finit le 31 décembre 2026, dans sa marge, et "
+            "« Reprise 2.1.30 », qui la suit, glisse au premier jour ouvré de 2027 ; ses lignes "
+            "sont consommées un an plus tard, leur montant corrigé de l'inflation et le sien "
+            "changent (reinflated), sa marge et celle des tâches de sa chaîne diminuent "
+            "(rescheduled), les récapitulatives au-dessus et les "
             "totaux sont recalculés, le montant à l'année de référence inchangé (WF-PLA-0020, "
             "WF-DEV-0040, WF-DEV-0050).",
             mockwrites.task_lengthened(),
         ),
         "estimate_indicators_volume.json": _example(
             f"Les indicateurs du devis de la structure aux volumes du §4.6.2, sommés sur les "
-            f"mêmes lignes que la grille : {_amount(built.totals.amount)} au total, dont "
-            f"{_amount(built.totals.by_cost_type[PROVISION])} de provisions, ventilés par "
-            f"nature de coût et par sous-projet (WF-DEV-0060).",
+            f"mêmes lignes que la grille : {_amount(totals.amount)} au total, dont "
+            f"{_amount(totals.by_cost_type[PROVISION])} de provision, celle du risque identifié, "
+            f"ventilés par nature de coût et par sous-projet, et le poste du lotissement que porte "
+            f"le lot « Poste de commande » (WF-DEV-0060).",
             indicators,
         ),
         "portfolio_projects.json": _example(
@@ -633,7 +657,8 @@ def volumes() -> dict[str, JsonObject]:
             f"lue par un contributeur sans « consulter tous les projets » : chaque "
             f"{_ordinal(UNOPENABLE_EVERY)} projet engendré, qu'il ne peut pas ouvrir, figure sous "
             f"son libellé et son code, sans lien (can_open faux), et compte dans les totaux "
-            f"(WF-PTF-0030, WF-ADM-0110).",
+            f"(WF-PTF-0030, WF-ADM-0110). La ligne du témoin est lue sur le seul cœur, jusqu'à "
+            f"EP-02/L45 (#528).",
             projects,
         ),
         "portfolio_projects_page.json": _example(
@@ -700,6 +725,34 @@ def volumes() -> dict[str, JsonObject]:
     }
 
 
+def summed(rows: Iterable[mockcore.Row]) -> Totals:
+    """Return the amounts of the lines of a structure by nature, subproject and order item.
+
+    A line counts under the order item of the nearest task above it that bears one.
+    """
+    rows = list(rows)
+    parents = {row.number: row.parent for row in rows}
+    items: dict[int, tuple[str, str]] = {}
+    for row in rows:
+        facet = cast("JsonObject", row.node[row.kind])
+        if row.kind == mockcore.TASK and facet.get("order_item_id") is not None:
+            items[row.number] = (
+                cast("str", facet["order_item_id"]),
+                cast("str", facet["work_breakdown_label"]),
+            )
+    totals = Totals()
+    for row in rows:
+        if row.kind != mockcore.ESTIMATE_LINE:
+            continue
+        above = row.parent
+        while above is not None and above not in items:
+            above = parents[above]
+        subproject = cast("str | None", cast("JsonObject", row.node[row.kind])["subproject_id"])
+        order_item = None if above is None else items[above]
+        totals.add(row.amounts.base, mockhistory.nature(row), subproject, order_item)
+    return totals
+
+
 def summary_dependencies(answer: JsonObject) -> JsonObject:
     """Return what the finish date of the first summary depends on: its direct subordinates.
 
@@ -729,20 +782,25 @@ def _structure_summary(answer: JsonObject) -> str:
     items = cast("list[dict[str, Any]]", answer["items"])
     tasks = [item for item in items if item["kind"] == "task"]
     lines = [item for item in items if item["kind"] == "estimate_line"]
+    drawn = [task for task in tasks if not task["node_id"].startswith(mockwitness.PREFIX + "0000")]
     count = Counter(
         "milestone" if task["task"]["is_milestone"] else task["level"]
-        for task in tasks
+        for task in drawn
         if task["task"]["is_milestone"] or task["task"]["is_summary"]
     )
-    work = len(tasks) - sum(count.values())
-    provisions = sum(1 for line in lines if line["estimate_line"]["is_computed"])
+    work = len(drawn) - sum(count.values())
+    day = _day(TODAY.date())
     return (
-        f"La structure principale du projet aux volumes du §4.6.2 : {_count(len(tasks))} tâches "
-        f"— {_count(count[1])} phases, {_count(count[2])} lots, leurs {_count(work)} tâches de "
-        f"travail et leurs {_count(count['milestone'])} jalons, datés en jours ouvrés, avec leur "
-        f"chemin critique — et {_count(len(lines))} lignes de devis, {LINES_PER_TASK} par "
-        f"tâche : {LINES_PER_TASK} sur chaque tâche de travail, et une provision de plus sur "
-        f"{_count(provisions)} d'entre elles."
+        f"La structure principale du projet témoin aux volumes du §4.6.2, lue le {day} : "
+        f"{_count(len(tasks))} tâches et {_count(len(lines))} lignes de devis, "
+        f"{LINES_PER_TASK} par tâche. En tête, son cœur lisible — les études, le lot « Poste de "
+        f"commande » et l'installation sur site —, puis {_count(count[1])} phases tirées autour "
+        f"de lui et reliées à lui, {_count(count[2])} lots, leurs {_count(work)} tâches de "
+        f"travail, cinq lignes sur chacune et une sixième sur certaines, et leurs "
+        f"{_count(count['milestone'])} jalons. Les tâches sont datées en heures de travail sur "
+        f"le calendrier de leurs rôles — le câblage, au monteur câbleur, sur la semaine de "
+        f"quatre jours —, avec leur marge et le chemin critique de toute la structure, et leur "
+        f"avancement est celui du jour (WF-PLA-0010, WF-PLA-0100, WF-PLA-0160)."
     )
 
 

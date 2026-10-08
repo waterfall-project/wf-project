@@ -197,7 +197,8 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     )
     budget = mockhistory.reference_budget(rows)
     assert budget == mockhistory.reference_budget(mockcore.core())
-    assert budget == Decimal("120834.56")
+    # The lines the amendment 1 did not designate keep the rates of the offer (#467).
+    assert budget == Decimal("120534.56")
     numbers = {row.number for row in rows}
     assert mockwitness.MERGED not in numbers
     assert {557, 567} <= numbers
@@ -230,8 +231,10 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     assert {entry["lineage_id"]: entry["changes"] for entry in compared["changed"]} == {
         mockcore.lineage(526): ["dates", "duration"],
         mockcore.lineage(553): ["budgeted_amount", "reestimated_amount"],
-        mockcore.lineage(563): ["budgeted_amount", "reestimated_amount"],
-        mockcore.lineage(566): ["budgeted_amount", "reestimated_amount"],
+        # Not designated by the amendment: their budget is the offer's, their amount at the one
+        # rate of 2026 of their category (#467, WF-DEV-0020).
+        mockcore.lineage(563): ["reestimated_amount"],
+        mockcore.lineage(566): ["reestimated_amount"],
     }
     # The deltas by nature, as by subproject, sum to the difference of the two estimates.
     offer = mockhistory.offer_rows()
@@ -421,7 +424,8 @@ def test_the_history_is_the_fixtures_the_front_reads(history: dict[str, Any]) ->
 def test_the_offer_is_priced_at_the_rates_of_its_reference_year() -> None:
     # The offer, of the reference year 2025, is at the rates of 2025 of the volume of rates, as
     # #232 proposes (WF-REV-0030): 78.50 for the electrical engineering, 73.50 for the
-    # commissioning; the reference at those of 2026.
+    # commissioning; the reference at those of 2026, one rate a category, the lines the amendment 1
+    # did not designate keeping the budget of the offer (WF-REV-0050, #467).
     offer = {row.number: row for row in mockhistory.offer_rows()}
     reference = {row.number: row for row in mockhistory.reference_rows()}
     for number, hours, rate in ((553, 10, "78.50"), (563, 120, "78.50"), (566, 80, "73.50")):
@@ -431,6 +435,7 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year() -> None:
         Decimal(9600),
         Decimal(6000),
     ]
+    assert [reference[n].amounts.budgeted for n in (563, 566)] == [Decimal(9420), Decimal(5880)]
     labour = next(
         entry
         for entry in mockwitness.fixture("comparison")["amount_deltas"]
@@ -536,3 +541,57 @@ def test_the_summary_of_the_matrix_says_the_bounds_of_the_installation() -> None
         said = [str(int(Decimal(bound) * 100)) for bound in bounds]
         assert f"{len(bounds) + 1} niveaux" in summary or f"{len(bounds) + 1} de" in summary
         assert f"{', '.join(said[:-1])} et {said[-1]} %" in summary
+
+
+def test_a_line_the_amendment_does_not_designate_keeps_in_the_reference_its_offer_budget() -> None:
+    # WF-REV-0050: the merge changes only the budgeted amounts of the lines its differential
+    # designates (#467). A line borne by both, its quantities unchanged, keeps in 101 the budget
+    # the offer gave it, at the rate of 2025; the update of the rates stays a proposal.
+    offer = {row.number: row for row in mockhistory.offer_rows() if row.kind == "estimate_line"}
+    reference = {
+        row.number: row for row in mockhistory.reference_rows() if row.kind == "estimate_line"
+    }
+
+    def quantities(row: mockcore.Row) -> tuple[Any, ...]:
+        line = cast("dict[str, Any]", row.node["estimate_line"])
+        return tuple(line[key] for key in ("quantity", "hours", "unit_disbursement"))
+
+    kept = [
+        number
+        for number in offer.keys() & reference.keys()
+        if quantities(offer[number]) == quantities(reference[number])
+    ]
+    assert sorted(kept) == [527, 554, 563, 566]
+    for number in kept:
+        assert reference[number].amounts.budgeted == offer[number].amounts.budgeted, number
+
+
+def test_a_labour_line_is_priced_at_the_one_rate_of_its_category_in_each_revision() -> None:
+    # WF-DEV-0020, WF-REV-0060: one rate for a category and a revision, that of its reference year;
+    # the amendment 1 fixes the budgets of the lines it designates alone (#467), so that the wiring
+    # on site and the commissioning are budgeted at the offer's and re-estimated at the rate of
+    # 2026, in the reference as in the current revision that copies it.
+    revisions = {
+        "offer": mockhistory.offer_rows(),
+        "reference": mockhistory.reference_rows(),
+        "current": mockcore.current(),
+    }
+    for name, rows in revisions.items():
+        rates: dict[str, set[Decimal]] = {}
+        for row in rows:
+            line = (
+                cast("dict[str, Any]", row.node["estimate_line"])
+                if row.kind == "estimate_line"
+                else None
+            )
+            if line is None or line["hours"] is None:
+                continue
+            quantity, hours = Decimal(line["quantity"]), Decimal(line["hours"])
+            rates.setdefault(line["cost_category_id"], set()).add(
+                Decimal(line["base_amount"]) / (quantity * hours)
+            )
+        assert all(len(found) == 1 for found in rates.values()), (name, rates)
+    for name in ("reference", "current"):
+        lines = {row.number: row.amounts for row in revisions[name]}
+        for number in (563, 566):
+            assert lines[number].budgeted != lines[number].reestimated, (name, number)

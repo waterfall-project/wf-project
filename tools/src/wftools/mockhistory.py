@@ -63,6 +63,7 @@ from wftools.mockwitness import (
     Event,
     Line,
     Link,
+    N,
     Risk,
     Task,
     fixture,
@@ -95,7 +96,12 @@ def stamp(at: datetime) -> str:
 # --- The marked revisions, described from the core --------------------------------------------
 
 MILESTONE = FACTORY_ACCEPTANCE
-MOUNTING, TESTS_LINE, DESIGN_FILE, INSTALLATION_TASK = 562, 564, 526, 561
+MOUNTING, TESTS_LINE, DESIGN_FILE, INSTALLATION_TASK = (
+    N.MOUNTING,
+    N.TESTS_LINE,
+    N.DESIGN_FILE,
+    N.INSTALLATION,
+)
 """The nodes of the core the history is about (``mockwitness``)."""
 
 OFFER_YEAR = 2025
@@ -103,13 +109,13 @@ OFFER_YEAR = 2025
 OFFER_LABOUR_HOURS = Decimal(10)
 OFFER_DESIGN_FILE_DAYS = 3
 SITE_TRIALS = Task(
-    568,
+    N.SITE_TRIALS,
     "Essais préliminaires sur site",
     days=5,
     links=(Link(MOUNTING, START_TO_START),),
     lines=(
         Line(
-            569,
+            N.SITE_TRIALS_LINE,
             "Location du banc d'essais",
             EQUIPMENT,
             unit=Decimal("350.00"),
@@ -136,6 +142,8 @@ def offer() -> tuple[Task, ...]:
                 line,
                 subproject=None,
                 hours=OFFER_LABOUR_HOURS if line.number == LABOUR else line.hours,
+                # Its own budget is its amount: it is the offer that fixes it.
+                budgeted=None,
             )
             for line in task.lines
             if not line.is_provision and line.number != TESTS_LINE
@@ -613,6 +621,15 @@ def examples() -> dict[str, JsonObject]:
         for entry in cast("list[JsonObject]", compared["amount_deltas"])
     }
     provisions = sum(1 for row in rows if is_provision(row))
+    kept = [
+        f"« {entry['label']} »" for entry in changed if entry["changes"] == ["reestimated_amount"]
+    ]
+    rerated = (
+        f"{mocktext.listed(kept)}, que l'avenant ne désigne pas, gardent le budget de l'offre "
+        f"et sont réestimées au taux de 2026 de leur catégorie"
+        if kept
+        else "aucune ligne n'est réestimée sans être désignée"
+    )
     reserve_text = (
         f"la réserve pour risques de la référence, {_amount(reserve(rows))} — les provisions "
         f"qu'elle portait au {_day(AMENDMENT_MERGED.on)} : "
@@ -649,9 +666,8 @@ def examples() -> dict[str, JsonObject]:
             f"de chacun ce jour-là — 751 à {_amount(reference_provision(rework))} —, et, par "
             f"l'avenant, la réception usine et l'assistance aux essais de câblage ajoutées, "
             f"« {removed[0]['label']} » retirés avec leur ligne, la durée du dossier de "
-            f"conception et la charge du raccordement des borniers modifiées ; et les lignes de "
-            f"main-d'œuvre passées des taux de 2025 du référentiel, ceux de l'offre, à ceux de "
-            f"2026 (WF-REV-0030, WF-REV-0060). Les écarts du "
+            f"conception et la charge du raccordement des borniers modifiées ; {rerated} "
+            f"(WF-REV-0030, WF-REV-0050, WF-REV-0060). Les écarts du "
             f"devis à l'année de référence, par nature — {_amount(Decimal(deltas[LABOR]))} de "
             f"main-d'œuvre, {_amount(Decimal(deltas[NON_LABOR]))} de débours, "
             f"{_amount(Decimal(deltas[PROVISION]))} de provisions — et par sous-projet, chaque "
@@ -671,7 +687,7 @@ def examples() -> dict[str, JsonObject]:
             f"case de matrice, {scale} ; avec ses commandes — {commands_text} —, les trois "
             f"totaux de provisions — les survenus et les écartés pour la provision que portait "
             f"la référence — avec leur somme, et {reserve_text} en regard (WF-RIS-0040, "
-            f"WF-RIS-0050).",
+            f"WF-RIS-0050). {mocktext.CORE_ONLY}",
             register,
         ),
         "risk.json": mocktext.example(
@@ -697,7 +713,7 @@ def examples() -> dict[str, JsonObject]:
             f"gravité bornés à {_percents(severities)} du budget de référence "
             f"(`reference_settings`) ; chaque case avec sa zone et le nombre de ses "
             f"risques — {counted} du registre, {scale} —, et les totaux de provisions "
-            f"(WF-RIS-0040, WF-REF-0160).",
+            f"(WF-RIS-0040, WF-REF-0160). {mocktext.CORE_ONLY}",
             read["risk_matrix"],
         ),
         "risk_reviews.json": mocktext.example(
@@ -720,7 +736,7 @@ def examples() -> dict[str, JsonObject]:
             f"{_amount(Decimal(cast('str', covered['occurred_cost'])))} réestimés des lignes "
             f"fusionnées {occurred_text} ; l'écart de couverture vaut "
             f"{_amount(Decimal(cast('str', covered['coverage_variance'])))} (WF-RIS-0050, "
-            f"WF-RAE-0020).",
+            f"WF-RAE-0020). {mocktext.CORE_ONLY}",
             covered,
         ),
     }

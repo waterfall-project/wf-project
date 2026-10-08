@@ -35,13 +35,22 @@ work into hours (WF-PLA-0160): 8, 40 and 20, their default values."""
 
 FINISH_TO_START, START_TO_START = "finish_to_start", "start_to_start"
 
+MINUTES_EXACT = 3
+"""Minutes are an exact decimal of an hour only by multiples of three: 3 minutes are 0.05 h, one
+minute 0.01666…"""
+
 
 def to_hours(value: Decimal | int, unit: str) -> Decimal:
     """Return a duration or a lag of work in hours, by the installation's constants (WF-PLA-0160).
 
-    The units of work alone: an elapsed time is not placed on a calendar.
+    The units of work alone: an elapsed time is not placed on a calendar. An hour is exact
+    (WF-DAT-0100): minutes that make no exact decimal of an hour — one, two, any count not a
+    multiple of three — are refused rather than rounded.
     """
     if unit == "min":
+        if value % MINUTES_EXACT != 0:
+            message = f"{value} minutes make no exact decimal of an hour"
+            raise ValueError(message)
         return Decimal(value) / 60
     per_unit = {
         "h": Decimal(1),
@@ -117,14 +126,18 @@ class Calendar:
         """Return the first instant of work from an instant: where a task may start."""
         return self.instant(self.elapsed(at), finish=False)
 
-    def place(self, count: Decimal, hours: Decimal) -> tuple[Instant, Instant]:
+    def place(
+        self, count: Decimal, hours: Decimal, *, finish: bool = True
+    ) -> tuple[Instant, Instant]:
         """Return the start and the finish of a task of so many hours from a count of hours.
 
-        A task of no duration, a milestone, sits at one instant: the finish reading of its
-        count, where what precedes it finishes (WF-PLA-0050).
+        A task of no duration, a milestone, sits at one instant (WF-PLA-0050): the finish reading
+        of its count when a finish-to-start link drives it, where what precedes it finishes; the
+        start reading otherwise — a start-to-start link, or no predecessor —, the first hour of
+        work of its day, never the end of the day before.
         """
         if hours == 0:
-            at = self.instant(count, finish=True)
+            at = self.instant(count, finish=finish)
             return at, at
         return self.instant(count, finish=False), self.instant(count + hours, finish=True)
 
@@ -174,10 +187,13 @@ def follow(
 
     Each link counts from its predecessor's finish, or start for a start-to-start link, its
     lag in hours placed on the successor's calendar (WF-PLA-0010): the task starts at the
-    latest count its links allow, or at the origin without any (WF-PLA-0030).
+    latest count its links allow, or at the origin without any (WF-PLA-0030). A milestone reads
+    its count as a finish only when a finish-to-start link drives it (``Calendar.place``).
     """
-    counts = [calendar.elapsed(_anchor(each)) + each.lag for each in predecessors]
-    return calendar.place(max(counts, default=calendar.elapsed(origin)), hours)
+    counts = [(calendar.elapsed(_anchor(each)) + each.lag, each) for each in predecessors]
+    latest = max((count for count, _ in counts), default=calendar.elapsed(origin))
+    driven = any(count == latest and each.link_type == FINISH_TO_START for count, each in counts)
+    return calendar.place(latest, hours, finish=driven)
 
 
 def _anchor(predecessor: Predecessor) -> Instant:

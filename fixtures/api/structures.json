@@ -1,11 +1,38 @@
 {
-  "summary": "La structure principale de la révision courante.",
+  "summary": "Les structures de la révision courante : la principale, et le devis propre de chacun des trois risques de `risks`, avec ses identifiants à elle, distincts de ceux des structures de la révision de référence qu'elle copie (WF-DAT-0030) — la reprise du câblage, le retard de livraison des armoires, dont la survenance a fusionné le devis propre dans la structure principale (WF-RIS-0060), et l'indisponibilité de l'automaticien (WF-RIS-0030).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000201",
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
       "kind": "main",
       "label": "Structure principale",
+      "is_merged": false,
+      "lock_version": 1
+    },
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000204",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "kind": "risk",
+      "label": "Risque de reprise du câblage",
+      "risk_id": "01926f3a-7c00-7000-8000-000000000751",
+      "is_merged": false,
+      "lock_version": 1
+    },
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000205",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "kind": "risk",
+      "label": "Retard de livraison des armoires",
+      "risk_id": "01926f3a-7c00-7000-8000-000000000752",
+      "is_merged": true,
+      "lock_version": 1
+    },
+    {
+      "structure_id": "01926f3a-7c00-7000-8000-000000000206",
+      "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+      "kind": "risk",
+      "label": "Indisponibilité de l'automaticien",
+      "risk_id": "01926f3a-7c00-7000-8000-000000000753",
       "is_merged": false,
       "lock_version": 1
     }

@@ -42,7 +42,7 @@ type Node = dict[str, Any]
 _SEQUEL = timedelta(minutes=10)
 """How long after today the sequel of a write made today may run: a background task."""
 
-BLOCKS = 554
+BLOCKS = mockwitness.N.BLOCKS
 """The terminal blocks of the core, paid a month after their work, as the detailed studies."""
 
 
@@ -88,6 +88,50 @@ def test_the_nodes_render_the_payment_delays_the_curve_of_the_disbursements_appl
     assert {number: flow.delay for number, flow in flows.items()} == {
         number: expected[number] for number in flows
     }
+
+
+# --- The milestones tracked: one source, the inscriptions of the nodes -------------------------
+
+
+def test_the_milestones_tracked_are_those_the_nodes_inscribe_to_the_time_time_tracking(
+    examples: dict[str, Any],
+) -> None:
+    # One source for the milestones tracked (`mockwitness.TRACKED`, revue d'EP-02/L24): the chart
+    # follows the very lineages whose nodes carry the inscription `milestone_tracking`, in the
+    # order of the plan (WF-PLA-0060, WF-IND-0090).
+    inscribed = [
+        node["lineage_id"]
+        for node in examples["volume/nodes_thousand.json"]["items"]
+        if node["kind"] == mockcore.TASK
+        and any(entry["kind"] == "milestone_tracking" for entry in node["task"].get("tracking", []))
+    ]
+    followed = [entry["lineage_id"] for entry in examples["milestone_tracking.json"]["milestones"]]
+    assert followed == inscribed
+    assert inscribed == [mockcore.lineage(number) for number in mockwitness.TRACKED]
+
+
+# --- The structures a risk cites: those of the revision it is read in (#461) ---------------------
+
+
+def test_a_risk_read_in_a_revision_cites_the_structures_of_that_revision(
+    examples: dict[str, Any],
+) -> None:
+    # A structure has an identifier of its own revision (WF-DAT-0030): the risks read in the
+    # current revision cite its own structures, never those the reference bore.
+    current = {entry["structure_id"]: entry for entry in examples["structures.json"]}
+    reference = {entry["structure_id"] for entry in examples["structures_amendments.json"]}
+    assert not current.keys() & reference
+    cited = [
+        examples["risk.json"],
+        examples["risk_occurred_detail.json"],
+        *examples["risks.json"]["items"],
+    ]
+    for risk in cited:
+        structure = current[risk["structure_id"]]
+        assert structure["revision_id"] == mockhistory.CURRENT
+        assert (structure["kind"], structure["risk_id"]) == ("risk", risk["risk_id"])
+        # The own estimate of a risk occurred is merged into the main structure (WF-RIS-0060).
+        assert structure["is_merged"] is (risk["state"] == "occurred")
 
 
 # --- The answers of the writes (#421) ----------------------------------------------------------

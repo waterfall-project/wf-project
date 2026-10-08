@@ -230,7 +230,9 @@ describe("a field of a line that says nothing, left out by the projection", () =
 // The parent of each node, by which the tree folds (EP-02/L40), took the rows of the estimate from
 // 4.18 to 4.48 million characters of the 6.91 of the volume, 0.604 to 0.649; those of the planning
 // from 2.98 to 3.29 million, 0.431 to 0.476; those of the remaining to commit from 3.80 to 4.11
-// million, 0.550 to 0.594.
+// million, 0.550 to 0.594. The structure of the witness in hours (EP-02/L27), its core first, made
+// the volume 7.09 million characters: the rows of the estimate weigh 4.63 million, 0.653; those of
+// the planning 3.30 million, 0.466; those of the remaining to commit 4.41 million, 0.623.
 /** Nothing is written by these tests: what an entry reads is all they look at. */
 function unwritten(): never {
   throw new Error("nothing is written here");
@@ -245,7 +247,7 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
 });
 
 holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.655);
-holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.485);
+holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.475);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
 // line, whether it takes a re-estimation, its three amounts, and the progress and finish of a task:
 // 3.80 million characters of the 6.51 of the volume, 0.584 (US-0230/L1); the figures at the previous
@@ -254,5 +256,5 @@ holdsWhatTheGridReads(
   "remaining to commit",
   remainingGrid({ line: unwritten }),
   REMAINING_FIELDS,
-  0.6,
+  0.63,
 );

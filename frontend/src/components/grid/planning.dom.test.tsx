@@ -48,6 +48,11 @@ const STRUCTURE = {
 };
 const NBSP = " ";
 const planning = example("nodes_planning") as NodeList;
+// The float of the design file, which has no successor: to the end of the whole structure, as
+// the example says it (#400) — the core incrusted in the thousand tasks, it follows them (#376).
+const FILE_FLOAT =
+  planning.items.find((node) => node.task?.label === "Dossier de conception")?.task?.total_float
+    ?.value ?? "";
 
 /** The position of a column among the cells of a row, the number of the row first. */
 function at(key: string): number {
@@ -236,7 +241,7 @@ describe("the grid of the planning", () => {
         "15/04/2026",
         "",
         "",
-        days("187"),
+        days(FILE_FLOAT.replace(".", ",")),
         `2FD-${days("2")}`,
         "",
       ],
@@ -419,7 +424,7 @@ describe("the grid of the planning", () => {
       "15/04/2026",
       "",
       "",
-      `187${NBSP}d`,
+      `${FILE_FLOAT}${NBSP}d`,
       `2FS-2${NBSP}d`,
       "",
     ]);

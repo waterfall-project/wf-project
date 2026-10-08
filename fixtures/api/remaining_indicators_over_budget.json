@@ -1,16 +1,16 @@
 {
-  "summary": "Le reste à engager juste après la réestimation du raccordement des borniers à 10 h, faite aujourd'hui (remaining_reestimated) : 21 334,56 ; « Poste de commande », en alerte, dépasse son budget de 2 200,00 ; l'ensemble hors sous-projet, en alerte, dépasse son budget de 3 700,00 ; « Essais et mise en service » nominal ; la marge sur le budget de référence, -5 900,00 — le budget moins le coût réel et le reste à engager, dans le sens des sous-projets — ; l'écart à la revue précédente, -100 410,00 — le reste à engager courant moins celui de la référence à son marquage (WF-RAE-0020, WF-IHM-0070).",
+  "summary": "Le reste à engager juste après la réestimation du raccordement des borniers à 10 h, faite aujourd'hui (remaining_reestimated) : 21 034,56 ; « Poste de commande », en alerte, dépasse son budget de 2 200,00 ; l'ensemble hors sous-projet, en alerte, dépasse son budget de 3 700,00 ; « Essais et mise en service » nominal ; la marge sur le budget de référence, -5 900,00 — le budget moins le coût réel et le reste à engager, dans le sens des sous-projets — ; l'écart à la revue précédente, -100 410,00 — le reste à engager courant moins celui de la référence à son marquage (WF-RAE-0020, WF-IHM-0070).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
-    "total": "21334.56",
+    "total": "21034.56",
     "by_cost_type": [
-      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"19400.00","share":"0.9094"},
-      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"1434.56","share":"0.0672"},
-      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"500.00","share":"0.0234"}
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"19100.00","share":"0.908"},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"1434.56","share":"0.0682"},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"500.00","share":"0.0238"}
     ],
     "by_subproject": [
-      {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budget":"20834.56","actual_cost":"2400.00","remaining":"20634.56","variance":"-2200.00","is_over_budget":true,"zone":"alert"},
+      {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budget":"20534.56","actual_cost":"2400.00","remaining":"20334.56","variance":"-2200.00","is_over_budget":true,"zone":"alert"},
       {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","budget":"0.00","actual_cost":"0.00","remaining":"0.00","variance":"0.00","is_over_budget":false,"zone":"nominal"},
       {"key":"unassigned","budget":"100000.00","actual_cost":"103000.00","remaining":"700.00","variance":"-3700.00","is_over_budget":true,"zone":"alert"}
     ],
