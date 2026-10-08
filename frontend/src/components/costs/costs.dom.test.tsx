@@ -370,6 +370,24 @@ describe("the filters of the actual costs", () => {
     expect(apply).toHaveFocus();
   });
 
+  it("keeps a period entered and not applied, and the focus, through another filter that arrives meanwhile", async () => {
+    const bar = (search: string) => {
+      page.search = search;
+      const filters = readCostFilters(new URLSearchParams(search));
+      return inLanguage(
+        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+      );
+    };
+    const { rerender } = render(bar(""));
+    const start = screen.getByLabelText("Pièces du");
+    await userEvent.type(start, "2026-04-01");
+    // The scope chosen arrives, the period of the address as it was: the entry stays (#553).
+    rerender(bar("in_tracked_scope=false"));
+    expect(screen.getByLabelText("Pièces du")).toBe(start);
+    expect(start).toHaveValue("2026-04-01");
+    expect(start).toHaveFocus();
+  });
+
   it("keeps each bound of the period on its side of the other", async () => {
     renderFilters("from=2026-04-01&to=2026-04-30");
     expect(screen.getByLabelText("Pièces du")).toHaveAttribute("max", "2026-04-30");

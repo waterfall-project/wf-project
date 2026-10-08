@@ -276,18 +276,29 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     `components/grid/dated-entry.ts`), sans `key`. Elle s'oublie pour de bon dès que l'adresse en
     nomme une autre, et non seulement à l'affichage : sinon, revenue en arrière à l'adresse sur
     laquelle elle avait été faite — taper une date, l'appliquer, puis « Précédent » —, l'adresse
-    montrerait la saisie abandonnée au lieu de sa propre valeur. La recherche des grilles
-    (`SearchField`) et les bornes (`RangeFilter`) sont encore remontées par une `key` (#553). Des
-    tests appliquent une saisie, rendent à nouveau le filtre sous l'adresse appliquée puis sous celle
-    d'origine, et affirment le focus et la valeur (`costs.dom.test.tsx`, `portfolio.dom.test.tsx`,
-    `reference-filters.dom.test.tsx`, `audit.dom.test.tsx`, `actual-costs.spec.ts`) ; aucun outil ne
-    le tient : la revue le cherche.
+    montrerait la saisie abandonnée au lieu de sa propre valeur. Elle ne se date que par les
+    paramètres que le formulaire écrit : un tri ou un autre filtre arrivé pendant la saisie la
+    laisse. La recherche des grilles (`SearchField`) et les bornes (`RangeFilter`) étaient remontées
+    de même ; elles suivent la même règle (#553). Une borne refusée par le serveur prend le focus
+    chaque fois qu'une liste revient refusée — la même borne refusée à nouveau comprise —, par un
+    effet qui dépend des refus et des bornes de l'adresse, non plus d'un remontage ; une borne mal
+    tapée le prend à l'envoi qui la refuse, avant un champ refusé auparavant par le serveur. Un
+    contrôle que l'application fait disparaître perd le focus de même : « Lever les bornes » n'est
+    offert que tant qu'une borne est posée, et le lever donne le focus à la première borne, vidée,
+    où se tape la suivante. Des tests appliquent une saisie, rendent à nouveau le filtre sous
+    l'adresse appliquée puis sous celle d'origine, et affirment le focus et la valeur ; d'autres le
+    rendent sous un tri ou un autre filtre arrivé pendant la saisie, et affirment que la saisie et
+    le focus restent (`costs.dom.test.tsx`, `portfolio.dom.test.tsx`,
+    `reference-filters.dom.test.tsx`, `audit.dom.test.tsx`, `grid-toolbar.dom.test.tsx`,
+    `range-filter.dom.test.tsx`, `actual-costs.spec.ts`, `grid.spec.ts`) ; aucun outil ne le tient :
+    la revue le cherche.
 21. **Liste contrôlée qui montre l'adresse pendant la navigation.** Un `<select>` dont la valeur est
     celle de l'adresse revient, dès le choix fait, à la valeur d'avant, jusqu'à ce que la page lue à
     nouveau arrive — plusieurs secondes sur le serveur de développement chargé : le choix paraît
     perdu, et un parcours qui choisit à nouveau tant que l'adresse n'a pas changé remplace chaque
     navigation par la suivante (EP-02/L41g). Le choix se montre jusqu'à la réponse du serveur
-    (`useOptimistic` dans la transition qui navigue, `ChoiceFilter`) ; un parcours choisit à
+    (`useOptimistic` dans la transition qui navigue, `ChoiceFilter`) ; de même les boutons pressés
+    d'un filtre par valeurs (`ValuesFilter`, `values-filter.dom.test.tsx`) ; un parcours choisit à
     nouveau jusqu'à ce que la navigation parte (`page.waitForRequest`), jamais jusqu'à ce qu'elle
     arrive, et attend l'adresse dans la borne de l'écran (`WORKING` pour un écran de grilles
     denses). `reference-filters.dom.test.tsx` le prouve ; aucun outil ne le tient : la revue le

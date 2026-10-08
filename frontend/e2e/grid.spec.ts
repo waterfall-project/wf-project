@@ -279,7 +279,7 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
   await expect(header).toHaveAttribute("aria-sort", "ascending");
 });
 
-test("hides a column chosen in the menu of the columns, and searches the labels on the server", async ({
+test("hides a column chosen in the menu of the columns, and searches the labels on the server, the field keeping the focus", async ({
   page,
 }) => {
   await openHydrated(page, GRID);
@@ -289,9 +289,14 @@ test("hides a column chosen in the menu of the columns, and searches the labels 
   await expect(grid(page).getByRole("columnheader", { name: "Qté" })).toHaveCount(0);
   await expect(grid(page).getByRole("columnheader", { name: "Charge (h)" })).toBeVisible();
 
-  await page.getByRole("searchbox", { name: "Rechercher un libellé" }).fill("revue");
+  const search = page.getByRole("searchbox", { name: "Rechercher un libellé" });
+  await search.fill("revue");
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(`${GRID}?search=revue`, { timeout: WORKING });
+  // The address shown is the one the grid was read under: the field stayed, with the focus and the
+  // search, never remounted for it (#553).
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue("revue");
 });
 
 test("folds a task over its lines and the tree down to a level, the keyboard going through the rows that stay", async ({

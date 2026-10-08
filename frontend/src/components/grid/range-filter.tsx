@@ -15,7 +15,11 @@
  * field, which takes the focus when the list comes back refused. A filter may go with one more
  * choice — the year whose rate is bounded (`scope`) —, written while a bound is, lifted with the
  * last. A change goes on from the address last asked (`usePendingAddress`): a sort under way is
- * kept.
+ * kept. What is entered is dated by the bounds and the choice of the address (`useDatedEntry`): the
+ * bounds the address changes — sent and arrived, or back in the history — show anew, what was typed
+ * and not sent given up, and the form, never remounted, keeps the focus where it was. The button
+ * that lifts the bounds goes with the last of them: lifting gives the focus to the first field of
+ * the bounds, never to the body of the document.
  *
  * Each field is named by its column and its side, both written beside it (« Heures par mois »,
  * « min. »), so that its name holds what the eye reads (WCAG 2.5.3).
@@ -28,7 +32,7 @@
 import { ListFilter, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
+import { type SubmitEvent, useEffect, useId, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +41,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { editableDecimal, formatDecimal, parseDecimal } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
+import { useDatedEntry, useDatedState } from "./dated-entry";
 import {
   type BoundRefusal,
   type Bounds,
@@ -96,27 +101,32 @@ export interface RangeFilterProps {
 /** The texts the fields hold, by column and side, as the language writes them. */
 type Texts = Readonly<Record<string, Readonly<Record<Side, string>>>>;
 
+/** The field of the choice the bounds go with; those of the bounds are `<column>.<side>`. */
+const SCOPE = "scope";
+
+/** A field of the form: a side of a column, or the choice the bounds go with. */
+type Field = `${string}.${Side}` | typeof SCOPE;
+
 /** Why a text entered is not sent: no number of the language, or an amount of too many decimals. */
 type Fault = "number" | "money";
 
 /** The faults of the texts entered, by `<column>.<side>`. */
 type Faults = ReadonlyMap<string, Fault>;
 
-/** The fields the form marks wrong, of which the first takes the focus. */
+/** The fields marked wrong, of which the first takes the focus when a list comes back refused. */
 const WRONG = '[aria-invalid="true"]';
 
 /**
- * Render the filter of a list on the bounds of its columns of figures. The bounds the address
- * changed — back in the history, or refused anew — set the fields anew.
+ * The fields typed wrong in the send just refused, of which the first takes the focus — never a
+ * field the server refused before, the choice of the year among them, which may come first.
  */
-export function RangeFilter(props: RangeFilterProps) {
-  const key = JSON.stringify([
-    props.columns.map(({ bounds, refused }) => [bounds.min, bounds.max, refused]),
-    props.scope?.chosen,
-    props.scope?.refused,
-  ]);
-  return <RangeForm key={key} {...props} />;
-}
+const TYPED_WRONG = "[data-fault]";
+
+/**
+ * The fields of the bounds — the choice they go with is a `select` —, of which the first is the
+ * least of the first column.
+ */
+const BOUND = "input";
 
 /** What a text entered gives: the figure of the contract, or none; or why it is not one. */
 type Read = { readonly figure: string | undefined } | { readonly fault: Fault };
@@ -194,6 +204,7 @@ function ColumnFields({
               aria-label={t(side, { column: label })}
               value={texts[side]}
               aria-invalid={wrong.includes(side) ? true : undefined}
+              data-fault={faults.get(`${column.column}.${side}`)}
               aria-describedby={wrong.includes(side) ? problem : undefined}
               onChange={(event) => {
                 onText(side, event.target.value);
@@ -256,36 +267,55 @@ function ScopeField({
   );
 }
 
-/** The texts of the fields, from the bounds of the address, as the language writes them. */
-function initialTexts(columns: readonly RangeColumn[], locale: Locale): Texts {
-  const written = (value: string | undefined) =>
-    value === undefined ? "" : editableDecimal(value, locale);
-  return Object.fromEntries(
-    columns.map(({ column, bounds }) => [
-      column,
-      { min: written(bounds.min), max: written(bounds.max) },
-    ]),
-  );
-}
-
-/** The form of a filter of bounds, from the bounds the address held when it was drawn. */
-function RangeForm({ label, columns, kind, scope, page }: RangeFilterProps) {
+/** Render the filter of a list on the bounds of its columns of figures. */
+export function RangeFilter({ label, columns, kind, scope, page }: RangeFilterProps) {
   const t = useTranslations("grid.range");
   const locale = useLocale();
   const pathname = usePathname();
   const { request } = usePendingAddress();
   const form = useRef<HTMLFormElement>(null);
-  const [texts, setTexts] = useState<Texts>(() => initialTexts(columns, locale));
-  const [chosen, setChosen] = useState(scope?.chosen ?? scope?.choices[0]?.value ?? "");
-  const [faults, setFaults] = useState<Faults>(() => new Map());
-  // Each send refused in the form; the bounds the API refused, the form drawn anew for them.
-  const [attempts, setAttempts] = useState(0);
-  const refused = columns.some((column) => column.refused !== undefined) || scope?.refused;
+  // What the address bounds, the parameters of the form alone: a sort, another filter, leave what
+  // is entered as it is.
+  const over = JSON.stringify([
+    columns.map(({ column, bounds }) => [column, bounds.min, bounds.max]),
+    scope?.chosen,
+  ]);
+  const { entered, enter } = useDatedEntry<Field>(over);
+  const written = (value: string | undefined) =>
+    value === undefined ? "" : editableDecimal(value, locale);
+  const texts: Texts = Object.fromEntries(
+    columns.map(({ column, bounds }) => [
+      column,
+      {
+        min: entered[`${column}.min`] ?? written(bounds.min),
+        max: entered[`${column}.max`] ?? written(bounds.max),
+      },
+    ]),
+  );
+  const chosen = entered[SCOPE] ?? scope?.chosen ?? scope?.choices[0]?.value ?? "";
+  // The faults of the texts last sent, and each send refused in the form, dated as what is entered.
+  const [check, setCheck] = useDatedState<{ readonly faults: Faults; readonly attempts: number }>(
+    over,
+    () => ({ faults: new Map(), attempts: 0 }),
+  );
+  const { faults, attempts } = check;
+  // The bounds the API refused, by what they are and the address they came back for: a list
+  // refused anew takes the focus to its field even when it refused the same side, a change the
+  // form does not write leaves the focus where it is.
+  const refused =
+    columns.some((column) => column.refused !== undefined) || scope?.refused !== undefined
+      ? JSON.stringify([over, columns.map((column) => column.refused), scope?.refused])
+      : undefined;
   useEffect(() => {
-    if (attempts > 0 || refused !== undefined) {
+    if (attempts > 0) {
+      form.current?.querySelector<HTMLElement>(TYPED_WRONG)?.focus();
+    }
+  }, [attempts]);
+  useEffect(() => {
+    if (refused !== undefined) {
       form.current?.querySelector<HTMLElement>(WRONG)?.focus();
     }
-  }, [attempts, refused]);
+  }, [refused]);
   const send = (written: Texts) => {
     const read = columns.map(({ column }) => ({
       column,
@@ -301,9 +331,11 @@ function RangeForm({ label, columns, kind, scope, page }: RangeFilterProps) {
         }
       }
     }
-    setFaults(found);
+    setCheck((before) => ({
+      faults: found,
+      attempts: before.attempts + (found.size > 0 ? 1 : 0),
+    }));
     if (found.size > 0) {
-      setAttempts((before) => before + 1);
       return;
     }
     // No fault left: each side a figure of the contract, or none.
@@ -331,7 +363,13 @@ function RangeForm({ label, columns, kind, scope, page }: RangeFilterProps) {
       className="flex flex-wrap items-start gap-x-4 gap-y-2"
     >
       {scope === undefined ? null : (
-        <ScopeField scope={scope} chosen={chosen} onChoose={setChosen} />
+        <ScopeField
+          scope={scope}
+          chosen={chosen}
+          onChoose={(value) => {
+            enter(SCOPE, value);
+          }}
+        />
       )}
       {columns.map((column) => (
         <ColumnFields
@@ -340,10 +378,7 @@ function RangeForm({ label, columns, kind, scope, page }: RangeFilterProps) {
           texts={texts[column.column] ?? { min: "", max: "" }}
           faults={faults}
           onText={(side, text) => {
-            setTexts((before) => ({
-              ...before,
-              [column.column]: { min: "", max: "", ...before[column.column], [side]: text },
-            }));
+            enter(`${column.column}.${side}`, text);
           }}
         />
       ))}
@@ -358,8 +393,15 @@ function RangeForm({ label, columns, kind, scope, page }: RangeFilterProps) {
             size="sm"
             variant="ghost"
             onClick={() => {
-              setTexts(lifted);
+              for (const { column } of columns) {
+                for (const side of SIDES) {
+                  enter(`${column}.${side}`, "");
+                }
+              }
               send(lifted);
+              // The button goes once no bound is left: the focus goes to the least of the first
+              // column, emptied, where the next bound is typed, rather than to the body.
+              form.current?.querySelector<HTMLElement>(BOUND)?.focus();
             }}
           >
             <X aria-hidden="true" className="size-4" />

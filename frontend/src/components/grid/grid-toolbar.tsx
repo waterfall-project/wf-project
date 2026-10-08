@@ -12,7 +12,7 @@
 
 import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useState } from "react";
+import type { SubmitEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
+import { useDatedEntry } from "./dated-entry";
 import { useFoldReach } from "./fold";
 import { SEARCH_LENGTH } from "./query";
 import { UndoCommands } from "./undo-commands";
@@ -70,7 +71,11 @@ export interface GridToolbarProps {
   readonly grid?: string | undefined;
 }
 
-/** The search on the labels, sent when entered. */
+/**
+ * The search on the labels, sent when entered. An entry is dated by the search of the address
+ * (`useDatedEntry`): a search the address changes — back in the history — shows anew, what was
+ * typed and not sent given up, and the field keeps the focus once the search it sent arrives.
+ */
 function SearchField({
   search,
   onSearch,
@@ -82,7 +87,8 @@ function SearchField({
 }) {
   const t = useTranslations("grid.search");
   const label = grid === undefined ? t("label") : t("labelIn", { grid });
-  const [text, setText] = useState(search ?? "");
+  const { entered, enter } = useDatedEntry<"text">(search ?? "");
+  const text = entered.text ?? search ?? "";
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSearch(text);
@@ -100,7 +106,7 @@ function SearchField({
         aria-label={label}
         placeholder={t("placeholder")}
         onChange={(event) => {
-          setText(event.target.value);
+          enter("text", event.target.value);
         }}
         className="h-7 pl-7 text-xs"
       />
@@ -173,9 +179,8 @@ export function GridToolbar({
   const t = useTranslations("grid.columnsMenu");
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* A search the address changed — back in the history — sets the field anew. */}
       {onSearch === undefined ? null : (
-        <SearchField key={search ?? ""} search={search} onSearch={onSearch} grid={grid} />
+        <SearchField search={search} onSearch={onSearch} grid={grid} />
       )}
       <div className="flex-1" />
       {undoable === true ? <UndoCommands /> : null}
