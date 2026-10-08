@@ -5,9 +5,12 @@
  * context (WF-IHM-0020), its label, what it is — its code, its state, its order, its
  * description —, and its revisions, each opened in the reading context of the address, the filters
  * it carries kept (WF-IHM-0010) — or, when it has none yet, that it has none, with the way to the
- * function of its revisions when the session may read them. A project the API does not find
- * is not found, as at the other screens of a project. Nothing is offered to modify it: its form
- * belongs to the epic of its domain.
+ * function of its revisions when the session may read them, and the imports the project offers:
+ * no address of a revision reaches the screen of the imports yet, and an import creates the
+ * revision it applies to (WF-INTF-0090, #332) — the report of the import the address names
+ * (`import`) shown above them, applied or abandoned there. A project the API does not find is not
+ * found, as at the other screens of a project. Nothing is offered to modify it: its form belongs to
+ * the epic of its domain.
  */
 import { FolderOpen, GitBranch } from "lucide-react";
 import type { Metadata } from "next";
@@ -17,11 +20,15 @@ import { useTranslations } from "next-intl";
 import { readEveryPage } from "@/api/every-page";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
+import { ImportPart } from "@/components/exchanges/import-part";
+import { ImportReport } from "@/components/exchanges/import-report";
+import { importOffers } from "@/components/exchanges/offers";
+import { readShownImport } from "@/components/exchanges/shown-import";
 import { ProjectFacts } from "@/components/projects/project-facts";
 import { type NamedRevision, useRevisionName } from "@/components/revisions/revision-history";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { NoRevisions } from "@/components/system/empty-states";
-import { contextQuery } from "@/navigation/context";
+import { contextAddress, contextQuery, pageSearch } from "@/navigation/context";
 import { functionHref, functionOf } from "@/navigation/functions";
 import { requestSession } from "@/session/request";
 
@@ -87,8 +94,8 @@ function Revisions({
 
 /** Render a project, what it is, and links to its revisions. */
 export default async function ProjectPage(props: ProjectPageProps) {
-  const address = await projectAddress(props);
-  const [revisions, read, session] = await Promise.all([
+  const [address, search] = await Promise.all([projectAddress(props), props.searchParams]);
+  const [revisions, read, session, shown] = await Promise.all([
     readEveryPage("listRevisions", (page) =>
       serverClient().GET("/projects/{project_id}/revisions", {
         params: { path: { project_id: address.projectId }, query: page },
@@ -96,10 +103,14 @@ export default async function ProjectPage(props: ProjectPageProps) {
     ),
     readProjectScreen(address),
     requestSession(),
+    readShownImport(address.projectId, pageSearch(search)),
   ]);
   // The way to the revisions is offered as the navigation offers them: to a session that
   // may read them.
   const mayReadRevisions = session?.permissions.includes("revisions.read") === true;
+  const offers = importOffers(read.project);
+  // The address of the screen without a report, its context kept.
+  const start = contextAddress(address.pathname, read.context);
   return (
     <>
       <ContextBanner reading={read} />
@@ -112,6 +123,18 @@ export default async function ProjectPage(props: ProjectPageProps) {
           filters={contextQuery(read.context, false)}
           way={mayReadRevisions ? functionHref(functionOf("revisions"), read.context) : undefined}
         />
+        {shown === undefined ? null : (
+          <ImportReport
+            key={shown.import_id}
+            projectId={address.projectId}
+            entry={shown}
+            offer={offers[shown.kind]}
+            start={start}
+          />
+        )}
+        {revisions.length === 0 ? (
+          <ImportPart projectId={address.projectId} offers={offers} start={start} />
+        ) : null}
       </Screen>
     </>
   );

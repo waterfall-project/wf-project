@@ -39,7 +39,7 @@ import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
 import { functionHref, leafOf } from "@/navigation/functions";
-import { requestSession } from "@/session/request";
+import { type Permission, requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
@@ -118,22 +118,35 @@ async function readOptional<T>(
 }
 
 /**
+ * The query of a list of the reference data: the deactivated objects too, for a session that bears
+ * the permission of that part of the reference — the contract refuses `include_inactive` without it
+ * (403) —, the active ones alone otherwise, which an estimator enters on (#351).
+ */
+function referenceQuery(permissions: readonly Permission[], permission: Permission) {
+  return permissions.includes(permission) ? { include_inactive: true } : {};
+}
+
+/**
  * The categories, the roles and the sub-projects a line of the estimate is chosen from, as the
  * grid reads them — an identifier, a name, whether it may still be chosen, nothing more crossing to
- * the browser. The deactivated ones are read too: a line may bear one, which its list keeps; the
- * list of a cell offers the active ones alone (WF-REF-0150) — a sub-project is never deactivated.
- * The cell names what the line bears by the label the server resolves (#305), whatever these lists
- * hold. A list the API refuses is none: its column is not entered, and the screen stays.
+ * the browser. The deactivated ones are read too when the session may read them: a line may bear
+ * one, which its list keeps; the list of a cell offers the active ones alone (WF-REF-0150) — a
+ * sub-project is never deactivated. Without the permission of the reference, a line that bears a
+ * deactivated object is not entered on that column, whose list does not know it. The cell names
+ * what the line bears by the label the server resolves (#305), whatever these lists hold. A list
+ * the API refuses is none: its column is not entered, and the screen stays.
  */
 async function readReference(projectId: string): Promise<EstimateReference> {
   const client = serverClient();
-  const query = { include_inactive: true };
+  const permissions = (await requestSession())?.permissions ?? [];
+  const categoryQuery = referenceQuery(permissions, "cost_settings.read");
+  const roleQuery = referenceQuery(permissions, "resource_settings.read");
   const [categories, roles, subprojects] = await Promise.all([
     readOptional("listCostCategories", () =>
-      client.GET("/reference/cost-categories", { params: { query } }),
+      client.GET("/reference/cost-categories", { params: { query: categoryQuery } }),
     ),
     readOptional("listResourceRoles", () =>
-      client.GET("/reference/resource-roles", { params: { query } }),
+      client.GET("/reference/resource-roles", { params: { query: roleQuery } }),
     ),
     readOptional("listSubprojects", () =>
       client.GET("/projects/{project_id}/subprojects", {

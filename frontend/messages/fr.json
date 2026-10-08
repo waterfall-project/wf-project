@@ -382,6 +382,15 @@
       "periodFrom": "à partir du {from}",
       "periodTo": "jusqu’au {to}",
       "periodUnknown": "Non renseignée"
+    },
+    "line": {
+      "title": "Ligne {document}",
+      "close": "Fermer la ligne",
+      "reason": "Motif de l’exclusion",
+      "excludedWithoutReason": "Exclue du périmètre suivi, sans motif.",
+      "excludedBecause": "Exclue du périmètre suivi : {reason}",
+      "exclude": "Exclure du périmètre suivi",
+      "reinstate": "Réintégrer dans le périmètre suivi"
     }
   },
   "portfolio": {
@@ -440,11 +449,13 @@
       "zone": "Zone",
       "projects": "Projets",
       "quarterly": "Évolution trimestrielle des indices",
+      "exportTitle": "Évolution trimestrielle des indices du portefeuille",
       "quarterlyDescription": "Courbes de l’indice de coût et de l’indice de délai agrégés du portefeuille, un point par trimestre, calculés aux dates passées.",
       "quarterColumn": "Trimestre",
       "quarter": "T{number} {year}",
       "cost_index": "Indice de coût",
-      "schedule_index": "Indice de délai"
+      "schedule_index": "Indice de délai",
+      "file": "evolution-des-indices"
     },
     "costStructure": {
       "noActualCost": "Le coût réel ne se ventile pas par nature : l’ERP ne le fournit pas.",
@@ -498,14 +509,18 @@
       "undelay": "Revenir aux coûts cumulés",
       "series": "Courbe",
       "date": "Date",
-      "amount": "Montant"
+      "amount": "Montant",
+      "file": "couts-cumules",
+      "fileDelayed": "decaissements-cumules"
     },
     "cashOut": {
       "chartTitle": "Décaissements par mois",
+      "exportTitle": "Décaissements du portefeuille par mois",
       "description": "Lecture en décaissements de la courbe en S du portefeuille : les décaissements passés, sommes des coûts réels des projets par mois de date de pièce décalée, et les décaissements à venir, sommes de leurs projections décalées, mois par mois.",
       "month": "Mois",
       "past": "Décaissé",
-      "forecast": "À décaisser"
+      "forecast": "À décaisser",
+      "file": "decaissements-par-mois"
     }
   },
   "computedValue": {
@@ -595,7 +610,9 @@
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Révision : {revision} · Calculé le {date}",
     "exportSubtitleWith": "Révision : {revision} · {detail} · Calculé le {date}",
-    "fileName": "{file}-{code}.png"
+    "fileName": "{file}-{code}.png",
+    "exportPortfolioSubtitleWith": "{scope} · {node}",
+    "portfolioFileName": "{file}-portefeuille-{asOf}.png"
   },
   "projectIndicators": {
     "notInProgress": {
@@ -757,7 +774,8 @@
     "none": "Aucune tâche de fond suivie.",
     "download": "Télécharger le résultat",
     "downloadLabel": "Télécharger le résultat : {task}",
-    "resultUnavailable": "Le résultat de cette tâche n’est plus disponible."
+    "resultUnavailable": "Le résultat de cette tâche n’est plus disponible.",
+    "resultRefused": "Le résultat d’une tâche n’a pas pu être téléchargé."
   },
   "markRevision": {
     "versionName": "Nom de version",
@@ -1210,6 +1228,7 @@
     "UNKNOWN_SUBPROJECT": "Sous-projet inconnu.",
     "UNKNOWN_TASK": "Tâche inconnue.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
+    "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",

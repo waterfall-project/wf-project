@@ -7,7 +7,8 @@
  * period of the documents, `from` and `to` —, and the page of each list the server pages: that of
  * the costs, `offset`, as the contract names it, and that of the journal of the imports,
  * `imports_offset`. A filter chosen, a page turned only change the address, and the page reads
- * anew: the front filters, sorts and pages nothing (WF-ARC-0020).
+ * anew: the front filters, sorts and pages nothing (WF-ARC-0020). And the line whose place in the
+ * tracked scope is shown to be changed, `line` (WF-CRE-0040).
  *
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
@@ -26,6 +27,9 @@ export const SUBPROJECT = "subproject_id";
 export const COSTS_PAGE = OFFSET;
 /** The page of the journal of the imports, which shares the screen with the costs. */
 export const IMPORTS_PAGE = "imports_offset";
+
+/** The line of the page whose place in the tracked scope the screen shows, to change it. */
+export const LINE = "line";
 
 /** The lines a scope retains: those tracked, those excluded; none, every line. */
 export type Scope = "tracked" | "excluded";
@@ -70,6 +74,12 @@ export function readPage(search: SearchParameters, name: string): number {
   return /^\d{1,9}$/.test(value) ? Number(value) : 0;
 }
 
+/** The line the address names, when it names one by an identifier; none otherwise. */
+export function readCostLine(search: SearchParameters): string | undefined {
+  const line = search.get(LINE);
+  return line !== null && /^[\w-]+$/.test(line) ? line : undefined;
+}
+
 /** A path and its query. */
 function address(pathname: string, query: URLSearchParams): string {
   const text = query.toString();
@@ -101,6 +111,16 @@ export function filtersHref(
   put(next, TO, filters.to);
   put(next, SUBPROJECT, filters.subproject);
   next.delete(COSTS_PAGE);
+  return address(pathname, next);
+}
+
+/**
+ * The address of the same screen showing a line to change its place in the tracked scope — or
+ * none, `undefined` —, the rest of its query kept.
+ */
+export function lineHref(pathname: string, query: URLSearchParams, line: string | undefined) {
+  const next = new URLSearchParams(query);
+  put(next, LINE, line);
   return address(pathname, next);
 }
 

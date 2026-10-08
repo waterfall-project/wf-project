@@ -21,6 +21,8 @@
  */
 import type { BackgroundTask, Outcome, Problem } from "@/api/problem";
 
+import type { ResultRefusal } from "./result-refusal";
+
 /** Where a background task stands. */
 export type TaskStatus = BackgroundTask["status"];
 
@@ -101,6 +103,11 @@ export interface Tracking {
   readonly dismissed: readonly string[];
   /** Whether the tasks the tab followed before a reload are back: none is saved before. */
   readonly restored: boolean;
+  /**
+   * The refusal of a result the browser came back with, whose task could not be read again: told
+   * by the panel itself, no entry being there to tell it (#416).
+   */
+  readonly refusedResult?: ResultRefusal | undefined;
 }
 
 /** What changes what the tracker follows. */
@@ -111,8 +118,8 @@ export type TrackingEvent =
   | {
       readonly type: "answer";
       /**
-       * A read of the task's progress; the read that checks its result before a download, whose
-       * refusal is told in place; or its command run again.
+       * A read of the task's progress; the read that checks its result before a download, or the
+       * read of the result itself, whose refusal is told in place (#416); or its command run again.
        */
       readonly source: "read" | "relaunch" | "download";
       readonly key: string;
@@ -121,7 +128,9 @@ export type TrackingEvent =
       readonly outcome: Outcome<BackgroundTask>;
     }
   | { readonly type: "clear" | "dismiss"; readonly key: string }
-  | { readonly type: "forget" };
+  | { readonly type: "forget" }
+  | { readonly type: "result_refused"; readonly refusal: ResultRefusal }
+  | { readonly type: "result_refusal_cleared" };
 
 /** Nothing followed yet. */
 export const NOTHING_TRACKED: Tracking = { tasks: [], log: [], dismissed: [], restored: false };
@@ -297,6 +306,10 @@ export function tracking(state: Tracking, event: TrackingEvent): Tracking {
           gone === undefined ? state.dismissed : [...state.dismissed, gone.key, gone.task.task_id],
       };
     }
+    case "result_refused":
+      return { ...state, refusedResult: event.refusal };
+    case "result_refusal_cleared":
+      return { ...state, refusedResult: undefined };
     case "forget":
       // Signed out: nothing of the tasks of the session goes to the next user of the tab — an
       // answer still on its way finds no task to apply to.

@@ -1,0 +1,14 @@
+{
+  "summary": "Une restauration demandée sur le devis déposé pour un import (file_upload) : le dépôt n'a pas été fait pour une restauration, et le champ qui le désigne est refusé (WF-ADM-0160).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/external_backup_upload_id",
+        "code": "UPLOAD_PURPOSE_MISMATCH"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000984"
+  }
+}

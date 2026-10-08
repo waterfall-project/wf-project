@@ -12,11 +12,10 @@
  * rendered from what `getImport` gives; a read the API refuses, or cannot answer, is thrown for the
  * pages of the shell to say.
  */
-import { FileDown, FileUp } from "lucide-react";
+import { FileDown } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
@@ -25,23 +24,21 @@ import { readProjectContext } from "@/components/context/reading";
 import { readPage } from "@/components/costs/address";
 import { ListPages } from "@/components/costs/cost-pages";
 import { ExportForm } from "@/components/exchanges/export-form";
-import { ImportCommands } from "@/components/exchanges/import-commands";
 import { ImportList } from "@/components/exchanges/import-list";
+import { ImportPart, Part } from "@/components/exchanges/import-part";
 import { ImportReport } from "@/components/exchanges/import-report";
 import {
-  EXCHANGE_KINDS,
   EXCHANGES_PAGE,
   exportOffers,
   type ExportOffers,
-  IMPORT_PARAMETER,
   importOffers,
-  type ImportOffers,
 } from "@/components/exchanges/offers";
+import { readShownImport } from "@/components/exchanges/shown-import";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { ICON } from "@/components/projects/project-tables";
 import { LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { contextQuery, isIdentifier, type PageSearchParams } from "@/navigation/context";
+import { contextQuery, type PageSearchParams } from "@/navigation/context";
 
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
@@ -75,19 +72,6 @@ async function readImports({ revision }: GridAddress, offset: number) {
   );
 }
 
-/** The import the address names, when it names one an identifier can stand for. */
-async function readShownImport({ revision, address }: GridAddress) {
-  const importId = address.get(IMPORT_PARAMETER) ?? "";
-  if (!isIdentifier(importId)) {
-    return undefined;
-  }
-  return readOrFail("getImport", () =>
-    serverClient().GET("/projects/{project_id}/imports/{import_id}", {
-      params: { path: { project_id: revision.projectId, import_id: importId } },
-    }),
-  );
-}
-
 /** The address of the screen without a report: its context and its page of the list kept. */
 function startOf({ pathname, context }: GridAddress, offset: number): string {
   const query = new URLSearchParams(contextQuery(context, false));
@@ -96,50 +80,6 @@ function startOf({ pathname, context }: GridAddress, offset: number): string {
   }
   const text = query.toString();
   return text === "" ? pathname : `${pathname}?${text}`;
-}
-
-/** A part of the screen under its title, named by it. */
-function Part({
-  title,
-  icon,
-  children,
-}: {
-  readonly title: string;
-  readonly icon: ReactNode;
-  readonly children: ReactNode;
-}) {
-  return (
-    <section aria-label={title} className="space-y-2">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        {icon}
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-/** The imports offered, or that none is. */
-function ImportPart({
-  projectId,
-  offers,
-  start,
-}: {
-  readonly projectId: string;
-  readonly offers: ImportOffers;
-  readonly start: string;
-}) {
-  const t = useTranslations("exchanges.import");
-  const offered = EXCHANGE_KINDS.some((kind) => offers[kind] !== undefined);
-  return (
-    <Part title={t("title")} icon={<FileUp aria-hidden="true" className={ICON} />}>
-      {offered ? (
-        <ImportCommands projectId={projectId} offers={offers} start={start} />
-      ) : (
-        <p className="text-sm text-muted-foreground">{t("none")}</p>
-      )}
-    </Part>
-  );
 }
 
 /** The request of an export of the revision read, or that none is offered. */
@@ -185,7 +125,7 @@ export default async function ExchangesPage({
     // The imports take neither a sub-project nor a date: the banner shows no filter (#302).
     readProjectContext(at.pathname, at.context, []),
     readImports(at, offset),
-    readShownImport(at),
+    readShownImport(revision.projectId, at.address),
   ]);
   if (reading === "not_found") {
     notFound();

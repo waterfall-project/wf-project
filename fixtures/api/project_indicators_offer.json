@@ -1,5 +1,5 @@
 {
-  "summary": "Les indicateurs du projet demandés sur l'offre v1.0, marquée pendant le chiffrage : son marquage n'a conservé que le total du devis, sans aucun indicateur projet, et la lecture est refusée comme pour un projet qui n'est pas en cours (WF-DAT-0040, WF-IND-0010).",
+  "summary": "Les indicateurs du projet, sa courbe des coûts ou ses courbes de valeur acquise demandés sur l'offre v1.0, marquée pendant le chiffrage : son marquage n'a conservé que le total du devis, sans aucun indicateur projet ni aucune courbe, et la lecture est refusée comme pour un projet qui n'est pas en cours (WF-DAT-0040, WF-IND-0010).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,

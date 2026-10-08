@@ -250,6 +250,10 @@ ErrorCode:
     - UNKNOWN_SUBPROJECT
     - UNKNOWN_TASK
     - INACTIVE_REFERENCE_OBJECT
+    # Un dépôt désigné pour un autre usage que le sien : un import ouvert sur une sauvegarde
+    # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
+    # `FileUploadPurpose`).
+    - UPLOAD_PURPOSE_MISMATCH
     # Une catégorie de nature provision donnée à une ligne saisie : seule la déclaration d'un
     # risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED

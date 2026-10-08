@@ -73,3 +73,37 @@ test("marking a revision gives the hand back, shows its progress, and announces 
   await expect(tasks.getByText("Réussie")).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-visited", "revisions");
 });
+
+test("tells, by the entry of its task, the refusal of a result the browser came back with from its route, and takes it away from the address (#416)", async ({
+  page,
+}) => {
+  // The route of the result sent the browser back to the screen it left: the result expired. The
+  // fake back serves the first example of the read of a task, whatever the task asked.
+  const screen = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
+  await openHydrated(page, `${screen}&refused_task=${TASK}&refusal=409%3ASTATE_FORBIDS_OPERATION`);
+  const panel = page.getByRole("region", { name: "Tâches de fond" });
+  await expect(panel.getByRole("alert")).toContainText(
+    "L’état actuel ne permet pas cette opération.",
+  );
+  await expect(page).toHaveURL(screen);
+});
+
+test("the route of a result hands on the file the fake back serves, as the attachment it names, the browser kept on its screen (#416)", async ({
+  page,
+}) => {
+  // The fake back serves the result of the export of the estimate, whatever the task asked. The
+  // route is followed from the address alone: the read of a task the fake back serves first is a
+  // marking, which made no result, so no entry offers the link — the component tests prove the
+  // link of the entry and the screen it leaves from (`task-result.dom.test.tsx`).
+  const screen = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
+  await openHydrated(page, screen);
+  const result = `/tasks/01926f3a-7c00-7000-8000-000000000935/result?from=${encodeURIComponent(screen)}`;
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.evaluate((address) => {
+      window.location.assign(address);
+    }, result),
+  ]);
+  expect(download.suggestedFilename()).toBe("devis-poste-de-commande.xlsx");
+  await expect(page).toHaveURL(screen);
+});

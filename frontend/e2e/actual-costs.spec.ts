@@ -59,3 +59,40 @@ test("reads the actual costs of a project: the lines and their three totals, the
     "true",
   );
 });
+
+test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) [WF-CRE-0040-A]", async ({
+  page,
+}) => {
+  test.slow();
+  await openHydrated(page, COSTS);
+  const grid = page.getByRole("grid", { name: "Coûts réels" });
+  await grid.getByRole("link", { name: "FA-2026-0412" }).click();
+  await expect(page).toHaveURL(`${COSTS}?line=01926f3a-7c00-7000-8000-000000000c01`, {
+    timeout: WORKING,
+  });
+  const line = page.getByRole("region", { name: "Ligne FA-2026-0412" });
+  await expect(line).toContainText("Suivie");
+  await line.getByLabel("Motif de l’exclusion").fill("Câbles d'un autre projet, à réimputer");
+  // The server action leaves before the click returns: its answer, and the page read anew, follow.
+  const written = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes(COSTS),
+    { timeout: WORKING },
+  );
+  const command = line.getByRole("button", { name: "Exclure du périmètre suivi" });
+  await command.click();
+  expect((await written).ok()).toBe(true);
+  await expect(command).toHaveAttribute("aria-busy", "false", { timeout: WORKING });
+  await expect(line.getByRole("alert")).toHaveCount(0);
+  // The excluded line offers its reinstatement, its reason said.
+  await grid.getByRole("link", { name: "FA-2026-0295" }).click();
+  const reception = page.getByRole("region", { name: "Ligne FA-2026-0295" });
+  await expect(reception).toContainText(
+    "Exclue du périmètre suivi : Réception du client, non budgétée",
+    {
+      timeout: WORKING,
+    },
+  );
+  await expect(
+    reception.getByRole("button", { name: "Réintégrer dans le périmètre suivi" }),
+  ).toBeVisible();
+});

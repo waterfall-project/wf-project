@@ -8,14 +8,14 @@
  * (WF-IHM-0020): a view of the portfolio is computed at a date, `scope.as_of`, as the server gives
  * it, a date of planning shown without time zone. Nothing of it is deduced from the address.
  */
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader } from "@/components/shell/page-header";
-import { formatPlanningDate } from "@/i18n/format";
 import type { NavigationFunction } from "@/navigation/functions";
 
 import type { PortfolioScope } from "./address";
+import { useScopeSentence } from "./provenance";
 
 /** The functions of the portfolio, by their permission. */
 export type PortfolioFunction = Extract<NavigationFunction["permission"], `portfolio_${string}`>;
@@ -36,29 +36,9 @@ export function portfolioLabel(fn: PortfolioFunction) {
   return LABELS[fn];
 }
 
-/**
- * The perimeter the server retained, in a sentence: states, projects, period, date of calculation.
- */
+/** The perimeter the server retained, in a sentence: states, projects, period, date of calculation. */
 function ScopeLine({ scope }: { readonly scope: PortfolioScope }) {
-  const t = useTranslations();
-  const format = useFormatter();
-  const locale = useLocale();
-  const date = (value: string) => formatPlanningDate(value, locale);
-  const states = format.list(scope.states.map((state) => t(`enums.ProjectState.${state}`)));
-  const asOf = date(scope.as_of);
-  const from = scope.from ?? null;
-  const to = scope.to ?? null;
-  const count = scope.project_count;
-  if (from !== null && to !== null) {
-    return t("portfolio.scope.period", { states, count, asOf, from: date(from), to: date(to) });
-  }
-  if (from !== null) {
-    return t("portfolio.scope.since", { states, count, asOf, from: date(from) });
-  }
-  if (to !== null) {
-    return t("portfolio.scope.until", { states, count, asOf, to: date(to) });
-  }
-  return t("portfolio.scope.noPeriod", { states, count, asOf });
+  return useScopeSentence()(scope);
 }
 
 /** The node of organisation the server retained, by the label it gives; nothing without one. */

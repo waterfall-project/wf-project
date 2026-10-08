@@ -7,8 +7,11 @@
  * import (WF-CRE-0050); the filters by scope, sub-project and period; the grid of a page of the
  * lines, sorted, filtered and paged by the server as the address asks (`sort_by`,
  * `in_tracked_scope`, `subproject_id`, `from`, `to`, `offset`, under the names of the contract);
- * and the journal of the imports, a page of it. Its head leads to the imports and exports of the
- * project (FBS-4.3.4), where the actual costs are imported, in the same context. The actual costs
+ * and the journal of the imports, a page of it. Where the project lists the exclusion of its lines
+ * (`exclude_cost_lines`), the number of a line shows its place in the tracked scope to change it,
+ * the line the address names (`line`) among those of the page (WF-CRE-0040). Its head leads to the
+ * imports and exports of the project (FBS-4.3.4), where the actual costs are imported, in the same
+ * context. The actual costs
  * belong to the project, not to a revision: the revision of the route is the reading context of
  * the banner alone. Every figure as the API gives it: the front computes, sorts, filters and pages
  * nothing. Filters the API refuses (422) — a period that ends before it starts, a sub-project the
@@ -22,6 +25,7 @@ import { useTranslations } from "next-intl";
 
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { askSubprojects, readProjectContext } from "@/components/context/reading";
 import {
@@ -29,6 +33,7 @@ import {
   COSTS_PAGE,
   IMPORTS_PAGE,
   readCostFilters,
+  readCostLine,
   readPage,
   scopeParameter,
 } from "@/components/costs/address";
@@ -40,6 +45,7 @@ import {
   type CostSortColumn,
   isKeptSort,
 } from "@/components/costs/cost-grid";
+import { CostLineScope } from "@/components/costs/cost-line-scope";
 import { ListPages } from "@/components/costs/cost-pages";
 import { CostSummary } from "@/components/costs/cost-totals";
 import { CostsGrid } from "@/components/costs/costs-grid";
@@ -233,6 +239,12 @@ export default async function ActualCostsPage({
   if (reading === "not_found") {
     notFound();
   }
+  const exclusion = findOffer(reading.project.available_commands, "exclude_cost_lines");
+  const lineId = readCostLine(at.address);
+  const line =
+    exclusion === undefined || "refused" in costs
+      ? undefined
+      : costs.costs.items.find((item) => item.cost_line_id === lineId);
   return (
     <>
       <ContextBanner reading={reading} />
@@ -257,12 +269,26 @@ export default async function ActualCostsPage({
                 <CostsRefused reason={costs.refused} />
               ) : (
                 <>
-                  <CostsGrid costs={costs.costs} query={query} preferences={preferences} />
+                  <CostsGrid
+                    costs={costs.costs}
+                    query={query}
+                    preferences={preferences}
+                    linked={exclusion !== undefined}
+                  />
                   <ListPages list="costs" page={costs.page} shown={costs.costs.items.length} />
                 </>
               )}
             </div>
             <aside className="flex shrink-0 flex-col gap-4 lg:w-[28rem] lg:overflow-y-auto">
+              {exclusion === undefined || line === undefined ? null : (
+                // One per line: an answer for a line no longer shown is told nowhere.
+                <CostLineScope
+                  key={line.cost_line_id}
+                  projectId={revision.projectId}
+                  line={line}
+                  offer={exclusion}
+                />
+              )}
               <ImportJournal imports={imports.items} page={imports.meta} />
             </aside>
           </div>

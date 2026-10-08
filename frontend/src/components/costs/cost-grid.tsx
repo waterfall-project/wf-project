@@ -20,7 +20,7 @@
 import type { components, operations } from "@/api/generated/schema";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
 
-import { ScopeCell, SubprojectCell } from "./cost-cells";
+import { CostLineCell, ScopeCell, SubprojectCell } from "./cost-cells";
 
 /** A line of actual cost, as the contract gives it. */
 type ActualCostLine = components["schemas"]["ActualCostLine"];
@@ -158,15 +158,21 @@ export function isKeptSort(column: string | null | undefined): column is CostSor
 /**
  * The grid of the actual costs for the columns kept from the files of the lines retained, in the
  * order the server gives them: each its own column, headed by its name as the file gives it, its
- * values as imported, sorted by the server.
+ * values as imported, sorted by the server. Where the user may exclude a line or reinstate it
+ * (`linked`), the number of document of each line is a link that shows it to change it.
  */
 export function costGrid(
   kept: readonly string[],
+  linked = false,
 ): GridConfig<CostRow, CostSortColumn, ActualCostTotals> {
   return {
     ...COST_GRID,
     columns: [
-      ...COST_GRID.columns,
+      ...COST_GRID.columns.map((column) =>
+        linked && column.key === "document_number"
+          ? { ...column, render: (line: CostRow) => <CostLineCell line={line} /> }
+          : column,
+      ),
       ...kept.map((name) => ({
         key: `${KEPT}${name}`,
         label: "passthrough" as const,

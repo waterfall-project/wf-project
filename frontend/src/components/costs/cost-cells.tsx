@@ -7,14 +7,48 @@
  * no sub-project of the project bears (WF-CRE-0020); whether it is in the tracked scope, in words and by
  * an icon, never by a colour alone (WF-CRE-0030). The columns of the file kept for information
  * are columns of their own (`costGrid`), their values as imported — never translated
- * (WF-CRE-0010).
+ * (WF-CRE-0010). And, where the user may exclude a line or reinstate it, its number of document, a
+ * link that shows its place in the tracked scope to change it (WF-CRE-0040), out of the order of
+ * tabulation, the grid being one stop, which follows it on Enter (`grid-keyboard.ts`).
  */
 "use client";
 
 import { CircleCheck, CircleSlash } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { usePendingLink } from "@/components/grid/pending-address";
+
+import { lineHref, readCostLine } from "./address";
 import type { CostRow } from "./cost-grid";
+
+/**
+ * Show a line to change its place in the tracked scope — or none, `undefined` —, from the address
+ * last asked: a sort or a filter under way is kept.
+ */
+export function useLineNavigation(line: string | undefined) {
+  const pathname = usePathname();
+  return usePendingLink((query) => lineHref(pathname, query, line));
+}
+
+/** Render the number of document of a line, as a link that shows it; the line shown says so. */
+export function CostLineCell({ line }: { readonly line: CostRow }) {
+  const shown = readCostLine(useSearchParams()) === line.cost_line_id;
+  const { href, onClick } = useLineNavigation(line.cost_line_id);
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      tabIndex={-1}
+      aria-current={shown ? "true" : undefined}
+      className="block truncate underline-offset-2 hover:underline aria-[current]:font-semibold"
+      scroll={false}
+    >
+      {line.document_number}
+    </Link>
+  );
+}
 
 /**
  * Render the sub-project of a line: its code and its label, or « no sub-project » — followed by

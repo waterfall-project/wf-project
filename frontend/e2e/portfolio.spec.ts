@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, test } from "@playwright/test";
+import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { compile } from "./compile";
 import { sortUntilAddress, WORKING } from "./hydration";
@@ -12,6 +12,7 @@ import { withinBox } from "./scroll";
 // asks. The marks read here are fixed by `test_the_marks_the_portfolio_journey_reads`.
 const PROJECTS = "/portfolio/projects";
 const PERFORMANCE = "/portfolio/performance";
+const COST_CURVE = "/portfolio/cost-curve";
 // The columns of the cost index and of the schedule index in the grid of the projects.
 const COST_INDEX = 8;
 const SCHEDULE_INDEX = 9;
@@ -132,4 +133,23 @@ test("paints the same zone of an index the same colour in the list of the projec
     .poll(() => colour(distribution.getByText("Alerte", { exact: true }).first()))
     .not.toBe(painted.Nominal);
   expect(new Set(Object.values(painted)).size).toBe(3);
+});
+
+test("exports the S-curve of the portfolio as a PNG image named after the date of its perimeter (#312)", async ({
+  page,
+}) => {
+  await page.goto(COST_CURVE);
+  const command = page
+    .getByRole("figure", { name: "Coûts cumulés du portefeuille" })
+    .getByRole("button", { name: "Exporter en PNG" });
+  // No project is opened here, nothing witnesses the hydration: the command is pressed again
+  // until the browser saves the image.
+  let download: Download | undefined;
+  await expect(async () => {
+    [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 1_000 }),
+      command.click(),
+    ]);
+  }).toPass({ timeout: WORKING });
+  expect(download?.suggestedFilename()).toBe("couts-cumules-portefeuille-2026-06-03.png");
 });

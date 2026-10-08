@@ -33,13 +33,13 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { FALLBACK_LOCALE } from "@/i18n/locale";
 
 import { Unreachable } from "./client";
+import { kindOf, type ProblemKind } from "./problem-kind";
 import type { components } from "./generated/schema";
+
+export { kindOf, type ProblemKind } from "./problem-kind";
 
 /** The error envelope of the contract (WF-ARC-0110). */
 export type Problem = components["schemas"]["Problem"];
-
-/** What a refusal of the API asks of the screen, by the status that carries it. */
-export type ProblemKind = "refused" | "stale" | "conflict" | "signed_out";
 
 /** What an action gives back: the answer of the API, its refusal, or the API out of reach. */
 export type Outcome<T> =
@@ -76,13 +76,6 @@ export async function reach<T>(call: () => Promise<T>): Promise<T | undefined> {
     throw error;
   }
 }
-
-/** The reaction a status asks for; any other refusal is rendered as it is. */
-const KIND_BY_STATUS: Readonly<Record<number, ProblemKind>> = {
-  401: "signed_out",
-  409: "conflict",
-  412: "stale",
-};
 
 /**
  * The statuses a gateway in front of the API answers when the service behind it is down: said
@@ -270,7 +263,7 @@ function decodeAnswer<T>(answer: Answer<T>): Outcome<T> {
   const problem = envelope(answer.error, status);
   const conflicting = problem.params?.conflicting_object_id;
   return {
-    kind: KIND_BY_STATUS[status] ?? "refused",
+    kind: kindOf(status),
     problem,
     conflictingObjectId: typeof conflicting === "string" ? conflicting : null,
   };
