@@ -165,3 +165,13 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '422':
+        description: >-
+          Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import
+          (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant
+          `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              purpose_mismatch: { $ref: ../../../fixtures/api/restore_upload_purpose_mismatch.json }

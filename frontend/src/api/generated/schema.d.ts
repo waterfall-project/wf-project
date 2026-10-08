@@ -2335,7 +2335,7 @@ export interface paths {
         put?: never;
         /**
          * Déposer un fichier
-         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde.
+         * @description Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import : il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120). Le dépôt dit son usage (`purpose`), qui le borne : le fichier d'un import ne dépasse pas 10 Mio (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`, `startRestore`).
          */
         post: operations["uploadFile"];
         delete?: never;
@@ -2600,7 +2600,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2694,7 +2694,7 @@ export interface components {
             default_language: components["schemas"]["Language"];
             /** @description La taille la plus grande qu'un avatar peut avoir, en octets (§4.4.1, WF-ADM-0080) : un réglage de l'installation, que `putMyAvatar` applique (413, `FILE_TOO_LARGE`), et que le front lit pour dire la borne avant l'envoi. Le réglage ne dépasse pas 8 Mio (8 388 608 octets) : le front règle d'avance la taille de corps qu'il laisse passer au-dessus de ce maximum, l'enveloppe du formulaire comprise, pour que le refus d'une image trop lourde vienne de l'API et se dise par son code. */
             avatar_max_bytes: number;
-            /** @description La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un réglage de l'installation, la spécification ne fixant pas la taille d'une sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. */
+            /** @description La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un réglage de l'installation, la spécification ne fixant pas la taille d'une sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1 (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON garde exact quand le front le lit. */
             external_backup_max_bytes: number;
         };
         /**
@@ -5854,6 +5854,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            /** @description Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getReferenceReadiness: {
@@ -9186,7 +9195,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) : `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de l'import (un `ExchangeKind`) et `params.expected_version` sa version. */
+            /** @description Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) : `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de l'import (un `ExchangeKind`) et `params.expected_version` sa version. Ou un dépôt qui n'a pas été fait pour un import — une sauvegarde déposée pour une restauration (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/upload_id` par `UPLOAD_PURPOSE_MISMATCH`. */
             422: {
                 headers: {
                     [name: string]: unknown;

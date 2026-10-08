@@ -1,0 +1,14 @@
+{
+  "summary": "Un import de devis ouvert sur une sauvegarde déposée pour une restauration : le dépôt n'a pas été fait pour un import, et le champ qui le désigne est refusé (WF-ARC-0100, WF-ADM-0160).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/upload_id",
+        "code": "UPLOAD_PURPOSE_MISMATCH"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000983"
+  }
+}

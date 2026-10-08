@@ -8,7 +8,9 @@
  * figure of `Chart`, named by a sentence, its values in a table under it — the text alternative
  * (WF-IHM-0100) —, drawn from the strings of the API as they are: a value the server could not
  * compute is a gap in its curve, and a row of the table that says why. The date of calculation is
- * the view's, `scope.as_of`, under its title (`PortfolioHeader`).
+ * the view's, `scope.as_of`, under its title (`PortfolioHeader`). Each is exported as a PNG image
+ * (WF-IHM-0130), which names the perimeter the server retained and its date of calculation
+ * (`usePortfolioExport`, #312).
  */
 "use client";
 
@@ -34,7 +36,9 @@ import {
   formatPlanningDate,
 } from "@/i18n/format";
 
+import type { PortfolioScope } from "./address";
 import { ComputableValue } from "./portfolio-value";
+import { usePortfolioExport } from "./provenance";
 
 type Quarter = components["schemas"]["PortfolioPerformance"]["quarterly"][number];
 type CashOutMonth = components["schemas"]["CashOutMonth"];
@@ -81,8 +85,17 @@ function valueAxis(palette: ChartPalette, locale: string, fromZero: boolean) {
   };
 }
 
-/** Render the evolution of the two indices of the portfolio, quarter by quarter, and its table. */
-export function QuarterlyChart({ quarters }: { readonly quarters: readonly Quarter[] }) {
+/**
+ * Render the evolution of the two indices of the portfolio, quarter by quarter, and its table,
+ * offered for export with the perimeter of the view.
+ */
+export function QuarterlyChart({
+  quarters,
+  scope,
+}: {
+  readonly quarters: readonly Quarter[];
+  readonly scope: PortfolioScope;
+}) {
   const t = useTranslations();
   const locale = useLocale();
   const name = useQuarterName();
@@ -111,11 +124,17 @@ export function QuarterlyChart({ quarters }: { readonly quarters: readonly Quart
   const value = (computable: Computable) => (
     <ComputableValue value={computable} format={(index) => formatDecimal(index, locale)} />
   );
+  const exported = usePortfolioExport(
+    scope,
+    t("portfolio.performance.exportTitle"),
+    t("portfolio.performance.file"),
+  );
   return (
     <Chart
       title={t("portfolio.performance.quarterly")}
       description={t("portfolio.performance.quarterlyDescription")}
       option={option}
+      exported={exported}
     >
       <table className="w-full text-left">
         <thead className="text-muted-foreground">
@@ -151,9 +170,16 @@ const STEPPED: ReadonlySet<PortfolioCostCurve["series"][number]["name"]> = new S
  * Render the S-curve of the portfolio — the reference budget, the actual cost, the project
  * managers' projection, each the sum of the curves of the projects, named at its end —, and the
  * table of its points. Read as cash-out, the curves are those the server shifted: nothing is
- * shifted here, and the figure is named as the server says the curves are.
+ * shifted here, and the figure is named — and its image, exported with the perimeter of the view —
+ * as the server says the curves are.
  */
-export function PortfolioCurveChart({ curves }: { readonly curves: PortfolioCostCurve }) {
+export function PortfolioCurveChart({
+  curves,
+  scope,
+}: {
+  readonly curves: PortfolioCostCurve;
+  readonly scope: PortfolioScope;
+}) {
   const t = useTranslations();
   const locale = useLocale();
   const shifted = curves.payment_delays;
@@ -185,15 +211,22 @@ export function PortfolioCurveChart({ curves }: { readonly curves: PortfolioCost
     }),
     [curves, locale, t],
   );
+  const title = shifted
+    ? t("portfolio.costCurve.chartTitleDelayed")
+    : t("portfolio.costCurve.chartTitle");
+  const exported = usePortfolioExport(
+    scope,
+    title,
+    shifted ? t("portfolio.costCurve.fileDelayed") : t("portfolio.costCurve.file"),
+  );
   return (
     <Chart
-      title={
-        shifted ? t("portfolio.costCurve.chartTitleDelayed") : t("portfolio.costCurve.chartTitle")
-      }
+      title={title}
       description={
         shifted ? t("portfolio.costCurve.descriptionDelayed") : t("portfolio.costCurve.description")
       }
       option={option}
+      exported={exported}
     >
       <table className="w-full text-left">
         <thead className="text-muted-foreground">
@@ -239,9 +272,15 @@ export function monthAfter(month: string): string {
 /**
  * Render the cash-out of the portfolio month by month, the past and the forecast, and its table:
  * the reading in cash-out of its S-curve, which the server details when asked with the payment
- * delays (`cash_out_by_month`).
+ * delays (`cash_out_by_month`); offered for export with the perimeter of the view.
  */
-export function CashOutChart({ months }: { readonly months: readonly CashOutMonth[] }) {
+export function CashOutChart({
+  months,
+  scope,
+}: {
+  readonly months: readonly CashOutMonth[];
+  readonly scope: PortfolioScope;
+}) {
   const t = useTranslations("portfolio.cashOut");
   const locale = useLocale();
   const last = months.at(-1);
@@ -282,8 +321,14 @@ export function CashOutChart({ months }: { readonly months: readonly CashOutMont
     }),
     [months, last, end, locale, t],
   );
+  const exported = usePortfolioExport(scope, t("exportTitle"), t("file"));
   return (
-    <Chart title={t("chartTitle")} description={t("description")} option={option}>
+    <Chart
+      title={t("chartTitle")}
+      description={t("description")}
+      option={option}
+      exported={exported}
+    >
       <table className="w-full text-left">
         <thead className="text-muted-foreground">
           <tr>

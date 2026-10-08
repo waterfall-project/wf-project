@@ -391,7 +391,12 @@ describe("the perimeter of a view of the portfolio", () => {
 describe("the charts of the portfolio", () => {
   it("lists the two indices of each quarter, as the server computes them", () => {
     const performance = example("volume/portfolio_performance") as Schemas["PortfolioPerformance"];
-    render(inLanguage(<QuarterlyChart quarters={performance.quarterly} />, "en"));
+    render(
+      inLanguage(
+        <QuarterlyChart quarters={performance.quarterly} scope={performance.scope} />,
+        "en",
+      ),
+    );
     const figure = screen.getByRole("figure", { name: "Quarterly evolution of the indices" });
     const rows = within(figure).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
@@ -406,7 +411,7 @@ describe("the charts of the portfolio", () => {
   it("lists the points of the three curves of the S-curve, as the server summed them [WF-PTF-0100-A]", () => {
     const curves = example("portfolio_cost_curve") as Schemas["PortfolioCostCurve"];
     charts.props = [];
-    render(inLanguage(<PortfolioCurveChart curves={curves} />));
+    render(inLanguage(<PortfolioCurveChart curves={curves} scope={curves.scope} />));
     const figure = screen.getByRole("figure", { name: "Coûts cumulés du portefeuille" });
     const rows = within(figure).getAllByRole("row");
     expect(rows[0]).toHaveTextContent("CourbeDateMontant");
@@ -431,7 +436,7 @@ describe("the charts of the portfolio", () => {
 
   it("names the S-curve read as cash-out as the server says it is", () => {
     const curves = example("portfolio_cost_curve_payment_delays") as Schemas["PortfolioCostCurve"];
-    render(inLanguage(<PortfolioCurveChart curves={curves} />, "en"));
+    render(inLanguage(<PortfolioCurveChart curves={curves} scope={curves.scope} />, "en"));
     expect(
       screen.getByRole("figure", { name: "Cumulative cash-out of the portfolio" }),
     ).toBeInTheDocument();
@@ -439,7 +444,9 @@ describe("the charts of the portfolio", () => {
 
   it("lists each month of cash-out, the past and the forecast", () => {
     const cashOut = example("portfolio_cost_curve_payment_delays") as Schemas["PortfolioCostCurve"];
-    render(inLanguage(<CashOutChart months={cashOut.cash_out_by_month ?? []} />));
+    render(
+      inLanguage(<CashOutChart months={cashOut.cash_out_by_month ?? []} scope={cashOut.scope} />),
+    );
     const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
     // The month of the calculation bears both: what was spent up to it, what is to come after.
     expect(within(figure).getByRole("row", { name: /juin 2026/ })).toHaveTextContent(
@@ -456,7 +463,7 @@ describe("the charts of the portfolio", () => {
     const curves = example("portfolio_cost_curve_payment_delays") as Schemas["PortfolioCostCurve"];
     const months = curves.cash_out_by_month ?? [];
     charts.props = [];
-    render(inLanguage(<CashOutChart months={months} />));
+    render(inLanguage(<CashOutChart months={months} scope={curves.scope} />));
     const option = charts.props.at(-1)?.option(PALETTE);
     const last = months.at(-1);
     const series = [option?.series].flat() as { data: unknown[] }[];
@@ -478,8 +485,12 @@ describe("the charts of the portfolio", () => {
     const credit = example("portfolio_cost_curve_credit") as Schemas["PortfolioCostCurve"];
     const performance = example("volume/portfolio_performance") as Schemas["PortfolioPerformance"];
     charts.props = [];
-    render(inLanguage(<CashOutChart months={credit.cash_out_by_month ?? []} />));
-    render(inLanguage(<QuarterlyChart quarters={performance.quarterly} />));
+    render(
+      inLanguage(<CashOutChart months={credit.cash_out_by_month ?? []} scope={credit.scope} />),
+    );
+    render(
+      inLanguage(<QuarterlyChart quarters={performance.quarterly} scope={performance.scope} />),
+    );
     const [cashOut, quarterly] = charts.props.map((props) => props.option(PALETTE));
     expect(cashOut?.yAxis).not.toHaveProperty("min");
     expect(quarterly?.yAxis).toMatchObject({ min: 0 });
@@ -487,5 +498,41 @@ describe("the charts of the portfolio", () => {
     expect(within(figure).getByRole("row", { name: /décembre 2025/ })).toHaveTextContent(
       `-2${NARROW}546${NARROW}166,40`,
     );
+  });
+
+  it("exports each chart as a PNG image that names the perimeter the server retained and its date of calculation (#312)", () => {
+    const performance = example("volume/portfolio_performance") as Schemas["PortfolioPerformance"];
+    const curves = example("portfolio_cost_curve_payment_delays") as Schemas["PortfolioCostCurve"];
+    const value = example("volume/portfolio_value") as { scope: Schemas["PortfolioScope"] };
+    const workload = example("portfolio_workload_org_node") as Schemas["PortfolioWorkload"];
+    charts.props = [];
+    render(inLanguage(<QuarterlyChart quarters={performance.quarterly} scope={value.scope} />));
+    render(inLanguage(<PortfolioCurveChart curves={curves} scope={workload.scope} />));
+    render(
+      inLanguage(
+        <CashOutChart months={curves.cash_out_by_month ?? []} scope={curves.scope} />,
+        "en",
+      ),
+    );
+    expect(charts.props.map((props) => props.exported?.())).toEqual([
+      {
+        title: "Évolution trimestrielle des indices du portefeuille",
+        subtitle: `En cours et Chiffrage · 300${NARROW}projets · période du 4 juin 2025 au 3 juin 2026 · calculé au 3 juin 2026`,
+        fileName: "evolution-des-indices-portefeuille-2026-06-03.png",
+      },
+      {
+        title: "Décaissements cumulés du portefeuille",
+        subtitle: `En cours et Chiffrage · 300${NARROW}projets · calculé au 3 juin 2026 · Main-d’œuvre de Direction technique et de ses descendants`,
+        fileName: "decaissements-cumules-portefeuille-2026-06-03.png",
+      },
+      {
+        title: "Cash-out of the portfolio by month",
+        subtitle: "In progress and Pricing · 300 projects · calculated on 3 Jun 2026",
+        fileName: "cash-out-by-month-portfolio-2026-06-03.png",
+      },
+    ]);
+    expect(
+      screen.getAllByRole("button", { name: /^(Exporter en PNG|Export as PNG)$/ }),
+    ).toHaveLength(3);
   });
 });

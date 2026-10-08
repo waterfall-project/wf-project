@@ -6,14 +6,14 @@
  * motive in a sentence of the catalogue and the offer to run the same command again — or,
  * without the command, the way to do it from the screen of its object —; succeeded, the offer
  * to read the screen anew, and to download its result when it made one — an export —, which
- * the server of Next reads from the API (`app/tasks/[taskId]/result`). Before each download, the
- * entry reads the task anew (`getBackgroundTask`, #329): a refusal of that read — the task
- * unknown, the session lost — is told by the notice of the entry, and a task that no longer gives
- * a result (`result_url` none) is said so in place of the offer; only a task that still gives one
- * lets the download leave, and only if the entry is still there. What the relay itself refuses
- * afterwards — the result asked of `getBackgroundTaskResult` refused (409) between the read and the
- * download — is not read here: the browser shows a download in failure. While the task runs,
- * the entry asks the server where it stands, by a server action, every so often; it stops once
+ * the server of Next hands on from the API as a stream (`app/tasks/[taskId]/result`). Before each
+ * download, the entry reads the task anew (`getBackgroundTask`, #329): a refusal of that read — the
+ * task unknown, the session lost — is told by the notice of the entry, and a task that no longer
+ * gives a result (`result_url` none) is said so in place of the offer; only a task that still gives
+ * one lets the download leave, and only if the entry is still there. What the route refuses
+ * afterwards — the result expired or not ready between the read and the download (409) — sends the
+ * browser back to the screen, where the tracker tells it by the same notice (#416). While the task
+ * runs, the entry asks the server where it stands, by a server action, every so often; it stops once
  * the task has ended, once the API refuses to say — the follow-up is then interrupted, and the
  * entry says so —, and when it is dismissed or the shell goes away.
  *
@@ -23,7 +23,7 @@
 "use client";
 
 import { Download, RefreshCw, RotateCcw, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -41,6 +41,7 @@ import { rejected } from "@/components/commands/rejection";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { problemMessage } from "@/i18n/problem";
 
+import { resultHref, withoutRefusal } from "./result-refusal";
 import {
   type EndKind,
   type EndLine,
@@ -152,15 +153,19 @@ function ReloadScreen() {
   );
 }
 
-/** Where the front serves the result of a task, which its server reads from the API. */
-export function taskResultHref(taskId: string): string {
-  return `/tasks/${encodeURIComponent(taskId)}/result`;
+/** The screen shown, from which a download leaves, without a refusal it may carry. */
+function useShownScreen(): string {
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  return withoutRefusal({ pathname, search });
 }
 
 /**
  * The offer to download the file a task made: made on demand, it is not kept (WF-DAT-0120). The
  * link leaves once the server has said the result is still there: its refusal is told by the
- * notice of the entry, the answer applied to the task as a read of its progress is.
+ * notice of the entry, the answer applied to the task as a read of its progress is. The link has no
+ * `download`: a refusal of the route brings the browser back to the screen, which a download would
+ * save as a file.
  */
 function DownloadResult({
   entry,
@@ -173,6 +178,7 @@ function DownloadResult({
 }) {
   const t = useTranslations("tasks");
   const [pending, startTransition] = useTransition();
+  const from = useShownScreen();
   // Whether the click is the one the check lets through, to the browser.
   const checked = useRef(false);
   // Whether the entry is still shown: dismissed during the read, it downloads nothing.
@@ -205,8 +211,7 @@ function DownloadResult({
   };
   return (
     <a
-      href={taskResultHref(task.task_id)}
-      download
+      href={resultHref(task.task_id, from)}
       aria-label={t("downloadLabel", { task: name })}
       aria-busy={pending}
       className={buttonVariants({ variant: "outline", size: "sm" })}

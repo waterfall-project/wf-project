@@ -16,7 +16,9 @@
  * not follow — started from another tab, another workstation —, without their command: failed,
  * such a task is run again from the screen of its object. A list the API does not give leaves
  * the tracker as it is. A task started elsewhere that ended between two readings is not found,
- * nor announced.
+ * nor announced. A screen the download of a result came back to, refused (#416), names the task and
+ * the refusal in its address: the tracker reads the task, follows it, tells the refusal by its entry,
+ * and takes it away from the address (`result-refusal.ts`).
  *
  * Its panel lies under the bar of the shell, in the flow of the page, and a button of the bar
  * shows or hides it, with the number of the tasks followed. Until the user decides, it shows
@@ -45,11 +47,13 @@ import {
 } from "react";
 
 import type { BackgroundTask } from "@/api/problem";
+import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { listRunningTasks } from "@/api/actions/tasks";
+import { listRunningTasks, readBackgroundTask } from "@/api/actions/tasks";
 
+import { readRefusal, withoutRefusal } from "./result-refusal";
 import { forgetTasks, restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry } from "./task-entry";
 import {
@@ -135,8 +139,9 @@ function useTracker() {
   return {
     tasks: state.tasks,
     log: state.log,
+    refusedResult: state.refusedResult,
     dispatch: store.dispatch,
-    open: shown ?? state.tasks.length > 0,
+    open: shown ?? (state.tasks.length > 0 || state.refusedResult !== undefined),
     setOpen: store.show,
     panelId,
   };
@@ -205,6 +210,32 @@ function StreamedTasks({
   return null;
 }
 
+/**
+ * How long after the document has loaded the page it streamed is revealed at the latest: React
+ * holds back the reveal of a boundary the server streamed by a few hundred milliseconds.
+ */
+const REVEALED_AFTER = 1000;
+
+/**
+ * Run a change of the address once the page the document streamed is revealed: once the document
+ * has loaded, and a while after. What it gives back cancels it.
+ */
+function afterReveal(change: () => void): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const loaded = () => {
+    timer = setTimeout(change, REVEALED_AFTER);
+  };
+  if (document.readyState === "complete") {
+    loaded();
+  } else {
+    window.addEventListener("load", loaded, { once: true });
+  }
+  return () => {
+    window.removeEventListener("load", loaded);
+    clearTimeout(timer);
+  };
+}
+
 /** Follow the background tasks the screens within it start, and those of its user that run. */
 export function TaskTracker({ signedIn = false, running, children }: TaskTrackerProps) {
   const [store] = useState(trackerStore);
@@ -220,6 +251,37 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
   useEffect(() => {
     dispatch({ type: "restore", tasks: restoreTasks() });
   }, [dispatch]);
+  // The refusal of a result the browser came back with, once: the task is read, followed — an
+  // ended task is not kept across the load —, and its entry tells the refusal; a task that cannot
+  // be read again, the panel tells it itself. The address no longer carries it once the page is
+  // revealed, so that a reload does not tell it again — not before: the router of Next renders
+  // the page anew on a change of the address, which a page still pending would show twice (#173).
+  useEffect(() => {
+    const refused = readRefusal(new URLSearchParams(window.location.search));
+    if (refused === undefined) {
+      return undefined;
+    }
+    const { taskId, refusal } = refused;
+    const told = () => {
+      dispatch({ type: "result_refused", refusal });
+    };
+    void readBackgroundTask(taskId).then((outcome) => {
+      if (outcome.kind !== "done") {
+        told();
+        return;
+      }
+      // Followed under the identifier the API gives it, which the answer is applied to.
+      const read = outcome.data.task_id;
+      dispatch({ type: "found", tasks: [outcome.data] });
+      dispatch({ type: "answer", source: "download", key: read, taskId: read, outcome: refusal });
+      store.show(undefined);
+    }, told);
+    return afterReveal(() => {
+      if (readRefusal(new URLSearchParams(window.location.search))?.taskId === taskId) {
+        window.history.replaceState(window.history.state, "", withoutRefusal(window.location));
+      }
+    });
+  }, [dispatch, store]);
   // The tasks of the user that still run, followed once those the tab kept are back, as the
   // server streams them (`StreamedTasks`) — a data of the page, read on the server, rather than a
   // server action as the shell mounts —; and again, read by a server action, each time the tab
@@ -342,7 +404,7 @@ function mainContent(): HTMLElement | null {
  */
 export function TaskPanel() {
   const t = useTranslations("tasks");
-  const { tasks, log, dispatch, open, panelId } = useTracker();
+  const { tasks, log, refusedResult, dispatch, open, panelId } = useTracker();
   const region = useRef<HTMLElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const dismissRef = useCallback((key: string, button: HTMLButtonElement | null) => {
@@ -372,7 +434,21 @@ export function TaskPanel() {
       className={open ? PANEL : undefined}
     >
       <EndLog log={log} />
-      {open && !followed ? <p className="text-sm text-muted-foreground">{t("none")}</p> : null}
+      {refusedResult === undefined ? null : (
+        <div className="space-y-1 text-sm">
+          <p className="font-medium">{t("resultRefused")}</p>
+          <OutcomeNotice
+            outcome={refusedResult}
+            dismissible
+            onClear={() => {
+              dispatch({ type: "result_refusal_cleared" });
+            }}
+          />
+        </div>
+      )}
+      {open && !followed && refusedResult === undefined ? (
+        <p className="text-sm text-muted-foreground">{t("none")}</p>
+      ) : null}
       {followed ? (
         <ul hidden={!open} className="flex flex-wrap gap-x-8 gap-y-2">
           {tasks.map((entry) => (

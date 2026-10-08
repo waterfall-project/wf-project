@@ -115,9 +115,9 @@ export default async function PortfolioCostCurvePage({
           view={{ horizon }}
         />
         <PaymentDelaysToggle shifted={answer.payment_delays} query={queryOf(asked)} />
-        <PortfolioCurveChart curves={answer} />
+        <PortfolioCurveChart curves={answer} scope={answer.scope} />
         {answer.cash_out_by_month === null ? null : (
-          <CashOutChart months={answer.cash_out_by_month} />
+          <CashOutChart months={answer.cash_out_by_month} scope={answer.scope} />
         )}
       </Screen>
     </PendingAddress>

@@ -805,9 +805,9 @@ comme le journal des imports de coûts réels, les révisions et les tâches de 
 celui des cases de `risk_matrix`.
 
 **La borne d'un avatar ne dépasse pas 8 Mio** (`Installation.avatar_max_bytes`, `maximum`, #233).
-La spécification dit seulement que « la taille d'un avatar est bornée par l'application »
-(§4.4.1) ; 8 Mio est le plafond technique proposé par la revue d'EP-02/L13 : le front règle
-d'avance, par un réglage statique de Next, la taille de corps de ses actions serveur
+La spécification dit seulement que « la taille d'un avatar est bornée par l'application »,
+au §4.4.1. Le plafond technique de 8 Mio est celui que la revue d'EP-02/L13 a proposé : le front
+règle d'avance, par un réglage statique de Next, la taille de corps de ses actions serveur
 (`bodySizeLimit`), et ne peut la régler qu'au-dessus d'un maximum déclaré, l'enveloppe du
 formulaire comprise. Huit mébioctets restent sous cette borne, et la taille admise reste un
 réglage de l'installation sous ce maximum.
@@ -2199,6 +2199,61 @@ prouvé par des colonnes vides.
 (#376) ; d'ici là, les lignes de `volume/nodes_thousand.json` portent leurs grandeurs précédentes
 nulles, la structure engendrée n'ayant pas de revue précédente. Aucun écart au contrat : la liste dit déjà un projet non consultable sous son libellé et
 son code, sans lien (`can_open`, WF-PTF-0030).
+
+## Les commandes manquantes et les mineurs des relectures (EP-02/L38)
+
+Trois précisions du contrat, que la maquette demandait et qu'aucune décision nouvelle ne change :
+elles suivent la spécification ou une convention déjà prise ; et une règle du front, sur la
+décision de la revue du lot, pour le téléchargement d'un fichier que l'API produit.
+
+**L'exclusion et la réintégration d'une ligne répondent par des exemples**
+(`setActualCostTrackedScope`, #291 ; WF-CRE-0030, WF-CRE-0040). L'opération existait, sans exemple
+de sa réponse : l'écran des coûts réels l'exerce désormais, guidé par `exclude_cost_lines`, et ses
+tests ne reçoivent que des réponses du contrat. `actual_cost_excluded`, la facture des câbles du
+pupitre exclue le 3 juin à 14 h 05 avec son motif, et `actual_cost_reinstated`, la réception du
+client réintégrée le même jour, sont engendrés depuis la description du témoin
+(`mockcosts.written`) : la ligne de la consultation, retournée, son audit mis à jour à l'instant de
+l'écriture, et rien d'autre. La réponse ne porte pas les totaux : la page les relit, que le serveur
+tient (WF-CRE-0040, « modifie immédiatement les deux premiers totaux ») ;
+`actual_costs_after_exclusion`, engendré de même, est la consultation relue après l'exclusion, la
+ligne passée du total suivi au total exclu.
+
+**Un dépôt désigné pour un autre usage est refusé par champ** (`UPLOAD_PURPOSE_MISMATCH`, #353).
+Le contrat disait qu'un import ne s'ouvre que sur un dépôt d'import et une restauration que sur un
+dépôt de sauvegarde, sans dire le refus de l'autre. C'est un motif par champ de `VALIDATION_FAILED`
+(422), dans la convention du catalogue : `fields` désigne le dépôt en défaut, `/upload_id` pour
+`openImport`, `/external_backup_upload_id` pour `startRestore`, qui déclare son 422. Exemples :
+`import_upload_purpose_mismatch`, `restore_upload_purpose_mismatch`. Écarté : un 409, qui dirait
+l'état d'un objet, quand c'est la valeur d'un champ qui ne convient pas ; un code de premier niveau,
+que le pointeur rend inutile.
+
+**La borne d'une sauvegarde externe a un maximum** (`Installation.external_backup_max_bytes`,
+`maximum`, #353). Le réglage restait sans plafond, quand celui d'un avatar en a un. La spécification
+ne fixe pas la taille d'une sauvegarde, et un plafond métier serait une décision : le maximum est le
+plus grand entier qu'un nombre JSON garde exact quand le front le lit, 2^53 − 1 octets, environ
+8 Pio. Le dépôt d'un tel fichier ne passe pas par une action serveur de Next (#350, reporté à
+EP-13).
+
+**Le fichier qu'une tâche produit se télécharge en flux, par une route du front**
+(`getBackgroundTaskResult`, #416 ; décision de la revue d'EP-02/L38, option b). Le serveur de Next
+lit le résultat et le transmet tel qu'il vient, à `/tasks/[taskId]/result`, que le navigateur suit
+comme un lien. Trois raisons : le contrat ne borne pas la taille d'un résultat, et une action
+serveur tiendrait le fichier entier en mémoire, sur le serveur puis dans la page ; les actions
+serveur de Next partent une à une, dans une seule file, qu'un long téléchargement retiendrait,
+écritures et relectures du suivi comprises ; une route laisse le navigateur enregistrer le fichier
+comme il vient. Un refus — non-2xx, dont le 409 d'un résultat expiré ou pas encore prêt, l'API
+injoignable, une réponse sans nom de fichier ou sans type — renvoie le navigateur à l'écran d'où il
+partait, l'adresse nommant la tâche et le refus, que le suivi dit par `OutcomeNotice` dans l'entrée
+de la tâche, ou dans un avis de son panneau quand il ne peut relire la tâche. La route ne rend que
+les types que le contrat déclare pour un résultat, et rien de ce qu'elle répond ne se garde en cache
+(`Cache-Control: private, no-store`). Écarté : une action serveur qui rend le fichier en `Blob`, le
+premier passage du lot. La même règle vaudra pour le téléchargement des sauvegardes (#519).
+
+**Ce que ce lot laisse à l'auteur** (#353, confirmations demandées) : le contrat borne le dépôt d'un
+import à 10 Mio, 10 485 760 octets (#324), là où la décision disait « 10 Mo » ; et les textes —
+motif d'exclusion, colonnes conservées, libellés des tables plates — se comparent dans l'ordre des
+points de code Unicode (#292), où « Z » vient avant « É » et « 100 » avant « 20 ». Le lot ne tranche
+ni l'un ni l'autre.
 
 ## Collage et annulation
 

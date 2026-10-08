@@ -299,4 +299,48 @@ describe("the screen of the actual costs", () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": NOT_FOUND };
     await expect(costsAt()).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   });
+
+  it("shows the line the address names to change its place in the tracked scope, where the project lists its exclusion (#291)", async () => {
+    const cables = "01926f3a-7c00-7000-8000-000000000c01";
+    const page = await costsAt({ line: cables });
+    expect(grids.costs.at(-1)?.linked).toBe(true);
+    expect(page).toMatch(
+      /<section aria-labelledby="[^"]*"[^>]*><div[^>]*><h2[^>]*>Line FA-2026-0412</,
+    );
+    expect(text(page)).toContain("Exclude from the tracked scope");
+  });
+
+  it("shows no line, and links none, where the project does not list the exclusion of its lines", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing_estimator",
+    };
+    const page = await costsAt({ line: "01926f3a-7c00-7000-8000-000000000c01" });
+    expect(grids.costs.at(-1)?.linked).toBe(false);
+    expect(page).not.toContain("Line FA-2026-0412");
+  });
+
+  it("shows no line the page does not hold", async () => {
+    const page = await costsAt({ line: "01926f3a-7c00-7000-8000-000000000c99" });
+    expect(page).not.toContain("Exclude from the tracked scope");
+  });
+
+  it("reads anew, once a line is excluded, the tracked total lessened and the excluded total grown by its amount [WF-CRE-0040-A]", async () => {
+    const cables = "01926f3a-7c00-7000-8000-000000000c01";
+    const before = text(await costsAt({ line: cables }));
+    expect(before).toContain(
+      "Tracked scope 105,400.00 Excluded from the tracked scope 650.00 General total 106,050.00",
+    );
+    // The exclusion written, the page rendered again reads the consultation the server gives now:
+    // 1,800.00 of cables move from one total to the other, the general total unchanged.
+    server.answers = { ...server.answers, [COSTS]: "actual_costs_after_exclusion" };
+    const after = text(await costsAt({ line: cables }));
+    expect(after).toContain(
+      "Tracked scope 103,600.00 Excluded from the tracked scope 2,450.00 General total 106,050.00",
+    );
+    expect(after).toContain(
+      "Excluded from the tracked scope: Câbles d'un autre projet, à réimputer",
+    );
+    expect(after).toContain("Reinstate in the tracked scope");
+  });
 });

@@ -18,9 +18,10 @@ const MAX_TICKS = 13;
  * The ticks of an axis of time over the instants it shows: the first of each month — in UTC, or in
  * the local time of the workstation —, from the month of the earliest instant to the first of the
  * month after the latest; every second, third, sixth month, every year or more over a long range,
- * a step falling on the first of a month that is a multiple of it from January — the shortest step
- * whose ticks, so aligned, are `MAX_TICKS` at most (#290). None without an instant. They are
- * positions of the axis, never figures the screen shows.
+ * a step falling on the first of a month that is a multiple of it counted from January of year 0 —
+ * a month from January of each year under a year, a year that is a multiple of the step in years
+ * beyond (#415) —, the shortest step whose ticks, so aligned, are `MAX_TICKS` at most (#290).
+ * None without an instant. They are positions of the axis, never figures the screen shows.
  */
 export function monthTicks(instants: readonly string[], utc: boolean): number[] {
   const times = instants.map((instant) => Date.parse(instant)).filter(Number.isFinite);
@@ -38,12 +39,16 @@ export function monthTicks(instants: readonly string[], utc: boolean): number[] 
   const earliest = Math.min(...times);
   const latest = Math.max(...times);
   const start = parts(earliest);
-  /** The ticks at a step, from the first of the month aligned on January before the earliest. */
+  // Months counted from January of year 0: a step of years falls on a year that is a multiple of
+  // it, and a step under a year, which divides twelve, on the same months every year.
+  const startMonth = start.year * 12 + start.month;
+  /** The ticks at a step, from the first of the aligned month at or before the earliest. */
   const ticksAt = (step: number): number[] => {
-    const from = start.month - (start.month % step);
+    const from = startMonth - (startMonth % step);
     const ticks: number[] = [];
     for (let index = 0; ticks.length === 0 || (ticks.at(-1) ?? latest) <= latest; index += 1) {
-      ticks.push(first(start.year, from + index * step));
+      const month = from + index * step;
+      ticks.push(first(Math.floor(month / 12), month % 12));
     }
     return ticks;
   };

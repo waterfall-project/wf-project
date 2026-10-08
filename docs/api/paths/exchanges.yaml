@@ -14,7 +14,9 @@
       imports (§4.6.2) ; la sauvegarde copiée hors de la plateforme qu'une restauration
       désigne (WF-ADM-0160), `Installation.external_backup_max_bytes`. Au-delà, 413,
       `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import, une restauration
-      que sur un dépôt de sauvegarde.
+      que sur un dépôt de sauvegarde : l'autre est refusé par 422, `VALIDATION_FAILED`, le
+      champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH` (`openImport`,
+      `startRestore`).
     requestBody:
       required: true
       content:
@@ -107,12 +109,16 @@
         description: >-
           Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) :
           `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de
-          l'import (un `ExchangeKind`) et `params.expected_version` sa version.
+          l'import (un `ExchangeKind`) et `params.expected_version` sa version. Ou un dépôt
+          qui n'a pas été fait pour un import — une sauvegarde déposée pour une restauration
+          (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/upload_id` par
+          `UPLOAD_PURPOSE_MISMATCH`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
+              purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
 
 /projects/{project_id}/imports/{import_id}:
   get:

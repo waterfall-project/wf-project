@@ -225,8 +225,8 @@ chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et 
 courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; une série de barres
 (`bars`) se distingue aussi par le motif du symbole de son rang, que la légende montre ;
 `timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire des instants
-qu'il montre — tous
-les deux, trois, six mois ou chaque année sur une longue plage, l'année seule alors —, écrits
+qu'il montre — tous les deux, trois, six mois ou chaque année sur une longue plage, l'année seule
+alors, ou tous les deux, cinq, dix ans, sur les années multiples du pas (#415) —, écrits
 dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de planning, que
 `planningInstant` place à leur minuit UTC, l'option de la figure disant alors `useUTC`. Une
 courbe trace les chaînes de l'API telles quelles — ECharts en tire une position —, une valeur
@@ -307,9 +307,12 @@ comprise, et en total, le montant à l'année de référence (`base_amount`) et 
 l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il
 nomme la catégorie et le rôle d'une ligne par les libellés que le serveur résout, l'objet actif ou
 désactivé (`cost_category_label`, `resource_role_label`, #305) — les listes du référentiel ne
-servent qu'au choix d'une saisie, offerte seulement sur un objet qu'elles connaissent. Ce qu'une
-écriture rend se lit comme la grille le lit (`nodesWritten`) : les nœuds écrits et leurs ancêtres
-entiers, des tâches redatées la part de leur calendrier qu'elle montre (`rescheduled`), des lignes
+servent qu'au choix d'une saisie, offerte seulement sur un objet qu'elles connaissent ; elles ne
+demandent les objets désactivés (`include_inactive`) qu'à une session qui porte la permission de
+lecture de leur partie du référentiel, que le contrat exige, et un chiffreur sans elle saisit sur
+les objets actifs (#351). Ce qu'une écriture rend se lit comme la grille le lit (`nodesWritten`) :
+les nœuds écrits et leurs ancêtres entiers, des tâches redatées la part de leur calendrier qu'elle
+montre (`rescheduled`), des lignes
 et des tâches déplacées dans le temps la part de leurs montants qu'elle montre (`reinflated`) —
 chaque part ne pose que ses champs : celles d'une même ligne, d'une écriture ou de plusieurs, se
 posent l'une sur l'autre dans l'ordre des réponses (`answers.ts`).
@@ -441,12 +444,16 @@ colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
 (`passthrough.<colonne>`), chaque colonne triée par le serveur — les colonnes conservées sont
 celles de toutes les lignes retenues, dans l'ordre où le serveur les nomme
 (`meta.passthrough_columns`, #414) : les mêmes d'une page à l'autre — ; et le journal des imports,
-paginé à part
-(`imports_offset`). Des filtres que le serveur refuse (422 : une période qui finit avant de
-commencer, un sous-projet que le projet n'a pas) se disent à la place des lignes, les filtres
-gardés pour être changés. Un tri ou une
-recherche changés ramènent toute liste paginée à sa première page (`sortHref`, `searchHref`).
-Un lien de page, comme le libellé d'un risque, part de la dernière adresse demandée
+paginé à part (`imports_offset`). Quand le projet liste l'exclusion de ses lignes
+(`exclude_cost_lines`), le numéro de pièce d'une ligne est un lien hors de la tabulation, que la
+grille suit à Entrée, vers la même adresse nommant la ligne (`line`) : sa place dans le périmètre
+suivi s'y montre (`CostLineScope`), avec la commande qui l'exclut, sur le motif saisi, ou la
+réintègre (`setActualCostTrackedScope`, WF-CRE-0040) ; l'écriture faite, la page relit la ligne et
+les trois totaux, que le serveur tient (#291). Des filtres que le serveur refuse (422 : une
+période qui finit avant de commencer, un sous-projet que le projet n'a pas) se disent à la place
+des lignes, les filtres gardés pour être changés. Un tri ou une recherche changés ramènent toute
+liste paginée à sa première page (`sortHref`, `searchHref`). Un lien de page, comme le libellé d'un
+risque, part de la dernière adresse demandée
 (`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
 en attente —, il mène à leur première page.
 
@@ -508,16 +515,26 @@ la page ; sa tâche va au suivi. L'abandon ramène à l'adresse de départ, si l
 import. Chaque import est offert comme le projet offre sa commande (`importOffers`) :
 `import_planning`, `import_estimate`, `import_remaining`, `import_actual_costs`, avec ou sans
 révision en cours — sans elle, qui ne peut pas créer la révision voit l'import indisponible,
-`may_create_revision` nommée. Un projet sans révision n'a toutefois pas encore d'adresse qui mène
-à l'écran, de portée révision (#332). La liste des imports, paginée par le serveur (`offset`,
+`may_create_revision` nommée. Un projet sans révision, qu'aucune adresse de révision n'atteint,
+offre les mêmes imports sur son propre écran (`ImportPart`), et y montre le compte rendu de l'import
+que son adresse nomme (#332). La liste des imports, paginée par le serveur (`offset`,
 `ListPages` de `components/costs/cost-pages.tsx`), mène au compte rendu de chacun ; la demande
 d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
 l'arborescence au niveau demandé —, et le suivi offre de télécharger le résultat d'une tâche qui en
-a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet, à la route
-`/tasks/[taskId]/result`, avec le type de sa nature et la pièce jointe nommée que le contrat promet
-(`Content-Disposition`), sans sa longueur, que `fetch` a décodée ; une réponse qui ne nomme pas le
-fichier, ou pas son type, est une mauvaise passerelle (502).
+a un : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
+entier en mémoire et hors de la file des actions serveur, à la route `/tasks/[taskId]/result`, que
+le navigateur suit comme un lien, sans `download` : un type que le contrat déclare pour sa nature,
+et la pièce jointe nommée du nom de base que le contrat promet (`Content-Disposition`,
+`attachmentName`), sans sa longueur, que `fetch` a décodée, et que rien ne garde en cache
+(`private, no-store`). Ce que la route ne transmet pas — un refus de l'API, dont le résultat expiré
+ou pas encore prêt (409), l'API injoignable, une réponse qui ne nomme pas le fichier ou dont le
+type n'est pas déclaré, l'erreur inattendue d'une mauvaise passerelle (502) — renvoie le navigateur,
+par une adresse relative, à l'écran d'où il partait (`from`), l'adresse nommant la tâche et le
+refus (`refused_task`, `refusal`, `result-refusal.ts`) : le suivi relit la tâche, la suit et dit
+le refus dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un avis de son panneau —,
+et l'ôte de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont
+l'adresse change (#416).
 
 Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
 hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
@@ -541,8 +558,10 @@ sont les mois de la réponse (`months`), que chaque rôle porte dans le même or
 dit ce qu'il nomme (`params` : les semaines sans revue, le jalon dépassé et sa date de référence),
 comme une alerte de l'état du système le composant indisponible. Chaque projet nommé — libellé de la liste, risque le plus lourd, signal de santé —
 ouvre le projet (WF-PTF-0030). Les zones d'indice, de charge et de santé sont celles du serveur,
-par `Signal` ; l'évolution trimestrielle des indices et les décaissements sont des figures de
-`Chart`, sans export (#312).
+par `Signal` ; l'évolution trimestrielle des indices, la courbe en S et les décaissements sont des
+figures de `Chart`, exportées en PNG avec la provenance de leur vue (`usePortfolioExport`) : le
+périmètre que le serveur a retenu — états, nombre de projets, période, nœud d'organisation — et sa
+date de calcul, `scope.as_of`, la phrase même de l'en-tête (#312).
 
 Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
 `paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le

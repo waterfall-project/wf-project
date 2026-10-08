@@ -382,6 +382,15 @@
       "periodFrom": "from {from}",
       "periodTo": "until {to}",
       "periodUnknown": "Not given"
+    },
+    "line": {
+      "title": "Line {document}",
+      "close": "Close the line",
+      "reason": "Reason for the exclusion",
+      "excludedWithoutReason": "Excluded from the tracked scope, without a reason.",
+      "excludedBecause": "Excluded from the tracked scope: {reason}",
+      "exclude": "Exclude from the tracked scope",
+      "reinstate": "Reinstate in the tracked scope"
     }
   },
   "portfolio": {
@@ -440,11 +449,13 @@
       "zone": "Zone",
       "projects": "Projects",
       "quarterly": "Quarterly evolution of the indices",
+      "exportTitle": "Quarterly evolution of the portfolio indices",
       "quarterlyDescription": "Curves of the aggregated cost index and schedule index of the portfolio, one point per quarter, calculated at past dates.",
       "quarterColumn": "Quarter",
       "quarter": "Q{number} {year}",
       "cost_index": "Cost index",
-      "schedule_index": "Schedule index"
+      "schedule_index": "Schedule index",
+      "file": "indices-evolution"
     },
     "costStructure": {
       "noActualCost": "The actual cost is not broken down by nature: the ERP does not provide it.",
@@ -498,14 +509,18 @@
       "undelay": "Back to the cumulative costs",
       "series": "Curve",
       "date": "Date",
-      "amount": "Amount"
+      "amount": "Amount",
+      "file": "cumulative-costs",
+      "fileDelayed": "cumulative-cash-out"
     },
     "cashOut": {
       "chartTitle": "Cash-out by month",
+      "exportTitle": "Cash-out of the portfolio by month",
       "description": "The cash-out reading of the portfolio S-curve: the past cash-out, sums of the actual costs of the projects by month of shifted document date, and the cash-out to come, sums of their shifted projections, month by month.",
       "month": "Month",
       "past": "Paid out",
-      "forecast": "To be paid out"
+      "forecast": "To be paid out",
+      "file": "cash-out-by-month"
     }
   },
   "computedValue": {
@@ -595,7 +610,9 @@
     "exportTitle": "{title} — {project}",
     "exportSubtitle": "Revision: {revision} · Computed on {date}",
     "exportSubtitleWith": "Revision: {revision} · {detail} · Computed on {date}",
-    "fileName": "{file}-{code}.png"
+    "fileName": "{file}-{code}.png",
+    "exportPortfolioSubtitleWith": "{scope} · {node}",
+    "portfolioFileName": "{file}-portfolio-{asOf}.png"
   },
   "projectIndicators": {
     "notInProgress": {
@@ -757,7 +774,8 @@
     "none": "No background task followed.",
     "download": "Download the result",
     "downloadLabel": "Download the result: {task}",
-    "resultUnavailable": "The result of this task is no longer available."
+    "resultUnavailable": "The result of this task is no longer available.",
+    "resultRefused": "The result of a task could not be downloaded."
   },
   "markRevision": {
     "versionName": "Version name",
@@ -1210,6 +1228,7 @@
     "UNKNOWN_SUBPROJECT": "Unknown subproject.",
     "UNKNOWN_TASK": "Unknown task.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
+    "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
     "COMPLETION_DATE_REQUIRED": "This entry completes the task: give the date of its completion.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "This order item or work package does not exist in the project's work breakdown.",

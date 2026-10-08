@@ -271,6 +271,35 @@ describe("the ticks of an axis of time", () => {
     );
   });
 
+  it("falls, at a step of several years, on the years that are a multiple of it (#415)", () => {
+    // Fifteen years from 2025: every two years, from the even year before.
+    const biennial = iso(monthTicks(["2025-05-10T00:00:00Z", "2040-02-01T00:00:00Z"], true));
+    expect(biennial).toEqual([
+      "2024-01-01",
+      "2026-01-01",
+      "2028-01-01",
+      "2030-01-01",
+      "2032-01-01",
+      "2034-01-01",
+      "2036-01-01",
+      "2038-01-01",
+      "2040-01-01",
+      "2042-01-01",
+    ]);
+    // Twenty-nine years from 2023: every five years, from the year a multiple of five before.
+    const lustral = iso(monthTicks(["2023-05-10T00:00:00Z", "2052-02-01T00:00:00Z"], true));
+    expect(lustral.map((tick) => tick.slice(0, 4))).toEqual([
+      "2020",
+      "2025",
+      "2030",
+      "2035",
+      "2040",
+      "2045",
+      "2050",
+      "2055",
+    ]);
+  });
+
   it.each(["America/Los_Angeles", "Asia/Tokyo"])(
     "falls on the first of the month in the local time of the workstation for an axis of instants, under %s",
     (zone) => {

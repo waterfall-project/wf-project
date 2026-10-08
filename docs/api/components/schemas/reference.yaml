@@ -358,11 +358,14 @@ Installation:
     external_backup_max_bytes:
       type: integer
       minimum: 1
+      maximum: 9007199254740991
       description: >-
         La taille la plus grande d'une sauvegarde copiée hors de la plateforme et déposée
         pour une restauration (`uploadFile`, `external_backup`, WF-ADM-0160), en octets : un
         réglage de l'installation, la spécification ne fixant pas la taille d'une
-        sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`.
+        sauvegarde ; au-delà, 413, `FILE_TOO_LARGE`. Le réglage ne dépasse pas 2^53 − 1
+        (9 007 199 254 740 991 octets, environ 8 Pio), le plus grand entier qu'un nombre JSON
+        garde exact quand le front le lit.
 
 ReferenceSettings:
   type: object

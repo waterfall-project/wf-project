@@ -51,7 +51,7 @@ export default async function PortfolioPerformancePage({
         <PortfolioHeader fn="portfolio_performance" scope={answer.scope} />
         <PerimeterBar perimeter={perimeter} retained={answer.scope.states} nodes={nodes} />
         <PerformanceView performance={answer} />
-        <QuarterlyChart quarters={answer.quarterly} />
+        <QuarterlyChart quarters={answer.quarterly} scope={answer.scope} />
       </Screen>
     </PendingAddress>
   );

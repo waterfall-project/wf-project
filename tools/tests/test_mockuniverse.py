@@ -329,6 +329,37 @@ def test_the_columns_kept_are_those_of_every_line_retained_in_the_order_declared
         assert fixture(name)["last_import_at"] == journal, name
 
 
+def test_an_exclusion_and_a_reinstatement_answer_a_line_of_the_consultation_written_today() -> None:
+    consulted = {line["cost_line_id"]: line for line in fixture("actual_costs")["items"]}
+    for name, tracked in (("actual_cost_excluded", False), ("actual_cost_reinstated", True)):
+        line = fixture(name)
+        before = consulted[line["cost_line_id"]]
+        # The write turns the line over, and changes nothing else of it but its audit.
+        assert before["is_in_tracked_scope"] is not tracked, name
+        assert line["is_in_tracked_scope"] is tracked, name
+        assert (line["excluded_reason"] is None) is tracked, name
+        assert _instant(line["audit"]["updated_at"]) == TODAY, name
+        unchanged = {"is_in_tracked_scope", "excluded_reason", "audit"}
+        assert {key: value for key, value in line.items() if key not in unchanged} == {
+            key: value for key, value in before.items() if key not in unchanged
+        }, name
+
+
+def test_the_consultation_read_anew_after_the_exclusion_moves_the_line_between_the_totals() -> None:
+    before = fixture("actual_costs")
+    after = fixture("actual_costs_after_exclusion")
+    excluded = fixture("actual_cost_excluded")
+    amount = Decimal(excluded["amount"])
+    totals = {key: Decimal(value) for key, value in before["totals"].items()}
+    assert {key: Decimal(value) for key, value in after["totals"].items()} == {
+        "tracked": totals["tracked"] - amount,
+        "excluded": totals["excluded"] + amount,
+        "overall": totals["overall"],
+    }
+    [line] = [item for item in after["items"] if item["cost_line_id"] == excluded["cost_line_id"]]
+    assert line == excluded
+
+
 def test_each_correlation_is_told_by_one_example_alone(examples: dict[str, Any]) -> None:
     told: dict[str, list[str]] = defaultdict(list)
     for name, value in examples.items():

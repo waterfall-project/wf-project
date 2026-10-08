@@ -806,10 +806,19 @@ describe("the tracker as the page hydrates", () => {
   // #173: a context above the page that changes while its boundary is pending makes React render
   // the page anew in the browser, beside the one the server sent, which the browser still holds.
   it.each([
-    ["it has no task to follow", false, false],
-    ["the tab has tasks to follow again", true, false],
-    ["the layout streams tasks it did not follow", false, true],
-  ])("leaves the page the server sent to hydrate, when %s", async (_, kept, streamed) => {
+    ["it has no task to follow", false, false, false],
+    ["the tab has tasks to follow again", true, false, false],
+    ["the layout streams tasks it did not follow", false, true, false],
+    ["the address carries the refusal of a result (#416)", false, false, true],
+  ])("leaves the page the server sent to hydrate, when %s", async (_, kept, streamed, refused) => {
+    const address = `${window.location.pathname}${window.location.search}`;
+    if (refused) {
+      window.history.replaceState(
+        null,
+        "",
+        `/projects/${PROJECT}/revisions?refused_task=${MARKING}&refusal=409:STATE_FORBIDS_OPERATION`,
+      );
+    }
     if (kept) {
       window.sessionStorage.setItem(
         STORAGE_KEY,
@@ -828,119 +837,11 @@ describe("the tracker as the page hydrates", () => {
       expect(within(container).queryByRole("heading", { name: "Avatar" })).toBeNull();
       expect(container).toHaveTextContent("Chargement");
     } finally {
+      window.history.replaceState(null, "", address);
       act(() => {
         root?.unmount();
       });
       container.remove();
     }
-  });
-});
-
-describe("the result of a task", () => {
-  const EXPORTED = "01926f3a-7c00-7000-8000-000000000935";
-
-  /**
-   * The browser following a link: the click the entry lets through replayed as the browser would,
-   * an event its handler may prevent; whether each click went on to the browser, recorded — and
-   * stopped there, happy-dom following no download.
-   */
-  function followedClicks(): {
-    readonly followed: boolean[];
-    readonly replayed: () => number;
-    readonly restore: () => void;
-  } {
-    const followed: boolean[] = [];
-    const record = (event: Event) => {
-      if (event.target instanceof HTMLAnchorElement) {
-        followed.push(!event.defaultPrevented);
-        event.preventDefault();
-      }
-    };
-    document.addEventListener("click", record);
-    const replay = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-      this: HTMLAnchorElement,
-    ) {
-      this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-    });
-    return {
-      followed,
-      replayed: () => replay.mock.calls.length,
-      restore: () => {
-        document.removeEventListener("click", record);
-        replay.mockRestore();
-      },
-    };
-  }
-
-  it("is downloaded once the server says it is still there, each download read anew, and a refusal of the read is told in place, in a notice", async () => {
-    const client = serve({
-      [TASK]: [{ problem: { code: "NOT_FOUND", status: 404 } }, "task_export_succeeded"],
-    });
-    const browser = followedClicks();
-    await started(task("task_export_succeeded"));
-    const link = screen.getByRole("link", { name: /^Télécharger le résultat/ });
-    expect(link).toHaveAttribute("href", `/tasks/${EXPORTED}/result`);
-    // The task gone: the refusal is told by the notice of the entry, the follow-up not interrupted.
-    await userEvent.click(link);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès.",
-    );
-    expect(screen.queryByText("Suivi interrompu")).not.toBeInTheDocument();
-    expect(browser.followed).toEqual([false]);
-    // The result there: the click replayed goes on to the browser, and the notice goes.
-    await userEvent.click(link);
-    await vi.waitFor(() => {
-      expect(browser.followed).toEqual([false, false, true]);
-    });
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    // A third download reads the task anew before it leaves.
-    await userEvent.click(link);
-    await vi.waitFor(() => {
-      expect(browser.followed).toEqual([false, false, true, false, true]);
-    });
-    expect(client.calls.map((call) => call.path)).toEqual([
-      `/tasks/${EXPORTED}`,
-      `/tasks/${EXPORTED}`,
-      `/tasks/${EXPORTED}`,
-    ]);
-    browser.restore();
-  });
-
-  it("says the result no longer available when the task read anew gives none, and offers no download", async () => {
-    // A task read without a result: the example of the contract is a marking, which made none.
-    serve({ [TASK]: "task_succeeded" });
-    const browser = followedClicks();
-    await started(task("task_export_succeeded"));
-    await userEvent.click(screen.getByRole("link", { name: /^Télécharger le résultat/ }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Le résultat de cette tâche n’est plus disponible.",
-    );
-    expect(
-      screen.queryByRole("link", { name: /^Télécharger le résultat/ }),
-    ).not.toBeInTheDocument();
-    expect(browser.followed).toEqual([false]);
-    browser.restore();
-  });
-
-  it("downloads nothing when the entry is dismissed while the task is read anew", async () => {
-    let release!: () => void;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    server.client = fakeClient(
-      { [TASK]: "task_export_succeeded" },
-      { hold: (route) => (route === TASK ? held : undefined) },
-    );
-    const browser = followedClicks();
-    await started(task("task_export_succeeded"));
-    await userEvent.click(screen.getByRole("link", { name: /^Télécharger le résultat/ }));
-    await userEvent.click(screen.getByRole("button", { name: /^Retirer du suivi/ }));
-    release();
-    await act(() => held);
-    await act(() => Promise.resolve());
-    // No click replayed: the entry gone, the download does not leave.
-    expect(browser.replayed()).toBe(0);
-    expect(browser.followed).toEqual([false]);
-    browser.restore();
   });
 });

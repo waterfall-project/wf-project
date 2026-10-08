@@ -57,7 +57,7 @@ export interface Examples {
     200: "project" | "project_pricing" | "project_pricing_estimator" | "project_without_current_revision";
   };
   "GET /projects/{project_id}/actual-costs": {
-    200: "actual_costs" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
+    200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
   };
   "GET /projects/{project_id}/contributors": {
     200: "contributors";
@@ -232,6 +232,9 @@ export interface Examples {
   };
   "POST /session": {
     201: "session";
+  };
+  "PUT /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope": {
+    200: "actual_cost_excluded" | "actual_cost_reinstated";
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors": {
     200: "predecessor_set";

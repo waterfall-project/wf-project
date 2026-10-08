@@ -8,11 +8,14 @@ here they are read as the consultation of the costs and the journal present them
 description is computed, never written: the imputation of a line from its code of subproject
 (WF-CRE-0020), its audit from the imports that brought it and its exclusion, the three totals,
 the date of the last import, and the counts of lines each import created, updated and ignored.
-Nothing here reads the clock, nor a file the same command writes.
+And the answers of the exclusion of a line from the tracked scope and of its reinstatement, written
+today (``setActualCostTrackedScope``, WF-CRE-0030), and the consultation read anew after the
+exclusion. Nothing here reads the clock, nor a file the same command writes.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
@@ -113,6 +116,40 @@ def cost_line(line: CostLine) -> JsonObject:
     }
 
 
+EXCLUDED_TODAY = 0xC01
+"""The line the exclusion written today takes out of the tracked scope: the cables of the desk."""
+
+EXCLUSION_REASON = "Câbles d'un autre projet, à réimputer"
+"""Why the line is excluded today, as the user wrote it."""
+
+
+def _line(number: int) -> CostLine:
+    [line] = [line for line in COSTS if line.number == number]
+    return line
+
+
+def _reinstated() -> CostLine:
+    """Return the line the reinstatement written today brings back: the excluded one."""
+    [line] = [line for line in COSTS if line.excluded is not None]
+    return line
+
+
+def written(line: CostLine, excluded: str | None) -> JsonObject:
+    """Return a line as the write of its exclusion — or of its reinstatement — answers it today."""
+    value = cost_line(replace(line, excluded=None if excluded is None else (TODAY, excluded)))
+    audit = cast("JsonObject", value["audit"])
+    audit["updated_at"] = stamp(TODAY)
+    return value
+
+
+def _excluded_today() -> list[CostLine]:
+    """Return the lines of the witness once the exclusion written today has been applied."""
+    return [
+        replace(line, excluded=(TODAY, EXCLUSION_REASON)) if line.number == EXCLUDED_TODAY else line
+        for line in COSTS
+    ]
+
+
 def last_import() -> datetime:
     """Return the instant of the last import of the journal (WF-CRE-0050).
 
@@ -207,6 +244,9 @@ def values() -> dict[str, JsonValue]:
         "actual_costs_page": consultation(COSTS, limit=1, offset=1),
         "actual_costs_subproject": consultation(control),
         "cost_imports": journal(),
+        "actual_cost_excluded": written(_line(EXCLUDED_TODAY), EXCLUSION_REASON),
+        "actual_cost_reinstated": written(_reinstated(), None),
+        "actual_costs_after_exclusion": consultation(_excluded_today()),
     }
 
 
@@ -298,6 +338,23 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             "nommé par son code "
             "et son libellé ; la date du dernier import reste celle du journal (WF-CRE-0020, "
             "WF-CRE-0040, WF-CRE-0050)."
+        ),
+        "actual_cost_excluded": (
+            f"La facture {_line(EXCLUDED_TODAY).document}, « {_line(EXCLUDED_TODAY).text} », "
+            f"exclue du périmètre suivi le {today} : « {EXCLUSION_REASON} ». Elle reste "
+            "consultable et n'entre plus dans aucun indicateur (WF-CRE-0030, WF-CRE-0040)."
+        ),
+        "actual_costs_after_exclusion": (
+            f"La consultation du {today} relue après l'exclusion de la facture "
+            f"{_line(EXCLUDED_TODAY).document} : le périmètre suivi perd ses "
+            f"{_amount(_line(EXCLUDED_TODAY).amount)}, que le total exclu gagne ; le total général "
+            "ne change pas (WF-CRE-0030, WF-CRE-0040)."
+        ),
+        "actual_cost_reinstated": (
+            f"La facture {_reinstated().document}, « {_reinstated().text} », exclue depuis le "
+            f"{mocktext.day(cast('tuple[datetime, str]', _reinstated().excluded)[0].date())}, "
+            f"réintégrée dans le périmètre suivi le {today} : elle entre de nouveau dans les "
+            "indicateurs (WF-CRE-0030, WF-CRE-0040)."
         ),
         "cost_imports": (
             f"Le journal des imports de coûts réels au {today}, ses {len(JOURNAL)} imports du plus "
