@@ -22,6 +22,7 @@ import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useHydrated } from "@/components/use-hydrated";
 import { LOGIN_ROUTE, PASSWORD_RESET_ROUTE } from "@/navigation/login";
 
 const LINK = "inline-flex items-center gap-1.5 font-medium underline";
@@ -50,20 +51,27 @@ export function AskResetLink() {
   const t = useTranslations("passwordReset");
   const id = useId();
   const { outcome, pending, send, clear } = useRequest();
+  // Disabled until React handles the sending: the browser would send the form by GET.
+  const hydrated = useHydrated();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const email = textOf(new FormData(event.currentTarget), "email");
     send(() => askPasswordReset(email));
   };
   return (
-    <form noValidate aria-busy={pending} onSubmit={submit} className="grid gap-4">
+    <form method="post" noValidate aria-busy={pending} onSubmit={submit} className="grid gap-4">
       <div className="grid gap-2">
         <Label htmlFor={`${id}-email`}>{t("email")}</Label>
         <Input id={`${id}-email`} name="email" type="email" autoComplete="username" required />
       </div>
       <OutcomeNotice outcome={outcome} onClear={clear} />
       <DoneNotice title={outcome?.kind === "done" ? t("sent") : undefined} />
-      <Button type="submit" aria-disabled={pending} className={`w-full ${WAITING}`}>
+      <Button
+        type="submit"
+        disabled={!hydrated}
+        aria-disabled={pending}
+        className={`w-full ${WAITING}`}
+      >
         <Send aria-hidden="true" />
         {t("send")}
       </Button>
@@ -81,6 +89,8 @@ export function ChoosePassword({ token }: ChoosePasswordProps) {
   const t = useTranslations("passwordReset");
   const id = useId();
   const { outcome, pending, send, clear } = useRequest();
+  // Disabled until React handles the sending: the browser would send the form by GET.
+  const hydrated = useHydrated();
   const saved = outcome?.kind === "done";
   const signIn = useRef<HTMLAnchorElement>(null);
   // The button goes once the password is saved: the focus goes to the way on, the sign-in page.
@@ -95,7 +105,7 @@ export function ChoosePassword({ token }: ChoosePasswordProps) {
     send(() => resetPassword(token, password));
   };
   return (
-    <form noValidate aria-busy={pending} onSubmit={submit} className="grid gap-4">
+    <form method="post" noValidate aria-busy={pending} onSubmit={submit} className="grid gap-4">
       <div className="grid gap-2">
         <Label htmlFor={`${id}-password`}>{t("newPassword")}</Label>
         <Input
@@ -123,7 +133,12 @@ export function ChoosePassword({ token }: ChoosePasswordProps) {
         ) : undefined}
       </DoneNotice>
       {saved ? null : (
-        <Button type="submit" aria-disabled={pending} className={`w-full ${WAITING}`}>
+        <Button
+          type="submit"
+          disabled={!hydrated}
+          aria-disabled={pending}
+          className={`w-full ${WAITING}`}
+        >
           <Save aria-hidden="true" />
           {t("save")}
         </Button>

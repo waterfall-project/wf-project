@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { openHydrated } from "./hydration";
+
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/indicators`;
@@ -12,10 +14,13 @@ const SERIES_DARK = "rgb(17, 149, 225)";
 
 test.use({ colorScheme: "light" });
 
+// A chart is drawn by ECharts from an effect, once the page is hydrated: each visit opens the
+// screen hydrated (`openHydrated`), and its drawings are awaited from there.
+
 test("draws the evolution of an index in SVG, an image described in a sentence, its values in a table [WF-IHM-0100-A]", async ({
   page,
 }) => {
-  await page.goto(SCREEN);
+  await openHydrated(page, SCREEN);
   await expect(page.getByRole("heading", { level: 1, name: "Indicateurs projets" })).toBeVisible();
   const cost = page.getByRole("img", { name: /^Courbes de l’indice de coût du projet/ });
   await expect(cost.locator("svg")).toBeVisible();
@@ -34,7 +39,7 @@ test("draws the evolution of an index in SVG, an image described in a sentence, 
 test("paints its series with the tokens of the charter, drawn again when the account forces the dark mode", async ({
   page,
 }) => {
-  await page.goto(SCREEN);
+  await openHydrated(page, SCREEN);
   const cost = page.getByRole("img", { name: /^Courbes de l’indice de coût du projet/ });
   await expect(cost.locator(`path[stroke="${SERIES_LIGHT}"]`).first()).toBeAttached();
   // The attribute the root layout sets for an account that chose `dark`.
@@ -48,7 +53,7 @@ test("paints its series with the tokens of the charter, drawn again when the acc
 test("names each curve at its end, two names ending close together drawn apart, their letters never overlapping", async ({
   page,
 }) => {
-  await page.goto(SCREEN);
+  await openHydrated(page, SCREEN);
   const schedule = page.getByRole("img", { name: /^Courbes de l’indice de délai du projet/ });
   // The whole project and what belongs to no sub-project end close on the current day, at
   // 0.9879 and 1.
@@ -73,7 +78,7 @@ test("names each curve at its end, two names ending close together drawn apart, 
 test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named after the project", async ({
   page,
 }) => {
-  await page.goto(SCREEN);
+  await openHydrated(page, SCREEN);
   const figure = page.getByRole("figure", { name: "Diagramme temps/temps" });
   const command = figure.getByRole("button", { name: "Exporter en PNG" });
   await command.focus();
@@ -100,8 +105,14 @@ test("exports a curve, at the keyboard, as a PNG image drawn on a canvas, named 
 test("draws the cumulative costs, and shifts them by the payment delays at the server's", async ({
   page,
 }) => {
-  await page.goto(SCREEN);
-  await expect(page.getByRole("figure", { name: "Courbe en S" }).locator("svg")).toBeVisible();
+  await openHydrated(page, SCREEN);
+  // The drawing itself, named by its sentence: the figure holds the icon of its export too.
+  await expect(
+    page
+      .getByRole("figure", { name: "Courbe en S" })
+      .getByRole("img", { name: /^Courbes cumulées du budget de référence/ })
+      .locator("svg"),
+  ).toBeVisible();
   await page.getByRole("link", { name: "Décaler des délais de paiement" }).click();
   await expect(page).toHaveURL(/payment_delays=true/);
 });

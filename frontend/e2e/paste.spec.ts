@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { openHydrated } from "./hydration";
 import { rowAt } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
@@ -55,12 +56,14 @@ function labels(page: Page): Promise<string[]> {
   );
 }
 
-/** Open the estimate, the label of the row 4 active; the grid, and where its columns are. */
+/**
+ * Open the estimate hydrated, the label of the row 4 active; the grid, and where its columns are.
+ */
 async function openOnRow4(page: Page): Promise<{
   readonly grid: Locator;
   readonly at: Readonly<Record<keyof typeof COLUMNS, number>>;
 }> {
-  await page.goto(ESTIMATE);
+  await openHydrated(page, ESTIMATE);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
   const at = await columnsOf(grid, COLUMNS);
   const label = cellAt(grid, 4, at.label);

@@ -16,6 +16,7 @@ import { loadDocument } from "@/navigation/document";
 import { NEXT_PARAMETER, returnTarget } from "@/navigation/login";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { served } from "@/test/served";
 
 import { SignInForm } from "./sign-in-form";
 
@@ -94,6 +95,20 @@ afterEach(() => {
 });
 
 describe("the form of the sign-in page", () => {
+  it("is sent by POST, and only by React: its button disabled as the server renders it, active once hydrated (#499)", async () => {
+    // Before the hydration, the browser would send the form itself: by GET, the password in the
+    // address. The page as the server sends it offers no button to send it.
+    const page = served(inFrench(<SignInForm target="/" />));
+    const button = within(page.container).getByRole("button", { name: "Se connecter" });
+    expect(button).toBeDisabled();
+    expect(page.container.querySelector("form")).toHaveAttribute("method", "post");
+    // Hydrated, without a discordance with the markup served: React handles the sending.
+    await page.hydrate();
+    expect(within(page.container).getByRole("button", { name: "Se connecter" })).toBeEnabled();
+    expect(page.container.querySelector("form")).toHaveAttribute("method", "post");
+    await page.unmount();
+  });
+
   it("opens the session with what was typed, and loads the screen the user was headed for", async () => {
     const client = serve({ "POST /session": OPENED });
     const { container } = render(

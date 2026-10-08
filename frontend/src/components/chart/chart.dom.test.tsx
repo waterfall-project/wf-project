@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { roomForCharts } from "@/test/chart-room";
 
 import {
   Chart,
@@ -54,6 +55,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// Each drawing has the room a page gives it: ECharts measures it as it draws.
+roomForCharts();
+
 describe("the envelope of the charts", () => {
   it("is a figure named by its caption, its drawing an image described in a sentence, its values a table [WF-IHM-0100-A]", async () => {
     const { container } = drawn(line);
@@ -78,8 +82,18 @@ describe("the envelope of the charts", () => {
   });
 
   it("makes the entries of its legend inert: no series is hidden by a click the keyboard cannot give [WF-IHM-0100-A]", async () => {
+    // The legend names the series it lists: an entry for no series is a warning of ECharts.
     const legended = (palette: ChartPalette): ChartOption => ({
       ...line(palette),
+      series: [
+        {
+          name: "Projet",
+          ...curve(palette, 0, [
+            ["a", "0.8"],
+            ["b", "0.9"],
+          ]),
+        },
+      ],
       legend: { data: ["Projet"], selectedMode: "multiple" },
     });
     drawn(legended);
@@ -104,10 +118,8 @@ describe("the envelope of the charts", () => {
         ]),
       })),
     });
-    // happy-dom lays nothing out: the drawing is given the size a page would give it, without
-    // which ECharts has no room to write a name in.
-    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(600);
-    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(300);
+    // The drawing has the room a page gives it (`roomForCharts`), without which ECharts has none
+    // to write a name in.
     drawn(many);
     const image = screen.getByRole("img", { name: "Une courbe de deux points." });
     await waitFor(() => {

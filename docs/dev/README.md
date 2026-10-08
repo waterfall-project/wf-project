@@ -55,7 +55,15 @@ avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `
 que le nom du fichier départage : `node` pour les `*.test.ts` et `*.test.tsx` — la logique,
 et les composants serveur de `src/app/`, qui se rendent sans document comme en production —,
 `dom` pour les `*.dom.test.ts` et `*.dom.test.tsx` — les composants client, que Testing
-Library rend dans le document de happy-dom.
+Library rend dans le document de happy-dom. Un test du projet `dom` qui écrit sur la sortie
+d'erreur — `console.error`, `console.warn`, `console.trace` — échoue une fois son document
+nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) : un avertissement de React
+ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du test ou du code, pas un
+bruit à lire en passant. Un test qui prouve qu'une erreur se dit sur la console la fait taire
+lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut dit. happy-dom ne
+mesure rien : un test qui monte une courbe donne à son dessin la place qu'une page lui donne
+(`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit qu'il n'a
+ni largeur ni hauteur (EP-02/L37).
 
 La coquille (`frontend/src/components/shell/`) tire sa navigation de
 `frontend/src/navigation/functions.json` : pour chaque fonction de second niveau de la FBS,
@@ -1022,6 +1030,25 @@ attend un procès-verbal, dont la forme n'est pas encore définie : le relevé l
 Un parcours s'écrit sous `frontend/e2e/`, en Playwright, et cite dans son titre l'exigence
 qu'il couvre : `test("… [WF-QUA-0050-A]", …)`. Il trouve les éléments par leur rôle et leur
 nom accessible (`getByRole`), comme un utilisateur les voit, jamais par une classe CSS.
+
+Une page ouverte par son adresse s'affiche avant que React l'ait hydratée : un lien suivi charge
+alors son écran en document entier, mais un clic sur un bouton, une touche dans une cellule, se
+perdent (#471). Un parcours ouvre donc un écran de projet par `openHydrated`
+(`frontend/e2e/hydration.ts`), qui attend le témoin de l'hydratation : le cookie `wf_last_project`,
+que la coquille n'écrit que dans un effet. Hors projet, rien n'en témoigne : le geste se répète
+jusqu'à ce que React y réponde, sans défaire celui qu'il a déjà reçu (`setExpanded`, `openMenu`, et
+`sortUntilAddress` pour un tri, qui ne se presse jamais à l'aveugle). Un écran de grille s'attend à
+la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419), qu'un clic l'atteigne ou le
+relise (un tri, un filtre, une recherche, le détail d'une ligne). Un écran de grille est une grille
+dense — devis, planning, reste à engager, risques, coûts réels, portefeuille —, ou un écran qui lit
+la structure de mille tâches (`listNodes`) : le Kanban, l'arborescence, les chronologies. Les
+risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
+consignées dans #500, qui reste à trancher. Tout autre écran garde les cinq secondes d'une
+assertion. Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente
+secondes d'un test, et prend `test.slow()`. Une ligne de grille vérifiée est dans la fenêtre :
+au-delà des lignes en vue à l'ouverture, le parcours défile jusqu'à elle (`scrollToPosition`,
+`frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille rend autour de la
+fenêtre.
 
 `make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
 dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi

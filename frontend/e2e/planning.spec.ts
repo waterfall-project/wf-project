@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
+import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
@@ -21,7 +22,7 @@ const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
 test("opens the grid of the planning: its icons named, the critical path marked, the predecessors by row number", async ({
   page,
 }) => {
-  await page.goto(`/projects/${PROJECT}/revisions/${REVISION}/planning`);
+  await openHydrated(page, `${IN_REVISION}/planning`);
   await expect(page).toHaveTitle("Planification · Modernisation du poste de commande — Waterfall");
   const grid = page.getByRole("grid", { name: "Grille de planning" });
   for (const name of [
@@ -45,7 +46,10 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(completed.getByRole("img", { name: "Terminée" })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Chemin critique" })).toHaveCount(0);
   const at = await columnsOf(grid, { predecessors: "Prédécesseurs" });
-  const follower = grid.getByRole("row", { name: /^22 .*Réalisation 1\.1\.4/ });
+  // Row 22 is past the rows in view as the grid opens: scrolled to, so that it is checked in the
+  // window whatever the height of the grid, never in the margin the grid renders around it.
+  const follower = await scrollToPosition(grid, 22);
+  await expect(follower).toHaveAccessibleName(/^22 .*Réalisation 1\.1\.4/);
   await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("3");
 
@@ -63,13 +67,13 @@ test("opens the grid of the planning: its icons named, the critical path marked,
     .getByRole("columnheader", { name: "Mode de planification" })
     .getByRole("button")
     .click();
-  await expect(page).toHaveURL(/sort_by=scheduling_mode&sort_order=asc/);
+  await expect(page).toHaveURL(/sort_by=scheduling_mode&sort_order=asc/, { timeout: WORKING });
 });
 
 test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task [WF-PLA-0090-A]", async ({
   page,
 }) => {
-  await page.goto(`${IN_REVISION}/planning`);
+  await openHydrated(page, `${IN_REVISION}/planning`);
   const grid = page.getByRole("grid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { gantt: "Gantt" });
   // Its axis, in its header, the months of the plan.
@@ -105,50 +109,60 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
 test("leads from the planning to its task tree, read only, its depth in the address", async ({
   page,
 }) => {
+  // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
+  test.slow();
   // The leaf, a screen of its own reached by a click, compiled first (`e2e/compile.ts`). The tree
   // asks the server for the summaries down to its depth (`summaries_only`, `max_level`), and keeps
   // them once more of what the fake back renders, the volumes whole (#463).
   await compile(page.request, `${IN_REVISION}/task-tree`);
-  await page.goto(`${IN_REVISION}/planning`);
+  // Hydrated, the planning follows its link in the browser: the tree arrives answering the keys.
+  await openHydrated(page, `${IN_REVISION}/planning`);
   await page.getByRole("link", { name: "Arborescence de tâches" }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/task-tree`);
+  await expect(page).toHaveURL(`${IN_REVISION}/task-tree`, { timeout: WORKING });
   await expect(page).toHaveTitle(
     "Arborescence de tâches · Modernisation du poste de commande — Waterfall",
   );
-  // The summaries of the first two levels, under the project; no leaf, no milestone.
+  // The summaries of the first two levels, under the project; no leaf, no milestone. The tree
+  // reads the structure of a thousand tasks: the bound of a grid.
   const tree = page.getByRole("tree", { name: "Arborescence des tâches récapitulatives" });
-  await expect(tree.getByRole("treeitem", { level: 2 })).toHaveCount(10);
+  await expect(tree.getByRole("treeitem", { level: 2 })).toHaveCount(10, { timeout: WORKING });
   await expect(tree.getByRole("treeitem", { name: /^2 Études — Poste de commande/ })).toBeVisible();
   await expect(tree.getByText("Préparation 1.1.1")).toHaveCount(0);
   // One stop of the tabulation, whose arrows go through it.
   await tree.getByRole("treeitem").first().focus();
   await page.keyboard.press("ArrowRight");
   await expect(tree.getByRole("treeitem", { name: /^1 Études/ })).toBeFocused();
-  // The first level alone, by the address.
+  // The first level alone, by the address: the structure read anew, in the bound of a grid.
   await page.getByRole("link", { name: "Niveau 1" }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/task-tree?depth=1`);
+  await expect(page).toHaveURL(`${IN_REVISION}/task-tree?depth=1`, { timeout: WORKING });
   await expect(tree.getByRole("treeitem", { level: 3 })).toHaveCount(0);
 });
 
 test("leads from the planning to the timelines of the project, read only", async ({ page }) => {
+  // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
+  test.slow();
   await compile(page.request, `${IN_REVISION}/timelines`);
-  await page.goto(`${IN_REVISION}/planning`);
+  await openHydrated(page, `${IN_REVISION}/planning`);
   await page.getByRole("link", { name: "Chronologies" }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/timelines`);
+  await expect(page).toHaveURL(`${IN_REVISION}/timelines`, { timeout: WORKING });
   await expect(page).toHaveTitle("Chronologies · Modernisation du poste de commande — Waterfall");
   await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
     "Modernisation du poste de commande",
   );
   // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`), and
   // keeps those inscribed to it of what the fake back renders: the volumes inscribe none (#463).
+  // They read the structure of a thousand tasks: the bound of a grid.
   await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
     "aria-current",
     "true",
+    { timeout: WORKING },
   );
+  // Another timeline, by the address: the structure read anew, in the bound of a grid.
   await page.getByRole("link", { name: "Revue client" }).click();
   await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
     "aria-current",
     "true",
+    { timeout: WORKING },
   );
   await expect(
     page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),

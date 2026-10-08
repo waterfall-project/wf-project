@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChartOption } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
+import { roomForCharts } from "@/test/chart-room";
 import { example } from "@/test/fixtures";
 
 import { MilestoneChart, type MilestoneTracking } from "./milestone-chart";
@@ -92,6 +93,9 @@ afterEach(() => {
   });
   vi.restoreAllMocks();
 });
+
+// Each drawing has the room a page gives it: ECharts measures it as it draws.
+roomForCharts();
 
 describe("the export of a chart", () => {
   it("draws at the keyboard a PNG image that bears its title, the name of the project, the revision and the date of calculation, on the background of the charter", async () => {

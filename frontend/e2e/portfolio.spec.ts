@@ -3,6 +3,7 @@
 import { expect, type Locator, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { sortUntilAddress, WORKING } from "./hydration";
 import { withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the portfolio — the three hundred projects
@@ -25,6 +26,9 @@ function colour(signal: Locator): Promise<string> {
 test("reads the portfolio of three hundred projects: its value, its perimeter, the list the server sorts and filters [WF-PTF-0040-A]", async ({
   page,
 }) => {
+  // The sort, given the time to hydrate and to read the grid anew, then the filter: more than the
+  // thirty seconds of a test.
+  test.slow();
   await page.goto(PROJECTS);
   await expect(page).toHaveTitle("Portefeuille de projets — Waterfall");
   await expect(page.getByRole("main")).toContainText(
@@ -60,12 +64,18 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   expect(await withinBox(grid, total)).toBe(true);
 
   // The sort by the cost index and a state added, asked of the server by the address.
-  await grid.getByRole("columnheader", { name: "Indice de coût" }).getByRole("button").click();
-  await expect(page).toHaveURL(`${PROJECTS}?sort_by=cost_index&sort_order=asc`);
+  // No project is opened here, nothing witnesses the hydration: the sort is pressed again until
+  // React answers it, never while an earlier press is under way (`sortUntilAddress`).
+  await sortUntilAddress(
+    grid.getByRole("columnheader", { name: "Indice de coût" }),
+    grid,
+    `${PROJECTS}?sort_by=cost_index&sort_order=asc`,
+  );
   const states = page.getByRole("group", { name: "États retenus" });
   await states.getByRole("button", { name: "Terminé" }).click();
   await expect(page).toHaveURL(
     `${PROJECTS}?sort_by=cost_index&sort_order=asc&states=in_progress%2Cpricing%2Ccompleted`,
+    { timeout: WORKING },
   );
   await expect(states.getByRole("button", { name: "Terminé" })).toHaveAttribute(
     "aria-pressed",

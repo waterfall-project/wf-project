@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { openHydrated } from "./hydration";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2). The journeys read it by marks the generator writes, which
@@ -35,7 +36,7 @@ function refusal(page: Page): Locator {
 test("shows the amount of a line of labour as computed, apart from its effort in hours, and refuses to enter it [WF-IHM-0030-A]", async ({
   page,
 }) => {
-  await page.goto(`${REVISION_PATH}/estimate`);
+  await openHydrated(page, `${REVISION_PATH}/estimate`);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
   const labour = grid.getByRole("row", { name: /^4 .*Heures d'ingénierie/ });
   await expect(labour.getByRole("img", { name: "Ligne de main-d’œuvre" })).toBeVisible();
@@ -88,7 +89,7 @@ test("shows the amount of a line of labour as computed, apart from its effort in
 test("refuses to change the finish date of a summary task, from the keyboard, naming its subordinates [WF-IHM-0030-A]", async ({
   page,
 }) => {
-  await page.goto(`${REVISION_PATH}/planning`);
+  await openHydrated(page, `${REVISION_PATH}/planning`);
   const grid = page.getByRole("grid", { name: "Grille de planning" });
   const summary = grid.getByRole("row", { name: /^1 .*Études/ });
   await expect(summary.getByRole("img", { name: "Tâche récapitulative" })).toBeVisible();

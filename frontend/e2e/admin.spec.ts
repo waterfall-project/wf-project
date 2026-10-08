@@ -3,6 +3,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { setExpanded } from "./hydration";
 
 // The fake back serves the first example of each read: the session, whose role grants the whole
 // catalogue, so that every function is offered; the accounts, the roles, the catalogue of the
@@ -22,13 +23,13 @@ const SCREENS = [
   ["Administration", "Sauvegarde et restauration", "/admin/backups"],
 ] as const;
 
-/** Follow a link of the navigation, opening first the block of the FBS it is in. */
+/**
+ * Follow a link of the navigation, opening first the block of the FBS it is in, once React
+ * answers the press (`setExpanded`).
+ */
 async function open(page: Page, block: string, name: string) {
   const nav = page.getByRole("navigation", { name: "Fonctions" });
-  const button = nav.getByRole("button", { name: block, exact: true });
-  if ((await button.getAttribute("aria-expanded")) === "false") {
-    await button.click();
-  }
+  await setExpanded(nav.getByRole("button", { name: block, exact: true }), true);
   await nav.getByRole("link", { name }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 }

@@ -10,6 +10,7 @@ import {
   scrollToPosition,
   withinBox,
 } from "./scroll";
+import { openHydrated, WORKING } from "./hydration";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2): a thousand tasks and five thousand lines, six thousand rows, of which the grid
@@ -17,7 +18,10 @@ import {
 // `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds — the summary task
 // of row 1, « Études », the lot of row 2, the task of row 3, the milestone of row 6000, the totals
 // of the answer —, and never count the rows rendered: the row count of the grid says how many
-// there are. The second of §4.6.2 is measured in `opening.spec.ts`.
+// there are. The second of §4.6.2 is measured in `opening.spec.ts`. Each path opens the grid
+// hydrated (`openHydrated`) before it scrolls or clicks: the rows follow the scroll, and the sort
+// answers its header, once React does. An address that follows a click which reads the six
+// thousand rows anew is awaited with the bound of the screens of grids (`WORKING`, #315, #419).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
@@ -52,7 +56,7 @@ function edges(page: Page) {
 test("opens the estimate of a thousand tasks and five thousand lines, and scrolls down to its last row [WF-IHM-0060-A]", async ({
   page,
 }) => {
-  await page.goto(GRID);
+  await openHydrated(page, GRID);
   const { header, totals, first, last } = edges(page);
   await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
   // The grid holds in the window as it opens, under the header and the indicators of its screen:
@@ -81,7 +85,7 @@ test("scrolls through the thousand tasks and their lines, its header and its tot
 }) => {
   // Thirty steps, each checked by a few round trips to the browser: slow beside the other paths.
   test.slow();
-  await page.goto(GRID);
+  await openHydrated(page, GRID);
   await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
   const { header, totals, last } = edges(page);
   // Two hundred rows at a time, as a scroll bar dragged down: each row reached is in view, between
@@ -105,7 +109,7 @@ test.describe("on a low window", () => {
   test("keeps the header and the totals in view as the grid scrolls down to its last row [WF-IHM-0060-A]", async ({
     page,
   }) => {
-    await page.goto(GRID);
+    await openHydrated(page, GRID);
     await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
     await scrollPageToGrid(grid(page));
     await scrollToFoot(grid(page));
@@ -126,7 +130,7 @@ test.describe("on a low window", () => {
   test("sizes its rows by the root font: enlarged, the rows grow with it and the header and totals stay in view", async ({
     page,
   }) => {
-    await page.goto(GRID);
+    await openHydrated(page, GRID);
     await expect(grid(page)).toBeVisible();
     // The user enlarges the font of the browser: the root font grows, and the window says so.
     await page.addStyleTag({ content: "html { font-size: 24px; }" });
@@ -151,7 +155,7 @@ test.describe("on a narrow window", () => {
   test("keeps the label of each row, the header and the totals in view as the grid scrolls sideways [WF-IHM-0060-A]", async ({
     page,
   }) => {
-    await page.goto(GRID);
+    await openHydrated(page, GRID);
     const label = grid(page).getByRole("gridcell", { name: /Préparation 1\.1\.1$/ });
     const { totals } = edges(page);
     const box = scroller(grid(page));
@@ -182,17 +186,27 @@ test.describe("on a narrow window", () => {
   });
 });
 
+/**
+ * How long a path holds the server actions it proves the sort does not wait for: longer than the
+ * wait of the address, so that a sort which waited for them would fail.
+ */
+const HELD = WORKING + 5_000;
+
 test("asks the server for the sort of a column clicked, both ways, by the parameters of the contract", async ({
   page,
 }) => {
-  await page.goto(GRID);
+  // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
+  test.slow();
+  await openHydrated(page, GRID);
   const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
   await expect(header).not.toHaveAttribute("aria-sort");
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`, { timeout: WORKING });
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=desc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=desc`, {
+    timeout: WORKING,
+  });
   await expect(header).toHaveAttribute("aria-sort", "descending");
   await expect(grid(page)).toHaveAttribute("aria-busy", "false");
   // The rows are those of the answer, in its order: the fake back serves the same example
@@ -204,22 +218,25 @@ test("asks the server for the sort of a column clicked, both ways, by the parame
 test("shows the sort asked without waiting for the server actions of the page, its preference among them", async ({
   page,
 }) => {
-  // Every server action of the page held longer than the wait of an address — the preference of
-  // the sort among them. Next shows a navigation only once the server actions dispatched after it
+  // The opening and the sort, each in the bound of a grid, beside actions held longer than one
+  // (`HELD`): more than the thirty seconds of a test.
+  test.slow();
+  // Every server action of the page held longer than the wait of an address (`HELD`) — the
+  // preference of the sort among them. Next shows a navigation only once the server actions dispatched after it
   // have answered: the preference is written once the sort is shown, and the page opens without
   // any — an action goes to the address the page shows as it is dispatched.
   const dispatched: string[] = [];
   await page.route(`**${GRID}*`, async (route) => {
     if (route.request().headers()["next-action"] !== undefined) {
       dispatched.push(route.request().url());
-      await new Promise((resolve) => setTimeout(resolve, 8_000));
+      await new Promise((resolve) => setTimeout(resolve, HELD));
     }
     await route.continue().catch(() => undefined);
   });
-  await page.goto(GRID);
+  await openHydrated(page, GRID);
   const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`, { timeout: WORKING });
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
 });
@@ -227,8 +244,11 @@ test("shows the sort asked without waiting for the server actions of the page, i
 test("shows the sort asked without waiting for the totals a searched grid reads anew after a write", async ({
   page,
 }) => {
+  // The opening and the sort, each in the bound of a grid, beside actions held longer than one
+  // (`HELD`): more than the thirty seconds of a test.
+  test.slow();
   // A grid read with a search reads its totals anew once its writes answered, by a server action
-  // of its own, held here longer than the wait of an address: it leaves before the sort is
+  // of its own, held here longer than the wait of an address (`HELD`): it leaves before the sort is
   // clicked, and Next shows a navigation without waiting for the actions dispatched before it.
   const isRetotal = (request: Request) =>
     request.headers()["next-action"] !== undefined &&
@@ -236,11 +256,11 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
     !(request.postData() ?? "").includes("lock_version");
   await page.route(`**${GRID}*`, async (route) => {
     if (isRetotal(route.request())) {
-      await new Promise((resolve) => setTimeout(resolve, 8_000));
+      await new Promise((resolve) => setTimeout(resolve, HELD));
     }
     await route.continue().catch(() => undefined);
   });
-  await page.goto(`${GRID}?search=revue`);
+  await openHydrated(page, `${GRID}?search=revue`);
   // The label of row 4, a line of labour, entered: the fake back answers its line.
   const label = rowAt(grid(page), 4).getByRole("gridcell").nth(1);
   await label.click();
@@ -251,14 +271,16 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
   await retotal;
   const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
   await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?search=revue&sort_by=base_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${GRID}?search=revue&sort_by=base_amount&sort_order=asc`, {
+    timeout: WORKING,
+  });
   await expect(header).toHaveAttribute("aria-sort", "ascending");
 });
 
 test("hides a column chosen in the menu of the columns, and searches the labels on the server", async ({
   page,
 }) => {
-  await page.goto(GRID);
+  await openHydrated(page, GRID);
   await page.getByRole("button", { name: "Colonnes" }).click();
   await page.getByRole("menuitemcheckbox", { name: "Qté" }).click();
   await page.keyboard.press("Escape");
@@ -267,5 +289,5 @@ test("hides a column chosen in the menu of the columns, and searches the labels 
 
   await page.getByRole("searchbox", { name: "Rechercher un libellé" }).fill("revue");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(`${GRID}?search=revue`);
+  await expect(page).toHaveURL(`${GRID}?search=revue`, { timeout: WORKING });
 });

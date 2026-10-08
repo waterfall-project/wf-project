@@ -246,3 +246,12 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     (#180). Des tests hydratent une frontière en attente sous chaque fournisseur
     (`task-tracker.dom.test.tsx`, `shell/hydration.dom.test.tsx`) ; aucun outil ne le tient : la
     revue le cherche.
+19. **Geste d'un parcours avant l'hydratation.** Un parcours ouvre une page par son adresse et
+    clique aussitôt un bouton : le serveur a rendu la page, le navigateur la montre, mais React
+    ne l'a pas encore hydratée, et le clic se perd — le bloc de la navigation reste fermé, le tri
+    n'est jamais demandé, et le parcours attend jusqu'à sa fin, sous charge seulement (#471,
+    #419). Un écran de projet s'ouvre par `openHydrated` (`e2e/hydration.ts`), qui attend le
+    cookie que la coquille n'écrit que dans un effet ; hors projet, le geste se répète jusqu'à ce
+    que React y réponde (`setExpanded`, `openMenu`). Un lien, lui, n'en a pas besoin : suivi avant
+    l'hydratation, il charge son écran en document entier. Aucun outil ne le tient : la revue le
+    cherche.

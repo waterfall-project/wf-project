@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { WORKING } from "./hydration";
 import { rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the reference data — the grid of the
@@ -28,15 +29,17 @@ test("reads the settings of the reference data outside any project, and enters a
   expect(await withinBox(grid, totals)).toBe(true);
 
   // The first rate of 2015 of the third category, entered from the keyboard and answered.
+  // No project is opened here, nothing witnesses the hydration: the cell is clicked and the cursor
+  // moved again until React answers them, each try starting from the code of the category.
   const mechanical = rowAt(grid, 3);
-  await mechanical.getByRole("gridcell", { name: "MO-003" }).click();
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
   const rate = mechanical.getByRole("gridcell").nth(5);
-  await expect(rate).toBeFocused();
+  await expect(async () => {
+    await mechanical.getByRole("gridcell", { name: "MO-003" }).click();
+    for (let step = 0; step < 5; step += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
+    await expect(rate).toBeFocused({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
   await expect(rate).toHaveText("");
   // What is typed differs from what the fake back answers: the cell shows the answer.
   await page.keyboard.type("85");

@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { openHydrated, WORKING } from "./hydration";
 import { rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
@@ -32,16 +33,16 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
 }
 
 /**
- * Open the estimate, and reach its active cell by Tab alone, as the keyboard does: past the
- * shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip to
- * the browser, which the journey is given the time of (`test.slow`).
+ * Open the estimate hydrated, and reach its active cell by Tab alone, as the keyboard does: past
+ * the shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip
+ * to the browser, which the journey is given the time of (`test.slow`).
  */
 async function tabIntoGrid(page: Page): Promise<{
   readonly grid: Locator;
   readonly at: Readonly<Record<keyof typeof COLUMNS, number>>;
 }> {
   test.slow();
-  await page.goto(ESTIMATE);
+  await openHydrated(page, ESTIMATE);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
   const active = grid.locator('td[tabindex="0"]');
   await expect(active).toHaveCount(1);
@@ -90,7 +91,7 @@ test("is one stop of the tabulation, and reaches the header by the arrows, which
   const header = grid.getByRole("columnheader", { name: "Libellé" });
   await expect(header).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(`${ESTIMATE}?sort_by=label&sort_order=asc`);
+  await expect(page).toHaveURL(`${ESTIMATE}?sort_by=label&sort_order=asc`, { timeout: WORKING });
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   await expect(header).toBeFocused();
   await page.keyboard.press("ArrowDown");

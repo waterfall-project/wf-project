@@ -3,6 +3,7 @@
 import { expect, type Route, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { openHydrated } from "./hydration";
 
 // The fake back serves the first example of each operation: the file deposited, its import
 // opened, its analysis under way; the report the address then names, the estimate analysed this
@@ -35,7 +36,7 @@ test("imports a file in two steps: the report lists the lines rejected with thei
   // The screen reached by a click, compiled first; the head of the planning leads to it, the
   // context kept.
   await compile(page.request, START);
-  await page.goto(PLANNING);
+  await openHydrated(page, PLANNING);
   await page.getByRole("main").getByRole("link", { name: "Imports et exports" }).click();
   await expect(page).toHaveURL(START);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Imports et exports");
@@ -91,7 +92,7 @@ test("refuses in the form a file larger than an import takes, before anything is
       sent.push(request.url());
     }
   });
-  await page.goto(START);
+  await openHydrated(page, START);
   const imports = page.getByRole("region", { name: "Importer un fichier" });
   await imports.getByRole("button", { name: "Importer un planning MS Project" }).click();
   const form = imports.getByRole("form", { name: "Importer un planning MS Project" });

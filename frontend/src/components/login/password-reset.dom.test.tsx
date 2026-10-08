@@ -10,6 +10,7 @@ import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { served } from "@/test/served";
 
 import { AskResetLink, ChoosePassword } from "./password-reset";
 
@@ -43,6 +44,28 @@ async function choose(password: string) {
 }
 
 describe("the password forgotten", () => {
+  it.each([
+    ["the address of the account", <AskResetLink key="ask" />, "Envoyer le lien"],
+    [
+      "the new password",
+      <ChoosePassword key="choose" token={TOKEN} />,
+      "Enregistrer le mot de passe",
+    ],
+  ])(
+    "sends %s by POST, and only by React: its button disabled as the server renders it, active once hydrated (#499)",
+    async (_, form, button) => {
+      // Before the hydration, the browser would send the form itself, by GET, in the address.
+      const page = served(inFrench(form));
+      expect(within(page.container).getByRole("button", { name: button })).toBeDisabled();
+      expect(page.container.querySelector("form")).toHaveAttribute("method", "post");
+      // Hydrated, without a discordance with the markup served: React handles the sending.
+      await page.hydrate();
+      expect(within(page.container).getByRole("button", { name: button })).toBeEnabled();
+      expect(page.container.querySelector("form")).toHaveAttribute("method", "post");
+      await page.unmount();
+    },
+  );
+
   it("sends the address to the API, and says a link is sent without saying whether an account has it", async () => {
     const client = serve({ "POST /session/password-reset": { status: 202 } });
     const { container } = render(inFrench(<AskResetLink />));

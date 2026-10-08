@@ -3,6 +3,7 @@
 import { expect, type Route, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { openHydrated } from "./hydration";
 
 // The fake back serves the first example of each operation: the current revision, a draft
 // whose marking is available; the marking queued; and, read two seconds later, the marking
@@ -35,7 +36,7 @@ test("marking a revision gives the hand back, shows its progress, and announces 
   });
   // The screen reached by a click, compiled first.
   await compile(page.request, `/projects/${PROJECT}/lifecycle?revision_id=${REVISION}`);
-  await page.goto(`/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
+  await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
   const read = page.waitForRequest((request) => request.postData()?.includes(TASK) === true);
   await commands.getByRole("button", { name: "Marquer la révision" }).click();

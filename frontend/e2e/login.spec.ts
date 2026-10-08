@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import { compile } from "./compile";
 
@@ -10,10 +10,39 @@ import { compile } from "./compile";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const LIFECYCLE = `/projects/${PROJECT}/lifecycle`;
 
+/** The account and the password the journeys type. */
+const EMAIL = "camille.martin@example.com";
+const PASSWORD = "le mot de passe de Camille";
+
+/**
+ * The search part of every address the page navigates to, as it leaves. A form sent by the
+ * browser before the hydration goes by GET, its fields in the search of the address (#499).
+ */
+function navigationsOf(page: Page): string[] {
+  const searches: string[] = [];
+  page.on("request", (request) => {
+    if (request.isNavigationRequest()) {
+      searches.push(new URL(request.url()).search);
+    }
+  });
+  return searches;
+}
+
+/** Check the page navigated, and that no search of its addresses carries what was typed. */
+function expectNoFieldIn(searches: readonly string[]) {
+  expect(searches.length).toBeGreaterThan(0);
+  for (const search of searches) {
+    const values = [...new URLSearchParams(search).values()];
+    expect(values).not.toContain(EMAIL);
+    expect(values).not.toContain(PASSWORD);
+  }
+}
+
 test("signs in, comes to the screen aimed at, then signs out to the sign-in page, forgetting what the session left", async ({
   page,
   context,
 }) => {
+  const asked = navigationsOf(page);
   await page.goto(`/login?next=${encodeURIComponent(LIFECYCLE)}`);
 
   // The way in stands outside the shell: neither bar nor side bar.
@@ -28,12 +57,13 @@ test("signs in, comes to the screen aimed at, then signs out to the sign-in page
   );
   await expect(page).toHaveTitle("Connexion — Waterfall");
 
-  await page.getByLabel("Adresse électronique").fill("camille.martin@example.com");
-  await page.getByLabel("Mot de passe", { exact: true }).fill("le mot de passe de Camille");
+  await page.getByLabel("Adresse électronique").fill(EMAIL);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Se connecter" }).click();
 
   // The screen aimed at, in the shell, which keeps the project it reads in.
   await expect(page).toHaveURL(LIFECYCLE);
+  expectNoFieldIn(asked);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cycle de vie du projet");
   await expect(page.getByRole("navigation", { name: "Fonctions" })).toBeVisible();
   await expect
@@ -68,24 +98,29 @@ test("signs in, comes to the screen aimed at, then signs out to the sign-in page
 test("signs in without a screen aimed at, and comes to the list of projects", async ({ page }) => {
   // The home, the list of projects, reached by the sign-in, compiled first (`e2e/compile.ts`).
   await compile(page.request, "/");
+  const asked = navigationsOf(page);
   await page.goto("/login");
-  await page.getByLabel("Adresse électronique").fill("camille.martin@example.com");
-  await page.getByLabel("Mot de passe", { exact: true }).fill("le mot de passe de Camille");
+  await page.getByLabel("Adresse électronique").fill(EMAIL);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+  // Its button is disabled until React sends the form, by a server action: Playwright waits for
+  // it to be enabled, so the press is never the browser's own sending, by GET (#499).
   await page.getByRole("button", { name: "Se connecter" }).click();
 
   await expect(page).toHaveURL("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
+  expectNoFieldIn(asked);
 });
 
 test("asks for the link of a forgotten password, outside the shell", async ({ page }) => {
   await compile(page.request, "/login/reset");
+  const asked = navigationsOf(page);
   await page.goto("/login");
   await page.getByRole("link", { name: "Mot de passe oublié ?" }).click();
 
   await expect(page).toHaveURL("/login/reset");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mot de passe oublié");
   await expect(page.getByRole("banner")).toHaveCount(0);
-  await page.getByLabel("Adresse électronique").fill("camille.martin@example.com");
+  await page.getByLabel("Adresse électronique").fill(EMAIL);
   const send = page.getByRole("button", { name: "Envoyer le lien" });
   await send.click();
   await expect(page.getByRole("status")).toHaveText(
@@ -93,6 +128,7 @@ test("asks for the link of a forgotten password, outside the shell", async ({ pa
   );
   // The focus stays on the button pressed: it was never disabled under it.
   await expect(send).toBeFocused();
+  expectNoFieldIn(asked);
 });
 
 test("the screens of the account show it, and offer its password and its avatar", async ({

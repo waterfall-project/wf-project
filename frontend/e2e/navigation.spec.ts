@@ -3,6 +3,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { setExpanded } from "./hydration";
 
 // The session of the fake back grants the whole catalogue of permissions: every function
 // of the navigation is offered.
@@ -14,15 +15,13 @@ const CONTEXT = "?subproject_id=01926f3a-7c00-7000-8000-000000000801&as_of=2026-
 
 /**
  * Follow a link of the navigation — opening first the block of the FBS it is in, outside any
- * project —, and check the screen it leads to names its function.
+ * project, once React answers the press (`setExpanded`) —, and check the screen it leads to names
+ * its function.
  */
 async function open(page: Page, name: string, block?: string) {
   const nav = page.getByRole("navigation", { name: "Fonctions" });
   if (block !== undefined) {
-    const button = nav.getByRole("button", { name: block, exact: true });
-    if ((await button.getAttribute("aria-expanded")) === "false") {
-      await button.click();
-    }
+    await setExpanded(nav.getByRole("button", { name: block, exact: true }), true);
   }
   await nav.getByRole("link", { name }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);

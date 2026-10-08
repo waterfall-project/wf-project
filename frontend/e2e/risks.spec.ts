@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { openHydrated, WORKING } from "./hydration";
 import { withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the risks — the register of three risks,
@@ -15,7 +16,10 @@ const CABLING = "01926f3a-7c00-7000-8000-000000000751";
 test("reads the risks of a revision: the register and its totals, the matrix, the detail of a risk, the sort and the filter asked of the server [WF-RIS-0040-A]", async ({
   page,
 }) => {
-  await page.goto(RISKS);
+  // The opening and the dense grid read anew by each click, each in the bound of a grid
+  // (`WORKING`): more than the thirty seconds of a test.
+  test.slow();
+  await openHydrated(page, RISKS);
   await expect(page).toHaveTitle(
     "Gestion des risques · Modernisation du poste de commande — Waterfall",
   );
@@ -50,7 +54,7 @@ test("reads the risks of a revision: the register and its totals, the matrix, th
 
   // The detail of a risk, from its label: its notes, its provision line, its reviews.
   await grid.getByRole("link", { name: "Risque de reprise du câblage" }).click();
-  await expect(page).toHaveURL(`${RISKS}?risk=${CABLING}`);
+  await expect(page).toHaveURL(`${RISKS}?risk=${CABLING}`, { timeout: WORKING });
   const detail = page.getByRole("region", { name: "Risque de reprise du câblage" });
   await expect(detail).toContainText("Contrôle du câblage en atelier avant expédition");
   await expect(detail).toContainText("Présente dans la structure principale");
@@ -58,17 +62,21 @@ test("reads the risks of a revision: the register and its totals, the matrix, th
     detail.getByRole("table", { name: "Historique des réexamens" }).getByRole("row"),
   ).toHaveCount(4);
   await detail.getByRole("link", { name: "Fermer le détail du risque" }).click();
-  await expect(page).toHaveURL(RISKS);
+  await expect(page).toHaveURL(RISKS, { timeout: WORKING });
   await expect(detail).toHaveCount(0);
 
   // The sort by provision, and the filter by state, asked of the server by the address.
   await grid.getByRole("columnheader", { name: "Calculé Provision" }).getByRole("button").click();
-  await expect(page).toHaveURL(`${RISKS}?sort_by=provision_amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${RISKS}?sort_by=provision_amount&sort_order=asc`, {
+    timeout: WORKING,
+  });
   await page
     .getByRole("group", { name: "Filtrer par état" })
     .getByRole("button", { name: "Survenu" })
     .click();
-  await expect(page).toHaveURL(`${RISKS}?sort_by=provision_amount&sort_order=asc&states=occurred`);
+  await expect(page).toHaveURL(`${RISKS}?sort_by=provision_amount&sort_order=asc&states=occurred`, {
+    timeout: WORKING,
+  });
   await expect(
     page.getByRole("group", { name: "Filtrer par état" }).getByRole("button", { name: "Survenu" }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -77,7 +85,7 @@ test("reads the risks of a revision: the register and its totals, the matrix, th
 test("leads from the label of a risk to its detail from the keyboard alone [WF-IHM-0100-A]", async ({
   page,
 }) => {
-  await page.goto(RISKS);
+  await openHydrated(page, RISKS);
   const grid = page.getByRole("grid", { name: "Registre des risques" });
   await grid.getByRole("gridcell", { name: "Risque de reprise du câblage" }).click({
     position: { x: 2, y: 2 },
@@ -85,6 +93,6 @@ test("leads from the label of a risk to its detail from the keyboard alone [WF-I
   // The click made the cell the active one, and did not follow the link it holds.
   await expect(page).toHaveURL(RISKS);
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(`${RISKS}?risk=${CABLING}`);
+  await expect(page).toHaveURL(`${RISKS}?risk=${CABLING}`, { timeout: WORKING });
   await expect(page.getByRole("region", { name: "Risque de reprise du câblage" })).toBeVisible();
 });

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { openHydrated } from "./hydration";
 import { rowAt } from "./scroll";
 
 // The estimate of the current revision of the witness project, which the session may enter:
@@ -17,7 +18,7 @@ const TOLD_UNDO =
 test("places Undo and Redo in the grid, its menu and its keys, unavailable and saying why, and leaves Ctrl+Z to the cell being entered", async ({
   page,
 }) => {
-  await page.goto(ESTIMATE);
+  await openHydrated(page, ESTIMATE);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
   const reason = "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.";
   for (const name of ["Annuler", "Rétablir"]) {
