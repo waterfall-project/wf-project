@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import { example } from "@/test/fixtures";
@@ -22,6 +22,18 @@ import {
 // which the projection of the document does not tell apart from a typographic one.
 const NARROW = "\u202F";
 const NO_BREAK = "\u00A0";
+
+/**
+ * Give the process back the time zone it had: none at all when it had none — an environment
+ * variable set to `undefined` would be the string « undefined ».
+ */
+function restoreZone(original: string | undefined): void {
+  if (original === undefined) {
+    delete process.env.TZ;
+  } else {
+    process.env.TZ = original;
+  }
+}
 
 /** A display with its typographic spaces made plain, as the document compares its texts. */
 function plain(text: string): string {
@@ -192,7 +204,7 @@ describe("a planning date", () => {
   const original = process.env.TZ;
 
   afterEach(() => {
-    process.env.TZ = original;
+    restoreZone(original);
   });
 
   // From fourteen hours ahead of UTC to eleven behind: a date read as midnight in the zone
@@ -229,7 +241,7 @@ describe("a month", () => {
   const original = process.env.TZ;
 
   afterEach(() => {
-    process.env.TZ = original;
+    restoreZone(original);
   });
 
   it("shows by its name and its year, the same month west of Greenwich [WF-DAT-0100-A]", () => {
@@ -248,7 +260,7 @@ describe("a timestamp", () => {
   const original = process.env.TZ;
 
   afterEach(() => {
-    process.env.TZ = original;
+    restoreZone(original);
   });
 
   it("shows in the local time of the workstation, English as British English", () => {
@@ -263,5 +275,47 @@ describe("a timestamp", () => {
   it("shows in a given zone when one is named", () => {
     process.env.TZ = "America/Los_Angeles";
     expect(formatTimestamp("2026-06-30T23:30:00Z", "en", "Asia/Tokyo")).toBe("1 Jul 2026, 08:30");
+  });
+});
+
+describe("the formatters of Intl", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("are built once for a language and options, then kept for every cell a grid formats (#398)", () => {
+    // Built by an earlier call, or by the first of these: never once a cell.
+    const numbers = vi.spyOn(Intl, "NumberFormat");
+    const dates = vi.spyOn(Intl, "DateTimeFormat");
+    const amounts = Array.from({ length: 200 }, (_, row) => formatMoney(`${String(row)}.50`, "fr"));
+    const days = Array.from({ length: 200 }, () => formatPlanningDate("2026-06-30", "en"));
+    expect(amounts[123]).toBe("123,50");
+    expect(days[199]).toBe("30 Jun 2026");
+    expect(numbers.mock.calls.length).toBeLessThanOrEqual(1);
+    expect(dates.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it("are kept apart for each language, each number of decimals and each currency", () => {
+    expect(formatDecimal("1234.5", "fr")).toBe(`1${NARROW}234,5`);
+    expect(formatDecimal("1234.5", "en")).toBe("1,234.5");
+    expect(formatDecimal("1234.25", "fr")).toBe(`1${NARROW}234,25`);
+    expect(formatDecimal("1234", "fr")).toBe(`1${NARROW}234`);
+    expect(formatMoney("1234.5", "fr")).toBe(`1${NARROW}234,50`);
+    expect(formatMoney("1234.5", "fr", "EUR")).toBe(`1${NARROW}234,50${NO_BREAK}€`);
+    expect(formatMoney("1234.5", "en", "EUR")).toBe("€1,234.50");
+    expect(formatPlanningDate("2026-06-30", "fr", "short")).toBe("30/06/2026");
+    expect(formatPlanningDate("2026-06-30", "fr")).toBe("30 juin 2026");
+  });
+
+  it("of the zone of the workstation are built at each call, and follow a zone changed since", () => {
+    const original = process.env.TZ;
+    try {
+      process.env.TZ = "Asia/Tokyo";
+      expect(formatTimestamp("2026-06-30T23:30:00Z", "en")).toBe("1 Jul 2026, 08:30");
+      process.env.TZ = "America/Los_Angeles";
+      expect(formatTimestamp("2026-06-30T23:30:00Z", "en")).toBe("30 Jun 2026, 16:30");
+    } finally {
+      restoreZone(original);
+    }
   });
 });

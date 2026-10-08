@@ -3,6 +3,7 @@
 import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { openHydrated } from "./hydration";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -16,9 +17,10 @@ test("leads from the estimate to the workload, drawn in bars, which a node of or
   page,
 }) => {
   await compile(page.request, SCREEN);
-  await page.goto(`${ESTIMATE}?as_of=2026-03-16`);
+  await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
   await page.getByRole("link", { name: "Plan de charge" }).click();
   await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16`);
+  // The five seconds of an assertion, which the screen overran once under load: measures in #500.
   await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible();
   const region = page.getByRole("region", { name: "Plan de charge du projet" });
   const figure = region.getByRole("figure", { name: "Charge par rôle et par mois" });
@@ -38,7 +40,7 @@ test("leads from the estimate to the workload, drawn in bars, which a node of or
 test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, named after the project [WF-IHM-0130-A]", async ({
   page,
 }) => {
-  await page.goto(SCREEN);
+  await openHydrated(page, SCREEN);
   const figure = page.getByRole("figure", { name: "Charge par rôle et par mois" });
   const command = figure.getByRole("button", { name: "Exporter en PNG" });
   await command.focus();

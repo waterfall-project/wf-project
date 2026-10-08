@@ -20,6 +20,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
+import { roomForCharts } from "@/test/chart-room";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { type Perimeter, readPerimeter, type Takes } from "./address";
@@ -169,6 +170,9 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+// Each drawing has the room a page gives it: ECharts measures it as it draws.
+roomForCharts();
 
 describe("the list of the projects of the portfolio", () => {
   it("presents each column the requirement names, the indices with their zone [WF-PTF-0040-A]", () => {

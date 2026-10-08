@@ -229,7 +229,6 @@ describe("the shell", () => {
   });
 
   it("holds the pieces of the side bar within its provider only", () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(() => render(<SidebarTrigger />)).toThrow(
       "a piece of the side bar is rendered within a SidebarProvider only",
     );

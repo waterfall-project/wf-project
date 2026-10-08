@@ -3,6 +3,7 @@
 import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { openHydrated } from "./hydration";
 
 // The fake back serves the first example of each operation: the two projects of the witness,
 // which it lists whatever the filter asks — the filter is the server's to apply —, the project
@@ -71,7 +72,7 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
 test("an exit of the lifecycle is confirmed, naming the state it leads to, before the API applies it", async ({
   page,
 }) => {
-  await page.goto(`${PROJECT}/lifecycle`);
+  await openHydrated(page, `${PROJECT}/lifecycle`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
   await commands.getByRole("button", { name: "Terminer le projet" }).click();
   const confirmation = commands.getByRole("form", { name: "Terminer le projet" });

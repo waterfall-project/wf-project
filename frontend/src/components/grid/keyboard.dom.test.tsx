@@ -52,7 +52,11 @@ const ROW_HEIGHT = ROW_REM * 16;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(): FakeClient {
-  const client = fakeClient({ [DEPENDENCIES]: "dependencies_provision" });
+  // A column widened writes the preferences of the grid: answered, not left to fail aside.
+  const client = fakeClient({
+    [DEPENDENCIES]: "dependencies_provision",
+    "PATCH /me/preferences": "preferences",
+  });
   server.client = client;
   return client;
 }

@@ -3,6 +3,7 @@
 import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
+import { openMenu, setExpanded } from "./hydration";
 
 // The session of the fake back is Camille Martin's, whose role grants the whole catalogue of
 // permissions: every function is offered, and the menu of the account.
@@ -12,10 +13,13 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 test("the side bar folds into a rail of icons, whose entries keep their names in a tooltip, and stays folded", async ({
   page,
 }) => {
+  // The screen its rail leads to, reached by a click, compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/admin/users");
   await page.goto("/portfolio/projects");
   const bar = page.getByRole("banner");
   const nav = page.getByRole("navigation", { name: "Fonctions" });
-  await bar.getByRole("button", { name: "Replier la barre latérale" }).click();
+  // Pressed once React answers it: its name says which way it goes, its state where the bar is.
+  await setExpanded(bar.getByRole("button", { name: /la barre latérale$/ }), false);
 
   // Folded, the bar is a rail as wide as its icons, and each entry still names itself.
   await expect.poll(async () => (await nav.boundingBox())?.width).toBeLessThanOrEqual(48);
@@ -29,7 +33,7 @@ test("the side bar folds into a rail of icons, whose entries keep their names in
     "aria-expanded",
     "false",
   );
-  await nav.getByRole("button", { name: "Administration" }).click();
+  await setExpanded(nav.getByRole("button", { name: "Administration" }), true);
   await expect(bar.getByRole("button", { name: "Replier la barre latérale" })).toBeVisible();
   await nav.getByRole("link", { name: "Gestion des utilisateurs" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des utilisateurs");
@@ -79,7 +83,10 @@ test("the menu of the account leads to the pages of the account", async ({ page 
   // The page reached from the menu, compiled first (`e2e/compile.ts`).
   await compile(page.request, "/account/password");
   await page.goto("/");
-  await page.getByRole("button", { name: "Compte de Camille Martin" }).click();
+  await openMenu(
+    page.getByRole("button", { name: "Compte de Camille Martin" }),
+    page.getByRole("menu"),
+  );
   await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
     "aria-disabled",
   );

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { openHydrated } from "./hydration";
+
 // The fake back serves the first example of each operation: the history of three revisions —
 // the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
 // structures, no rate update proposed for it, and the comparison of the offer to the
@@ -15,7 +17,7 @@ test("the revisions of a project, their comparison as the API renders it, its st
   page,
 }) => {
   // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
-  await page.goto(`/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
+  await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
 

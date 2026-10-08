@@ -520,7 +520,6 @@ describe("the tracker of background tasks", () => {
   });
 
   it("is a piece of the shell: a screen outside it cannot hand a task over", () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(() => render(<Starting given={task("task_mark_queued")} />)).toThrow(
       "within the TaskTracker of the shell",
     );

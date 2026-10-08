@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { openHydrated, WORKING } from "./hydration";
 import { withinBox } from "./scroll";
 
 // The fake back serves the first example of each read: the actual costs of the project at 3 June
@@ -15,7 +16,10 @@ const COSTS = `/projects/${PROJECT}/revisions/${REVISION}/actual-costs`;
 test("reads the actual costs of a project: the lines and their three totals, the last import, its journal, the sort and the filter asked of the server [WF-CRE-0040-A]", async ({
   page,
 }) => {
-  await page.goto(COSTS);
+  // The opening and the dense grid read anew by each click, each in the bound of a grid
+  // (`WORKING`): more than the thirty seconds of a test.
+  test.slow();
+  await openHydrated(page, COSTS);
   await expect(page).toHaveTitle("Coûts réels · Modernisation du poste de commande — Waterfall");
   const grid = page.getByRole("grid", { name: "Coûts réels" });
   for (const name of [
@@ -44,10 +48,12 @@ test("reads the actual costs of a project: the lines and their three totals, the
 
   // The sort by amount, and the filter on the excluded lines, asked of the server by the address.
   await grid.getByRole("columnheader", { name: "Montant" }).getByRole("button").click();
-  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`);
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`, { timeout: WORKING });
   const scope = page.getByRole("group", { name: "Périmètre" });
   await scope.getByRole("button", { name: "Exclues" }).click();
-  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false`);
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false`, {
+    timeout: WORKING,
+  });
   await expect(scope.getByRole("button", { name: "Exclues" })).toHaveAttribute(
     "aria-pressed",
     "true",

@@ -17,6 +17,7 @@ import catalogue from "../messages/fr.json" with { type: "json" };
 import type { Locale } from "../src/i18n/locale";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
+import { WORKING } from "./hydration";
 import { rowAt } from "./scroll";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -151,9 +152,6 @@ async function expectTranslated(page: Page) {
   // Its text as laid out: two blocks side by side never run together into a key.
   await expect(page.locator("body")).not.toContainText(MISSING, { useInnerText: true });
 }
-
-/** The time a screen that reads a grid of a structure is given to show: `WORKING` of the guide. */
-const WORKING = 15_000;
 
 /**
  * Follow a link of the sidebar, opening first the block of the FBS it is in, if any; the screen

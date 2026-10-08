@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { openHydrated } from "./hydration";
 import { rowAt } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
@@ -39,16 +40,16 @@ function cellAt(grid: Locator, row: number, column: number): Locator {
 }
 
 /**
- * Open the estimate, and reach its active cell by Tab alone, as the keyboard does: past the
- * shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip to
- * the browser, which the journey is given the time of (`test.slow`).
+ * Open the estimate hydrated, and reach its active cell by Tab alone, as the keyboard does: past
+ * the shell and the bar of the grid, to the one stop of the grid (#182) — each stop a round trip
+ * to the browser, which the journey is given the time of (`test.slow`).
  */
 async function tabIntoGrid(page: Page): Promise<{
   readonly grid: Locator;
   readonly at: Readonly<Record<keyof typeof COLUMNS, number>>;
 }> {
   test.slow();
-  await page.goto(ESTIMATE);
+  await openHydrated(page, ESTIMATE);
   const grid = page.getByRole("grid", { name: "Grille de devis" });
   const active = grid.locator('td[tabindex="0"]');
   await expect(active).toHaveCount(1);

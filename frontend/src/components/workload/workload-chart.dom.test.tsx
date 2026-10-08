@@ -16,6 +16,7 @@ import type { ChartOption } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
+import { roomForCharts } from "@/test/chart-room";
 import { example } from "@/test/fixtures";
 
 import { WorkloadChart, type WorkloadPlan } from "./workload-chart";
@@ -123,6 +124,9 @@ afterEach(() => {
   });
   vi.restoreAllMocks();
 });
+
+// Each drawing has the room a page gives it: ECharts measures it as it draws.
+roomForCharts();
 
 describe("the workload of a project", () => {
   it("draws the load of each role by month in bars, its capacity across, as the API gave them [WF-DEV-0070-A]", async () => {

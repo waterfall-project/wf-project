@@ -22,6 +22,7 @@ import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useHydrated } from "@/components/use-hydrated";
 import { loadDocument } from "@/navigation/document";
 
 /** Where the browser goes once signed in: a path of this front, already checked. */
@@ -35,6 +36,8 @@ export function SignInForm({ target }: SignInFormProps) {
   const id = useId();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
+  // Disabled until React handles the sending: the browser would send the password by GET.
+  const hydrated = useHydrated();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (pending) {
@@ -52,7 +55,7 @@ export function SignInForm({ target }: SignInFormProps) {
     });
   };
   return (
-    <form noValidate aria-busy={pending} onSubmit={submit} className="grid gap-4">
+    <form method="post" noValidate aria-busy={pending} onSubmit={submit} className="grid gap-4">
       <div className="grid gap-2">
         <Label htmlFor={`${id}-email`}>{t("email")}</Label>
         <Input id={`${id}-email`} name="email" type="email" autoComplete="username" required />
@@ -73,7 +76,12 @@ export function SignInForm({ target }: SignInFormProps) {
           setOutcome(undefined);
         }}
       />
-      <Button type="submit" aria-disabled={pending} className={`w-full ${WAITING}`}>
+      <Button
+        type="submit"
+        disabled={!hydrated}
+        aria-disabled={pending}
+        className={`w-full ${WAITING}`}
+      >
         <LogIn aria-hidden="true" />
         {t("submit")}
       </Button>

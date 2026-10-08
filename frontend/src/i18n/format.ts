@@ -16,6 +16,10 @@
  * In French, `Intl` separates thousands with a narrow no-break space (U+202F), the French
  * typographic rule: « 1 234,56 » never breaks across two lines. English is formatted as
  * British English, as its catalogue is written: « 31 May 2026, 16:30 », and « 1,234.56 ».
+ *
+ * A formatter of `Intl` is built once for each language and each set of options, then kept:
+ * building one costs some tens of microseconds, and a dense grid formats a cell at every render
+ * (#398). Only the formatter is reused; the value, its digits and the text shown are the same.
  */
 import type { components } from "@/api/generated/schema";
 
@@ -40,6 +44,44 @@ const FORMAT_LOCALE: Readonly<Record<Locale, string>> = { fr: "fr", en: "en-GB" 
  */
 export function formatLocale(locale: Locale): string {
   return FORMAT_LOCALE[locale];
+}
+
+/** The formatters built, by language and options: a few dozen at most, never let go. */
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+
+/** The formatter of `Intl` kept for a language and options, built at its first use. */
+function kept<O extends object, F>(
+  formats: Map<string, F>,
+  build: (tag: string, options: O) => F,
+  locale: Locale,
+  options: O,
+): F {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  const known = formats.get(key);
+  if (known !== undefined) {
+    return known;
+  }
+  const built = build(formatLocale(locale), options);
+  formats.set(key, built);
+  return built;
+}
+
+/** The number formatter of a language with options, kept once built. */
+function numberFormat(locale: Locale, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  return kept(numberFormats, (tag, given) => new Intl.NumberFormat(tag, given), locale, options);
+}
+
+/**
+ * The date formatter of a language with options, kept once built — options that name their time
+ * zone only: one that does not takes the zone of the workstation as it is built, and a zone
+ * changed afterwards would not move a formatter kept from before.
+ */
+function dateFormat(
+  locale: Locale,
+  options: Intl.DateTimeFormatOptions & { readonly timeZone: string },
+): Intl.DateTimeFormat {
+  return kept(dateFormats, (tag, given) => new Intl.DateTimeFormat(tag, given), locale, options);
 }
 
 type Decimal = components["schemas"]["Decimal"];
@@ -85,7 +127,7 @@ function fractionDigits(value: DecimalString): number {
 export function formatDecimal(value: Decimal, locale: Locale): string {
   const exact = decimal(value);
   const digits = fractionDigits(exact);
-  return new Intl.NumberFormat(formatLocale(locale), {
+  return numberFormat(locale, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
     signDisplay: "negative",
@@ -109,7 +151,7 @@ export function formatBytes(value: number, locale: Locale): string {
     size /= 1024;
     unit += 1;
   }
-  return new Intl.NumberFormat(formatLocale(locale), {
+  return numberFormat(locale, {
     style: "unit",
     unit: BYTE_UNITS[unit],
     unitDisplay: "long",
@@ -127,7 +169,7 @@ export function formatPercent(value: Decimal, locale: Locale): string {
   const exact = decimal(value);
   // The two digits the percentage moves before the point are no longer fraction digits.
   const digits = Math.max(0, fractionDigits(exact) - 2);
-  return new Intl.NumberFormat(formatLocale(locale), {
+  return numberFormat(locale, {
     style: "percent",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -148,14 +190,12 @@ export function formatMoney(value: Money, locale: Locale, currency?: string): st
   };
   const style: Intl.NumberFormatOptions =
     currency === undefined ? {} : { style: "currency", currency };
-  return new Intl.NumberFormat(formatLocale(locale), { ...options, ...style }).format(
-    decimal(value, MONEY),
-  );
+  return numberFormat(locale, { ...options, ...style }).format(decimal(value, MONEY));
 }
 
 /** How a number is written in a language: its decimal separator, and that of its thousands. */
 function separators(locale: Locale): { readonly point: string; readonly group: string } {
-  const parts = new Intl.NumberFormat(formatLocale(locale)).formatToParts("1234.5");
+  const parts = numberFormat(locale, {}).formatToParts("1234.5");
   const part = (type: Intl.NumberFormatPartTypes) =>
     parts.find((candidate) => candidate.type === type)?.value ?? "";
   return { point: part("decimal"), group: part("group") };
@@ -228,9 +268,7 @@ export function formatPlanningDate(
     throw new RangeError(`Not a date of the contract: ${JSON.stringify(value)}`);
   }
   const midnight = new Date(`${value}T00:00:00Z`);
-  return new Intl.DateTimeFormat(formatLocale(locale), { dateStyle, timeZone: TIME_ZONE }).format(
-    midnight,
-  );
+  return dateFormat(locale, { dateStyle, timeZone: TIME_ZONE }).format(midnight);
 }
 
 // A month of the contract: `2026-04`, as `WorkloadPlan` and `CashOutMonth` give it.
@@ -244,21 +282,21 @@ export function formatMonth(value: string, locale: Locale): string {
   if (!MONTH.test(value)) {
     throw new RangeError(`Not a month of the contract: ${JSON.stringify(value)}`);
   }
-  return new Intl.DateTimeFormat(formatLocale(locale), {
-    month: "long",
-    year: "numeric",
-    timeZone: TIME_ZONE,
-  }).format(new Date(`${value}-01T00:00:00Z`));
+  return dateFormat(locale, { month: "long", year: "numeric", timeZone: TIME_ZONE }).format(
+    new Date(`${value}-01T00:00:00Z`),
+  );
 }
 
 /**
  * Format a `Timestamp` in local time: in the time zone of the workstation when none is given,
- * which is why it runs in the browser (`LocalTime`); the server knows only its own zone.
+ * which is why it runs in the browser (`LocalTime`); the server knows only its own zone. The
+ * formatter of the workstation's zone is built at each call, never kept (`dateFormat`).
  */
 export function formatTimestamp(value: Timestamp, locale: Locale, timeZone?: string): string {
   const options: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
-  return new Intl.DateTimeFormat(
-    formatLocale(locale),
-    timeZone === undefined ? options : { ...options, timeZone },
-  ).format(new Date(value));
+  const format =
+    timeZone === undefined
+      ? new Intl.DateTimeFormat(formatLocale(locale), options)
+      : dateFormat(locale, { ...options, timeZone });
+  return format.format(new Date(value));
 }

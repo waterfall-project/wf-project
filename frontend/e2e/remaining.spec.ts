@@ -3,7 +3,8 @@
 import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { withinBox } from "./scroll";
+import { openHydrated, WORKING } from "./hydration";
+import { scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read, whatever it asks: the structure of the
 // volumes of §4.6.2 for the nodes — its lines show here whatever `progress` asks, where the service
@@ -19,9 +20,11 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 test("reads the remaining to commit of a revision: its indicators, its grid, the tasks not started on demand, and the Kanban without any percentage to enter [WF-RAE-0030-A]", async ({
   page,
 }) => {
+  // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
+  test.slow();
   // The Kanban, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/kanban`);
-  await page.goto(`${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
+  await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page).toHaveTitle(
     "Estimation du reste à engager · Modernisation du poste de commande — Waterfall",
   );
@@ -59,11 +62,11 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
       name: "Terminée",
     }),
   ).toBeVisible();
-  await expect(
-    grid.getByRole("row", { name: /^15 .*Revue 1\.1\.3/ }).getByRole("img", {
-      name: "Démarrée",
-    }),
-  ).toBeVisible();
+  // Row 15 is past the rows in view under the indicators: scrolled to, so that it is checked in the
+  // window whatever the height of the grid, never in the margin the grid renders around it.
+  const review = await scrollToPosition(grid, 15);
+  await expect(review).toHaveAccessibleName(/^15 .*Revue 1\.1\.3/);
+  await expect(review.getByRole("img", { name: "Démarrée" })).toBeVisible();
   // The revision in progress may be re-estimated: undo and redo are placed, not wired yet.
   await expect(page.getByRole("button", { name: "Annuler" })).toHaveAttribute(
     "aria-disabled",
@@ -76,15 +79,18 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await page.getByRole("link", { name: "Montrer aussi les tâches non démarrées" }).click();
   await expect(page).toHaveURL(
     `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}&progress=not_started%2Cstarted`,
-    { timeout: 15_000 },
+    { timeout: WORKING },
   );
   await expect(
     page.getByRole("link", { name: "Ne montrer que les tâches démarrées" }),
   ).toBeVisible();
 
   // The Kanban, in the same context: the tasks not started and those started, no figure to enter.
+  // It reads the thousand tasks of the structure too: the same bound.
   await page.getByRole("link", { name: "Kanban — démarrage des tâches" }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/kanban?subproject_id=${SUBPROJECT}`);
+  await expect(page).toHaveURL(`${IN_REVISION}/kanban?subproject_id=${SUBPROJECT}`, {
+    timeout: WORKING,
+  });
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Kanban — démarrage des tâches");
   // Every task not started (#425), none signalled: the factory acceptance waits for the wiring.
   const notStarted = page.getByRole("region", { name: "Non démarrées" });

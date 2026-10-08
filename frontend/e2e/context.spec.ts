@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, test } from "@playwright/test";
 
+import { compile } from "./compile";
+
 // The fake back serves the first example of each operation: the project in progress, its
 // current revision — a draft, without a version name —, and its two sub-projects. A marked
 // revision is shown by the tests of the banner, from the example the contract names.
@@ -18,6 +20,8 @@ function banner(page: Page) {
 test("each screen of the data of a project names the project and the revision shown [WF-IHM-0020-A]", async ({
   page,
 }) => {
+  // The risks, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
+  await compile(page.request, `${IN_REVISION}/risks`);
   await page.goto(`${IN_REVISION}/remaining`);
   await expect(banner(page).getByRole("definition")).toHaveText([
     "Modernisation du poste de commande",

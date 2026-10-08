@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test } from "@playwright/test";
 
+import { openHydrated } from "./hydration";
+
 // The fake back serves the first example of each operation: the project in progress, whose
 // exit as lost lacks the pricing state, and its current revision, a draft, read by a session
 // granted the whole catalogue. The project in pricing, whose completion lacks the state in
@@ -13,7 +15,7 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 test("a command the project cannot take now is shown unavailable, naming the condition it lacks [WF-IHM-0090-A]", async ({
   page,
 }) => {
-  await page.goto(`/projects/${PROJECT}/lifecycle`);
+  await openHydrated(page, `/projects/${PROJECT}/lifecycle`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
 
   const lose = commands.getByRole("button", { name: "Déclarer le projet perdu" });
