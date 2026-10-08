@@ -737,3 +737,41 @@ def test_the_kanban_holds_every_task_by_its_state_the_milestones_to_complete_fla
     assert declared["completed_on"] == TODAY.date().isoformat()
     acceptance = cast("list[Node]", json.loads(json.dumps(completed["not_started"])))[0]["task"]
     assert acceptance["start"] == acceptance["finish"] == {"date": "2026-06-30", "hours": "8"}
+
+
+# --- The previous review of the remaining to commit (WF-RAE-0040) -------------------------------
+
+
+def test_a_line_of_today_shows_its_quantities_and_amount_at_the_previous_review() -> None:
+    today = {row.number: row for row in mockcore.current()}
+    marked = {row.number: row for row in mockcore.core(mockwitness.reference())}
+    lines = [row for row in today.values() if row.kind == mockcore.ESTIMATE_LINE]
+    assert len(lines) == 9
+    for row in lines:
+        facet = cast("Node", row.node["estimate_line"])
+        before = marked.get(row.number)
+        if before is None:
+            # Merged by the occurrence after the reference was marked: no previous review.
+            assert row.number in {REMINDER_LINE, TRANSPORT_LINE}
+            assert all(facet[name] is None for name in mockcore.PREVIOUS)
+            continue
+        was = cast("Node", before.node["estimate_line"])
+        assert facet["previous_quantity"] == was["quantity"] == "1"
+        assert facet["previous_hours"] == was["hours"]
+        assert facet["previous_unit_disbursement"] == was["unit_disbursement"]
+        assert facet["previous_reestimated_amount"] == was["reestimated_amount"]
+    # The provision of 751, at 500 today, was at the 250 the reference knew.
+    provision = cast("Node", today[PROVISION].node["estimate_line"])
+    assert (provision["unit_disbursement"], provision["previous_unit_disbursement"]) == (
+        "500.00",
+        "250.00",
+    )
+    labour = cast("Node", today[LABOUR].node["estimate_line"])
+    assert (labour["previous_hours"], labour["previous_unit_disbursement"]) == ("12.5", None)
+
+
+def test_a_marked_revision_shows_no_previous_review() -> None:
+    for row in mockcore.core(mockwitness.reference()):
+        if row.kind == mockcore.ESTIMATE_LINE:
+            facet = cast("Node", row.node["estimate_line"])
+            assert all(facet[name] is None for name in mockcore.PREVIOUS)

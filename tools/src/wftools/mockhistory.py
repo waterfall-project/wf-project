@@ -47,7 +47,6 @@ from wftools.mockstructure import (
 )
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
-    CORE,
     DISMISSED,
     EQUIPMENT,
     FACTORY_ACCEPTANCE,
@@ -56,7 +55,6 @@ from wftools.mockwitness import (
     OCCURRED,
     OFFER_MARKED,
     OFFER_OPENED,
-    PROVISIONS,
     REGISTER,
     RISK_751_REVIEWED,
     RISKS_IDENTIFIED,
@@ -68,11 +66,14 @@ from wftools.mockwitness import (
     Risk,
     Task,
     fixture,
+    reference,
+    reference_provision,
+    rewritten,
     universe,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Iterable
     from datetime import datetime
 
 OFFER, REFERENCE, CURRENT = universe(100), universe(101), universe(102)
@@ -93,23 +94,9 @@ def stamp(at: datetime) -> str:
 
 # --- The marked revisions, described from the core --------------------------------------------
 
-MERGED, MILESTONE = 541, FACTORY_ACCEPTANCE
-MOUNTING, TESTS_LINE, COMMISSIONING_TASK, DESIGN_FILE, INSTALLATION_TASK = 562, 564, 565, 526, 561
+MILESTONE = FACTORY_ACCEPTANCE
+MOUNTING, TESTS_LINE, DESIGN_FILE, INSTALLATION_TASK = 562, 564, 526, 561
 """The nodes of the core the history is about (``mockwitness``)."""
-
-REFERENCE_PROVISIONS = {
-    752: (
-        WIRING,
-        Line(557, "Provision — retard de livraison des armoires", PROVISIONS, is_provision=True),
-    ),
-    753: (
-        COMMISSIONING_TASK,
-        Line(567, "Provision — indisponibilité de l'automaticien", PROVISIONS, is_provision=True),
-    ),
-}
-"""The lines of provision the reference bore and the current revision no longer does, by risk,
-with the task that bore each: that of 752, retired by its occurrence (WF-RIS-0060), that of 753,
-by its dismissal (WF-RIS-0010)."""
 
 OFFER_YEAR = 2025
 """The reference year of the offer, marked in December 2025 (WF-REV-0060)."""
@@ -133,61 +120,6 @@ SITE_TRIALS = Task(
 in the offer; the assistance of the commissioning technician to the trials of the wiring, which
 it added; the factory acceptance, which it added between the wiring and the mounting on site; the
 design file, three days in the offer; and the preliminary trials on site, which it removed."""
-
-
-def _rewritten(roots: Iterable[Task], change: Callable[[Task], Task]) -> tuple[Task, ...]:
-    """Return the description with each task changed, its subordinates first."""
-
-    def walk(each: Task) -> Task:
-        return change(replace(each, children=tuple(walk(child) for child in each.children)))
-
-    return tuple(walk(root) for root in roots)
-
-
-def reference_provision(risk: Risk) -> Decimal:
-    """Return the provision of a risk when the reference was marked, on 1 February 2026.
-
-    Its severity at its probability, as its last review before then retained them (WF-RIS-0010,
-    WF-RIS-0050); nothing for a risk identified after it, which has no share in the reserve.
-    """
-    known = risk.known_on(AMENDMENT_MERGED.on)
-    if known is None:
-        return Decimal("0.00")
-    return (known.severity * known.probability).quantize(Decimal("0.01"))
-
-
-def reference() -> tuple[Task, ...]:
-    """Return the reference 101 as marked on 1 February 2026, from the core of today.
-
-    Nothing was started — the studies start on 2 March —, the subtree the occurrence of 752
-    merged on 20 February is not there yet, and each identified risk bears its line of provision
-    at the provision it then had: 751 at 1,000 at 25 %, 752 and 753 on the lines the current
-    revision no longer bears.
-    """
-    provisions = {
-        risk.reference_provision_line: reference_provision(risk)
-        for risk in REGISTER
-        if risk.reference_provision_line is not None
-    }
-
-    def change(task: Task) -> Task:
-        # A line of provision of a risk not identified on 1 February was not in the reference.
-        lines = tuple(
-            replace(line, unit=provisions[line.number], budgeted=None)
-            if line.is_provision
-            else line
-            for line in task.lines
-            if not line.is_provision or line.number in provisions
-        )
-        added = tuple(
-            replace(line, unit=provisions[line.number])
-            for bearer, line in REFERENCE_PROVISIONS.values()
-            if bearer == task.number
-        )
-        children = tuple(child for child in task.children if child.number != MERGED)
-        return replace(task, lines=lines + added, children=children, progress=None)
-
-    return _rewritten(CORE, change)
 
 
 def offer() -> tuple[Task, ...]:
@@ -218,7 +150,7 @@ def offer() -> tuple[Task, ...]:
             return replace(changed, days=OFFER_DESIGN_FILE_DAYS)
         return changed
 
-    return _rewritten(reference(), change)
+    return rewritten(reference(), change)
 
 
 def reference_rows() -> list[mockcore.Row]:
@@ -546,7 +478,7 @@ def readings() -> dict[str, JsonObject]:
     sums (``mockportfolio``), from one computation — never read back from the files the same
     command writes.
     """
-    today, rows = mockcore.core(), reference_rows()
+    today, rows = mockcore.current(), reference_rows()
     budget = reference_budget(rows)
     return {
         "risks": {
@@ -664,7 +596,7 @@ def _percents(bounds: list[str]) -> str:
 
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the history of the witness, by file name."""
-    today, rows = mockcore.core(), reference_rows()
+    today, rows = mockcore.current(), reference_rows()
     budget = reference_budget(rows)
     rework, delay, engineer = REGISTER
     read = readings()

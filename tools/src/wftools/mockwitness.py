@@ -18,13 +18,16 @@ this module names the roles the witness employs, it does not copy them.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from wftools import REPOSITORY
 from wftools.mockcalendar import FINISH_TO_START, START_TO_START, Calendar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 FIXTURES = REPOSITORY / "fixtures" / "api"
 """Where the examples of the contract live, those of the universe by their name."""
@@ -180,10 +183,10 @@ class Family:
         return self.first <= int(number, 16 if self.hexadecimal else 10) <= self.last
 
 
-NODES, LINEAGES, PROJECTS, CATEGORIES, RISKS = 1, 2, 3, 4, 5
+NODES, LINEAGES, PROJECTS, CATEGORIES, RISKS, MILESTONES = 1, 2, 3, 4, 5, 6
 """The generated families: the nodes of the structure of a thousand tasks and their lineages; the
-projects of the portfolio, the categories of the grid of rates and the risks of
-the portfolio."""
+projects of the portfolio, the categories of the grid of rates, the risks of the portfolio and the
+lineages of the milestones the health of its steering names (EP-02/L26)."""
 
 _GENERATED = 99_999_999
 
@@ -215,6 +218,7 @@ IDENTIFIERS = (
     Family("projets du portefeuille", 1, _GENERATED, PROJECTS),
     Family("catégories de la grille des taux", 0, _GENERATED, CATEGORIES),
     Family("risques du portefeuille", 1, _GENERATED, RISKS),
+    Family("jalons du portefeuille", 1, _GENERATED, MILESTONES),
 )
 """Every family of identifier, on disjoint ranges: an identifier names one kind of object.
 
@@ -667,6 +671,82 @@ identified, its provision the line 555 of the core; the delay of the cabinets, o
 of the core —; the unavailability of the automation engineer, dismissed on 2 February. All three
 identified on 12 January, before the reference 101 was marked, which bore their provisions: the
 lines 555, 557 and 567 of its structure (``mockhistory``)."""
+
+# --- The reference, as marked -----------------------------------------------------------------
+
+MERGED, COMMISSIONING_TASK = 541, 565
+"""The subtree the occurrence of 752 merged into the current revision, and the commissioning."""
+
+REFERENCE_PROVISIONS = {
+    752: (
+        WIRING,
+        Line(557, "Provision — retard de livraison des armoires", PROVISIONS, is_provision=True),
+    ),
+    753: (
+        COMMISSIONING_TASK,
+        Line(567, "Provision — indisponibilité de l'automaticien", PROVISIONS, is_provision=True),
+    ),
+}
+"""The lines of provision the reference bore and the current revision no longer does, by risk,
+with the task that bore each: that of 752, retired by its occurrence (WF-RIS-0060), that of 753,
+by its dismissal (WF-RIS-0010)."""
+
+
+def rewritten(roots: Iterable[Task], change: Callable[[Task], Task]) -> tuple[Task, ...]:
+    """Return the description with each task changed, its subordinates first."""
+
+    def walk(each: Task) -> Task:
+        return change(replace(each, children=tuple(walk(child) for child in each.children)))
+
+    return tuple(walk(root) for root in roots)
+
+
+def reference_provision(risk: Risk) -> Decimal:
+    """Return the provision of a risk when the reference was marked, on 1 February 2026.
+
+    Its severity at its probability, as its last review before then retained them (WF-RIS-0010,
+    WF-RIS-0050); nothing for a risk identified after it, which has no share in the reserve.
+    """
+    known = risk.known_on(AMENDMENT_MERGED.on)
+    if known is None:
+        return Decimal("0.00")
+    return (known.severity * known.probability).quantize(Decimal("0.01"))
+
+
+def reference() -> tuple[Task, ...]:
+    """Return the reference 101 as marked on 1 February 2026, from the core of today.
+
+    Nothing was started — the studies start on 2 March —, the subtree the occurrence of 752
+    merged on 20 February is not there yet, and each identified risk bears its line of provision
+    at the provision it then had: 751 at 1,000 at 25 %, 752 and 753 on the lines the current
+    revision no longer bears. Marked while the project was in progress, it is the previous
+    review of the current revision, whose lines show its quantities (WF-RAE-0040).
+    """
+    provisions = {
+        risk.reference_provision_line: reference_provision(risk)
+        for risk in REGISTER
+        if risk.reference_provision_line is not None
+    }
+
+    def change(task: Task) -> Task:
+        # A line of provision of a risk not identified on 1 February was not in the reference.
+        lines = tuple(
+            replace(line, unit=provisions[line.number], budgeted=None)
+            if line.is_provision
+            else line
+            for line in task.lines
+            if not line.is_provision or line.number in provisions
+        )
+        added = tuple(
+            replace(line, unit=provisions[line.number])
+            for bearer, line in REFERENCE_PROVISIONS.values()
+            if bearer == task.number
+        )
+        children = tuple(child for child in task.children if child.number != MERGED)
+        return replace(task, lines=lines + added, children=children, progress=None)
+
+    return rewritten(CORE, change)
+
 
 # --- The actual costs --------------------------------------------------------------------------
 

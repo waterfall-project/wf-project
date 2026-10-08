@@ -91,7 +91,9 @@ by = "make fixtures"
 # The volumes, the named examples read from the core of the witness (wftools.mockcore), the
 # answers of the writes of the grids (wftools.mockwrites), the history of the witness — its
 # revisions compared and its risks (wftools.mockhistory) —, its indicators today
-# (wftools.mocktoday), and its actual costs with the journal of their imports (wftools.mockcosts).
+# (wftools.mocktoday), its actual costs with the journal of their imports (wftools.mockcosts), and
+# the views of the portfolio over time that sum it with the other projects
+# (wftools.mockportfoliotime).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -157,6 +159,12 @@ paths = [
     "fixtures/api/actual_costs_page.json",
     "fixtures/api/actual_costs_subproject.json",
     "fixtures/api/cost_imports.json",
+    "fixtures/api/portfolio_workload.json",
+    "fixtures/api/portfolio_workload_org_node.json",
+    "fixtures/api/portfolio_cost_curve.json",
+    "fixtures/api/portfolio_cost_curve_payment_delays.json",
+    "fixtures/api/portfolio_cost_curve_credit.json",
+    "fixtures/api/pilot_health.json",
 ]
 by = "make mock-data"
 

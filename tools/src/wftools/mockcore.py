@@ -17,7 +17,9 @@ The formulas are simple and said here, to be replaced by the kernel of EP-06 to 
 backward pass gives each task the latest it may finish, its float being the hours of work from
 its finish to that instant; the physical progress of a summary is the budget of its completed
 tasks over the budget of its subtree; a line is consumed in the year its task starts. Nothing
-here reads the clock: the examples are read at ``mockwitness.TODAY``.
+here reads the clock: the examples are read at ``mockwitness.TODAY``. The lines of the current
+revision show the quantities and the amount of its previous review, the reference 101 as marked
+(``current``, WF-RAE-0040); the readings of a marked revision show none.
 """
 
 from __future__ import annotations
@@ -60,6 +62,7 @@ from wftools.mockwitness import (
     Line,
     Task,
     default_calendar,
+    reference,
     role_calendars,
     universe,
 )
@@ -78,6 +81,14 @@ LINEAGE = 100
 """What separates the lineage of a node of the core from its node: 5nn is of the lineage 6nn."""
 
 TASK, ESTIMATE_LINE = "task", "estimate_line"
+
+PREVIOUS = (
+    "previous_quantity",
+    "previous_hours",
+    "previous_unit_disbursement",
+    "previous_reestimated_amount",
+)
+"""What a line keeps of the previous review of the remaining to commit (WF-RAE-0040)."""
 
 NO_BUDGET = "no_budgeted_amount"
 """Why the physical progress of a summary without any budget cannot be computed (WF-IND-0010)."""
@@ -361,6 +372,7 @@ class _Emitter:
     labels: Mapping[str, str]
     today: date
     rates: Mapping[str, Decimal] = field(default_factory=lambda: dict(LABOUR_RATES))
+    previous: Mapping[int, Line] = field(default_factory=dict[int, Line])
     rows: list[Row] = field(default_factory=list[Row])
     row_of: dict[int, int] = field(default_factory=dict[int, int])
 
@@ -418,10 +430,7 @@ class _Emitter:
             "subproject_id": line.subproject,
             "subproject_label": None if line.subproject is None else self.labels[line.subproject],
             **amounts.rendered(),
-            "previous_quantity": None,
-            "previous_hours": None,
-            "previous_unit_disbursement": None,
-            "previous_reestimated_amount": None,
+            **self._previous(line.number, year),
             "consumption_year": year,
             "is_computed": line.is_provision,
             "uses_inactive_object": False,
@@ -441,6 +450,22 @@ class _Emitter:
             )
         )
         return amounts
+
+    def _previous(self, number: int, year: int) -> JsonObject:
+        """Return the quantities of a line at the previous review and its amount re-estimated.
+
+        Null before the first review, and for a line added since, as the merged ones; the hours
+        null for a line without, the unit disbursement null for a labour line (WF-RAE-0040).
+        """
+        before = self.previous.get(number)
+        if before is None:
+            return dict.fromkeys(PREVIOUS)
+        return {
+            "previous_quantity": "1",
+            "previous_hours": None if before.hours is None else decimal(before.hours),
+            "previous_unit_disbursement": None if before.unit is None else money(before.unit),
+            "previous_reestimated_amount": money(price(before, year, self.rates).reestimated),
+        }
 
     def _number(self, number: int) -> int:
         """Return the row of a node in the structure, numbered before any was made."""
@@ -582,16 +607,30 @@ def core(
     roots: Iterable[Task] = CORE,
     today: date = READ_ON,
     rates: Mapping[str, Decimal] = LABOUR_RATES,
+    previous: Iterable[Task] = (),
 ) -> list[Row]:
     """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one.
 
-    Its labour lines at the hourly rates given, those of the reference year of the revision.
+    Its labour lines at the hourly rates given, those of the reference year of the revision; each
+    with its quantities in the previous review described, if any, and the amount they gave.
     """
     roots = tuple(roots)
-    emitter = _Emitter(schedule(roots), labels(), today, rates, row_of=rows_of(roots))
+    before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
+    emitter = _Emitter(schedule(roots), labels(), today, rates, before, row_of=rows_of(roots))
     for position, root in enumerate(roots):
         emitter.task(root, None, position, 1)
     return emitter.rows
+
+
+def current(roots: Iterable[Task] = CORE) -> list[Row]:
+    """Return the current revision 102 today, as described or as a write leaves it.
+
+    Its lines show the quantities of its previous review, the reference 101, marked on
+    1 February 2026 while the project was in progress, and the amount it re-estimated them at:
+    what ``remaining_indicators`` compares the remaining to commit of today with (WF-RAE-0020,
+    WF-RAE-0040).
+    """
+    return core(roots, previous=reference())
 
 
 # --- The readings of listNodes ----------------------------------------------------------------

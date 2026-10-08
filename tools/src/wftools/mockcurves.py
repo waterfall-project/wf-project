@@ -281,8 +281,9 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
 
     The hours of the labour lines, each spread over its task pro rata of its hours of work in
     each month — on the remaining to commit, without the lines of the tasks completed —, each
-    active role with its capacity beside, the monthly hours of its people; over its capacity, a
-    month is in alert. Filtered by a node of organisation, the roles under it alone.
+    active role with its capacity beside, its monthly hours, all its people counted
+    (WF-REF-0100); over its capacity, a month is in alert. Filtered by a node of organisation,
+    the roles under it alone.
     """
     kept = None if org is None else org_subtree(org)
     roles: list[JsonValue] = []
@@ -303,9 +304,7 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
             ]
         else:
             flows = [over(reading.bearer(line), line.hours) for line in lines]
-        capacity = Decimal(role["capacity"]["monthly_hours"]) * Decimal(
-            role["capacity"]["headcount"]
-        )
+        capacity = Decimal(role["capacity"]["monthly_hours"])
         months: list[JsonValue] = []
         if flows:
             end, before = month_end(min(flow.first for flow in flows)), Decimal(0)

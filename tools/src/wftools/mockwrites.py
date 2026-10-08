@@ -211,13 +211,13 @@ def core_write(
     render one node at one version with two contents (#421).
     """
     if following is None:
-        before, version = mockcore.whole(mockcore.core()), 2
+        before, version = mockcore.whole(mockcore.current()), 2
     else:
-        before, version = mockcore.whole(mockcore.core(following)), 3
+        before, version = mockcore.whole(mockcore.current(following)), 3
         for node in cast("list[Node]", before["items"]):
             if node["node_id"] in {universe(number) for number in writes}:
                 node["lock_version"] += 1
-    after = mockcore.whole(mockcore.core(roots))
+    after = mockcore.whole(mockcore.current(roots))
     return written(
         before,
         after,
@@ -538,7 +538,7 @@ def _core_writes() -> dict[str, JsonObject]:
     later = {entry["node_id"]: entry for entry in cast("list[Node]", redated["rescheduled"])}
     priced = {entry["node_id"]: entry for entry in cast("list[Node]", redated["reinflated"])}
     commissioning = universe(COMMISSIONING_TASK)
-    before = {row.number: row for row in mockcore.core()}
+    before = {row.number: row for row in mockcore.current()}
     mounted = cast("Node", before[MOUNTING].node["task"])
     acceptance = cast("Node", before[MILESTONE].node["task"])
     return {

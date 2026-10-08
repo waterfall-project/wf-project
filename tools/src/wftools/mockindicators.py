@@ -31,7 +31,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mockcosts, mockhistory
+from wftools import mockcore, mockcosts, mockhistory, mockwitness
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockstructure import (
     CENT,
@@ -151,10 +151,14 @@ def read(
     roots: Iterable[Task],
     at: datetime,
     rates: Mapping[str, Decimal] = mockcore.LABOUR_RATES,
+    previous: Iterable[Task] = (),
 ) -> Reading:
-    """Read a revision described from the core at an instant, its lines at the rates given."""
+    """Read a revision described from the core at an instant, its lines at the rates given.
+
+    Its lines show their quantities in the previous review described, if any (WF-RAE-0040).
+    """
     roots = tuple(roots)
-    rows = tuple(mockcore.core(roots, at.date(), rates))
+    rows = tuple(mockcore.core(roots, at.date(), rates, previous))
     return Reading(revision, at, rows, mockcore.schedule(roots), delays(rows))
 
 
@@ -173,12 +177,12 @@ def delays(rows: Iterable[mockcore.Row]) -> dict[int, int]:
 
 def today(roots: Iterable[Task] = CORE) -> Reading:
     """Return the current revision 102 read today, as described or as a write leaves it."""
-    return read(mockhistory.CURRENT, roots, TODAY)
+    return read(mockhistory.CURRENT, roots, TODAY, previous=mockwitness.reference())
 
 
 def reference(roots: Iterable[Task] | None = None) -> Reading:
     """Return the reference 101 read on the day it was marked, 1 February 2026."""
-    described = mockhistory.reference() if roots is None else roots
+    described = mockwitness.reference() if roots is None else roots
     return read(mockhistory.REFERENCE, described, AMENDMENT_MERGED.instant)
 
 

@@ -154,8 +154,8 @@ describe("the workload of a project", () => {
     expect(
       capacities.map((each) => [each.type, each.name, (each.data as unknown[]).at(0)]),
     ).toEqual([
-      ["line", "Capacity — Ingénieur électricien", ["2026-06-01T00:00:00Z", "910.02"]],
-      ["line", "Capacity — Technicien de mise en service", ["2026-07-01T00:00:00Z", "606.68"]],
+      ["line", "Capacity — Ingénieur électricien", ["2026-06-01T00:00:00Z", "658654"]],
+      ["line", "Capacity — Technicien de mise en service", ["2026-07-01T00:00:00Z", "485324"]],
     ]);
     // Its months on an axis in UTC, a tick on the first of each, June 2026 to February 2027.
     expect(option.useUTC).toBe(true);
@@ -174,12 +174,17 @@ describe("the workload of a project", () => {
     const rows = screen.getAllByRole("row").slice(1);
     const listed = rows.map((row) => row.textContent);
     expect(listed.slice(0, 2)).toEqual([
-      "Ingénieur électricienJune 202612.5910.021.37%Nominal",
-      "Ingénieur électricienJuly 202622.44910.022.47%Nominal",
+      // The capacity of a role is that of the installation, at the scale of the portfolio: the
+      // load of one project is a share of it too small to be written to the hundredth.
+      "Ingénieur électricienJune 202612.5658,6540%Nominal",
+      "Ingénieur électricienJuly 202622.44658,6540%Nominal",
     ]);
+    // The commissioning on site in December, the one month whose ratio is written: the format of
+    // a ratio of the portfolio's scale kept in proof.
+    expect(listed).toContain("Technicien de mise en serviceDecember 202676.55485,3240.02%Nominal");
     expect(listed.slice(-2)).toEqual([
-      "Technicien de mise en serviceJanuary 20278606.681.32%Nominal",
-      "Monteur câbleurNo load519.99",
+      "Technicien de mise en serviceJanuary 20278485,3240%Nominal",
+      "Monteur câbleurNo load216,662.5",
     ]);
     expect(listed).toHaveLength(7 + 7 + 1);
     expect(within(container).getByText(/^Computed on/)).toBeInTheDocument();

@@ -12,6 +12,7 @@ ne couvre aucune exigence »).
 import json
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from itertools import pairwise
 from typing import Any, cast
 
@@ -334,3 +335,71 @@ def test_each_correlation_is_told_by_one_example_alone(examples: dict[str, Any])
         if isinstance(value, dict) and "correlation_id" in value:
             told[cast("Node", value)["correlation_id"]].append(name)
     assert {key: names for key, names in told.items() if len(names) > 1} == {}
+
+
+# --- The roles and the portfolio (EP-02/L26) ----------------------------------------------------
+
+
+def test_the_hours_of_a_role_are_its_headcount_by_its_weekly_hours_by_fifty_two_over_twelve() -> (
+    None
+):
+    weeks: dict[str, Decimal] = {
+        entry["calendar_id"]: sum(
+            (Decimal(hours) for hours in entry["weekly_hours"].values()), Decimal(0)
+        )
+        for entry in fixture("calendars")
+    }
+    # The semaine de trente-neuf heures, deactivated, is not listed: its hours are its label's.
+    weeks.setdefault(universe(483), Decimal(39))
+    for role in fixture("resource_roles"):
+        # The monthly hours are the role's, all its people counted (WF-REF-0100).
+        each = (weeks[role["calendar_id"]] * 52 / 12).quantize(Decimal("0.01"))
+        capacity = role["capacity"]
+        hours, headcount = Decimal(capacity["monthly_hours"]), Decimal(capacity["headcount"])
+        assert hours / headcount == each, role["label"]
+        assert role["audit"]["created_at"] == mockhistory.stamp(mockwitness.INSTALLED.instant)
+
+
+def test_the_witness_of_the_portfolio_is_the_project_its_examples_describe() -> None:
+    rows = fixture("volume/portfolio_projects")["items"]
+    witness = next(row for row in rows if row["project_id"] == universe(1))
+    project, indicators = fixture("project"), fixture("project_indicators")
+    for field in ("label", "code", "state", "win_probability"):
+        assert witness[field] == project[field], field
+    assert witness["reference_budget"] == indicators["reference_budget"]
+    assert witness["project_manager_projection"] == indicators["projections"]["project_manager"]
+    assert witness["delta_to_reference"] == indicators["projections"]["variance_project_manager"]
+    assert witness["cost_index"] == indicators["cost_index"]
+    assert witness["schedule_index"] == indicators["schedule_index"]
+    reference = next(
+        each
+        for each in fixture("revisions")["items"]
+        if each["revision_id"] == project["reference_revision_id"]
+    )
+    assert witness["last_marked_at"] == reference["marked_at"]
+
+
+def test_the_portfolio_is_read_at_the_instant_of_the_indicators_it_sums(
+    examples: dict[str, Any],
+) -> None:
+    day = fixture("project_indicators")["context"]["computed_at"][:10]
+    views: dict[str, Node] = {}
+    for name, value in examples.items():
+        if isinstance(value, dict) and "as_of" in cast("Node", value).get("scope", {}):
+            views[name] = cast("Node", value)
+    assert len(views) >= 11
+    for name, value in views.items():
+        if name == "portfolio_cost_curve_credit.json":
+            # An earlier instant of the same chronology, the witness still in pricing.
+            assert value["scope"]["as_of"] < day, name
+            continue
+        assert value["scope"]["as_of"] == day, name
+
+
+def test_the_coverage_of_the_portfolio_counts_that_of_the_witness() -> None:
+    portfolio = fixture("volume/portfolio_risks")["coverage"]
+    witness = fixture("risk_coverage")
+    assert Decimal(portfolio["reserve"]) > Decimal(witness["reserve"])
+    assert Decimal(portfolio["remaining_provisions"]) == Decimal(
+        fixture("volume/portfolio_risks")["identified_total"]
+    )
