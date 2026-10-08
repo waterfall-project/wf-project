@@ -25,6 +25,7 @@ import { CalendarDays, Network, Timer, Users } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { ChoiceFilter } from "@/components/grid/choice-filter";
 import {
   type Bounds,
   bounded,
@@ -40,13 +41,7 @@ import type { ListPage } from "@/navigation/pages";
 
 import { listReads } from "./address";
 import { Reactivations } from "./reactivation";
-import {
-  ChoiceFilter,
-  type NodeChoice,
-  OrgNodeFilter,
-  StateFilter,
-  TextFilter,
-} from "./reference-filters";
+import { type NodeChoice, OrgNodeFilter, StateFilter, TextFilter } from "./reference-filters";
 import { ReferencePages } from "./reference-pages";
 import { ResourceGrid } from "./resource-grid";
 import {

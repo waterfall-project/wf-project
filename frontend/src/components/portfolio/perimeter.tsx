@@ -18,15 +18,17 @@
 import { CalendarRange, Circle, CircleCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState } from "react";
+import { type SubmitEvent, useId } from "react";
 
+import { ChoiceFilter } from "@/components/grid/choice-filter";
+import { useDatedEntry } from "@/components/grid/dated-entry";
 import { usePendingAddress } from "@/components/grid/pending-address";
+import { OFFSET } from "@/components/grid/query";
 import { ProjectStateBadge } from "@/components/projects/project-state-badge";
+import { type NodeChoice, OrgNodeFilter } from "@/components/reference/reference-filters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { treeLabel } from "@/components/reference/org-tree";
-import { NativeSelect } from "@/components/ui/native-select";
 import { formatPercent } from "@/i18n/format";
 
 import {
@@ -116,7 +118,11 @@ function StatesFilter({
 /** The dates a view takes: the bounds of its period, if it has one, and the date of calculation. */
 const DATES = { period: ["from", "to", "asOf"], date: ["asOf"] } as const;
 
-/** The bounds of the period, if the view takes one, and the date of calculation, sent together. */
+/**
+ * The bounds of the period, if the view takes one, and the date of calculation, sent together. An
+ * entry is dated by the dates of the address (`useDatedEntry`): dates the address changes — back in
+ * the history — show anew, and the form keeps the focus.
+ */
 function DatesForm({
   perimeter,
   fields,
@@ -126,11 +132,14 @@ function DatesForm({
 }) {
   const t = useTranslations("portfolio.perimeter");
   const ids = { from: useId(), to: useId(), asOf: useId() };
-  const [dates, setDates] = useState({
-    from: perimeter.from ?? "",
-    to: perimeter.to ?? "",
-    asOf: perimeter.asOf ?? "",
-  });
+  const { entered, enter } = useDatedEntry<"from" | "to" | "asOf">(
+    `${perimeter.from ?? ""}/${perimeter.to ?? ""}/${perimeter.asOf ?? ""}`,
+  );
+  const dates = {
+    from: entered.from ?? perimeter.from ?? "",
+    to: entered.to ?? perimeter.to ?? "",
+    asOf: entered.asOf ?? perimeter.asOf ?? "",
+  };
   const change = useParameters();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -152,7 +161,7 @@ function DatesForm({
             max={field === "from" && dates.to !== "" ? dates.to : undefined}
             min={field === "to" && dates.from !== "" ? dates.from : undefined}
             onChange={(event) => {
-              setDates({ ...dates, [field]: event.target.value });
+              enter(field, event.target.value);
             }}
             className="h-8 w-40"
           />
@@ -166,55 +175,6 @@ function DatesForm({
   );
 }
 
-/** A choice of a select: the value the address writes, and its name. */
-interface Choice {
-  readonly value: string;
-  readonly label: string;
-}
-
-/** A parameter of a view chosen among the values offered, or left to the server (`none`). */
-function ViewChoice({
-  name,
-  label,
-  none,
-  value,
-  offered,
-  write,
-}: {
-  readonly name: string;
-  readonly label: string;
-  readonly none: string;
-  readonly value: string | undefined;
-  readonly offered: readonly Choice[];
-  readonly write: (value: string | undefined) => void;
-}) {
-  const id = useId();
-  // A value the address names that is not offered stays chosen, under its value as written.
-  const unknown = value !== undefined && !offered.some((each) => each.value === value);
-  return (
-    <div className="flex items-center gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <NativeSelect
-        id={id}
-        name={name}
-        value={value ?? ""}
-        onChange={(event) => {
-          write(event.target.value === "" ? undefined : event.target.value);
-        }}
-        className="w-56"
-      >
-        <option value="">{none}</option>
-        {offered.map((each) => (
-          <option key={each.value} value={each.value}>
-            {each.label}
-          </option>
-        ))}
-        {unknown ? <option value={value}>{value}</option> : null}
-      </NativeSelect>
-    </div>
-  );
-}
-
 /**
  * The values a parameter of a view proposes, and the one chosen when it is none of them: a value
  * the address asks, or the one the server retained, shows chosen under its own name.
@@ -224,12 +184,7 @@ function withChosen(proposed: readonly string[], chosen: string | undefined): re
 }
 
 /** A node of organisation the labour may be restricted to, with its depth in the tree. */
-export interface NodeChoice {
-  readonly id: string;
-  readonly code: string;
-  readonly label: string;
-  readonly level: number;
-}
+export type { NodeChoice };
 
 /**
  * The parameters of a view: its horizon, its threshold — as the address asks them, or, for the
@@ -263,63 +218,47 @@ export function PerimeterBar({
   view,
 }: PerimeterBarProps) {
   const t = useTranslations("portfolio.perimeter");
-  const named = useTranslations("reference.orgNodes");
   const locale = useLocale();
-  const change = useParameters();
   return (
     <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
       <StatesFilter asked={perimeter.states} retained={retained} />
-      {/* Dates the address changed — back in the history — set the fields anew. */}
-      <DatesForm
-        key={`${perimeter.from ?? ""}/${perimeter.to ?? ""}/${perimeter.asOf ?? ""}`}
-        perimeter={perimeter}
-        fields={takes.period ? DATES.period : DATES.date}
-      />
+      <DatesForm perimeter={perimeter} fields={takes.period ? DATES.period : DATES.date} />
       {/* No node to choose — none in the reference, none the API lets one read —: none offered,
           unless the address already filters on one, which stays shown to be cleared. */}
       {takes.node && (nodes.length > 0 || perimeter.orgNode !== undefined) ? (
-        <ViewChoice
+        <OrgNodeFilter
           name={ORG_NODE}
           label={t("orgNode")}
-          none={t("everyNode")}
-          value={perimeter.orgNode}
-          offered={nodes.map((node) => ({
-            value: node.id,
-            label: treeLabel(node.level, named("choice", { code: node.code, label: node.label })),
-          }))}
-          write={(value) => {
-            change(() => ({ [ORG_NODE]: value }));
-          }}
+          every={t("everyNode")}
+          nodes={nodes}
+          chosen={perimeter.orgNode}
+          page={OFFSET}
         />
       ) : null}
       {view !== undefined && "horizon" in view ? (
-        <ViewChoice
+        <ChoiceFilter
           name={HORIZON}
           label={t("horizon")}
-          none={t("byDefault")}
-          value={view.horizon}
-          offered={withChosen(HORIZONS, view.horizon).map((months) => ({
+          every={t("byDefault")}
+          choices={withChosen(HORIZONS, view.horizon).map((months) => ({
             value: months,
-            label: t("months", { months }),
+            text: t("months", { months }),
           }))}
-          write={(value) => {
-            change(() => ({ [HORIZON]: value }));
-          }}
+          chosen={view.horizon}
+          page={OFFSET}
         />
       ) : null}
       {view !== undefined && "threshold" in view ? (
-        <ViewChoice
+        <ChoiceFilter
           name={THRESHOLD}
           label={t("threshold")}
-          none={t("byDefault")}
-          value={view.threshold}
-          offered={withChosen(THRESHOLDS, view.threshold).map((value) => ({
+          every={t("byDefault")}
+          choices={withChosen(THRESHOLDS, view.threshold).map((value) => ({
             value,
-            label: formatPercent(value, locale),
+            text: formatPercent(value, locale),
           }))}
-          write={(value) => {
-            change(() => ({ [THRESHOLD]: value }));
-          }}
+          chosen={view.threshold}
+          page={OFFSET}
         />
       ) : null}
     </section>

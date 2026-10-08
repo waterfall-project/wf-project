@@ -313,6 +313,18 @@ describe("the filters of the actual costs", () => {
     });
   });
 
+  it("takes the costs back to their first page when a sub-project is chosen", async () => {
+    renderFilters("sort_by=amount&sort_order=asc&offset=50");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Sous-projet" }),
+      "SP-CMD — Poste de commande",
+    );
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?sort_by=amount&sort_order=asc&subproject_id=${COMMAND}`,
+      { scroll: false },
+    );
+  });
+
   it("asks the server for the documents of a period, and lifts it when emptied [WF-CRE-0040-A]", async () => {
     const { unmount } = renderFilters("in_tracked_scope=true");
     await userEvent.type(screen.getByLabelText("Pièces du"), "2026-04-01");
@@ -329,6 +341,33 @@ describe("the filters of the actual costs", () => {
     await userEvent.clear(screen.getByLabelText("Pièces jusqu’au"));
     await userEvent.click(screen.getByRole("button", { name: "Filtrer" }));
     expect(router.push).toHaveBeenLastCalledWith(PATHNAME, { scroll: false });
+  });
+
+  it("keeps the focus on the button that applied a period once the address arrives, and shows anew a period the address changes", async () => {
+    const bar = (search: string) => {
+      page.search = search;
+      const filters = readCostFilters(new URLSearchParams(search));
+      return inLanguage(
+        <CostFilterBar filters={filters} subproject={undefined} subprojects={SUBPROJECTS} />,
+      );
+    };
+    const { rerender } = render(bar(""));
+    await userEvent.type(screen.getByLabelText("Pièces du"), "2026-04-01");
+    const apply = screen.getByRole("button", { name: "Filtrer" });
+    await userEvent.click(apply);
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?from=2026-04-01`, { scroll: false });
+    // The address applied arrives: the form stays, and the button with the focus (#537).
+    rerender(bar("from=2026-04-01"));
+    expect(screen.getByRole("button", { name: "Filtrer" })).toBe(apply);
+    expect(apply).toHaveFocus();
+    // Back in the history to the address the entry was made over: it shows that address, the
+    // entry given up.
+    rerender(bar(""));
+    expect(screen.getByLabelText("Pièces du")).toHaveValue("");
+    // Back in the history: the address names another period, which the fields show.
+    rerender(bar("from=2026-03-01"));
+    expect(screen.getByLabelText("Pièces du")).toHaveValue("2026-03-01");
+    expect(apply).toHaveFocus();
   });
 
   it("keeps each bound of the period on its side of the other", async () => {

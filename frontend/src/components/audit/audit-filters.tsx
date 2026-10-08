@@ -21,8 +21,10 @@ import { ChevronDown, ListFilter, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState } from "react";
+import { type SubmitEvent, useId } from "react";
 
+import { ChoiceFilter } from "@/components/grid/choice-filter";
+import { useDatedEntry } from "@/components/grid/dated-entry";
 import { readValues, valuesHref } from "@/components/grid/filters";
 import { usePendingAddress, usePendingLink } from "@/components/grid/pending-address";
 import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
@@ -37,7 +39,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
 import { useHydrated } from "@/components/use-hydrated";
 
 import {
@@ -57,12 +58,6 @@ import {
   TO,
   USER,
 } from "./audit-address";
-
-/** An object a filter may choose, by its identifier and the text that names it. */
-interface Choice {
-  readonly value: string;
-  readonly text: string;
-}
 
 /** An account that may be an author, by its identifier and its names. */
 export interface AuthorChoice {
@@ -105,38 +100,29 @@ function instantOfField(field: string): string | undefined {
   return field === "" || Number.isNaN(at.getTime()) ? undefined : at.toISOString();
 }
 
-/** What the user entered in the fields of the period, and over which period of the address. */
-interface Entered {
-  /** The period of the address the entry was made over: another, and the entry is forgotten. */
-  readonly over: string;
-  readonly from?: string;
-  readonly to?: string;
-}
-
 /**
  * The filter by period: from an instant, included, to another, excluded, as the contract reads them;
  * sent together. Each field keeps the other side of the period: a start after the end is not offered.
  * A bound left untouched leaves as the address names it, never through its field, which shows it to
- * the minute; an entry is dated by the period of the address it was made over, so that a period the
- * address changes — back in the history — shows anew, and the form, never remounted, keeps the focus.
+ * the minute; an entry is dated by the period of the address it was made over (`useDatedEntry`), so
+ * that a period the address changes — back in the history — shows anew, and the form, never
+ * remounted, keeps the focus.
  */
 function PeriodFilter({ from, to }: Pick<AuditFilters, "from" | "to">) {
   const t = useTranslations("admin.auditLog.filters");
   const ids = { from: useId(), to: useId() };
   const hydrated = useHydrated();
-  const over = `${from ?? ""}/${to ?? ""}`;
-  const [entered, setEntered] = useState<Entered>({ over });
+  const { entered, enter } = useDatedEntry<"from" | "to">(`${from ?? ""}/${to ?? ""}`);
   const filter = useAuditFilter();
-  const current: Entered = entered.over === over ? entered : { over };
   const asked = { from, to };
   const shown = (bound: "from" | "to") => {
     const instant = asked[bound];
-    return current[bound] ?? (hydrated && instant !== undefined ? localField(instant) : "");
+    return entered[bound] ?? (hydrated && instant !== undefined ? localField(instant) : "");
   };
   const period = { from: shown("from"), to: shown("to") };
   /** What a bound sends: its entry, as an instant; untouched, the instant of the address. */
   const sent = (bound: "from" | "to") => {
-    const entry = current[bound];
+    const entry = entered[bound];
     return entry === undefined ? asked[bound] : instantOfField(entry);
   };
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -156,7 +142,7 @@ function PeriodFilter({ from, to }: Pick<AuditFilters, "from" | "to">) {
               ? { max: period.to === "" ? undefined : period.to }
               : { min: period.from === "" ? undefined : period.from })}
             onChange={(event) => {
-              setEntered({ ...current, [bound]: event.target.value });
+              enter(bound, event.target.value);
             }}
             className="h-8 w-52"
           />
@@ -168,60 +154,6 @@ function PeriodFilter({ from, to }: Pick<AuditFilters, "from" | "to">) {
         {t("apply")}
       </Button>
     </form>
-  );
-}
-
-/**
- * The filter on one object of a column — the author, the project, the nature of the object —,
- * chosen among those offered; one the address names that is not offered stays chosen under the name
- * given, to be cleared.
- */
-function ChoiceFilter({
-  id,
-  name,
-  label,
-  every,
-  choices,
-  chosen,
-  unknown,
-}: {
-  /** The identifier of its list, which the focus is given back to. */
-  readonly id: string;
-  /** The parameter of the address the filter writes, as the contract names it. */
-  readonly name: string;
-  readonly label: string;
-  /** The text of the choice that lifts the filter. */
-  readonly every: string;
-  readonly choices: readonly Choice[];
-  readonly chosen: string | undefined;
-  /** The name of the object chosen when it is not offered. */
-  readonly unknown: string | undefined;
-}) {
-  const filter = useAuditFilter();
-  const offered = chosen === undefined || choices.some((choice) => choice.value === chosen);
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <Label htmlFor={id} className="whitespace-nowrap">
-        {label}
-      </Label>
-      <div className="w-56 shrink-0">
-        <NativeSelect
-          id={id}
-          value={chosen ?? ""}
-          onChange={(event) => {
-            filter({ [name]: event.target.value });
-          }}
-        >
-          <option value="">{every}</option>
-          {choices.map((choice) => (
-            <option key={choice.value} value={choice.value}>
-              {choice.text}
-            </option>
-          ))}
-          {offered ? null : <option value={chosen}>{unknown ?? chosen}</option>}
-        </NativeSelect>
-      </div>
-    </div>
   );
 }
 
@@ -390,6 +322,7 @@ export function AuditFilterBar({ filters, users, projects, named }: AuditFilterB
           choices={authors}
           chosen={filters.user}
           unknown={named.user}
+          page={AUDIT_PAGE}
         />
       )}
       <ActionsFilter chosen={filters.actions} />
@@ -401,6 +334,7 @@ export function AuditFilterBar({ filters, users, projects, named }: AuditFilterB
         choices={offered}
         chosen={filters.project}
         unknown={named.project === undefined ? undefined : projectName(named.project)}
+        page={AUDIT_PAGE}
       />
       <ChoiceFilter
         id={ids.kind}
@@ -409,7 +343,7 @@ export function AuditFilterBar({ filters, users, projects, named }: AuditFilterB
         every={t("admin.auditLog.filters.everyObjectKind")}
         choices={kinds}
         chosen={filters.objectKind}
-        unknown={undefined}
+        page={AUDIT_PAGE}
       />
       {filters.object === undefined ? null : (
         <ObjectShown

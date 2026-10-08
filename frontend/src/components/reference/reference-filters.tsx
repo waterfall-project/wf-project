@@ -5,7 +5,7 @@
  * (WF-IHM-0130): whether they show the deactivated objects too (WF-REF-0150, `include_inactive`);
  * the state of each list (`is_active`, after the prefix of its grid); an object chosen — the node of
  * organisation, the category or the calendar of the roles, the nature of the categories, the node of
- * the accounts (`ChoiceFilter`) —; the code and the depth of the nodes. Each only changes the
+ * the accounts (`OrgNodeFilter`, `ChoiceFilter`) —; the code and the depth of the nodes. Each only changes the
  * address, under the name of the contract after the prefix of its grid, back to the first page of a
  * list the server pages, and the server answers anew; the front filters nothing. A change goes on
  * from the address last asked (`usePendingAddress`): a sort or a search under way is kept.
@@ -19,16 +19,17 @@ import { Circle, CircleCheck, Eye, EyeOff, ListFilter } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState } from "react";
+import { type SubmitEvent, useId } from "react";
 
+import { ChoiceFilter } from "@/components/grid/choice-filter";
+import { useDatedEntry } from "@/components/grid/dated-entry";
 import { filterHref } from "@/components/grid/filters";
 import { usePendingAddress, usePendingLink } from "@/components/grid/pending-address";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
 
-import { INCLUDE_INACTIVE, parameterHref } from "./address";
+import { INCLUDE_INACTIVE } from "./address";
 import { treeLabel } from "./org-tree";
 
 /**
@@ -47,7 +48,7 @@ export function InactiveSwitch({
   const t = useTranslations("reference.inactive");
   const pathname = usePathname();
   const { href, onClick } = usePendingLink((query) =>
-    parameterHref(pathname, query, INCLUDE_INACTIVE, shown ? undefined : "true", pages),
+    filterHref(pathname, query, INCLUDE_INACTIVE, shown ? undefined : "true", pages),
   );
   return (
     <Link
@@ -62,64 +63,6 @@ export function InactiveSwitch({
   );
 }
 
-/** An object a list may be filtered on, by its identifier and the text that names it. */
-export interface Choice {
-  readonly value: string;
-  readonly text: string;
-}
-
-/**
- * The filter of a list on one object of a column, chosen among those offered in the order given; an
- * object the address names that is not offered — none the session reads — stays chosen under its
- * identifier, to be cleared.
- */
-export function ChoiceFilter({
-  name,
-  label,
-  every,
-  choices,
-  chosen,
-  page,
-}: {
-  /** The parameter of the address the filter writes. */
-  readonly name: string;
-  /** What the filter filters on. */
-  readonly label: string;
-  /** The text of the choice that lifts the filter. */
-  readonly every: string;
-  readonly choices: readonly Choice[];
-  readonly chosen: string | undefined;
-  /** The parameter of the page of a list the server pages, which a choice takes back to its first. */
-  readonly page?: string | undefined;
-}) {
-  const id = useId();
-  const pathname = usePathname();
-  const { request } = usePendingAddress();
-  const unknown = chosen !== undefined && !choices.some((choice) => choice.value === chosen);
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <Label htmlFor={id}>{label}</Label>
-      <NativeSelect
-        id={id}
-        value={chosen ?? ""}
-        onChange={(event) => {
-          const value = event.target.value === "" ? undefined : event.target.value;
-          request((query) => filterHref(pathname, query, name, value, page));
-        }}
-        className="w-56"
-      >
-        <option value="">{every}</option>
-        {choices.map((choice) => (
-          <option key={choice.value} value={choice.value}>
-            {choice.text}
-          </option>
-        ))}
-        {unknown ? <option value={chosen}>{chosen}</option> : null}
-      </NativeSelect>
-    </div>
-  );
-}
-
 /** A node of organisation a list may be restricted to, with its depth in the tree. */
 export interface NodeChoice {
   readonly id: string;
@@ -129,14 +72,16 @@ export interface NodeChoice {
 }
 
 /**
- * The filter of a list by node of organisation — the roles, the accounts —, the nodes offered in the
- * order of the tree the server gives, each set in by its depth.
+ * The filter of a list by node of organisation — the roles, the accounts, the labour of the
+ * portfolio —, the nodes offered in the order of the tree the server gives, each set in by its depth.
  */
 export function OrgNodeFilter({
   name,
   nodes,
   chosen,
   page,
+  label,
+  every,
 }: {
   /** The parameter of the address the filter writes. */
   readonly name: string;
@@ -144,14 +89,17 @@ export function OrgNodeFilter({
   readonly chosen: string | undefined;
   /** The parameter of the page of a list the server pages, which a node chosen takes back to its first. */
   readonly page?: string | undefined;
+  /** What the filter filters on, and the choice that lifts it; those of a list of roles by default. */
+  readonly label?: string;
+  readonly every?: string;
 }) {
   const t = useTranslations("reference.resourceRoles");
   const named = useTranslations("reference.orgNodes");
   return (
     <ChoiceFilter
       name={name}
-      label={t("orgNodeFilter")}
-      every={t("everyNode")}
+      label={label ?? t("orgNodeFilter")}
+      every={every ?? t("everyNode")}
       choices={nodes.map((node) => ({
         value: node.id,
         text: treeLabel(node.level, named("choice", { code: node.code, label: node.label })),
@@ -228,19 +176,16 @@ interface TextFilterProps {
 
 /**
  * The filter of a list on a text one of its columns contains — the code of the nodes —, sent when
- * entered, lifted when emptied; of the length the contract takes at most. A text the address changed
- * — back in the history — sets the field anew, what was typed and not sent given up.
+ * entered, lifted when emptied; of the length the contract takes at most. An entry is dated by the
+ * text of the address (`useDatedEntry`): a text the address changes — back in the history — shows
+ * anew, what was typed and not sent given up, and the field keeps the focus.
  */
-export function TextFilter(props: TextFilterProps) {
-  return <TextFilterForm key={props.value ?? ""} {...props} />;
-}
-
-/** The field of a filter on a text, from the text the address held when it was drawn. */
-function TextFilterForm({ name, label, value, length }: TextFilterProps) {
+export function TextFilter({ name, label, value, length }: TextFilterProps) {
   const id = useId();
   const pathname = usePathname();
   const { request } = usePendingAddress();
-  const [text, setText] = useState(value ?? "");
+  const { entered, enter } = useDatedEntry<"text">(value ?? "");
+  const text = entered.text ?? value ?? "";
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = text.trim();
@@ -255,7 +200,7 @@ function TextFilterForm({ name, label, value, length }: TextFilterProps) {
         value={text}
         maxLength={length}
         onChange={(event) => {
-          setText(event.target.value);
+          enter("text", event.target.value);
         }}
         className="h-7 w-32 text-xs"
       />

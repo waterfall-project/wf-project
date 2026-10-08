@@ -60,21 +60,3 @@ export function mayLiftContributorFilter(permissions: readonly PermissionCode[])
 export function isContributorFiltered(search: SearchParameters): boolean {
   return search.get(CONTRIBUTOR_PARAMETER) !== "false";
 }
-
-/**
- * The states the address retains, in the order of the contract, each once; none when it names
- * none — every state. A value that is no state of the contract is not asked.
- */
-export function readHomeStates(search: SearchParameters): readonly ProjectState[] {
-  const asked = new Set((search.get(STATES_PARAMETER) ?? "").split(","));
-  return PROJECT_STATES.filter((state) => asked.has(state));
-}
-
-/**
- * The value of `states` for states retained, in the order of the contract; none for none, nor for
- * all of them — every state, which « Every state » shows pressed.
- */
-export function homeStatesValue(states: readonly ProjectState[]): string | undefined {
-  const kept = PROJECT_STATES.filter((state) => states.includes(state));
-  return kept.length === 0 || kept.length === PROJECT_STATES.length ? undefined : kept.join(",");
-}

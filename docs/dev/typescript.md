@@ -267,3 +267,18 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     que React y réponde (`setExpanded`, `openMenu`). Un lien, lui, n'en a pas besoin : suivi avant
     l'hydratation, il charge son écran en document entier. Aucun outil ne le tient : la revue le
     cherche.
+20. **Formulaire remonté par une `key` sur l'adresse.** Pour qu'une période ou un texte que
+    l'adresse change — en revenant dans l'historique — se montre à neuf, le formulaire porte une
+    `key` tirée de l'adresse : appliqué, il est remonté, le bouton ou le champ qui avait le focus
+    disparaît, et le focus tombe sur `<body>`, la navigation ne déplaçant rien (`usePendingAddress`
+    pousse avec `scroll: false`) — les filtres des coûts réels et du portefeuille (#537). Une saisie
+    se date par ce que l'adresse filtrait quand elle a été faite (`useDatedEntry` de
+    `components/grid/dated-entry.ts`), sans `key`. Elle s'oublie pour de bon dès que l'adresse en
+    nomme une autre, et non seulement à l'affichage : sinon, revenue en arrière à l'adresse sur
+    laquelle elle avait été faite — taper une date, l'appliquer, puis « Précédent » —, l'adresse
+    montrerait la saisie abandonnée au lieu de sa propre valeur. La recherche des grilles
+    (`SearchField`) et les bornes (`RangeFilter`) sont encore remontées par une `key` (#553). Des
+    tests appliquent une saisie, rendent à nouveau le filtre sous l'adresse appliquée puis sous celle
+    d'origine, et affirment le focus et la valeur (`costs.dom.test.tsx`, `portfolio.dom.test.tsx`,
+    `reference-filters.dom.test.tsx`, `audit.dom.test.tsx`, `actual-costs.spec.ts`) ; aucun outil ne
+    le tient : la revue le cherche.

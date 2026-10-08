@@ -14,16 +14,18 @@
 import { Circle, CircleCheck, ListFilter } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState } from "react";
+import { type SubmitEvent, useId } from "react";
 
+import { ChoiceFilter } from "@/components/grid/choice-filter";
+import { useDatedEntry } from "@/components/grid/dated-entry";
 import { usePendingAddress } from "@/components/grid/pending-address";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
 import { UNASSIGNED } from "@/navigation/context";
 
 import {
+  COSTS_PAGE,
   type CostFilters,
   filtersHref,
   readCostFilters,
@@ -90,52 +92,47 @@ function ScopeFilter({ scope }: { readonly scope: Scope | undefined }) {
   );
 }
 
-/** The filter by sub-project: every one, none, or one of the project. */
+/**
+ * The filter by sub-project: every one, none, or one of the project. One the address names that the
+ * project does not hold stays chosen, as the banner says it, rather than the choice showing another.
+ */
 function SubprojectFilter({
   subproject,
   subprojects,
 }: Pick<CostFiltersProps, "subproject" | "subprojects">) {
   const t = useTranslations();
-  const id = useId();
-  const filter = useFilter();
-  // A sub-project the address names that the project does not hold stays chosen, under its value
-  // as the address writes it — as the banner says it —, rather than the choice showing another.
-  const unknown =
-    subproject !== undefined &&
-    subproject !== UNASSIGNED &&
-    !subprojects.some((choice) => choice.id === subproject);
   return (
-    <div className="flex items-center gap-2">
-      <Label htmlFor={id}>{t("actualCosts.filters.subproject")}</Label>
-      <NativeSelect
-        id={id}
-        value={subproject ?? ""}
-        onChange={(event) => {
-          const value = event.target.value;
-          filter(() => ({ subproject: value === "" ? undefined : value }));
-        }}
-        className="w-56"
-      >
-        <option value="">{t("actualCosts.filters.everySubproject")}</option>
-        <option value={UNASSIGNED}>{t("enums.SubprojectFilter.unassigned")}</option>
-        {subprojects.map((choice) => (
-          <option key={choice.id} value={choice.id}>
-            {t("actualCosts.filters.subprojectChoice", { code: choice.code, label: choice.label })}
-          </option>
-        ))}
-        {unknown ? (
-          <option value={subproject}>{t("actualCosts.filters.unknownSubproject")}</option>
-        ) : null}
-      </NativeSelect>
-    </div>
+    <ChoiceFilter
+      name={SUBPROJECT}
+      label={t("actualCosts.filters.subproject")}
+      every={t("actualCosts.filters.everySubproject")}
+      choices={[
+        { value: UNASSIGNED, text: t("enums.SubprojectFilter.unassigned") },
+        ...subprojects.map((choice) => ({
+          value: choice.id,
+          text: t("actualCosts.filters.subprojectChoice", {
+            code: choice.code,
+            label: choice.label,
+          }),
+        })),
+      ]}
+      chosen={subproject}
+      unknown={t("actualCosts.filters.unknownSubproject")}
+      page={COSTS_PAGE}
+    />
   );
 }
 
-/** The filter by period of the documents: two dates, sent together. */
+/**
+ * The filter by period of the documents: two dates, sent together. An entry is dated by the period
+ * of the address (`useDatedEntry`): a period the address changes — back in the history — shows anew,
+ * and the form keeps the focus.
+ */
 function PeriodFilter({ from, to }: Pick<CostFilters, "from" | "to">) {
   const t = useTranslations("actualCosts.filters");
   const ids = { from: useId(), to: useId() };
-  const [period, setPeriod] = useState({ from: from ?? "", to: to ?? "" });
+  const { entered, enter } = useDatedEntry<"from" | "to">(`${from ?? ""}/${to ?? ""}`);
+  const period = { from: entered.from ?? from ?? "", to: entered.to ?? to ?? "" };
   const filter = useFilter();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -158,7 +155,7 @@ function PeriodFilter({ from, to }: Pick<CostFilters, "from" | "to">) {
               ? { max: period.to === "" ? undefined : period.to }
               : { min: period.from === "" ? undefined : period.from })}
             onChange={(event) => {
-              setPeriod({ ...period, [bound]: event.target.value });
+              enter(bound, event.target.value);
             }}
             className="h-8 w-40"
           />
@@ -179,12 +176,7 @@ export function CostFilterBar({ filters, subproject, subprojects }: CostFiltersP
     <section aria-label={t("label")} className="flex flex-wrap items-center gap-x-6 gap-y-2">
       <ScopeFilter scope={filters.scope} />
       <SubprojectFilter subproject={subproject} subprojects={subprojects} />
-      {/* A period the address changed — back in the history — sets the fields anew. */}
-      <PeriodFilter
-        key={`${filters.from ?? ""}/${filters.to ?? ""}`}
-        from={filters.from}
-        to={filters.to}
-      />
+      <PeriodFilter from={filters.from} to={filters.to} />
     </section>
   );
 }

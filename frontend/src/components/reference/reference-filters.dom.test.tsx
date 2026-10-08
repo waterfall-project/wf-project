@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
@@ -13,7 +14,7 @@ import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
 import { listReads } from "./address";
-import { ChoiceFilter, InactiveSwitch, StateFilter, TextFilter } from "./reference-filters";
+import { InactiveSwitch, StateFilter, TextFilter } from "./reference-filters";
 import { ReferencePages } from "./reference-pages";
 import {
   CALENDAR_ADDRESS,
@@ -162,6 +163,26 @@ describe("the filters of a list of the reference data", () => {
     rerender(filter(undefined));
     expect(field()).toHaveValue("");
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("keep the focus in the field that sent the code once the address arrives", async () => {
+    const filter = (value: string | undefined) =>
+      inFrench(<TextFilter name={ORG_CODE} label="Code du nœud" value={value} length={20} />);
+    const { rerender } = render(filter(undefined));
+    const field = screen.getByRole("searchbox", { name: "Code du nœud" });
+    await userEvent.type(field, "ELEC{Enter}");
+    expect(lastAddress()).toBe("/reference/resources?org_code=ELEC");
+    // The address sent arrives: the field stays, with the focus and the code (#537).
+    page.search = "org_code=ELEC";
+    rerender(filter("ELEC"));
+    expect(screen.getByRole("searchbox", { name: "Code du nœud" })).toBe(field);
+    expect(field).toHaveFocus();
+    expect(field).toHaveValue("ELEC");
+    // Back in the history to the address the code was typed over: it shows no code, the entry
+    // given up.
+    page.search = "";
+    rerender(filter(undefined));
+    expect(field).toHaveValue("");
   });
 
   it("show the deactivated objects too back to the first page of each list the server pages [WF-REF-0150-A]", () => {

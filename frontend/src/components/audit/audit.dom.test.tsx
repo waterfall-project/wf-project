@@ -311,6 +311,11 @@ describe("the filters of the journal", () => {
       expect(screen.getByLabelText("Depuis le")).toBe(field);
       expect(field).toHaveValue("2026-03-01T07:00");
       expect(field).toHaveFocus();
+      // Forward again, to the period the entry was made over: it shows that period, the entry
+      // given up.
+      page.search = "from=2026-05-01T06%3A00%3A00Z";
+      rerender(journal());
+      expect(field).toHaveValue("2026-05-01T08:00");
     });
   });
 

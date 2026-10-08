@@ -15,6 +15,7 @@
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
 import type { components } from "@/api/generated/schema";
+import { readValues } from "@/components/grid/filters";
 import { OFFSET } from "@/components/grid/query";
 import { isPlanningDate } from "@/i18n/format";
 import type { SearchParameters } from "@/navigation/context";
@@ -94,8 +95,7 @@ function dateOf(search: SearchParameters, name: string): string | undefined {
  * none — those the server retains by default. A value that is no state of a portfolio is not asked.
  */
 export function readStates(search: SearchParameters): readonly ProjectState[] {
-  const asked = new Set((search.get(STATES) ?? "").split(","));
-  return PORTFOLIO_STATES.filter((state) => asked.has(state));
+  return readValues(search, STATES, PORTFOLIO_STATES);
 }
 
 /** An identifier of the address the API may know; none otherwise. */
@@ -199,12 +199,5 @@ export function statesValue(states: readonly ProjectState[]): string | undefined
  * none — the list is not filtered on the zones. A value that is no zone is not asked.
  */
 export function readZones(search: SearchParameters): readonly AlertZone[] {
-  const asked = new Set((search.get(ZONES) ?? "").split(","));
-  return INDEX_ZONES.filter((zone) => asked.has(zone));
-}
-
-/** The value of `zones` for zones retained, in the order of the contract; none for none. */
-export function zonesValue(zones: readonly AlertZone[]): string | undefined {
-  const kept = INDEX_ZONES.filter((zone) => zones.includes(zone));
-  return kept.length === 0 ? undefined : kept.join(",");
+  return readValues(search, ZONES, INDEX_ZONES);
 }

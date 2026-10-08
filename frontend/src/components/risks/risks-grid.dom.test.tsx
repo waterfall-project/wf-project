@@ -345,6 +345,15 @@ describe("the filter of the risks by state", () => {
       scroll: false,
     });
   });
+
+  it("lifts the filter when the last state is chosen too: every state is every risk", async () => {
+    page.search = "states=identified%2Coccurred&search=automaticien";
+    renderFilter(["identified", "occurred"]);
+    await userEvent.click(within(filter()).getByRole("button", { name: "Écarté" }));
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?search=automaticien`, {
+      scroll: false,
+    });
+  });
 });
 
 describe("the changes the screen makes to its address, before the server has answered", () => {

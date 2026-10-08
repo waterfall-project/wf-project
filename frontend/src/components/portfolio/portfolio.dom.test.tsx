@@ -375,6 +375,27 @@ describe("the perimeter of a view of the portfolio", () => {
     expect(await lastAddress()).toBe(`${PATHNAME}?from=2025-01-01&as_of=2026-03-16`);
   });
 
+  it("keeps the focus on the button that applied the dates once the address arrives, and shows anew dates the address changes", async () => {
+    const { rerender } = render(perimeterBar(""));
+    const form = screen.getByRole("form", { name: "Période et date de calcul" });
+    await userEvent.type(within(form).getByLabelText("Calculé au"), "2026-03-16");
+    const apply = within(form).getByRole("button", { name: "Appliquer" });
+    await userEvent.click(apply);
+    expect(await lastAddress()).toBe(`${PATHNAME}?as_of=2026-03-16`);
+    // The address applied arrives: the form stays, and the button with the focus (#537).
+    rerender(perimeterBar("as_of=2026-03-16"));
+    expect(within(form).getByRole("button", { name: "Appliquer" })).toBe(apply);
+    expect(apply).toHaveFocus();
+    // Back in the history to the address the entry was made over: it shows that address, the
+    // entry given up.
+    rerender(perimeterBar(""));
+    expect(within(form).getByLabelText("Calculé au")).toHaveValue("");
+    // Back in the history: the address names another date, which the field shows.
+    rerender(perimeterBar("as_of=2026-01-31"));
+    expect(within(form).getByLabelText("Calculé au")).toHaveValue("2026-01-31");
+    expect(apply).toHaveFocus();
+  });
+
   it("never lets the period start after its end", () => {
     render(perimeterBar("from=2025-01-01&to=2025-12-31"));
     const form = screen.getByRole("form", { name: "Période et date de calcul" });

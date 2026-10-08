@@ -21,6 +21,7 @@
 import { Layers, Tags } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { type Bounds, type RefusedBounds, refusedSides } from "@/components/grid/filters";
 import { CONTRACT_ADDRESS, type GridQuery } from "@/components/grid/query";
 import { RangeFilter } from "@/components/grid/range-filter";
@@ -46,7 +47,7 @@ import {
 } from "./cost-grids";
 import { RATE_COLUMN, RATE_STATE, RATE_YEAR } from "./rate-columns";
 import { Reactivations } from "./reactivation";
-import { ChoiceFilter, StateFilter } from "./reference-filters";
+import { StateFilter } from "./reference-filters";
 import { ReferencePages } from "./reference-pages";
 import { ReferenceSection } from "./section";
 

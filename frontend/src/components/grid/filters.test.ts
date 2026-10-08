@@ -35,6 +35,13 @@ describe("the filters of a list in the address", () => {
     );
   });
 
+  it("write every value chosen of a column some rows hold none of: every zone still filters", () => {
+    const zones = { name: "zones", values: ["nominal", "watch", "alert"], exhaustive: false };
+    expect(valuesHref("/p", new URLSearchParams(), zones, ["alert", "nominal", "watch"])).toBe(
+      "/p?zones=nominal%2Cwatch%2Calert",
+    );
+  });
+
   it("set one filter, or lift it, the page of a list the server does not page kept as it is", () => {
     const query = new URLSearchParams("org_node_id=a&offset=2");
     expect(filterHref("/x", query, "org_node_id", undefined)).toBe("/x?offset=2");
@@ -42,6 +49,11 @@ describe("the filters of a list in the address", () => {
     expect(filterHref("/x", new URLSearchParams("offset=2"), "org_node_id", "", "offset")).toBe(
       "/x",
     );
+    // The pages of every list of a screen, taken back to their first.
+    const pages = new URLSearchParams("role_offset=50&calendar_offset=25&sort_by=code");
+    expect(
+      filterHref("/x", pages, "include_inactive", "true", ["role_offset", "calendar_offset"]),
+    ).toBe("/x?sort_by=code&include_inactive=true");
   });
 });
 
