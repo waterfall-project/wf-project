@@ -42,8 +42,9 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
+	check-front-code check-front-e2e \
 	install-front lint-front typecheck-front test-front build-front generate-client client-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-browsers lot-size \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -52,8 +53,11 @@ BASE ?= origin/main
 # The tier of the chain: `fast` on every push, `full` when a pull request is merged
 # (US-0310). The full tier adds what is slow: code coverage, end-to-end tests.
 TIER ?= fast
-# Extra flags to install Playwright's browsers: the chain adds --with-deps.
+# Extra flags to install Playwright's browsers, such as --with-deps for their system packages.
 PLAYWRIGHT_INSTALL ?=
+# The part of the end-to-end paths `make e2e` plays, as i/N: the chain spreads them over N
+# runners, and plays the measure of §4.6.2 on one more (e2e.yml). Empty, it plays them all.
+SHARD ?=
 full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
@@ -181,7 +185,13 @@ coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US
 	@cd $(BACK) && uv run --frozen pytest --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
-check-front: client-up-to-date lint-front typecheck-front catalogs $(call full-else,coverage-front e2e-browsers e2e,build-front test-front) ## The front: client, lint, types, catalogues, production build, tests; coverage and end-to-end, which build the front, replace the build and the plain tests in the full tier
+# The front in two halves, which the chain runs side by side (front.yml, e2e.yml); on a
+# workstation, check-front runs both.
+check-front: check-front-code check-front-e2e ## The front: check-front-code, then check-front-e2e
+
+check-front-code: client-up-to-date lint-front typecheck-front catalogs $(call full-else,coverage-front,build-front test-front) ## The front but its end-to-end paths: client, lint, types, catalogues, production build and tests; coverage replaces the build and the plain tests in the full tier
+
+check-front-e2e: $(call full-only,e2e-browsers e2e) ## The end-to-end paths of the front, which build it for production, in the full tier only
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -227,7 +237,14 @@ roadmap: ## Confront the stories of docs/roadmap with the requirements of the do
 e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 	@$(PNPM) exec playwright install $(PLAYWRIGHT_INSTALL) chromium
 
-e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080)
+# With SHARD, the paths alone (E2E_PART, frontend/playwright.config.ts): the measure, which
+# waits for all of them, would bring every path into each part; e2e-measure plays it apart.
+e2e: export E2E_PART = $(if $(SHARD),paths)
+e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080); SHARD=i/N plays the i-th of N parts of them, without the measure
+	@$(PNPM) exec playwright test $(if $(SHARD),--shard=$(SHARD))
+
+e2e-measure: export E2E_PART = measure
+e2e-measure: install-front ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
 	@$(PNPM) exec playwright test
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
