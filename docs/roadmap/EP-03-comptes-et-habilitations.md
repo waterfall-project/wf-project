@@ -820,7 +820,7 @@ droits selon son organisation, et non selon celle que le logiciel imagine.
 - `WF-ADM-0090-A` — « Un utilisateur portant deux rôles dispose des permissions des deux. »
 - `WF-ADM-0090-A` — « Le retrait d’une permission à un rôle en prive tous ses porteurs sans qu’ils aient à se reconnecter. »
 - `WF-ADM-0090-A` — « La suppression d’un rôle est refusée tant qu’un compte le porte. »
-- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions. »
+- `WF-ADM-0100-A` — « Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions, ou par la seule permission de consulter pour une fonction en lecture seule. »
 - écart : `WF-ADM-0100-A` — « Un rôle disposant de la modification du chiffrage mais non du marquage permet de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais non de la fusion refuse de fusionner un différentiel. » : le marquage arrive en EP-04, le devis en EP-07,
   la fusion en EP-08, qui clôt l'exigence.
 - écart : `WF-ADM-0100-A` — « Un utilisateur sans la permission de créer un projet n’en crée pas. » : la création d'un projet arrive en EP-04.

@@ -11,8 +11,8 @@
       celui d'un projet en cours, par le même filtre. Il ne se lit qu'ici : aucune opération
       n'inscrit, ne modifie ni ne supprime une inscription, que seule l'action elle-même
       produit, et une restauration ne le remplace pas : il est hors du périmètre qu'elle
-      restaure, et l'inscription de la restauration s'écrit une fois celle-ci faite (hypothèse
-      du contrat, #539). Les filtres se combinent ; le tri est celui des dates, les plus récentes
+      restaure, et l'inscription de la restauration s'écrit une fois celle-ci faite (WF-ADM-0160,
+      #539). Les filtres se combinent ; le tri est celui des dates, les plus récentes
       d'abord par défaut, deux inscriptions de même instant dans l'ordre de leur inscription,
       inversé dans l'ordre décroissant ; le serveur pagine. Lisible sous la permission de consulter le journal
       (`audit_log.read`, WF-ADM-0100), qui ouvre le journal entier : un projet s'y nomme par
