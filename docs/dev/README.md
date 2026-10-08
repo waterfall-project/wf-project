@@ -656,54 +656,53 @@ Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summ
 `value`), et le contrat le cite par `$ref` ; le bundle l'embarque. Ses nombres reprennent
 ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
 
-Les volumes du §4.6.2 ne s'écrivent pas à la main : `make mock-data` (`wftools.mockdata`, le
-portefeuille dans `wftools.mockportfolio`, la structure dans `wftools.mockstructure`, le témoin décrit une fois dans `wftools.mockwitness` et ses heures de travail dans `wftools.mockcalendar`) les engendre dans `fixtures/api/volume/`, qu'on ne
-retouche pas — la structure de mille tâches et de cinq mille lignes, premier exemple de
-`listNodes`, et les indicateurs de son devis, premier exemple de `getEstimateIndicators`,
-sommés sur les mêmes lignes, pour que la grille et les indicateurs servis disent le même
-total ; ce dont dépend la date de fin de sa première récapitulative, ses subordonnées directes
-nommées de la même structure, premier exemple de `getComputedValueDependencies`, que le refus
-d'une saisie lit dans les parcours ; une durée allongée qui pousse une tâche en 2027, ses lignes et
-elle-même corrigées à nouveau (`task_lengthened`, réponse de `updateTaskFacet`) ; les trois cents projets de `getPortfolioProjects`, et les vues
-du portefeuille qui se somment de leurs lignes — la valeur, la performance, la structure des coûts et
-les risques —, les deux cents catégories de
-`listCostCategories`, quinze ans de taux de `listHourlyRates` et la grille des taux horaires de
-`getHourlyRateGrid`, cent cinquante catégories sur quinze ans. Les exemples nommés de `listNodes`
-et de `getComputedValueDependencies` (`witness`, `core`, `planning`, `estimate`,
-`installation`, `milestone`, `risk_occurred`, `dependencies_*`), que lisent les tests de
-composants, sont des lectures du cœur du témoin (`wftools.mockcore`), écrites par la même commande sous `fixtures/api/`
-par leur nom et déclarées engendrées dans `tools/paths.toml` ; de même les réponses des écritures
-de grille (`task_renamed`, `estimate_line_*`, `node_deleted`, `predecessor_set`, `paste_*`), chacune
-la différence de deux lectures de la structure, avant et après l'écriture (`wftools.mockwrites`) ;
-et l'histoire du témoin (`wftools.mockhistory`) : la comparaison de l'offre et de la référence,
-décrites depuis le cœur telles qu'elles furent marquées, et ses risques — le registre, un risque
-seul, la matrice, les réexamens, la couverture —, lus de leur description dans `mockwitness`. Les
-autres exemples qui datent le témoin (le projet, ses révisions, ses transitions d'état, le
-référentiel installé) restent écrits à la main, et `tools/tests/test_mockhistory.py` les confronte
-à sa chronologie. Les indicateurs du témoin aujourd'hui (`wftools.mocktoday`) — devis, reste à
-engager, indicateurs du projet, évolution des indices, suivi des jalons, courbes, plan de charge,
-taux manquants et mise à jour des taux — se lisent des mêmes révisions (`wftools.mockindicators`,
-`wftools.mockcurves`) et des coûts réels du témoin, décrits une fois dans `mockwitness` — ses
-lignes et les imports qui les ont apportées — et lus par `wftools.mockcosts` comme la consultation
-des coûts et le journal des imports les présentent (`actual_costs*`, `cost_imports`). Ce qui reste
-écrit à la main — sessions, comptes et rôles, imports et leurs comptes rendus, tâches de fond,
-état du système et sauvegardes — est confronté à ce qui est engendré par
-`tools/tests/test_mockuniverse.py`. Ce que la même commande engendre ne se relit jamais sur le disque :
-les risques et les indicateurs du témoin, que le portefeuille somme, lui sont passés en mémoire
-(`mockhistory.readings`, `mocktoday.project_today`), pour qu'une seule exécution de
-`make mock-data` atteigne son point fixe. Les volumes
-restent dans l'univers des autres exemples — le projet, sa révision, ses sous-projets, ses
-catégories et ses rôles gardent leurs identifiants, et ce que disent le projet témoin, l'offre
-et les libellés de l'univers se lit dans leurs fixtures, jamais recopié —, et l'engendrement
-ne lit ni l'horloge ni le hasard : chaque valeur tirée vient de l'empreinte d'une graine fixe
-et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets. Un exemple de volume
-s'écrit une ligne par élément, pour qu'un changement se lise dans le diff. Les repères que
-lisent les parcours de bout en bout — numéros de ligne, libellés, totaux — sont fixés par
-`test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`) pour la structure, et
-ceux du portefeuille par `test_the_marks_the_portfolio_journey_reads`
-(`tools/tests/test_mockdata.py`), et ceux du parcours de la revue mensuelle par
-`test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`) : un changement du générateur qui les déplace échoue là, avant
-les parcours.
+**L'univers témoin.** Les exemples décrivent un seul univers, à un seul instant, aujourd'hui :
+le 3 juin 2026 à 14 h 05 UTC (`docs/api/DECISIONS.md`, « L'univers témoin »). Le premier
+exemple de chaque opération est le projet témoin, PRJ-001, ou le portefeuille qui le compte, à
+cet instant ; un autre exemple nommé en est une autre lecture, un instant antérieur de la même
+chronologie, la suite d'une écriture faite aujourd'hui, ou une variante contrefactuelle déclarée.
+
+**Ce qui s'engendre ne s'écrit pas à la main.** `make mock-data` (`wftools.mockdata`) écrit,
+sans lire ni l'horloge ni le hasard — chaque valeur tirée vient de l'empreinte d'une graine fixe
+et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
+
+- dans `fixtures/api/volume/`, qu'on ne retouche pas, les volumes du §4.6.2 : la structure de
+  mille tâches et de cinq mille lignes (`wftools.mockstructure`), premier exemple de
+  `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
+  durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; les trois cents projets de
+  `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
+  structure des coûts, risques et couverture (`wftools.mockportfolio`) — ; les deux cents
+  catégories de coût et quinze ans de taux horaires ;
+- sous `fixtures/api/`, par leur nom, les exemples du témoin, déclarés engendrés dans
+  `tools/paths.toml` : les lectures de son cœur (`wftools.mockcore`, décrit une fois dans
+  `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`) ; les réponses des
+  écritures de grille, différence de deux lectures (`wftools.mockwrites`) ; son histoire, ses
+  révisions comparées et ses risques (`wftools.mockhistory`) ; ses indicateurs, ses courbes et
+  son plan de charge aujourd'hui (`wftools.mocktoday`, `wftools.mockindicators`,
+  `wftools.mockcurves`) ; ses coûts réels et le journal de leurs imports (`wftools.mockcosts`) ;
+  et les vues du portefeuille dans le temps — plan de charge agrégé, courbe en S et sa variante
+  au 31 décembre 2025, santé du pilotage —, qui somment le témoin à ses propres lectures et les autres projets par des
+  formules simples (`wftools.mockportfoliotime`).
+
+Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
+et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule
+exécution de `make mock-data` atteigne son point fixe.
+
+**Ce qui reste écrit à la main** — sessions, comptes et rôles, référentiel (rôles de ressources et
+leurs effectifs, calendriers, nœuds d'organisation), le projet, ses révisions et ses transitions,
+imports et leurs comptes rendus, tâches de fond, état du système et sauvegardes, variantes
+contrefactuelles — est lu par les générateurs, jamais recopié, et confronté à ce qui est engendré :
+`tools/tests/test_mockhistory.py` pour la chronologie, `tools/tests/test_mockuniverse.py` pour le
+reste (les heures mensuelles d'un rôle, tout son effectif compris, valent son effectif par les
+heures hebdomadaires de son calendrier × 52 / 12, la ligne du témoin au portefeuille est celle de
+ses indicateurs, toute vue du portefeuille est calculée aujourd'hui…). Un exemple de volume s'écrit une ligne par élément, pour qu'un changement se lise
+dans le diff. Les repères que lisent les parcours de bout en bout — numéros de ligne, libellés,
+totaux — sont fixés par `test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`)
+pour la structure, `test_the_marks_the_portfolio_journey_reads` (`tools/tests/test_mockdata.py`)
+pour le portefeuille et `test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`)
+pour la revue mensuelle : un changement du générateur qui les déplace échoue là, avant les
+parcours. Les tests de grille ne vérifient que des lignes qui restent dans la fenêtre que la grille
+virtualisée rend.
 
 `make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
 serveur, `/api/v1`, que prism ignorerait, et aucune session exigée — le faux back accorde

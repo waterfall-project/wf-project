@@ -7,7 +7,7 @@
     "org_node_id": "01926f3a-7c00-7000-8000-000000000472",
     "org_node_label": "Atelier de câblage",
     "roles": [
-      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","org_node_id":"01926f3a-7c00-7000-8000-000000000472","capacity_monthly_hours":"519.99","months":[]}
+      {"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","label":"Monteur câbleur","org_node_id":"01926f3a-7c00-7000-8000-000000000472","capacity_monthly_hours":"216662.5","months":[]}
     ]
   }
 }

@@ -7,7 +7,7 @@ import { sortUntilAddress, WORKING } from "./hydration";
 import { withinBox } from "./scroll";
 
 // The fake back serves the first example of each read of the portfolio — the three hundred projects
-// of §4.6.2 at 16 March 2026, the witness project first, and the views summed from them —, whatever
+// of §4.6.2 at 3 June 2026, the witness project first, and the views summed from them —, whatever
 // the perimeter, the sort or the page asked: the component and page tests prove what each screen
 // asks. The marks read here are fixed by `test_the_marks_the_portfolio_journey_reads`.
 const PROJECTS = "/portfolio/projects";
@@ -32,7 +32,7 @@ test("reads the portfolio of three hundred projects: its value, its perimeter, t
   await page.goto(PROJECTS);
   await expect(page).toHaveTitle("Portefeuille de projets — Waterfall");
   await expect(page.getByRole("main")).toContainText(
-    "En cours et Chiffrage · 300 projets · calculé au 16 mars 2026",
+    "En cours et Chiffrage · 300 projets · calculé au 3 juin 2026",
   );
   await expect(page.getByRole("region", { name: "Valeur du portefeuille" })).toContainText(
     "Taux de transformation40 %",

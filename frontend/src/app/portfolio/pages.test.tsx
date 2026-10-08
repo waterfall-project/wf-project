@@ -158,7 +158,7 @@ describe("the screens of the portfolio", () => {
 
   it("presents the value of the portfolio and its perimeter, the date it is computed at, and hands the list to the grid", async () => {
     const page = text(await render(ProjectsPage));
-    expect(page).toContain("In progress and Pricing · 300 projects · calculated on 16 Mar 2026");
+    expect(page).toContain("In progress and Pricing · 300 projects · calculated on 3 Jun 2026");
     expect(page).toMatch(
       /Order book .*2,597,310,334\.56 Gross pipeline .*317,939,400\.00 Weighted pipeline .*146,660,510\.00 Delivered .*0\.00 Conversion rate 40%/,
     );
@@ -170,21 +170,21 @@ describe("the screens of the portfolio", () => {
   it("says a list that retains no project empty", async () => {
     server.answers = { ...server.answers, "GET /portfolio/projects": "portfolio_projects_empty" };
     const page = text(await render(ProjectsPage, { states: "completed" }));
-    expect(page).toContain("Completed · no project · calculated on 16 Mar 2026");
+    expect(page).toContain("Completed · no project · calculated on 3 Jun 2026");
     expect(grids.projects[0]?.projects).toEqual([]);
   });
   it("presents the aggregated indices with their zone, the projections, and the projects by zone [WF-IHM-0070-A]", async () => {
-    const markup = await render(PerformancePage, { as_of: "2026-03-16" });
-    expect(queryOf("GET /portfolio/performance")).toEqual({ as_of: "2026-03-16" });
+    const markup = await render(PerformancePage, { as_of: "2026-06-03" });
+    expect(queryOf("GET /portfolio/performance")).toEqual({ as_of: "2026-06-03" });
     const page = text(markup);
-    expect(page).toContain("In progress · 269 projects · calculated on 16 Mar 2026");
+    expect(page).toContain("In progress · 269 projects · calculated on 3 Jun 2026");
     expect(page).toMatch(/Cost index 0\.94 Nominal Schedule index 0\.91 Nominal/);
-    expect(page).toMatch(/At the observed rate .*2,757,456,290\.36 .*160,145,955\.80/);
+    expect(page).toMatch(/At the observed rate .*2,760,474,365\.53 .*163,164,030\.97/);
     expect(page).toContain(
       "Cost index Nominal 169 Cost index Watch 47 Cost index Alert 53 Schedule index Nominal 153",
     );
     expect(page).toContain(
-      "Q2 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date.",
+      "Q3 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date.",
     );
   });
 
@@ -219,8 +219,8 @@ describe("the screens of the portfolio", () => {
       horizon_months: "12",
       under_load_threshold: "0.5",
     });
-    expect(markup).toMatch(/1,092\.024 h.*?aria-label="Alert".*?120%/);
-    expect(text(markup)).toContain("Ingénieur électricien 910.02 h");
+    expect(markup).toMatch(/730,721\.95 h.*?aria-label="Alert".*?110\.94%/);
+    expect(text(markup)).toContain("Ingénieur électricien 658,654 h");
   });
 
   it("heads its columns with the months of the horizon, and names the node the server retained", async () => {
@@ -231,7 +231,7 @@ describe("the screens of the portfolio", () => {
     const page = text(await render(WorkloadPage, { org_node_id: TECHNICAL_DIRECTION }));
     expect(page).toContain("Labour of Direction technique and of its descendants");
     expect(page).toContain(
-      "Role Monthly capacity March 2026 April 2026 May 2026 June 2026 July 2026 August 2026 Ingénieur",
+      "Role Monthly capacity June 2026 July 2026 August 2026 September 2026 October 2026 November 2026 Ingénieur",
     );
   });
 
@@ -273,9 +273,9 @@ describe("the screens of the portfolio", () => {
     expect(queryOf("GET /portfolio/cost-curve")).toEqual({ horizon_months: "24" });
     const page = text(markup);
     expect(page).toContain("Cumulative costs of the portfolio");
-    expect(page).toContain("Reference budget 31 Oct 2025 216,440,791.67");
-    expect(page).toContain("Actual cost 16 Mar 2026 352,357,560.55");
-    expect(page).toContain("Project manager’s projection 30 Sept 2026 830,906,815.55");
+    expect(page).toContain("Reference budget 31 Dec 2025 210,664,042.15");
+    expect(page).toContain("Actual cost 3 Jun 2026 1,283,825,869.48");
+    expect(page).toContain("Project manager’s projection 30 Nov 2026 2,130,889,928.20");
     // Without the payment delays, the server details no cash-out: no second chart.
     expect(page).not.toContain("Cash-out by month");
     expect(markup).toContain(
@@ -297,7 +297,7 @@ describe("the screens of the portfolio", () => {
     const page = text(markup);
     expect(page).toContain("Cumulative cash-out of the portfolio");
     expect(page).toContain("Cash-out by month");
-    expect(page).toContain("March 2026 69,158,340.75 0.00");
+    expect(page).toContain("June 2026 19,586,542.95 30,743,434.03");
     expect(markup).toContain('href="/portfolio/cost-curve?horizon_months=24"');
     expect(page).toContain("Back to the cumulative costs");
   });
@@ -305,13 +305,14 @@ describe("the screens of the portfolio", () => {
   it("presents the coverage of the risks of the portfolio, each sum as the server made it, the variance signed [WF-PTF-0090-A]", async () => {
     const page = text(await render(RisksPage));
     expect(page).toContain(
-      "Risk coverage Reference reserve 95,348,910.00 Remaining provisions 103,826,197.03 Cost of the occurred risks 631,200.00 Coverage variance -9,108,487.03",
+      "Risk coverage Reference reserve 102,854,375.80 Remaining provisions 103,826,197.03 Cost of the occurred risks 4,605,324.00 Coverage variance -5,577,145.23",
     );
   });
 
   it("opens the project of each signal of the health of the steering, by its zone [WF-PTF-0030-A] [WF-IHM-0070-A]", async () => {
     const markup = await render(PilotHealthPage);
-    expect(markup.match(new RegExp(`href="${WITNESS}"`, "g"))).toHaveLength(2);
+    // The witness is signalled its review overdue alone; a milestone overdue is another's.
+    expect(markup.match(new RegExp(`href="${WITNESS}"`, "g"))).toHaveLength(1);
     const page = text(markup);
     expect(page).toMatch(/Periodic review overdue .*Watch/);
     expect(page).toMatch(/Contractual milestone overdue .*Alert/);
@@ -321,7 +322,7 @@ describe("the screens of the portfolio", () => {
     const page = text(await render(PilotHealthPage));
     expect(page).toContain("Periodic review overdue 17 weeks since the last marked revision Watch");
     expect(page).toContain(
-      "Contractual milestone overdue Réception des études, reference date 24 Apr 2026 Alert",
+      "Contractual milestone overdue Réception usine, reference date 30 Apr 2026 Alert",
     );
   });
   // The whole perimeter asked, and what each view sends of it, as its operation takes it.
@@ -329,7 +330,7 @@ describe("the screens of the portfolio", () => {
     states: "in_progress,pricing",
     from: "2025-01-01",
     to: "2025-12-31",
-    as_of: "2026-03-16",
+    as_of: "2026-06-03",
     org_node_id: DESIGN_OFFICE,
     horizon_months: "12",
     under_load_threshold: "0.4",
@@ -360,7 +361,7 @@ describe("the screens of the portfolio", () => {
   it("says the period of the statistics of the value, as the server retained it", async () => {
     const page = text(await render(ProjectsPage));
     expect(page).toContain(
-      "Delivered and conversion rate over the period from 17 Mar 2025 to 16 Mar 2026",
+      "Delivered and conversion rate over the period from 4 Jun 2025 to 3 Jun 2026",
     );
   });
 });

@@ -179,10 +179,10 @@ describe("the settings of the resources", () => {
     const page = rendered(await ResourceSettingsPage());
     expect(rows(page, "Rôles de ressources")).toEqual([
       "Libellé Nœud d’organisation Catégorie de coût Calendrier Heures par mois Effectif État",
-      "Ingénieur électricien Bureau d'études électricité Ingénierie électrique Semaine standard 151,67 6 Actif",
-      "Technicien de mise en service Bureau d'études électricité Mise en service Semaine standard 151,67 4 Actif",
-      "Monteur câbleur Atelier de câblage Ingénierie électrique Semaine de quatre jours 173,33 3 Actif",
-      "Automaticien Bureau d'études électricité Ingénierie électrique Semaine de trente-neuf heures 151,67 2 Désactivé",
+      "Ingénieur électricien Bureau d'études électricité Ingénierie électrique Semaine standard 658 654,00 3 800 Actif",
+      "Technicien de mise en service Bureau d'études électricité Mise en service Semaine standard 485 324,00 2 800 Actif",
+      "Monteur câbleur Atelier de câblage Ingénierie électrique Semaine de quatre jours 216 662,50 1 250 Actif",
+      "Automaticien Bureau d'études électricité Ingénierie électrique Semaine de trente-neuf heures 338,00 2 Désactivé",
     ]);
     // The calendar of the deactivated role is not among those the page read: its name is the
     // answer's, never one the front would draw from another list.

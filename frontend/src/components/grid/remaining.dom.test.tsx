@@ -42,6 +42,8 @@ const LABOUR = 2;
 const DISBURSEMENT = 3;
 const PROVISION = 4;
 const COMPLETED_LINE = 7;
+// A line the occurrence of a risk merged into the current revision after its previous review.
+const MERGED_LINE = 9;
 const ACCEPTANCE = 10;
 // The rows of the studies of the witness: the operator desks, started and past their finish.
 const DESKS = 3;
@@ -139,16 +141,28 @@ describe("the grid of the remaining to commit", () => {
       expect(within(table).getByRole("columnheader", { name })).toBeInTheDocument();
     }
     // The figures at the previous remaining to commit, kept by the server and never computed nor
-    // entered: none in the witness before its first review.
+    // entered: those of the reference marked on 1 February, the previous review — the hours of
+    // the labour, the unit disbursements of the terminal blocks and of the provision, the latter
+    // the one figure the review has changed since, 250 then, 500 now.
+    expect(cell(LABOUR, "previous_quantity")).toHaveTextContent(/^1$/);
+    expect(cell(LABOUR, "previous_hours")).toHaveTextContent(/^12,5$/);
+    expect(cell(LABOUR, "previous_unit_disbursement")).toHaveTextContent(/^$/);
+    expect(cell(DISBURSEMENT, "previous_unit_disbursement")).toHaveTextContent(/^1\s234,56$/);
+    expect(cell(PROVISION, "previous_unit_disbursement")).toHaveTextContent(/^250,00$/);
+    expect(cell(PROVISION, "unit_disbursement")).toHaveTextContent(/^500,00$/);
+    // A line merged by the occurrence of a risk after that review has none.
+    expect(cell(MERGED_LINE, "unit_disbursement")).toHaveTextContent(/^80,00$/);
     for (const column of ["previous_quantity", "previous_hours", "previous_unit_disbursement"]) {
-      expect(cell(LABOUR, column)).toHaveTextContent(/^$/);
+      expect(cell(MERGED_LINE, column)).toHaveTextContent(/^$/);
       expect(cell(LABOUR, column)).toHaveAttribute("aria-readonly", "true");
     }
     // The provision of the risk of rewiring: budgeted at the 250 the reference knew, re-estimated
-    // at its 500 now, before any review.
+    // at its 500 now, at its 250 by the previous review, the reference marked on 1 February — an
+    // amount as the grid writes one, computed.
     expect(cell(PROVISION, "budgeted_amount")).toHaveTextContent(/250,00$/);
     expect(cell(PROVISION, "reestimated_amount")).toHaveTextContent(/500,00$/);
-    expect(cell(PROVISION, "previous_reestimated_amount")).toHaveAccessibleName(/^Calculé$/);
+    expect(cell(PROVISION, "previous_reestimated_amount")).toHaveAccessibleName("Calculé 250,00");
+    expect(cell(LABOUR, "previous_reestimated_amount")).toHaveTextContent(/^1\s000,00$/);
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
     expect(cell(DISBURSEMENT, "unit_disbursement")).toHaveTextContent(/^1\s234,56$/);
     // A task: its progress named, its finish shown; no figure of a line.

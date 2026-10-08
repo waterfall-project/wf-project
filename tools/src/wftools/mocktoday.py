@@ -21,7 +21,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockhistory, mocktext, mockwrites
+from wftools import mocktext, mockwitness, mockwrites
 from wftools.mockcurves import Era, cost_curve, earned_value_curves, workload
 from wftools.mockindicators import (
     PROJECT,
@@ -132,7 +132,7 @@ def values() -> dict[str, JsonValue]:
     )
     amended = reference(
         mockwrites.amended(
-            mockhistory.reference(),
+            mockwitness.reference(),
             line=lambda line: (
                 replace(line, unit=cast("Decimal", line.unit) + AMENDMENT_2)
                 if line.number == STUDIES_LINE

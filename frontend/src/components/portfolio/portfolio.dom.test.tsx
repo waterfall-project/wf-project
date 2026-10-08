@@ -292,7 +292,7 @@ describe("the value of the portfolio", () => {
     const { container } = render(inLanguage(<PortfolioValueView value={value} />));
     const section = screen.getByRole("region", { name: "Valeur du portefeuille" });
     expect(section).toHaveTextContent(
-      "Réalisé et taux de transformation sur la période du 17 mars 2025 au 16 mars 2026",
+      "Réalisé et taux de transformation sur la période du 4 juin 2025 au 3 juin 2026",
     );
     expect(section).toHaveTextContent("Taux de transformation40 %");
     await expectAccessible(container);
@@ -396,10 +396,10 @@ describe("the charts of the portfolio", () => {
     const rows = within(figure).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
       "QuarterCost indexSchedule index",
-      "Q2 2025Not computable — No actual cost at the calculation date.Not computable — No planned value at the calculation date.",
-      "Q3 20250.950.96",
-      expect.stringMatching(/^Q4 2025/),
-      "Q1 20260.940.91",
+      "Q3 2025Not computable — No actual cost at the calculation date.Not computable — No planned value at the calculation date.",
+      "Q4 20250.940.93",
+      expect.stringMatching(/^Q1 2026/),
+      "Q2 20260.940.91",
     ]);
   });
 
@@ -411,11 +411,11 @@ describe("the charts of the portfolio", () => {
     const rows = within(figure).getAllByRole("row");
     expect(rows[0]).toHaveTextContent("CourbeDateMontant");
     expect(rows[1]).toHaveTextContent(
-      `Budget de référence31 oct. 2025216${NARROW}440${NARROW}791,67`,
+      `Budget de référence31 déc. 2025210${NARROW}664${NARROW}042,15`,
     );
-    expect(rows).toHaveLength(1 + 12 + 6 + 8);
+    expect(rows).toHaveLength(1 + 12 + 7 + 7);
     expect(rows.at(-1)).toHaveTextContent(
-      `Projection du chef de projet30 sept. 2026830${NARROW}906${NARROW}815,55`,
+      `Projection du chef de projet30 nov. 20262${NARROW}130${NARROW}889${NARROW}928,20`,
     );
     // Three curves in the order of the API, the actual cost by steps, the others by lines; an axis
     // of amounts that reaches down to the lowest value drawn.
@@ -441,8 +441,9 @@ describe("the charts of the portfolio", () => {
     const cashOut = example("portfolio_cost_curve_payment_delays") as Schemas["PortfolioCostCurve"];
     render(inLanguage(<CashOutChart months={cashOut.cash_out_by_month ?? []} />));
     const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
-    expect(within(figure).getByRole("row", { name: /mars 2026/ })).toHaveTextContent(
-      `mars 202669${NARROW}158${NARROW}340,750,00`,
+    // The month of the calculation bears both: what was spent up to it, what is to come after.
+    expect(within(figure).getByRole("row", { name: /juin 2026/ })).toHaveTextContent(
+      `juin 202619${NARROW}586${NARROW}542,9530${NARROW}743${NARROW}434,03`,
     );
   });
 
@@ -460,8 +461,8 @@ describe("the charts of the portfolio", () => {
     const last = months.at(-1);
     const series = [option?.series].flat() as { data: unknown[] }[];
     expect(series.map((each) => each.data.at(-1))).toEqual([
-      { value: ["2026-11-01T00:00:00Z", last?.past], symbol: "none" },
-      { value: ["2026-11-01T00:00:00Z", last?.forecast], symbol: "none" },
+      { value: ["2026-12-01T00:00:00Z", last?.past], symbol: "none" },
+      { value: ["2026-12-01T00:00:00Z", last?.forecast], symbol: "none" },
     ]);
     // The axis is that of the months alone, whose ticks run past the first of the month after
     // the latest already: the end of the last step is not added to them.
@@ -470,7 +471,7 @@ describe("the charts of the portfolio", () => {
       true,
     );
     expect(option?.xAxis).toMatchObject({ min: ticks[0], max: ticks.at(-1) });
-    expect(ticks.at(-1)).toBeGreaterThanOrEqual(Date.UTC(2026, 10, 1));
+    expect(ticks.at(-1)).toBeGreaterThanOrEqual(Date.UTC(2026, 11, 1));
   });
 
   it("reaches down to a month of net negative cash-out, where the indices start from zero", () => {
@@ -484,7 +485,7 @@ describe("the charts of the portfolio", () => {
     expect(quarterly?.yAxis).toMatchObject({ min: 0 });
     const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
     expect(within(figure).getByRole("row", { name: /décembre 2025/ })).toHaveTextContent(
-      `-1${NARROW}840${NARROW}250,00`,
+      `-2${NARROW}546${NARROW}166,40`,
     );
   });
 });

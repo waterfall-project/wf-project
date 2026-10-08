@@ -585,8 +585,8 @@ n'avaient rien du contrat à lire. Tous sont au 16 mars 2026, sur la révision c
 témoin, et suivent les montants de `project_indicators` et de `remaining_indicators` — budget de
 référence et reste à engager de 100 000, portés par les études de détail du 2 mars au 10 avril,
 valeur planifiée de 33 333,33 à la date de calcul, aucun coût réel ni valeur acquise. Ils ne
-suivent pas le devis de `nodes_estimate`, d'un autre univers : la scission des univers témoins est
-#287. `milestone_tracking` (`getMilestoneTracking`) suit deux jalons, la réception des études et
+suivent pas le devis de `nodes_estimate`, d'un autre univers. Ils sont depuis engendrés au 3 juin
+2026 sur un seul univers : voir « L'univers témoin ». `milestone_tracking` (`getMilestoneTracking`) suit deux jalons, la réception des études et
 la réception usine, par l'offre v1.0, la référence et la révision en cours ;
 `milestone_tracking_none`, un projet sans jalon inscrit. `cost_curve` (`getCostCurve`) est la
 courbe sans délais de paiement, sans marche ; `cost_curve_payment_delays`, les décaissements — le
@@ -612,8 +612,8 @@ du raccordement des borniers, portées par le câblage des armoires du 4 mai au 
 mois au prorata de leurs heures travaillées — 5,95 en mai, 6,55 en juin —, pour l'ingénieur
 électricien, sa capacité en regard ; le technicien de mise en service, du même nœud
 d'organisation, n'a pas de charge, et sa capacité seule. Ces exemples suivent le devis de
-`nodes_estimate`, non les montants de `project_indicators` : ils sont de l'univers du devis, que la
-scission des univers témoins (#287) nomme déjà. Les deux rôles sont ceux de `resource_roles`,
+`nodes_estimate`, non les montants de `project_indicators` : ils sont de l'univers du devis. Ils
+sont depuis engendrés sur un seul univers, au 3 juin 2026 : voir « L'univers témoin ». Les deux rôles sont ceux de `resource_roles`,
 relevant du bureau d'études électricité d'`org_nodes` — l'exemple du référentiel (US-0250/L1), que
 l'écran offre au filtre, chaque nœud avec le libellé de son parent. `revisions_marked`
 (`listRevisions`, filtre `status=marked`), les deux révisions marquées du projet, la référence et
@@ -722,7 +722,7 @@ se lit pas.
 **Exemples**, dans l'univers des autres : `file_upload`, `import_analysing`, `import_analysed`,
 `import_planning_mismatch`, `imports`, `imports_page`, `imports_empty`, `task_export_*` et
 `task_import_*`. Leurs instants et ce qu'ils visent sont recalés sur la chronologie du témoin par
-EP-02/L25 — voir sa section, « L'univers témoin : coûts, échanges, tâches, comptes ».
+EP-02/L25 — voir « L'univers témoin », « Coûts, échanges, tâches, comptes ».
 
 ## Les exemples du portefeuille (US-0240/L3)
 
@@ -730,7 +730,8 @@ EP-02/L25 — voir sa section, « L'univers témoin : coûts, échanges, tâches
 l'autorisation de l'utilisateur du 2026-10-04 (un lot d'écran ajoute les exemples des
 opérations qu'il consomme). Sans eux, le faux back tirait de leurs schémas des valeurs sans
 rapport avec les trois cents projets de `getPortfolioProjects`. **Ce qui se somme des lignes de
-la liste est engendré avec elle** (`make mock-data`, `fixtures/api/volume/`), au 16 mars 2026 :
+la liste est engendré avec elle** (`make mock-data`, `fixtures/api/volume/`), au 3 juin 2026
+depuis EP-02/L26 :
 la valeur (`portfolio_value`, `getPortfolioValue` : le carnet des projets en cours, le pipeline
 brut et pondéré des offres, rien de réalisé — aucun projet du périmètre n'est terminé —, et le
 taux de transformation du Vérif de WF-PTF-0050, quatre offres gagnées sur dix sorties du
@@ -738,24 +739,24 @@ chiffrage dans l'année) ; la performance (`portfolio_performance`, `getPortfoli
 chaque indice en rapport des sommes, la valeur acquise, le coût réel et la valeur planifiée de
 chaque projet tirés de son budget et de ses indices — ceux du projet témoin, de
 `project_indicators` —, la répartition par zone comptant chaque projet une fois par indice, le
-projet témoin sans zone de coût, et quatre trimestres d'évolution, le premier non calculable, faute de coût réel et de valeur planifiée) ; la structure des coûts
+projet témoin compté nominal, et quatre trimestres d'évolution — de 2025-T3 à 2026-T2 depuis
+EP-02/L26 —, le premier non calculable, faute de coût réel et de valeur planifiée : aucun projet
+n'avait encore commencé, ce que la courbe en S tient aussi) ; la structure des coûts
 (`portfolio_cost_structure`, `getPortfolioCostStructure` : le budget et le reste à engager par
 nature, dont les parts somment à un, et la main-d'œuvre du bureau d'études électricité, le nœud
-dont relèvent tous les rôles de l'univers) ; les risques (`portfolio_risks`,
+des deux rôles qui travaillent sur les projets — le monteur câbleur, de l'atelier de câblage,
+n'en a pas) ; les risques (`portfolio_risks`,
 `getPortfolioRisks` : le registre du projet témoin et jusqu'à trois risques identifiés par autre
 projet en cours, chacun tiré d'abord dans une case de la matrice, puis sa probabilité et sa gravité
 dans les bornes des niveaux de cette case (`risk_matrix`), sa provision la gravité pondérée par la
 probabilité (WF-RIS-0010) ; les dix plus lourds avec leur projet) ; et la deuxième page de cinquante
 projets de la liste (`portfolio_projects_page`).
-**Ce que la liste ne porte pas s'écrit à la main**, au même instant et sur le même périmètre :
-`portfolio_workload` (`getPortfolioWorkload` : deux rôles de `resource_roles` sur six mois, au
-seuil de 50 %, chaque mois avec sa zone) et `portfolio_cost_curve` (`getPortfolioCostCurve`,
-qui a remplacé `portfolio_cash_out` et `getPortfolioCashOut` le 2026-10-06 : d'octobre 2025 à
-septembre 2026, les trois courbes sommées, et en décaissements mars portant le passé et
-l'avenir). `portfolio_projects_empty`
-est la liste filtrée qui ne retient aucun projet. `pilot_health` reste au 1er juin, l'exemple de
-l'US-0160. Les montants des exemples écrits à la main ne sont pas tirés des trois cents projets :
-leur échelle se suit dans #287.
+**Ce que la liste ne porte pas s'écrivait à la main** : `portfolio_workload`
+(`getPortfolioWorkload`), `portfolio_cost_curve` (`getPortfolioCostCurve`, qui a remplacé
+`portfolio_cash_out` et `getPortfolioCashOut` le 2026-10-06) et `pilot_health`, à une autre
+échelle et, pour le dernier, à un autre instant. Ils sont engendrés depuis les trois cents
+projets, au 3 juin 2026, par EP-02/L26 : voir « L'univers témoin », « Le portefeuille à
+l'échelle ». `portfolio_projects_empty` est la liste filtrée qui ne retient aucun projet.
 
 **La période des statistiques, par défaut, est l'année qui précède la date de calcul.** Les
 statistiques d'une période — le réalisé et le taux de transformation de la valeur (WF-PTF-0050),
@@ -774,7 +775,7 @@ l'écran, qui montre le seuil retenu par le serveur quand l'adresse n'en nomme a
 « Par défaut » sans dire lequel (relevé par Copilot sur la PR #338), comme `last_import_at` des
 coûts réels l'a été. L'exemple `portfolio_workload` le porte. `portfolio_cost_curve_credit`, calculé au
 31 décembre 2025 en décaissements, montre un mois net négatif — les avoirs de décembre importés
-avant ses factures, que l'import de janvier apporte au 16 mars — : un décaissement est un `Money`
+avant ses factures, que l'import de janvier apportera — : un décaissement est un `Money`
 signé, comme le coût réel dont il vient.
 
 ## Les précisions du contrat (EP-02/L15)
@@ -894,8 +895,8 @@ le budget de référence change à sa date, et non le budget après elle, que la
 **Les structures des risques témoins ont leurs exemples** (#252) : `structures_amendments` porte
 les devis propres du retard de livraison des armoires et de l'indisponibilité de l'automaticien,
 nommés par `risks`. La chronologie des risques témoins et des révisions — quand le retard est
-survenu, dans quelle révision en cours son devis propre a été fusionné — n'est pas tenue par
-les exemples : elle est suivie dans #287.
+survenu, dans quelle révision en cours son devis propre a été fusionné — n'était pas tenue par
+les exemples : EP-02/L23 l'a fixée (« L'univers témoin », « Révisions et risques »).
 
 **Un recalcul ne fait avancer le compteur d'aucun nœud** (`LockVersion`, `NodeSchedule`,
 `NodesWritten.rescheduled`, #236 ; décision de l'utilisateur du 2026-10-05). Le compteur suit les
@@ -959,7 +960,7 @@ calendrier, le calendrier par défaut, et le seul rôle sur un autre était dés
 rôle ne changeait donc le calendrier d'aucune tâche (WF-PLA-0010). Le monteur câbleur, actif sur la
 semaine de quatre jours, le permet depuis EP-02/L20 ; la projection est éprouvée sur l'exemple du
 planning appliqué aux lignes du devis, et le chemin de la grille de devis le sera avec l'écriture
-qui redate (EP-02/L22, #287).
+qui redate (EP-02/L22, « L'univers témoin »).
 
 **Les exemples de dépendance d'un montant suivent** : `dependencies_labour` et
 `dependencies_task_amount` disent désormais ce dont dépend le montant à l'année de référence d'une
@@ -1108,176 +1109,6 @@ aussi les projets en chiffrage disent que la requête les a ajoutés au périmè
 projets en cours (WF-PTF-0010), qui reste celui du contrat. `CashOutMonth` dit enfin ce que montre
 `portfolio_cost_curve_payment_delays` : un mois qui précède celui de la date de calcul ne porte que
 le passé, un mois qui le suit que l'avenir, et le mois de la date de calcul les deux.
-
-## L'univers témoin : le socle (EP-02/L20)
-
-**Le témoin se décrit une fois** (#287, décisions de l'utilisateur du 2026-10-05). Les premiers
-exemples décrivent un seul projet, PRJ-001, à un seul instant, aujourd'hui : le 3 juin 2026 à
-14 h 05 UTC. `wftools.mockwitness` en est la source unique : cet instant, la chronologie du projet
-(de l'installation au 1er septembre 2025 aux imports de coûts du jour), les rôles qu'emploient ses
-lignes et leurs calendriers — lus dans `resource_roles` et `calendars`, écrits à la main, jamais
-recopiés —, et son cœur lisible : le groupe « Études », le lot « Poste de commande » et le
-sous-arbre fusionné dans la révision en cours par la survenance de 752, aux identifiants fixes
-(le nœud 5nn, sa lignée 6nn) et aux chiffres des Vérif — 12,5 h × 80 = 1 000, 1 234,56, la
-provision de 500 de 751, des lignes de 120 et 80 budgétées à zéro (WF-RIS-0060 révisée ; la
-référence reste 101). Un autre exemple nommé est une autre lecture
-de cet état, un instant antérieur de la même chronologie, la suite d'une écriture faite
-aujourd'hui, ou une variante contrefactuelle déclarée.
-
-**Une famille d'identifiants par nature d'objet, sur des plages disjointes**
-(`mockwitness.IDENTIFIERS`, C16) : les identifiants écrits à la main par centaines — projets,
-révisions, structures, comptes, référentiel, nœuds et lignées, rôles d'habilitation, postes du
-lotissement, risques, sous-projets, sauvegardes, tâches de fond, collages et corrélations —, ceux
-qu'ils écrivent en hexadécimal — imports et téléversements (…0a01), lignes de coût réel (…0c01),
-imports de coûts réels (…0c11) — et les familles engendrées, dont le générateur tire désormais
-ses numéros. Un test confronte chaque identifiant de `fixtures/api` à la famille de sa clé
-(`node_id`, `backup_id`…) ; les empiètements d'aujourd'hui y sont déclarés, et leur liste ne
-fera que décroître : le poste 701 sur les rôles d'habilitation ; les tâches de fond 901 à 905,
-les collages 911 et 912 et la corrélation 913 sur les sauvegardes ; les corrélations 921 à 927
-sur les tâches de fond. Ils seront ramenés sur leur plage avec leurs exemples (L24, L25).
-
-**Les dates se calculent en heures de travail sur le calendrier applicable**
-(`wftools.mockcalendar`, WF-PLA-0010, WF-PLA-0160) : une durée et un décalage convertis en heures
-se placent heure après heure, chaque jour selon le moins généreux des calendriers des rôles d'une
-tâche. **Le rôle actif 454 « Monteur câbleur »**, de l'atelier de câblage, catégorie Ingénierie
-électrique, est sur la semaine de quatre jours de dix heures (482) : l'univers a désormais deux
-calendriers employés, et un changement de rôle peut redater une tâche.
-
-**La structure suit en EP-02/L27** (#376) : la structure de mille tâches datée en heures, le cœur
-en tête, ses compteurs du §4.6.2 gardés, puis EP-02/L21 à L26. Deux décisions de l'utilisateur
-la cadrent déjà : le cœur lisible est **relié au réseau engendré**, pour que ses marges et le
-chemin critique aient un sens ; la **réception usine reste au 30 juin 2026** (C13). Jusque-là,
-la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 mars.
-
-## L'univers témoin : les lectures de la grille (EP-02/L21)
-
-**Les exemples nommés de `listNodes` sont des lectures d'un seul arbre, engendrées** (#287 ; C1,
-C14). `wftools.mockcore` date le cœur décrit dans `mockwitness` en heures de travail sur le
-calendrier de chaque tâche (`mockcalendar`), à partir du début des études (2 mars 2026) et de ses
-liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin la plus tardive que ses
-successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
-sa fin à cet instant, en jours ouvrés ; une tâche en mode manuel n'a ni marge ni criticité et
-n'impose rien à ses prédécesseurs. Les lignes sont chiffrées au taux de leur catégorie pour l'année
-de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; une tâche somme ses
-lignes et ses subordonnées ; l'avancement physique d'une récapitulative est le budget des lignes de
-ses tâches terminées sur celui de son sous-arbre, non calculable sans budget (`no_budgeted_amount`).
-L'avancement se lit aux dates à aujourd'hui, le 3 juin 2026 : les études sont terminées, les pupitres
-opérateurs en mode manuel démarrés et en dépassement de fin, le câblage des armoires en cours, la
-réception usine au 30 juin (C13). Les nœuds sont numérotés depuis la première ligne de la structure,
-où EP-02/L27 placera le cœur en tête (#376) ; jusque-là, marges et chemin critique sont ceux du cœur
-seul, et les mille tâches du volume restent datées au 16 mars.
-
-`make mock-data` écrit ces lectures sous `fixtures/api/`, par leur nom, à côté des volumes :
-`nodes`, le sous-arbre « Études » avec ses lignes (`subtree_of`) ; `nodes_planning`, le même sans ses
-lignes (`kinds=task`) ; `nodes_estimate`, le sous-arbre « Poste de commande », qui porte le sous-arbre
-fusionné par la survenance de 752 ; `nodes_milestone`, la recherche « Réception usine », dont la
-récapitulative est rendue pour la lisibilité et absente des totaux ; `nodes_risk_occurred`, le
-sous-arbre 541 seul ; et `dependencies_summary`, `dependencies_summary_moved`, `dependencies_labour`,
-`dependencies_task_amount`, `dependencies_provision`, `dependencies_manual_float`, ce dont dépendent
-les valeurs calculées des mêmes nœuds. `make mock-data-up-to-date` les vérifie comme les volumes,
-et `tools/paths.toml` les déclare engendrés. `dependencies_entered`, un refus sans nœud, reste écrit
-à la main. **Les totaux d'une lecture sont ceux des lignes qu'elle retient** (`NodeTotals`) : une
-lecture des tâches seules ne somme rien, là où l'exemple écrit à la main gardait les totaux de la
-structure.
-
-**La ligne de provision 555 est budgétée à la provision que la référence connaissait**, 250 — 751 à
-1 000 × 25 % le 1er février (`risk_reviews`) —, quand son montant d'aujourd'hui est 500 : ce budget
-compte à la réserve pour risques, jamais au budget de référence (WF-RIS-0050, `EstimateLineFacet`).
-Le devis du lot totalise donc 2 934,56, dont 2 484,56 budgétés. **C14 et C17 sont fermés, et C1 hors `comparison`, dont L23 (C12) porte les lignées** : les
-risques 751 (`risks`, `risk`) nomment leur ligne de provision 555, l'import du devis
-(`import_analysed`) les lignées 653 et 654 des mêmes lignes, et un test confronte tout
-`fixtures/api` — un nœud ou une lignée des familles 500–599 et 600–699 porte une seule nature et un
-seul libellé dans tout l'univers, les fixtures qui s'en écartent déclarées : `task_renamed`, qui
-renomme, et `comparison`.
-
-**Ce que ce lot laisse** : `comparison.json` compare deux révisions sur les lignées 622, 623, 625 et
-626 d'un autre découpage du témoin — une contradiction avec les lectures, déclarée, que L23 ferme
-avec C12 ; les écritures `estimate_line_updated`, `task_renamed` et `node_deleted`, que les tests de
-la grille combinent aux lectures, ont été reportées à la main sur les nœuds 553, 552 et 551 et aux
-totaux d'aujourd'hui, et `predecessor_set` reste une écriture d'avril (marge du dossier de
-conception à 7 jours quand les lectures la portent à 54, études sans dépassement de fin) : L22 les
-engendre toutes.
-
-## L'univers témoin : les écritures de la grille (EP-02/L22)
-
-**Une réponse d'écriture est la différence de deux lectures de la structure, avant et après
-l'écriture, engendrée** (#287 ; C9, C10). `wftools.mockwrites` modifie la description du témoin
-(`mockwitness`) — un libellé, une charge, une ligne retirée, une liaison ajoutée, un rôle changé
-—, la date et la chiffre à nouveau (`mockcore`), lit la structure entière avant et après, et en
-tire `NodesWritten` : les nœuds écrits, une version de plus ; les tâches non récapitulatives dont le
-début, la fin, la marge ou la criticité ont changé sans être écrites (`rescheduled`) ; les lignes et
-les tâches non récapitulatives dont le montant corrigé ou l'année de consommation a changé, hors
-celles que `ancestors` rend entières (`reinflated`) ; les ancêtres des nœuds écrits, du nœud
-supprimé — lu avant, puisqu'il n'est plus après — et des tâches redatées, entiers ; les totaux de
-la structure entière. Une tâche qui porte la ligne écrite et que l'écriture redate est à la fois
-dans `ancestors` et dans `rescheduled`, comme le contrat l'écrit. `make mock-data` écrit ainsi
-`task_renamed`, `estimate_line_updated`, `node_deleted`, `predecessor_set` et le nouvel
-`estimate_line_redated` sur le cœur, et `estimate_line_entered`, `paste_plan`,
-`paste_plan_unknown_category`, `paste_too_wide` et `paste_applied` sur la structure de mille tâches
-que le faux back sert en premier et que les parcours lisent, comme `task_lengthened`, désormais
-produit par la même différence ; `tools/paths.toml` les déclare engendrés. Le poste du lot « Poste
-de commande » (`order_item_id`, `work_breakdown_label`, EP-02/L29), rendu en ancêtre, sort du
-générateur. **Une ligne saisie garde son budget** : la référence l'a fixé, seul le montant réestimé
-suit les grandeurs (WF-DEV-0020) — 14 h au lieu de 12,5 donnent 1 120,00 réestimés et laissent
-1 000,00 budgétés. **Les totaux d'une écriture du cœur sont ceux du cœur entier**, quinze tâches
-et neuf lignes, comme le contrat le veut (« les totaux de la structure entière, sans filtre ») — les
-exemples écrits à la main gardaient ceux du lot ; L27 (#376) les portera à la structure de mille
-tâches où il incruste le cœur. Le bloc collé, ses lignes acceptées ou refusées, sont lus du bloc et
-des catégories et rôles de l'univers ; la largeur de `paste_too_wide` est comptée dans `NodeColumn`
-du contrat — le libellé, puis de `cost_category` à la dernière colonne —, pour suivre la prochaine
-colonne sans retouche (EP-02/L16 avait dû la corriger à la main).
-
-**L'univers offre une écriture du devis qui redate, et le cœur s'étend pour la porter** (C9). Le
-cœur finissait à la réception usine, le 30 juin : aucune tâche n'y finissait fin 2026, et le monteur
-câbleur, seul rôle actif sur un autre calendrier, n'avait pas de ligne. Le cœur gagne l'installation
-sur site, après la réception usine, qui reste au 30 juin (C13) : le montage des armoires sur site
-(562), du 1er juillet au 18 décembre 2026, son câblage par l'ingénieur électricien (563) et
-l'assistance du technicien de mise en service aux essais (564), et la mise en service qui le suit
-(565, sa ligne 566), démarrée le 21 décembre et consommée en 2026. `nodes_installation`, nouvel
-exemple nommé de `listNodes`, en est la lecture (`subtree_of`). `estimate_line_redated`
-(`updateEstimateLine`) confie le câblage sur site au monteur câbleur : le montage n'a plus que les
-jours de ses deux rôles, quatre jours de huit heures (WF-PLA-0010), finit le 1er février 2027, et la
-mise en service démarre le 2 février ; elle et le montage sont dans `rescheduled`, avec les tâches
-sans successeur dont la marge grandit ; la ligne de la mise en service, consommée en 2027, et la
-mise en service elle-même sont dans `reinflated`, 6 180,00 au lieu de 6 000,00. Deux écarts au
-cadrage de #287, qui disait « la tâche prend 482 et finit en 2027 ; `reinflated` ses lignes et
-elle-même », sont imposés par le modèle : la semaine de quatre jours de dix heures compte autant
-d'heures que la semaine standard, et le 31 décembre 2026 est un jeudi, dernier jour qu'elle travaille
-— un rôle seul sur 482 ne fait passer l'année à aucune tâche ; il y faut un second rôle sur 481, et
-le montage prend le calendrier commun des deux. Et une ligne est consommée l'année où sa tâche
-commence (simplification déclarée de `mockstructure.inflated`, WF-DEV-0040 voulant une répartition
-au prorata des heures) : le montage, commencé en 2026, garde l'année de ses lignes, et c'est la
-mise en service qui le suit, avec sa ligne, que l'écriture déplace dans le temps. Ajouter le
-cœur allonge le chemin critique : la marge du dossier de conception passe de 54 à 187 jours
-(15 avril 2026 – 1er janvier 2027), celle des tâches de la survenance de 32 à 165.
-
-**`predecessor_set` est une écriture d'aujourd'hui, sur une tâche non démarrée** : les
-prédécesseurs du montage sur site saisis à nouveau — la réception usine, en fin à début, avec deux
-jours ouvrés de décalage. Le montage va du 3 juillet au 22 décembre, la mise en service du
-23 décembre 2026 au 5 janvier 2027, démarrée encore en 2026 : `reinflated` est vide ; les tâches
-sans successeur gagnent de la marge. Aucune date passée ne bouge : l'avancement d'une tâche et ses
-dates de démarrage et d'achèvement sont des faits (WF-PLA-0130), et la réception usine reste au
-30 juin (C13) — le test de `predecessor_set` le vérifie, et un invariant interdit à toute écriture
-engendrée de changer l'avancement ou les dates d'une tâche démarrée ou terminée. L'exemple écrit à la main liait la
-revue de conception au dossier de conception, ce qui, aujourd'hui, aurait redaté des tâches
-terminées. Le cœur se date désormais dans l'ordre de ses liaisons, quel que soit l'ordre du plan ;
-une boucle est refusée, en nommant les tâches restées sans date.
-
-**La lecture entière du cœur est un exemple nommé** (`nodes_core`, `listNodes` sans filtre) : ses
-totaux sont ceux que rendent les écritures du cœur, et les tests de la grille qui éprouvent les
-totaux de la structure entière la lisent, plutôt qu'un sous-arbre lu comme s'il était entier.
-
-**Le chemin de la grille de devis par `reinflated` est éprouvé** (C10) :
-`inflation.dom.test.tsx` rend la grille sur `nodes_installation`, écrit le rôle du câblage sur site,
-et lit dans les cellules de la mise en service et de sa ligne les montants corrigés que la réponse
-porte, leur montant à l'année de référence inchangé, la récapitulative rendue entière.
-
-**Ce que ce lot laisse** : le refus de la création à la main d'une ligne de nature provision
-(Vérif de WF-DEV-0020) n'a pas d'exemple — il faut un motif de refus au catalogue
-(`ErrorCode`), modification d'un schéma que porte EP-02/L30 (#393) ; `paste_applied` calcule ses
-montants par un second chemin, sur les nœuds de la structure de mille tâches, que EP-02/L27 (#376)
-ramènera au calcul du cœur en l'y incrustant ; `task_renamed` reste déclaré dans le test des
-libellés du cœur, puisqu'il renomme.
 
 ## Révision de la spécification du 2026-10-04 (PR #328, fusion du 2026-10-06)
 
@@ -1617,7 +1448,365 @@ colonne comme le fichier la nomme ; `document_number`, qui identifie la ligne, e
 `label` et jamais par `fields`. Exemple : `import_actual_costs_analysed`, le fournisseur de la
 facture. `listOrgNodes` cherche aussi sur le code.
 
-## L'univers témoin : révisions et risques (EP-02/L23)
+## Les constats de la seconde moitié d'EP-02 (EP-02/L35)
+
+Les constats de contrat ouverts pendant les lots d'écrans et du témoin (#466, #463, #424, #425,
+#458, #414, #413, et le quatrième point de #353, joint à #414), chacun selon la proposition de son
+issue et la décision du plan de résorption du 2026-10-07. Une forme que ni la spécification, ni le
+constat ne fixaient est dite comme telle. Le front n'en adopte que ce qu'il faut pour rester juste
+et vert ; l'adoption à l'écran est EP-02/L36 (#475).
+
+**La marge du reste à engager a un seul sens** (#466, décision de l'auteur du 2026-10-07 ;
+WF-RAE-0020). `RemainingIndicators.delta_to_reference` vaut désormais le budget de référence moins
+la somme du coût réel et du reste à engager, positive quand il en reste, comme
+`SubprojectBalance.variance` et l'écart de couverture des risques ; les descriptions le disent, et
+la marge du projet est la somme des marges de ses sous-projets, hors sous-projet compris. Le
+générateur le calcule ainsi, et non plus « le coût réel plus le reste à engager moins le budget »
+qu'EP-02/L24 reprenait de l'exemple écrit à la main : `remaining_indicators` porte 93 900 et non
+plus -93 900, `remaining_indicators_over_budget` 94 100, la réestimation du jour en ayant dégagé
+200. Le front nomme cette valeur « Marge sur le budget de référence ». `delta_to_previous_revision`,
+que la décision ne vise pas, garde son sens et le contrat le dit : le reste à engager courant moins
+celui de la révision marquée précédente, à son marquage, négatif quand la revue l'a réduit — ce que
+la revue a changé (WF-RAE-0020), qui n'est pas une marge : un reste à engager diminue aussi de ce
+qui s'est dépensé ; nul (`null`) sans revue précédente, et non zéro, l'écran l'omettant alors. Deux
+mots, deux sens — décision de l'auteur à la revue : le reste à engager parle de **marge**
+(`delta_to_reference`, `SubprojectBalance.variance`, que le front nomme « marge », par sous-projet
+comme pour le projet), et la couverture des risques garde son « écart de couverture » de la
+spécification, dans le même sens ; le portefeuille et les projections parlent d'**écart**, positif
+au-delà du budget : l'écart de la liste des projets (`PortfolioProject.delta_to_reference`), que le
+Vérif de WF-PTF-0040 fixe ainsi (« un écart de 50 » pour 1 050 face à 1 000), et les écarts des
+projections (`Projections.variance_*`, la projection moins le budget de référence, WF-IND-0050),
+dont le front garde le libellé « Écart au budget ». Les écarts du devis
+(`EstimateIndicators.delta_to_*`) sont le devis courant moins le devis comparé. L'écart de coût et
+l'écart de délai (`cost_variance`, `schedule_variance` des indicateurs du projet et du portefeuille)
+suivent le glossaire : la valeur acquise moins le coût réel, positif sous le budget, et la valeur
+acquise moins la valeur planifiée, positif en avance (WF-IND-0070, WF-IND-0080). Les écarts de
+montants d'une comparaison de révisions (`RevisionComparison.amount_deltas[].delta`) : la
+spécification ne donne aucun sens (WF-REV-0080, « les écarts de montants ») ; retenu, la révision
+comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), le sens où une tâche y
+est dite ajoutée et celui du devis en cours moins le devis comparé, et le sens que le générateur
+calculait déjà. Chaque propriété `*variance*` ou `delta*` des schémas porte désormais une
+description qui dit son sens, `RiskCoverageTotals.coverage_variance` compris ; un test des outils le
+tient (`test_contract_gaps.py`). La colonne de la liste des projets se nomme « Écart à la référence
+», libellé fixé par l'auteur sur #466 ; les projections gardent « Écart au budget ».
+
+**`listNodes` filtre sur la récapitulative, le niveau et la chronologie** (#463 ; WF-PLA-0110,
+WF-PLA-0140). Trois filtres sur une tâche, qui se combinent aux autres : `summaries_only`, les
+seules récapitulatives ; `max_level`, au moins 1, les tâches dont le niveau ne dépasse pas celui
+demandé, le premier étant celui des tâches sans parent — une ligne suit la tâche qui la porte, quel
+que soit son niveau ; `timeline_id`, les tâches et les jalons inscrits sur la chronologie. Deux
+formes que le constat ne fixait pas : **une lecture par chronologie ne rend pas les ancêtres** des
+tâches retenues, seule exception à la règle de lisibilité de l'arbre — une chronologie n'est pas un
+arbre, et le front n'aurait sinon d'autre moyen que `tracking` pour écarter les ancêtres, la
+sélection que le constat voulait lui retirer ; et une chronologie sans inscription, ou d'un autre
+projet, ne retient rien plutôt que d'être refusée, comme un poste qu'aucune tâche ne porte. Exemples
+`nodes_summaries` — la variante à quatre niveaux du témoin (`nodes_nested`) demandée au niveau 2 :
+les études, l'installation et le lot rangé sous elle, sans le sous-arbre de la survenance, au
+troisième niveau — et `nodes_timeline`, le comité de pilotage : les études, la réception des études,
+la réception usine et la mise en service, sans le lot ni l'installation.
+
+**Les totaux d'une lecture ne changent pas avec `kinds`** (#487, option (a), décision de l'auteur).
+La description de `listNodes` le promettait déjà : les totaux sont ceux de la structure lue, quel
+que soit `kinds`. Le générateur rendait des totaux nuls pour une lecture des tâches seules ; il rend
+désormais ceux de la lecture complète, aux mêmes filtres. `nodes_planning` porte la ligne des études
+de détail, `nodes_timeline` celle de la mise en service, `nodes_nested` les lignes de son sous-arbre
+; `nodes_summaries` reste à zéro, aucune récapitulative ne portant de ligne propre, qu'un filtre sur
+une tâche retiendrait avec elle.
+
+**La grille de reste à engager reçoit les grandeurs au reste à engager précédent** (#424 ;
+WF-RAE-0040, WF-ARC-0020). `EstimateLineFacet.previous_quantity`, `previous_hours` et
+`previous_unit_disbursement`, nuls avant la première revue comme `previous_reestimated_amount`, et
+nuls comme leurs grandeurs courantes là où la ligne n'en porte pas ; demandables par `fields` comme
+toute propriété de la facette. `NodeColumn` les range avant `previous_reestimated_amount` : une
+ligne offre désormais dix-sept colonnes à partir de son libellé, et `paste_too_wide` le dit
+(`max_columns` à 17). Ce sont des valeurs conservées et non calculées : elles n'entrent ni dans
+`ComputedField` ni dans `ComputedValueField`, et aucun nœud ne les accepte en écriture. Les lignes
+du témoin les portaient nulles, comme leur montant réestimé précédent ; elles portent depuis
+EP-02/L26 celles de la révision 101 (« L'univers témoin », « Le portefeuille à l'échelle »).
+
+**Le Kanban reçoit toutes les tâches, par état** (#425 ; WF-RAE-0030, WF-PLA-0040).
+`listStartableTasks` rend trois colonnes exigées, chacune dans l'ordre du plan et sans
+récapitulative : `not_started`, toutes les tâches non démarrées et non plus les seules dont les
+prédécesseurs sont terminés ; `started` ; `completed`, les tâches terminées avec leur
+`task.completed_on`, que le Kanban rouvre par `setTaskProgress`. Une tâche non démarrée est un
+`NotStartedTask`, le nœud et `predecessors_completed`, vrai quand tous ses prédécesseurs sont
+terminés ou qu'elle n'en a aucun : c'est par lui que le Kanban signale un jalon à terminer. Le nom
+s'écarte de l'`is_startable` du constat : WF-RAE-0030 ne fait pas dépendre le démarrage des
+prédécesseurs, et un drapeau « démarrable » à faux sur une tâche que rien n'empêche de démarrer
+dirait le contraire de la règle. L'operationId reste `listStartableTasks`, que le client engendré
+nomme ; le résumé devient « Tâches du Kanban, par état ». Exemples : `startable_tasks`, trois tâches
+non démarrées, aucune signalée — la réception usine attend la fin du câblage —, six terminées ;
+`startable_tasks_milestone`, la réception usine signalée, le câblage parmi les terminées. Le front
+signale désormais un jalon par ce drapeau, et non plus par sa seule colonne, qui le signalerait à
+tort ; il garde ses deux colonnes jusqu'à EP-02/L36.
+
+**Une réestimation qui termine une tâche demande sa date** (#458 ; WF-RAE-0040, WF-PLA-0130).
+`RemainingUpdate.completed_on`, facultatif, exigé quand la saisie met à zéro la dernière ligne
+encore ouverte de sa tâche, ignoré sinon ; sans lui, `setLineRemaining` répond 422
+`VALIDATION_FAILED`, motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`,
+`fields[].params.task_node_id` nommant la tâche, et rien n'est écrit : l'écran demande la date,
+qu'il propose au jour courant, et rejoue la saisie. Un motif par champ et non un code de premier
+niveau, comme le proposait le constat : c'est un champ du corps qui manque. Le nom suit
+`TaskFacet.completed_on`, et non l'`occurred_on` de `ProgressUpdate`, qui date un démarrage comme
+une terminaison. Exemple engendré `remaining_completion_date_required`, variante contrefactuelle
+déclarée : la charge du raccordement des borniers mise à zéro, les deux autres lignes du câblage des
+armoires supposées déjà à zéro — la ligne de provision du risque identifié 751 ne l'est pas dans le
+témoin.
+
+**Une tâche non démarrée réestimée à zéro passe par l'état démarré** (#486, option (a), décision de
+l'auteur ; WF-RAE-0030, WF-RAE-0040). Le contrat permettait de réestimer une tâche non démarrée, et
+un reste à engager nul termine la tâche : pour une tâche qui n'est pas un jalon, c'était le passage
+direct de non démarrée à terminée que WF-RAE-0030 réserve aux jalons. Une telle saisie la démarre et
+la termine à la même date, celle de `completed_on`, qui devient aussi son `started_on` ;
+`RemainingUpdate`, `completed_on` et `setLineRemaining` le disent. La règle est celle de
+WF-RAE-0030, quel que soit le chemin : un import de reste à engager qui termine une telle tâche la
+démarre et la termine le jour de son application, `started_on` égal à `completed_on`, ce que disent
+`ImportReport.completed_tasks` et `ImportCompletedTask`. Écartés : une date de démarrage demandée en
+plus, détail que le reste à engager ne demande pas, et un refus tant que la tâche n'est pas
+démarrée. L'exemple `remaining_completion_date_required` porte sur le câblage des armoires, déjà
+démarré : il n'en dépend pas.
+
+**L'union des colonnes conservées des coûts réels est donnée pour toute la lecture** (#414, #353
+quatrième point ; WF-CRE-0010). `meta` de `listActualCosts` devient un `ActualCostListMeta`, la
+pagination et `passthrough_columns`, l'union des colonnes conservées de toutes les lignes retenues
+par les filtres, et non de la page : chaque colonne une fois, nommée comme `passthrough` la nomme,
+dans l'ordre où les imports les ont déclarées — les imports dans leur ordre d'application, les
+colonnes d'un import dans l'ordre de son fichier, une colonne à sa première déclaration —, ordre que
+le constat laissait ouvert pour plusieurs imports. `PaginationMeta` ne change pas pour les autres
+listes. Les quatre exemples, écrits à la main, la portent : les trois colonnes du témoin, aucune
+pour `actual_costs_empty`.
+
+**Un état refusé nomme son énumération** (#413 ; WF-ARC-0110). `Problem.params.state_enum`, rendu
+avec `params.state`, nomme l'énumération du contrat dont l'état est une valeur (`StateEnumeration`)
+; seul `ProjectState` en relève aujourd'hui — les indicateurs d'un projet qui n'a pas atteint l'état
+En cours, le plan de charge d'un projet sans référence, les deux seuls refus qui portent un état —,
+et une énumération de plus sera une modification du contrat. Écarté : `object_kind` et une table
+objet → énumération, une indirection de plus pour le même renseignement. Exemples
+`project_indicators_not_in_progress` et `workload_no_reference`. Le front le lira avec EP-02/L36
+(#475, premier point de #353) ; d'ici là il nomme toujours un état comme un `ProjectState`, ce qui
+reste juste.
+
+**Ce que ce lot laisse.** Les lignes du témoin ne portaient aucune valeur au reste à engager
+précédent, montant ni grandeurs, alors que la révision 101, marquée le 1er février pendant l'état En
+cours, en est la revue précédente — celle dont `remaining_indicators` tire son écart à la révision
+précédente : EP-02/L26 (#375) les leur donne. Les totaux de `listNodes` lu avec
+`kinds=task` sont ouverts en #487.
+
+## L'univers témoin
+
+**Les exemples du contrat décrivent un seul univers, à un seul instant** (#287, décisions de
+l'utilisateur du 2026-10-05, plan de résorption du 2026-10-07). Cette section, unique, dit ce
+qu'est l'univers témoin et comment il s'engendre ; les sections des autres lots qui renvoyaient
+à #287 renvoient ici. Aujourd'hui est le **3 juin 2026 à 14 h 05 UTC** : le premier exemple de
+chaque opération décrit le projet témoin, PRJ-001 « Modernisation du poste de commande », ou le
+portefeuille de trois cents projets qui le compte, à cet instant. Un autre exemple nommé est l'une
+de quatre choses : une autre lecture du même état (une page, un filtre, `subtree_of`) ; un instant
+antérieur de la même chronologie (une révision marquée, un `as_of`) ; la suite immédiate d'une
+écriture ou d'une tâche lancée aujourd'hui ; ou une variante contrefactuelle déclarée comme telle
+(« si… »).
+
+**Ce qui se déduit s'engendre, depuis une seule description.** `wftools.mockwitness` décrit le
+témoin une fois — sa chronologie, les familles d'identifiants sur des plages disjointes, les rôles
+et calendriers qu'emploient ses lignes, son cœur lisible, ses risques, ses coûts réels, sa
+référence telle qu'elle fut marquée — et `make mock-data` en écrit, en une seule exécution qui
+atteint son point fixe (ce que la commande engendre se passe en mémoire, jamais relu du disque) :
+les lectures et les écritures de la grille (`mockcore`, `mockwrites`), l'histoire et les risques
+(`mockhistory`), les indicateurs, les courbes et le plan de charge d'aujourd'hui (`mockindicators`,
+`mockcurves`, `mocktoday`), les coûts réels (`mockcosts`), les volumes du §4.6.2 et le portefeuille
+(`mockstructure`, `mockportfolio`, `mockportfoliotime`). Les formules sont simples et dites dans
+chaque générateur, en attendant le noyau d'EP-06 à EP-11. Reste écrit à la main ce qui ne se
+déduit pas — sessions, comptes, permissions, référentiel, le projet, ses révisions et ses
+transitions, imports et comptes rendus, tâches de fond, état du système et sauvegardes, erreurs,
+variantes contrefactuelles — : les générateurs le lisent, et `tools/tests/test_mockhistory.py` et
+`tools/tests/test_mockuniverse.py` le confrontent à ce qui est engendré.
+
+**Les contradictions relevées sur #287 sont fermées** : C1 (un identifiant pour plusieurs nœuds)
+par EP-02/L21 et L23 ; C2 (premiers exemples à montants différents) par L24 ; C3 (le sous-projet
+porteur d'un coût réel) par L25 ; C4 (deux instants du portefeuille) et C7 (son échelle) par L26 ;
+C5 et C6 (tâches de fond au même instant, sessions sur un même compte) par L25 ; C8 tombe avec la
+spécification révisée (L23) ; C9 et C10 (écriture qui redate, passage par `reinflated`) par L22 ;
+C11 à C13 (chronologie, comparaison, réception usine) par L23 et L24 ; C14 et C17 par L21 ; C15
+par L24 ; C16 (identifiants à double emploi) par L20 et L25. Reste la structure de mille tâches
+datée en heures, le cœur incrusté en tête (EP-02/L27, #376), et avec elle la décision 4 du cadrage
+— 751 et 753 à l'échelle de cette structure —, décidée par l'auteur le 2026-10-07 (option (a)),
+à appliquer par L27.
+
+Les sous-sections disent, lot par lot, ce que chacun a fait ; ce qu'une sous-section laisse est
+repris par une suivante, ou renvoyé à EP-02/L27 (#376). Ce qu'une sous-section décrit et qu'une
+suivante a changé — la capacité des rôles, le cours des projets du portefeuille — se lit dans la
+dernière qui en parle.
+
+### Le socle (EP-02/L20)
+
+**Le témoin se décrit une fois** (#287, décisions de l'utilisateur du 2026-10-05). Les premiers
+exemples décrivent un seul projet, PRJ-001, à un seul instant, aujourd'hui : le 3 juin 2026 à
+14 h 05 UTC. `wftools.mockwitness` en est la source unique : cet instant, la chronologie du projet
+(de l'installation au 1er septembre 2025 aux imports de coûts du jour), les rôles qu'emploient ses
+lignes et leurs calendriers — lus dans `resource_roles` et `calendars`, écrits à la main, jamais
+recopiés —, et son cœur lisible : le groupe « Études », le lot « Poste de commande » et le
+sous-arbre fusionné dans la révision en cours par la survenance de 752, aux identifiants fixes
+(le nœud 5nn, sa lignée 6nn) et aux chiffres des Vérif — 12,5 h × 80 = 1 000, 1 234,56, la
+provision de 500 de 751, des lignes de 120 et 80 budgétées à zéro (WF-RIS-0060 révisée ; la
+référence reste 101). Un autre exemple nommé est une autre lecture
+de cet état, un instant antérieur de la même chronologie, la suite d'une écriture faite
+aujourd'hui, ou une variante contrefactuelle déclarée.
+
+**Une famille d'identifiants par nature d'objet, sur des plages disjointes**
+(`mockwitness.IDENTIFIERS`, C16) : les identifiants écrits à la main par centaines — projets,
+révisions, structures, comptes, référentiel, nœuds et lignées, rôles d'habilitation, postes du
+lotissement, risques, sous-projets, sauvegardes, tâches de fond, collages et corrélations —, ceux
+qu'ils écrivent en hexadécimal — imports et téléversements (…0a01), lignes de coût réel (…0c01),
+imports de coûts réels (…0c11) — et les familles engendrées, dont le générateur tire désormais
+ses numéros. Un test confronte chaque identifiant de `fixtures/api` à la famille de sa clé
+(`node_id`, `backup_id`…) ; les empiètements d'aujourd'hui y sont déclarés, et leur liste ne
+fera que décroître : le poste 701 sur les rôles d'habilitation ; les tâches de fond 901 à 905,
+les collages 911 et 912 et la corrélation 913 sur les sauvegardes ; les corrélations 921 à 927
+sur les tâches de fond. Ils seront ramenés sur leur plage avec leurs exemples (L24, L25).
+
+**Les dates se calculent en heures de travail sur le calendrier applicable**
+(`wftools.mockcalendar`, WF-PLA-0010, WF-PLA-0160) : une durée et un décalage convertis en heures
+se placent heure après heure, chaque jour selon le moins généreux des calendriers des rôles d'une
+tâche. **Le rôle actif 454 « Monteur câbleur »**, de l'atelier de câblage, catégorie Ingénierie
+électrique, est sur la semaine de quatre jours de dix heures (482) : l'univers a désormais deux
+calendriers employés, et un changement de rôle peut redater une tâche.
+
+**La structure suit en EP-02/L27** (#376) : la structure de mille tâches datée en heures, le cœur
+en tête, ses compteurs du §4.6.2 gardés, puis EP-02/L21 à L26. Deux décisions de l'utilisateur
+la cadrent déjà : le cœur lisible est **relié au réseau engendré**, pour que ses marges et le
+chemin critique aient un sens ; la **réception usine reste au 30 juin 2026** (C13). Jusque-là,
+la structure des volumes reste celle d'EP-02/L16, datée en jours ouvrés au 16 mars.
+
+### Les lectures de la grille (EP-02/L21)
+
+**Les exemples nommés de `listNodes` sont des lectures d'un seul arbre, engendrées** (#287 ; C1,
+C14). `wftools.mockcore` date le cœur décrit dans `mockwitness` en heures de travail sur le
+calendrier de chaque tâche (`mockcalendar`), à partir du début des études (2 mars 2026) et de ses
+liaisons ; une passe arrière donne à chaque tâche en mode automatique la fin la plus tardive que ses
+successeurs lui laissent — la fin du cœur sans successeur —, sa marge étant les heures de travail de
+sa fin à cet instant, en jours ouvrés ; une tâche en mode manuel n'a ni marge ni criticité et
+n'impose rien à ses prédécesseurs. Les lignes sont chiffrées au taux de leur catégorie pour l'année
+de référence (12,5 h × 80 = 1 000), consommées l'année du début de leur tâche ; une tâche somme ses
+lignes et ses subordonnées ; l'avancement physique d'une récapitulative est le budget des lignes de
+ses tâches terminées sur celui de son sous-arbre, non calculable sans budget (`no_budgeted_amount`).
+L'avancement se lit aux dates à aujourd'hui, le 3 juin 2026 : les études sont terminées, les pupitres
+opérateurs en mode manuel démarrés et en dépassement de fin, le câblage des armoires en cours, la
+réception usine au 30 juin (C13). Les nœuds sont numérotés depuis la première ligne de la structure,
+où EP-02/L27 placera le cœur en tête (#376) ; jusque-là, marges et chemin critique sont ceux du cœur
+seul, et les mille tâches du volume restent datées au 16 mars.
+
+`make mock-data` écrit ces lectures sous `fixtures/api/`, par leur nom, à côté des volumes :
+`nodes`, le sous-arbre « Études » avec ses lignes (`subtree_of`) ; `nodes_planning`, le même sans ses
+lignes (`kinds=task`) ; `nodes_estimate`, le sous-arbre « Poste de commande », qui porte le sous-arbre
+fusionné par la survenance de 752 ; `nodes_milestone`, la recherche « Réception usine », dont la
+récapitulative est rendue pour la lisibilité et absente des totaux ; `nodes_risk_occurred`, le
+sous-arbre 541 seul ; et `dependencies_summary`, `dependencies_summary_moved`, `dependencies_labour`,
+`dependencies_task_amount`, `dependencies_provision`, `dependencies_manual_float`, ce dont dépendent
+les valeurs calculées des mêmes nœuds. `make mock-data-up-to-date` les vérifie comme les volumes,
+et `tools/paths.toml` les déclare engendrés. `dependencies_entered`, un refus sans nœud, reste écrit
+à la main. **Les totaux d'une lecture sont ceux des lignes qu'elle retient** (`NodeTotals`) : une
+lecture des tâches seules ne somme rien, là où l'exemple écrit à la main gardait les totaux de la
+structure.
+
+**La ligne de provision 555 est budgétée à la provision que la référence connaissait**, 250 — 751 à
+1 000 × 25 % le 1er février (`risk_reviews`) —, quand son montant d'aujourd'hui est 500 : ce budget
+compte à la réserve pour risques, jamais au budget de référence (WF-RIS-0050, `EstimateLineFacet`).
+Le devis du lot totalise donc 2 934,56, dont 2 484,56 budgétés. **C14 et C17 sont fermés, et C1 hors `comparison`, dont L23 (C12) porte les lignées** : les
+risques 751 (`risks`, `risk`) nomment leur ligne de provision 555, l'import du devis
+(`import_analysed`) les lignées 653 et 654 des mêmes lignes, et un test confronte tout
+`fixtures/api` — un nœud ou une lignée des familles 500–599 et 600–699 porte une seule nature et un
+seul libellé dans tout l'univers, les fixtures qui s'en écartent déclarées : `task_renamed`, qui
+renomme, et `comparison`.
+
+**Ce que ce lot laisse** : `comparison.json` compare deux révisions sur les lignées 622, 623, 625 et
+626 d'un autre découpage du témoin — une contradiction avec les lectures, déclarée, que L23 ferme
+avec C12 ; les écritures `estimate_line_updated`, `task_renamed` et `node_deleted`, que les tests de
+la grille combinent aux lectures, ont été reportées à la main sur les nœuds 553, 552 et 551 et aux
+totaux d'aujourd'hui, et `predecessor_set` reste une écriture d'avril (marge du dossier de
+conception à 7 jours quand les lectures la portent à 54, études sans dépassement de fin) : L22 les
+engendre toutes.
+
+### Les écritures de la grille (EP-02/L22)
+
+**Une réponse d'écriture est la différence de deux lectures de la structure, avant et après
+l'écriture, engendrée** (#287 ; C9, C10). `wftools.mockwrites` modifie la description du témoin
+(`mockwitness`) — un libellé, une charge, une ligne retirée, une liaison ajoutée, un rôle changé
+—, la date et la chiffre à nouveau (`mockcore`), lit la structure entière avant et après, et en
+tire `NodesWritten` : les nœuds écrits, une version de plus ; les tâches non récapitulatives dont le
+début, la fin, la marge ou la criticité ont changé sans être écrites (`rescheduled`) ; les lignes et
+les tâches non récapitulatives dont le montant corrigé ou l'année de consommation a changé, hors
+celles que `ancestors` rend entières (`reinflated`) ; les ancêtres des nœuds écrits, du nœud
+supprimé — lu avant, puisqu'il n'est plus après — et des tâches redatées, entiers ; les totaux de
+la structure entière. Une tâche qui porte la ligne écrite et que l'écriture redate est à la fois
+dans `ancestors` et dans `rescheduled`, comme le contrat l'écrit. `make mock-data` écrit ainsi
+`task_renamed`, `estimate_line_updated`, `node_deleted`, `predecessor_set` et le nouvel
+`estimate_line_redated` sur le cœur, et `estimate_line_entered`, `paste_plan`,
+`paste_plan_unknown_category`, `paste_too_wide` et `paste_applied` sur la structure de mille tâches
+que le faux back sert en premier et que les parcours lisent, comme `task_lengthened`, désormais
+produit par la même différence ; `tools/paths.toml` les déclare engendrés. Le poste du lot « Poste
+de commande » (`order_item_id`, `work_breakdown_label`, EP-02/L29), rendu en ancêtre, sort du
+générateur. **Une ligne saisie garde son budget** : la référence l'a fixé, seul le montant réestimé
+suit les grandeurs (WF-DEV-0020) — 14 h au lieu de 12,5 donnent 1 120,00 réestimés et laissent
+1 000,00 budgétés. **Les totaux d'une écriture du cœur sont ceux du cœur entier**, quinze tâches
+et neuf lignes, comme le contrat le veut (« les totaux de la structure entière, sans filtre ») — les
+exemples écrits à la main gardaient ceux du lot ; L27 (#376) les portera à la structure de mille
+tâches où il incruste le cœur. Le bloc collé, ses lignes acceptées ou refusées, sont lus du bloc et
+des catégories et rôles de l'univers ; la largeur de `paste_too_wide` est comptée dans `NodeColumn`
+du contrat — le libellé, puis de `cost_category` à la dernière colonne —, pour suivre la prochaine
+colonne sans retouche (EP-02/L16 avait dû la corriger à la main).
+
+**L'univers offre une écriture du devis qui redate, et le cœur s'étend pour la porter** (C9). Le
+cœur finissait à la réception usine, le 30 juin : aucune tâche n'y finissait fin 2026, et le monteur
+câbleur, seul rôle actif sur un autre calendrier, n'avait pas de ligne. Le cœur gagne l'installation
+sur site, après la réception usine, qui reste au 30 juin (C13) : le montage des armoires sur site
+(562), du 1er juillet au 18 décembre 2026, son câblage par l'ingénieur électricien (563) et
+l'assistance du technicien de mise en service aux essais (564), et la mise en service qui le suit
+(565, sa ligne 566), démarrée le 21 décembre et consommée en 2026. `nodes_installation`, nouvel
+exemple nommé de `listNodes`, en est la lecture (`subtree_of`). `estimate_line_redated`
+(`updateEstimateLine`) confie le câblage sur site au monteur câbleur : le montage n'a plus que les
+jours de ses deux rôles, quatre jours de huit heures (WF-PLA-0010), finit le 1er février 2027, et la
+mise en service démarre le 2 février ; elle et le montage sont dans `rescheduled`, avec les tâches
+sans successeur dont la marge grandit ; la ligne de la mise en service, consommée en 2027, et la
+mise en service elle-même sont dans `reinflated`, 6 180,00 au lieu de 6 000,00. Deux écarts au
+cadrage de #287, qui disait « la tâche prend 482 et finit en 2027 ; `reinflated` ses lignes et
+elle-même », sont imposés par le modèle : la semaine de quatre jours de dix heures compte autant
+d'heures que la semaine standard, et le 31 décembre 2026 est un jeudi, dernier jour qu'elle travaille
+— un rôle seul sur 482 ne fait passer l'année à aucune tâche ; il y faut un second rôle sur 481, et
+le montage prend le calendrier commun des deux. Et une ligne est consommée l'année où sa tâche
+commence (simplification déclarée de `mockstructure.inflated`, WF-DEV-0040 voulant une répartition
+au prorata des heures) : le montage, commencé en 2026, garde l'année de ses lignes, et c'est la
+mise en service qui le suit, avec sa ligne, que l'écriture déplace dans le temps. Ajouter le
+cœur allonge le chemin critique : la marge du dossier de conception passe de 54 à 187 jours
+(15 avril 2026 – 1er janvier 2027), celle des tâches de la survenance de 32 à 165.
+
+**`predecessor_set` est une écriture d'aujourd'hui, sur une tâche non démarrée** : les
+prédécesseurs du montage sur site saisis à nouveau — la réception usine, en fin à début, avec deux
+jours ouvrés de décalage. Le montage va du 3 juillet au 22 décembre, la mise en service du
+23 décembre 2026 au 5 janvier 2027, démarrée encore en 2026 : `reinflated` est vide ; les tâches
+sans successeur gagnent de la marge. Aucune date passée ne bouge : l'avancement d'une tâche et ses
+dates de démarrage et d'achèvement sont des faits (WF-PLA-0130), et la réception usine reste au
+30 juin (C13) — le test de `predecessor_set` le vérifie, et un invariant interdit à toute écriture
+engendrée de changer l'avancement ou les dates d'une tâche démarrée ou terminée. L'exemple écrit à la main liait la
+revue de conception au dossier de conception, ce qui, aujourd'hui, aurait redaté des tâches
+terminées. Le cœur se date désormais dans l'ordre de ses liaisons, quel que soit l'ordre du plan ;
+une boucle est refusée, en nommant les tâches restées sans date.
+
+**La lecture entière du cœur est un exemple nommé** (`nodes_core`, `listNodes` sans filtre) : ses
+totaux sont ceux que rendent les écritures du cœur, et les tests de la grille qui éprouvent les
+totaux de la structure entière la lisent, plutôt qu'un sous-arbre lu comme s'il était entier.
+
+**Le chemin de la grille de devis par `reinflated` est éprouvé** (C10) :
+`inflation.dom.test.tsx` rend la grille sur `nodes_installation`, écrit le rôle du câblage sur site,
+et lit dans les cellules de la mise en service et de sa ligne les montants corrigés que la réponse
+porte, leur montant à l'année de référence inchangé, la récapitulative rendue entière.
+
+**Ce que ce lot laisse** : le refus de la création à la main d'une ligne de nature provision
+(Vérif de WF-DEV-0020) n'a pas d'exemple — il faut un motif de refus au catalogue
+(`ErrorCode`), modification d'un schéma que porte EP-02/L30 (#393) ; `paste_applied` calcule ses
+montants par un second chemin, sur les nœuds de la structure de mille tâches, que EP-02/L27 (#376)
+ramènera au calcul du cœur en l'y incrustant ; `task_renamed` reste déclaré dans le test des
+libellés du cœur, puisqu'il renomme.
+
+### Révisions et risques (EP-02/L23)
 
 **La chronologie du témoin se lit dans ses révisions** (#287, C11 ; WF-RIS-0020, WF-RIS-0060
 révisée). `wftools.mockwitness` date désormais chaque événement à l'heure où les exemples
@@ -1694,7 +1883,7 @@ Quand EP-02/L27 (#376) y incrustera le cœur, le budget de référence changera 
 et avec lui les cases de la matrice ; la question est soumise à l'auteur sur #376, qui la tranchera
 avec la réserve.
 
-## L'univers témoin : les indicateurs d'aujourd'hui (EP-02/L24)
+### Les indicateurs d'aujourd'hui (EP-02/L24)
 
 **Les indicateurs du témoin sont engendrés, au 3 juin 2026 à 14 h 05** (#287 ; C2, C13, C15,
 #232). `wftools.mockindicators` lit trois révisions décrites depuis le cœur — l'offre et la
@@ -1795,150 +1984,7 @@ par l'auteur, #467 ; le point de l'offre dans l'évolution
 des indices, #468. La ligne du témoin au portefeuille et la décision 4 du cadrage restent à
 EP-02/L26.
 
-## Les constats de la seconde moitié d'EP-02 (EP-02/L35)
-
-Les constats de contrat ouverts pendant les lots d'écrans et du témoin (#466, #463, #424, #425,
-#458, #414, #413, et le quatrième point de #353, joint à #414), chacun selon la proposition de son
-issue et la décision du plan de résorption du 2026-10-07. Une forme que ni la spécification, ni le
-constat ne fixaient est dite comme telle. Le front n'en adopte que ce qu'il faut pour rester juste
-et vert ; l'adoption à l'écran est EP-02/L36 (#475).
-
-**La marge du reste à engager a un seul sens** (#466, décision de l'auteur du 2026-10-07 ;
-WF-RAE-0020). `RemainingIndicators.delta_to_reference` vaut désormais le budget de référence moins
-la somme du coût réel et du reste à engager, positive quand il en reste, comme
-`SubprojectBalance.variance` et l'écart de couverture des risques ; les descriptions le disent, et
-la marge du projet est la somme des marges de ses sous-projets, hors sous-projet compris. Le
-générateur le calcule ainsi, et non plus « le coût réel plus le reste à engager moins le budget »
-qu'EP-02/L24 reprenait de l'exemple écrit à la main : `remaining_indicators` porte 93 900 et non
-plus -93 900, `remaining_indicators_over_budget` 94 100, la réestimation du jour en ayant dégagé
-200. Le front nomme cette valeur « Marge sur le budget de référence ». `delta_to_previous_revision`,
-que la décision ne vise pas, garde son sens et le contrat le dit : le reste à engager courant moins
-celui de la révision marquée précédente, à son marquage, négatif quand la revue l'a réduit — ce que
-la revue a changé (WF-RAE-0020), qui n'est pas une marge : un reste à engager diminue aussi de ce
-qui s'est dépensé ; nul (`null`) sans revue précédente, et non zéro, l'écran l'omettant alors. Deux
-mots, deux sens — décision de l'auteur à la revue : le reste à engager parle de **marge**
-(`delta_to_reference`, `SubprojectBalance.variance`, que le front nomme « marge », par sous-projet
-comme pour le projet), et la couverture des risques garde son « écart de couverture » de la
-spécification, dans le même sens ; le portefeuille et les projections parlent d'**écart**, positif
-au-delà du budget : l'écart de la liste des projets (`PortfolioProject.delta_to_reference`), que le
-Vérif de WF-PTF-0040 fixe ainsi (« un écart de 50 » pour 1 050 face à 1 000), et les écarts des
-projections (`Projections.variance_*`, la projection moins le budget de référence, WF-IND-0050),
-dont le front garde le libellé « Écart au budget ». Les écarts du devis
-(`EstimateIndicators.delta_to_*`) sont le devis courant moins le devis comparé. L'écart de coût et
-l'écart de délai (`cost_variance`, `schedule_variance` des indicateurs du projet et du portefeuille)
-suivent le glossaire : la valeur acquise moins le coût réel, positif sous le budget, et la valeur
-acquise moins la valeur planifiée, positif en avance (WF-IND-0070, WF-IND-0080). Les écarts de
-montants d'une comparaison de révisions (`RevisionComparison.amount_deltas[].delta`) : la
-spécification ne donne aucun sens (WF-REV-0080, « les écarts de montants ») ; retenu, la révision
-comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), le sens où une tâche y
-est dite ajoutée et celui du devis en cours moins le devis comparé, et le sens que le générateur
-calculait déjà. Chaque propriété `*variance*` ou `delta*` des schémas porte désormais une
-description qui dit son sens, `RiskCoverageTotals.coverage_variance` compris ; un test des outils le
-tient (`test_contract_gaps.py`). La colonne de la liste des projets se nomme « Écart à la référence
-», libellé fixé par l'auteur sur #466 ; les projections gardent « Écart au budget ».
-
-**`listNodes` filtre sur la récapitulative, le niveau et la chronologie** (#463 ; WF-PLA-0110,
-WF-PLA-0140). Trois filtres sur une tâche, qui se combinent aux autres : `summaries_only`, les
-seules récapitulatives ; `max_level`, au moins 1, les tâches dont le niveau ne dépasse pas celui
-demandé, le premier étant celui des tâches sans parent — une ligne suit la tâche qui la porte, quel
-que soit son niveau ; `timeline_id`, les tâches et les jalons inscrits sur la chronologie. Deux
-formes que le constat ne fixait pas : **une lecture par chronologie ne rend pas les ancêtres** des
-tâches retenues, seule exception à la règle de lisibilité de l'arbre — une chronologie n'est pas un
-arbre, et le front n'aurait sinon d'autre moyen que `tracking` pour écarter les ancêtres, la
-sélection que le constat voulait lui retirer ; et une chronologie sans inscription, ou d'un autre
-projet, ne retient rien plutôt que d'être refusée, comme un poste qu'aucune tâche ne porte. Exemples
-`nodes_summaries` — la variante à quatre niveaux du témoin (`nodes_nested`) demandée au niveau 2 :
-les études, l'installation et le lot rangé sous elle, sans le sous-arbre de la survenance, au
-troisième niveau — et `nodes_timeline`, le comité de pilotage : les études, la réception des études,
-la réception usine et la mise en service, sans le lot ni l'installation.
-
-**Les totaux d'une lecture ne changent pas avec `kinds`** (#487, option (a), décision de l'auteur).
-La description de `listNodes` le promettait déjà : les totaux sont ceux de la structure lue, quel
-que soit `kinds`. Le générateur rendait des totaux nuls pour une lecture des tâches seules ; il rend
-désormais ceux de la lecture complète, aux mêmes filtres. `nodes_planning` porte la ligne des études
-de détail, `nodes_timeline` celle de la mise en service, `nodes_nested` les lignes de son sous-arbre
-; `nodes_summaries` reste à zéro, aucune récapitulative ne portant de ligne propre, qu'un filtre sur
-une tâche retiendrait avec elle.
-
-**La grille de reste à engager reçoit les grandeurs au reste à engager précédent** (#424 ;
-WF-RAE-0040, WF-ARC-0020). `EstimateLineFacet.previous_quantity`, `previous_hours` et
-`previous_unit_disbursement`, nuls avant la première revue comme `previous_reestimated_amount`, et
-nuls comme leurs grandeurs courantes là où la ligne n'en porte pas ; demandables par `fields` comme
-toute propriété de la facette. `NodeColumn` les range avant `previous_reestimated_amount` : une
-ligne offre désormais dix-sept colonnes à partir de son libellé, et `paste_too_wide` le dit
-(`max_columns` à 17). Ce sont des valeurs conservées et non calculées : elles n'entrent ni dans
-`ComputedField` ni dans `ComputedValueField`, et aucun nœud ne les accepte en écriture. Les lignes
-du témoin les portent nulles, comme leur montant réestimé précédent (voir « Ce que ce lot laisse »).
-
-**Le Kanban reçoit toutes les tâches, par état** (#425 ; WF-RAE-0030, WF-PLA-0040).
-`listStartableTasks` rend trois colonnes exigées, chacune dans l'ordre du plan et sans
-récapitulative : `not_started`, toutes les tâches non démarrées et non plus les seules dont les
-prédécesseurs sont terminés ; `started` ; `completed`, les tâches terminées avec leur
-`task.completed_on`, que le Kanban rouvre par `setTaskProgress`. Une tâche non démarrée est un
-`NotStartedTask`, le nœud et `predecessors_completed`, vrai quand tous ses prédécesseurs sont
-terminés ou qu'elle n'en a aucun : c'est par lui que le Kanban signale un jalon à terminer. Le nom
-s'écarte de l'`is_startable` du constat : WF-RAE-0030 ne fait pas dépendre le démarrage des
-prédécesseurs, et un drapeau « démarrable » à faux sur une tâche que rien n'empêche de démarrer
-dirait le contraire de la règle. L'operationId reste `listStartableTasks`, que le client engendré
-nomme ; le résumé devient « Tâches du Kanban, par état ». Exemples : `startable_tasks`, trois tâches
-non démarrées, aucune signalée — la réception usine attend la fin du câblage —, six terminées ;
-`startable_tasks_milestone`, la réception usine signalée, le câblage parmi les terminées. Le front
-signale désormais un jalon par ce drapeau, et non plus par sa seule colonne, qui le signalerait à
-tort ; il garde ses deux colonnes jusqu'à EP-02/L36.
-
-**Une réestimation qui termine une tâche demande sa date** (#458 ; WF-RAE-0040, WF-PLA-0130).
-`RemainingUpdate.completed_on`, facultatif, exigé quand la saisie met à zéro la dernière ligne
-encore ouverte de sa tâche, ignoré sinon ; sans lui, `setLineRemaining` répond 422
-`VALIDATION_FAILED`, motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`,
-`fields[].params.task_node_id` nommant la tâche, et rien n'est écrit : l'écran demande la date,
-qu'il propose au jour courant, et rejoue la saisie. Un motif par champ et non un code de premier
-niveau, comme le proposait le constat : c'est un champ du corps qui manque. Le nom suit
-`TaskFacet.completed_on`, et non l'`occurred_on` de `ProgressUpdate`, qui date un démarrage comme
-une terminaison. Exemple engendré `remaining_completion_date_required`, variante contrefactuelle
-déclarée : la charge du raccordement des borniers mise à zéro, les deux autres lignes du câblage des
-armoires supposées déjà à zéro — la ligne de provision du risque identifié 751 ne l'est pas dans le
-témoin.
-
-**Une tâche non démarrée réestimée à zéro passe par l'état démarré** (#486, option (a), décision de
-l'auteur ; WF-RAE-0030, WF-RAE-0040). Le contrat permettait de réestimer une tâche non démarrée, et
-un reste à engager nul termine la tâche : pour une tâche qui n'est pas un jalon, c'était le passage
-direct de non démarrée à terminée que WF-RAE-0030 réserve aux jalons. Une telle saisie la démarre et
-la termine à la même date, celle de `completed_on`, qui devient aussi son `started_on` ;
-`RemainingUpdate`, `completed_on` et `setLineRemaining` le disent. La règle est celle de
-WF-RAE-0030, quel que soit le chemin : un import de reste à engager qui termine une telle tâche la
-démarre et la termine le jour de son application, `started_on` égal à `completed_on`, ce que disent
-`ImportReport.completed_tasks` et `ImportCompletedTask`. Écartés : une date de démarrage demandée en
-plus, détail que le reste à engager ne demande pas, et un refus tant que la tâche n'est pas
-démarrée. L'exemple `remaining_completion_date_required` porte sur le câblage des armoires, déjà
-démarré : il n'en dépend pas.
-
-**L'union des colonnes conservées des coûts réels est donnée pour toute la lecture** (#414, #353
-quatrième point ; WF-CRE-0010). `meta` de `listActualCosts` devient un `ActualCostListMeta`, la
-pagination et `passthrough_columns`, l'union des colonnes conservées de toutes les lignes retenues
-par les filtres, et non de la page : chaque colonne une fois, nommée comme `passthrough` la nomme,
-dans l'ordre où les imports les ont déclarées — les imports dans leur ordre d'application, les
-colonnes d'un import dans l'ordre de son fichier, une colonne à sa première déclaration —, ordre que
-le constat laissait ouvert pour plusieurs imports. `PaginationMeta` ne change pas pour les autres
-listes. Les quatre exemples, écrits à la main, la portent : les trois colonnes du témoin, aucune
-pour `actual_costs_empty`.
-
-**Un état refusé nomme son énumération** (#413 ; WF-ARC-0110). `Problem.params.state_enum`, rendu
-avec `params.state`, nomme l'énumération du contrat dont l'état est une valeur (`StateEnumeration`)
-; seul `ProjectState` en relève aujourd'hui — les indicateurs d'un projet qui n'a pas atteint l'état
-En cours, le plan de charge d'un projet sans référence, les deux seuls refus qui portent un état —,
-et une énumération de plus sera une modification du contrat. Écarté : `object_kind` et une table
-objet → énumération, une indirection de plus pour le même renseignement. Exemples
-`project_indicators_not_in_progress` et `workload_no_reference`. Le front le lira avec EP-02/L36
-(#475, premier point de #353) ; d'ici là il nomme toujours un état comme un `ProjectState`, ce qui
-reste juste.
-
-**Ce que ce lot laisse.** Les lignes du témoin ne portent aucune valeur au reste à engager
-précédent, montant ni grandeurs, alors que la révision 101, marquée le 1er février pendant l'état En
-cours, en est la revue précédente — celle dont `remaining_indicators` tire son écart à la révision
-précédente : renvoyé à EP-02/L26 (#375), où c'est noté. Les totaux de `listNodes` lu avec
-`kinds=task` sont ouverts en #487.
-
-## L'univers témoin : coûts, échanges, tâches, comptes (EP-02/L25)
+### Coûts, échanges, tâches, comptes (EP-02/L25)
 
 **Les coûts réels du témoin sont décrits une fois et engendrés** (#287, C3 ; WF-CRE-0010 à
 WF-CRE-0050). `wftools.mockwitness` décrit les six lignes de coût — pièce, date, montant signé,
@@ -2042,6 +2088,117 @@ collage, quel que soit l'ordre des réponses.
 **Ce que ce lot laisse.** La copie externe des sauvegardes, #488 ; le délai de paiement des nœuds
 du volume et la plage partagée des collages et corrélations, EP-02/L27 ; la ligne du témoin au
 portefeuille et les exemples du portefeuille datés du 16 mars, EP-02/L26.
+
+### Le portefeuille à l'échelle (EP-02/L26)
+
+**Le portefeuille est lu aujourd'hui** (C4). Toutes ses vues sont calculées au 3 juin 2026, comme
+le témoin qu'elles somment, et non plus au 16 mars ; la période des statistiques par défaut va du
+4 juin 2025 au 3 juin 2026, et l'évolution trimestrielle de 2025-T3 à 2026-T2, lue des mêmes cours
+que la courbe en S (`mockportfoliotime.quarterly`, et non plus d'écarts tirés) : chaque trimestre à sa
+fin — aujourd'hui pour le dernier, qui égale les indices du jour —, le coût réel et la valeur
+planifiée de la courbe, la valeur acquise du témoin par sa propre courbe et celle d'un autre projet
+par la part de son coût réel dépensée, chaque indice en rapport des sommes. La ligne du témoin
+est tirée de la structure : ses indicateurs d'aujourd'hui (`mocktoday.project_today`) et l'instant
+de sa dernière révision marquée, la référence du 1er février, lu dans la chronologie
+(`mockwitness`) ; un test d'invariants la confronte à `project`, `project_indicators` et
+`revisions`, écrits ou engendrés ailleurs. Les projets engendrés en cours ont marqué leur dernière
+révision entre le 2 février et cinq jours avant aujourd'hui, pour que la santé du pilotage en
+trouve en retard et d'autres non. `portfolio_projects_empty` est recalé au 3 juin ; l'offre perdue
+de `state_transitions_exited`, sortie du chiffrage le 15 mars 2026, tombe dans la période : c'est
+l'une des six offres perdues du taux de transformation.
+
+**Le plan de charge agrégé, la courbe en S et la santé du pilotage sont engendrés** (C7 ;
+WF-PTF-0060, WF-PTF-0100, WF-PTF-0110). `wftools.mockportfoliotime` les somme sur les trois cents
+projets : le témoin à ses propres lectures — son plan de charge sur le reste à engager, sa courbe
+de coûts et ses décaissements, son suivi des jalons —, chaque autre projet par des formules dites
+dans le générateur : un projet en cours travaille d'un début tiré entre le 1er octobre 2025 —
+après le premier trimestre de l'évolution des indices, déclaré non calculable faute de coût réel et
+de valeur planifiée — et le 31 janvier 2026, à une fin tirée après aujourd'hui ; son budget de
+référence est étalé en deux morceaux, sa valeur planifiée (`mockportfolio.earned`, bornée au
+budget) sur ses jours jusqu'à aujourd'hui et le reste sur ses jours après, pour que la courbe en S
+et la performance disent la même valeur planifiée ; son coût réel est étalé sur ses jours jusqu'à
+aujourd'hui — jusqu'à sa dernière révision marquée pour un projet que la santé du pilotage signale
+sans coût réel importé depuis —, ce qu'il lui reste à engager — sa projection moins son coût
+réel — sur ses jours après aujourd'hui ;
+sa main-d'œuvre est la part que la structure des coûts lui donne (la moitié du reste à engager),
+partagée entre l'ingénieur électricien et le technicien de mise en service par une part tirée, au
+taux de la catégorie de chaque rôle. Le plan de charge et la courbe en S retiennent, comme la liste
+et la valeur, les projets en chiffrage que la requête ajoute au périmètre par défaut : une offre
+y entre pour son devis pondéré par sa probabilité de gain, étalé sur une période tirée après
+aujourd'hui. **Choix déclaré** : dans la courbe en S, le devis pondéré d'une offre tient lieu de
+budget de référence et de projection, rien n'étant dépensé — WF-PTF-0100 dit « les courbes de son
+devis courant » sans dire lesquelles. En décaissements, le budget et le reste à engager d'un projet
+engendré sont payés un délai tiré pour lui, de zéro à soixante jours, après leur travail, son coût
+réel à la date de ses pièces, comme le témoin le fait de sa sous-traitance : le mois d'aujourd'hui
+porte ainsi le passé et l'avenir. `portfolio_cost_curve_credit` est engendré de même, calculé au
+31 décembre 2025 d'octobre à décembre, sur les projets alors en cours — ceux qui avaient commencé,
+sans le témoin, encore en chiffrage —, chacun suivant le même cours ; décembre y est net négatif
+par une variante déclarée en « si… » : si ses factures n'avaient pas encore été importées, ses
+seuls avoirs l'étant déjà. Chaque point est la somme des points des projets, ce que les
+tests éprouvent en sommant deux moitiés du portefeuille.
+
+**La capacité d'un rôle est ses heures mensuelles, tout son effectif compris** (WF-REF-0100 ;
+décision du 2026-10-08 sur #375, revue à la revue du lot : la spécification fait foi). C'est
+`monthly_hours` seul que le plan de charge, du projet comme du portefeuille, compare à la charge ;
+l'effectif n'est qu'une information. `monthly_hours` vaut l'effectif par les heures hebdomadaires
+du calendrier du rôle × 52 / 12, arrondies au centième, la même convention pour tous :
+173,33 h par personne pour l'ingénieur électricien et le technicien de mise en service — tous deux
+sur la semaine standard de quarante heures, auparavant à 151,67, une base de trente-cinq heures
+appliquée à tort — et pour le monteur câbleur, sur la semaine de quatre jours de dix heures ;
+169,00 pour l'automaticien, désactivé, sur la semaine de trente-neuf heures. Un test d'invariants
+tient `monthly_hours / headcount` égal à ces heures. **Les effectifs sont à l'échelle** du
+portefeuille : 3 800 ingénieurs électriciens (658 654,00 h par mois), 2 800 techniciens de mise en
+service (485 324,00 h), 1 250 monteurs câbleurs (216 662,50 h), deux automaticiens (338,00 h) ;
+l'ingénieur électricien dépasse sa capacité en juillet et en août, le technicien passe sous le seuil
+de 50 % en novembre. La capacité étant celle de l'installation, la charge du seul témoin dans son
+propre plan de charge (`workload*`) en est au plus 0,02 % — en décembre, pour le technicien de mise
+en service —, et nulle à quatre décimales les autres mois ; garder ou non le taux de charge dans le
+plan d'un projet est une question posée à l'auteur. La date d'audit des rôles est celle de
+l'installation, le 1er septembre 2025, depuis EP-02/L23 : le test d'invariants le tient.
+
+**Le monteur câbleur figure sans charge** (même décision) : aucun projet ne l'emploie, et
+`portfolio_workload` comme `portfolio_workload_org_node` le rendent avec sa capacité, une charge
+nulle chaque mois, en sous-charge — le plan de charge sert à voir la disponibilité, et WF-PTF-0060
+ne l'exclut pas. `portfolio_workload_org_node` filtre sur la direction technique : les trois rôles
+relèvent de ses descendants. La main-d'œuvre de la structure des coûts reste tout entière au
+bureau d'études électricité, le nœud des deux rôles qui travaillent.
+
+**La couverture agrégée est la somme de celles des projets en cours** (WF-PTF-0090,
+WF-RIS-0050) : la réserve de référence du témoin, 910, et celle de chaque autre projet, tirée de
+2,5 à 5,5 % de son budget ; le coût des risques survenus du témoin, 200, et celui d'un projet sur
+quatre, de 0,1 à 1,5 % de son budget ; les provisions restantes, celles des risques identifiés.
+`matrix.totals.reserve` porte la même réserve. L'écart de couverture est la différence des sommes.
+
+**La santé du pilotage se lit des projets en cours.** Une revue est en retard au-delà des huit
+semaines du référentiel depuis la dernière révision marquée de la liste ; pour le témoin, ses
+risques, ses imports et ses jalons sont lus de sa description : 751 réexaminé après le marquage de
+la référence, des coûts importés depuis, la réception des études terminée le 24 avril et la
+réception usine attendue le 30 juin — il n'a que sa revue en retard, de dix-sept semaines, et non
+plus le jalon que l'exemple écrit à la main disait dépassé. Pour les autres projets, les risques non
+réexaminés, les coûts non importés et les jalons dépassés sont tirés ; un jalon dépassé est nommé
+par une lignée de la famille engendrée « jalons du portefeuille » (`mockwitness.IDENTIFIERS`).
+Zones : un jalon dépassé en alerte, les trois autres signaux en vigilance — WF-IHM-0070 ne fixe pas
+de niveau.
+
+**Les lignes du cœur portent la revue précédente** (#424, renvoyé ici par EP-02/L35 ;
+WF-RAE-0040). La révision 101, marquée le 1er février pendant l'état En cours, est la revue
+précédente de la révision courante, celle dont `remaining_indicators` tire son écart à la revue
+précédente : chaque ligne de la révision courante porte ses grandeurs à 101 — `previous_quantity`,
+`previous_hours`, `previous_unit_disbursement` — et le montant réestimé qu'elles donnaient,
+`previous_reestimated_amount`. La provision de 751, à 500 aujourd'hui, y était à 250 ; les lignes
+fusionnées par la survenance de 752, absentes de 101, les portent nulles, comme toute lecture d'une
+révision marquée. La description de la référence passe de `mockhistory` à `mockwitness`, que
+`mockcore` lit (`mockcore.current`). `remaining.dom.test.tsx`, avec les colonnes des grandeurs
+précédentes qu'EP-02/L36 a ajoutées à la grille, lit des valeurs affichées et leur format — la
+charge précédente de la main-d'œuvre, 12,5, les débours unitaires précédents des borniers,
+1 234,56, et de la provision, 250,00, la seule grandeur que la revue a changée depuis, et le montant
+réestimé précédent —, et une ligne fusionnée qui n'en porte aucune : WF-RAE-0040-A n'y est plus
+prouvé par des colonnes vides.
+
+**Ce que ce lot laisse.** La structure de mille tâches et la décision 4 restent à EP-02/L27
+(#376) ; d'ici là, les lignes de `volume/nodes_thousand.json` portent leurs grandeurs précédentes
+nulles, la structure engendrée n'ayant pas de revue précédente. Aucun écart au contrat : la liste dit déjà un projet non consultable sous son libellé et
+son code, sans lien (`can_open`, WF-PTF-0030).
 
 ## Collage et annulation
 

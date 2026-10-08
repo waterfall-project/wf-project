@@ -1,17 +1,17 @@
 {
-  "summary": "La structure des coûts des projets en cours du portefeuille du §4.6.2 au 16 mars 2026 : leur budget de référence et leur reste à engager par nature, en montant et en part, et leur main-d'œuvre par nœud d'organisation ; aucune ventilation du coût réel (WF-PTF-0080).",
+  "summary": "La structure des coûts des projets en cours du portefeuille du §4.6.2 au 3 juin 2026 : leur budget de référence et leur reste à engager par nature, en montant et en part, et leur main-d'œuvre par nœud d'organisation de ses rôles ; aucune ventilation du coût réel (WF-PTF-0080).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "scope": {"states":["in_progress"],"as_of":"2026-03-16","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":269},
+    "scope": {"states":["in_progress"],"as_of":"2026-06-03","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":269},
     "budget_by_cost_type": [
       {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"1428520684.01","share":"0.55"},
       {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"909058617.10","share":"0.35"},
       {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"259731033.45","share":"0.1"}
     ],
     "remaining_by_cost_type": [
-      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"718143581.78","share":"0.5"},
-      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"574514865.42","share":"0.4"},
-      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"143628716.36","share":"0.1"}
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"721497717.54","share":"0.5"},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"577198174.03","share":"0.4"},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"144299543.51","share":"0.1"}
     ],
     "labor_by_org_node": [
       {"key":"01926f3a-7c00-7000-8000-000000000471","label":"Bureau d'études électricité","amount":"1428520684.01","share":"1"}

@@ -67,6 +67,7 @@ from wftools import (
     mockcore,
     mockcosts,
     mockhistory,
+    mockportfoliotime,
     mocktext,
     mocktoday,
     mockwrites,
@@ -305,7 +306,8 @@ def named() -> dict[str, JsonObject]:
     """Return the named examples of the witness, by file name.
 
     Its readings, its writes, its history — its revisions compared and its risks —, its
-    indicators today, and its actual costs with the journal of their imports.
+    indicators today, its actual costs with the journal of their imports; and the views of the
+    portfolio over time that sum it with the other projects (``mockportfoliotime``).
     """
     return {
         **readings(),
@@ -313,6 +315,7 @@ def named() -> dict[str, JsonObject]:
         **mockhistory.examples(),
         **mocktoday.examples(),
         **mockcosts.examples(),
+        **mockportfoliotime.examples(),
     }
 
 
@@ -354,7 +357,7 @@ def readings() -> dict[str, JsonObject]:
     Each is a reading of the one tree at TODAY — a subtree, with or without its lines, a
     search —, or what a computed value of one of its nodes depends on.
     """
-    rows = mockcore.core()
+    rows = mockcore.current()
     day = _day(TODAY.date())
     studies = mockcore.subtree(rows, STUDIES.number)
     estimate = mockcore.subtree(rows, CONTROL_STATION.number)
@@ -426,7 +429,7 @@ def readings() -> dict[str, JsonObject]:
             f"site, de sorte que l'arbre a quatre niveaux de tâches — l'installation, le lot, le "
             f"sous-arbre fusionné par la survenance du risque 752, récapitulative du troisième "
             f"niveau, et ses deux tâches au quatrième (WF-PLA-0040, WF-PLA-0110).",
-            mockcore.subtree(mockcore.core(nested()), INSTALLATION.number, _TASKS),
+            mockcore.subtree(mockcore.current(nested()), INSTALLATION.number, _TASKS),
         ),
         "nodes_summaries.json": _example(
             f"L'arborescence de tâches de la variante à quatre niveaux du planning du témoin, "
@@ -437,7 +440,7 @@ def readings() -> dict[str, JsonObject]:
             f"troisième niveau, ni aucune feuille ni aucun jalon ; les totaux sont ceux de ces "
             f"récapitulatives et des lignes qu'elles portent elles-mêmes, aucune (WF-PLA-0110, "
             f"#487).",
-            mockcore.summaries(mockcore.core(nested()), 2),
+            mockcore.summaries(mockcore.current(nested()), 2),
         ),
         "nodes_summaries_leaves.json": _example(
             f"Variante contrefactuelle : l'arborescence de tâches d'un planning composé "
@@ -506,7 +509,7 @@ def readings() -> dict[str, JsonObject]:
             f"prédécesseur ne l'est pas ; les pupitres opérateurs toujours démarrés, en "
             f"dépassement de fin ; le câblage parmi les terminées, à la date du geste "
             f"(WF-RAE-0030, WF-PLA-0130).",
-            mockcore.startable(mockcore.core(wiring_completed())),
+            mockcore.startable(mockcore.current(wiring_completed())),
         ),
         "dependencies_summary.json": _example(
             "Ce dont dépend la date de fin de la récapitulative « Études » du planning : ses cinq "
@@ -602,8 +605,8 @@ def volumes() -> dict[str, JsonObject]:
             portfolio_page(projects),
         ),
         "portfolio_value.json": _example(
-            "La valeur du portefeuille du §4.6.2 au 16 mars 2026, les projets en chiffrage "
-            "ajoutés par la requête au périmètre par défaut, les projets en cours "
+            f"La valeur du portefeuille du §4.6.2 au {_day(TODAY.date())}, les projets en "
+            "chiffrage ajoutés par la requête au périmètre par défaut, les projets en cours "
             "(WF-PTF-0010) : le carnet des projets en cours, le pipeline des offres brut et "
             "pondéré par leur probabilité de gain, rien de "
             "réalisé, aucun projet du périmètre n'étant terminé, et le taux de transformation de "
@@ -611,28 +614,29 @@ def volumes() -> dict[str, JsonObject]:
             portfolio_value(rows),
         ),
         "portfolio_performance.json": _example(
-            "La performance des projets en cours du portefeuille du §4.6.2 au 16 mars 2026 : "
-            "chaque indice est le rapport des sommes de leurs valeurs acquises, coûts réels et "
-            "valeurs planifiées, la répartition compte chaque projet dans la zone de chacun de "
-            "ses indices, et l'évolution court sur quatre trimestres, le premier non calculable, "
-            "rien n'ayant encore été dépensé ni planifié (WF-PTF-0070).",
-            portfolio_performance(rows),
+            f"La performance des projets en cours du portefeuille du §4.6.2 au "
+            f"{_day(TODAY.date())} : chaque indice est le rapport des sommes de leurs "
+            f"valeurs acquises, coûts réels et valeurs planifiées, la répartition compte "
+            f"chaque projet dans la zone de chacun de ses indices, et l'évolution court sur "
+            f"quatre trimestres, le premier non calculable, rien n'ayant encore été dépensé "
+            f"ni planifié (WF-PTF-0070).",
+            portfolio_performance(rows, mockportfoliotime.quarterly(rows)),
         ),
         "portfolio_cost_structure.json": _example(
-            "La structure des coûts des projets en cours du portefeuille du §4.6.2 au 16 mars "
-            "2026 : leur budget de référence et leur reste à engager par nature, en montant et "
-            "en part, et leur main-d'œuvre par nœud d'organisation ; aucune ventilation du coût "
-            "réel (WF-PTF-0080).",
+            f"La structure des coûts des projets en cours du portefeuille du §4.6.2 au "
+            f"{_day(TODAY.date())} : leur budget de référence et leur reste à engager par "
+            "nature, en montant et en part, et leur main-d'œuvre par nœud d'organisation de ses "
+            "rôles ; aucune ventilation du coût réel (WF-PTF-0080).",
             portfolio_cost_structure(rows),
         ),
         "portfolio_risks.json": _example(
-            "Les risques des projets en cours du portefeuille du §4.6.2 au 16 mars 2026 : le "
-            "total des provisions identifiées, les dix risques les plus lourds avec leur projet, "
-            "la matrice remplie, la couverture des risques agrégée — la somme des réserves "
-            "de référence face aux provisions restantes et au coût des risques survenus —, et "
-            "les provisions survenues et écartées sur l'année (WF-PTF-0090, WF-RIS-0050). Un "
-            "risque dit si le lecteur peut ouvrir son projet, comme la ligne de ce projet dans "
-            "la liste (WF-PTF-0030).",
+            f"Les risques des projets en cours du portefeuille du §4.6.2 au "
+            f"{_day(TODAY.date())} : le total des provisions identifiées, les dix risques "
+            f"les plus lourds avec leur projet, la matrice remplie, la couverture des risques "
+            f"agrégée — la somme des réserves de référence des projets face aux provisions "
+            f"restantes et au coût des risques survenus —, et les provisions survenues et "
+            f"écartées sur l'année (WF-PTF-0090, WF-RIS-0050). Un risque dit si le lecteur "
+            f"peut ouvrir son projet, comme la ligne de ce projet dans la liste (WF-PTF-0030).",
             portfolio_risks(rows),
         ),
         "cost_categories.json": _example(

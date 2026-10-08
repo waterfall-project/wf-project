@@ -364,27 +364,46 @@ def test_a_heavy_risk_says_whether_its_project_opens_as_its_row_does(
     assert any(not risk["can_open"] for risk in heaviest)
 
 
-@pytest.mark.parametrize("name", ["portfolio_workload", "portfolio_cost_curve"])
-def test_a_view_written_by_hand_reads_the_portfolio_of_the_list(
-    volumes: dict[str, Any], name: str
+@pytest.mark.parametrize(
+    ("name", "states"),
+    [
+        ("portfolio_workload", ["in_progress", "pricing"]),
+        ("portfolio_cost_curve", ["in_progress", "pricing"]),
+        ("pilot_health", ["in_progress"]),
+    ],
+)
+def test_a_view_over_time_reads_the_portfolio_of_the_list_today(
+    volumes: dict[str, Any], name: str, states: list[str]
 ) -> None:
     scope = mockwitness.fixture(name)["scope"]
-    assert scope["as_of"] == mockstructure.AS_OF.isoformat()
-    assert scope["states"] == ["in_progress"]
-    assert scope["project_count"] == len(rows_of(volumes, "in_progress"))
+    assert scope["as_of"] == mockwitness.TODAY.date().isoformat()
+    assert scope["states"] == states
+    rows = volumes["portfolio_projects.json"]["value"]["items"]
+    assert scope["project_count"] == sum(1 for row in rows if row["state"] in states)
+
+
+def test_every_view_of_the_portfolio_is_read_today(volumes: dict[str, Any]) -> None:
+    for name, example in volumes.items():
+        if name.startswith("portfolio_"):
+            assert example["value"]["scope"]["as_of"] == "2026-06-03", name
 
 
 def test_the_roles_of_the_workload_are_those_of_the_universe() -> None:
     roles = {role["resource_role_id"]: role for role in mockwitness.fixture("resource_roles")}
-    for role in mockwitness.fixture("portfolio_workload")["roles"]:
+    workload = mockwitness.fixture("portfolio_workload")
+    assert [role["resource_role_id"] for role in workload["roles"]] == [
+        key for key, role in roles.items() if role["is_active"]
+    ]
+    for role in workload["roles"]:
         known = roles[role["resource_role_id"]]
         assert role["label"] == known["label"]
-        capacity = Decimal(known["capacity"]["monthly_hours"]) * Decimal(
-            known["capacity"]["headcount"]
-        )
+        # The monthly hours of the role, all its people counted: the headcount is not a factor.
+        capacity = Decimal(known["capacity"]["monthly_hours"])
         assert Decimal(role["capacity_monthly_hours"]) == capacity
+        assert [month["month"] for month in role["months"]] == workload["months"]
         for month in role["months"]:
-            assert Decimal(month["hours"]) == capacity * Decimal(month["load_ratio"]["value"])
+            ratio = (Decimal(month["hours"]) / capacity).quantize(Decimal("0.0001"))
+            assert Decimal(month["load_ratio"]["value"]) == ratio
 
 
 def test_the_marks_the_portfolio_journey_reads(volumes: dict[str, Any]) -> None:
@@ -393,7 +412,7 @@ def test_the_marks_the_portfolio_journey_reads(volumes: dict[str, Any]) -> None:
     # its indices nominal: a change of the generator that moves them fails here.
     value = volumes["portfolio_projects.json"]["value"]
     assert value["scope"]["states"] == ["in_progress", "pricing"]
-    assert value["scope"]["as_of"] == "2026-03-16"
+    assert value["scope"]["as_of"] == "2026-06-03"
     assert value["meta"]["total"] == value["scope"]["project_count"] == 300
     witness = next(row for row in value["items"] if row["code"] == "PRJ-001")
     assert witness["label"] == "Modernisation du poste de commande"

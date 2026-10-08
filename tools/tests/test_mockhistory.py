@@ -186,20 +186,20 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     # budgeted amounts but the provisions', is the one the current revision still bears: the lines
     # the occurrence merged are budgeted nothing (WF-RIS-0050, WF-RIS-0060).
     rows = mockhistory.reference_rows()
-    assert [mockhistory.reference_provision(risk) for risk in REGISTER] == [
+    assert [mockwitness.reference_provision(risk) for risk in REGISTER] == [
         Decimal("250.00"),
         Decimal("60.00"),
         Decimal("600.00"),
     ]
     assert mockhistory.reserve(rows) == Decimal("910.00")
-    assert mockhistory.reference_provision(mockwitness.REWORK) == (
+    assert mockwitness.reference_provision(mockwitness.REWORK) == (
         mockwitness.REFERENCE_PROVISION_751
     )
     budget = mockhistory.reference_budget(rows)
     assert budget == mockhistory.reference_budget(mockcore.core())
     assert budget == Decimal("120834.56")
     numbers = {row.number for row in rows}
-    assert mockhistory.MERGED not in numbers
+    assert mockwitness.MERGED not in numbers
     assert {557, 567} <= numbers
 
 
@@ -461,7 +461,7 @@ def test_a_risk_identified_after_the_reference_has_no_share_in_it() -> None:
         ),
     )
     assert late.known_on(AMENDMENT_MERGED.on) is None
-    assert mockhistory.reference_provision(late) == 0
+    assert mockwitness.reference_provision(late) == 0
     rows = mockhistory.reference_rows()
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(mockhistory, "REGISTER", (*REGISTER, late))
@@ -517,7 +517,8 @@ def test_a_line_of_provision_of_a_risk_identified_later_is_not_in_the_reference(
     )
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(mockhistory, "REGISTER", (*REGISTER, late))
-        patch.setattr(mockhistory, "CORE", core)
+        patch.setattr(mockwitness, "REGISTER", (*REGISTER, late))
+        patch.setattr(mockwitness, "CORE", core)
         rows = mockhistory.reference_rows()
         compared = mockhistory.comparison(
             mockhistory.offer_rows(), rows, mockhistory.OFFER, mockhistory.REFERENCE

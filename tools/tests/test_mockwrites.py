@@ -38,7 +38,7 @@ def _json(value: Any) -> Any:
 @pytest.fixture(scope="module")
 def whole() -> dict[str, Any]:
     """Read the whole core today, as an unfiltered reading of the structure gives it."""
-    return cast("dict[str, Any]", _json(mockcore.whole(mockcore.core())))
+    return cast("dict[str, Any]", _json(mockcore.whole(mockcore.current())))
 
 
 @pytest.fixture(scope="module")

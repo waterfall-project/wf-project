@@ -1,79 +1,18 @@
 {
-  "summary": "La courbe en S du portefeuille en décaissements, calculée au 31 décembre 2025, d'octobre à décembre : décembre est net négatif, les avoirs du mois importés avant ses factures, que l'import de janvier apportera — un décaissement est un montant signé, comme le coût réel dont il vient (WF-PTF-0100, WF-CRE-0010).",
+  "summary": "La courbe en S du portefeuille en décaissements, calculée au 31 décembre 2025, d'octobre à décembre 2025, sur les 198 projets alors en cours — le projet témoin, encore en chiffrage, n'en est pas —, chacun suivant le même cours que dans la courbe d'aujourd'hui ; et si les factures de décembre n'avaient pas encore été importées, ses seuls avoirs l'étant déjà : décembre serait net négatif, -2 546 166,40 — un décaissement est un montant signé, comme le coût réel dont il vient (WF-PTF-0100, WF-CRE-0010).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
-    "scope": {
-      "states": [
-        "in_progress"
-      ],
-      "as_of": "2025-12-31",
-      "from": null,
-      "to": null,
-      "org_node_id": null,
-      "org_node_label": null,
-      "project_count": 269
-    },
+    "scope": {"states":["in_progress"],"as_of":"2025-12-31","from":null,"to":null,"org_node_id":null,"org_node_label":null,"project_count":198},
     "payment_delays": true,
     "series": [
-      {
-        "name": "reference_budget",
-        "points": [
-          {
-            "date": "2025-10-31",
-            "amount": "865763166.67"
-          },
-          {
-            "date": "2025-11-30",
-            "amount": "1731526333.33"
-          },
-          {
-            "date": "2025-12-31",
-            "amount": "2597289500.00"
-          }
-        ]
-      },
-      {
-        "name": "actual_cost",
-        "points": [
-          {
-            "date": "2025-10-31",
-            "amount": "61204380.15"
-          },
-          {
-            "date": "2025-11-30",
-            "amount": "126191892.55"
-          },
-          {
-            "date": "2025-12-31",
-            "amount": "124351642.55"
-          }
-        ]
-      },
-      {
-        "name": "project_manager_projection",
-        "points": [
-          {
-            "date": "2025-12-31",
-            "amount": "124351642.55"
-          }
-        ]
-      }
+      {"name":"reference_budget","points":[{"date":"2025-10-31","amount":"4885768.60"},{"date":"2025-11-30","amount":"26277234.92"},{"date":"2025-12-31","amount":"92904162.52"}]},
+      {"name":"actual_cost","points":[{"date":"2025-10-31","amount":"18090912.61"},{"date":"2025-11-30","amount":"80673660.62"},{"date":"2025-12-31","amount":"78127494.22"}]},
+      {"name":"project_manager_projection","points":[{"date":"2025-12-31","amount":"78127494.22"}]}
     ],
     "cash_out_by_month": [
-      {
-        "month": "2025-10",
-        "past": "61204380.15",
-        "forecast": "0.00"
-      },
-      {
-        "month": "2025-11",
-        "past": "64987512.40",
-        "forecast": "0.00"
-      },
-      {
-        "month": "2025-12",
-        "past": "-1840250.00",
-        "forecast": "0.00"
-      }
+      {"month":"2025-10","past":"18090912.61","forecast":"0.00"},
+      {"month":"2025-11","past":"62582748.01","forecast":"0.00"},
+      {"month":"2025-12","past":"-2546166.40","forecast":"0.00"}
     ]
   }
 }
