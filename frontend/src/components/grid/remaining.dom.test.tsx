@@ -101,16 +101,35 @@ afterEach(() => {
 });
 
 describe("the grid of the remaining to commit", () => {
-  it("presents of each line its budgeted amount, its amount re-estimated before and now, and its figures, the amounts computed [WF-RAE-0040-A]", async () => {
+  it("presents of each line its budgeted amount, its figures and its amount re-estimated before and now, the amounts computed [WF-RAE-0040-A]", async () => {
+    // Les montants et les grandeurs sont présents pour chaque ligne, au reste à engager précédent
+    // et courant: the figures at the previous one first, then those of now (#424).
     serve();
     const { container } = render(grid());
     const table = screen.getByRole("grid", { name: "Grille de reste à engager" });
+    const headers = within(table)
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent);
+    expect(headers.filter((name) => /Montant|Qté|Charge|Débours|Réestimé/.test(name))).toEqual([
+      expect.stringMatching(/Montant budgété$/),
+      "Qté à la revue précédente",
+      "Charge (h) à la revue précédente",
+      "Débours unit. à la revue précédente",
+      expect.stringMatching(/Réestimé à la revue précédente$/),
+      "Qté",
+      "Charge (h)",
+      "Débours unit.",
+      expect.stringMatching(/Montant réestimé$/),
+    ]);
     for (const name of [
       "Libellé",
       "Avancement",
       "Fin",
       "Fin dépassée",
       "Calculé Montant budgété",
+      "Qté à la revue précédente",
+      "Charge (h) à la revue précédente",
+      "Débours unit. à la revue précédente",
       "Calculé Réestimé à la revue précédente",
       "Qté",
       "Charge (h)",
@@ -118,6 +137,12 @@ describe("the grid of the remaining to commit", () => {
       "Calculé Montant réestimé",
     ]) {
       expect(within(table).getByRole("columnheader", { name })).toBeInTheDocument();
+    }
+    // The figures at the previous remaining to commit, kept by the server and never computed nor
+    // entered: none in the witness before its first review.
+    for (const column of ["previous_quantity", "previous_hours", "previous_unit_disbursement"]) {
+      expect(cell(LABOUR, column)).toHaveTextContent(/^$/);
+      expect(cell(LABOUR, column)).toHaveAttribute("aria-readonly", "true");
     }
     // The provision of the risk of rewiring: budgeted at the 250 the reference knew, re-estimated
     // at its 500 now, before any review.

@@ -351,9 +351,13 @@ tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree`
 du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
 que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
 (FBS-4.3.1, `…/timelines`), une par lien (`timeline`), leurs tâches sur l'axe qu'elles partagent,
-dessinées comme le Gantt. Faute d'un filtre de `listNodes`, l'arborescence garde des tâches rendues
-les récapitulatives dans la profondeur, et une chronologie les tâches qui la nomment (constat
-d'US-0220/L2).
+dessinées comme le Gantt. Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
+demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
+chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
+chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre
+idempotent, qui ne change rien contre un serveur qui les tient, écart temporaire d'EP-02 retiré
+avec le back d'EP-03. Le contrat ne disant pas jusqu'où vont les récapitulatives, l'arborescence
+offre les niveaux de la réponse, et le suivant quand une récapitulative est au niveau demandé.
 
 L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de
 ses opérations dans la révision de sa route (`revision_id`) : les totaux des provisions des
@@ -371,22 +375,28 @@ tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entré
 
 L'écran du reste à engager, `…/revisions/[r]/remaining` (`frontend/src/components/remaining/`,
 `remaining.tsx` de la grille), lit ses indicateurs dans la révision de sa route
-(`getRemainingIndicators`, `revision_id`) — le total, les écarts à la référence et à la revue
-précédente, absent plutôt que nul sans elle, les totaux par nature et, par sous-projet, le reste à
-engager et l'écart au budget avec le `Signal` de la zone que le serveur donne, et la couverture des
-risques (`RiskCoverageSummary`) —, ou les dit indisponibles quand l'API ne les trouve pas ; et la
+(`getRemainingIndicators`, `revision_id`) — le total, la marge sur le budget de référence et
+l'écart à la revue précédente, absent plutôt que nul sans elle, les totaux par nature et, par
+sous-projet, le reste à engager et la marge sur son budget avec le `Signal` de la zone que le
+serveur donne, et la couverture des risques (`RiskCoverageSummary`) —, ou les dit indisponibles
+quand l'API ne les trouve pas ; et la
 grille dense, une configuration de plus, sur les lignes des seules tâches démarrées, à moins que
 l'adresse ne demande aussi les non démarrées (`progress`, sous le nom et la forme du contrat, qu'un
-lien de son en-tête écrit). Le montant budgété, le réestimé précédent et le réestimé courant y sont
-des colonnes calculées ; les grandeurs d'une ligne se réestiment une par une par `setLineRemaining`,
+lien de son en-tête écrit). Le montant budgété, les grandeurs et le réestimé au reste à engager
+précédent, puis les grandeurs et le réestimé courants (WF-RAE-0040) ; les trois montants y sont des
+colonnes calculées, les grandeurs précédentes des valeurs conservées, jamais saisies ; les grandeurs
+d'une ligne se réestiment une par une par `setLineRemaining`,
 là où la ligne dit l'accepter (`remaining_entry`) et où son nœud accepte le champ — jamais d'après
 l'avancement de sa tâche —, la commande `edit_remaining` posant Annuler et Rétablir ; la fin d'une
 tâche s'y montre sans se saisir, et la fin dépassée par une marque propre, que le serveur dit
 (`finish_overdue`). Son bandeau ne montre que le sous-projet, seul paramètre de contexte que ses
-lectures prennent. Le Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
-`…/revisions/[r]/kanban`, où l'en-tête de la grille mène : les tâches non démarrées dont les prédécesseurs sont terminés et
-les démarrées, telles que les rend `listStartableTasks`, chacune une carte, un jalon non démarré
-signalé à terminer ; aucun pourcentage, aucune commande. L'opération lit la révision en cours : sur une
+lectures prennent, et dit qu'il ne restreint que la grille, ses indicateurs étant ceux du projet
+entier (`gridOnly` de `ContextBanner`, #459). Le Kanban du démarrage des tâches, FBS-4.5.3, est une
+feuille de la fonction, `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches
+non démarrées, les démarrées et les terminées avec leur date, telles que les rend
+`listStartableTasks`, chacune une carte, un jalon non démarré dont les prédécesseurs sont terminés
+signalé à terminer (`predecessors_completed`) ; aucun pourcentage, aucune commande. L'opération lit
+la révision en cours : sur une
 révision marquée, l'écran le dit et ne demande rien.
 
 L'écran des coûts réels, `…/revisions/[r]/actual-costs` (`frontend/src/components/costs/`), lit
@@ -400,9 +410,9 @@ a pas : une configuration la retire par `searched: false` —, chaque ligne avec
 nommé par le serveur, son périmètre en mots et chaque colonne conservée du fichier comme une
 colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
 (`passthrough.<colonne>`), chaque colonne triée par le serveur — les colonnes conservées sont
-celles des lignes de la page, dans l'ordre alphabétique de la langue de l'interface, quel que soit
-l'ordre des lignes : une colonne propre à un autre fichier ne paraît que sur les pages qui portent
-ses lignes, le contrat ne nommant pas leur union — ; et le journal des imports, paginé à part
+celles de toutes les lignes retenues, dans l'ordre où le serveur les nomme
+(`meta.passthrough_columns`, #414) : les mêmes d'une page à l'autre — ; et le journal des imports,
+paginé à part
 (`imports_offset`). Des filtres que le serveur refuse (422 : une période qui finit avant de
 commencer, un sous-projet que le projet n'a pas) se disent à la place des lignes, les filtres
 gardés pour être changés. Un tri ou une
@@ -630,8 +640,8 @@ garde avant d'entrer. Le cas transitif — un module sans directive qui importe
 `@/api/server`, et qu'un composant client importe — échappe à ESLint : `client.ts` et
 `server.ts` importent `server-only`, le filet de `next build`, que `make build-front` lance au
 palier rapide, sans API joignable : une page qui lirait l'API à la construction, pré-rendue
-au lieu d'être rendue à la requête, le fait échouer (#131) ; au palier complet, les parcours
-de bout en bout le construisent (`make e2e`). `make typecheck-front`,
+au lieu d'être rendue à la requête, le fait échouer (#131) ; au palier complet, la mesure du
+§4.6.2 le construit (`make e2e-measure`, et `make e2e` sur un poste). `make typecheck-front`,
 `make test-front` ;
 `make lint-docker` (hadolint).
 
@@ -703,7 +713,10 @@ celle dont part la maquette (EP-02). Rien d'autre ne change.
 - `make dev` : le front (`http://localhost:3000`) contre le faux back, par
   `deploy/compose/compose.dev.yaml`. Le front ne connaît que l'adresse de l'API,
   `WATERFALL_API_ADDRESS` : à partir d'EP-03, la même variable désigne le vrai service.
-  `make dev-down` l'arrête.
+  `make dev-down` l'arrête. Le faux back garde le cache de npm, où `npx` a mis prism, dans
+  le volume nommé `mock-npm`, monté sur le répertoire de l'utilisateur 1000 de l'image, qui
+  en est propriétaire : prism n'est téléchargé qu'au premier démarrage.
+  `docker volume rm waterfall-dev_mock-npm`, la plateforme arrêtée, l'oublie.
 - Le front s'ouvre à `localhost` et à `127.0.0.1`. Pour l'ouvrir depuis un autre poste, à
   l'adresse de celui-ci sur le réseau, la déclarer dans `WATERFALL_DEV_ORIGINS` (des hôtes
   séparés par des virgules), à l'appel ou dans `deploy/compose/.env`, que git ignore :
@@ -750,7 +763,11 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   que la protection des branches exige : un contrôle exigé qui ne s'exécute pas faute de
   fichier touché resterait « en attente » et bloquerait la fusion.
 - un workflow par famille — `repo.yml`, `spec.yml`, `contract.yml`… —, qui installe ses
-  outils et appelle `make check-<famille>`. `repo` s'exécute sur toute modification.
+  outils et appelle `make check-<famille>`. `repo` s'exécute sur toute modification. Le
+  front en a deux, qui tournent côte à côte (#492) : `front.yml`, tout sauf les parcours de
+  bout en bout (`make check-front-code`), et `e2e.yml`, les parcours et la mesure du §4.6.2,
+  au palier complet seulement (`make e2e`, `make e2e-measure`) ; sur un poste,
+  `make check-front` enchaîne les deux moitiés, `check-front-code` puis `check-front-e2e`.
 
 Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
 déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
@@ -764,6 +781,47 @@ le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'A
 `gh pr merge` ne sait pas le faire tant que la fusion automatique est désactivée sur le
 dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
 branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
+
+Le palier complet vise moins de huit minutes dans la file pour son travail le plus long
+(#492). Les parcours de bout en bout, la moitié la plus longue, s'y prennent ainsi :
+
+- **dans l'image de Playwright** (`mcr.microsoft.com/playwright`), à la version de
+  `@playwright/test` que résout `frontend/pnpm-lock.yaml`, épinglée par son empreinte
+  (`container:` d'`e2e.yml`) : Chromium et ses paquets système y sont, rien ne vient du miroir
+  d'Ubuntu, dont le débit n'est pas le nôtre (#472). Le travail appelle `make e2e`, qui trouve
+  le navigateur de l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non
+  `make check-front-e2e`, qui en installerait un. Monter `@playwright/test` monte l'image avec
+  lui, étiquette et empreinte : sinon les parcours s'arrêtent d'emblée sur un navigateur
+  introuvable, et `tools/tests/test_playwrightimage.py` échoue avant eux, dans `make check-repo`.
+  L'empreinte est celle de l'index multi-architecture de l'étiquette, que donne la ligne
+  `Digest:` de `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou
+  l'en-tête `docker-content-digest` de
+  `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
+  L'image n'a pas `make` : son paquet d'Ubuntu noble est téléchargé, épinglé et
+  vérifié par son empreinte, comme pandoc ;
+- **répartis sur trois runners** (`make e2e SHARD=i/3`, soit `playwright test --shard=i/3`),
+  la mesure du §4.6.2 sur un quatrième, seule (`make e2e-measure`), par une matrice dont aucun
+  morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
+  est annulé, et la porte avec lui. Trois, parce que Playwright répartit des fichiers entiers
+  de parcours, à nombre de tests égal, et que les plus longs pèsent : en octobre 2026, le plus
+  long de trois morceaux jouait environ 140 s de parcours sur deux workers, celui de quatre
+  130 s, quand chaque morceau paie environ deux minutes d'image, d'installation et de
+  serveurs. Ce choix se revoit quand les parcours s'allongent : les durées par fichier se
+  lisent dans le journal de chaque morceau.
+
+Le back suivra le même modèle dès qu'EP-03 lui donne une base et des parcours (#492, levier 5),
+et `back.yml` s'écrira ainsi :
+
+- PostgreSQL tourne en service du travail (`services:`), dans l'image de la version que vise
+  la plateforme, épinglée par son empreinte, avec sa sonde de santé : les tests d'intégration
+  le joignent sur `localhost`, sans Compose ;
+- les tests se répartissent sur les cœurs du runner (`pytest -n auto`, pytest-xdist), chaque
+  processus sur sa propre base, créée à son démarrage ;
+- la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples,
+  comme aujourd'hui (`full-else` du Makefile) ;
+- les parcours de bout en bout contre le vrai service — les mêmes, `WATERFALL_API_ADDRESS`
+  posée — sont répartis par la même matrice qu'`e2e.yml`, le service et sa base démarrés dans
+  chaque morceau.
 
 Règles des workflows :
 
@@ -1001,8 +1059,10 @@ du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port d�
 échouer le lancement en le disant. `E2E_API_PORT`, `E2E_FRONT_PORT` et
 `E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un
 port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
-navigateur. À partir d'EP-03, les mêmes parcours se jouent contre le vrai service en
-posant `WATERFALL_API_ADDRESS` : le harnais ne démarre alors aucun faux back.
+navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
+chacun des runners de la chaîne (« Chaîne »). À partir d'EP-03, les mêmes parcours se jouent
+contre le vrai service en posant `WATERFALL_API_ADDRESS` : le harnais ne démarre alors aucun
+faux back.
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
@@ -1053,10 +1113,15 @@ utilisable, une page qui ne se pose jamais — et il échoue, quelle que soit la
 parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
 ne lit pas (`lineage_id`). Son projet Playwright, `production`, dépend du projet `chromium` :
 il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
-d'eux échoue —, et sans trace. Elle tourne donc là où tournent les parcours, au palier complet
-de la chaîne ; sur un poste, `make e2e`, ou la mesure seule,
-`pnpm exec playwright test --project production --no-deps` dans `frontend/`, qui démarre
-ses serveurs comme `make e2e` — le harnais n'en réutilise aucun.
+d'eux échoue —, et sans trace. Dans la chaîne, au palier complet, elle tourne seule sur un
+runner à elle, à côté des morceaux des parcours (« Chaîne ») : `make e2e-measure`, qui ne
+démarre que le faux back et le front construit — le harnais n'en réutilise aucun —, et que
+l'échec d'un parcours n'empêche plus. Sur un poste, `make e2e` la joue après les parcours, et
+`make e2e-measure` seule. `E2E_PART` dit au harnais ce qu'il joue : `paths`, les parcours sans
+la mesure ni la construction du front, que `make e2e SHARD=i/N` pose ; `measure`, la mesure
+seule, sans le serveur de développement, que pose `make e2e-measure` ; absente, le tout. Sans
+elle, Playwright ne saurait pas répartir les parcours : la mesure, qui les attend tous, les
+entraînerait tous dans chaque morceau.
 
 Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
 sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté

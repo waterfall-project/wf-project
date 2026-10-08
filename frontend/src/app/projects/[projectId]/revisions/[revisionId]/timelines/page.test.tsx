@@ -75,11 +75,12 @@ beforeEach(() => {
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
     "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
-    [NODES]: "nodes_core",
+    [NODES]: "nodes_timeline",
     "GET /projects/{project_id}/timelines": "timelines",
   };
 });
 
+const STEERING = "01926f3a-7c00-7000-8000-000000001000";
 const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
 
 /** The timelines at the query given. */
@@ -100,7 +101,7 @@ describe("the screen of the timelines", () => {
     expect(metadata.title).toBe("Timelines · Modernisation du poste de commande — Waterfall");
   });
 
-  it("offers the timelines of the project, the first shown, and the tasks inscribed to it on their axis", async () => {
+  it("offers the timelines of the project, the first shown, and the tasks the server renders for it on their axis", async () => {
     const page = await timelinesAt({ subproject_id: SUBPROJECT });
     expect(page).toMatch(/aria-current="true"[^>]*>Comité de pilotage</);
     expect(page).toContain(`href="${SCREEN}?subproject_id=${SUBPROJECT}&amp;timeline=${CUSTOMER}"`);
@@ -109,22 +110,33 @@ describe("the screen of the timelines", () => {
       "1 Études 02/03/2026 24/04/2026 6 Réception des études 24/04/2026 24/04/2026 " +
         "18 Réception usine 30/06/2026 30/06/2026 23 Mise en service",
     );
-    expect(table).not.toContain("Câblage des armoires");
     expect(table).toContain('aria-label="Milestone on 24/04/2026 — critical"');
-    // The tasks are read with their inscriptions, for the sub-project the banner shows.
+    // The server selects the tasks of the timeline shown, for the sub-project the banner shows.
     const { fields, ...query } = queryOf(NODES) ?? {};
-    expect(query).toEqual({ kinds: "task", subproject_id: SUBPROJECT });
+    expect(query).toEqual({ kinds: "task", subproject_id: SUBPROJECT, timeline_id: STEERING });
     expect(fields?.split(",")).toContain("task.tracking");
   });
 
-  it("shows the timeline the address names, its selection distinct from the other's: the customer's, the two receptions [WF-PLA-0140-A]", async () => {
-    // Deux chronologies d'un même projet portent des sélections distinctes : the steering
-    // committee's holds the studies and the commissioning too, the customer's the receptions alone.
+  it("asks the server for the tasks of the timeline the address names, and draws them [WF-PLA-0140-A]", async () => {
+    // Deux chronologies d'un même projet portent des sélections distinctes : each is asked of the
+    // server by its own identifier, and the screen draws what it renders, selecting nothing.
     const page = await timelinesAt({ timeline: CUSTOMER });
     expect(page).toMatch(/aria-current="true"[^>]*>Revue client</);
-    const table = text(page.slice(page.indexOf('aria-label="Revue client"')));
-    expect(table).toContain("Réception des études");
-    expect(table).toContain("Réception usine");
+    expect(queryOf(NODES)).toMatchObject({ timeline_id: CUSTOMER });
+    expect(text(page.slice(page.indexOf('aria-label="Revue client"')))).toContain(
+      "6 Réception des études",
+    );
+  });
+
+  it("keeps the tasks inscribed to the timeline of an answer that holds more, as the fake back renders it [WF-PLA-0140-A]", async () => {
+    // Deux chronologies d'un même projet portent des sélections distinctes: the customer's, the
+    // two receptions alone, the core read whole.
+    server.answers = { ...server.answers, [NODES]: "nodes_core" };
+    const table = text(
+      (await timelinesAt({ timeline: CUSTOMER })).split('aria-label="Revue client"')[1] ?? "",
+    );
+    expect(table).toContain("6 Réception des études");
+    expect(table).toContain("18 Réception usine");
     expect(table).not.toContain("Études 02/03/2026");
     expect(table).not.toContain("Mise en service");
   });
@@ -133,5 +145,18 @@ describe("the screen of the timelines", () => {
     server.answers = { ...server.answers, [NODES]: "nodes_risk_occurred" };
     const empty = await timelinesAt({ timeline: CUSTOMER });
     expect(text(empty)).toContain("No task of this revision is inscribed to this timeline.");
+  });
+
+  it("reads no task of a project without a timeline, says it has none, and shows no filter in its banner (#302)", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/timelines": "timelines_empty",
+    };
+    const page = await timelinesAt({ subproject_id: SUBPROJECT });
+    expect(queryOf(NODES)).toBeUndefined();
+    const banner = page.slice(0, page.indexOf("</section>"));
+    expect(banner).toContain('aria-label="Reading context"');
+    expect(text(banner)).not.toContain("Subproject");
+    expect(text(page)).toContain("This project has no timeline.");
   });
 });

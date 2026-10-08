@@ -310,11 +310,16 @@ describe("what no command undoes", () => {
     const list = example("actual_costs") as {
       readonly items: components["schemas"]["ActualCostLine"][];
       readonly totals: Parameters<typeof CostsGrid>[0]["costs"]["totals"];
+      readonly meta: { readonly passthrough_columns: string[] };
     };
     render(
       inLanguage(
         <CostsGrid
-          costs={{ items: list.items.map(costRow), totals: list.totals }}
+          costs={{
+            items: list.items.map(costRow),
+            totals: list.totals,
+            kept: list.meta.passthrough_columns,
+          }}
           query={{ sort: undefined, search: undefined }}
           preferences={undefined}
         />,

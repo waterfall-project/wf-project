@@ -8,16 +8,20 @@
  * the revision inscribed to the one shown, drawn on their axis of time (`TimelineTable`). Read and
  * never entered: neither the timelines nor the inscriptions are changed here. The tasks are read
  * as the grid of the planning reads them — the tasks alone, restricted to the filtered sub-project
- * (`grid-screen.ts`) —, of each the fields the timeline reads.
+ * (`grid-screen.ts`) —, the server selecting those inscribed to the timeline shown (`timeline_id`,
+ * #463), once the timelines read say which it is, the screen keeping them once more against the
+ * fake back (`inscribedTo`); of each the fields the timeline reads, their inscriptions among them.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
+import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { inscribedTo, type TimelineTask, TimelineTable } from "@/components/gantt/timeline";
 import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
@@ -25,7 +29,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
 
 import { screenMetadata } from "../../../../../title";
-import { gridAddress, readGridScreen } from "../grid-screen";
+import { type GridAddress, gridAddress, readGridScreen } from "../grid-screen";
 import type { RevisionParams } from "../page";
 
 /** A named timeline of a project. */
@@ -121,6 +125,22 @@ function TimelinesScreen({
   );
 }
 
+/**
+ * The tasks of the revision inscribed to the timeline shown, which the server selects
+ * (`timeline_id`) and the screen keeps once more (`inscribedTo`), and the reading context they are
+ * read in, which shows the filtered sub-project they are read for.
+ */
+async function readInscribed(at: GridAddress, shown: Timeline) {
+  const screen = await readGridScreen(at, {
+    key: "timelines",
+    sortable: [],
+    kinds: ["task"],
+    narrowed: { timeline_id: shown.timeline_id },
+    fields: TIMELINE_FIELDS,
+  });
+  return { reading: screen.reading, tasks: inscribedTo(screen.nodes.items, shown.timeline_id) };
+}
+
 /** Render the timelines of a project, and the tasks of the revision inscribed to the one shown. */
 export default async function TimelinesPage({
   params,
@@ -131,21 +151,23 @@ export default async function TimelinesPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "timelines");
-  const [timelines, screen] = await Promise.all([
+  // The reading context is read with the timelines: a project without a timeline reads no task,
+  // and its banner shows no filter, none of its reads taking one (#302).
+  const [timelines, context] = await Promise.all([
     readOrFail("listTimelines", () =>
       serverClient().GET("/projects/{project_id}/timelines", {
         params: { path: { project_id: revision.projectId } },
       }),
     ),
-    readGridScreen(at, {
-      key: "timelines",
-      sortable: [],
-      kinds: ["task"],
-      fields: TIMELINE_FIELDS,
-    }),
+    readProjectContext(at.pathname, at.context, []),
   ]);
+  if (context === "not_found") {
+    notFound();
+  }
   const asked = at.address.get(TIMELINE);
   const shown = timelines.find((timeline) => timeline.timeline_id === asked) ?? timelines[0];
+  const { reading, tasks }: { reading: ProjectReading; tasks: readonly TimelineTask[] } =
+    shown === undefined ? { reading: context, tasks: [] } : await readInscribed(at, shown);
   const query = searchQuery(search);
   const href = (timeline: Timeline) => {
     const next = new URLSearchParams(query);
@@ -154,13 +176,8 @@ export default async function TimelinesPage({
   };
   return (
     <>
-      <ContextBanner reading={screen.reading} />
-      <TimelinesScreen
-        timelines={timelines}
-        shown={shown}
-        tasks={shown === undefined ? [] : inscribedTo(screen.nodes.items, shown.timeline_id)}
-        href={href}
-      />
+      <ContextBanner reading={reading} />
+      <TimelinesScreen timelines={timelines} shown={shown} tasks={tasks} href={href} />
     </>
   );
 }

@@ -6,7 +6,8 @@
  * context of the address (WF-IHM-0020), the main structure of the revision, and its nodes as the
  * address asks them —
  * the sort, the search, the filtered sub-project, the progress of the tasks the screen narrows to,
- * all named as the contract names them —, the
+ * what a view that is no grid has the server select (`narrowed`), all named as the contract names
+ * them —, the
  * sort the account keeps for the grid when the address asks none. A grid asks the server what
  * to render (`kinds`): the planning, the tasks alone; and, of each node, the fields it reads
  * alone (`fields`). A project or a revision the API does not find is not found, as at the other
@@ -89,6 +90,11 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
    * started unless the address asks more (WF-RAE-0040) —; every task when none is given.
    */
   readonly progress?: NonNullable<NodeFilters["progress"]>;
+  /**
+   * What the server is to select of the tasks for a view that is not a grid — the summaries down
+   * to a level for the task tree, the tasks of a timeline (#463) —, the view selecting nothing.
+   */
+  readonly narrowed?: Pick<NodeFilters, "summaries_only" | "max_level" | "timeline_id">;
 }
 
 /**
@@ -127,7 +133,7 @@ export interface GridScreen<Row> {
  */
 async function mainStructure<N extends NodeField, T extends TaskField, L extends LineField>(
   { revision, context }: GridAddress,
-  { kinds, fields, progress }: GridReading<N, T, L>,
+  { kinds, fields, progress, narrowed }: GridReading<N, T, L>,
   asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
   const client = serverClient();
@@ -149,6 +155,7 @@ async function mainStructure<N extends NodeField, T extends TaskField, L extends
     ...(search === undefined ? {} : { search }),
     ...(subproject === null ? {} : { subproject_id: subproject }),
     ...(progress === undefined ? {} : { progress }),
+    ...narrowed,
   };
   const answer = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {

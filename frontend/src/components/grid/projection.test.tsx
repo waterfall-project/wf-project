@@ -244,7 +244,8 @@ holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.645);
 holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.46);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
 // line, whether it takes a re-estimation, its three amounts, and the progress and finish of a task:
-// 3.80 million characters of the 6.51 of the volume, 0.584 (US-0230/L1).
+// 3.80 million characters of the 6.51 of the volume, 0.584 (US-0230/L1); the figures at the previous
+// remaining to commit (#424), left out where they say nothing, as they do before the first review.
 holdsWhatTheGridReads(
   "remaining to commit",
   remainingGrid({ line: unwritten }),

@@ -71,20 +71,25 @@ describe("the sentence of a refusal", () => {
     );
   });
 
-  it("names the state of the project that forbids the operation by its label", () => {
-    const project: ProblemText = {
-      code: "STATE_FORBIDS_OPERATION",
-      params: { state: "completed" },
-    };
-    expect(say(project, "fr")).toBe(
-      "L\u2019état actuel ne permet pas cette opération. État du projet\u00A0: Terminé.",
-    );
-    expect(say(project, "en")).toBe(
-      "The current state does not allow this operation. State of the project: Completed.",
-    );
-    // A state of another enumeration, which the contract does not name, says nothing more.
-    const risk: ProblemText = { code: "STATE_FORBIDS_OPERATION", params: { state: "occurred" } };
-    expect(say(risk, "en")).toBe("The current state does not allow this operation.");
+  it("names the state that forbids the operation by its label in the enumeration the refusal names, and the object it is the state of", () => {
+    // The indicators of a project in pricing, and its workload on a reference it does not have:
+    // the state of a project, said so (#413).
+    for (const name of ["project_indicators_not_in_progress", "workload_no_reference"] as const) {
+      const project = example(name) as ProblemText;
+      expect(say(project, "fr")).toBe(
+        "L\u2019état actuel ne permet pas cette opération. État du projet\u00A0: Chiffrage.",
+      );
+      expect(say(project, "en")).toBe(
+        "The current state does not allow this operation. State of the project: Pricing.",
+      );
+    }
+  });
+
+  it("says no state whose enumeration the refusal does not name, nor a value its enumeration does not have", () => {
+    const { params, ...refused } = example("project_indicators_not_in_progress") as ProblemText;
+    const bare = "The current state does not allow this operation.";
+    expect(say({ ...refused, params: { state: params?.state } }, "en")).toBe(bare);
+    expect(say({ ...refused, params: { ...params, state: "occurred" } }, "en")).toBe(bare);
   });
 
   it("lists the missing prerequisites in the reader's language", () => {

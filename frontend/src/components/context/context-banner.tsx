@@ -7,8 +7,10 @@
  * opening any panel, each with a link that lifts it; and, when the figures of the screen are
  * computed on another revision than the one the address names — a date `as_of` reads the last
  * marked revision before it —, the revision of the calculation (`CalculationContext.revision_id`),
- * named as the screen read it (#363). An icon before each fact, whose name the list of definitions
- * gives to a screen reader; the states in badges, in words.
+ * named as the screen read it (#363). A filter that restricts the grid of the screen and not its
+ * indicators says so on its chip (#459): the chip says what it restricts. An icon before each
+ * fact, whose name the list of definitions gives to a screen reader; the states in badges, in
+ * words.
  *
  * A server component: what it shows is the reading of the page, and a filter is lifted by
  * following a link, not by a state of the browser. It hands the project on to the shell, which
@@ -45,6 +47,11 @@ export interface ContextBannerProps {
    * revision shown.
    */
   readonly computedOn?: ComputedRevision | undefined;
+  /**
+   * The filters the screen reads that restrict its grid alone, not its indicators — the
+   * sub-project of the remaining to commit, whose indicators are those of the project whole.
+   */
+  readonly gridOnly?: readonly ContextFilter["name"][] | undefined;
 }
 
 const FACT = "flex items-center gap-1.5";
@@ -62,8 +69,10 @@ function addressDate(value: string, locale: Locale): string {
   }
 }
 
-/** The text of a chip: what the filter restricts. */
-function useFilterText(): (filter: ContextFilter) => string {
+/** The text of a chip: what the filter restricts, the grid alone when it is among `gridOnly`. */
+function useFilterText(
+  gridOnly: readonly ContextFilter["name"][],
+): (filter: ContextFilter) => string {
   const t = useTranslations();
   const locale = useLocale();
   // A sub-project the project does not have is named by the identifier the address gives.
@@ -73,12 +82,16 @@ function useFilterText(): (filter: ContextFilter) => string {
     }
     return value === UNASSIGNED ? t("enums.SubprojectFilter.unassigned") : value;
   };
-  return (filter) =>
+  const named = (filter: ContextFilter) =>
     filter.name === "as_of"
       ? t("contextBanner.asOf", { date: addressDate(filter.value, locale) })
       : t("contextBanner.subproject", {
           subproject: subprojectName(filter.value, filter.subproject),
         });
+  return (filter) =>
+    gridOnly.includes(filter.name)
+      ? t("contextBanner.gridOnly", { filter: named(filter) })
+      : named(filter);
 }
 
 /** The revision read: its name, its status, whether it is the reference. */
@@ -123,9 +136,9 @@ function ComputedOnFacts({ computedOn }: { readonly computedOn: ComputedRevision
 }
 
 /** Render the reading context of a screen of a project. */
-export function ContextBanner({ reading, computedOn }: ContextBannerProps) {
+export function ContextBanner({ reading, computedOn, gridOnly = [] }: ContextBannerProps) {
   const t = useTranslations();
-  const filterText = useFilterText();
+  const filterText = useFilterText(gridOnly);
   const { project, revision, readOnly, filters } = reading;
   return (
     <section

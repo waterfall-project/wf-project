@@ -119,6 +119,30 @@ describe("the banner of the reading context", () => {
     await expectAccessible(container);
   });
 
+  it("says on its chip a filter that restricts the grid of the screen and not its indicators [WF-IHM-0020-A]", () => {
+    // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres. Its chip says what
+    // it restricts: the sub-project of the remaining to commit restricts its grid, not its
+    // indicators, which the API reads for the project whole (#459).
+    const address = `${REMAINING}?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
+    render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        <ContextBanner reading={reading(address, "revision")} gridOnly={["subproject_id"]} />
+      </NextIntlClientProvider>,
+    );
+    const chips = within(screen.getByRole("list", { name: "Active filters" })).getAllByRole(
+      "listitem",
+    );
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "Subproject: SP-CMD — Poste de commande, on the grid only",
+      "Calculation date: 31 May 2026",
+    ]);
+    expect(
+      screen.getByRole("link", {
+        name: "Remove the filter “Subproject: SP-CMD — Poste de commande, on the grid only”",
+      }),
+    ).toHaveAttribute("href", `${REMAINING}?as_of=2026-05-31`);
+  });
+
   it("keeps the revision a function of the project carries when a filter is lifted", () => {
     const lifecycle = `/projects/${PROJECT}/lifecycle`;
     banner(reading(`${lifecycle}?revision_id=${REVISION}&subproject_id=unassigned`, "revision"));

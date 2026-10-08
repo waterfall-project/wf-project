@@ -52,6 +52,8 @@ interface Language {
     readonly banner: string;
     readonly activeFilters: string;
     readonly subprojectChip: string;
+    /** The chip of the sub-project of the remaining to commit, which restricts its grid alone. */
+    readonly gridOnlyChip: string;
     readonly estimateGrid: string;
     readonly labelColumn: string;
     readonly portfolio: string;
@@ -87,6 +89,7 @@ const FRENCH: Language = {
     banner: "Contexte de lecture",
     activeFilters: "Filtres actifs",
     subprojectChip: `Sous-projet : ${SUBPROJECT_NAME}`,
+    gridOnlyChip: `Sous-projet : ${SUBPROJECT_NAME}, sur la grille seulement`,
     estimateGrid: "Grille de devis",
     labelColumn: "Libellé",
     portfolio: "Portefeuille",
@@ -126,6 +129,7 @@ const ENGLISH: Language = {
     banner: "Reading context",
     activeFilters: "Active filters",
     subprojectChip: `Subproject: ${SUBPROJECT_NAME}`,
+    gridOnlyChip: `Subproject: ${SUBPROJECT_NAME}, on the grid only`,
     estimateGrid: "Estimate grid",
     labelColumn: "Label",
     portfolio: "Portfolio",
@@ -261,7 +265,7 @@ for (const language of [FRENCH, ENGLISH]) {
       const chips = banner.getByRole("list", { name: names.activeFilters }).getByRole("listitem");
       await follow(page, language, names.remaining, { timeout: WORKING });
       await expect(page).toHaveURL(filtered("remaining"));
-      await expect(chips).toHaveText([names.subprojectChip]);
+      await expect(chips).toHaveText([names.gridOnlyChip]);
       await expect(page.getByRole("grid", { name: names.remainingGrid })).toBeVisible();
 
       await follow(page, language, names.risks);

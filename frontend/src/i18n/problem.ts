@@ -7,8 +7,9 @@
  * The code gives the sentence, `errors.<CODE>`; each parameter the contract names and a
  * reader can use adds one, `problemDetails.<param>`, with the value named by the catalogue
  * too — a `missing_permission` by its label, a `missing_condition` by its own, a `state` by its
- * label as a `ProjectState`, the only enumeration the contract names for it (#353); a state the
- * contract does not say the enumeration of adds nothing. A
+ * label in the enumeration the envelope names with it (`state_enum`, #413), the object it is the
+ * state of named by the sentence; a state without its enumeration, or of an enumeration the
+ * catalogue does not know, adds nothing. A
  * parameter that names nothing a reader knows — an identifier, a lock version — adds nothing. The
  * decoder of the envelope (`src/api/problem.ts`) classes a refusal by its status, and the
  * notice of its outcome (`OutcomeNotice`) writes it with this sentence.
@@ -46,6 +47,25 @@ type Reader = (
   locale: Locale,
 ) => Detail | undefined;
 
+/** An enumeration of the contract a refused state is a value of (`Problem.params.state_enum`). */
+type StateEnumeration = components["schemas"]["StateEnumeration"];
+
+/**
+ * How a refused state is told, by its enumeration: the list of the catalogue that labels its
+ * values, and the sentence that names the object it is the state of. An enumeration the contract
+ * adds is a key the types ask for here.
+ */
+const STATES: Readonly<Record<StateEnumeration, { list: string; detail: Detail[0] }>> = {
+  ProjectState: { list: "enums.ProjectState", detail: "projectState" },
+};
+
+/** How a refused state is told, when the envelope names an enumeration the contract has. */
+function stateIn(enumeration: unknown): (typeof STATES)[StateEnumeration] | undefined {
+  return typeof enumeration === "string" && Object.hasOwn(STATES, enumeration)
+    ? STATES[enumeration as StateEnumeration]
+    : undefined;
+}
+
 /** The parameters of the envelope a reader is told about, in the order they are told. */
 const DETAILS: readonly Reader[] = [
   ({ missing_permission }, label) => {
@@ -63,9 +83,10 @@ const DETAILS: readonly Reader[] = [
     const list = new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(known);
     return known.length === 0 ? undefined : ["missing_prerequisites", { prerequisites: list }];
   },
-  ({ state }, label) => {
-    const project = label("enums.ProjectState", state);
-    return project === undefined ? undefined : ["projectState", { state: project }];
+  ({ state, state_enum }, label) => {
+    const told = stateIn(state_enum);
+    const named = told === undefined ? undefined : label(told.list, state);
+    return told === undefined || named === undefined ? undefined : [told.detail, { state: named }];
   },
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,

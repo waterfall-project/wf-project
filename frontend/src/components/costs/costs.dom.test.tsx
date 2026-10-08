@@ -17,13 +17,7 @@ import { example, fakeClient } from "@/test/fixtures";
 
 import { readCostFilters } from "./address";
 import { CostFilterBar, type SubprojectChoice } from "./cost-filters";
-import {
-  costRow,
-  type CostRows,
-  type CostSortColumn,
-  keptColumns,
-  type ListPage,
-} from "./cost-grid";
+import { costRow, type CostRows, type CostSortColumn, type ListPage } from "./cost-grid";
 import { ListPages } from "./cost-pages";
 import { CostSummary } from "./cost-totals";
 import { CostsGrid } from "./costs-grid";
@@ -48,7 +42,7 @@ interface CostList {
   readonly items: components["schemas"]["ActualCostLine"][];
   readonly totals: CostRows["totals"];
   readonly last_import_at: string | null;
-  readonly meta: ListPage;
+  readonly meta: ListPage & { readonly passthrough_columns: string[] };
 }
 
 const NO_QUERY: GridQuery<CostSortColumn> = { sort: undefined, search: undefined };
@@ -67,7 +61,11 @@ function listOf(name: "actual_costs" | "actual_costs_page" | "actual_costs_subpr
 /** The lines of an example, as the page hands them to the grid. */
 function costsOf(name: Parameters<typeof listOf>[0]): CostRows {
   const list = listOf(name);
-  return { items: list.items.map(costRow), totals: list.totals };
+  return {
+    items: list.items.map(costRow),
+    totals: list.totals,
+    kept: list.meta.passthrough_columns,
+  };
 }
 
 /** A part of the screen, in a language. */
@@ -123,9 +121,9 @@ describe("the grid of the actual costs", () => {
       "Sous-projet",
       "Périmètre suivi",
       "Motif de l’exclusion",
-      "Élément d'OTP",
       "Fournisseur",
       "Texte de commande",
+      "Élément d'OTP",
     ]);
     const cells = cellsOf("FA-2026-0412");
     expect(cells.slice(0, 5).map((each) => each.textContent)).toEqual([
@@ -137,24 +135,26 @@ describe("the grid of the actual costs", () => {
     ]);
     // Each column kept from the file, under the name the file gives it, as imported.
     expect(cells.slice(6, 9).map((each) => each.textContent)).toEqual([
-      "WF.PRJ-001/SP-CAB",
       "Câbles du Rhône",
       "Câbles de commande du pupitre",
+      "WF.PRJ-001/SP-CAB",
     ]);
     await expectAccessible(container);
   });
 
-  it("orders the columns of the file alphabetically in the language of the interface, whatever the order of the lines and of their columns", () => {
-    const { items } = costsOf("actual_costs");
-    const [first, second] = items;
-    if (first === undefined || second === undefined) {
-      throw new Error("the example actual_costs has changed");
-    }
-    // The second line carries the same columns the other way round, as another file might (#353).
-    const reversed = Object.fromEntries(Object.entries(second.passthrough ?? {}).reverse());
-    const kept = keptColumns([first, { ...second, passthrough: reversed }], "fr");
-    expect(kept).toEqual(["Élément d'OTP", "Fournisseur", "Texte de commande"]);
-    expect(keptColumns([{ ...second, passthrough: reversed }, first], "fr")).toEqual(kept);
+  it("presents the columns kept of every line retained, in the order the server names them, whatever the lines of the page carry [WF-CRE-0010-A]", () => {
+    // Les colonnes conservées sont restituées à la consultation. The same from one page to the
+    // next (#414), even on a page whose lines carry none of them, the server naming them for the
+    // whole reading.
+    const { items, totals, kept } = costsOf("actual_costs_page");
+    const bare = items.map((line) => ({ ...line, passthrough: {} }));
+    render(costsGrid({ items: bare, totals, kept }));
+    expect(
+      within(grid())
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent)
+        .slice(6),
+    ).toEqual(["Fournisseur", "Texte de commande", "Élément d'OTP"]);
   });
 
   it("accepts a line of negative amount, which lessens the actual cost [WF-CRE-0010-A]", () => {

@@ -6,14 +6,16 @@
  * time the rows share, drawn as the Gantt draws it (`GanttCell`), the three sorts of task apart
  * and the critical path told by the drawing and by the name of the bar. Read, never entered.
  *
- * The contract does not say which tasks a timeline holds but by each task (`TaskFacet.tracking`):
- * `listNodes` does not filter on a timeline (#463). Until it does, the
- * screen keeps, of the tasks the server renders in the order of the plan, those whose inscriptions
- * name the timeline (`inscribedTo`), in that order.
+ * The server selects the tasks of a timeline (`listNodes`, `timeline_id`, #463), in the order of
+ * the plan and without their ancestors. The screen applies the same criterion to the answer once
+ * more (`inscribedTo`) — a temporary gap of EP-02: the fake back ignores the filters of
+ * `listNodes`, and the mock-up must stay right against it; against a server that applies them, it
+ * changes nothing. It goes with the back of EP-03.
  */
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+
 import {
   Table,
   TableBody,
@@ -41,7 +43,10 @@ export interface TimelineTask extends GanttRow {
     | null;
 }
 
-/** The tasks of an answer inscribed to a timeline, in the order of the answer. */
+/**
+ * The tasks of an answer inscribed to a timeline, in the order of the answer: what a server that
+ * applies `timeline_id` renders, kept once more against one that does not (the fake back of EP-02).
+ */
 export function inscribedTo<Task extends TimelineTask>(
   tasks: readonly Task[],
   timeline: string,

@@ -6,7 +6,9 @@
  * (WF-IHM-0020), the depth to show, chosen by links that write the address (`depth`), and the tree
  * of the summaries of the main structure under the root of the project, read and never entered
  * (`TaskTree`). The tasks are read as the grid of the planning reads them — the tasks alone,
- * restricted to the filtered sub-project (`grid-screen.ts`) —, of each the fields the tree reads.
+ * restricted to the filtered sub-project (`grid-screen.ts`) —, the server selecting the summaries
+ * down to the depth asked (`summaries_only`, `max_level`, #463), the tree keeping them once more
+ * against the fake back (`summaryTree`); of each the fields the tree reads.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -16,8 +18,9 @@ import { ContextBanner } from "@/components/context/context-banner";
 import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
-  deepest,
   depthHref,
+  depthShown,
+  depthsOffered,
   readDepth,
   summaryTree,
   type TreeNode,
@@ -118,14 +121,16 @@ export default async function TaskTreePage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "task-tree");
+  const asked = readDepth(at.address);
   const screen = await readGridScreen(at, {
     key: "task_tree",
     sortable: [],
     kinds: ["task"],
+    narrowed: { summaries_only: true, max_level: asked },
     fields: TREE_FIELDS,
   });
-  const levels = deepest(screen.nodes.items);
-  const depth = readDepth(at.address, levels);
+  const levels = depthsOffered(screen.nodes.items, asked);
+  const depth = depthShown(screen.nodes.items, asked);
   const query = searchQuery(search);
   return (
     <>

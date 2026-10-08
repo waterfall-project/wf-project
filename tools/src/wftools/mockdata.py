@@ -439,6 +439,22 @@ def readings() -> dict[str, JsonObject]:
             f"#487).",
             mockcore.summaries(mockcore.core(nested()), 2),
         ),
+        "nodes_summaries_leaves.json": _example(
+            f"Variante contrefactuelle : l'arborescence de tâches d'un planning composé "
+            f"uniquement de tâches feuilles — les tâches du cœur du témoin sans leurs "
+            f"récapitulatives —, demandée au niveau 2 (kinds=task, summaries_only, max_level=2) "
+            f"le {day} : aucune récapitulative, rien n'est rendu, et le front dessine une "
+            f"arborescence réduite au nœud du projet ; les totaux sont nuls (WF-PLA-0110).",
+            mockcore.summaries(
+                [
+                    row
+                    for row in rows
+                    if row.kind != mockcore.TASK
+                    or not cast("JsonObject", row.node["task"])["is_summary"]
+                ],
+                2,
+            ),
+        ),
         "nodes_timeline.json": _example(
             f"La chronologie du comité de pilotage lue dans la structure (kinds=task, "
             f"timeline_id) le {day} : les seules tâches qui y sont inscrites — les études, la "
@@ -464,6 +480,11 @@ def readings() -> dict[str, JsonObject]:
             f"service, et la revue client, les deux réceptions — inscriptions que porte chaque "
             f"tâche (`tracking`, WF-PLA-0060).",
             [{"timeline_id": timeline, "label": label} for timeline, label in TIMELINES],
+        ),
+        "timelines_empty.json": _example(
+            f"Un projet qui n'a encore aucune chronologie nommée, le {day} : la liste est vide, "
+            f"et l'écran des chronologies le dit sans lire aucune tâche (WF-PLA-0140).",
+            [],
         ),
         "startable_tasks.json": _example(
             f"Le Kanban du cœur du témoin le {day}, sur la révision en cours, ses tâches par "

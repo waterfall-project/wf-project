@@ -3,12 +3,12 @@
 /**
  * The remaining to commit of a revision (FBS-4.5, WF-RAE-0020, WF-RAE-0040, US-0230), at the route
  * of its function (`functions.json`): the banner of its reading context (WF-IHM-0020), which shows
- * the one filter its reads take — the sub-project, by which the nodes are read; the indicators
- * take the revision alone (`getRemainingIndicators`), and no date —; the indicators of the
- * remaining to commit (`RemainingSummary`); and the grid on the main structure of the revision,
- * its tasks and their lines, asked and handed the fields it shows alone (`grid-screen.ts`), the
- * lines of the tasks started alone unless the address asks the tasks not started too (`progress`),
- * which a link of its head offers. The grid is entered from the keyboard, and places undo and
+ * the one filter its reads take — the sub-project, by which the nodes are read, said to restrict
+ * the grid alone (#459): the indicators take the revision alone (`getRemainingIndicators`), and no
+ * date —; the indicators of the remaining to commit (`RemainingSummary`); and the grid on the
+ * main structure of the revision, its tasks and their lines, asked and handed the fields it shows
+ * alone (`grid-screen.ts`), the lines of the tasks started alone unless the address asks the tasks
+ * not started too (`progress`), which a link of its head offers. The grid is entered from the keyboard, and places undo and
  * redo, when the revision lists `edit_remaining` available to the caller (US-0140). Its head leads
  * to the Kanban of the start of the tasks, a leaf with a screen of its own (FBS-4.5.3), in the
  * same context. Indicators the API does not find are said unavailable, the rest of the screen
@@ -65,6 +65,9 @@ async function readIndicators({ revision }: GridAddress) {
     }),
   );
 }
+
+/** The filter of the screen its indicators do not take: the sub-project restricts the grid alone. */
+const GRID_ONLY = ["subproject_id"] as const;
 
 /** The Kanban of the start of the tasks, a leaf of the remaining to commit (FBS-4.5.3). */
 const KANBAN = leafOf("FBS-4.5.3");
@@ -141,7 +144,7 @@ export default async function RemainingPage({
   const notStarted = progress.includes("not_started");
   return (
     <>
-      <ContextBanner reading={screen.reading} />
+      <ContextBanner reading={screen.reading} gridOnly={GRID_ONLY} />
       <Screen density={FUNCTION_DENSITY.remaining} fill>
         <RemainingHeader
           label={screen.label}
