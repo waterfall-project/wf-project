@@ -80,7 +80,7 @@ function thousandRows(): NodeList {
 
 /** Scroll the grid to a row, as the wheel does. */
 function scrollTo(row: number): void {
-  const scroller = screen.getByRole("grid").parentElement;
+  const scroller = screen.getByRole("treegrid").parentElement;
   if (scroller !== null) {
     scroller.scrollTop = row * ROW_HEIGHT;
     fireEvent.scroll(scroller);
@@ -123,7 +123,7 @@ function without(nodes: NodeList, index: number): NodeList {
 function stops(): Element[] {
   return [
     ...screen
-      .getByRole("grid")
+      .getByRole("treegrid")
       .querySelectorAll(
         '[tabindex="0"], button:not([tabindex="-1"]), a[href]:not([tabindex="-1"])',
       ),
@@ -138,7 +138,7 @@ function header(name: string | RegExp): HTMLElement {
 /** The cell of a row, by its index among the rows of the answer, and of a column, if rendered. */
 function queryCell(row: number, column: string): HTMLElement | null {
   return screen
-    .getByRole("grid")
+    .getByRole("treegrid")
     .querySelector<HTMLElement>(`td[data-row="${row.toString()}"][data-column="${column}"]`);
 }
 
@@ -191,10 +191,14 @@ describe("the keyboard of a grid", () => {
     expect(stops()).toEqual([cell(DISBURSEMENT, "quantity")]);
     // Tab leaves the grid, and Shift+Tab too.
     await userEvent.tab();
-    expect(screen.getByRole("grid")).not.toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole("treegrid")).not.toContainElement(
+      document.activeElement as HTMLElement,
+    );
     cell(DISBURSEMENT, "quantity").focus();
     await userEvent.tab({ shift: true });
-    expect(screen.getByRole("grid")).not.toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole("treegrid")).not.toContainElement(
+      document.activeElement as HTMLElement,
+    );
   });
 
   it("reaches the header by the up arrow, sorts a column by Enter or Space, widens it by Shift and the arrows, one stop of the tabulation all along [WF-IHM-0100-A]", async () => {
@@ -316,7 +320,7 @@ describe("the keyboard of a grid", () => {
     cell(20, "base_amount").focus();
     await userEvent.keyboard("{Enter}");
     expect(refusal()).not.toBeNull();
-    const scroller = screen.getByRole("grid").parentElement;
+    const scroller = screen.getByRole("treegrid").parentElement;
     expect(scroller?.scrollTop).toBe(14 * ROW_HEIGHT);
     await userEvent.click(cell(18, "label"));
     expect(refusal()).toBeNull();

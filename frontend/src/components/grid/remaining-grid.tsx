@@ -10,7 +10,8 @@
  * depends on, by the structure and its node; a figure entered is written by the structure and its
  * node too (`setLineRemaining`). What a write answers is read as the grid reads it
  * (`nodesWritten`), but its totals: the reading narrows to the tasks started — the not started
- * too, when asked —, and reads its own totals anew once its writes answered (`readNodeTotals`).
+ * too, when asked —, and reads its own totals anew once its writes answered (`readNodeTotals`). Its
+ * tree folds as the planning's, the folds kept for the revision.
  */
 "use client";
 
@@ -23,6 +24,7 @@ import { DenseGrid } from "./dense-grid";
 import { nodeDependencies } from "./node-dependencies";
 import {
   type NodeFilters,
+  nodeNarrowing,
   type NodeRows,
   type NodeSortColumn,
   nodesWritten,
@@ -36,6 +38,12 @@ import {
   type RemainingWrites,
 } from "./remaining";
 import type { GridPreferences } from "./settings";
+
+/**
+ * What the reading asks that is the scope of the grid, not a filter: the states of the tasks — the
+ * started ones, the not started on demand (WF-RAE-0040) —, which unfolds nothing.
+ */
+const SCOPE = ["progress"] as const;
 
 /** What the grid of the remaining to commit shows. */
 export interface RemainingGridProps {
@@ -108,6 +116,8 @@ export function RemainingGrid({
       query={query}
       preferences={preferences}
       dependencies={dependencies}
+      foldScope={structure.revision_id}
+      narrowing={nodeNarrowing(filters, SCOPE)}
       undoable={editable}
     />
   );

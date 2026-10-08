@@ -227,6 +227,10 @@ describe("a field of a line that says nothing, left out by the projection", () =
 // rows of the estimate from 3.83 to 4.37 million, 0.593 to 0.675 of the same answer; left out
 // where they say nothing (`SPARSE_LINE_FIELDS`), 4.13 million, 0.640 — 3.96 million, 0.613, in a
 // grid that enters no sub-project, which its identifier does not reach (`withoutSubprojectIds`).
+// The parent of each node, by which the tree folds (EP-02/L40), took the rows of the estimate from
+// 4.18 to 4.48 million characters of the 6.91 of the volume, 0.604 to 0.649; those of the planning
+// from 2.98 to 3.29 million, 0.431 to 0.476; those of the remaining to commit from 3.80 to 4.11
+// million, 0.550 to 0.594.
 /** Nothing is written by these tests: what an entry reads is all they look at. */
 function unwritten(): never {
   throw new Error("nothing is written here");
@@ -240,8 +244,8 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
   paste: { preview: unwritten, apply: unwritten, span: unwritten, name: unwritten },
 });
 
-holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.645);
-holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.46);
+holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.655);
+holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.485);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
 // line, whether it takes a re-estimation, its three amounts, and the progress and finish of a task:
 // 3.80 million characters of the 6.51 of the volume, 0.584 (US-0230/L1); the figures at the previous
@@ -250,5 +254,5 @@ holdsWhatTheGridReads(
   "remaining to commit",
   remainingGrid({ line: unwritten }),
   REMAINING_FIELDS,
-  0.59,
+  0.6,
 );

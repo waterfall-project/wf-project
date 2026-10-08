@@ -28,7 +28,9 @@ l'annulation multi-niveaux (WF-IHM-0110) s'y clôt, conflits entre contributeurs
   applicable, le mode de planification et l'horizon de quinze ans ;
 - le calcul des dates, des marges et du chemin critique ;
 - la grille de planning, avec la saisie au clavier, le collage depuis un tableur et l'annulation
-  servis par le serveur ;
+  servis par le serveur, le menu contextuel de ses cellules et le branchement de ses commandes —
+  l'arbre pliable et le pliage commun avec le Gantt sont déjà faits par EP-02/L40, qu'EP-06
+  reprend sur le service ;
 - le diagramme de Gantt et l'arborescence de tâches, en lecture seule, et l'export de
   l'arborescence ;
 - les chronologies nommées, l'inscription des tâches et des jalons, et l'export PNG ;
@@ -72,6 +74,11 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02 | — |
 | `WF-PLA-0160-A` | Unités de durée | entière | — |
 | `WF-QUA-0080-A` | Corpus de plannings de référence et schéma d’échange | entière | — |
+
+WF-PLA-0080 et WF-PLA-0090 sont partiels avant cet EPIC : l'arbre pliable des grilles et le pliage
+commun de la grille et du Gantt sont faits par EP-02/L40, dans la maquette, sans qu'aucune US
+d'EP-02 les cite. Ils restent « entière » ici : EP-06 les vérifie en entier, sur le service, et
+garde la saisie, le menu contextuel des cellules et le branchement des commandes.
 
 ## Opérations du contrat
 

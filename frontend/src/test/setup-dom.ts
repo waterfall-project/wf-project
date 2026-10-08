@@ -11,11 +11,16 @@
  * (`src/test/stderr.ts`). Each line names the test running as it was written. The output is
  * checked once more as the file ends, for a line written after its last test — a check no test
  * of the setup proves: a test cannot watch the end of its own file.
+ *
+ * A key pressed tells its modifiers as a browser does: happy-dom says AltGraph held whenever Alt
+ * is, where a browser says it of AltGr alone — which Windows reports as Ctrl and Alt together —,
+ * and Alt with a key would read as a character typed, never as a shortcut (`triesEntry`,
+ * `foldShortcut`). Set before each test, as a test file restores its spies after each.
  */
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
-import { afterAll, afterEach } from "vitest";
+import { afterAll, afterEach, beforeEach, vi } from "vitest";
 
 import { takeStderr, watchStderr } from "./stderr";
 
@@ -36,4 +41,20 @@ afterAll(refuseStderr);
 
 afterEach(() => {
   cleanup();
+});
+
+beforeEach(() => {
+  vi.spyOn(KeyboardEvent.prototype, "getModifierState").mockImplementation(function (
+    this: KeyboardEvent,
+    key: string,
+  ) {
+    const held: Readonly<Record<string, boolean>> = {
+      Alt: this.altKey,
+      AltGraph: this.altKey && this.ctrlKey,
+      Control: this.ctrlKey,
+      Meta: this.metaKey,
+      Shift: this.shiftKey,
+    };
+    return held[key] ?? false;
+  });
 });

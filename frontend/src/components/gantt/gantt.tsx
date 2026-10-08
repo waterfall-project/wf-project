@@ -12,12 +12,18 @@
  * of the bar, never by its colour alone (WF-PLA-0100): a task on it is a filled bar, the others an
  * outline; a summary is a bracket, a milestone a diamond, so that the three sorts of task read
  * apart (WF-PLA-0080). Each bar is an image named by its dates, as the API gives them.
+ *
+ * It presents the tree of the grid, folded as the grid is — its rows are the grid's —, and folds it
+ * as the grid does (WF-PLA-0090): the bracket of a summary has the button that folds it before it,
+ * and the keys of the folding act on its cells as on any cell of the grid (`fold.tsx`). Folding
+ * modifies no task.
  */
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
 import { createContext, type ReactNode, use, useMemo } from "react";
 
+import { FoldToggle } from "@/components/grid/fold";
 import { formatLocale, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
@@ -133,10 +139,16 @@ function barName(
   return name(date(task.start), date(task.finish));
 }
 
+/** Where the button that folds a summary stands: just before its bracket, within the cell. */
+function togglePlace(bar: GanttBar | undefined): string {
+  return bar === undefined ? "0px" : `max(0px, calc(${percent(bar.from)} - 1.125rem))`;
+}
+
 /**
  * Render the row of a task in the Gantt: the months, the links, its bar — named by its dates —, the
- * months and the links alone for a row without dates, hidden from the readers of the screen; nothing
- * outside the rows a Gantt lays out (`GanttRows`).
+ * months and the links alone for a row without dates, hidden from the readers of the screen; before
+ * the bracket of a summary, the button that folds it; nothing outside the rows a Gantt lays out
+ * (`GanttRows`).
  */
 export function GanttCell({ row }: { readonly row: GanttRow }) {
   const t = useTranslations("gantt");
@@ -149,24 +161,31 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
   const task = row.task;
   const named = bar !== undefined && task !== null && task !== undefined;
   return (
-    <svg
-      role={named ? "img" : undefined}
-      aria-hidden={named ? undefined : true}
-      aria-label={
-        named
-          ? barName(task, locale, (start, finish) =>
-              t("bar", { nature: bar.nature, start, finish, critical: String(bar.critical) }),
-            )
-          : undefined
-      }
-      className="pointer-events-none block h-7 w-full overflow-visible"
-    >
-      <Months layout={layout} />
-      {layout.links(row.node_id).map((link, at) => (
-        <LinkPart key={at} link={link} />
-      ))}
-      {bar === undefined ? null : <Bar bar={bar} />}
-    </svg>
+    <div className="relative">
+      <svg
+        role={named ? "img" : undefined}
+        aria-hidden={named ? undefined : true}
+        aria-label={
+          named
+            ? barName(task, locale, (start, finish) =>
+                t("bar", { nature: bar.nature, start, finish, critical: String(bar.critical) }),
+              )
+            : undefined
+        }
+        className="pointer-events-none block h-7 w-full overflow-visible"
+      >
+        <Months layout={layout} />
+        {layout.links(row.node_id).map((link, at) => (
+          <LinkPart key={at} link={link} />
+        ))}
+        {bar === undefined ? null : <Bar bar={bar} />}
+      </svg>
+      <FoldToggle
+        rowKey={row.node_id}
+        className="absolute top-1/2 -translate-y-1/2 bg-background"
+        style={{ left: togglePlace(bar) }}
+      />
+    </div>
   );
 }
 

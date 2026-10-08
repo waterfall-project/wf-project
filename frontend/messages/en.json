@@ -211,6 +211,19 @@
       "open": "Columns",
       "title": "Columns shown"
     },
+    "fold": {
+      "open": "Tree",
+      "title": "Fold and unfold the tree",
+      "expandAll": "Expand all",
+      "expandAllKeys": "Alt+*",
+      "collapseAll": "Collapse all",
+      "level": "Down to level {level}",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "collapseRow": "Collapse the row",
+      "expandRow": "Expand the row",
+      "collapseAbove": "Collapse “{label}”"
+    },
     "paste": {
       "title": "Paste from a spreadsheet",
       "block": "Block of {rows, plural, one {# row} other {# rows}} by {columns, plural, one {# column} other {# columns}}, from row {row}, column “{column}”: nothing is written before you confirm.",
@@ -224,7 +237,8 @@
       "apply": "Apply the paste",
       "abandon": "Abandon",
       "hiddenColumn": "The pasted block would reach under the column “{column}”, which is hidden: show it before pasting, or paste a narrower block.",
-      "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block."
+      "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block.",
+      "foldedRows": "The pasted block would reach folded rows: unfold them before pasting, or paste a shorter block."
     }
   },
   "estimateGrid": {

@@ -64,7 +64,7 @@ async function openOnRow4(page: Page): Promise<{
   readonly at: Readonly<Record<keyof typeof COLUMNS, number>>;
 }> {
   await openHydrated(page, ESTIMATE);
-  const grid = page.getByRole("grid", { name: "Grille de devis" });
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
   const at = await columnsOf(grid, COLUMNS);
   const label = cellAt(grid, 4, at.label);
   await label.click();

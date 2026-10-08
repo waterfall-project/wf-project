@@ -37,7 +37,7 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   page,
 }) => {
   await openHydrated(page, `${REVISION_PATH}/estimate`);
-  const grid = page.getByRole("grid", { name: "Grille de devis" });
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
   const labour = grid.getByRole("row", { name: /^4 .*Heures d'ingénierie/ });
   await expect(labour.getByRole("img", { name: "Ligne de main-d’œuvre" })).toBeVisible();
   // The effort and the amount, found by their heading (`columnsOf`).
@@ -90,7 +90,7 @@ test("refuses to change the finish date of a summary task, from the keyboard, na
   page,
 }) => {
   await openHydrated(page, `${REVISION_PATH}/planning`);
-  const grid = page.getByRole("grid", { name: "Grille de planning" });
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const summary = grid.getByRole("row", { name: /^1 .*Études/ });
   await expect(summary.getByRole("img", { name: "Tâche récapitulative" })).toBeVisible();
   const at = await columnsOf(grid, { finish: "Fin" });

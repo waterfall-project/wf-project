@@ -43,7 +43,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await expect(indicators.getByRole("img", { name: "Nominal" })).toHaveCount(1);
 
   // The grid, its amounts computed, its totals those of the answer, in the window.
-  const grid = page.getByRole("grid", { name: "Grille de reste à engager" });
+  const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
   for (const name of [
     "Libellé",
     "Avancement",

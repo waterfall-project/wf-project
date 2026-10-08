@@ -132,7 +132,7 @@ function markUsableGrids(clicked: string): void {
   );
   const frame = () => {
     const now = performance.timeOrigin + performance.now();
-    for (const grid of document.querySelectorAll('[role="grid"][aria-label]')) {
+    for (const grid of document.querySelectorAll('[role="treegrid"][aria-label]')) {
       for (const state of ["drawn", "hydrated"] as const) {
         if (!marked[state].has(grid) && reached[state](grid)) {
           marked[state].add(grid);
@@ -398,7 +398,7 @@ async function measuresTheSecond(page: Page, screen: GridScreen, from: GridScree
     openByClick(page, requests, from, screen),
   );
 
-  const grid = page.getByRole("grid", { name: screen.grid });
+  const grid = page.getByRole("treegrid", { name: screen.grid });
   await expect(grid).toHaveAttribute("aria-rowcount", "6002");
   for (const shown of [
     grid.getByRole("columnheader", { name: "Libellé" }),

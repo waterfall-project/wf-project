@@ -46,6 +46,7 @@ function renderPlanning(locale: Locale = "fr") {
       <PlanningGrid
         nodes={planning}
         structure={STRUCTURE}
+        filters={{}}
         query={NO_QUERY}
         preferences={undefined}
         undoable
@@ -80,7 +81,7 @@ afterEach(() => {
 describe("the Gantt of the planning", () => {
   it("is the last column of the grid, its axis the months of the tasks, named by its heading", () => {
     renderPlanning();
-    const grid = screen.getByRole("grid", { name: "Grille de planning" });
+    const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
     const headers = within(grid).getAllByRole("columnheader");
     expect(headers.at(-1)).toHaveAccessibleName("Gantt");
     expect(headers.at(-1)?.textContent).toContain("mars 26");

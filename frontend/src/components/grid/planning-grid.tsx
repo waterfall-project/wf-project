@@ -7,7 +7,8 @@
  * `listNodes` as the grid reads them (`projectNodes`), the structure they belong to, what the
  * address asked, and the settings the session read. A computed cell asks the server what its
  * value depends on, by the structure and its node. The Gantt, its last column, lays out the rows
- * the grid shows once for all its cells (`GanttRows`).
+ * the grid shows once for all its cells (`GanttRows`) — those the tree leaves unfolded, so that
+ * both fold alike (WF-PLA-0090) —; the folds are kept for the revision the structure belongs to.
  */
 "use client";
 
@@ -18,7 +19,13 @@ import { GanttRows } from "@/components/gantt/gantt";
 
 import { DenseGrid } from "./dense-grid";
 import { nodeDependencies } from "./node-dependencies";
-import type { NodeRows, NodeSortColumn, StructurePath } from "./nodes";
+import {
+  type NodeFilters,
+  nodeNarrowing,
+  type NodeRows,
+  type NodeSortColumn,
+  type StructurePath,
+} from "./nodes";
 import { PLANNING_GRID, type PlanningNode } from "./planning";
 import type { GridQuery } from "./query";
 import type { GridPreferences } from "./settings";
@@ -29,6 +36,11 @@ export interface PlanningGridProps {
   readonly nodes: NodeRows<PlanningNode>;
   /** The structure the rows belong to. */
   readonly structure: StructurePath;
+  /**
+   * What the reading asked of the nodes besides their fields and their sort, as it was sent — the
+   * search, a sub-project —: the rows above those it retains unfold.
+   */
+  readonly filters: NodeFilters;
   readonly query: GridQuery<NodeSortColumn>;
   readonly preferences: GridPreferences | undefined;
   /**
@@ -42,6 +54,7 @@ export interface PlanningGridProps {
 export function PlanningGrid({
   nodes,
   structure,
+  filters,
   query,
   preferences,
   undoable,
@@ -61,6 +74,8 @@ export function PlanningGrid({
       query={query}
       preferences={preferences}
       dependencies={dependencies}
+      foldScope={structure.revision_id}
+      narrowing={nodeNarrowing(filters)}
       undoable={undoable}
       around={(rows, table) => <GanttRows rows={rows}>{table}</GanttRows>}
     />
