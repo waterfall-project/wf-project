@@ -51,7 +51,11 @@ interface Language {
     readonly indicators: string;
     readonly banner: string;
     readonly activeFilters: string;
-    readonly subprojectChip: string;
+    /**
+     * The chip of the sub-project of the indicators, which restricts the indicators and the earned
+     * value alone (#495).
+     */
+    readonly indicatorsChip: string;
     /** The chip of the sub-project of the remaining to commit, which restricts its grid alone. */
     readonly gridOnlyChip: string;
     readonly estimateGrid: string;
@@ -88,7 +92,7 @@ const FRENCH: Language = {
     indicators: "Indicateurs projets",
     banner: "Contexte de lecture",
     activeFilters: "Filtres actifs",
-    subprojectChip: `Sous-projet : ${SUBPROJECT_NAME}`,
+    indicatorsChip: `Sous-projet : ${SUBPROJECT_NAME}, sur les indicateurs et la valeur acquise seulement`,
     gridOnlyChip: `Sous-projet : ${SUBPROJECT_NAME}, sur la grille seulement`,
     estimateGrid: "Grille de devis",
     labelColumn: "Libellé",
@@ -128,7 +132,7 @@ const ENGLISH: Language = {
     indicators: "Project indicators",
     banner: "Reading context",
     activeFilters: "Active filters",
-    subprojectChip: `Subproject: ${SUBPROJECT_NAME}`,
+    indicatorsChip: `Subproject: ${SUBPROJECT_NAME}, on the indicators and the earned value only`,
     gridOnlyChip: `Subproject: ${SUBPROJECT_NAME}, on the grid only`,
     estimateGrid: "Estimate grid",
     labelColumn: "Label",
@@ -275,7 +279,7 @@ for (const language of [FRENCH, ENGLISH]) {
       // The indicators read several answers on the server before they show.
       await follow(page, language, names.indicators, { timeout: WORKING });
       await expect(page).toHaveURL(filtered("indicators"));
-      await expect(chips).toHaveText([names.subprojectChip]);
+      await expect(chips).toHaveText([names.indicatorsChip]);
 
       // The amounts, the indices and the date of calculation are the API's, formatted in the
       // language, the date in the time zone of the workstation (WF-ARC-0020).
@@ -291,7 +295,7 @@ for (const language of [FRENCH, ENGLISH]) {
       // screen under load.
       await page.getByRole("link", { name: names.backToProject }).click();
       await expect(page).toHaveURL(filtered("indicators"), { timeout: WORKING });
-      await expect(chips).toHaveText([names.subprojectChip]);
+      await expect(chips).toHaveText([names.indicatorsChip]);
     });
   });
 }

@@ -72,6 +72,25 @@ export function importOffers(project: Project): ImportOffers {
   };
 }
 
+/**
+ * Whether the project lists an import at all, available or not: the caller has the permission of
+ * one, which the screen of the imports and exports exercises. With the read of the planning, what
+ * guards that screen (#521): a costing engineer who does not read the planning reaches it by the
+ * import of the estimate or of the remaining to commit, which the project lists to them.
+ */
+export function listsAnImport(project: Project): boolean {
+  return Object.values(importOffers(project)).some((offer) => offer !== undefined);
+}
+
+/**
+ * Whether the project lists the import of a kind of file, available or not: the screen of its
+ * function then leads to the screen of the imports and exports, which offers it, or presents it
+ * unavailable with the conditions it lacks (#521, WF-IHM-0090).
+ */
+export function listsImport(project: Project, kind: ExchangeKind): boolean {
+  return importOffers(project)[kind] !== undefined;
+}
+
 /** What the revision read offers of each export; none without a revision. */
 export function exportOffers(revision: Revision | undefined): ExportOffers {
   const offer = (kind: ExportKind) =>

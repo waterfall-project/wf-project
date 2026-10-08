@@ -31,7 +31,6 @@ from wftools.mockindicators import (
     context,
     earned,
     over,
-    ratio,
     remaining_of,
 )
 from wftools.mockstructure import CENT, JsonObject, JsonValue, decimal, money
@@ -41,8 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from wftools import mockcore
-
-_NO_CAPACITY = "no_capacity"
 
 
 def budget_flows(base: Reading, *, delays: bool = False) -> list[Flow]:
@@ -282,8 +279,10 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
     The hours of the labour lines, each spread over its task pro rata of its hours of work in
     each month — on the remaining to commit, without the lines of the tasks completed —, each
     active role with its capacity beside, its monthly hours, all its people counted
-    (WF-REF-0100); over its capacity, a month is in alert. Filtered by a node of organisation,
-    the roles under it alone.
+    (WF-REF-0100); over its capacity, a month is in alert. No ratio of the load to the capacity:
+    the plan of a project presents none, the capacity being that of the whole installation —
+    the aggregated workload keeps it (decision of the author on #375, option b, WF-PTF-0060).
+    Filtered by a node of organisation, the roles under it alone.
     """
     kept = None if org is None else org_subtree(org)
     roles: list[JsonValue] = []
@@ -316,7 +315,6 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
                         {
                             "month": end.strftime("%Y-%m"),
                             "hours": decimal(hours),
-                            "load_ratio": ratio(hours, capacity, _NO_CAPACITY),
                             "zone": "alert" if hours > capacity else "nominal",
                         }
                     )

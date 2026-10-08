@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The breadcrumb of the shell, in its bar, after a separator: where the page shown sits
- * (`crumbsOf`), each step before it a link, the project named as its screen handed it on — or,
+ * (`crumbsOf`), each step before it a link — a function the session may read —, the project named as its screen handed it on — or,
  * while its screen loads, said open without a name. A client component: the shell persists from one page to the next,
  * and only the browser knows the address it now shows.
  */
@@ -21,18 +21,23 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
+import type { components } from "@/api/generated/schema";
 import { type Crumb, crumbsOf } from "@/navigation/breadcrumbs";
 import { readContext } from "@/navigation/context";
 
 import { useShownProject } from "./shown-project";
 
-/** Render where the page shown sits. */
-export function Breadcrumbs() {
+/** Render where the page shown sits, for a session of the permissions given. */
+export function Breadcrumbs({
+  permissions,
+}: {
+  readonly permissions: readonly components["schemas"]["PermissionCode"][];
+}) {
   const t = useTranslations();
   const pathname = usePathname();
   const context = readContext(pathname, useSearchParams());
   const project = useShownProject(context?.projectId);
-  const crumbs = crumbsOf(pathname, context);
+  const crumbs = crumbsOf(pathname, context, permissions);
   const text = (crumb: Crumb) =>
     crumb.kind === "label" ? t(crumb.label) : (project?.label ?? t("projectSwitcher.unnamed"));
   // An address that leads nowhere sits nowhere: no navigation without a step, nor its

@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { components } from "@/api/generated/schema";
+import type { ProjectState } from "@/api/project-state";
 
 const CSS = readFileSync(join(import.meta.dirname, "globals.css"), "utf-8");
 
@@ -80,6 +81,17 @@ const SIGNALS: Readonly<Record<AlertZone, string>> = {
   alert: "signal-alert",
 };
 
+// The token of each state of a project, the fill of its badge, which `ProjectStateBadge` names as
+// `bg-state-<state>`, its text as `text-state-<state>-foreground` (#523).
+const STATES: Readonly<Record<ProjectState, string>> = {
+  created: "state-created",
+  pricing: "state-pricing",
+  in_progress: "state-in-progress",
+  completed: "state-completed",
+  lost: "state-lost",
+  abandoned: "state-abandoned",
+};
+
 // A text, and the backgrounds it is written on.
 const TEXTS: readonly [string, string][] = [
   ["foreground", "background"],
@@ -121,6 +133,8 @@ const TEXTS: readonly [string, string][] = [
       background,
     ]),
   ),
+  // The word of the state of a project, on the fill of its badge (#523, WF-IHM-0100).
+  ...Object.values(STATES).map((state): [string, string] => [`${state}-foreground`, state]),
   // The series of a chart, on the page and on a card, as legible as a text (US-0240).
   ...(["chart-1", "chart-2", "chart-3", "chart-4"] as const).flatMap((series) =>
     (["background", "card"] as const).map((background): [string, string] => [series, background]),
@@ -281,6 +295,38 @@ describe("the tokens of the signals", () => {
         const [la, lb] = [lab(seen(zone(a, mode), matrix)), lab(seen(zone(b, mode), matrix))];
         const difference = Math.hypot(la[0] - lb[0], la[1] - lb[1], la[2] - lb[2]);
         expect(difference, `${a} and ${b}`).toBeGreaterThanOrEqual(DISTINCT);
+      }
+    });
+  });
+});
+
+describe("the tokens of the states of a project", () => {
+  it.each(MODES)(
+    "exist for each state of the contract, its fill and its text, in %s mode",
+    (mode) => {
+      // Les six jetons existent dans les deux thèmes (#523): each a light and a dark value, which the
+      // first test of the charter requires of every colour, and each given to Tailwind.
+      for (const token of Object.values(STATES)) {
+        for (const name of [token, `${token}-foreground`]) {
+          expect(TOKENS.get(name), name).toMatch(/^light-dark\(/);
+          expect(colour(name, mode), name).toMatch(/^#[0-9a-f]{6}$/);
+          expect(CSS).toContain(`--color-${name}: var(--${name});`);
+        }
+      }
+    },
+  );
+
+  describe.each(MODES)("in %s mode", (mode) => {
+    it("stay apart from the zones of a signal, so that no state reads as an alert", () => {
+      // Ces couleurs restent distinctes de celles des zones des indices : the green of a project in
+      // progress is not the nominal, its orange when lost not the watch, its red when abandoned
+      // not the alert — by as much as two zones are apart from one another.
+      for (const [state, token] of Object.entries(STATES)) {
+        for (const signal of Object.keys(SIGNALS) as AlertZone[]) {
+          const [a, b] = [lab(linear(colour(token, mode))), lab(zone(signal, mode))];
+          const difference = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+          expect(difference, `${state} and ${signal}`).toBeGreaterThanOrEqual(DISTINCT);
+        }
       }
     });
   });

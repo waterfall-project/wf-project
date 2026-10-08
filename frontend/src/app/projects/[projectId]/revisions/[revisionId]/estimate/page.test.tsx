@@ -43,18 +43,25 @@ function queryOf(end: string): URLSearchParams | undefined {
     ?.query;
 }
 
-/** Read the estimate of the witness revision for the session given; its grid as handed. */
-async function estimateFor(session: "session" | "session_estimator") {
+/** The markup of the estimate of the witness revision for the session given. */
+async function estimatePage(
+  session: "session" | "session_estimator" | "session_manager",
+): Promise<string> {
   server.answers = { ...server.answers, "GET /session": session };
   const page = await EstimatePage({
     params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
     searchParams: Promise.resolve({}),
   });
-  renderToStaticMarkup(
+  return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
       {page}
     </NextIntlClientProvider>,
   );
+}
+
+/** Read the estimate of the witness revision for the session given; its grid as handed. */
+async function estimateFor(session: "session" | "session_estimator") {
+  await estimatePage(session);
   return grids.estimate.at(-1);
 }
 
@@ -91,5 +98,28 @@ describe("the reference data the estimate is entered from", () => {
     expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
     expect(grid?.reference.roles).toBeDefined();
     expect(grid?.editable).toBe(true);
+  });
+});
+
+describe("the way from the estimate to the imports and exports (#521)", () => {
+  it("leads a costing engineer who does not read the planning to the screen of the imports, the import of an estimate listed", async () => {
+    const page = await estimatePage("session_estimator");
+    expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/exchanges"`);
+    expect(page).toContain("Imports and exports");
+  });
+
+  it("leads there too when the import is listed unavailable, which that screen presents with what it lacks (WF-IHM-0090)", async () => {
+    // The import of an estimate listed unavailable, lacking `may_create_revision`.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing_estimator",
+    };
+    expect(await estimatePage("session_estimator")).toContain("/exchanges");
+  });
+
+  it("offers no way there when the project lists no import of an estimate", async () => {
+    // A manager reads the estimate, and may import nothing: the project lists him no command.
+    server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
+    expect(await estimatePage("session_manager")).not.toContain("/exchanges");
   });
 });

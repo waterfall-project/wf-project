@@ -126,7 +126,10 @@ describe("the banner of the reading context", () => {
     const address = `${REMAINING}?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
     render(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
-        <ContextBanner reading={reading(address, "revision")} gridOnly={["subproject_id"]} />
+        <ContextBanner
+          reading={reading(address, "revision")}
+          restricts={{ subproject_id: "grid" }}
+        />
       </NextIntlClientProvider>,
     );
     const chips = within(screen.getByRole("list", { name: "Active filters" })).getAllByRole(
@@ -141,6 +144,25 @@ describe("the banner of the reading context", () => {
         name: "Remove the filter “Subproject: SP-CMD — Poste de commande, on the grid only”",
       }),
     ).toHaveAttribute("href", `${REMAINING}?as_of=2026-05-31`);
+  });
+
+  it("says on its chip a filter that restricts the indicators of the screen and not its other curves [WF-IHM-0020-A]", () => {
+    // The sub-project of the screen of the indicators restricts the indicators and the curves of
+    // earned value, which the API reads for it, not the curves whose reads do not take it (#495).
+    const address = `${REMAINING}?subproject_id=${SUBPROJECT}`;
+    render(
+      <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
+        <ContextBanner
+          reading={reading(address, "revision")}
+          restricts={{ subproject_id: "indicators" }}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      within(screen.getByRole("list", { name: "Active filters" })).getByRole("listitem"),
+    ).toHaveTextContent(
+      "Subproject: SP-CMD — Poste de commande, on the indicators and the earned value only",
+    );
   });
 
   it("keeps the revision a function of the project carries when a filter is lifted", () => {

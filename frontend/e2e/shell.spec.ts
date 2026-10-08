@@ -75,7 +75,7 @@ test("the bar shows where the page sits, and the side bar names the project its 
   ).toHaveAttribute("href", `/projects/${PROJECT}?revision_id=${REVISION}`);
   await expect(crumbs.getByText("Gestion des risques")).toHaveAttribute("aria-current", "page");
   await expect(
-    page.getByRole("button", { name: "Modernisation du poste de commande PRJ-001 · En cours" }),
+    page.getByRole("button", { name: "Modernisation du poste de commande PRJ-001 En cours" }),
   ).toBeVisible();
 });
 

@@ -3,7 +3,8 @@
 import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated, WORKING } from "./hydration";
+import { openHydrated, sortUntilAddress, WORKING } from "./hydration";
+import { withinBox } from "./scroll";
 
 // The fake back serves the first example of each operation: the two projects of the witness,
 // which it lists whatever the filter asks — the filter is the server's to apply —, the project
@@ -22,15 +23,47 @@ test("the home lists the projects the user contributes to, a filter shown and li
   await filter.getByRole("link", { name: "Voir tous les projets" }).click();
   await expect(page).toHaveURL("/?is_contributor=false");
   await expect(filter.getByRole("link", { name: "N’afficher que mes projets" })).toBeVisible();
-  const list = page.getByRole("table", { name: "Liste des projets" });
-  await expect(list.getByRole("row")).toHaveCount(3);
+  const list = page.getByRole("grid", { name: "Liste des projets" });
+  // Its header, the two projects of the example and its totals.
+  await expect(list.getByRole("row")).toHaveCount(4);
   await expect(
     list.getByRole("link", { name: "Modernisation du poste de commande" }),
   ).toBeVisible();
+  await expect(list.getByRole("row", { name: /PRJ-002/ })).toContainText("Chiffrage");
+  await expect(list.getByRole("row").last()).toContainText("2 projets");
 
   await filter.getByRole("link", { name: "N’afficher que mes projets" }).click();
   await expect(page).toHaveURL("/");
   await expect(filter).toContainText("Projets dont vous êtes contributeur");
+});
+
+test("the home sorts its projects and filters them by state on the server, from the address (#522)", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const list = page.getByRole("grid", { name: "Liste des projets" });
+  // Nothing witnesses the hydration: the sort is pressed again until React answers it.
+  await sortUntilAddress(
+    list.getByRole("columnheader", { name: "Code" }),
+    list,
+    "/?sort_by=code&sort_order=asc",
+  );
+  const states = page.getByRole("group", { name: "Filtre par état" });
+  await expect(states.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await states.getByRole("button", { name: "Chiffrage" }).click();
+  await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=pricing", {
+    timeout: WORKING,
+  });
+  await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // The grid holds in the window: its totals in view.
+  const total = list.getByRole("gridcell", { name: "2 projets" });
+  expect(await withinBox(list, total)).toBe(true);
 });
 
 test("a project, its settings and its lifecycle show what the fake back serves, and offer nothing but the exits", async ({

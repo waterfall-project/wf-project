@@ -266,8 +266,10 @@ describe("the shell", () => {
       </main>,
     );
     const choice = await screen.findByRole("button", {
-      name: "Modernisation du poste de commande PRJ-001 · En cours",
+      name: "Modernisation du poste de commande PRJ-001 En cours",
     });
+    // Its state by the one badge of the states (#523).
+    expect(within(choice).getByText("En cours").parentElement).toHaveClass("bg-state-in-progress");
     const crumbs = bar().getByRole("navigation", { name: "Fil d’Ariane" });
     expect(within(crumbs).getByRole("link", { name: "Projets" })).toHaveAttribute("href", "/");
     expect(
@@ -284,6 +286,37 @@ describe("the shell", () => {
       "/?is_contributor=false",
       `/projects/${PROJECT}?revision_id=${REVISION}&as_of=2026-05-31`,
     ]);
+  });
+
+  it("offers the list lifted, from the choice of a project, only to a session that may read every project (#522)", async () => {
+    // Without « consulter tous les projets », the list lifted is the list filtered: no link
+    // promises it, and the choice leads home.
+    visit("/portfolio/projects");
+    const estimator = (example("session_estimator") as components["schemas"]["Session"])
+      .permissions;
+    shell({ permissions: estimator });
+    await userEvent.click(screen.getByRole("button", { name: "Aucun projet ouvert" }));
+    const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
+    expect(items.map((item) => [item.textContent, item.getAttribute("href")])).toEqual([
+      ["Mes projets", "/"],
+    ]);
+    expect(document.querySelector('a[href*="is_contributor=false"]')).toBeNull();
+  });
+
+  it("names the planning without a link in the breadcrumb of a costing engineer on the imports and exports, and with one for a session that reads it (#521)", () => {
+    const exchanges = `/projects/${PROJECT}/revisions/${REVISION}/exchanges`;
+    visit(exchanges);
+    const estimator = (example("session_estimator") as components["schemas"]["Session"])
+      .permissions;
+    const { unmount } = shell({ permissions: estimator });
+    const crumbs = () => bar().getByRole("navigation", { name: "Fil d’Ariane" });
+    expect(within(crumbs()).getByText("Planification").closest("a")).toBeNull();
+    unmount();
+    shell();
+    expect(within(crumbs()).getByRole("link", { name: "Planification" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT}/revisions/${REVISION}/planning`,
+    );
   });
 
   it("says a project is open without naming it while its screen has not handed it on", () => {

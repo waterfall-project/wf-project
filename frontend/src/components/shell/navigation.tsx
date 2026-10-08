@@ -372,7 +372,7 @@ export function Navigation({ permissions, remembered, theme }: NavigationProps) 
         >
           <Logo theme={theme} />
         </Link>
-        {permissions === "unreadable" ? null : <ProjectSwitcher />}
+        {permissions === "unreadable" ? null : <ProjectSwitcher permissions={permissions} />}
       </SidebarHeader>
       <SidebarContent>
         <NavigationGroups permissions={permissions} remembered={remembered} />

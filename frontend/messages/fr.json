@@ -28,9 +28,9 @@
   "projectSwitcher": {
     "none": "Aucun projet ouvert",
     "unnamed": "Projet ouvert",
-    "summary": "{code} · {state}",
     "allProjects": "Tous les projets",
-    "projectPage": "Page du projet"
+    "projectPage": "Page du projet",
+    "myProjects": "Mes projets"
   },
   "breadcrumbs": {
     "label": "Fil d’Ariane",
@@ -131,7 +131,8 @@
       "users": "Comptes utilisateurs",
       "accessRoles": "Rôles d’habilitation",
       "portfolioProjects": "Projets du portefeuille",
-      "remaining": "Grille de reste à engager"
+      "remaining": "Grille de reste à engager",
+      "projects": "Liste des projets"
     },
     "columns": {
       "rowNumber": "N°",
@@ -216,7 +217,8 @@
       "reestimatedAmount": "Montant réestimé",
       "description": "Description",
       "physicalProgress": "Avancement physique",
-      "gantt": "Gantt"
+      "gantt": "Gantt",
+      "updatedAt": "Modifié le"
     },
     "computed": "Calculé",
     "entry": {
@@ -477,7 +479,9 @@
     },
     "projects": {
       "retained": "{count, plural, =0 {Aucun projet retenu} one {# projet retenu} other {# projets retenus}}",
-      "reason": " — {reason}"
+      "reason": " — {reason}",
+      "zones": "Filtre par zone des indices",
+      "everyZone": "Toutes les zones"
     },
     "pages": {
       "label": "Pages des projets",
@@ -645,11 +649,14 @@
     "filters": "Filtres actifs",
     "subproject": "Sous-projet : {subproject}",
     "subprojectName": "{code} — {label}",
-    "gridOnly": "{filter}, sur la grille seulement",
     "asOf": "Date de calcul : {date}",
     "computedOn": "Révision du calcul",
     "unnamedRevision": "sans nom",
-    "removeFilter": "Lever le filtre « {filter} »"
+    "removeFilter": "Lever le filtre « {filter} »",
+    "restricts": {
+      "grid": "{filter}, sur la grille seulement",
+      "indicators": "{filter}, sur les indicateurs et la valeur acquise seulement"
+    }
   },
   "indicator": {
     "names": {
@@ -772,12 +779,21 @@
       "month": "Mois",
       "past": "Décaissé",
       "forecast": "À décaisser"
+    },
+    "wholeProject": {
+      "history": "Cette évolution montre chaque maille du projet : elle ne se restreint pas au sous-projet filtré.",
+      "milestones": "Ce suivi porte sur les jalons du projet entier : il ne se restreint pas au sous-projet filtré.",
+      "costCurve": "Ces courbes portent sur le projet entier : elles ne se restreignent pas au sous-projet filtré."
+    },
+    "provenance": {
+      "subproject": "Sous-projet : {subproject}",
+      "wholeProject": "Projet entier, non restreint au sous-projet filtré"
     }
   },
   "workload": {
     "title": "Plan de charge du projet",
     "chartTitle": "Charge par rôle et par mois",
-    "description": "Barres de la charge de chaque rôle de ressource par mois, en heures, et sa capacité mensuelle en regard, en tirets.",
+    "description": "Barres de la charge de chaque rôle de ressource par mois, en heures ; la capacité mensuelle de chaque rôle est dans le tableau des valeurs, en regard de sa charge.",
     "basis": "Base",
     "markedRevision": "Révision marquée",
     "unnamedRevision": "Révision marquée sans nom",
@@ -790,9 +806,7 @@
     "month": "Mois",
     "hours": "Charge (h)",
     "capacity": "Capacité (h par mois)",
-    "loadRatio": "Charge rapportée à la capacité",
     "zone": "Zone",
-    "capacityOf": "Capacité — {role}",
     "noLoad": "Aucune charge",
     "none": "Aucun rôle n’a de charge sur cette base.",
     "noneInNode": "Aucun rôle du nœud « {node} » ni de ses descendants n’a de charge sur cette base.",
@@ -844,24 +858,14 @@
     "cancel": "Annuler"
   },
   "projectList": {
-    "label": "Liste des projets",
     "count": "{count, plural, one {# projet} other {# projets}}",
-    "columns": {
-      "label": "Projet",
-      "code": "Code",
-      "state": "État"
-    },
     "filter": {
       "label": "Filtre de la liste",
       "mine": "Projets dont vous êtes contributeur",
       "lift": "Voir tous les projets",
-      "apply": "N’afficher que mes projets"
-    },
-    "pages": {
-      "label": "Pages de la liste",
-      "beyond": "La page demandée est au-delà de la fin de la liste.",
-      "previous": "Projets précédents",
-      "next": "Projets suivants"
+      "apply": "N’afficher que mes projets",
+      "states": "Filtre par état",
+      "everyState": "Tous les états"
     }
   },
   "projectFacts": {

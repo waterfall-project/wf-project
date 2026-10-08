@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of a project (FBS-4.2, US-0210), under the banner of its reading context
- * (WF-IHM-0020): its inflation rate and its probability of winning, its work breakdown, its
- * sub-projects and its contributors, each list a section of the screen under its own title — the
- * ergonomics gathers the leaves of the function on one screen —, and a dense grid (#301), each with
- * its settings and its own names in the address: the sub-projects searched by the server
- * (`subproject_search`), the contributors filtered by it on their capacity (`contributor_kinds`),
- * asked under the names of the contract. The work breakdown is a tree in the order entered. Read
- * only: the forms that modify them belong to the epic of their domain.
+ * (WF-IHM-0020): the state of the project, by its badge, in its header; its inflation rate and its
+ * probability of winning, its work breakdown, its sub-projects and its contributors, each list a
+ * section of the screen under its own title — the ergonomics gathers the leaves of the function on
+ * one screen —, and a dense grid (#301), each with its settings and its own names in the address:
+ * the sub-projects searched by the server (`subproject_search`), the contributors filtered by it on
+ * their capacity (`contributor_kinds`), asked under the names of the contract. The work breakdown
+ * is a tree in the order entered. Read only: the forms that modify them belong to the epic of their
+ * domain.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -16,10 +17,12 @@ import { useTranslations } from "next-intl";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
+import type { Project } from "@/components/context/reading";
 import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { readGridQuery } from "@/components/grid/query";
 import { SettingsFacts } from "@/components/projects/project-facts";
+import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
   BREAKDOWN_GRID_KEY,
   CONTRIBUTOR_GRID_KEY,
@@ -57,14 +60,20 @@ export async function generateMetadata({
   return screenMetadata("functions.projectSettings", projectId);
 }
 
-/** The title of the screen, with the icon of its function. */
-function SettingsHeader() {
+/** The title of the screen, with the icon of its function, and the state of the project. */
+function SettingsHeader({ project }: { readonly project: Project }) {
   const t = useTranslations();
   return (
     <PageHeader
       title={t("functions.projectSettings")}
       icon={FUNCTION_ICONS.project_settings}
       density={FUNCTION_DENSITY.project_settings}
+      subtitle={
+        <span className="inline-flex items-center gap-2">
+          {t("projectFacts.state")}
+          <ProjectStateBadge state={project.state} />
+        </span>
+      }
     />
   );
 }
@@ -107,7 +116,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
       <Screen density={FUNCTION_DENSITY.project_settings}>
         {/* The search of the sub-projects and the filter of the contributors compose their changes. */}
         <PendingAddress>
-          <SettingsHeader />
+          <SettingsHeader project={read.project} />
           <SettingsFacts project={read.project} />
           <WorkBreakdownList
             breakdown={breakdown}

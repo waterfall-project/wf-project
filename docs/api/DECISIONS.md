@@ -2153,8 +2153,13 @@ service (485 324,00 h), 1 250 monteurs câbleurs (216 662,50 h), deux automatici
 l'ingénieur électricien dépasse sa capacité en juillet et en août, le technicien passe sous le seuil
 de 50 % en novembre. La capacité étant celle de l'installation, la charge du seul témoin dans son
 propre plan de charge (`workload*`) en est au plus 0,02 % — en décembre, pour le technicien de mise
-en service —, et nulle à quatre décimales les autres mois ; garder ou non le taux de charge dans le
-plan d'un projet est une question posée à l'auteur. La date d'audit des rôles est celle de
+en service —, et nulle à quatre décimales les autres mois. **Le plan de charge d'un projet ne
+présente donc pas de taux de charge** (décision de l'auteur du 2026-10-08 sur #375, option b,
+réalisée par EP-02/L41) : la capacité de chaque rôle y figure dans le tableau, en regard de sa
+charge (WF-DEV-0070), mais n'est plus dessinée dans le graphique, où sa ligne écrasait les barres ;
+le faux back n'émet plus `load_ratio` dans les exemples `workload*`, champ que `WorkloadPlan` laisse
+facultatif. Le taux de charge reste propre au plan agrégé du portefeuille (WF-PTF-0060), où
+`load_ratio` est exigé. La date d'audit des rôles est celle de
 l'installation, le 1er septembre 2025, depuis EP-02/L23 : le test d'invariants le tient.
 
 **Le monteur câbleur figure sans charge** (même décision) : aucun projet ne l'emploie, et

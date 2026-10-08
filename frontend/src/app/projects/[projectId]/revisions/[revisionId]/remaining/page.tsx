@@ -11,16 +11,19 @@
  * not started too (`progress`), which a link of its head offers. The grid is entered from the keyboard, and places undo and
  * redo, when the revision lists `edit_remaining` available to the caller (US-0140). Its head leads
  * to the Kanban of the start of the tasks, a leaf with a screen of its own (FBS-4.5.3), in the
- * same context. Indicators the API does not find are said unavailable, the rest of the screen
+ * same context, and, when the project lists the import of a remaining to commit, to the imports
+ * and exports, where it is exercised (#521). Indicators the API does not find are said unavailable, the rest of the screen
  * shown; any other refusal follows the rule of the reads.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { ContextBanner } from "@/components/context/context-banner";
+import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
+import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import type { NodeTotals } from "@/components/grid/nodes";
 import {
   REMAINING_FIELDS,
@@ -67,7 +70,7 @@ async function readIndicators({ revision }: GridAddress) {
 }
 
 /** The filter of the screen its indicators do not take: the sub-project restricts the grid alone. */
-const GRID_ONLY = ["subproject_id"] as const;
+const RESTRICTS: Restrictions = { subproject_id: "grid" };
 
 /** The Kanban of the start of the tasks, a leaf of the remaining to commit (FBS-4.5.3). */
 const KANBAN = leafOf("FBS-4.5.3");
@@ -77,7 +80,8 @@ const KanbanIcon = LEAF_ICONS["FBS-4.5.3"];
 
 /**
  * The title of the grid, and what it holds: the structure, its tasks and lines retained; the link
- * that shows the tasks not started too, or the tasks started alone; and the link to the Kanban.
+ * that shows the tasks not started too, or the tasks started alone; the link to the Kanban; and,
+ * when the project lists the import of a remaining to commit, the link to the imports and exports.
  */
 function RemainingHeader({
   label,
@@ -85,12 +89,14 @@ function RemainingHeader({
   notStarted,
   progress,
   kanban,
+  exchanges,
 }: {
   readonly label: string;
   readonly totals: NodeTotals;
   readonly notStarted: boolean;
   readonly progress: string;
   readonly kanban: string | undefined;
+  readonly exchanges: ReactNode;
 }) {
   const t = useTranslations();
   const action = buttonVariants({ variant: "outline", size: "sm" });
@@ -115,6 +121,7 @@ function RemainingHeader({
               {t(KANBAN.label)}
             </Link>
           )}
+          {exchanges}
         </>
       }
     />
@@ -144,7 +151,7 @@ export default async function RemainingPage({
   const notStarted = progress.includes("not_started");
   return (
     <>
-      <ContextBanner reading={screen.reading} gridOnly={GRID_ONLY} />
+      <ContextBanner reading={screen.reading} restricts={RESTRICTS} />
       <Screen density={FUNCTION_DENSITY.remaining} fill>
         <RemainingHeader
           label={screen.label}
@@ -152,6 +159,9 @@ export default async function RemainingPage({
           notStarted={notStarted}
           progress={progressHref(at.pathname, searchQuery(search), !notStarted)}
           kanban={functionHref(KANBAN, at.context)}
+          exchanges={
+            <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
+          }
         />
         <RemainingSummary indicators={indicators} />
         <RemainingGrid

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The lists of a project that are no tables of data, in dense tables, in the order the server gave
- * them (US-0210): the history of its states, each transition dated when it occurred, by whom, and
- * with the motive given to confirm an exit, if any (WF-CYC-0130) — a list read, which stays a list
- * (decision of the author on #301, 2026-10-08) —; and the pieces the lists of the screens share: a
- * section under its title, a table under its column headers. The lists of the settings of a project
- * are dense grids (`settings-lists.tsx`). Each list is a section under its title — named by
- * `aria-label`, never by an identifier of `useId`, which a server component may share with a client
- * one of the shell (#251) —; an empty list says it is. Nothing is offered to create or modify: those
- * forms belong to the epic of their domain.
+ * them (US-0210): the history of its states, each transition dated when it occurred, its states by
+ * their badge (#523), by whom, and with the motive given to confirm an exit, if any (WF-CYC-0130) —
+ * a list read, which stays a list (decision of the author on #301, 2026-10-08) —; and the pieces
+ * the lists of the screens share: a section under its title, a table under its column headers. The
+ * lists of the settings of a project are dense grids (`settings-lists.tsx`). Each list is a section
+ * under its title — named by `aria-label`, never by an identifier of `useId`, which a server
+ * component may share with a client one of the shell (#251) —; an empty list says it is. Nothing
+ * is offered to create or modify: those forms belong to the epic of their domain.
  */
 import { ArrowRight, Bot, History, type LucideIcon, User } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -17,7 +17,7 @@ import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
-import { Badge } from "@/components/ui/badge";
+import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
   Table,
   TableBody,
@@ -106,7 +106,6 @@ export function TransitionList({
   readonly transitions: readonly StateTransition[];
 }) {
   const t = useTranslations("projectLists.transitions");
-  const state = useTranslations("enums.ProjectState");
   return (
     <ListSection
       title={t("title")}
@@ -124,9 +123,13 @@ export function TransitionList({
             </TableCell>
             <TableCell className={CELL}>
               <span className="inline-flex items-center gap-1.5">
-                {transition.from_state == null ? t("creation") : state(transition.from_state)}
+                {transition.from_state == null ? (
+                  t("creation")
+                ) : (
+                  <ProjectStateBadge state={transition.from_state} />
+                )}
                 <ArrowRight aria-label={t("to")} role="img" className={ICON} />
-                <Badge>{state(transition.to_state)}</Badge>
+                <ProjectStateBadge state={transition.to_state} />
               </span>
             </TableCell>
             <TableCell className={CELL}>

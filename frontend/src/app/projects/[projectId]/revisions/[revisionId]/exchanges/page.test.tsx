@@ -104,6 +104,44 @@ beforeEach(() => {
 });
 
 describe("the screen of the imports and exports", () => {
+  it("shows to a costing engineer who does not read the planning, the project listing them the imports, guarded by the commands it exercises (#521)", async () => {
+    // A session without `planning.read`, the import of an estimate listed to it.
+    server.answers = { ...server.answers, "GET /session": "session_estimator" };
+    const markup = await exchangesAt();
+    expect(text(markup)).toContain("Import an estimate");
+  });
+
+  it("shows to a costing engineer to whom the project lists an import, even unavailable: its permission guards the screen, its availability the command (#521)", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /session": "session_estimator",
+      // The import of an estimate listed, unavailable: the project has no revision the session may
+      // create.
+      "GET /projects/{project_id}": "project_pricing_estimator",
+    };
+    expect(text(await exchangesAt())).toContain("Import an estimate");
+  });
+
+  it("is not found for a session that neither reads the planning nor is listed an import (#521)", async () => {
+    // A session of no role, and the project as one who may exercise none of its commands reads
+    // it: no import listed. The pair is wanted: the universe has no realistic reader who neither
+    // reads the planning nor is listed an import — the API would not even let this account read
+    // the project, which is not found either way.
+    server.answers = {
+      ...server.answers,
+      "GET /session": "session_without_roles",
+      "GET /projects/{project_id}": "project_reader",
+    };
+    await expect(exchangesAt()).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+    // A manager reads the planning and the same project, no command listed to him: the screen
+    // shows all the same, no import offered — it is the leaf of the planning.
+    server.clients = [];
+    server.answers = { ...server.answers, "GET /session": "session_manager" };
+    const markup = await exchangesAt();
+    expect(text(markup)).toContain("Imports and exports");
+    expect(text(markup)).not.toContain("Import an estimate");
+  });
+
   it("titles the tab with the leaf and the project", async () => {
     const metadata = await generateMetadata({
       params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),

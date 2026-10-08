@@ -7,8 +7,9 @@
  * opening any panel, each with a link that lifts it; and, when the figures of the screen are
  * computed on another revision than the one the address names — a date `as_of` reads the last
  * marked revision before it —, the revision of the calculation (`CalculationContext.revision_id`),
- * named as the screen read it (#363). A filter that restricts the grid of the screen and not its
- * indicators says so on its chip (#459): the chip says what it restricts. An icon before each
+ * named as the screen read it (#363). A filter that restricts only a part of the screen says so on
+ * its chip: the chip says what it restricts — the grid and not the indicators (#459), the
+ * indicators and the curves of earned value and not the other curves (#495). An icon before each
  * fact, whose name the list of definitions gives to a screen reader; the states in badges, in
  * words.
  *
@@ -48,11 +49,19 @@ export interface ContextBannerProps {
    */
   readonly computedOn?: ComputedRevision | undefined;
   /**
-   * The filters the screen reads that restrict its grid alone, not its indicators — the
-   * sub-project of the remaining to commit, whose indicators are those of the project whole.
+   * The filters the screen reads that restrict a part of it alone, and which part: the grid — the
+   * sub-project of the remaining to commit, whose indicators are those of the project whole —, or
+   * the indicators — the sub-project of the screen of the indicators, which its other curves do
+   * not take. A filter not named restricts the whole screen.
    */
-  readonly gridOnly?: readonly ContextFilter["name"][] | undefined;
+  readonly restricts?: Restrictions | undefined;
 }
+
+/** The part of a screen a filter restricts alone, by the key of its text in the catalogue. */
+export type Restriction = "grid" | "indicators";
+
+/** The filters that restrict a part of a screen alone, and the part each restricts. */
+export type Restrictions = Readonly<Partial<Record<ContextFilter["name"], Restriction>>>;
 
 const FACT = "flex items-center gap-1.5";
 const ICON = "size-3.5 shrink-0 text-muted-foreground";
@@ -69,29 +78,37 @@ function addressDate(value: string, locale: Locale): string {
   }
 }
 
-/** The text of a chip: what the filter restricts, the grid alone when it is among `gridOnly`. */
-function useFilterText(
-  gridOnly: readonly ContextFilter["name"][],
-): (filter: ContextFilter) => string {
+/**
+ * The name of the sub-project a filter retains: its code and its label, « outside any sub-project »,
+ * or, for a sub-project the project does not have, the identifier the address gives.
+ */
+export function useSubprojectName(): (value: string, subproject: Subproject | undefined) => string {
   const t = useTranslations();
-  const locale = useLocale();
-  // A sub-project the project does not have is named by the identifier the address gives.
-  const subprojectName = (value: string, subproject: Subproject | undefined) => {
+  return (value, subproject) => {
     if (subproject !== undefined) {
       return t("contextBanner.subprojectName", { code: subproject.code, label: subproject.label });
     }
     return value === UNASSIGNED ? t("enums.SubprojectFilter.unassigned") : value;
   };
+}
+
+/** The text of a chip: the filter, and the part of the screen it restricts when not the whole. */
+function useFilterText(restricts: Restrictions): (filter: ContextFilter) => string {
+  const t = useTranslations();
+  const locale = useLocale();
+  const subprojectName = useSubprojectName();
   const named = (filter: ContextFilter) =>
     filter.name === "as_of"
       ? t("contextBanner.asOf", { date: addressDate(filter.value, locale) })
       : t("contextBanner.subproject", {
           subproject: subprojectName(filter.value, filter.subproject),
         });
-  return (filter) =>
-    gridOnly.includes(filter.name)
-      ? t("contextBanner.gridOnly", { filter: named(filter) })
-      : named(filter);
+  return (filter) => {
+    const part = restricts[filter.name];
+    return part === undefined
+      ? named(filter)
+      : t(`contextBanner.restricts.${part}`, { filter: named(filter) });
+  };
 }
 
 /** The revision read: its name, its status, whether it is the reference. */
@@ -136,9 +153,9 @@ function ComputedOnFacts({ computedOn }: { readonly computedOn: ComputedRevision
 }
 
 /** Render the reading context of a screen of a project. */
-export function ContextBanner({ reading, computedOn, gridOnly = [] }: ContextBannerProps) {
+export function ContextBanner({ reading, computedOn, restricts = {} }: ContextBannerProps) {
   const t = useTranslations();
-  const filterText = useFilterText(gridOnly);
+  const filterText = useFilterText(restricts);
   const { project, revision, readOnly, filters } = reading;
   return (
     <section

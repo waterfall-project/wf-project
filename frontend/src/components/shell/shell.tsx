@@ -87,6 +87,9 @@ export function Shell({
                   account={account}
                   language={preference}
                   theme={theme}
+                  permissions={
+                    permissions === undefined || permissions === "unreadable" ? [] : permissions
+                  }
                 />
               }
             >
