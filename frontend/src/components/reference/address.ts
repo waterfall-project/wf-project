@@ -8,16 +8,17 @@
  * reference (403), as the lists of the estimate do (#351) —; and the filters of each list on its
  * columns (WF-IHM-0130): an identifier chosen (`identifierOf`), the state (`is_active`, which takes
  * precedence over `include_inactive`, under the same permission: `stateOf`), a text or a depth;
- * and what a list shows of a page whose bounds the API refused (`shownPage`).
+ * what a list shows of a page whose bounds the API refused (`shownPage`); and what a page asks of
+ * the API for a list, as the address asks it (`searched`, `asked`, `given`).
  *
  * Pure, and neither server nor client: the page reads, the filters write.
  */
 import type { ExpectedRefusal, ReadOrRefused } from "@/api/problem";
 import { type RefusedBounds, refusedBounds } from "@/components/grid/filters";
-import type { GridAddress } from "@/components/grid/query";
+import { type GridAddress, type GridQuery, pagedList } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 import type { ListPage } from "@/navigation/pages";
-import type { Permission } from "@/session/request";
+import type { Permission, Session } from "@/session/request";
 
 /** The parameter of the contract that asks for the deactivated objects too. */
 export const INCLUDE_INACTIVE = "include_inactive";
@@ -91,25 +92,38 @@ export function levelOf(search: SearchParameters, name: string): number | undefi
 export function listReads(address?: GridAddress, ...filters: readonly string[]): string[] {
   return [
     INCLUDE_INACTIVE,
-    ...(address === undefined
-      ? []
-      : [address.search, address.sortBy, address.sortOrder, address.offset]),
+    ...(address === undefined ? [] : [...pagedList(address).reads, address.offset]),
     ...filters,
   ];
 }
 
+/** The settings of the grids the account keeps, by the key of each grid. */
+export type KeptGrids = NonNullable<
+  NonNullable<NonNullable<Session["user"]["display_preferences"]>["grids"]>
+>;
+
 /**
- * What a list reads of the address: the values of the parameters it reads (`listReads`), in their
- * order — a sort, a search or a page of another list of the screen leaves it as it is. A parameter
- * absent is told from one given empty: `name` alone, against `name=`.
+ * The search a list asks of the server, as the address asks it: alone for the tree of the
+ * organisation, which the server neither sorts nor pages.
  */
-export function readingOf(address: URLSearchParams, reads: readonly string[]): string {
-  return reads
-    .map((name) => {
-      const value = address.get(name);
-      return value === null ? name : `${name}=${value}`;
-    })
-    .join("&");
+export function searched<Sort extends string>(query: GridQuery<Sort>) {
+  return query.search === undefined ? {} : { search: query.search };
+}
+
+/** What a list asks of the server, as the address asks it: its search, its sort and its page. */
+export function asked<Sort extends string>(query: GridQuery<Sort>, offset?: number) {
+  return {
+    ...searched(query),
+    ...(query.sort === undefined
+      ? {}
+      : { sort_by: query.sort.column, sort_order: query.sort.order }),
+    ...(offset === undefined ? {} : { offset }),
+  };
+}
+
+/** A value of the address under the name of the contract: none when the address holds none. */
+export function given<Name extends string, Value>(name: Name, value: Value | undefined) {
+  return (value === undefined ? {} : { [name]: value }) as Partial<Record<Name, Value>>;
 }
 
 /** A page of a list the API did not read, its bounds refused: nothing in it. */

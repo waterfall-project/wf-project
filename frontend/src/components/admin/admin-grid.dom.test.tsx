@@ -222,6 +222,17 @@ describe("the grid of the accounts", () => {
     await expectAccessible(container);
   });
 
+  it("turns a page from a filter under way to the first page of the accounts", async () => {
+    page.search = "offset=2";
+    render(userList(NO_QUERY, second));
+    const filter = screen.getByRole("group", { name: "Filtrer par origine" });
+    await userEvent.click(within(filter).getByRole("button", { name: "Importé de l’annuaire" }));
+    expect(lastAddress()).toBe("/admin/users?origins=directory");
+    // The origin asked and not arrived: the accounts read otherwise start from their first page.
+    await userEvent.click(screen.getByRole("link", { name: /Page suivante/ }));
+    expect(lastAddress()).toBe("/admin/users?origins=directory");
+  });
+
   it("keeps its grid when a filter retains no account, and says empty a list nothing narrows", () => {
     const none = { items: [], meta: { limit: 50, offset: 0, total: 0 } };
     const { rerender } = render(userList(NO_QUERY, none, { origins: ["directory"] }));

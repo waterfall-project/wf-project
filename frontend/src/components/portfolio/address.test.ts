@@ -8,6 +8,8 @@ import { example } from "@/test/fixtures";
 import {
   parametersHref,
   perimeterQuery,
+  portfolioProjectsQuery,
+  PROJECTS_LIST,
   readHorizon,
   readPerimeter,
   readThreshold,
@@ -79,5 +81,24 @@ describe("the address of a view of the portfolio", () => {
     }
     expect(readThreshold(new URLSearchParams("under_load_threshold=0.45"))).toBe("0.45");
     expect(readThreshold(new URLSearchParams("under_load_threshold=50%"))).toBeUndefined();
+  });
+});
+
+describe("what the list of the projects of the portfolio reads of its address", () => {
+  it("holds every parameter the list asks of the server, but its page: a filter under way reads another list", () => {
+    const perimeter = readPerimeter(
+      new URLSearchParams(
+        `states=completed&from=2025-01-01&to=2025-12-31&as_of=2026-03-16&org_node_id=${DESIGN_OFFICE}`,
+      ),
+    );
+    const query = portfolioProjectsQuery({
+      perimeter,
+      zones: ["alert"],
+      offset: 50,
+      query: { sort: { column: "cost_index", order: "asc" }, search: "poste" },
+    });
+    const asked = Object.keys(query).filter((name) => name !== PROJECTS_LIST.page);
+    expect(asked).toHaveLength(9);
+    expect(PROJECTS_LIST.reads).toEqual(expect.arrayContaining(asked));
   });
 });

@@ -200,4 +200,27 @@ describe("the filter of the list by state", () => {
     await user.click(screen.getByRole("button", { name: "Abandonné" }));
     expect(await lastAddress()).toBe("/?sort_by=code");
   });
+
+  it("turns a page from a state chosen under way to the first page of the projects", async () => {
+    const user = userEvent.setup();
+    page.search = "offset=100";
+    render(
+      inFrench(
+        <>
+          <ProjectStateFilter states={[]} />
+          <ProjectListGrid
+            projects={[]}
+            page={{ limit: 50, offset: 100, total: 160 }}
+            query={{ sort: undefined, search: undefined }}
+            preferences={undefined}
+          />
+        </>,
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "Perdu" }));
+    expect(await lastAddress()).toBe("/?states=lost");
+    // The state asked and not arrived: the projects read otherwise start from their first page.
+    await user.click(screen.getByRole("link", { name: /Projets précédents/ }));
+    expect(await lastAddress()).toBe("/?states=lost");
+  });
 });

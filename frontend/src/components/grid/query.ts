@@ -17,6 +17,7 @@
  */
 import type { components } from "@/api/generated/schema";
 import type { SearchParameters } from "@/navigation/context";
+import type { PagedList } from "@/navigation/pages";
 
 /** The direction of a sort, as the contract names it. */
 export type SortOrder = components["schemas"]["SortOrder"];
@@ -74,6 +75,17 @@ export function prefixedAddress(prefix: string): GridAddress {
     sortBy: `${prefix}${SORT_BY}`,
     sortOrder: `${prefix}${SORT_ORDER}`,
     offset: `${prefix}${OFFSET}`,
+  };
+}
+
+/**
+ * A list a grid shows, which the server pages: its page, and what it reads of the address — its
+ * search, its sort, and the filters given (`readingOf`).
+ */
+export function pagedList(address: GridAddress, ...filters: readonly string[]): PagedList {
+  return {
+    page: address.offset,
+    reads: [address.search, address.sortBy, address.sortOrder, ...filters],
   };
 }
 

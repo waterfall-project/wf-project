@@ -14,12 +14,13 @@
  *
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
-import type { components } from "@/api/generated/schema";
+import type { components, operations } from "@/api/generated/schema";
 import { readValues } from "@/components/grid/filters";
-import { OFFSET } from "@/components/grid/query";
+import { CONTRACT_ADDRESS, type GridQuery, OFFSET, pagedList } from "@/components/grid/query";
 import { isPlanningDate } from "@/i18n/format";
 import type { SearchParameters } from "@/navigation/context";
 import type { ProjectState } from "@/navigation/home";
+import type { PagedList } from "@/navigation/pages";
 
 /** The state of a project, as the contract names it: the one declaration of the home. */
 export type { ProjectState };
@@ -71,6 +72,17 @@ export const THRESHOLDS = ["0.3", "0.5", "0.7"] as const;
 
 /** A decimal as the contract writes a `Percent`. */
 const DECIMAL = /^-?\d+(\.\d+)?$/;
+
+/** The list of the projects: its sort, its search, its perimeter and its zones. */
+export const PROJECTS_LIST: PagedList = pagedList(
+  CONTRACT_ADDRESS,
+  STATES,
+  FROM,
+  TO,
+  AS_OF,
+  ORG_NODE,
+  ZONES,
+);
 
 /** The perimeter the address asks; what it does not name, the server chooses. */
 export interface Perimeter {
@@ -200,4 +212,30 @@ export function statesValue(states: readonly ProjectState[]): string | undefined
  */
 export function readZones(search: SearchParameters): readonly AlertZone[] {
   return readValues(search, ZONES, INDEX_ZONES);
+}
+
+/** What the list of the projects asks `getPortfolioProjects`: the query of the contract. */
+type ProjectsQuery = NonNullable<operations["getPortfolioProjects"]["parameters"]["query"]>;
+
+/**
+ * The query of the list of the projects of the portfolio, as the address asks it: its perimeter,
+ * its zones, its page, its search and its sort — every parameter but the page read from
+ * `PROJECTS_LIST`, which says when two addresses read the same list.
+ */
+export function portfolioProjectsQuery<Sort extends NonNullable<ProjectsQuery["sort_by"]>>(asked: {
+  readonly perimeter: Perimeter;
+  readonly zones: readonly AlertZone[];
+  readonly offset: number;
+  readonly query: GridQuery<Sort>;
+}): ProjectsQuery {
+  const { zones, offset, query } = asked;
+  return {
+    ...perimeterQuery(asked.perimeter),
+    ...(zones.length === 0 ? {} : { zones: [...zones] }),
+    ...(offset === 0 ? {} : { offset }),
+    ...(query.search === undefined ? {} : { search: query.search }),
+    ...(query.sort === undefined
+      ? {}
+      : { sort_by: query.sort.column, sort_order: query.sort.order }),
+  };
 }

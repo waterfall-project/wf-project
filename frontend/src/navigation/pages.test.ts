@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { offsetOf, pageHref, pageOffsets } from "./pages";
+import { offsetOf, pageOffsets, readingOf } from "./pages";
 
 describe("the offset a page is asked by", () => {
   it("is the offset of the address when a server could take it, none otherwise", () => {
@@ -72,12 +72,31 @@ describe("where a page stands in its list", () => {
   });
 });
 
-describe("the address of a page", () => {
-  it("keeps the parameters given, the page replaced, and leaves the first page unnamed", () => {
-    const kept = new URLSearchParams("is_contributor=false&offset=50");
-    expect(pageHref("/", kept, 100)).toBe("/?is_contributor=false&offset=100");
-    expect(pageHref("/", kept, 0)).toBe("/?is_contributor=false");
-    expect(pageHref("/admin/users", new URLSearchParams(), 4)).toBe("/admin/users?offset=4");
-    expect(pageHref("/admin/users", new URLSearchParams(), 0)).toBe("/admin/users");
+describe("what a list reads of the address", () => {
+  it("tells a parameter absent from one given empty, and leaves out those it does not read", () => {
+    // `sort_by` empty is a sort lifted, absent the sort the account keeps: not the same list.
+    expect(readingOf(new URLSearchParams("sort_by="), ["sort_by"])).not.toBe(
+      readingOf(new URLSearchParams(), ["sort_by"]),
+    );
+    const reads = ["include_inactive", "role_search"];
+    const absent = readingOf(new URLSearchParams("calendar_search=x"), reads);
+    const empty = readingOf(new URLSearchParams("role_search="), reads);
+    expect(absent).not.toBe(empty);
+    expect(readingOf(new URLSearchParams("role_search=Ing&include_inactive=true"), reads)).toBe(
+      readingOf(
+        new URLSearchParams("include_inactive=true&calendar_search=x&role_search=Ing"),
+        reads,
+      ),
+    );
+  });
+
+  it("never reads two values as others that hold `&` or `=`", () => {
+    const reads = ["search", "states"];
+    const one = new URLSearchParams();
+    one.set("search", "a&states=b");
+    const two = new URLSearchParams();
+    two.set("search", "a");
+    two.set("states", "b&states");
+    expect(readingOf(one, reads)).not.toBe(readingOf(two, reads));
   });
 });

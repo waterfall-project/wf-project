@@ -12,13 +12,14 @@ import { History } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { ListPages } from "@/components/grid/list-pages";
 import { LocalTime } from "@/components/local-time";
 import { Actor, CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatPlanningDate } from "@/i18n/format";
 
+import { IMPORTS_LIST } from "./address";
 import type { ListPage } from "./cost-grid";
-import { ListPages } from "./cost-pages";
 
 /** An entry of the journal, as the contract gives it. */
 export type CostImport = components["schemas"]["CostImport"];
@@ -93,7 +94,12 @@ export function ImportJournal({
           ))}
         </ListTable>
       )}
-      <ListPages list="imports" page={page} shown={imports.length} />
+      <ListPages
+        list={IMPORTS_LIST}
+        texts="actualCosts.pages.imports"
+        page={page}
+        shown={imports.length}
+      />
     </section>
   );
 }

@@ -16,12 +16,14 @@ import type { Metadata } from "next";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { readPage } from "@/components/costs/address";
-import { ListPages } from "@/components/costs/cost-pages";
+import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { OFFSET, readGridQuery } from "@/components/grid/query";
 import {
   type Perimeter,
   perimeterQuery,
+  portfolioProjectsQuery,
+  PROJECTS_LIST,
   readPerimeter,
   readZones,
 } from "@/components/portfolio/address";
@@ -70,15 +72,7 @@ export default async function PortfolioProjectsPage({
     readOrFail("getPortfolioProjects", () =>
       serverClient().GET("/portfolio/projects", {
         params: {
-          query: {
-            ...perimeterQuery(perimeter),
-            ...(zones.length === 0 ? {} : { zones: [...zones] }),
-            ...(offset === 0 ? {} : { offset }),
-            ...(query.search === undefined ? {} : { search: query.search }),
-            ...(query.sort === undefined
-              ? {}
-              : { sort_by: query.sort.column, sort_order: query.sort.order }),
-          },
+          query: portfolioProjectsQuery({ perimeter, zones, offset, query }),
         },
       }),
     ),
@@ -101,7 +95,12 @@ export default async function PortfolioProjectsPage({
             query={query}
             preferences={preferences}
           />
-          <ListPages list="projects" page={projects.meta} shown={projects.items.length} />
+          <ListPages
+            list={PROJECTS_LIST}
+            texts="portfolio.pages"
+            page={projects.meta}
+            shown={projects.items.length}
+          />
         </div>
       </Screen>
     </PendingAddress>

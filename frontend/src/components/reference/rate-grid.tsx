@@ -16,7 +16,7 @@
  * column sorts (#509, WF-IHM-0060) — the code, the label, the state, and the rate of each year
  * (`rate.<year>`) —, the years being those of the whole grid on every page. Its totals row says how
  * many categories the server retained and the currency of the rates, never a sum; its pages lead
- * to the others (`ReferencePages`). The page filters it, beside it, on the state of the categories
+ * to the others (`ListPages`). The page filters it, beside it, on the state of the categories
  * and on the bounds of the rate of a year (`RateFilterBar`, #545). The state of each category says the deactivated ones, which the
  * page reads when the address asks for them (WF-REF-0150); the list of the categories reactivates
  * them.
@@ -44,6 +44,7 @@ import type { Outcome } from "@/api/problem";
 import type { GridColumn, GridConfig, RowsWritten } from "@/components/grid/columns";
 import { DenseGrid } from "@/components/grid/dense-grid";
 import { boundNames } from "@/components/grid/filters";
+import { ListPages } from "@/components/grid/list-pages";
 import { CONTRACT_ADDRESS, type GridQuery, OFFSET } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,6 @@ import {
   type RateSort,
   rateSort,
 } from "./rate-columns";
-import { ReferencePages } from "./reference-pages";
 import { ActiveState } from "./section";
 
 /** The grid of the hourly rates, as the server answers it. */
@@ -415,7 +415,7 @@ export function RateGrid({ grid, currency, editable, query, preferences }: RateG
         query={query}
         preferences={preferences}
       />
-      <ReferencePages
+      <ListPages
         list={{ page: OFFSET, reads: RATE_READS }}
         title={names("hourlyRates")}
         page={grid.meta}

@@ -21,7 +21,7 @@ import { Check, KeyRound, ShieldCheck, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { ListPages } from "@/components/costs/cost-pages";
+import { ListPages } from "@/components/grid/list-pages";
 import { OFFSET, type GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { type FilterValue, ValuesFilter } from "@/components/grid/values-filter";
@@ -42,7 +42,7 @@ import { AccessRoleGrid, UserGrid } from "./admin-grid";
 import type { AccessRoleSort, User, UserPage, UserSort } from "./admin-grids";
 import { AccountStateSwitch } from "./account-filters";
 import { CreateCommand, LaterCommands, LaterNotice } from "./later-commands";
-import { ORG_NODE, ORIGINS, USER_ORIGINS, type UserOrigin } from "./user-address";
+import { ORG_NODE, ORIGINS, USER_ORIGINS, type UserOrigin, USERS_LIST } from "./user-address";
 
 type AccessRole = components["schemas"]["AccessRole"];
 type Permission = components["schemas"]["Permission"];
@@ -118,7 +118,7 @@ export function UserList({
           preferences={preferences}
           editable={editable}
         />
-        <ListPages list="users" page={page} shown={users.length} />
+        <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />
       </ReferenceSection>
     </>
   );

@@ -49,8 +49,8 @@ import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
 import { formatLocale } from "@/i18n/format";
+import { readingOf } from "@/navigation/pages";
 
-import { readingOf } from "./address";
 import { ActiveState } from "./section";
 
 export type { ActivationTarget } from "@/api/actions/reference";

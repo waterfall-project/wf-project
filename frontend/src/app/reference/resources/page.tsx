@@ -37,10 +37,14 @@ import {
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import {
+  asked,
   asksInactive,
+  given,
   identifierOf,
   inactiveQuery,
+  type KeptGrids,
   levelOf,
+  searched,
   shownPage,
   stateOf,
   textOf,
@@ -85,7 +89,7 @@ import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-di
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch, type SearchParameters } from "@/navigation/context";
 import { offsetOf } from "@/navigation/pages";
-import { type Permission, requestSession, type Session } from "@/session/request";
+import { type Permission, requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 
@@ -116,23 +120,6 @@ function ResourcesHeader({ inactive }: { readonly inactive: boolean | undefined 
       }
     />
   );
-}
-
-/** A search of the address, by the name of the contract: none when the address holds none. */
-function searched<Sort extends string>(query: GridQuery<Sort>) {
-  return query.search === undefined ? {} : { search: query.search };
-}
-
-/** A sort of the address, by the names of the contract: none when the address asks none. */
-function sorted<Sort extends string>(query: GridQuery<Sort>) {
-  return query.sort === undefined
-    ? {}
-    : { sort_by: query.sort.column, sort_order: query.sort.order };
-}
-
-/** A value of the address under the name of the contract: none when the address holds none. */
-function given<Name extends string, Value>(name: Name, value: Value | undefined) {
-  return (value === undefined ? {} : { [name]: value }) as Partial<Record<Name, Value>>;
 }
 
 /** The bounds of a column of the address, under the names of the contract for that column. */
@@ -220,15 +207,13 @@ function readRoles(
       params: {
         query: {
           ...inactive,
-          ...searched(roles),
-          ...sorted(roles),
+          ...asked(roles, roleOffset),
           ...given("org_node_id", roleFilters.orgNode),
           ...given("cost_category_id", roleFilters.category),
           ...given("calendar_id", roleFilters.calendar),
           ...given("is_active", roleFilters.state),
           ...bounds("monthly_hours", roleFilters.monthlyHours),
           ...bounds("headcount", roleFilters.headcount),
-          ...given("offset", roleOffset),
         },
       },
     }),
@@ -245,11 +230,9 @@ function readCalendars(
       params: {
         query: {
           ...inactive,
-          ...searched(calendars),
-          ...sorted(calendars),
+          ...asked(calendars, calendarOffset),
           ...given("is_active", calendarState),
           ...dayBounds(calendarHours),
-          ...given("offset", calendarOffset),
         },
       },
     }),
@@ -288,20 +271,15 @@ async function readLists(queries: ResourceQueries) {
   ]);
 }
 
-/** The settings of the grids the account keeps. */
-type GridSettings = NonNullable<
-  NonNullable<NonNullable<Session["user"]["display_preferences"]>["grids"]>
->;
-
 /** The settings a grid keeps in the account, by its key; none when it keeps none. */
-function keptBy(grids: GridSettings | undefined, key: string) {
+function keptBy(grids: KeptGrids | undefined, key: string) {
   return grids?.[key] ?? undefined;
 }
 
 /** What the page asks of each list, from its address, the sort each grid keeps and the session. */
 function readQueries(
   search: SearchParameters,
-  grids: GridSettings | undefined,
+  grids: KeptGrids | undefined,
   permissions: readonly Permission[],
 ): ResourceQueries {
   const state = (name: string) => stateOf(search, name, permissions, "resource_settings.read");

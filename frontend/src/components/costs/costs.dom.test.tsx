@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
 import type { ApiClient } from "@/api/client";
+import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -15,10 +16,9 @@ import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
 
-import { readCostFilters } from "./address";
+import { COSTS_LIST, IMPORTS_LIST, readCostFilters } from "./address";
 import { CostFilterBar, type SubprojectChoice } from "./cost-filters";
 import { costRow, type CostRows, type CostSortColumn, type ListPage } from "./cost-grid";
-import { ListPages } from "./cost-pages";
 import { CostSummary } from "./cost-totals";
 import { CostsGrid } from "./costs-grid";
 import { type CostImport, ImportJournal } from "./import-journal";
@@ -410,7 +410,16 @@ describe("the pages of a list the server pages", () => {
   it("leads to the page before and the page after the one shown, the rest of the address kept [WF-CRE-0040-A]", () => {
     page.search = "in_tracked_scope=true&offset=1";
     const list = listOf("actual_costs_page");
-    render(inLanguage(<ListPages list="costs" page={list.meta} shown={list.items.length} />));
+    render(
+      inLanguage(
+        <ListPages
+          list={COSTS_LIST}
+          texts="actualCosts.pages.costs"
+          page={list.meta}
+          shown={list.items.length}
+        />,
+      ),
+    );
     const pages = screen.getByRole("navigation", { name: "Pages des coûts réels" });
     expect(within(pages).getByRole("link", { name: /Lignes précédentes/ })).toHaveAttribute(
       "href",
@@ -425,7 +434,14 @@ describe("the pages of a list the server pages", () => {
   it("shows no way through a list the page holds whole", () => {
     const list = listOf("actual_costs");
     const { container } = render(
-      inLanguage(<ListPages list="costs" page={list.meta} shown={list.items.length} />),
+      inLanguage(
+        <ListPages
+          list={COSTS_LIST}
+          texts="actualCosts.pages.costs"
+          page={list.meta}
+          shown={list.items.length}
+        />,
+      ),
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -435,7 +451,16 @@ describe("the pages of a list the server pages", () => {
       readonly items: [];
       readonly meta: ListPage;
     };
-    render(inLanguage(<ListPages list="imports" page={beyond.meta} shown={beyond.items.length} />));
+    render(
+      inLanguage(
+        <ListPages
+          list={IMPORTS_LIST}
+          texts="actualCosts.pages.imports"
+          page={beyond.meta}
+          shown={beyond.items.length}
+        />,
+      ),
+    );
     expect(screen.getByText("La page demandée est au-delà de la fin du journal.")).toBeVisible();
     expect(screen.getByRole("link", { name: /Imports plus récents/ })).toHaveAttribute(
       "href",
@@ -454,7 +479,12 @@ describe("the pages of a list the server pages", () => {
             query={NO_QUERY}
             preferences={undefined}
           />
-          <ListPages list="costs" page={list.meta} shown={list.items.length} />
+          <ListPages
+            list={COSTS_LIST}
+            texts="actualCosts.pages.costs"
+            page={list.meta}
+            shown={list.items.length}
+          />
         </PendingAddress>,
       ),
     );
@@ -485,8 +515,18 @@ describe("the pages of a list the server pages", () => {
             subproject={undefined}
             subprojects={SUBPROJECTS}
           />
-          <ListPages list="costs" page={list.meta} shown={list.items.length} />
-          <ListPages list="imports" page={journal.meta} shown={0} />
+          <ListPages
+            list={COSTS_LIST}
+            texts="actualCosts.pages.costs"
+            page={list.meta}
+            shown={list.items.length}
+          />
+          <ListPages
+            list={IMPORTS_LIST}
+            texts="actualCosts.pages.imports"
+            page={journal.meta}
+            shown={0}
+          />
         </PendingAddress>,
       ),
     );
@@ -514,8 +554,18 @@ describe("the pages of a list the server pages", () => {
     render(
       inLanguage(
         <PendingAddress>
-          <ListPages list="costs" page={list.meta} shown={list.items.length} />
-          <ListPages list="imports" page={journal.meta} shown={0} />
+          <ListPages
+            list={COSTS_LIST}
+            texts="actualCosts.pages.costs"
+            page={list.meta}
+            shown={list.items.length}
+          />
+          <ListPages
+            list={IMPORTS_LIST}
+            texts="actualCosts.pages.imports"
+            page={journal.meta}
+            shown={0}
+          />
         </PendingAddress>,
       ),
     );
@@ -525,6 +575,40 @@ describe("the pages of a list the server pages", () => {
     await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
     expect(router.push).toHaveBeenLastCalledWith(
       `${PATHNAME}?offset=${String(1 + list.items.length)}`,
+      { scroll: false },
+    );
+  });
+  it("keeps the page of the costs when a line is shown meanwhile: a detail opened reads no other list", async () => {
+    page.search = "offset=1";
+    const list = listOf("actual_costs_page");
+    render(
+      inLanguage(
+        <PendingAddress>
+          <CostsGrid
+            costs={costsOf("actual_costs_page")}
+            query={NO_QUERY}
+            preferences={undefined}
+            linked
+          />
+          <ListPages
+            list={COSTS_LIST}
+            texts="actualCosts.pages.costs"
+            page={list.meta}
+            shown={list.items.length}
+          />
+        </PendingAddress>,
+      ),
+    );
+    const [first] = list.items;
+    await userEvent.click(within(grid()).getByRole("link", { name: first?.document_number ?? "" }));
+    const shown = `line=${first?.cost_line_id ?? ""}`;
+    expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?offset=1&${shown}`, {
+      scroll: false,
+    });
+    // The line asked and not arrived: the next page still follows the one shown.
+    await userEvent.click(screen.getByRole("link", { name: /Lignes suivantes/ }));
+    expect(router.push).toHaveBeenLastCalledWith(
+      `${PATHNAME}?offset=${String(1 + list.items.length)}&${shown}`,
       { scroll: false },
     );
   });

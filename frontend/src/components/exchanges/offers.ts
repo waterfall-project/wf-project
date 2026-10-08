@@ -16,6 +16,7 @@ import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import type { Project } from "@/components/context/reading";
 import type { Revision } from "@/components/context/read-only";
 import { OFFSET } from "@/components/grid/query";
+import type { PagedList } from "@/navigation/pages";
 
 type ExchangeKind = components["schemas"]["ExchangeKind"];
 type ExportKind = components["schemas"]["ExportRequest"]["kind"];
@@ -134,6 +135,9 @@ export const IMPORT_MAX_BYTES = 10 * MEBIBYTE;
 
 /** The parameter of the address that names the page of the imports of the project. */
 export const EXCHANGES_PAGE = OFFSET;
+
+/** The imports of a project, which read nothing of the address but their page. */
+export const EXCHANGES_LIST: PagedList = { page: EXCHANGES_PAGE, reads: [] };
 
 /** The parameter of the address that names the import whose report the screen shows. */
 export const IMPORT_PARAMETER = "import";

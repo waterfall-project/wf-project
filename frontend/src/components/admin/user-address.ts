@@ -10,8 +10,10 @@
  *
  * Pure, and neither server nor client: the page reads, the filters write.
  */
-import type { components } from "@/api/generated/schema";
+import type { components, operations } from "@/api/generated/schema";
+import { CONTRACT_ADDRESS, type GridQuery, pagedList } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
+import type { PagedList } from "@/navigation/pages";
 
 /** The origin of an account, as the contract names it. */
 export type UserOrigin = components["schemas"]["UserOrigin"];
@@ -45,4 +47,40 @@ export const INCLUDE_INACTIVE = "include_inactive";
 /** Whether the address shows the deactivated accounts: unless it asks them hidden. */
 export function showsInactive(search: SearchParameters): boolean {
   return search.get(INCLUDE_INACTIVE) !== "false";
+}
+
+/** The list of the accounts: its sort, its search and its filters. */
+export const USERS_LIST: PagedList = pagedList(
+  CONTRACT_ADDRESS,
+  ORIGINS,
+  ORG_NODE,
+  INCLUDE_INACTIVE,
+);
+
+/** What the page asks `listUsers`: the query of the contract. */
+type UsersQuery = NonNullable<operations["listUsers"]["parameters"]["query"]>;
+
+/**
+ * The query of the list of the accounts, as the address asks it: its sort, its search, its filters
+ * and its page — every parameter but the page read from `USERS_LIST`, which says when two
+ * addresses read the same list.
+ */
+export function usersQuery<Sort extends NonNullable<UsersQuery["sort_by"]>>(asked: {
+  readonly query: GridQuery<Sort>;
+  readonly origins: readonly UserOrigin[];
+  readonly orgNode: string | undefined;
+  readonly inactive: boolean;
+  readonly offset: number | undefined;
+}): UsersQuery {
+  const { query, origins, orgNode, offset } = asked;
+  return {
+    include_inactive: asked.inactive,
+    ...(offset === undefined ? {} : { offset }),
+    ...(query.search === undefined ? {} : { search: query.search }),
+    ...(origins.length === 0 ? {} : { origins: [...origins] }),
+    ...(orgNode === undefined ? {} : { org_node_id: orgNode }),
+    ...(query.sort === undefined
+      ? {}
+      : { sort_by: query.sort.column, sort_order: query.sort.order }),
+  };
 }

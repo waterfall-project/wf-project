@@ -36,7 +36,15 @@ import {
 } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/grid/query";
-import { asksInactive, identifierOf, inactiveQuery, stateOf } from "@/components/reference/address";
+import {
+  asked,
+  asksInactive,
+  given,
+  identifierOf,
+  inactiveQuery,
+  type KeptGrids,
+  stateOf,
+} from "@/components/reference/address";
 import {
   CATEGORY_COST_TYPE,
   CATEGORY_STATE,
@@ -75,7 +83,7 @@ import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-di
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch, type SearchParameters } from "@/navigation/context";
 import { offsetOf } from "@/navigation/pages";
-import { type Permission, requestSession, type Session } from "@/session/request";
+import { type Permission, requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../title";
 import { readReferenceSettings } from "../settings";
@@ -91,22 +99,6 @@ const PAGES = [
   COST_TYPE_ADDRESS.offset,
   COST_CATEGORY_ADDRESS.offset,
 ] as const;
-
-/** What a list asks of the server, as the address asks it: its search, its sort and its page. */
-function asked<Sort extends string>(query: GridQuery<Sort>, offset: number | undefined) {
-  return {
-    ...(query.search === undefined ? {} : { search: query.search }),
-    ...(query.sort === undefined
-      ? {}
-      : { sort_by: query.sort.column, sort_order: query.sort.order }),
-    ...(offset === undefined ? {} : { offset }),
-  };
-}
-
-/** A filter of the address under the name of the contract: none when the address holds none. */
-function given<Name extends string, Value>(name: Name, value: Value | undefined) {
-  return (value === undefined ? {} : { [name]: value }) as Partial<Record<Name, Value>>;
-}
 
 /** The refusal of the bounds of the rate: an upper bound below the lower one (#545). */
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
@@ -137,11 +129,6 @@ interface CostQueries {
   readonly categoryState: boolean | undefined;
 }
 
-/** The settings of the grids the account keeps. */
-type GridSettings = NonNullable<
-  NonNullable<NonNullable<Session["user"]["display_preferences"]>["grids"]>
->;
-
 /**
  * What the grid of the rates is filtered on: the state, and the bounds of the rate of a year — none
  * without a year the contract takes, which they go with.
@@ -161,7 +148,7 @@ function readRateFilters(search: SearchParameters, state: boolean | undefined): 
 /** What the page asks of each list, from its address, the sort each grid keeps and the session. */
 function readQueries(
   search: SearchParameters,
-  grids: GridSettings | undefined,
+  grids: KeptGrids | undefined,
   permissions: readonly Permission[],
 ): CostQueries {
   const state = (name: string) => stateOf(search, name, permissions, "cost_settings.read");
