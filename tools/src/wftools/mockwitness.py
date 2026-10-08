@@ -38,6 +38,16 @@ def fixture(name: str) -> Any:
     return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))["value"]
 
 
+def by_identifier(name: str, key: str) -> list[Any]:
+    """Return the objects of a list of the reference, in the order of their identifier.
+
+    The list itself comes in the order a reading without sort gives — by label or by code —; what
+    is drawn from it — a breakdown by nature, a workload by role — keeps the order of the
+    identifiers, which no relabelling moves.
+    """
+    return sorted(fixture(name)["items"], key=lambda entry: str(entry[key]))
+
+
 # --- Today and the chronology -----------------------------------------------------------------
 
 TODAY = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
@@ -187,13 +197,13 @@ def calendars() -> dict[str, Calendar]:
         entry["calendar_id"]: Calendar(
             entry["calendar_id"], tuple(Decimal(entry["weekly_hours"][day]) for day in days)
         )
-        for entry in fixture("calendars")
+        for entry in fixture("calendars")["items"]
     }
 
 
 def default_calendar() -> Calendar:
     """Return the calendar of a task without labour lines (WF-REF-0120)."""
-    [default] = [entry for entry in fixture("calendars") if entry["is_default"]]
+    [default] = [entry for entry in fixture("calendars")["items"] if entry["is_default"]]
     return calendars()[default["calendar_id"]]
 
 
@@ -202,7 +212,7 @@ def role_calendars() -> dict[str, Calendar]:
     known = calendars()
     return {
         role["resource_role_id"]: known[role["calendar_id"]]
-        for role in fixture("resource_roles")
+        for role in fixture("resource_roles")["items"]
         if role["is_active"]
     }
 

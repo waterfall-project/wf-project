@@ -1,0 +1,11 @@
+{
+  "summary": "La désactivation de la semaine standard refusée : elle est le calendrier par défaut, et un autre se désigne d'abord par défaut ; rien n'est écrit (WF-REF-0120).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "calendar_not_default"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000970"
+  }
+}

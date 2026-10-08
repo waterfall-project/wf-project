@@ -1,0 +1,17 @@
+{
+  "summary": "Les calendriers demandés entre 10 et 8 heures le vendredi : la borne supérieure précède la borne inférieure, et friday_max est refusée, désignée par /query/friday_max, la borne inférieure nommée (WF-IHM-0130).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/friday_max",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": "10"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000960"
+  }
+}

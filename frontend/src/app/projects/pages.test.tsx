@@ -404,13 +404,13 @@ describe("the witness path", () => {
     // Deactivated ones included, to name a line that bears one; the lists offer them no more.
     expect(callOf("/cost-categories")?.query.get("include_inactive")).toBe("true");
     expect(callOf("/resource-roles")?.query.get("include_inactive")).toBe("true");
-    expect(
-      grid?.reference.roles?.map(({ label, active }) => `${label}: ${String(active)}`),
-    ).toEqual([
-      "Ingénieur électricien: true",
-      "Technicien de mise en service: true",
-      "Monteur câbleur: true",
+    const roles = grid?.reference.roles ?? [];
+    expect(roles.map(({ label, active }) => `${label}: ${String(active)}`)).toEqual([
       "Automaticien: false",
+      "Ingénieur électricien: true",
+      "Monteur câbleur: true",
+      "Programmeur d'automates: false",
+      "Technicien de mise en service: true",
     ]);
     expect(grid?.reference.categories).toHaveLength(200);
     // The revision lists the planning too: the label of a task is entered as well.

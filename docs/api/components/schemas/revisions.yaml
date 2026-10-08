@@ -136,17 +136,19 @@ RevisionSnapshot:
 EmployedReference:
   type: object
   required: [resource_roles, calendars, cost_categories, hourly_rates]
-  description: Images des objets du référentiel employés, figées au marquage (WF-REV-0030, WF-REF-0130).
+  description: >-
+    Images des objets du référentiel employés, figées au marquage (WF-REV-0030, WF-REF-0130) :
+    sans les commandes qu'un objet lu aujourd'hui porte, qu'une image n'a pas.
   properties:
     resource_roles:
       type: array
-      items: { $ref: reference.yaml#/ResourceRole }
+      items: { $ref: reference.yaml#/ResourceRoleImage }
     calendars:
       type: array
-      items: { $ref: reference.yaml#/Calendar }
+      items: { $ref: reference.yaml#/CalendarImage }
     cost_categories:
       type: array
-      items: { $ref: reference.yaml#/CostCategory }
+      items: { $ref: reference.yaml#/CostCategoryImage }
     hourly_rates:
       type: array
       items: { $ref: reference.yaml#/HourlyRate }

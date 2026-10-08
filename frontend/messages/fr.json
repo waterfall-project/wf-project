@@ -125,6 +125,8 @@
       "orgNodes": "Arbre d’organisation",
       "resourceRoles": "Rôles de ressources",
       "calendars": "Calendriers",
+      "costTypes": "Natures de coût",
+      "costCategories": "Catégories de coût",
       "subprojects": "Sous-projets",
       "contributors": "Contributeurs",
       "workBreakdown": "Lotissement",
@@ -182,6 +184,9 @@
       "saturday": "Sam.",
       "sunday": "Dim.",
       "defaultCalendar": "Par défaut",
+      "costTypeKind": "Type",
+      "costType": "Nature",
+      "accountingCode": "Code comptable",
       "erpCode": "Code ERP",
       "actualCosts": "Coûts réels",
       "name": "Nom",
@@ -286,6 +291,16 @@
       "sortedRows": "Le bloc collé écrirait les lignes qui suivent la cellule dans l’ordre du plan, que le tri a déplacées : levez le tri avant de coller, ou collez un bloc moins haut.",
       "unretainedRows": "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut.",
       "beyondRows": "Le bloc collé s’étendrait au-delà des lignes que la grille montre sous la cellule : collez un bloc moins haut."
+    },
+    "range": {
+      "min": "{column}, min.",
+      "max": "{column}, max.",
+      "minShort": "min.",
+      "maxShort": "max.",
+      "apply": "Filtrer",
+      "lift": "Lever les bornes",
+      "inverted": "La borne supérieure ne peut précéder la borne inférieure, {minimum}.",
+      "money": "Deux décimales au plus."
     }
   },
   "estimateGrid": {
@@ -1016,19 +1031,28 @@
       "active": "Actif",
       "inactive": "Désactivé",
       "reactivate": "Réactiver « {name} »",
-      "reactivateShort": "Réactiver"
+      "reactivateShort": "Réactiver",
+      "unavailable": "La réactivation de « {name} » est indisponible. {unmet}"
     },
     "inactive": {
       "show": "Afficher aussi les désactivés",
       "hide": "Masquer les désactivés"
     },
-    "columns": {
-      "code": "Code",
-      "label": "Libellé",
-      "state": "État"
+    "stateFilter": {
+      "of": "État des objets de « {list} »",
+      "every": "Tous les états",
+      "active": "Actifs",
+      "inactive": "Désactivés"
     },
+    "pages": {
+      "label": "Pages de « {list} »",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "beyond": "La page demandée est au-delà de la fin de la liste."
+    },
+    "codedChoice": "{code} · {label}",
     "rates": {
-      "caption": "Taux horaires en {currency}",
+      "caption": "{count, plural, one {# catégorie} other {# catégories}}, taux horaires en {currency}",
       "addYear": {
         "label": "Ajouter une année à la grille",
         "year": "Année",
@@ -1037,30 +1061,44 @@
         "added": "Colonne {year} ajoutée : elle reste vide jusqu’à son premier taux, que la saisie d’une cellule enregistre.",
         "present": "L’année {year} a déjà sa colonne dans la grille.",
         "outOfRange": "Une année va de {min} à {max}."
+      },
+      "bounds": {
+        "year": "Année du taux",
+        "rate": "Taux horaire"
       }
     },
     "costTypes": {
       "title": "Natures de coût",
-      "kind": "Type",
-      "none": "Aucune nature de coût."
+      "none": "Aucune nature de coût.",
+      "kindFilter": "Types de nature",
+      "everyKind": "Tous les types",
+      "count": "{count, plural, one {# nature} other {# natures}}"
     },
     "costCategories": {
       "title": "Catégories de coût",
-      "costType": "Nature",
-      "accountingCode": "Code comptable",
-      "none": "Aucune catégorie de coût."
+      "none": "Aucune catégorie de coût.",
+      "costTypeFilter": "Nature",
+      "everyCostType": "Toutes les natures",
+      "count": "{count, plural, one {# catégorie} other {# catégories}}"
     },
     "orgNodes": {
       "title": "Arbre d’organisation",
       "choice": "{code} · {label}",
       "none": "Aucun nœud d’organisation.",
-      "count": "{count, plural, one {# nœud} other {# nœuds}}"
+      "count": "{count, plural, one {# nœud} other {# nœuds}}",
+      "codeFilter": "Code du nœud",
+      "levelFilter": "Niveau",
+      "everyLevel": "Tous les niveaux"
     },
     "resourceRoles": {
       "title": "Rôles de ressources",
       "none": "Aucun rôle de ressource.",
       "orgNodeFilter": "Nœud d’organisation",
       "everyNode": "Tous les nœuds",
+      "costCategoryFilter": "Catégorie de coût",
+      "everyCostCategory": "Toutes les catégories",
+      "calendarFilter": "Calendrier",
+      "everyCalendar": "Tous les calendriers",
       "count": "{count, plural, one {# rôle} other {# rôles}}"
     },
     "calendars": {
@@ -1101,7 +1139,9 @@
     "reviews": {
       "title": "Rythme des revues",
       "maxWeeks": "Délai maximal entre deux révisions marquées d’un projet en cours : {weeks, plural, one {# semaine} other {# semaines}}."
-    }
+    },
+    "boundsOf": "Bornes de « {list} »",
+    "boundsRefused": "La liste n’est pas lue : le serveur refuse les bornes demandées."
   },
   "admin": {
     "pages": {
@@ -1282,7 +1322,6 @@
     "LAST_ADMINISTRATOR": "Au moins un compte actif doit garder les permissions d’administration.",
     "LAST_PROJECT_MANAGER": "Un projet garde au moins un chef de projet.",
     "ACCESS_ROLE_IN_USE": "Ce rôle d’habilitation est encore attribué à des comptes.",
-    "DEFAULT_CALENDAR_REQUIRED": "Un calendrier par défaut est requis.",
     "HAS_ACTUAL_COSTS": "Des coûts réels y sont imputés.",
     "TASK_ALREADY_STARTED": "La tâche a déjà démarré.",
     "TASK_COMPLETED": "La tâche est terminée.",
@@ -1665,7 +1704,10 @@
       "may_create_revision": "avoir la permission de créer une révision",
       "risk_not_cited": "risque cité par aucune révision marquée",
       "risk_not_occurred": "risque non survenu",
-      "risk_identified": "risque identifié"
+      "risk_identified": "risque identifié",
+      "org_node_parent_active": "nœud parent actif",
+      "org_node_active": "nœud d’organisation actif",
+      "calendar_not_default": "calendrier autre que celui par défaut"
     },
     "ProjectExit": {
       "to_state": {
@@ -1948,6 +1990,10 @@
       "review": "Réexaminer le risque",
       "declare_occurrence": "Déclarer le risque survenu",
       "delete": "Supprimer le risque"
+    },
+    "ReferenceCommand": {
+      "deactivate": "Désactiver",
+      "reactivate": "Réactiver"
     },
     "RiskComputedField": {
       "field": {

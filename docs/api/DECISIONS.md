@@ -143,9 +143,10 @@ commande — ce serait une règle recopiée. Une exception, décidée par l'util
 2026-10-05 : sans révision en cours, un import que l'appelant a la permission d'exercer mais
 qui créerait une révision qu'il n'a pas la permission de créer est listé indisponible, la
 condition `may_create_revision` manquante (EP-02/L17). Les autres fonctions — comptes, rôles,
-référentiel, sauvegarde — n'ont pas de conditions à nommer : leurs commandes suivent la
+sauvegarde — n'ont pas de conditions à nommer : leurs commandes suivent la
 permission de modification de la fonction, que la session porte, et la restauration sa
-permission propre ; c'est la règle même du catalogue. La saisie d'une révision est trois commandes —
+permission propre ; c'est la règle même du catalogue. Le référentiel en a trois, que chacun de ses
+objets nomme sur sa commande (`ReferenceCommand`, EP-02/L42a). La saisie d'une révision est trois commandes —
 planning, devis, reste à engager —, parce que trois permissions la gardent : un chiffreur
 peut saisir le devis sans pouvoir toucher au planning. Les coûts réels ont leurs commandes sur
 le projet ; la saisie des risques est une commande de la révision (`edit_risks`), et chaque
@@ -2568,6 +2569,153 @@ registre des risques, le journal des imports — est lu en mémoire, jamais sur 
 chaque inscription à l'exemple qui dit son action, l'instant de l'audit dont son auteur vient, et
 son auteur existant et actif à son instant. La page d'une liste est une seule constante,
 `mocktext.PAGE`, lue du défaut de `Limit`. Le client est régénéré ; l'écran est L41e (#517).
+
+## Les listes du référentiel par pages, leurs filtres et leurs commandes (EP-02/L42a)
+
+Quatre constats d'EP-02 rangés dans EP-02/L42 sur décision de l'auteur du 2026-10-08 (#509, #510,
+#532, #533), chacun selon la proposition de son issue, sauf là où il est dit.
+
+**Les listes du référentiel se paginent comme les autres** (#509, #510, #533).
+`listResourceRoles`, `listCalendars`, `listCostTypes` et `listCostCategories` rendent `items` et
+`meta` (`PaginationMeta`), sous `limit` et `offset`, comme `listUsers` ou `listProjects` ;
+`meta.total` compte les objets que la recherche et les filtres retiennent. `getHourlyRateGrid`
+aussi : la grille garde sa forme, `years` et `rows`, et gagne `meta` ; `rows` est la page, et
+`years` les colonnes de toute la grille, quelles que soient la page, la recherche et le tri,
+comme la recherche le faisait déjà (US-0250/L1). La spécification n'y oblige pas : l'auteur veut
+des tables uniformes. `listOrgNodes` ne se pagine pas : un arbre ne se lit pas par pages, comme
+`listNodes`. Une liste qui sert de choix — les catégories et les rôles d'une ligne de devis —
+se lit page après page jusqu'au total, par la plus grande page, comme les révisions (#303).
+Écarté : renommer `rows` en `items`, qui changerait la forme de la grille sans rien y gagner ;
+laisser la grille seule de son espèce, sans pages.
+
+**La grille des taux se trie sur chaque colonne** (#509, WF-IHM-0060). `sort_by` y vaut `code`,
+`label`, `is_active`, ou `rate.<année>`, le taux de cette année : nommé comme
+`passthrough.<colonne>` des coûts réels nomme une colonne qui n'est pas une propriété du schéma,
+plutôt que `rate:2026`, que l'issue proposait. Une catégorie sans taux cette année-là vient après
+les autres dans l'ordre croissant, avant dans le décroissant, comme une ligne sans valeur des coûts
+réels ; à taux égal, ou sans taux, l'ordre du code, celui de la grille sans tri. Une année que la
+grille ne porte pas n'est pas refusée : elle laisse l'ordre du code.
+
+**Chaque colonne des tables du référentiel se filtre** (#533, #510, #545, WF-IHM-0060,
+WF-IHM-0130). Les rôles par catégorie (`cost_category_id`) et par calendrier (`calendar_id`), en
+plus du nœud ; les nœuds par code (`code`, qui le contient) et par profondeur (`level`) ; les
+cinq listes et la grille par état, `is_active`, un paramètre partagé : vrai, les actifs seuls ;
+faux, les désactivés seuls, sous la permission qu'exige `include_inactive`, auquel il prime —
+`include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la
+permission se juge sur la requête. Un filtre de l'arbre rend aussi les ancêtres des nœuds retenus,
+comme sa recherche. La portée de chaque recherche est dite : le libellé pour les rôles et les
+calendriers ; le code et le libellé pour les nœuds et la grille, comme avant, et pour les natures ;
+le code, le libellé et le code comptable pour les catégories, le code comptable n'ayant pas d'autre
+filtre. Les colonnes de nombres se bornent, selon la convention qui suit : les heures mensuelles et
+l'effectif d'un rôle (`monthly_hours_min`, `monthly_hours_max`, `headcount_min`,
+`headcount_max`), les heures de chaque jour d'un calendrier (`monday_min` à `sunday_max`), et le
+taux d'une année de la grille (`rate_min`, `rate_max`, l'année nommée par `rate_year`, exigée avec
+eux : un nom de paramètre ne peut pas porter l'année comme `rate.<année>` la porte dans une valeur de
+tri ; une catégorie sans taux cette année-là n'est retenue par aucune borne). Le calendrier par
+défaut ne se filtre pas : un seul l'est, que le tri par `is_default` met en tête.
+
+**Une colonne de nombres se filtre par deux bornes, pour tout le contrat** (#545, décision de
+l'auteur du 2026-10-08). `<colonne>_min` et `<colonne>_max`, nommées comme la colonne que
+`sort_by` trie, toutes deux incluses, l'une ou l'autre ou les deux ; dans le type de la colonne, un
+entier pour un entier, une chaîne pour un décimal exact (WF-DAT-0100). Une borne supérieure
+inférieure à la borne inférieure est refusée par 422, `VALIDATION_FAILED`, `fields[]` désignant la
+borne supérieure (`/query/<colonne>_max`) par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne
+inférieure donnée — la période inversée des coûts réels (#293) ne nomme pas son début, la borne la
+nomme, que l'écran rappelle ; une borne qui n'est pas un nombre de son type, `/query/<borne>` par
+`NUMBER_INVALID`. Exemples `resource_roles_bounds_inverted`, `calendars_bounds_inverted`,
+`hourly_rate_grid_bounds_inverted`, et `hourly_rate_grid_rate_year_missing` pour une borne du taux
+sans son année ; `rate_year` seul est sans effet. La profondeur des nœuds, entière, se borne de
+même (`level_min`, `level_max`), `level` restant l'égalité que le filtre de la colonne emploie. Les
+deux conventions — bornes et départage — sont au tableau de `docs/api/README.md`. Une grille qui ajoute une colonne de nombres ajoute ses deux
+bornes. Écarté : un seul paramètre en intervalle (`10..20`), qu'il faudrait analyser et qu'aucune
+liste du contrat n'emploie.
+
+**Un tri à égalité se départage, pour tout le contrat** : par l'ordre de la liste sans tri, puis
+par l'identifiant. Une liste paginée qui laisserait l'égalité au hasard de la base pourrait rendre
+une ligne sur deux pages, et en omettre une autre. Les descriptions de `sort_by` du référentiel le
+disent ; la règle vaut pour toute liste triée.
+
+**Les heures d'un jour d'un calendrier se trient** (#533) : `sort_by` prend `monday` à `sunday`,
+une colonne de la grille chacun ; `weekly_hours`, leur somme, reste, pour une colonne qui la
+montrerait.
+
+**Chaque objet du référentiel porte sa commande** (`available_commands`, #532, WF-IHM-0090), sur
+le modèle de `Risk.available_commands` : `ReferenceCommand`, `deactivate` ou `reactivate`, et ses
+conditions manquantes. Un objet ne porte que celle qui change son état : l'une est le contraire de
+l'autre, par la même opération, et un écran qui présenterait la réactivation indisponible sur
+chaque objet actif dirait ce qui va de soi. Trois conditions s'ajoutent à `CommandCondition` :
+`org_node_parent_active` et `org_node_active` (WF-REF-0080), `calendar_not_default`
+(WF-REF-0120). La commande suit la permission de modification de la fonction
+(`resource_settings.write`, `cost_settings.write`) : la liste est vide pour qui lit le référentiel
+sans elle, l'estimateur qui choisit le rôle d'une ligne. Une image figée par une révision marquée
+n'a pas de commandes : `EmployedReference` lit `ResourceRoleImage`, `CalendarImage` et
+`CostCategoryImage`, auxquels l'objet lu aujourd'hui ajoute les siennes
+(`ReferenceObjectCommands`). Écarté : la commande `update`, que rien ne rend indisponible ;
+`set_default` des calendriers, indisponible pour un calendrier désactivé, laissée au lot qui
+l'offrira.
+
+**Les opérations d'activation déclarent leurs refus** (#532). Les cinq déclarent le 412,
+`STALE_LOCK_VERSION`, `params.expected_lock_version`, comme toute écriture qui porte une version
+(#296). Le 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition`, là où une condition existe :
+la réactivation d'un nœud sous un parent désactivé (`org_node_parent_active`) ou d'un rôle sous un
+nœud désactivé (`org_node_active`), `params.conflicting_object_id` nommant le nœud à réactiver
+d'abord, puisque WF-IHM-0090 veut que le refus dise ce qu'il faut faire ; la désactivation du
+calendrier par défaut (`calendar_not_default`), dont le 409 était déclaré sans son code. Les
+natures et les catégories n'ont pas de 409, à l'écart de l'issue, qui le proposait sur les cinq :
+aucune exigence ne conditionne leur activation — une catégorie se réactive même sous une nature
+désactivée —, et un 409 déclaré sans cas promettrait un refus que le serveur ne fait jamais.
+
+**La réactivation ne cascade pas** (WF-REF-0080). L'exigence dit la cascade de la désactivation —
+les descendants du nœud et les rôles rattachés à lui ou à l'un d'eux —, et rien de la
+réactivation. Le contrat la lit sans cascade : réactiver un nœud ne rend actif que lui, et ses
+descendants se réactivent un à un, chacun sous un parent redevenu actif ; la réponse de
+`setOrgNodeActivation` ne porte alors que lui. Le motif de l'exigence va dans ce sens — les rôles
+d'un service fermé sont recréés sous les nouveaux nœuds, non ranimés —, et une réactivation en
+cascade ranimerait d'un coup ce qu'une réorganisation a fermé, y compris ce qui l'était avant elle.
+Ni la désactivation d'un rôle, ni celle d'un calendrier, d'une nature ou d'une catégorie ne
+cascade : aucune exigence ne le dit, et WF-REF-0020 laisse les projets intacts.
+
+**Exemples.** `resource_roles`, `calendars` et `cost_types`, écrits à la main, prennent `items` et
+`meta`, et chacun de leurs objets sa commande, comme ceux d'`org_nodes`. Le référentiel compte un
+service fermé : le bureau d'études automatismes (474), désactivé sous la direction technique, et
+sous lui la cellule robotique (475), désactivée avec lui. `org_nodes_with_inactive` est l'arbre lu
+avec eux, le premier réactivable, la seconde non, `org_node_parent_active` manquante ; `org_nodes`,
+l'arbre lu par défaut, ne les rend pas, comme `calendars` ne rend pas la semaine de trente-neuf
+heures. Le programmeur d'automates (455), désactivé avec son service, est le rôle du Vérif de
+WF-REF-0080 : `resource_roles` le porte, sa réactivation indisponible, `org_node_active`
+manquante, et `resource_role_reactivation_refused` est son refus.
+`resource_role_activation_stale` est la réactivation de l'automaticien envoyée avec la version que
+`resource_role_reactivated` a dépassée. Engendrés par `wftools.mockreference` : les deux cents
+catégories lues en une page de cinq cents, comme une liste de choix les lit, et leur deuxième page
+de cinquante (`cost_categories_page`) ; la grille entière en une page, et sa première page triée
+par le taux de 2026 décroissant (`hourly_rate_grid_by_rate`), ses quinze années toutes là. Les
+catégories engendrées viennent dans l'ordre du code, celui de la liste sans tri.
+
+**Une lecture sans droit d'écriture, et les refus de l'activation, ont leurs exemples** (revue de
+L42a). `*_reader` — `org_nodes_reader`, `resource_roles_reader`, `calendars_reader`,
+`cost_types_reader`, `cost_categories_reader` — est chaque liste lue par une session qui ne peut
+pas modifier sa fonction : les objets actifs seuls, puisqu'elle ne peut pas demander
+`include_inactive`, et aucune commande ; le front s'en remet à `available_commands` et ne vérifie
+plus la permission. Engendrés par `wftools.mockreference` des listes écrites à la main, comme
+`org_node_reactivated` — le bureau d'études automatismes réactivé, seul, la cellule robotique et le
+programmeur d'automates restés désactivés — et `resource_roles_bounded`, les rôles d'au moins
+485 324 heures mensuelles, celles du technicien de mise en service, retenu par la borne incluse ;
+`hourly_rate_grid_bounded`, les catégories dont le taux de 2026 atteint 99,12, celui de MO-066 et
+de MO-137, retenues avec lui. Écrits à la main : `org_node_reactivation_refused` (la cellule robotique,
+`org_node_parent_active`, son parent nommé), `calendar_deactivation_refused` (la semaine standard,
+`calendar_not_default`), `calendars_with_inactive` (la semaine de trente-neuf heures, 483,
+réactivable), `org_node_activation_stale` et `calendar_activation_stale`.
+
+**`DEFAULT_CALENDAR_REQUIRED` est retiré du catalogue.** Aucune réponse ne le déclarait ; la
+désactivation du calendrier par défaut est refusée par `STATE_FORBIDS_OPERATION`,
+`params.missing_condition` à `calendar_not_default`, comme toute commande qu'un état rend
+indisponible : un seul code pour un seul refus.
+
+**Une écriture qui change la disponibilité d'autres commandes ne les rend pas** :
+`setOrgNodeActivation` change la réactivation des enfants et des rôles du nœud, `setDefaultCalendar`
+la désactivation de deux calendriers ; le client relit les listes, comme ces opérations le disent.
+`HourlyRateGrid.years` dit enfin ce que sont les colonnes sans `include_inactive` : les années que
+portent les catégories actives, une année que seules des désactivées portent n'en étant pas une.
 
 ## Collage et annulation
 

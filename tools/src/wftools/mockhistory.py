@@ -67,6 +67,7 @@ from wftools.mockwitness import (
     N,
     Risk,
     Task,
+    by_identifier,
     fixture,
     reference,
     reference_provision,
@@ -245,10 +246,13 @@ def nature(row: mockcore.Row) -> str:
 def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonValue]:
     """Return the deltas of the estimate by nature of cost and by subproject, each named.
 
-    In the order of the natures and the subprojects of the universe, those without subproject
-    last (WF-REV-0080, WF-IND-0020).
+    In the order of the identifiers of the natures, then of the subprojects of the universe, those
+    without subproject last (WF-REV-0080, WF-IND-0020).
     """
-    natures = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")}
+    natures = {
+        nature["cost_type_id"]: nature["label"]
+        for nature in by_identifier("cost_types", "cost_type_id")
+    }
     subprojects = [entry["subproject_id"] for entry in fixture("subprojects")]
     named = labels()
     by: dict[tuple[str, str], Decimal] = {}

@@ -1352,6 +1352,22 @@ commande — la réactivation est offerte sur tout objet désactivé, et le refu
 tout autre (#532, pour L42) ; les filtres par colonne de `listResourceRoles`, `listCalendars` et
 `listOrgNodes` au-delà du libellé et du nœud, et le tri des heures d'un jour des calendriers,
 manquent au contrat (#533).
+EP-02/L42, sa partie L42a (#507), adopte le contrat qu'elle complète (#509, #510, #532, #533,
+#545) : la grille des taux se trie sur chaque colonne — le taux d'une année par `rate.<année>` —,
+se filtre par état et sur les bornes du taux d'une année, et se pagine, les années restant celles
+de toute la grille ; les natures et les catégories de coût passent sur la grille dense, triées,
+filtrées et paginées ; les rôles se filtrent par nœud, catégorie, calendrier et état, se bornent
+sur leurs heures mensuelles et leur effectif, et se paginent ; les calendriers se trient sur les
+heures de chaque jour, se filtrent par état, se bornent sur les heures de chaque jour et se
+paginent ; l'arbre se filtre par code, niveau et état et se borne sur sa profondeur, ses ancêtres
+laissés visibles. Les bornes
+d'une colonne de nombres suivent la convention du contrat (`<colonne>_min`, `<colonne>_max`,
+incluses, #545), saisies dans un filtre réutilisable (`RangeFilter`) ; la borne supérieure que le
+serveur refuse (422) est dite à son champ. Le tri se garde par grille, la page et les filtres
+vivent dans l'adresse. La réactivation suit les commandes que chaque objet porte
+(`available_commands`) : celle d'un rôle sous un nœud désactivé, ou d'un nœud sous un parent
+désactivé, est présentée indisponible avec sa condition (WF-REF-0080, WF-IHM-0090), et le refus du
+serveur, 409 nommant le nœud à réactiver d'abord ou 412, est dit au-dessus de la liste.
 EP-02/L41, sa partie L41c (#506), passe les comptes et les rôles d'habilitation sur la grille dense
 (#514, #515) : les comptes triés sur chaque colonne, cherchés, filtrés par origine, par nœud
 d'organisation et par état — les désactivés listés à moins que l'adresse ne les masque — et paginés

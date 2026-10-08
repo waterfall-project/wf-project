@@ -498,8 +498,13 @@ Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/compo
 US-0250) sont hors projet, aux routes de leurs fonctions. Les paramètres de coûts disent la devise
 de l'installation et présentent la grille des taux horaires — une configuration de plus de la
 grille dense (`rate-grid.tsx`), une ligne par catégorie de main-d'œuvre, son état, une colonne par
-année de la réponse, dont l'en-tête est l'année elle-même (`GridColumn.heading`) —, cherchée par
-le serveur (`search`) et sans tri ; une cellule saisie part seule par `setHourlyRate`, sans version
+année de toute la grille, quelle que soit la page, dont l'en-tête est l'année elle-même
+(`GridColumn.heading`) —, cherchée, filtrée par état et sur les bornes du taux d'une année
+(`RateFilterBar`, #545), triée et paginée par le serveur sous les noms du contrat (`search`,
+`is_active`, `rate_year`, `rate_min`, `rate_max`, `sort_by`, `offset`, #509) : chaque colonne se trie, le taux d'une année par
+`rate.<année>`, que la page accepte pour toute année que `Year` prend (`RATE_SORTS`), avant de
+connaître celles de la réponse ; sa ligne de totaux dit combien de catégories le serveur retient,
+et la devise. Une cellule saisie part seule par `setHourlyRate`, sans version
 au premier taux d'une année, avec celle du taux lu pour une correction, et le taux répondu prend sa
 place. La saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`),
 comme l'ajout de la colonne d'une année que la grille n'a pas (WF-REF-0060, #299) : le contrat n'a
@@ -507,23 +512,51 @@ aucune opération pour la créer — une année entre dans la grille par son pre
 que la colonne est celle de la grille, vide, à sa place parmi les années, jusqu'à ce que la
 saisie d'une de ses cellules écrive ce premier taux, et elle se retire tant qu'aucun taux n'y est
 saisi ni en cours d'écriture ; une année déjà présente, ou hors des bornes de `Year`, est refusée
-dans la page. À côté, les natures et les catégories de coût — l'écran ne
+dans la page ; la colonne ajoutée se trie comme les autres, le serveur laissant l'ordre du code
+pour une année sans taux. À côté, les natures et les catégories de coût, deux grilles denses
+(`cost-grids.tsx`, #510), triées sur chaque colonne, cherchées, filtrées — les natures par type
+(`kinds`, `ValuesFilter`) et par état, les catégories par nature, offerte parmi toutes celles que la
+session lit, et par état — et paginées par le serveur — l'écran ne
 remplit la fenêtre qu'à partir de la grande largeur (`Screen`, `fillWide`) : en fenêtre étroite, la
 grille et les listes s'empilent et la page défile. Les paramètres de ressources présentent trois
-grilles denses (#301, #511) : l'organisation, une grille arborescente qui ne se trie pas, dans
-l'ordre de `listOrgNodes`, chaque nœud par son libellé décalé de sa profondeur (`level`), qui plie
-ce qui est sous lui comme les grilles de tâches (`GridTree.parent`, `fold.tsx`), son code et son
-niveau ; les rôles, triés par le serveur sur chacune de leurs colonnes et restreints au nœud que
-l'adresse nomme, offert dans l'ordre de l'arbre entier (`org_node_id`) ; les calendriers, triés
-sur leur libellé, leur marque de calendrier par défaut et leur état — le contrat ne trie que sur
-les heures de la semaine entière, qu'aucune colonne ne montre, et les heures d'un jour ne se
-trient pas ; les filtres des autres colonnes, que le contrat ne porte pas, et ce tri sont #533.
-Chacune est cherchée par le serveur, a sa clé de préférences, et écrit son tri et sa
-recherche dans l'adresse sous ses propres noms, ceux du contrat après son préfixe (`org_`,
-`role_`, `calendar_` : `role_search`, `role_sort_by`, `role_sort_order` et, pour la pagination à
-venir, `role_offset` ; `prefixedAddress` de `query.ts`, `GridConfig.address`) : trois grilles
-d'un même écran ne se lisent pas l'une l'autre, et la page demande l'API sous les noms du
-contrat ; l'arbre entier est relu quand une recherche le restreint, pour le filtre des rôles. Les
+grilles denses (#301, #511, #533) : l'organisation, une grille arborescente qui ne se trie pas et
+ne se pagine pas, dans l'ordre de `listOrgNodes`, chaque nœud par son libellé décalé de sa
+profondeur (`level`), qui plie ce qui est sous lui comme les grilles de tâches (`GridTree.parent`,
+`fold.tsx`), son code et son niveau, filtrée par code (`code`), par niveau (`level`, offert parmi
+ceux de l'arbre entier) et par état, le serveur rendant les nœuds retenus et leurs ancêtres, qu'un
+filtre déplie une fois ; les rôles, triés par le serveur sur chacune de leurs colonnes, filtrés par
+nœud (`org_node_id`, offert dans l'ordre de l'arbre entier), par catégorie (`cost_category_id`), par
+calendrier (`calendar_id`) — chacun offert parmi tous ceux que la session lit, lus comme une liste
+de choix (#303), les catégories absentes quand l'API les refuse — et par état, et paginés ; les
+calendriers, triés sur chacune de leurs colonnes, les heures de chaque jour comprises, filtrés par
+état et paginés. Les colonnes de nombres se bornent (#545, WF-IHM-0130) : les heures mensuelles et
+l'effectif d'un rôle, les heures de chaque jour d'un calendrier, le taux d'une année de la grille des
+taux — l'année choisie parmi celles de la grille, écrite avec ses bornes (`rate_year`) —, sous la
+convention du contrat pour toute liste, `<colonne>_min` et `<colonne>_max`, incluses
+(`docs/api/DECISIONS.md`). Le filtre est un composant de la grille, réutilisable pour les montants
+des lots suivants (`RangeFilter` de `components/grid/range-filter.tsx`, `boundsHref` et
+`readBounds` de `filters.ts`) : un formulaire par liste, chaque borne saisie comme la langue écrit un
+nombre (`parseDecimal`) et écrite comme le contrat l'écrit, ramenant la liste à sa première page ;
+une saisie qui n'est pas un nombre, ou un montant de plus de deux décimales, se dit à son champ, qui
+prend le focus, sans rien demander. Le serveur seul juge les bornes : celle qu'il refuse (422) — pas
+un nombre de son type (`NUMBER_INVALID`), une borne supérieure sous l'inférieure, qu'il nomme
+(`VALUE_OUT_OF_RANGE`), l'année du taux manquante (`VALUE_REQUIRED`) — se dit à son champ, qui prend
+le focus (`refusedBounds`, `refusedSides`), et la liste n'est pas lue (`shownPage` d'`address.ts`,
+`BoundsRefused`) ; le reste de l'écran l'est. Chaque champ se nomme par sa colonne et son côté, tous
+deux écrits à côté de lui (« Heures par mois, min. », WCAG 2.5.3). L'arbre se borne aussi sur la
+profondeur (`level_min`, `level_max`), à côté du choix d'une profondeur (`level`) ; le taux ne se
+borne qu'avec une année que le contrat prend, sans quoi la page ne présente pas sa borne. Chacune des grilles du référentiel
+est cherchée par le serveur, a sa clé de préférences, où son tri se garde, et écrit son tri, sa
+recherche, ses filtres et sa page dans l'adresse sous ses propres noms, ceux du contrat après son
+préfixe (`org_`, `role_`, `calendar_`, `type_`, `category_` : `role_search`, `role_sort_by`,
+`role_cost_category_id`, `role_is_active`, `role_offset` ; `prefixedAddress` de `query.ts`,
+`GridConfig.address`) — la grille des taux, celle de la fonction, garde les noms du contrat — : les
+grilles d'un même écran ne se lisent pas l'une l'autre, et la page demande l'API sous les noms du
+contrat ; l'arbre entier est relu quand une recherche ou un filtre le restreint, pour les filtres
+des rôles. Un tri, une recherche ou un filtre ramènent leur liste à sa première page ; un lien de
+page part de la dernière adresse demandée, et mène à la première page quand elle lit la liste
+autrement que celle montrée — le tri d'une autre liste de l'écran n'y comptant pas (`ReferencePages`,
+nommé d'après sa liste) ; la ligne des totaux dit combien le serveur en retient (`meta.total`). Les
 unités de durée suivent. Les paramètres des risques présentent les bornes de la matrice et la zone
 de chaque case, placée par son rang dans l'ordre du contrat, ceux des indicateurs les seuils des
 indices et le délai entre deux revues : des matrices de taille fixe, qui restent des tables
@@ -533,22 +566,29 @@ listes dans le front ; une section se nomme par `aria-label` (#251).
 
 Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
 le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de
-l'écran écrit ou lève par un lien (`InactiveSwitch`) — à une session seulement qui porte la
-permission de lecture de leur partie du référentiel, sans laquelle le contrat le refuse (403,
-`inactiveQuery` d'`address.ts`), comme les listes du devis (#351). Un objet désactivé s'y dit par
-une marque et un mot, et, pour qui peut modifier cette partie (`platformOffer`), s'y réactive par
-la commande d'activation de sa nature (`reactivate`, une action serveur, depuis la version lue),
-puis la page relit ses listes ; le refus se dit au-dessus de la liste (`Reactivations`), qu'une
-cellule de grille n'a pas la place de dire, jusqu'à ce qu'on ferme l'avis — un succès après lui
-ne l'efface pas, et le focus revient à la cellule active de la grille, ou à la liste —, et
-seulement tant que la liste se lit comme au moment de la commande : les paramètres qu'elle lit
-(`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Écart : WF-REF-0080 ne réactive un nœud que sous un parent
-actif, et un rôle que sous un nœud actif ; le contrat ne déclare ni ce refus ni la disponibilité
-de la commande (#532), qui est donc offerte sur tout objet désactivé, et un refus du serveur,
-statut déclaré ou non, se dit comme tout autre. Dans une grille, la commande est hors de la
-tabulation, et Entrée sur sa cellule la presse (`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back
-ignorant `include_inactive` et ne gardant rien, les tests éprouvent ce que l'écran demande ; le
-service le tiendra en EP-05.
+l'écran écrit ou lève par un lien (`InactiveSwitch`), qui ramène chaque liste paginée à sa première
+page — à une session seulement qui porte la permission de lecture de leur partie du référentiel,
+sans laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts`), comme les listes du devis
+(#351). Le filtre par état (`is_active`, `StateFilter`) prime sur lui : tous les états, les actifs
+seuls, ou les désactivés seuls, offert à la même session seulement (`stateOf`). Un objet désactivé
+s'y dit par une marque et un mot, et s'y réactive comme le serveur liste sa commande
+(`available_commands`, #532, WF-IHM-0090) — le serveur ne la liste qu'à qui peut modifier cette
+partie, et le front n'en déduit rien : disponible, par la commande d'activation de sa nature
+(`reactivate`, une action serveur, depuis la version lue), puis la page relit ses listes ;
+indisponible — un nœud sous un parent désactivé, un rôle sous un nœud désactivé (WF-REF-0080) —,
+présentée `aria-disabled`, décrite par ses conditions, et un appui les dit dans la région de la
+liste sans rien demander, comme la suppression d'un rôle porté (#515) ; absente, rien. Un objet ne
+porte que la commande qui change son état : `deactivate`, sur un objet actif, n'est offerte par
+aucun écran encore. Le refus du serveur — le conflit (409), qui nomme le nœud à réactiver d'abord
+d'après la ligne qui le connaît, ou la version périmée (412), avec l'offre de relire — se dit
+au-dessus de la liste (`Reactivations`), qu'une cellule de grille n'a pas la place de dire, jusqu'à
+ce qu'on ferme l'avis — un succès après lui ne l'efface pas, et le focus revient à la cellule active
+de la grille, ou à la liste —, et seulement tant que la liste se lit comme au moment de la commande :
+les paramètres qu'elle lit (`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Dans
+une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la presse
+(`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back ignorant les filtres, les pages et
+`include_inactive`, et ne gardant rien, les tests éprouvent ce que l'écran demande ; le service le
+tiendra en EP-05.
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les
@@ -867,7 +907,8 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; les trois cents projets de
   `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
   structure des coûts, risques et couverture (`wftools.mockportfolio`) — ; les deux cents
-  catégories de coût et quinze ans de taux horaires ;
+  catégories de coût et quinze ans de taux horaires, en une page et par pages, la grille triée
+  aussi par le taux d'une année (`wftools.mockreference`) ;
 - sous `fixtures/api/`, par leur nom, les exemples du témoin, déclarés engendrés dans
   `tools/paths.toml` : les lectures de son cœur (`wftools.mockcore`, décrit une fois dans
   `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`) ; les réponses des

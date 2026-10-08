@@ -25,10 +25,12 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   ``getPortfolioCostStructure`` and ``getPortfolioRisks``: the views of the same projects,
   summed from their rows, so that the list and the views tell the same story;
 - ``cost_categories.json``, ``listCostCategories``: the categories of §4.6.2, most of them
-  labour — the rows of the grid of hourly rates;
+  labour — the rows of the grid of hourly rates —, and their second page
+  (``wftools.mockreference``);
 - ``hourly_rates.json``, ``listHourlyRates``: fifteen years of rates of one labour category;
 - ``hourly_rate_grid.json``, ``getHourlyRateGrid``: the grid of hourly rates, the labour
-  categories in rows and the fifteen years in columns, read in one call (#162).
+  categories in rows and the fifteen years in columns (#162), and its first page sorted by the
+  rate of the reference year (``wftools.mockreference``).
 
 And the named examples of ``listNodes`` and of ``getComputedValueDependencies``, written under
 ``fixtures/api/`` by their name — ``nodes``, ``nodes_core``, ``nodes_planning``,
@@ -70,6 +72,7 @@ from wftools import (
     mockhistory,
     mockids,
     mockportfoliotime,
+    mockreference,
     mocktext,
     mocktoday,
     mockwitness,
@@ -207,7 +210,7 @@ def categories() -> list[JsonValue]:
         for n in range(others - len(non_labor))
     )
     # Each category names its nature as the natures of the universe do (`cost_types.json`).
-    natures = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")}
+    natures = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")["items"]}
     return [
         *_categories(labor, "MO", "641", (LABOR, natures[LABOR])),
         *_categories(non_labor, "ACH", "604", (NON_LABOR, natures[NON_LABOR])),
@@ -335,8 +338,9 @@ def named() -> dict[str, JsonObject]:
 
     Its readings, its writes, its history — its revisions compared and its risks —, its
     indicators today, its actual costs with the journal of their imports; the views of the
-    portfolio over time that sum it with the other projects (``mockportfoliotime``); and the
-    journal of audit of the universe (``mockaudit``).
+    portfolio over time that sum it with the other projects (``mockportfoliotime``); the
+    journal of audit of the universe (``mockaudit``); and the readings of the lists of the
+    reference written by hand (``mockreference``).
     """
     return {
         **readings(),
@@ -346,6 +350,7 @@ def named() -> dict[str, JsonObject]:
         **mockcosts.examples(),
         **mockportfoliotime.examples(),
         **mockaudit.examples(),
+        **mockreference.named(),
     }
 
 
@@ -622,7 +627,7 @@ def volumes() -> dict[str, JsonObject]:
     totals = summed(rows)
     # The witness is read in memory, never from the file the same command writes.
     witness = mocktoday.estimate_today()
-    labels = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")}
+    labels = {nature["cost_type_id"]: nature["label"] for nature in fixture("cost_types")["items"]}
     labels.update((entry["subproject_id"], entry["label"]) for entry in fixture("subprojects"))
     indicators = estimate_indicators(totals, witness, labels)
     projects = portfolio()
@@ -709,24 +714,12 @@ def volumes() -> dict[str, JsonObject]:
             f"peut ouvrir son projet, comme la ligne de ce projet dans la liste (WF-PTF-0030).",
             portfolio_risks(rows),
         ),
-        "cost_categories.json": _example(
-            f"Les {_count(CATEGORY_COUNT)} catégories de coût du §4.6.2, dont "
-            f"{_count(LABOR_CATEGORY_COUNT)} de main-d'œuvre : les lignes de la grille des "
-            f"taux horaires.",
-            categories(),
-        ),
+        **mockreference.examples(categories(), hourly_rate_grid()),
         "hourly_rates.json": _example(
             f"{_count(len(RATE_YEARS))} ans de taux horaires de l'ingénierie électrique, de "
             f"{RATE_YEARS[0]} à {RATE_YEARS[-1]}, l'année de référence du devis, où il vaut "
             f"{_amount(ELECTRICAL_RATE)} de l'heure.",
             hourly_rates(),
-        ),
-        "hourly_rate_grid.json": _example(
-            f"La grille des taux horaires du §4.6.2 : les {_count(LABOR_CATEGORY_COUNT)} "
-            f"catégories de main-d'œuvre en lignes, les {_count(len(RATE_YEARS))} ans de "
-            f"{RATE_YEARS[0]} à {RATE_YEARS[-1]} en colonnes ; une catégorie sans taux pour une "
-            f"année y a une cellule vide (WF-REF-0050, WF-REF-0060).",
-            hourly_rate_grid(),
         ),
     }
 

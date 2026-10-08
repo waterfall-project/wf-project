@@ -1,0 +1,10 @@
+{
+  "summary": "Le bureau d'études automatismes réactivé aujourd'hui, à partir de la version lue, son parent, la direction technique, étant actif : lui seul, sa version avancée d'une, avec la commande qui le désactive ; la cellule robotique, sous lui, et le programmeur d'automates restent désactivés et se réactivent un à un — la réactivation ne cascade pas, et le client relit les listes (WF-REF-0080).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "org_nodes": [
+      {"org_node_id":"01926f3a-7c00-7000-8000-000000000474","code":"BE-AUTO","label":"Bureau d'études automatismes","parent_id":"01926f3a-7c00-7000-8000-000000000470","parent_label":"Direction technique","level":2,"is_active":true,"available_commands":[{"command":"deactivate","is_available":true,"missing_conditions":[]}],"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-06-03T14:05:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":2}
+    ],
+    "resource_roles": []
+  }
+}

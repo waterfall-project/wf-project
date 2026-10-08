@@ -821,7 +821,7 @@ export interface paths {
         };
         /**
          * Arbre d'organisation
-         * @description Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070). Les nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses descendants, les enfants d'un même parent — les racines entre elles aussi — triés par libellé, comparé caractère par caractère dans l'ordre des points de code Unicode, sans égard à la langue du lecteur ; chacun dit sa profondeur (`level`). Une recherche porte sur le libellé et sur le code du nœud (WF-REF-0070) ; elle rend les nœuds retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou.
+         * @description Il classe les rôles de ressources et ne porte aucune habilitation (WF-REF-0070). Les nœuds viennent dans l'ordre de l'arbre, en profondeur : chaque nœud suivi de ses descendants, les enfants d'un même parent — les racines entre elles aussi — triés par libellé, comparé caractère par caractère dans l'ordre des points de code Unicode, sans égard à la langue du lecteur ; chacun dit sa profondeur (`level`). Un arbre ne se trie pas et ne se lit pas par pages : une page couperait un nœud de ses descendants. La recherche (`search`) porte sur le libellé et sur le code du nœud (WF-REF-0070) ; chaque colonne se filtre (WF-IHM-0060, WF-IHM-0130) — le code (`code`), la profondeur (`level`, ou ses bornes `level_min` et `level_max`) et l'état (`is_active`) —, et les filtres se cumulent avec elle. Ils rendent les nœuds retenus et leurs ancêtres, dans le même ordre, pour que l'arbre se lise sans trou ; un ancêtre rendu pour cela seul peut ne pas les satisfaire. Chaque nœud porte la commande qui change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la réactivation d'un nœud dont le parent est désactivé est indisponible (WF-REF-0080).
          */
         get: operations["listOrgNodes"];
         put?: never;
@@ -866,7 +866,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver un nœud
-         * @description La désactivation d'un nœud désactive ses sous-nœuds et les rôles qui lui sont rattachés (WF-REF-0080). Aucune suppression n'est offerte (WF-REF-0010).
+         * @description La désactivation d'un nœud désactive ses descendants et les rôles qui sont rattachés à lui ou à l'un d'eux (WF-REF-0080). La réactivation ne rend actif que le nœud : ses descendants et leurs rôles restent désactivés, et se réactivent un à un, chacun sous un parent redevenu actif ; elle est refusée tant que le parent du nœud est désactivé (WF-REF-0080), ce que la commande `reactivate` du nœud dit d'avance (`available_commands`). Aucune suppression n'est offerte (WF-REF-0010). Relève de la permission de modification des paramètres de ressources (WF-ADM-0100). L'écriture change la disponibilité des commandes d'autres objets — la réactivation des enfants du nœud et de ses rôles —, que la réponse ne porte pas : le client relit les listes.
          */
         put: operations["setOrgNodeActivation"];
         post?: never;
@@ -885,7 +885,7 @@ export interface paths {
         };
         /**
          * Rôles de ressources
-         * @description Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris (WF-REF-0090, WF-REF-0100, WF-REF-0150). Les rôles actifs se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit le rôle d'une ligne de devis (WF-DEV-0020). Les rôles désactivés (`include_inactive`) et toute écriture restent sous la permission des paramètres de ressources (WF-ADM-0100) : sans elle, `include_inactive` est refusé par 403.
+         * @description Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris (WF-REF-0090, WF-REF-0100, WF-REF-0150). Les rôles actifs se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit le rôle d'une ligne de devis (WF-DEV-0020). Les rôles désactivés (`include_inactive`, `is_active` faux) et toute écriture restent sous la permission des paramètres de ressources (WF-ADM-0100) : sans elle, l'un et l'autre sont refusés par 403. Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le libellé du rôle ; le nœud, la catégorie, le calendrier et l'état se filtrent, les heures mensuelles et l'effectif de la capacité se bornent (`<colonne>_min`, `<colonne>_max`, inclusives), et `meta.total` compte les rôles retenus. Chaque rôle porte la commande qui change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la réactivation d'un rôle dont le nœud est désactivé est indisponible (WF-REF-0080).
          */
         get: operations["listResourceRoles"];
         put?: never;
@@ -930,7 +930,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver un rôle de ressource
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020).
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). Un rôle ne se réactive que si son nœud est actif (WF-REF-0080), ce que sa commande `reactivate` dit d'avance (`available_commands`) ; sa catégorie et son calendrier, eux, peuvent rester désactivés, aucune exigence ne conditionnant la réactivation à leur état. Relève de la permission de modification des paramètres de ressources (WF-ADM-0100).
          */
         put: operations["setResourceRoleActivation"];
         post?: never;
@@ -973,7 +973,7 @@ export interface paths {
         };
         /**
          * Calendriers
-         * @description Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120).
+         * @description Les calendriers et celui qui sert par défaut (WF-REF-0110, WF-REF-0120). Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le libellé du calendrier, l'état se filtre, les heures de chaque jour se bornent (`<jour>_min`, `<jour>_max`, inclusives), et `meta.total` compte les calendriers retenus. Le calendrier par défaut ne se filtre pas, un seul l'étant, que le tri par `is_default` met en tête. Chaque calendrier porte la commande qui change son état, disponible ou non (`available_commands`, WF-IHM-0090) : la désactivation du calendrier par défaut est indisponible (WF-REF-0120).
          */
         get: operations["listCalendars"];
         put?: never;
@@ -1018,7 +1018,7 @@ export interface paths {
         get?: never;
         /**
          * Désigner le calendrier par défaut
-         * @description Un et un seul calendrier actif est par défaut ; la désignation la retire au précédent (WF-REF-0120). Les tâches sans ligne de main-d'œuvre relèvent du calendrier par défaut (WF-PLA-0010) : un calendrier sans aucune heure dans la semaine ne peut pas l'être tant qu'une telle tâche existe dans une révision en cours.
+         * @description Un et un seul calendrier actif est par défaut ; la désignation la retire au précédent (WF-REF-0120). Les tâches sans ligne de main-d'œuvre relèvent du calendrier par défaut (WF-PLA-0010) : un calendrier sans aucune heure dans la semaine ne peut pas l'être tant qu'une telle tâche existe dans une révision en cours. L'écriture change la disponibilité de la désactivation des deux calendriers, que la réponse ne porte que pour l'un (`calendar_not_default`) : le client relit la liste.
          */
         put: operations["setDefaultCalendar"];
         post?: never;
@@ -1038,7 +1038,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver un calendrier
-         * @description La désactivation du calendrier par défaut est refusée tant qu'un autre n'a pas été désigné (WF-REF-0120).
+         * @description La désactivation du calendrier par défaut est refusée tant qu'un autre n'a pas été désigné (WF-REF-0120), ce que sa commande `deactivate` dit d'avance (`available_commands`). Aucune suppression n'est offerte (WF-REF-0010). Relève de la permission de modification des paramètres de ressources (WF-ADM-0100).
          */
         put: operations["setCalendarActivation"];
         post?: never;
@@ -1057,7 +1057,7 @@ export interface paths {
         };
         /**
          * Natures de coût
-         * @description Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150).
+         * @description Les natures de coût, désactivées comprises (WF-REF-0030, WF-REF-0150). Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la nature ; le type et l'état se filtrent, et `meta.total` compte les natures retenues. Chaque nature porte la commande qui change son état (`available_commands`, WF-IHM-0090).
          */
         get: operations["listCostTypes"];
         put?: never;
@@ -1102,7 +1102,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver une nature de coût
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020).
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). Aucun état ne l'interdit : la commande de la nature est toujours disponible (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100).
          */
         put: operations["setCostTypeActivation"];
         post?: never;
@@ -1121,7 +1121,7 @@ export interface paths {
         };
         /**
          * Catégories de coût
-         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` est refusé par 403.
+         * @description Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040, WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle, `include_inactive` et `is_active` faux sont refusés par 403. Une table plate, triée, filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et sur son code comptable, la colonne qui n'a pas d'autre filtre ; la nature et l'état se filtrent, et `meta.total` compte les catégories retenues. Chaque catégorie porte la commande qui change son état (`available_commands`, WF-IHM-0090).
          */
         get: operations["listCostCategories"];
         put?: never;
@@ -1166,7 +1166,7 @@ export interface paths {
         get?: never;
         /**
          * Désactiver ou réactiver une catégorie de coût
-         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020).
+         * @description Aucune suppression n'est offerte, et la désactivation laisse les projets intacts (WF-REF-0010, WF-REF-0020). Aucun état ne l'interdit — une catégorie se réactive même sous une nature désactivée, aucune exigence ne l'en empêchant : sa commande est toujours disponible (`available_commands`). Relève de la permission de modification des paramètres de coûts (WF-ADM-0100).
          */
         put: operations["setCostCategoryActivation"];
         post?: never;
@@ -1185,7 +1185,7 @@ export interface paths {
         };
         /**
          * Grille des taux horaires
-         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100). `search` retient les catégories dont le code ou le libellé contient le texte cherché (WF-IHM-0130), les années restant celles de toute la grille.
+         * @description Une ligne par catégorie de main-d'œuvre, une colonne par année qui porte un taux, en une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive` (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100). Une table plate, triée et paginée par le serveur comme les autres listes du référentiel (WF-IHM-0060) : `search` retient les catégories dont le code ou le libellé contient le texte cherché (WF-IHM-0130), l'état se filtre (`is_active`), le taux d'une année se borne (`rate_year`, `rate_min`, `rate_max`), `sort_by` les ordonne, et `meta.total` compte les catégories retenues ; les années restent celles de toute la grille, quels que soient la page, la recherche, les filtres et le tri.
          */
         get: operations["getHourlyRateGrid"];
         put?: never;
@@ -2660,7 +2660,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -3142,6 +3142,24 @@ export interface components {
             max_weeks_between_reviews?: number;
             lock_version: components["schemas"]["LockVersion"];
         };
+        /**
+         * @description Commandes portées par un objet du référentiel — nœud d'organisation, rôle de ressource, calendrier, nature et catégorie de coût (WF-IHM-0090) : le désactiver et le réactiver, par l'opération de son activation (`setOrgNodeActivation`, `setResourceRoleActivation`, `setCalendarActivation`, `setCostTypeActivation`, `setCostCategoryActivation`) ; aucune ne le supprime (WF-REF-0010). Un objet ne porte que celle qui change son état : `deactivate` s'il est actif, `reactivate` s'il est désactivé. L'une et l'autre relèvent de la permission de modification de sa fonction — `resource_settings.write` pour les nœuds, les rôles et les calendriers, `cost_settings.write` pour les natures et les catégories (WF-ADM-0100). La réactivation d'un nœud dont le parent est désactivé est indisponible, `org_node_parent_active` manquante, et celle d'un rôle dont le nœud est désactivé, `org_node_active` manquante (WF-REF-0080) ; la désactivation du calendrier par défaut, `calendar_not_default` manquante, tant qu'un autre n'a pas été désigné (WF-REF-0120). Toute autre est disponible dès qu'elle est listée : aucune exigence ne conditionne la réactivation d'une catégorie à sa nature, ni celle d'un rôle à sa catégorie ou à son calendrier.
+         * @enum {string}
+         */
+        ReferenceCommand: "deactivate" | "reactivate";
+        /**
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0080, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans leur 409.
+         * @enum {string}
+         */
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "org_node_parent_active" | "org_node_active" | "calendar_not_default";
+        ReferenceCommandAvailability: {
+            command: components["schemas"]["ReferenceCommand"];
+            is_available: boolean;
+            /** @description Vide lorsque la commande est disponible. */
+            missing_conditions: components["schemas"]["CommandCondition"][];
+        };
+        /** @description Commandes de l'objet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090, `ReferenceCommand`) : au plus une, celle qui change son état. Une commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit l'objet sans la permission de modifier sa fonction — un rôle ou une catégorie lus pour choisir ceux d'une ligne de devis (WF-DEV-0020). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
+        ReferenceCommands: components["schemas"]["ReferenceCommandAvailability"][];
         /** @description Nœud de l'arbre d'organisation, qui porte un code unique et un libellé. Il ne porte aucune habilitation (WF-REF-0070). */
         OrgNode: {
             org_node_id: components["schemas"]["Uuid"];
@@ -3154,6 +3172,7 @@ export interface components {
             /** @description Profondeur du nœud dans l'arbre, résolue à la lecture : 1 pour une racine, celle de son parent plus un pour les autres — un arbre de six niveaux va de 1 à 6 (WF-REF-0070). */
             level: number;
             is_active: boolean;
+            available_commands: components["schemas"]["ReferenceCommands"];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -3173,8 +3192,8 @@ export interface components {
             monthly_hours: components["schemas"]["Hours"];
             headcount: components["schemas"]["Decimal"];
         };
-        /** @description Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100). */
-        ResourceRole: {
+        /** @description Rôle de ressource. Il relève d'un nœud d'organisation, d'une catégorie de coût et d'un calendrier (WF-REF-0090), et porte une capacité unique (WF-REF-0100). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
+        ResourceRoleImage: {
             resource_role_id: components["schemas"]["Uuid"];
             label: string;
             org_node_id: components["schemas"]["Uuid"];
@@ -3191,6 +3210,12 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Ce qu'un objet du référentiel lu aujourd'hui ajoute à son image : ses commandes. Une image figée par une révision marquée n'en porte pas (`EmployedReference`). */
+        ReferenceObjectCommands: {
+            available_commands: components["schemas"]["ReferenceCommands"];
+        };
+        /** @description Rôle de ressource tel que le référentiel le lit aujourd'hui : son image, et ses commandes (`available_commands`, WF-IHM-0090). */
+        ResourceRole: components["schemas"]["ResourceRoleImage"] & components["schemas"]["ReferenceObjectCommands"];
         ResourceRoleWrite: {
             label: string;
             org_node_id: components["schemas"]["Uuid"];
@@ -3228,8 +3253,8 @@ export interface components {
             saturday: components["schemas"]["Hours"];
             sunday: components["schemas"]["Hours"];
         };
-        /** @description Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut (WF-REF-0120). */
-        Calendar: {
+        /** @description Calendrier : sept valeurs d'heures, du lundi au dimanche. Ni jours fériés ni temps partiels (WF-REF-0110). Un et un seul calendrier actif est par défaut (WF-REF-0120). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
+        CalendarImage: {
             calendar_id: components["schemas"]["Uuid"];
             label: string;
             weekly_hours: components["schemas"]["WeeklyHours"];
@@ -3238,6 +3263,8 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Calendrier tel que le référentiel le lit aujourd'hui : son image, et ses commandes (`available_commands`, WF-IHM-0090). */
+        Calendar: components["schemas"]["CalendarImage"] & components["schemas"]["ReferenceObjectCommands"];
         CalendarWrite: {
             label: string;
             weekly_hours: components["schemas"]["WeeklyHours"];
@@ -3258,6 +3285,7 @@ export interface components {
             label: string;
             kind: components["schemas"]["CostTypeKind"];
             is_active: boolean;
+            available_commands: components["schemas"]["ReferenceCommands"];
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
@@ -3270,8 +3298,8 @@ export interface components {
         CostTypeUpdate: components["schemas"]["CostTypeWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Catégorie de coût, rattachée à une nature (WF-REF-0040). */
-        CostCategory: {
+        /** @description Catégorie de coût, rattachée à une nature (WF-REF-0040). L'image seule, sans commandes : celle qu'une révision marquée fige (`EmployedReference`). */
+        CostCategoryImage: {
             cost_category_id: components["schemas"]["Uuid"];
             code: string;
             label: string;
@@ -3284,6 +3312,8 @@ export interface components {
             audit: components["schemas"]["Audit"];
             lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Catégorie de coût telle que le référentiel la lit aujourd'hui : son image, et ses commandes (`available_commands`, WF-IHM-0090). */
+        CostCategory: components["schemas"]["CostCategoryImage"] & components["schemas"]["ReferenceObjectCommands"];
         CostCategoryWrite: {
             code: string;
             label: string;
@@ -3314,12 +3344,13 @@ export interface components {
             /** @description Le taux de chaque année de `years`, à la même place ; nul pour une année sans taux (WF-REF-0060). */
             cells: (components["schemas"]["HourlyRate"] | null)[];
         };
-        /** @description La grille des taux horaires en une lecture : une ligne par catégorie de main-d'œuvre, une colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour une catégorie est une cellule vide, et aucune colonne n'est créée d'elle-même : une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Cent cinquante catégories et quinze ans (§4.6.2) tiennent en une réponse. */
+        /** @description Une page de la grille des taux horaires : une ligne par catégorie de main-d'œuvre, une colonne par année qui porte au moins un taux (WF-REF-0050). Une année sans taux pour une catégorie est une cellule vide, et aucune colonne n'est créée d'elle-même : une année s'ajoute par le premier taux qu'on y saisit (WF-REF-0060). Les colonnes sont celles de toute la grille, quelles que soient la page, la recherche et le tri : une colonne ne disparaît pas d'une page à l'autre. */
         HourlyRateGrid: {
-            /** @description Les années de la grille, croissantes ; les colonnes. */
+            /** @description Les années de toute la grille, croissantes ; les colonnes. Elles ne dépendent que de la portée de la lecture : les années où une catégorie active porte un taux, et où une catégorie active ou désactivée en porte un quand `include_inactive` est vrai ou `is_active` faux. Elles ne dépendent jamais d'`is_active` vrai, de la recherche, des bornes, du tri ni de la page : une colonne ne disparaît pas d'une page ou d'un filtre à l'autre. */
             years: components["schemas"]["Year"][];
-            /** @description Les catégories de main-d'œuvre, dans l'ordre de `listCostCategories`. */
+            /** @description Les catégories de main-d'œuvre de la page, dans l'ordre demandé (`sort_by`) — absent, celui du code. */
             rows: components["schemas"]["HourlyRateRow"][];
+            meta: components["schemas"]["PaginationMeta"];
         };
         /** @description Le compteur est absent à la première saisie de l'année, où le taux n'existe pas encore, et obligatoire pour corriger un taux déjà saisi. */
         HourlyRateWrite: {
@@ -3341,11 +3372,6 @@ export interface components {
          * @enum {string}
          */
         ProjectCommand: "update" | "manage_contributors" | "create_revision" | "complete" | "lose" | "abandon" | "edit_risks" | "declare_risk_occurrence" | "import_actual_costs" | "exclude_cost_lines" | "import_planning" | "import_estimate" | "import_remaining";
-        /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `edit_estimate`, `edit_remaining`, `edit_risks`, `create_structure`, `merge_structure`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0080, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020) et la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409.
-         * @enum {string}
-         */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "unmerged_amendment_exists" | "task_not_completed" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "risk_not_cited" | "risk_not_occurred" | "risk_identified";
         ProjectCommandAvailability: {
             command: components["schemas"]["ProjectCommand"];
             is_available: boolean;
@@ -3500,11 +3526,11 @@ export interface components {
          * @enum {string}
          */
         RevisionStatus: "draft" | "marked";
-        /** @description Images des objets du référentiel employés, figées au marquage (WF-REV-0030, WF-REF-0130). */
+        /** @description Images des objets du référentiel employés, figées au marquage (WF-REV-0030, WF-REF-0130) : sans les commandes qu'un objet lu aujourd'hui porte, qu'une image n'a pas. */
         EmployedReference: {
-            resource_roles: components["schemas"]["ResourceRole"][];
-            calendars: components["schemas"]["Calendar"][];
-            cost_categories: components["schemas"]["CostCategory"][];
+            resource_roles: components["schemas"]["ResourceRoleImage"][];
+            calendars: components["schemas"]["CalendarImage"][];
+            cost_categories: components["schemas"]["CostCategoryImage"][];
             hourly_rates: components["schemas"]["HourlyRate"][];
         };
         /** @description Ce que la révision conserve de son contexte : les paramètres du projet qui ont servi à la calculer et les seules valeurs du référentiel qu'elle emploie (WF-REV-0030). */
@@ -4809,6 +4835,8 @@ export interface components {
         BackupId: components["schemas"]["Uuid"];
         /** @description Le nom d'un emplacement externe que l'installation déclare. */
         ExternalBackupLocationName: components["schemas"]["ExternalBackupLocationName"];
+        /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+        IsActive: boolean;
         OrgNodeId: components["schemas"]["Uuid"];
         ResourceRoleId: components["schemas"]["Uuid"];
         CalendarId: components["schemas"]["Uuid"];
@@ -6240,6 +6268,16 @@ export interface operations {
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
+                /** @description Restreint aux nœuds dont le code contient le texte donné, comparé comme la recherche (WF-IHM-0130). */
+                code?: string;
+                /** @description Restreint aux nœuds de cette profondeur, 1 pour une racine : l'égalité, que le filtre de la colonne choisit parmi les profondeurs de l'arbre (WF-IHM-0130). Avec `level_min` ou `level_max`, les deux s'appliquent. */
+                level?: number;
+                /** @description Borne inférieure, incluse, de la profondeur : restreint aux nœuds au moins aussi profonds (WF-IHM-0130). */
+                level_min?: number;
+                /** @description Borne supérieure, incluse, de la profondeur : restreint aux nœuds qui ne sont pas plus profonds (WF-IHM-0130). Inférieure à `level_min`, elle est refusée par 422. */
+                level_max?: number;
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
             };
             header?: never;
             path?: never;
@@ -6258,6 +6296,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne de la profondeur mal formée, `/query/<borne>` par `NUMBER_INVALID`, ou `level_max` inférieure à `level_min`, `/query/level_max` par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée : `VALIDATION_FAILED`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createOrgNode: {
@@ -6337,7 +6384,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Activation modifiée, avec la cascade appliquée. */
+            /** @description Activation modifiée : les nœuds et les rôles dont l'état a changé, la cascade appliquée à une désactivation ; le nœud seul à une réactivation. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6352,18 +6399,52 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La réactivation d'un nœud dont le parent est désactivé, refusée, rien n'étant écrit (WF-REF-0080) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `org_node_parent_active`, `params.conflicting_object_id` le parent désactivé, à réactiver d'abord. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du nœud : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listResourceRoles: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux rôles qui relèvent du nœud : rattachés à lui ou à l'un de ses descendants (WF-REF-0070). */
                 org_node_id?: components["schemas"]["Uuid"];
-                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, le nœud d'organisation, la catégorie et le calendrier — par leurs libellés —, les heures mensuelles et l'effectif de la capacité, et l'état, les rôles désactivés après les actifs dans l'ordre croissant (WF-IHM-0060). */
+                /** @description Restreint aux rôles rattachés à cette catégorie de coût (WF-IHM-0130). */
+                cost_category_id?: components["schemas"]["Uuid"];
+                /** @description Restreint aux rôles rattachés à ce calendrier (WF-IHM-0130). */
+                calendar_id?: components["schemas"]["Uuid"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description Borne inférieure, incluse, des heures mensuelles de la capacité : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                monthly_hours_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures mensuelles de la capacité : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `monthly_hours_min`, elle est refusée par 422. */
+                monthly_hours_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, de l'effectif de la capacité : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                headcount_min?: components["schemas"]["Decimal"];
+                /** @description Borne supérieure, incluse, de l'effectif de la capacité : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `headcount_min`, elle est refusée par 422. */
+                headcount_max?: components["schemas"]["Decimal"];
+                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des rôles : le libellé, le nœud d'organisation, la catégorie et le calendrier — par leurs libellés —, les heures mensuelles et l'effectif de la capacité, et l'état, les rôles désactivés après les actifs dans l'ordre croissant (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
                 sort_by?: "label" | "org_node" | "cost_category" | "calendar" | "monthly_hours" | "headcount" | "is_active";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
@@ -6380,12 +6461,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ResourceRole"][];
+                    "application/json": {
+                        items: components["schemas"]["ResourceRole"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à sa borne inférieure (`monthly_hours`, `headcount`) : `fields[]` désignant la borne supérieure, `/query/<colonne>_max`, par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createResourceRole: {
@@ -6484,6 +6577,24 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La réactivation d'un rôle dont le nœud est désactivé, refusée, rien n'étant écrit (WF-REF-0080) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `org_node_active`, `params.conflicting_object_id` le nœud désactivé, à réactiver d'abord. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du rôle : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getDurationUnits: {
@@ -6538,12 +6649,44 @@ export interface operations {
     listCalendars: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
-                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des calendriers : le libellé, les heures de la semaine — leur somme —, le calendrier par défaut en premier dans l'ordre croissant, et l'état, les désactivés après les actifs (WF-IHM-0060). */
-                sort_by?: "label" | "weekly_hours" | "is_default" | "is_active";
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description Borne inférieure, incluse, des heures du lundi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                monday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du lundi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `monday_min`, elle est refusée par 422. */
+                monday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du mardi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                tuesday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du mardi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `tuesday_min`, elle est refusée par 422. */
+                tuesday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du mercredi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                wednesday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du mercredi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `wednesday_min`, elle est refusée par 422. */
+                wednesday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du jeudi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                thursday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du jeudi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `thursday_min`, elle est refusée par 422. */
+                thursday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du vendredi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                friday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du vendredi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `friday_min`, elle est refusée par 422. */
+                friday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du samedi : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                saturday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du samedi : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `saturday_min`, elle est refusée par 422. */
+                saturday_max?: components["schemas"]["Hours"];
+                /** @description Borne inférieure, incluse, des heures du dimanche : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                sunday_min?: components["schemas"]["Hours"];
+                /** @description Borne supérieure, incluse, des heures du dimanche : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `sunday_min`, elle est refusée par 422. */
+                sunday_max?: components["schemas"]["Hours"];
+                /** @description Colonne du tri ; absente, le libellé. Les colonnes de la table des calendriers : le libellé, les heures de chaque jour, du lundi (`monday`) au dimanche (`sunday`), les heures de la semaine — leur somme —, le calendrier par défaut en premier dans l'ordre croissant, et l'état, les désactivés après les actifs (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
+                sort_by?: "label" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday" | "weekly_hours" | "is_default" | "is_active";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
             };
@@ -6559,11 +6702,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Calendar"][];
+                    "application/json": {
+                        items: components["schemas"]["Calendar"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à sa borne inférieure (`monday` à `sunday`) : `fields[]` désignant la borne supérieure, `/query/<colonne>_max`, par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     createCalendar: {
@@ -6697,19 +6852,40 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description La désactivation du calendrier par défaut, refusée, rien n'étant écrit (WF-REF-0120) : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `calendar_not_default` ; un autre calendrier se désigne d'abord par défaut (`setDefaultCalendar`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La version envoyée n'est plus celle du calendrier : il a été modifié depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listCostTypes: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
                 /** @description Restreint aux natures de ces types (WF-IHM-0130). */
                 kinds?: components["schemas"]["CostTypeKind"][];
-                /** @description Colonne du tri ; absente, le code. Les colonnes de la table des natures : le code, le libellé, le type et l'état, les natures désactivées après les actives dans l'ordre croissant (WF-IHM-0060). */
+                /** @description Colonne du tri ; absente, le code. Les colonnes de la table des natures : le code, le libellé, le type et l'état, les natures désactivées après les actives dans l'ordre croissant (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
                 sort_by?: "code" | "label" | "kind" | "is_active";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
@@ -6726,7 +6902,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CostType"][];
+                    "application/json": {
+                        items: components["schemas"]["CostType"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -6822,18 +7001,31 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La version envoyée n'est plus celle de la nature : elle a été modifiée depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listCostCategories: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
                 /** @description Restreint aux catégories d'une nature de coût (WF-IHM-0130). */
                 cost_type_id?: components["schemas"]["Uuid"];
-                /** @description Colonne du tri ; absente, le code. Les colonnes de la table des catégories : le code, le libellé, la nature — par son libellé —, le code comptable — une catégorie sans code après les autres dans l'ordre croissant — et l'état, les catégories désactivées après les actives (WF-IHM-0060). */
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description Colonne du tri ; absente, le code. Les colonnes de la table des catégories : le code, le libellé, la nature — par son libellé —, le code comptable — une catégorie sans code après les autres dans l'ordre croissant — et l'état, les catégories désactivées après les actives (WF-IHM-0060). À égalité, l'ordre de la liste sans tri, puis l'identifiant. */
                 sort_by?: "code" | "label" | "cost_type" | "accounting_code" | "is_active";
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
@@ -6850,7 +7042,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CostCategory"][];
+                    "application/json": {
+                        items: components["schemas"]["CostCategory"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -6946,15 +7141,38 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description La version envoyée n'est plus celle de la catégorie : elle a été modifiée depuis sa lecture, et rien n'est écrit (WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getHourlyRateGrid: {
         parameters: {
             query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
                 /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. */
                 search?: components["parameters"]["Search"];
+                /** @description Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans effet : la permission se juge sur la requête, non sur ce qu'elle rendrait. */
+                is_active?: components["parameters"]["IsActive"];
+                /** @description L'année dont `rate_min` et `rate_max` bornent le taux, la colonne que `rate.<année>` trie ; exigée avec l'une d'elles, refusée par 422 sinon (`VALUE_REQUIRED`). Seule, sans borne, elle est sans effet : elle ne filtre ni ne trie. Une catégorie sans taux cette année-là n'est retenue par aucune borne. */
+                rate_year?: components["schemas"]["Year"];
+                /** @description Borne inférieure, incluse, du taux de l'année `rate_year` : restreint aux lignes qui en ont au moins autant (WF-IHM-0130). */
+                rate_min?: components["schemas"]["Money"];
+                /** @description Borne supérieure, incluse, du taux de l'année `rate_year` : restreint aux lignes qui n'en ont pas plus (WF-IHM-0130). Inférieure à `rate_min`, elle est refusée par 422. */
+                rate_max?: components["schemas"]["Money"];
+                /** @description Colonne du tri ; absente, le code. Les colonnes de la grille : le code, le libellé, l'état — les catégories désactivées après les actives dans l'ordre croissant —, et le taux d'une année, `rate.<année>`, `rate.2026` par exemple : une catégorie sans taux cette année-là vient après les autres dans l'ordre croissant, avant dans le décroissant, et des catégories au même taux, ou sans taux, restent dans l'ordre du code — une année que la grille ne porte pas laisse donc l'ordre du code (WF-IHM-0060). Les textes se comparent dans l'ordre des points de code Unicode. À égalité, l'ordre de la grille sans tri, puis l'identifiant. */
+                sort_by?: ("code" | "label" | "is_active") | string;
+                /** @description Sens du tri demandé par `sort_by`. */
+                sort_order?: components["parameters"]["SortOrder"];
             };
             header?: never;
             path?: never;
@@ -6974,6 +7192,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`, `fields[]` la désignant, `/query/<borne>`, par `NUMBER_INVALID`. Une borne supérieure inférieure à sa borne inférieure (`rate`) : `fields[]` désignant la borne supérieure, `/query/<colonne>_max`, par `VALUE_OUT_OF_RANGE`, `params.minimum` la borne inférieure donnée ; une borne sans son année, `/query/rate_year` par `VALUE_REQUIRED`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listHourlyRates: {

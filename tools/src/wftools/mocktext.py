@@ -25,18 +25,21 @@ CORE_ONLY = "Lu sur le seul cœur du témoin, jusqu'à EP-02/L45 (#528)."
 structure (#376): its figures are not those of the thousand tasks that carry the core."""
 
 
-def _default_limit() -> int:
-    """Return the default of the parameter `Limit` of the contract: one page of a list."""
+def _limit(key: str) -> int:
+    """Return a bound of the parameter `Limit` of the contract: its default, or its maximum."""
     text = (REPOSITORY / "docs/api/components/parameters.yaml").read_text(encoding="utf-8")
-    found = re.search(r"^Limit:\n(?:[ \t].*\n)*?.*default:\s*(\d+)", text, re.MULTILINE)
+    found = re.search(rf"^Limit:\n(?:[ \t].*\n)*?.*\b{key}:\s*(\d+)", text, re.MULTILINE)
     if found is None:
-        message = "the parameter Limit of the contract has no default"
+        message = f"the parameter Limit of the contract has no {key}"
         raise ValueError(message)
     return int(found.group(1))
 
 
-PAGE = _default_limit()
+PAGE = _limit("default")
 """The page of a list when none is asked: the default of `Limit`, read from the contract."""
+
+MAX_LIMIT = _limit("maximum")
+"""The largest page the contract takes: the maximum of `Limit`, read from the contract."""
 
 DESCRIPTION = "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas."
 

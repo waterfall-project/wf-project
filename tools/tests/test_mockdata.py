@@ -45,8 +45,12 @@ def first_example(path: str, operation: str) -> str:
 def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> None:
     assert sorted(volumes) == [
         "cost_categories.json",
+        "cost_categories_page.json",
+        "cost_categories_reader.json",
         "estimate_indicators_volume.json",
         "hourly_rate_grid.json",
+        "hourly_rate_grid_bounded.json",
+        "hourly_rate_grid_by_rate.json",
         "hourly_rates.json",
         "nodes_thousand.json",
         "portfolio_cost_structure.json",
@@ -161,10 +165,11 @@ def test_the_indicators_keep_the_context_and_labels_of_the_universe(
     assert indicators["context"] == witness["context"]
     assert indicators["delta_to_reference"] == witness["delta_to_reference"]
     assert indicators["delta_to_previous_revision"] == witness["delta_to_previous_revision"]
-    natures = mockwitness.fixture("cost_types")
-    assert [(part["key"], part["label"]) for part in indicators["by_cost_type"]] == [
+    natures = mockwitness.by_identifier("cost_types", "cost_type_id")
+    # The contract fixes no order of the natures: each part is told by its key and its label.
+    assert {(part["key"], part["label"]) for part in indicators["by_cost_type"]} == {
         (nature["cost_type_id"], nature["label"]) for nature in natures
-    ]
+    }
     subprojects = [
         (entry["subproject_id"], entry["label"]) for entry in mockwitness.fixture("subprojects")
     ]
@@ -396,7 +401,10 @@ def test_every_view_of_the_portfolio_is_read_today(volumes: dict[str, Any]) -> N
 
 
 def test_the_roles_of_the_workload_are_those_of_the_universe() -> None:
-    roles = {role["resource_role_id"]: role for role in mockwitness.fixture("resource_roles")}
+    roles = {
+        role["resource_role_id"]: role
+        for role in mockwitness.by_identifier("resource_roles", "resource_role_id")
+    }
     workload = mockwitness.fixture("portfolio_workload")
     assert [role["resource_role_id"] for role in workload["roles"]] == [
         key for key, role in roles.items() if role["is_active"]
@@ -514,7 +522,7 @@ def test_the_grid_of_rates_has_the_labour_categories_in_rows_and_the_years_in_co
     assert len(rows) == 150
     labour = [
         category
-        for category in volumes["cost_categories.json"]["value"]
+        for category in volumes["cost_categories.json"]["value"]["items"]
         if category["cost_type_id"] == mockstructure.LABOR
     ]
     assert [row["cost_category_id"] for row in rows] == [c["cost_category_id"] for c in labour]
@@ -555,7 +563,7 @@ def test_the_grid_of_rates_agrees_with_the_rates_of_one_category_and_leaves_cell
 def test_two_hundred_categories_a_hundred_and_fifty_of_them_labour(
     volumes: dict[str, Any],
 ) -> None:
-    categories = volumes["cost_categories.json"]["value"]
+    categories = volumes["cost_categories.json"]["value"]["items"]
     assert len(categories) == 200
     kinds = Counter(category["cost_type_id"] for category in categories)
     assert kinds == {
@@ -572,7 +580,8 @@ def test_two_hundred_categories_a_hundred_and_fifty_of_them_labour(
     assert used <= labels.keys()
     # Each category names its nature as the natures of the universe do (WF-ARC-0020).
     natures = {
-        nature["cost_type_id"]: nature["label"] for nature in mockwitness.fixture("cost_types")
+        nature["cost_type_id"]: nature["label"]
+        for nature in mockwitness.fixture("cost_types")["items"]
     }
     assert all(
         category["cost_type_label"] == natures[category["cost_type_id"]] for category in categories

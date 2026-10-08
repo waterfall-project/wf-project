@@ -11,10 +11,15 @@
  * Each cell entered is written alone (`setHourlyRate`): the first rate of a year without a
  * version, a correction with the version of the rate read; the rate the server answers takes the
  * place of the cell, and a refusal is told as every grid tells one. A year without a rate is an
- * empty cell; no column appears of itself (WF-REF-0060). The server orders the rows and searches
- * them (`search`); the grid sorts nothing, and its totals row says the currency, never a sum. The
- * state of each category says the deactivated ones, which the page reads when the address asks
- * for them (WF-REF-0150); the list of the categories reactivates them.
+ * empty cell; no column appears of itself (WF-REF-0060). The server orders the rows, searches them
+ * (`search`) and pages them (`offset`), as the address asks under the names of the contract: each
+ * column sorts (#509, WF-IHM-0060) — the code, the label, the state, and the rate of each year
+ * (`rate.<year>`) —, the years being those of the whole grid on every page. Its totals row says how
+ * many categories the server retained and the currency of the rates, never a sum; its pages lead
+ * to the others (`ReferencePages`). The page filters it, beside it, on the state of the categories
+ * and on the bounds of the rate of a year (`RateFilterBar`, #545). The state of each category says the deactivated ones, which the
+ * page reads when the address asks for them (WF-REF-0150); the list of the categories reactivates
+ * them.
  *
  * A session that may enter the rates adds the column of a year the grid has none for (WF-REF-0060):
  * the contract has no operation for it — a year comes into the grid with the first rate entered in
@@ -23,8 +28,9 @@
  * grid already has, or that the contract does not take (`Year`, 2000 to 2100), is refused at once;
  * the rates of the other years are left as they are. A column added whose cells hold no rate yet is
  * taken away as it came — not while its first rate is being written —; once a rate is entered, it
- * is the server's. A reading anew — a search, a reload — that
- * holds the year shows it as the server gives it.
+ * is the server's. A reading anew — a search, a sort, a page, a reload — that holds the year shows
+ * it as the server gives it; the column of a year added sorts as the others, the server leaving the
+ * order of the code for a year without a rate.
  */
 "use client";
 
@@ -37,12 +43,25 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import type { GridColumn, GridConfig, RowsWritten } from "@/components/grid/columns";
 import { DenseGrid } from "@/components/grid/dense-grid";
-import type { GridQuery } from "@/components/grid/query";
+import { boundNames } from "@/components/grid/filters";
+import { CONTRACT_ADDRESS, type GridQuery, OFFSET } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { listReads } from "./address";
+import {
+  FIRST_YEAR,
+  LAST_YEAR,
+  RATE_COLUMN,
+  RATE_GRID_KEY,
+  RATE_STATE,
+  RATE_YEAR,
+  type RateSort,
+  rateSort,
+} from "./rate-columns";
+import { ReferencePages } from "./reference-pages";
 import { ActiveState } from "./section";
 
 /** The grid of the hourly rates, as the server answers it. */
@@ -54,11 +73,13 @@ type RateRow = components["schemas"]["HourlyRateRow"];
 /** The hourly rate of a category for a year. */
 type HourlyRate = components["schemas"]["HourlyRate"];
 
-/** The grid of the rates sorts by no column: the server gives its rows in its order. */
-type RateSort = never;
-
-/** The key of the settings of the grid in the account: stable. */
-export const RATE_GRID_KEY = "hourly_rates";
+/** The parameters of the address the grid of the rates reads, under the names of the contract. */
+const RATE_READS = listReads(
+  CONTRACT_ADDRESS,
+  RATE_STATE,
+  RATE_YEAR,
+  ...Object.values(boundNames(RATE_COLUMN)),
+);
 
 /** A column of the grid of the rates: no totals but the caption. */
 type RateColumn = GridColumn<RateRow, RateSort, null>;
@@ -107,6 +128,7 @@ function yearColumn(
     heading: year.toString(),
     format: "money",
     width: 76,
+    contract: rateSort(year),
     value: rate,
     entry: editable
       ? {
@@ -207,6 +229,7 @@ function rateGrid(
         format: "text",
         width: 80,
         pinned: true,
+        contract: "code",
         value: (row) => row.code,
       },
       {
@@ -215,6 +238,7 @@ function rateGrid(
         format: "text",
         width: 240,
         pinned: true,
+        contract: "label",
         value: (row) => row.label,
       },
       {
@@ -222,6 +246,7 @@ function rateGrid(
         label: "state",
         format: "text",
         width: STATE_WIDTH,
+        contract: "is_active",
         value: (row) => (row.is_active ? "active" : "inactive"),
         render: (row) => <ActiveState active={row.is_active} />,
       },
@@ -240,10 +265,6 @@ export interface RateGridProps {
   readonly query: GridQuery<RateSort>;
   readonly preferences: GridPreferences | undefined;
 }
-
-/** The bounds of a year, as the contract takes it (`Year`). */
-const FIRST_YEAR = 2000;
-const LAST_YEAR = 2100;
 
 /** What the form of a year says of the last year asked: added, already there, or not a year. */
 type YearNotice =
@@ -337,6 +358,7 @@ function AddYear({
 /** Render the grid of the hourly rates, its totals row the currency they are expressed in. */
 export function RateGrid({ grid, currency, editable, query, preferences }: RateGridProps) {
   const t = useTranslations("reference.rates");
+  const names = useTranslations("grid.names");
   // One count of the answers for the life of the grid, never taken back by a new configuration:
   // kept by the state, which a configuration remade reads as it is.
   const [answered] = useState(counter);
@@ -389,9 +411,15 @@ export function RateGrid({ grid, currency, editable, query, preferences }: RateG
         config={config}
         rows={grid.rows}
         totals={null}
-        totalsCaption={() => t("caption", { currency })}
+        totalsCaption={() => t("caption", { count: grid.meta.total, currency })}
         query={query}
         preferences={preferences}
+      />
+      <ReferencePages
+        list={{ page: OFFSET, reads: RATE_READS }}
+        title={names("hourlyRates")}
+        page={grid.meta}
+        shown={grid.rows.length}
       />
     </div>
   );

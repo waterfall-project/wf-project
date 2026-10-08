@@ -1,65 +1,88 @@
 {
-  "summary": "Les calendriers de l'installation : la semaine standard de cinq jours de huit heures, par défaut, celle de l'ingénieur électricien et du technicien de mise en service, et la semaine de quatre jours de dix heures du monteur câbleur (WF-REF-0110, WF-REF-0120).",
-  "value": [
-    {
-      "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
-      "label": "Semaine standard",
-      "weekly_hours": {
-        "monday": "8",
-        "tuesday": "8",
-        "wednesday": "8",
-        "thursday": "8",
-        "friday": "8",
-        "saturday": "0",
-        "sunday": "0"
-      },
-      "is_default": true,
-      "is_active": true,
-      "audit": {
-        "created_at": "2025-09-01T09:00:00Z",
-        "created_by": {
-          "kind": "user",
-          "user_id": "01926f3a-7c00-7000-8000-000000000301",
-          "display_name": "Camille Martin"
+  "summary": "Les calendriers de l'installation, chacun avec la commande qui le désactive : la semaine standard de cinq jours de huit heures, par défaut, celle de l'ingénieur électricien et du technicien de mise en service, que la désactivation ne peut atteindre tant qu'un autre n'a pas été désigné par défaut, et la semaine de quatre jours de dix heures du monteur câbleur (WF-REF-0110, WF-REF-0120, WF-IHM-0090).",
+  "value": {
+    "items": [
+      {
+        "calendar_id": "01926f3a-7c00-7000-8000-000000000482",
+        "label": "Semaine de quatre jours",
+        "weekly_hours": {
+          "monday": "10",
+          "tuesday": "10",
+          "wednesday": "10",
+          "thursday": "10",
+          "friday": "0",
+          "saturday": "0",
+          "sunday": "0"
         },
-        "updated_at": "2025-09-01T09:00:00Z",
-        "updated_by": {
-          "kind": "user",
-          "user_id": "01926f3a-7c00-7000-8000-000000000301",
-          "display_name": "Camille Martin"
-        }
-      },
-      "lock_version": 1
-    },
-    {
-      "calendar_id": "01926f3a-7c00-7000-8000-000000000482",
-      "label": "Semaine de quatre jours",
-      "weekly_hours": {
-        "monday": "10",
-        "tuesday": "10",
-        "wednesday": "10",
-        "thursday": "10",
-        "friday": "0",
-        "saturday": "0",
-        "sunday": "0"
-      },
-      "is_default": false,
-      "is_active": true,
-      "audit": {
-        "created_at": "2025-09-01T09:00:00Z",
-        "created_by": {
-          "kind": "user",
-          "user_id": "01926f3a-7c00-7000-8000-000000000301",
-          "display_name": "Camille Martin"
+        "is_default": false,
+        "is_active": true,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": true,
+            "missing_conditions": []
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-09-01T09:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
         },
-        "updated_at": "2025-09-01T09:00:00Z",
-        "updated_by": {
-          "kind": "user",
-          "user_id": "01926f3a-7c00-7000-8000-000000000301",
-          "display_name": "Camille Martin"
-        }
+        "lock_version": 1
       },
-      "lock_version": 1
+      {
+        "calendar_id": "01926f3a-7c00-7000-8000-000000000481",
+        "label": "Semaine standard",
+        "weekly_hours": {
+          "monday": "8",
+          "tuesday": "8",
+          "wednesday": "8",
+          "thursday": "8",
+          "friday": "8",
+          "saturday": "0",
+          "sunday": "0"
+        },
+        "is_default": true,
+        "is_active": true,
+        "available_commands": [
+          {
+            "command": "deactivate",
+            "is_available": false,
+            "missing_conditions": [
+              "calendar_not_default"
+            ]
+          }
+        ],
+        "audit": {
+          "created_at": "2025-09-01T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-09-01T09:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
+      }
+    ],
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 2
     }
-  ]
+  }
 }

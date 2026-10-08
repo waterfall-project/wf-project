@@ -167,8 +167,8 @@ describe("the keyboard of a grid", () => {
     await userEvent.keyboard("Raccordement et repérage{Tab}");
     expect(cell(LABOUR, "cost_category")).toHaveFocus();
     // The category and the role are chosen from their lists, by the first letters of a name: a
-    // letter typed on the cell opens its list at the first choice it starts.
-    await userEvent.keyboard("M");
+    // letter typed on the cell opens its list at the first choice it starts, the next ones search on.
+    await userEvent.keyboard("Mi");
     const categories = screen.getByRole("combobox", { name: "Catégorie" });
     expect(categories).toHaveFocus();
     expect(categories).toHaveValue(COMMISSIONING);
@@ -278,8 +278,8 @@ describe("the keyboard of a grid", () => {
     expect(offered).toEqual([
       "Aucun",
       "Ingénieur électricien",
-      "Technicien de mise en service",
       "Monteur câbleur",
+      "Technicien de mise en service",
     ]);
     // The line that bears it: shown, offered, kept.
     await userEvent.keyboard("{Escape}");

@@ -92,7 +92,12 @@ CommandCondition:
     transition ne part ; `risk_identified` à la déclaration de survenance d'un risque qui n'est
     pas identifié ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée
     cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son
-    409.
+    409. Trois tiennent à l'état d'un objet du référentiel, et l'objet les nomme
+    (`ReferenceCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le
+    parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé
+    (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant
+    qu'un autre n'a pas été désigné (WF-REF-0120). Les opérations d'activation les nomment dans
+    leur 409.
   enum:
     - is_contributor
     - is_project_manager
@@ -115,6 +120,9 @@ CommandCondition:
     - risk_not_cited
     - risk_not_occurred
     - risk_identified
+    - org_node_parent_active
+    - org_node_active
+    - calendar_not_default
 
 ProjectCommand:
   type: string

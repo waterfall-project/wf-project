@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { ROW_REM } from "@/components/grid/dense-grid";
+import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
@@ -18,17 +19,20 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
+import { RATE_SORTS, type RateSort } from "./rate-columns";
 import { type HourlyRateGrid, RateGrid } from "./rate-grid";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+const page = vi.hoisted(() => ({ search: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => router,
   usePathname: () => "/reference/costs",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(page.search),
 }));
 
 const RATE = "PUT /reference/cost-categories/{cost_category_id}/hourly-rates/{year}";
@@ -47,24 +51,49 @@ const fewRows: HourlyRateGrid = { ...grid, rows: grid.rows.slice(0, FIRST_ROWS) 
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, hold?: Promise<unknown>): FakeClient {
-  const client = fakeClient({ [RATE]: "hourly_rate_entered", ...answers }, { hold: () => hold });
+  const client = fakeClient(
+    { [RATE]: "hourly_rate_entered", "PATCH /me/preferences": "preferences", ...answers },
+    { hold: () => hold },
+  );
   server.client = client;
   return client;
 }
 
 /** The grid of the rates in a language, open to entry or not: its first rows unless the whole is asked. */
-function rates(locale: Locale = "fr", editable = true, rows: HourlyRateGrid = fewRows) {
+function rates(
+  locale: Locale = "fr",
+  editable = true,
+  rows: HourlyRateGrid = fewRows,
+  query: GridQuery<RateSort> = { sort: undefined, search: undefined },
+) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <RateGrid
         grid={rows}
         currency="EUR"
         editable={editable}
-        query={{ sort: undefined, search: undefined }}
+        query={query}
         preferences={undefined}
       />
     </NextIntlClientProvider>
   );
+}
+
+/** The address of the last navigation the grid asked. */
+function lastAddress(): unknown {
+  return router.push.mock.calls.at(-1)?.[0];
+}
+
+/** The button that sorts by a column, by its heading. */
+function sortButton(heading: string): HTMLElement {
+  const header = within(screen.getByRole("grid"))
+    .getAllByRole("columnheader")
+    .find((each) => each.textContent === heading);
+  const button = header?.querySelector("button");
+  if (button === null || button === undefined) {
+    throw new Error(`no sort on the column ${heading}`);
+  }
+  return button;
 }
 
 /** The cell of a row, by its index among the rows of the answer, and of a year. */
@@ -101,6 +130,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  router.push.mockClear();
+  page.search = "";
 });
 
 describe("the grid of the hourly rates", () => {
@@ -124,7 +155,7 @@ describe("the grid of the hourly rates", () => {
     expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^$/);
     // The totals row says the currency of the rates, and sums nothing.
     const totals = table.querySelector("tfoot tr");
-    expect(totals?.textContent).toBe("Taux horaires en EUR");
+    expect(totals?.textContent).toBe("150 catégories, taux horaires en EUR");
   });
 
   it("breaks no rule of accessibility, a window of the hundred and fifty categories rendered", async () => {
@@ -455,12 +486,86 @@ describe("the grid of the hourly rates", () => {
     expect(within(form).getByRole("button", { name: "Retirer la colonne 2011" })).toBeVisible();
   });
 
+  it.each([
+    ["Code", "code"],
+    ["Libellé", "label"],
+    ["État", "is_active"],
+    ["2012", "rate.2012"],
+    ["2026", "rate.2026"],
+  ])(
+    "asks the server for the sort by the column %s, both ways, under the names of the contract [WF-IHM-0060-A]",
+    async (heading, column) => {
+      serve();
+      page.search = "search=Automatisme&offset=50";
+      const { rerender } = render(rates());
+      await userEvent.click(sortButton(heading));
+      // Back to the first page, the search kept.
+      const ascending = `/reference/costs?search=Automatisme&sort_by=${column}&sort_order=asc`;
+      expect(lastAddress()).toBe(ascending);
+      page.search = ascending.split("?")[1] ?? "";
+      const sort = RATE_SORTS.find((each) => each === column);
+      rerender(
+        rates("fr", true, fewRows, {
+          sort: sort && { column: sort, order: "asc" },
+          search: "Automatisme",
+        }),
+      );
+      await userEvent.click(sortButton(heading));
+      expect(lastAddress()).toBe(
+        `/reference/costs?search=Automatisme&sort_by=${column}&sort_order=desc`,
+      );
+    },
+  );
+
+  it("sorts by the rate of a year it added, which the server takes as any year", async () => {
+    serve();
+    render(rates());
+    const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
+    await userEvent.type(within(form).getByRole("textbox", { name: "Année" }), "2027");
+    await userEvent.click(within(form).getByRole("button", { name: "Ajouter la colonne" }));
+    await userEvent.click(sortButton("2027"));
+    expect(lastAddress()).toBe("/reference/costs?sort_by=rate.2027&sort_order=asc");
+  });
+
+  it("shows a page of the categories the server sorted by the rate of a year, the years of the whole grid, its totals the number retained, and leads to the next page", () => {
+    serve();
+    page.search = "sort_by=rate.2026&sort_order=desc";
+    const sorted = example("volume/hourly_rate_grid_by_rate") as HourlyRateGrid;
+    render(
+      rates("fr", true, sorted, {
+        sort: { column: "rate.2026", order: "desc" },
+        search: undefined,
+      }),
+    );
+    const table = screen.getByRole("grid", { name: "Grille des taux horaires" });
+    // The header, the fifty categories of the page, the totals.
+    expect(table).toHaveAttribute("aria-rowcount", "52");
+    expect(within(table).getByRole("columnheader", { name: /2026/ })).toHaveAttribute(
+      "aria-sort",
+      "descending",
+    );
+    expect(cell(0, 2026)).toHaveTextContent(/^119,92$/);
+    expect(table.querySelector("tfoot tr")?.textContent).toBe(
+      "150 catégories, taux horaires en EUR",
+    );
+    expect(
+      screen.getByRole("navigation", { name: "Pages de «\u00a0Grille des taux horaires\u00a0»" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Page précédente/ })).toBeNull();
+    expect(screen.getByRole("link", { name: /Page suivante/ })).toHaveAttribute(
+      "href",
+      "/reference/costs?sort_by=rate.2026&sort_order=desc&offset=50",
+    );
+  });
+
   it("is named and headed in English too", () => {
     serve();
     render(rates("en"));
     const table = screen.getByRole("grid", { name: "Hourly rate grid" });
     expect(within(table).getByRole("columnheader", { name: "Label" })).toBeVisible();
-    expect(table.querySelector("tfoot tr")?.textContent).toBe("Hourly rates in EUR");
+    expect(table.querySelector("tfoot tr")?.textContent).toBe(
+      "150 categories, hourly rates in EUR",
+    );
     expect(cell(0, 2026)).toHaveTextContent(/^80\.00$/);
   });
 });
