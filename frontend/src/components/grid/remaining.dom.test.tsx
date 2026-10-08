@@ -12,6 +12,7 @@ import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import type { NodeFilters, NodeList, NodeSortColumn } from "./nodes";
 import type { GridQuery } from "./query";
+import { REMAINING_GRID, REMAINING_SORT_COLUMNS } from "./remaining";
 import { RemainingGrid } from "./remaining-grid";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
@@ -103,6 +104,20 @@ afterEach(() => {
 });
 
 describe("the grid of the remaining to commit", () => {
+  it("keeps the sort of its columns, a tree whose lines the server sorts under each task, unlike the planning", () => {
+    // The planning sorts none of its columns (WF-IHM-0060-A, #525); the remaining to commit, as the
+    // estimate, sorts each column the contract names.
+    expect(REMAINING_SORT_COLUMNS).toEqual(
+      REMAINING_GRID.columns.flatMap((column) => column.contract ?? []),
+    );
+    expect(REMAINING_SORT_COLUMNS).toContain("reestimated_amount");
+    serve();
+    render(grid());
+    const table = screen.getByRole("treegrid", { name: "Grille de reste à engager" });
+    const header = within(table).getByRole("columnheader", { name: "Calculé Montant réestimé" });
+    expect(within(header).getByRole("button")).toBeInTheDocument();
+  });
+
   it("presents of each line its budgeted amount, its figures and its amount re-estimated before and now, the amounts computed [WF-RAE-0040-A]", async () => {
     // Les montants et les grandeurs sont présents pour chaque ligne, au reste à engager précédent
     // et courant: the figures at the previous one first, then those of now (#424).

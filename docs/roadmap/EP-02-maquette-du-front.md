@@ -296,7 +296,11 @@ verrou.
     tentative est refusée en nommant ce dont la valeur dépend. Un nombre se saisit au
     format de la langue et repart dans le décimal exact du contrat.
   - Collage : lecture TSV du presse-papiers, `previewPaste`, compte rendu, `applyPaste`
-    après confirmation ; le front ne juge rien du contenu.
+    après confirmation ; le front ne juge rien du contenu. Il refuse localement, sans rien
+    demander, un bloc dont une ligne tomberait sur une ligne du plan que la grille ne montre pas
+    à la même distance sous la cible — pliée, cachée par la recherche ou un filtre, déplacée par
+    un tri, ou au-delà de la dernière ligne montrée —, le serveur écrivant dans l'ordre du plan
+    (#527).
   - **Arbre pliable** (EP-02/L40, WF-PLA-0080, WF-PLA-0090) : une grille dont les lignes nomment
     leur parent (`parent_id` de `listNodes`) se plie et se déplie, purement dans le front — rien
     n'est demandé au serveur ni ne lui est envoyé. Une ligne pliée retire ses subordonnées des
@@ -307,7 +311,8 @@ verrou.
     selon la disposition du clavier, en accélérateurs, et « Plier la ligne », « Déplier la ligne »
     et « Tout déplier » au menu contextuel des cellules, qui marche dans tous les navigateurs ;
     Alt+Maj+flèches restent libres pour l'indentation d'EP-06. Un collage qui s'étendrait sur une
-    ligne pliée est refusé localement. Écarté : déduire la parenté de l'ordre et du niveau — le
+    ligne pliée est refusé localement, comme celui qui tomberait sur une ligne cachée par la
+    recherche ou un filtre, ou déplacée par un tri (#527). Écarté : déduire la parenté de l'ordre et du niveau — le
     front ne déduit pas ce que l'API dit, et `parent_id` le dit.
   - **Annuler et Rétablir sont posées, pas branchées** : leur place — grille, menu,
     Ctrl+Z/Ctrl+Maj+Z —, leur état, et rien d'autre ; EP-06 les branchera sur
@@ -787,8 +792,9 @@ préférence d'affichage (WF-ADM-0040), donc personnels et sans effet sur les do
 - écart : `WF-IHM-0060-A` — « Dans la grille de planning, aucun en-tête de colonne ne propose
   de tri ; dans la grille de devis, le tri par montant réordonne les lignes sous chaque tâche
   sans déplacer les tâches. » : l'absence de tri sur la grille de planning se constate dans la
-  maquette ; le réordonnancement des lignes sous chaque tâche demande le vrai service, qui
-  rend le devis ordonné — EP-07.
+  maquette depuis EP-02/L41 (#525), qui l'a retiré — la grille l'offrait jusque-là —, et le
+  parcours du planning l'affirme (`frontend/e2e/planning.spec.ts`) ; le réordonnancement des
+  lignes sous chaque tâche demande le vrai service, qui rend le devis ordonné — EP-07.
 - écart : `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées
   à la réouverture, et un autre utilisateur ouvrant la même grille voit ses propres
   réglages. » : la conservation passe par `updateMyPreferences`, que le mock accepte sans

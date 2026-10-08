@@ -651,7 +651,8 @@ describe("the grid of the planning", () => {
     expect(estimator.html).not.toContain('aria-label="Undo"');
   });
 
-  it("asks the server for the sort, the search and the filtered sub-project the address holds, besides the tasks", async () => {
+  it("asks the server for the search and the filtered sub-project the address holds, besides the tasks, and no sort [WF-IHM-0060-A]", async () => {
+    // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: none is asked.
     const search = Promise.resolve({
       sort_by: "total_float",
       sort_order: "desc",
@@ -663,12 +664,11 @@ describe("the grid of the planning", () => {
     );
     expect(nodesQuery()).toEqual({
       kinds: "task",
-      sort_by: "total_float",
-      sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
     });
-    expect(html).toMatch(/<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Float/);
+    expect(html).toMatch(/<th[^>]*>(?:(?!<\/th>).)*Float/);
+    expect(html).not.toContain("aria-sort");
     // Its head leads to the imports and exports of the project, a leaf of the planning, in the
     // same context.
     expect(html).toMatch(

@@ -5,8 +5,10 @@
  * each screen — planning, estimate, remaining to commit, risks, actual costs, rates — the
  * columns it shows and the key under which the account keeps its settings. A column says what
  * it reads of a row, how its value shows, where it aligns, how wide it starts, which of its
- * cells the server computes, and by which column of the contract the server sorts it; the totals row
- * reads the totals of the answer, never a sum of the rows (WF-ARC-0020).
+ * cells the server computes, and which column of the contract it shows — the name the server sorts
+ * it by, and a paste lands on it by —; the totals row reads the totals of the answer, never a sum
+ * of the rows (WF-ARC-0020). Whether a column sorts is the grid's to say, not the column's: a grid
+ * of a tree in the order of its plan sorts none (§3.4, WF-IHM-0060).
  *
  * Neither server nor client: the page reads the sortable columns of a configuration to check
  * the address, the grid the rest. Its functions stay on the side of the browser, which is why
@@ -43,7 +45,7 @@ export type GridName = keyof Catalogue["grid"]["names"];
 /** The value of a cell as the contract gives it, or none. */
 export type CellValue = string | null | undefined;
 
-/** A column of a grid of rows `Row`, sorted by a column `Sort` of the contract. */
+/** A column of a grid of rows `Row`, which shows a column `Sort` of the contract. */
 export interface GridColumn<Row, Sort extends string, Totals> {
   /** The key of the column: stable, for it names the column in the settings of the account. */
   readonly key: string;
@@ -75,8 +77,12 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    * be hidden. The first of them carries the tree, when the grid has one.
    */
   readonly pinned?: boolean;
-  /** The column of the contract the server sorts it by; none, and it does not sort. */
-  readonly sortBy?: Sort;
+  /**
+   * The column of the contract it shows, as the server names it: the one it sorts by, where the
+   * grid sorts (`GridConfig.sorts`), and the one a block pasted on its cell lands on. None for a
+   * column the contract does not name — a drawing, a mark —, which neither sorts nor takes a paste.
+   */
+  readonly contract?: Sort;
   /**
    * What it reads of a row: the value its cell formats — or, for a column that renders its cell,
    * only what TanStack Table asks of a column to offer its sort, never shown nor sorted here.
@@ -246,7 +252,7 @@ export type PastePlan = components["schemas"]["PastePlan"];
  * once the user confirmed it, in one operation. The grid judges nothing of what is pasted.
  */
 export interface GridPaste<Row, Sort extends string = string, Totals = unknown> {
-  /** Ask the plan of a block pasted from the cell of a row, in a column, named as the server sorts by it. */
+  /** Ask the plan of a block pasted from the cell of a row, in a column, named by the contract. */
   readonly preview: (row: Row, column: Sort, block: PastedBlock) => Promise<Outcome<PastePlan>>;
   /** Apply a plan confirmed: what the server wrote, as the grid reads it. */
   readonly apply: (plan: PastePlan) => Promise<Outcome<RowsWritten<Row, Totals>>>;
@@ -290,6 +296,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
   /** The number of a row, shown first and pinned, as the API computes it; none, no column. */
   readonly rowNumber?: (row: Row) => number;
   readonly tree?: GridTree<Row>;
+  /**
+   * Whether its headers sort its rows, each by the column of the contract it shows (WF-IHM-0060);
+   * by default they do. A grid of a tree whose rows keep the order of the plan sorts none — the
+   * planning (§3.4) —, and its address asks no sort.
+   */
+  readonly sorts?: boolean;
   readonly columns: readonly GridColumn<Row, Sort, Totals>[];
   /** How a block pasted from a spreadsheet is written; none, and the grid takes no paste. */
   readonly paste?: GridPaste<Row, Sort, Totals> | undefined;
@@ -350,9 +362,18 @@ export function formatCell(format: CellFormat, value: CellValue, locale: Locale)
   }
 }
 
-/** The columns of a configuration the server sorts, by the column of the contract. */
+/**
+ * The columns of a configuration the server sorts, by the column of the contract each shows; none
+ * for a grid that does not sort.
+ */
 export function sortColumns<Sort extends string>(config: {
-  readonly columns: readonly { readonly sortBy?: Sort }[];
+  readonly sorts?: boolean;
+  readonly columns: readonly { readonly contract?: Sort }[];
 }): readonly Sort[] {
-  return config.columns.flatMap((column) => (column.sortBy === undefined ? [] : [column.sortBy]));
+  if (config.sorts === false) {
+    return [];
+  }
+  return config.columns.flatMap((column) =>
+    column.contract === undefined ? [] : [column.contract],
+  );
 }

@@ -286,7 +286,7 @@ describe("the grid of the planning", () => {
     }
   });
 
-  it("names the icon columns in their headers, and asks the server for their sort", async () => {
+  it("names the icon columns in their headers", () => {
     renderPlanning();
     const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
     // Each named by its heading, which shows on hover too.
@@ -294,22 +294,34 @@ describe("the grid of the planning", () => {
       const header = within(grid).getByRole("columnheader", { name });
       expect(within(header).getByTitle(name)).toBeInTheDocument();
     }
-    await userEvent.click(
-      within(within(grid).getByRole("columnheader", { name: "Mode de planification" })).getByRole(
-        "button",
-      ),
-    );
-    expect(router.push).toHaveBeenCalledWith(`${PATHNAME}?sort_by=scheduling_mode&sort_order=asc`, {
-      scroll: false,
-    });
   });
 
-  it("sorts each of its columns by the column of the contract of the same name, whose value it reads", () => {
-    // Each but the Gantt, which draws the row and sorts nothing.
-    expect(PLANNING_SORT_COLUMNS).toEqual(
-      PLANNING_GRID.columns.map((column) => column.key).filter((key) => key !== "gantt"),
-    );
-    // The predecessors, which their cell renders, give an accessor to the sort alone.
+  it("offers the sort of no column, its headers neither buttons nor sorted, and asks none by the keyboard [WF-IHM-0060-A]", async () => {
+    // Dans la grille de planning, aucun en-tête de colonne ne propose de tri.
+    renderPlanning();
+    const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
+    const headers = within(grid).getAllByRole("columnheader");
+    expect(headers.length).toBe(PLANNING_GRID.columns.length + 1);
+    for (const header of headers) {
+      expect(within(header).queryByRole("button")).toBeNull();
+      expect(header).not.toHaveAttribute("aria-sort");
+      expect(header.getAttribute("aria-keyshortcuts") ?? "").not.toContain("Enter");
+    }
+    // Enter and Space on a header, which sort elsewhere, ask nothing here.
+    const header = within(grid).getByRole("columnheader", { name: "Mode de planification" });
+    header.focus();
+    await userEvent.keyboard("{Enter} ");
+    expect(router.push).not.toHaveBeenCalled();
+    expect(PLANNING_SORT_COLUMNS).toEqual([]);
+  });
+
+  it("shows in each column but the Gantt the column of the contract of the same name, whose value it reads", () => {
+    // The name a paste on its cell is sent under, though the grid sorts none.
+    expect(PLANNING_GRID.columns.map((column) => column.contract)).toEqual([
+      ...PLANNING_GRID.columns.map((column) => column.key).filter((key) => key !== "gantt"),
+      undefined,
+    ]);
+    // The predecessors and the Gantt, which their cells render, read no value.
     const milestone = planning.items[4];
     const columns = PLANNING_GRID.columns.filter(
       (column) => !["predecessors", "gantt"].includes(column.key),

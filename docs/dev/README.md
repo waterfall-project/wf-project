@@ -255,10 +255,14 @@ l'image qu'elle exporte.
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
 — clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
-celles de ses cellules que le serveur calcule, figée ou non, colonne `sort_by` du contrat, et,
+celles de ses cellules que le serveur calcule, figée ou non, la colonne du contrat qu'elle montre
+(`contract`) — celle par laquelle le serveur la trie et sur laquelle un collage la vise —, et,
 pour une colonne étroite, l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que
 rend sa cellule en place de la valeur formatée (`render`) — et, s'il y en a un, son arbre
-(niveau, icône de nature par `RowNatureIcon`). La configuration lit les lignes par des
+(niveau, icône de nature par `RowNatureIcon`). Trier est l'affaire de la grille, non de la
+colonne : une grille arborescente dont les lignes gardent l'ordre du plan n'en trie aucune
+(`sorts: false`), et son adresse n'en demande aucun — le planning (§3.4, WF-IHM-0060, #525). La
+configuration lit les lignes par des
 fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
 (`estimate-grid.tsx`, `planning-grid.tsx`), et la page, serveur, ne lui passe que des données —
 la structure lue et, de chaque nœud, les seuls champs que la grille lit : ceux de toute grille
@@ -335,7 +339,10 @@ quand la fenêtre bouge. Le React Compiler n'est pas activé dans ce front, mais
 React refuse l'adaptateur de TanStack Virtual, dont un rendu compilé figerait les réponses
 (`react-hooks/incompatible-library`). La hauteur d'une ligne suit la taille de la police
 racine (1,75 rem). L'en-tête et les totaux sont collés au haut et au pied de la grille, le
-numéro et le libellé à son début. La grille prend la hauteur que lui laisse son écran : un
+numéro et le libellé à son début. La ligne d'en-tête de toute table, liste comme grille dense, est
+sur le fond `muted` de la charte : `TableHead` le pose à l'en-tête d'une colonne, dans le `<thead>`,
+non à celui d'une ligne, et un `<thead>` écrit à la main le prend de même (#508), ce que
+`frontend/src/components/thead-guard.test.ts` vérifie dans les sources. La grille prend la hauteur que lui laisse son écran : un
 écran de grille est un `Screen` qui remplit la fenêtre (`fill`), la page bornée à sa hauteur
 (`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher —
 aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre trop basse pour ce
@@ -577,7 +584,14 @@ celles que la grille montre (#200) : le front mesure donc le bloc sur ces colonn
 large qu'elles à partir de la cellule — comme le serveur le refuserait (`PASTE_TOO_WIDE`) — et
 un bloc dont la portée, de la colonne visée à la dernière colonne remplie dans cet ordre,
 atteint une colonne que la grille ne montre pas, masquée ou absente de sa configuration, qu'il
-nomme — par son en-tête, ou par son libellé du catalogue (`enums.NodeColumn`).
+nomme — par son en-tête, ou par son libellé du catalogue (`enums.NodeColumn`) ; il refuse de même
+un bloc dont une ligne ne tomberait pas sur celle que le serveur écrit : le serveur remplit les
+lignes du plan sous la ligne visée, que la grille connaît par leur numéro dans toute la structure
+(`row_number`), non les lignes affichées après elle. Une seule garde compare, de la cible à la
+dernière ligne du bloc, le numéro de chaque ligne affichée à celui qu'elle aurait dans l'ordre du
+plan — une grille qui colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
+(`fold.tsx`), déplacée par un tri, cachée par la recherche ou un filtre, ou au-delà de la dernière
+ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527).
 Sinon `previewPaste` rend le plan, que
 montre une boîte de dialogue de shadcn (`PasteDialog`, `ui/dialog.tsx`), dans une seule région
 annoncée — ce qui sera écrit, chaque ligne refusée par sa place dans le bloc, ses cellules
@@ -589,7 +603,8 @@ structure décidant laquelle des deux une ligne montre (`answers.ts`, #202), et 
 tait quand le collage a écrit sa ligne depuis. Un plan qui refuse
 une ligne ne s'applique pas : la boîte n'offre que l'abandon. Échap abandonne, une réponse
 arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien du
-contenu : la colonne visée part sous son nom de `sort_by`, et la confirmation porte la version
+contenu : la colonne visée part sous son nom de colonne du contrat (`NodeColumn`), que la grille
+la trie ou non, et la confirmation porte la version
 de la structure lue (`structureVersion`) — deux points que le contrat ne dit pas encore (#200,
 #201). Une grille sans `paste` dans sa configuration, en lecture seule, ne prend aucun collage.
 

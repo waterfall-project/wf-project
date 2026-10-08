@@ -279,11 +279,6 @@ export interface GridFold<Row> {
   readonly shownWith: (collapsed: ReadonlySet<string>) => readonly Row[];
   /** Fold the tree otherwise, and keep it. */
   readonly set: (collapsed: ReadonlySet<string>) => void;
-  /**
-   * Whether a row folded away is among the rows a block of rows fills from a row, in the order of
-   * the answer — the row itself, then those after it.
-   */
-  readonly foldedFrom: (row: Row, count: number) => boolean;
 }
 
 /** The key of what a reading is narrowed by: its entries said, in the order of their names. */
@@ -292,6 +287,11 @@ function narrowingKey(narrowing: Readonly<Record<string, unknown>> | undefined):
     .filter(([, value]) => value !== undefined)
     .sort(([a], [b]) => (a < b ? -1 : 1));
   return said.length === 0 ? "" : JSON.stringify(said);
+}
+
+/** Whether a reading is narrowed: it asked a search or a filter, and may leave rows of the plan out. */
+export function isNarrowed(narrowing: Readonly<Record<string, unknown>> | undefined): boolean {
+  return narrowingKey(narrowing) !== "";
 }
 
 /**
@@ -341,14 +341,6 @@ export function useGridFold<Row>({
     shownWith: (next) => unfoldedRows(rows, rowKey, index, next),
     set: (next) => {
       keep(storageKey, { collapsed: next, revealed: narrowing });
-    },
-    foldedFrom: (row, count) => {
-      if (shown.length === rows.length) {
-        return false;
-      }
-      const stay = new Set(shown.map((each) => rowKey(each)));
-      const from = rows.indexOf(row);
-      return rows.slice(from, from + count).some((each) => !stay.has(rowKey(each)));
     },
   };
 }

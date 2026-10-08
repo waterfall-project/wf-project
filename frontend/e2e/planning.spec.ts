@@ -20,7 +20,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
 
-test("opens the grid of the planning: its icons named, the critical path marked, the predecessors by row number", async ({
+test("opens the grid of the planning: its icons named, the critical path marked, the predecessors by row number, no header offering a sort [WF-IHM-0060-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -64,12 +64,14 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
 
-  // A header asks the server for its sort: the address says it.
-  await grid
-    .getByRole("columnheader", { name: "Mode de planification" })
-    .getByRole("button")
-    .click();
-  await expect(page).toHaveURL(/sort_by=scheduling_mode&sort_order=asc/, { timeout: WORKING });
+  // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its twelve headers,
+  // the number and the eleven columns, none holds a button, none says a sort.
+  const headers = grid.getByRole("columnheader");
+  await expect(headers).toHaveCount(12);
+  await expect(headers.getByRole("button")).toHaveCount(0);
+  for (const header of await headers.all()) {
+    await expect(header).not.toHaveAttribute("aria-sort");
+  }
 });
 
 test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task [WF-PLA-0090-A]", async ({

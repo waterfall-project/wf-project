@@ -88,6 +88,7 @@ const TEXTS: readonly [string, string][] = [
   ["primary-foreground", "primary-hover"],
   ["secondary-foreground", "secondary"],
   ["muted-foreground", "background"],
+  // The header row of every table, a list or a dense grid (#508).
   ["muted-foreground", "muted"],
   ["muted-foreground", "card"],
   ["accent-foreground", "accent"],
@@ -98,7 +99,8 @@ const TEXTS: readonly [string, string][] = [
   ["primary", "background"],
   ["destructive", "background"],
   ["destructive", "card"],
-  // The banner of the reading context, on its muted strip; a tooltip, the page inverted.
+  // The banner of the reading context, on its muted strip, and the headings of the header row of
+  // a table that are not muted (#508); a tooltip, the page inverted.
   ["foreground", "muted"],
   ["background", "foreground"],
   // A menu of the shell, its entries, their muted values, the entry under the focus.
