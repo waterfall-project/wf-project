@@ -23,6 +23,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { FUNCTION_ICONS } from "@/components/shell/function-display";
 
 import type { components, operations } from "@/api/generated/schema";
+import { platformOffer } from "@/components/commands/offer";
 import { CalculationDate } from "@/components/context/indicator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatMoney, formatPercent } from "@/i18n/format";
@@ -93,7 +94,7 @@ function MissingRatesNotice({
             className="inline-flex items-center gap-1.5 font-medium text-foreground underline"
           >
             <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-            {permissions.includes(`${rates.permission}.write`)
+            {platformOffer(permissions, "cost_settings") !== undefined
               ? t("missingRates.enter")
               : t("missingRates.see")}
           </Link>

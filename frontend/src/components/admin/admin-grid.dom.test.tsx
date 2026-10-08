@@ -133,7 +133,7 @@ describe("the grid of the accounts", () => {
     expect(within(grid).getByRole("row", { name: /^Moreau/ }).textContent).toBe(
       "MoreauAlixalix.moreau@example.comCréé dans WaterfallChef de projetBureau d'études électricitéDésactivé",
     );
-    expect(grid.querySelector("tfoot tr")?.textContent).toBe("6 comptes");
+    expect(grid.querySelector("tfoot tr")?.textContent).toBe("7 comptes");
     // The header of every column is grey, as that of every table (#508).
     expect(grid.querySelector("thead th")?.className).toContain("bg-muted");
   });
@@ -253,12 +253,12 @@ describe("the commands and the state of the accounts", () => {
   it("offers to a session that may modify the accounts to modify each, to deactivate or reactivate it as it is, and to attribute its roles, each saying it is available with EP-03, and to delete none", async () => {
     const { container } = render(userList(NO_QUERY, users, { editable: true }));
     const grid = screen.getByRole("grid", { name: "Comptes utilisateurs" });
-    expect(within(grid).getAllByRole("button", { name: /^Modifier «/ })).toHaveLength(6);
+    expect(within(grid).getAllByRole("button", { name: /^Modifier «/ })).toHaveLength(7);
     expect(within(grid).getAllByRole("button", { name: /^Attribuer les rôles de «/ })).toHaveLength(
-      6,
+      7,
     );
-    // Alix Moreau, deactivated, is offered her reactivation; the five others their deactivation.
-    expect(within(grid).getAllByRole("button", { name: /^Désactiver «/ })).toHaveLength(5);
+    // Alix Moreau, deactivated, is offered her reactivation; the six others their deactivation.
+    expect(within(grid).getAllByRole("button", { name: /^Désactiver «/ })).toHaveLength(6);
     expect(
       within(grid).getByRole("button", { name: "Réactiver «\u00a0Alix Moreau\u00a0»" }),
     ).toBeInTheDocument();
@@ -335,7 +335,7 @@ describe("the grid of the access roles", () => {
     page.path = "/admin/access-roles";
     render(roleList(false));
     const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
-    expect(grid.querySelector("tfoot tr")?.textContent).toBe("6 rôles");
+    expect(grid.querySelector("tfoot tr")?.textContent).toBe("7 rôles");
     await userEvent.type(screen.getByRole("searchbox", { name: "Rechercher un libellé" }), "Chef");
     await userEvent.keyboard("{Enter}");
     expect(lastAddress()).toBe("/admin/access-roles?search=Chef");
@@ -345,8 +345,8 @@ describe("the grid of the access roles", () => {
     page.path = "/admin/access-roles";
     const { container } = render(roleList(true));
     const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
-    expect(within(grid).getAllByRole("button", { name: /^Modifier «/ })).toHaveLength(6);
-    expect(within(grid).getAllByRole("button", { name: /^Supprimer «/ })).toHaveLength(6);
+    expect(within(grid).getAllByRole("button", { name: /^Modifier «/ })).toHaveLength(7);
+    expect(within(grid).getAllByRole("button", { name: /^Supprimer «/ })).toHaveLength(7);
     // The region is there from the start, empty, for a reader to hear what is put in it.
     const told = screen.getByRole("status");
     expect(told.textContent).toBe("");

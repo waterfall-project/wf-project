@@ -1,5 +1,5 @@
 {
-  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, et Inès Roux, au pilotage de projet, comptes locaux créés par Camille Martin (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180).",
+  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, Inès Roux, au pilotage de projet, et Noé Vidal, auditeur, comptes locaux créés par Camille Martin (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180).",
   "value": {
     "items": [
       {
@@ -179,12 +179,44 @@
           }
         },
         "lock_version": 1
+      },
+      {
+        "user_id": "01926f3a-7c00-7000-8000-000000000307",
+        "last_name": "Vidal",
+        "first_name": "Noé",
+        "email": "noe.vidal@example.com",
+        "is_active": true,
+        "origin": "local",
+        "org_node_id": null,
+        "org_node_label": null,
+        "access_role_ids": [
+          "01926f3a-7c00-7000-8000-000000000707"
+        ],
+        "access_role_labels": [
+          "Auditeur"
+        ],
+        "has_avatar": false,
+        "audit": {
+          "created_at": "2025-10-06T09:00:00Z",
+          "created_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          },
+          "updated_at": "2025-10-06T09:00:00Z",
+          "updated_by": {
+            "kind": "user",
+            "user_id": "01926f3a-7c00-7000-8000-000000000301",
+            "display_name": "Camille Martin"
+          }
+        },
+        "lock_version": 1
       }
     ],
     "meta": {
       "limit": 50,
       "offset": 0,
-      "total": 6
+      "total": 7
     }
   }
 }

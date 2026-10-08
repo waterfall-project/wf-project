@@ -632,6 +632,39 @@ règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigati
 L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
 heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été.
 
+Le journal d'audit (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
+#517) est un écran de l'administration à lui ; la table « Dernières opérations » de l'état du
+système, trois faits de la plateforme (WF-ADM-0130), reste telle quelle. C'est une fonction en
+lecture seule, qui n'a que sa permission de consulter (WF-ADM-0100) : `FunctionPermission` nomme
+toute fonction par sa permission de consulter, et `WritableFunction` celles qui ont aussi la
+permission de modifier, seules que `platformOffer` accepte. L'écran est gardé par `audit_log.read`,
+introuvable sans elle comme une adresse qui ne mène nulle part (WF-ADM-0110). Il présente une page
+des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`audit-columns.tsx`,
+préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action, la nature et
+le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
+identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
+l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
+les autres filtres levés, le tri gardé. Le serveur
+ne trie que les dates (#550) : la date est la seule colonne triée, les plus récentes d'abord quand
+l'adresse ne dit rien, et son tri ne se lève jamais (`GridConfig.lifts`) ; l'adresse l'écrit comme
+toute grille (`sort_by=occurred_at`), et la page n'envoie que son sens (`sort_order`). Les filtres
+n'écrivent que l'adresse, sous les noms du contrat, et ramènent à la première page
+(`audit-filters.tsx`) : la période, deux instants saisis en heure locale et envoyés en temps
+universel — seul le navigateur connaît son fuseau, si bien que les champs montrent ceux de
+l'adresse une fois la page hydratée ; une borne laissée telle quelle repart comme l'adresse la nomme,
+et une saisie est datée par la période de l'adresse, le formulaire jamais remonté —, la nature de
+l'auteur (`ValuesFilter`), l'auteur parmi les comptes, désactivés compris, lus pour une session qui
+porte `users.read` — sans compte à choisir ni auteur choisi, le filtre n'est pas offert —, les actions dans un menu,
+le projet parmi ceux que la session peut ouvrir (`listProjects`, tous états), la nature de l'objet,
+et l'objet dont l'adresse demande l'histoire, nommé et levé ; un auteur ou un projet que l'adresse
+nomme sans qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le
+projet et l'objet sont des liens là où la session peut les consulter : un projet qu'elle peut
+ouvrir, une révision d'un tel projet ; un risque, une ligne de coût ou un import s'adressent dans
+une révision que l'inscription ne nomme pas, et un compte, un rôle ou une sauvegarde n'ont pas
+d'écran à eux : leur nom reste seul (#550). Une période que l'API refuse (422, la fin désignée hors
+de ses bornes) se dit à la place des inscriptions, les filtres gardés, et tout autre refus des filtres
+par son enveloppe (`problemMessage`) ; aucune commande n'est offerte.
+
 L'écran des imports et exports, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
 US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte, comme
 celui de l'écran des coûts réels ; un

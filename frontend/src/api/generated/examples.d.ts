@@ -186,7 +186,7 @@ export interface Examples {
     200: "reference_settings";
   };
   "GET /session": {
-    200: "session" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_manager" | "session_without_administration" | "session_without_preferences" | "session_without_roles";
+    200: "session" | "session_auditor" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_manager" | "session_without_administration" | "session_without_preferences" | "session_without_roles";
   };
   "GET /session/providers": {
     200: "auth_providers" | "auth_providers_local";

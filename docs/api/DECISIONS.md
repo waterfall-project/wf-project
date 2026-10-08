@@ -2528,12 +2528,15 @@ la produit (EP-03, US-0410).
   (`<fonction>.read`), de la fonction que #518 ajoute sous l'administration, FBS-1.5
   « Journal d'audit » : `listPermissions` la range après les sauvegardes, `fbs_code` à `FBS-1.5`.
   Elle n'a pas de permission de modifier, le journal ne se modifiant pas — c'est la seule fonction
-  du catalogue dans ce cas, et le front ne la compte pas parmi les fonctions de la navigation tant
-  qu'elle n'y a pas d'écran (`FunctionPermission`, #517). Elle ouvre le journal entier : un projet
-  s'y nomme par son code et son libellé, que l'appelant en soit contributeur ou non, comme les vues
-  du portefeuille nomment les projets qu'elles comptent ; le lien vers l'objet ne vaut que pour qui
-  peut le consulter (WF-ADM-0110). Les exemples l'accordent au rôle prédéfini d'administrateur et à
-  « Direction de projet », qui porte tout le catalogue, donc aux sessions de Camille Martin.
+  du catalogue dans ce cas, et le front la compte parmi les fonctions de la navigation, son écran
+  venu, comme une fonction sans permission de modifier (`FunctionPermission`, EP-02/L41e, #517).
+  Elle ouvre le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en
+  soit contributeur ou non, comme les vues du portefeuille nomment les projets qu'elles comptent ;
+  le lien vers l'objet ne vaut que pour qui peut le consulter (WF-ADM-0110). Les exemples l'accordent au rôle prédéfini d'administrateur et à
+  « Direction de projet », qui porte tout le catalogue, donc aux sessions de Camille Martin, et à
+  « Auditeur », un rôle composé qui ne porte qu'elle, celui de Noé Vidal (`session_auditor`) : la
+  session d'un auditeur qui ne lit ni les comptes ni les projets dont il n'est pas contributeur
+  (EP-02/L41e).
   La spécification révisée par #518, relue et acceptée par l'auteur, porte la fonction FBS-1.5, et
   WF-ADM-0100 admet qu'une fonction en lecture seule n'ait que sa permission de consulter.
   L'attribution de cette permission aux rôles prédéfinis reste celle des exemples. L'écran

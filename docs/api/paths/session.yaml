@@ -45,6 +45,7 @@
               estimator: { $ref: ../../../fixtures/api/session_estimator.json }
               without_roles: { $ref: ../../../fixtures/api/session_without_roles.json }
               manager: { $ref: ../../../fixtures/api/session_manager.json }
+              auditor: { $ref: ../../../fixtures/api/session_auditor.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
   post:
     operationId: openSession

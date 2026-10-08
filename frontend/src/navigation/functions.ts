@@ -27,11 +27,13 @@ type Writable<P> = P extends `${infer F}.write` ? F : never;
 
 /**
  * The name of a function in the catalogue of permissions: `planning` stands for
- * `planning.read` and `planning.write`. The consultation of the journal of audit, which has no
- * permission to modify (`audit_log.read`, WF-SEC-0030), is no such function until the FBS gives
- * it one and the navigation a screen (#518, #517).
+ * `planning.read` and `planning.write`; a function in reading alone has its permission to read
+ * alone — the journal of audit, `audit_log.read`, which nothing modifies (FBS-1.5, WF-ADM-0100).
  */
-export type FunctionPermission = Readable<PermissionCode> & Writable<PermissionCode>;
+export type FunctionPermission = Readable<PermissionCode>;
+
+/** A function with a permission of modification: `planning`, never `audit_log`. */
+export type WritableFunction = FunctionPermission & Writable<PermissionCode>;
 
 /**
  * The functions outside any project, by the name of their permissions: those whose commands
@@ -43,6 +45,7 @@ export const PLATFORM_FUNCTIONS = [
   "access_roles",
   "system_status",
   "backups",
+  "audit_log",
   "portfolio_projects",
   "portfolio_workload",
   "portfolio_performance",

@@ -42,9 +42,7 @@ TABLE = REPOSITORY / "frontend" / "src" / "navigation" / "functions.json"
 APP = REPOSITORY / "frontend" / "src" / "app"
 """The routes of the front, one directory each, its page in ``page.tsx``."""
 
-WITHOUT_SCREEN: dict[str, str] = {
-    "FBS-1.5": "l'écran du journal d'audit : #517, EP-02/L41",
-}
+WITHOUT_SCREEN: dict[str, str] = {}
 """The leaves of the FBS that no screen addresses yet, each with its reason and the issue that
 follows it."""
 

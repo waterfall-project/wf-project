@@ -132,6 +132,7 @@
       "workBreakdown": "Work breakdown",
       "users": "User accounts",
       "accessRoles": "Access roles",
+      "auditLog": "Audit log",
       "portfolioProjects": "Portfolio projects",
       "remaining": "Remaining to commit grid",
       "projects": "List of projects"
@@ -223,7 +224,15 @@
       "description": "Description",
       "physicalProgress": "Physical progress",
       "gantt": "Gantt",
-      "updatedAt": "Last modified"
+      "updatedAt": "Last modified",
+      "occurredAt": "Date",
+      "author": "Author",
+      "auditAction": "Action",
+      "objectKind": "Kind of object",
+      "auditObject": "Object",
+      "objectHistory": "History of the object",
+      "project": "Project",
+      "correlation": "Correlation"
     },
     "computed": "Computed",
     "entry": {
@@ -1193,8 +1202,7 @@
       "function": "Function",
       "permission": "Permission",
       "held": "Granted",
-      "notHeld": "Not granted",
-      "auditLog": "Audit log"
+      "notHeld": "Not granted"
     },
     "status": {
       "version": "Installed version: {version}",
@@ -1263,6 +1271,35 @@
         "saturday": "Saturday",
         "sunday": "Sunday"
       }
+    },
+    "auditLog": {
+      "count": "{count, plural, =0 {No entry} one {# entry} other {# entries}}",
+      "none": "The log holds no entry.",
+      "noProject": "No project",
+      "project": "{code} · {label}",
+      "history": "History of “{object}”",
+      "periodRefused": "The period ends before it starts: no entry is read. Change its bounds.",
+      "filters": {
+        "label": "Filters of the log",
+        "period": "Period",
+        "from": "From",
+        "to": "Before",
+        "apply": "Apply",
+        "actorKind": "Filter by kind of author",
+        "everyActor": "Every author",
+        "user": "Author",
+        "everyUser": "Every account",
+        "everyAction": "Every action",
+        "actionsChosen": "{count, plural, one {# action} other {# actions}}",
+        "actionsNamed": "Filter by action: {chosen}",
+        "project": "Project",
+        "everyProject": "Every project",
+        "objectKind": "Kind of object",
+        "everyObjectKind": "Every kind",
+        "object": "Object: {object}",
+        "lift": "Lift",
+        "liftObject": "Lift the filter on “{object}”"
+      }
     }
   },
   "functionGroups": {
@@ -1276,6 +1313,7 @@
     "accessRoles": "Access role management",
     "systemStatus": "System status monitoring",
     "backups": "Backup and restore",
+    "auditLog": "Audit log",
     "portfolioProjects": "Project portfolio",
     "portfolioWorkload": "Aggregated workload",
     "portfolioPerformance": "Portfolio performance",

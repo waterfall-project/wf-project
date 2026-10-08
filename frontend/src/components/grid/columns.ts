@@ -309,6 +309,12 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    * planning (§3.4) —, and its address asks no sort.
    */
   readonly sorts?: boolean;
+  /**
+   * Whether a third click on a sorted header lifts its sort, back to the order the server gives
+   * unasked; by default it does. A list the server always orders by one column — the journal of
+   * audit, by its dates — never lifts it: its header goes from one direction to the other.
+   */
+  readonly lifts?: boolean;
   readonly columns: readonly GridColumn<Row, Sort, Totals>[];
   /** How a block pasted from a spreadsheet is written; none, and the grid takes no paste. */
   readonly paste?: GridPaste<Row, Sort, Totals> | undefined;
