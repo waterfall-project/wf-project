@@ -8,7 +8,8 @@
  * organisation whose roles the labour lines are restricted to, `org_node_id` — and the parameters
  * of a view: its horizon, `horizon_months`, and the threshold of under-load the user chooses at the
  * consultation, `under_load_threshold` (WF-PTF-0060), neither kept from one consultation to the
- * next. A choice only changes the address, and the page reads anew: the server computes, sorts and
+ * next —; and, for the list of the projects alone, the zones of their indices it retains, `zones`
+ * (WF-PTF-0040, WF-IHM-0130). A choice only changes the address, and the page reads anew: the server computes, sorts and
  * filters, the front nothing (WF-ARC-0020).
  *
  * Pure, and neither server nor client: the page reads, the screen writes.
@@ -17,9 +18,13 @@ import type { components } from "@/api/generated/schema";
 import { OFFSET } from "@/components/grid/query";
 import { isPlanningDate } from "@/i18n/format";
 import type { SearchParameters } from "@/navigation/context";
+import type { ProjectState } from "@/navigation/home";
 
-/** The state of a project, as the contract names it. */
-export type ProjectState = components["schemas"]["ProjectState"];
+/** The state of a project, as the contract names it: the one declaration of the home. */
+export type { ProjectState };
+
+/** The zone of an index, as the contract names it. */
+export type AlertZone = components["schemas"]["AlertZone"];
 
 /** The perimeter a view of the portfolio is computed on, as the server retained it. */
 export type PortfolioScope = components["schemas"]["PortfolioScope"];
@@ -32,6 +37,14 @@ export const AS_OF = "as_of";
 export const ORG_NODE = "org_node_id";
 export const HORIZON = "horizon_months";
 export const THRESHOLD = "under_load_threshold";
+export const ZONES = "zones";
+
+/**
+ * The zones the list of the projects is filtered on, in the order of the contract: a project is
+ * retained when its cost index or its schedule index is in one of them — the projects in alert
+ * first (WF-PTF-0040).
+ */
+export const INDEX_ZONES: readonly AlertZone[] = ["nominal", "watch", "alert"];
 
 /**
  * The states a portfolio retains (WF-PTF-0010): the projects in progress, the offers in pricing
@@ -178,5 +191,20 @@ export function parametersHref(
 /** The value of `states` for states retained, in the order of the portfolio; none for none. */
 export function statesValue(states: readonly ProjectState[]): string | undefined {
   const kept = PORTFOLIO_STATES.filter((state) => states.includes(state));
+  return kept.length === 0 ? undefined : kept.join(",");
+}
+
+/**
+ * The zones the address retains, in the order of the contract, each once; none when it names
+ * none — the list is not filtered on the zones. A value that is no zone is not asked.
+ */
+export function readZones(search: SearchParameters): readonly AlertZone[] {
+  const asked = new Set((search.get(ZONES) ?? "").split(","));
+  return INDEX_ZONES.filter((zone) => asked.has(zone));
+}
+
+/** The value of `zones` for zones retained, in the order of the contract; none for none. */
+export function zonesValue(zones: readonly AlertZone[]): string | undefined {
+  const kept = INDEX_ZONES.filter((zone) => zones.includes(zone));
   return kept.length === 0 ? undefined : kept.join(",");
 }

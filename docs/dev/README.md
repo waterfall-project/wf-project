@@ -187,11 +187,22 @@ qu'il ait son squelette sans en donner un à toutes les pages) : filtrée par d�
 projets dont l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que
 l'écran montre et qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
 (`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture
-(WF-PRJ-0060). La barre latérale et le fil d'Ariane mènent à la liste filtrée, le choix du
-projet à la liste levée, « Tous les projets » ; `/projects`, l'ancienne adresse, renvoie à
-l'accueil. La liste dit combien de projets elle tient, et mène aux autres pages par la
-pagination de shadcn/ui ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière
-page : seule une liste qui ne tient aucun projet se dit vide. Les écrans du projet lui-même — le
+(WF-PRJ-0060). Le lien qui le lève n'est offert qu'à une session qui porte `all_projects_read`
+(WF-ADM-0110) : levé pour un autre, le filtre rendrait la même liste, et le lien promettrait ce
+qu'il ne fait pas (WF-IHM-0090, #522) ; sans cette permission, l'accueil reste filtré quoi que
+dise l'adresse — `?is_contributor=false` compris, la page demandant `is_contributor=true` —, le
+badge « Mes projets » affiché sans aucun lien, et le choix du projet mène à l'accueil plutôt qu'à la
+liste levée. La barre
+latérale et le fil d'Ariane mènent à la liste filtrée, le choix du projet à la liste levée,
+« Tous les projets » ; `/projects`, l'ancienne adresse, renvoie à l'accueil. Les projets sont
+une configuration de plus de la grille dense (`project-list-grid.tsx`, préférences sous la clé
+`projects`) : le libellé, lien qui ouvre le projet, le code, l'état par sa pastille et la date de
+modification, chaque colonne triée par le serveur (`sort_by`), cherchée par lui (`search`) et
+filtrée par état — des boutons pressés qui n'écrivent que l'adresse (`states`) ; une adresse qui
+n'en nomme aucun demande tous les états, l'accueil montrant tout ce que l'utilisateur peut
+ouvrir. Sa ligne de totaux dit combien de projets le serveur retient, et elle mène aux autres
+pages par `ListPages` ; une page demandée au-delà de sa fin le dit, et ramène à sa dernière page :
+seule une liste qui ne tient aucun projet, sans état ni recherche, se dit vide. Les écrans du projet lui-même — le
 projet, ses paramètres avec ses sous-projets et ses contributeurs, son cycle de vie — sont en
 lecture ; la sortie du cycle de vie est la seule commande qu'ils exercent (`ExitCommand`),
 confirmée dans la page avant que son action serveur ne la demande.
@@ -250,7 +261,11 @@ avant l'état En cours, qui n'en a conservé aucun, est refusée comme un projet
 cours, et l'écran le dit. Un avis en tête nomme, des indicateurs et de l'évolution des indices,
 celui qui est calculé sur une autre révision que celle du bandeau, et laquelle — l'évolution,
 toujours au jour sur la révision en cours (`ComputedElsewhere`) ; une courbe nomme la sienne dans
-l'image qu'elle exporte.
+l'image qu'elle exporte. Le sous-projet de l'adresse restreint ce que l'API lit pour lui — les
+indicateurs et les courbes de valeur acquise (`scope`) —, et la pastille du bandeau le dit
+(`restricts` de `ContextBanner`, comme pour la grille du reste à engager, #459) ; l'évolution des
+indices, le suivi des jalons et les coûts cumulés, dont les opérations ne prennent pas de
+sous-projet, disent chacun qu'ils portent sur le projet entier (`WholeProject`, #495).
 
 Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
 écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
@@ -560,7 +575,11 @@ import. Chaque import est offert comme le projet offre sa commande (`importOffer
 révision en cours — sans elle, qui ne peut pas créer la révision voit l'import indisponible,
 `may_create_revision` nommée. Un projet sans révision, qu'aucune adresse de révision n'atteint,
 offre les mêmes imports sur son propre écran (`ImportPart`), et y montre le compte rendu de l'import
-que son adresse nomme (#332). La liste des imports, paginée par le serveur (`offset`,
+que son adresse nomme (#332). L'écran est gardé par les commandes qu'il exerce, et non par la seule
+lecture du planning (#521) : il se montre à une session qui lit le planning, dont il est la feuille,
+ou à laquelle le projet liste un import (`listsAnImport`) — un chiffreur, que le devis et le reste à
+engager y mènent quand le projet liste leur import, disponible ou non, l'écran le présentant alors
+avec ses conditions (`ExchangesLink`, WF-IHM-0090) ; il est introuvable pour tout autre. La liste des imports, paginée par le serveur (`offset`,
 `ListPages` de `components/costs/cost-pages.tsx`), mène au compte rendu de chacun ; la demande
 d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
 consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
@@ -1479,6 +1498,15 @@ neutres de shadcn/ui ; la police est Geist, celle du logo.
   Qu'aucun écran ne distingue deux états par la seule couleur — une pastille, une ligne
   teintée sans forme ni texte —, c'est pour le reste la revue qui le tient ; les tests de
   `Signal` le prouvent pour le composant.
+- **L'état d'un projet passe par `ProjectStateBadge`** (`frontend/src/components/projects/`,
+  #523), partout où un écran le montre — l'accueil, la liste du portefeuille, la page, les
+  paramètres et le cycle de vie d'un projet : une pastille remplie du jeton de son état,
+  `--state-<état>`, son texte du jeton `--state-<état>-foreground`, dans la palette que l'auteur
+  a validée — gris clair pour Créé, bleu pour Chiffrage, vert pour En cours, gris foncé pour
+  Terminé, orange pour Perdu, rouge sourd pour Abandonné —, et toujours le mot de l'état et son
+  icône, propre à chacun et distincte des formes de `Signal`. `contrast.test.ts` mesure le texte
+  de chaque état sur sa pastille, et tient chaque jeton d'état à l'écart des jetons de zone :
+  un état ne se lit pas comme une alerte.
 - **shadcn/ui partout où un composant existe** : un composant s'ajoute en copiant son source
   dans `frontend/src/components/ui/` (`frontend/components.json` en donne les chemins), et
   seulement quand un écran l'emploie ; ce qu'il offre et qu'aucun écran n'emploie — une

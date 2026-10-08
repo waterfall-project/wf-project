@@ -12,12 +12,10 @@ import { refresh } from "next/cache";
 import type { components } from "@/api/generated/schema";
 import { decode, type Outcome } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import type { ProjectState } from "@/api/project-state";
 
 /** What the exit of a project from its lifecycle takes: the state it goes to, confirmed. */
 type ProjectExit = components["schemas"]["ProjectExit"];
-
-/** The state of the lifecycle of a project. */
-type ProjectState = components["schemas"]["ProjectState"];
 
 /**
  * Take a project out of its lifecycle, once the user has confirmed it (WF-CYC-0060, WF-CYC-0090):

@@ -51,8 +51,9 @@ test("an active filter is visible without opening the panel of filters [WF-IHM-0
   // The indicators read both the sub-project and the date: their banner shows both (#302).
   await page.goto(`${IN_REVISION}/indicators?subproject_id=${SUBPROJECT}&as_of=2026-05-31`);
   const chips = banner(page).getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
+  // The sub-project restricts the indicators and the earned value, not the other curves (#495).
   await expect(chips).toHaveText([
-    "Sous-projet : SP-CMD — Poste de commande",
+    "Sous-projet : SP-CMD — Poste de commande, sur les indicateurs et la valeur acquise seulement",
     "Date de calcul : 31 mai 2026",
   ]);
   await expect(chips.first()).toBeVisible();
@@ -63,5 +64,7 @@ test("an active filter is visible without opening the panel of filters [WF-IHM-0
     .getByRole("link", { name: "Lever le filtre « Date de calcul : 31 mai 2026 »" })
     .click();
   await expect(page).toHaveURL(`${IN_REVISION}/indicators?subproject_id=${SUBPROJECT}`);
-  await expect(chips).toHaveText(["Sous-projet : SP-CMD — Poste de commande"]);
+  await expect(chips).toHaveText([
+    "Sous-projet : SP-CMD — Poste de commande, sur les indicateurs et la valeur acquise seulement",
+  ]);
 });

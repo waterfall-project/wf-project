@@ -210,6 +210,19 @@ describe("the screen of the remaining to commit", () => {
     expect(page).toContain('aria-label="Remaining to commit grid"');
   });
 
+  it("leads to the imports and exports, in the same context, when the project lists the import of a remaining to commit (#521)", async () => {
+    const page = await remainingAt({ subproject_id: SUBPROJECT });
+    expect(page).toContain(
+      `href="/projects/${PROJECT}/revisions/${REVISION}/exchanges?subproject_id=${SUBPROJECT}"`,
+    );
+    server.clients = [];
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing_estimator",
+    };
+    expect(await remainingAt()).not.toContain("/exchanges");
+  });
+
   it("leads to the Kanban of the start of the tasks, in the same context", async () => {
     const page = await remainingAt({ subproject_id: SUBPROJECT });
     expect(page).toContain(

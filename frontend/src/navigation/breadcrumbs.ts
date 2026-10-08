@@ -6,8 +6,12 @@
  * the FBS, which has no page of its own; a function of a project, in the list of projects and in
  * the project, whose page keeps the context of the address; a page of the account, in the
  * account. The last step is the page shown. The label of a project is not in the address: the
- * step names the project by its identifier, and the shell by the project the screen hands on.
+ * step names the project by its identifier, and the shell by the project the screen hands on. The
+ * function a leaf sits under is a link only for a session that may read it: a costing engineer on
+ * the imports and exports, a leaf of the planning they do not read, sees its name alone.
  */
+import type { components } from "@/api/generated/schema";
+
 import { findAccountPage } from "./account";
 import { contextQuery, type ProjectContext } from "./context";
 import {
@@ -18,6 +22,9 @@ import {
   type NavigationFunction,
 } from "./functions";
 import { HOME } from "./home";
+
+/** A permission of the catalogue, as a session carries it. */
+type PermissionCode = components["schemas"]["PermissionCode"];
 
 /** The key of the label of a step in the catalogues. */
 export type CrumbLabel =
@@ -58,15 +65,21 @@ function blockOf(fn: NavigationFunction): FunctionGroup | undefined {
 
 /**
  * The steps of the screen of a function, a leaf after the function it is a leaf of, a link to its
- * screen in the same context.
+ * screen in the same context for a session that may read it, its name alone otherwise.
  */
 function functionSteps(
   fn: NavigationFunction,
   parent: NavigationFunction | undefined,
   context: ProjectContext | undefined,
+  permissions: readonly PermissionCode[],
 ): Crumb[] {
   if (fn.scope !== "platform" && context !== undefined) {
-    const above = parent === undefined ? [] : [label(parent.label, functionHref(parent, context))];
+    const granted = new Set<string>(permissions);
+    const readable = (above: NavigationFunction) => granted.has(`${above.permission}.read`);
+    const above =
+      parent === undefined
+        ? []
+        : [label(parent.label, readable(parent) ? functionHref(parent, context) : undefined)];
     return [PROJECTS_STEP, projectStep(context), ...above, label(fn.label)];
   }
   const block = blockOf(fn);
@@ -81,8 +94,15 @@ function projectSteps(context: ProjectContext): Crumb[] {
   return [PROJECTS_STEP, { kind: "project", projectId: context.projectId }];
 }
 
-/** The steps of the breadcrumb of an address; none for an address that leads nowhere. */
-export function crumbsOf(pathname: string, context: ProjectContext | undefined): Crumb[] {
+/**
+ * The steps of the breadcrumb of an address, for a session of the permissions given; none for an
+ * address that leads nowhere.
+ */
+export function crumbsOf(
+  pathname: string,
+  context: ProjectContext | undefined,
+  permissions: readonly PermissionCode[],
+): Crumb[] {
   if (pathname === HOME) {
     return [label("functionGroups.projects")];
   }
@@ -94,7 +114,7 @@ export function crumbsOf(pathname: string, context: ProjectContext | undefined):
   }
   const screen = findScreen(pathname.split("/").slice(1));
   if (screen !== undefined) {
-    return functionSteps(screen.fn, screen.parent, context);
+    return functionSteps(screen.fn, screen.parent, context, permissions);
   }
   return context === undefined ? [] : projectSteps(context);
 }

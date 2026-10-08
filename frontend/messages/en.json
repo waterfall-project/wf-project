@@ -28,9 +28,9 @@
   "projectSwitcher": {
     "none": "No project open",
     "unnamed": "Open project",
-    "summary": "{code} · {state}",
     "allProjects": "All projects",
-    "projectPage": "Project page"
+    "projectPage": "Project page",
+    "myProjects": "My projects"
   },
   "breadcrumbs": {
     "label": "Breadcrumb",
@@ -126,7 +126,8 @@
       "resourceRoles": "Resource roles",
       "calendars": "Calendars",
       "portfolioProjects": "Portfolio projects",
-      "remaining": "Remaining to commit grid"
+      "remaining": "Remaining to commit grid",
+      "projects": "List of projects"
     },
     "columns": {
       "rowNumber": "No.",
@@ -193,7 +194,8 @@
       "reestimatedAmount": "Re-estimated amount",
       "description": "Description",
       "physicalProgress": "Physical progress",
-      "gantt": "Gantt"
+      "gantt": "Gantt",
+      "updatedAt": "Last modified"
     },
     "computed": "Computed",
     "entry": {
@@ -454,7 +456,9 @@
     },
     "projects": {
       "retained": "{count, plural, =0 {No project retained} one {# project retained} other {# projects retained}}",
-      "reason": " — {reason}"
+      "reason": " — {reason}",
+      "zones": "Filter by zone of the indices",
+      "everyZone": "Every zone"
     },
     "pages": {
       "label": "Pages of the projects",
@@ -622,11 +626,14 @@
     "filters": "Active filters",
     "subproject": "Subproject: {subproject}",
     "subprojectName": "{code} — {label}",
-    "gridOnly": "{filter}, on the grid only",
     "asOf": "Calculation date: {date}",
     "computedOn": "Revision of the calculation",
     "unnamedRevision": "unnamed",
-    "removeFilter": "Remove the filter “{filter}”"
+    "removeFilter": "Remove the filter “{filter}”",
+    "restricts": {
+      "grid": "{filter}, on the grid only",
+      "indicators": "{filter}, on the indicators and the earned value only"
+    }
   },
   "indicator": {
     "names": {
@@ -749,12 +756,21 @@
       "month": "Month",
       "past": "Paid out",
       "forecast": "To pay out"
+    },
+    "wholeProject": {
+      "history": "This evolution shows every scope of the project: it is not restricted to the filtered subproject.",
+      "milestones": "This tracking covers the milestones of the whole project: it is not restricted to the filtered subproject.",
+      "costCurve": "These curves cover the whole project: they are not restricted to the filtered subproject."
+    },
+    "provenance": {
+      "subproject": "Subproject: {subproject}",
+      "wholeProject": "Whole project, not restricted to the filtered subproject"
     }
   },
   "workload": {
     "title": "Project workload",
     "chartTitle": "Load by role and by month",
-    "description": "Bars of the load of each resource role by month, in hours, and its monthly capacity against it, dashed.",
+    "description": "Bars of the load of each resource role by month, in hours; the monthly capacity of each role is in the table of the values, against its load.",
     "basis": "Basis",
     "markedRevision": "Marked revision",
     "unnamedRevision": "Unnamed marked revision",
@@ -767,9 +783,7 @@
     "month": "Month",
     "hours": "Load (h)",
     "capacity": "Capacity (h per month)",
-    "loadRatio": "Load against capacity",
     "zone": "Zone",
-    "capacityOf": "Capacity — {role}",
     "noLoad": "No load",
     "none": "No role has a load on this basis.",
     "noneInNode": "No role of the node “{node}” or of its descendants has a load on this basis.",
@@ -821,24 +835,14 @@
     "cancel": "Cancel"
   },
   "projectList": {
-    "label": "List of projects",
     "count": "{count, plural, one {# project} other {# projects}}",
-    "columns": {
-      "label": "Project",
-      "code": "Code",
-      "state": "State"
-    },
     "filter": {
       "label": "Filter of the list",
       "mine": "Projects you contribute to",
       "lift": "Show all projects",
-      "apply": "Show only my projects"
-    },
-    "pages": {
-      "label": "Pages of the list",
-      "beyond": "The page asked for lies beyond the end of the list.",
-      "previous": "Previous projects",
-      "next": "Next projects"
+      "apply": "Show only my projects",
+      "states": "Filter by state",
+      "everyState": "Every state"
     }
   },
   "projectFacts": {

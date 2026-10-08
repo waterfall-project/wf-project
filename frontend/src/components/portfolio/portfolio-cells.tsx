@@ -3,7 +3,7 @@
 /**
  * The cells of the list of the projects of the portfolio that show more than a value formatted:
  * the label of a project, a link that opens it (WF-PTF-0030), out of the order of tabulation, the
- * grid being one stop, which follows it on Enter (`grid-keyboard.ts`); its state, by the catalogue;
+ * grid being one stop, which follows it on Enter (`grid-keyboard.ts`); its state, by its badge;
  * an index, its value as the server gives it — or that it cannot be computed, and why — and its
  * zone by the one signal of the application (WF-IHM-0070); and the date of the last marked
  * revision, in the local time of the workstation.
@@ -15,6 +15,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
+import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import { Signal } from "@/components/signal/signal";
 import { formatDecimal } from "@/i18n/format";
 
@@ -36,10 +37,9 @@ export function ProjectLabelCell({ id, label }: { readonly id: string; readonly 
   );
 }
 
-/** Render the state of a project, in the language of the interface. */
+/** Render the state of a project by its badge, in the language of the interface (#523). */
 export function ProjectStateCell({ state }: { readonly state: ProjectState }) {
-  const t = useTranslations("enums.ProjectState");
-  return <span className="truncate">{t(state)}</span>;
+  return <ProjectStateBadge state={state} className="max-w-full" />;
 }
 
 /** Render an index: its value and its zone, or why it has none; nothing for a project without. */

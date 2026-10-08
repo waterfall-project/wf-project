@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of a project (FBS-4.2, US-0210), under the banner of its reading context
- * (WF-IHM-0020): its inflation rate and its probability of winning, its work breakdown, its
+ * (WF-IHM-0020): the state of the project, by its badge, in its header; its inflation rate and its probability of winning, its work breakdown, its
  * sub-projects and its contributors, each list a section of the screen under its own title — the
  * ergonomics gathers the leaves of the function on one screen. Read only: the forms that modify
  * them belong to the epic of their domain.
@@ -13,7 +13,9 @@ import { useTranslations } from "next-intl";
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
+import type { Project } from "@/components/context/reading";
 import { SettingsFacts } from "@/components/projects/project-facts";
+import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
   ContributorList,
   SubprojectList,
@@ -40,14 +42,20 @@ export async function generateMetadata({
   return screenMetadata("functions.projectSettings", projectId);
 }
 
-/** The title of the screen, with the icon of its function. */
-function SettingsHeader() {
+/** The title of the screen, with the icon of its function, and the state of the project. */
+function SettingsHeader({ project }: { readonly project: Project }) {
   const t = useTranslations();
   return (
     <PageHeader
       title={t("functions.projectSettings")}
       icon={FUNCTION_ICONS.project_settings}
       density={FUNCTION_DENSITY.project_settings}
+      subtitle={
+        <span className="inline-flex items-center gap-2">
+          {t("projectFacts.state")}
+          <ProjectStateBadge state={project.state} />
+        </span>
+      }
     />
   );
 }
@@ -67,7 +75,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
     <>
       <ContextBanner reading={read} />
       <Screen density={FUNCTION_DENSITY.project_settings}>
-        <SettingsHeader />
+        <SettingsHeader project={read.project} />
         <SettingsFacts project={read.project} />
         <WorkBreakdownList breakdown={breakdown} />
         <SubprojectList subprojects={subprojects} />

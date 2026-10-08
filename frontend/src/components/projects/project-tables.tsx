@@ -6,7 +6,7 @@
  * (WF-PRJ-0050); its contributors, the project manager told from the others, and whether their
  * account is still active (WF-PRJ-0060); its work breakdown, each order item with its work packages
  * and their deliverables (WF-PRJ-0020); the history of its states, each transition dated when it
- * occurred, by whom, and with the motive given to confirm an exit, if any (WF-CYC-0130). Each
+ * occurred, its states by their badge, by whom, and with the motive given to confirm an exit, if any (WF-CYC-0130). Each
  * table is a section under its title — named by `aria-label`, never by an identifier of `useId`,
  * which a server component may share with a client one of the shell (#251) —; an empty list says
  * it is. Nothing is offered to create or modify: those forms belong to the epic of their domain.
@@ -29,6 +29,7 @@ import type { ReactNode } from "react";
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
 import { Badge } from "@/components/ui/badge";
+import { ProjectStateBadge } from "@/components/projects/project-state-badge";
 import {
   Table,
   TableBody,
@@ -252,7 +253,6 @@ export function TransitionList({
   readonly transitions: readonly StateTransition[];
 }) {
   const t = useTranslations("projectLists.transitions");
-  const state = useTranslations("enums.ProjectState");
   return (
     <ListSection
       title={t("title")}
@@ -270,9 +270,13 @@ export function TransitionList({
             </TableCell>
             <TableCell className={CELL}>
               <span className="inline-flex items-center gap-1.5">
-                {transition.from_state == null ? t("creation") : state(transition.from_state)}
+                {transition.from_state == null ? (
+                  t("creation")
+                ) : (
+                  <ProjectStateBadge state={transition.from_state} />
+                )}
                 <ArrowRight aria-label={t("to")} role="img" className={ICON} />
-                <Badge>{state(transition.to_state)}</Badge>
+                <ProjectStateBadge state={transition.to_state} />
               </span>
             </TableCell>
             <TableCell className={CELL}>

@@ -111,3 +111,21 @@ test("refuses in the form a file larger than an import takes, before anything is
   await expect(page).toHaveURL(START);
   expect(sent).toEqual([]);
 });
+
+test("the estimate and the remaining to commit lead to the one screen of the imports, in the same context, when the project lists their import (#521)", async ({
+  page,
+}) => {
+  // A costing engineer who does not read the planning reaches the imports so; the fake back
+  // grants every permission, and lists both imports available.
+  const estimate = `/projects/${PROJECT}/revisions/${REVISION}/estimate?as_of=2026-05-31`;
+  const remaining = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
+  await compile(page.request, START, remaining);
+  await page.goto(estimate);
+  await page.getByRole("main").getByRole("link", { name: "Imports et exports" }).click();
+  await expect(page).toHaveURL(START);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Imports et exports");
+  await page.goto(remaining);
+  await expect(
+    page.getByRole("main").getByRole("link", { name: "Imports et exports" }),
+  ).toHaveAttribute("href", `/projects/${PROJECT}/revisions/${REVISION}/exchanges`);
+});

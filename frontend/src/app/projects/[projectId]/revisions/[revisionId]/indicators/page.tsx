@@ -15,7 +15,11 @@
  *
  * When a date `as_of` computes the indicators on another revision than the one the address names,
  * the banner names the revision of the calculation (#363); the evolution of the indices, always
- * computed on the revision under way, is said at the head of the screen.
+ * computed on the revision under way, is said at the head of the screen. The sub-project the
+ * address filters restricts what the API reads for it — the indicators and the curves of earned
+ * value (`scope`) —, and the banner says so on its chip; the evolution of the indices, the
+ * tracking of the milestones and the cumulative costs, whose operations take no sub-project, each
+ * say they are read for the project whole (#495, WF-IHM-0020).
  *
  * The indicators of a project are computed from the state In progress only (WF-IND-0010): before,
  * the API refuses them (409, `STATE_FORBIDS_OPERATION`), and the screen says so rather than coming
@@ -31,8 +35,17 @@ import { useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { type ComputedRevision, ContextBanner } from "@/components/context/context-banner";
-import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import {
+  type ComputedRevision,
+  ContextBanner,
+  type Restrictions,
+  useSubprojectName,
+} from "@/components/context/context-banner";
+import {
+  type ContextFilter,
+  type ProjectReading,
+  readProjectContext,
+} from "@/components/context/reading";
 import {
   CostCurveSection,
   EarnedValueSection,
@@ -59,6 +72,28 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { projectId } = await params;
   return screenMetadata("functions.projectIndicators", projectId);
+}
+
+/**
+ * The sub-project the screen filters restricts the reads that take it — the indicators and the
+ * curves of earned value (`scope`) —, not the evolution of the indices, the tracking of the
+ * milestones nor the cumulative costs, whose operations do not (#495).
+ */
+const RESTRICTS: Restrictions = { subproject_id: "indicators" };
+
+/** The filter of a sub-project. */
+type SubprojectFilter = Extract<ContextFilter, { name: "subproject_id" }>;
+
+/** The sub-project the reading filters, if any. */
+function subprojectFilter(reading: ProjectReading): SubprojectFilter | undefined {
+  return reading.filters.find(
+    (filter): filter is SubprojectFilter => filter.name === "subproject_id",
+  );
+}
+
+/** Whether the reading filters a sub-project. */
+function filtersSubproject(reading: ProjectReading): boolean {
+  return subprojectFilter(reading) !== undefined;
 }
 
 /** The refusal of the indicators of a project not yet in progress (WF-IND-0010). */
@@ -214,29 +249,44 @@ function Sections({
   readonly address: ScreenAddress;
   readonly nameOf: RevisionName;
 }) {
+  const t = useTranslations("projectIndicators.provenance");
   const label = useRevisionLabel();
+  const subprojectName = useSubprojectName();
   const { project } = reading;
-  const provenance = (revisionId: string) => ({
+  // A sub-project filtered, which the tracking of the milestones and the costs do not take: the
+  // image of each chart says what it is computed on, the sub-project or the project whole.
+  const filtered = subprojectFilter(reading);
+  const wholeProject = filtered !== undefined;
+  const provenance = (revisionId: string, restricted: boolean) => ({
     project: project.label,
     code: project.code ?? project.project_id,
     revision: label(nameOf(revisionId)),
+    ...(filtered === undefined
+      ? {}
+      : {
+          detail: restricted
+            ? t("subproject", { subproject: subprojectName(filtered.value, filtered.subproject) })
+            : t("wholeProject"),
+        }),
   });
   return (
     <>
       <MilestoneSection
         tracking={milestones}
-        provenance={provenance(milestones.context.revision_id)}
+        provenance={provenance(milestones.context.revision_id, false)}
+        wholeProject={wholeProject}
       />
       {figures === undefined ? null : (
         <>
           <CostCurveSection
             curves={figures.costs}
             address={address}
-            provenance={provenance(figures.costs.context.revision_id)}
+            provenance={provenance(figures.costs.context.revision_id, false)}
+            wholeProject={wholeProject}
           />
           <EarnedValueSection
             curves={figures.earnedValue}
-            provenance={provenance(figures.earnedValue.context.revision_id)}
+            provenance={provenance(figures.earnedValue.context.revision_id, true)}
           />
         </>
       )}
@@ -298,7 +348,7 @@ export default async function IndicatorsPage({
       : { revisionId: computedOn, versionName: nameOf(computedOn) };
   return (
     <>
-      <ContextBanner reading={reading} computedOn={indicatorsOn} />
+      <ContextBanner reading={reading} computedOn={indicatorsOn} restricts={RESTRICTS} />
       <Screen density={FUNCTION_DENSITY.project_indicators}>
         <IndicatorsHeader />
         {history === undefined || history === (computedOn ?? shown?.revision_id) ? null : (
@@ -307,7 +357,11 @@ export default async function IndicatorsPage({
         {figures === undefined ? (
           <NotInProgress />
         ) : (
-          <ProjectIndicatorCards indicators={figures.indicators} history={figures.history} />
+          <ProjectIndicatorCards
+            indicators={figures.indicators}
+            history={figures.history}
+            wholeProject={filtersSubproject(reading)}
+          />
         )}
         <Sections
           reading={reading}

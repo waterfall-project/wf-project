@@ -11,6 +11,11 @@
  * (`importOffers`), every export as the revision read offers its own (`exportOffers`), every report
  * rendered from what `getImport` gives; a read the API refuses, or cannot answer, is thrown for the
  * pages of the shell to say.
+ *
+ * The screen is guarded by the commands it exercises, not by the read of the planning alone (#521):
+ * it shows to a session that reads the planning, whose leaf it is, or to which the project lists an
+ * import — a costing engineer, whom the estimate and the remaining to commit lead here when their
+ * import is listed. To anyone else it is not found, as a read refused is (WF-ADM-0110).
  */
 import { FileDown } from "lucide-react";
 import type { Metadata } from "next";
@@ -32,6 +37,7 @@ import {
   exportOffers,
   type ExportOffers,
   importOffers,
+  listsAnImport,
 } from "@/components/exchanges/offers";
 import { readShownImport } from "@/components/exchanges/shown-import";
 import { PendingAddress } from "@/components/grid/pending-address";
@@ -39,6 +45,7 @@ import { ICON } from "@/components/projects/project-tables";
 import { LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { contextQuery, type PageSearchParams } from "@/navigation/context";
+import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
 import { type GridAddress, gridAddress } from "../grid-screen";
@@ -121,13 +128,18 @@ export default async function ExchangesPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "exchanges");
   const offset = readPage(at.address, EXCHANGES_PAGE);
-  const [reading, imports, shown] = await Promise.all([
+  const [reading, imports, shown, session] = await Promise.all([
     // The imports take neither a sub-project nor a date: the banner shows no filter (#302).
     readProjectContext(at.pathname, at.context, []),
     readImports(at, offset),
     readShownImport(revision.projectId, at.address),
+    requestSession(),
   ]);
   if (reading === "not_found") {
+    notFound();
+  }
+  const readsPlanning = session?.permissions.includes("planning.read") === true;
+  if (!readsPlanning && !listsAnImport(reading.project)) {
     notFound();
   }
   const offers = importOffers(reading.project);

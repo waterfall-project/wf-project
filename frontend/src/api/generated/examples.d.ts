@@ -54,7 +54,7 @@ export interface Examples {
     200: "projects" | "projects_empty";
   };
   "GET /projects/{project_id}": {
-    200: "project" | "project_pricing" | "project_pricing_estimator" | "project_without_current_revision";
+    200: "project" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_without_current_revision";
   };
   "GET /projects/{project_id}/actual-costs": {
     200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
@@ -180,7 +180,7 @@ export interface Examples {
     200: "reference_settings";
   };
   "GET /session": {
-    200: "session" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_without_administration" | "session_without_preferences";
+    200: "session" | "session_dark" | "session_english" | "session_estimator" | "session_grid_settings" | "session_manager" | "session_without_administration" | "session_without_preferences" | "session_without_roles";
   };
   "GET /session/providers": {
     200: "auth_providers" | "auth_providers_local";

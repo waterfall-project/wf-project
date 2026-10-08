@@ -139,6 +139,7 @@ describe("the screens of the portfolio", () => {
       search: "poste",
       offset: "50",
       org_node_id: DESIGN_OFFICE,
+      zones: "alert,nominal,unknown",
     });
     const perimeter = {
       states: "in_progress,pricing",
@@ -148,6 +149,7 @@ describe("the screens of the portfolio", () => {
     };
     expect(queryOf("GET /portfolio/projects")).toEqual({
       ...perimeter,
+      zones: "nominal,alert",
       offset: "50",
       search: "poste",
       sort_by: "cost_index",

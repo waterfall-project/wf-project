@@ -21,18 +21,16 @@ import { useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { exitProject } from "@/api/actions/projects";
-import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { DoneNotice } from "@/components/notices/done-notice";
 import { Button } from "@/components/ui/button";
+import type { ProjectState } from "@/navigation/home";
 
 import { Command } from "./command";
 import { EXIT_STATES, type ExitCommandName } from "./exits";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "./icons";
 import type { CommandOffer } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
-
-type ProjectState = components["schemas"]["ProjectState"];
 
 /** An exit the project lists, and what it offers of it. */
 export interface ExitOffer {

@@ -712,7 +712,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Estimate indicators Computed on Estimate total 121,534.56 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 121,534.56 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context.
     expect(html).toMatch(

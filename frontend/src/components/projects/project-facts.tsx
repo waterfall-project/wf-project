@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What the screens of a project say of it, as the API reads it (WF-PRJ-0080): on its page, its
- * code, its state in words, the date its order was received and its description; on its
+ * code, its state by its badge — its word, its icon and its colour —, the date its order was received and its description; on its
  * settings, its inflation rate and its probability of winning, formatted from the exact decimal
  * of the contract. A value the project does not have yet is said to be missing, never invented.
  * An icon before each fact, which a screen reader leaves out.
@@ -20,8 +20,9 @@ import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { Project } from "@/components/context/reading";
-import { Badge } from "@/components/ui/badge";
 import { formatPercent, formatPlanningDate } from "@/i18n/format";
+
+import { ProjectStateBadge } from "./project-state-badge";
 
 /** A fact of a project: its name, and what the project has of it. */
 function Fact({
@@ -56,7 +57,6 @@ function Facts({ label, children }: { readonly label: string; readonly children:
 /** The code, the state, the order and the description of a project. */
 export function ProjectFacts({ project }: { readonly project: Project }) {
   const t = useTranslations("projectFacts");
-  const state = useTranslations("enums.ProjectState");
   const locale = useLocale();
   return (
     <Facts label={t("label")}>
@@ -64,7 +64,7 @@ export function ProjectFacts({ project }: { readonly project: Project }) {
         {project.code ?? t("missing")}
       </Fact>
       <Fact icon={Workflow} term={t("state")}>
-        <Badge>{state(project.state)}</Badge>
+        <ProjectStateBadge state={project.state} />
       </Fact>
       <Fact icon={CalendarCheck} term={t("orderReceivedOn")}>
         {project.order_received_on == null
