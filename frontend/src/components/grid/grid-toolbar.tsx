@@ -62,24 +62,33 @@ export interface GridToolbarProps {
   readonly undoable: boolean | undefined;
   /** How the tree of the grid folds; none for a grid that is no tree. */
   readonly outline?: GridOutline | undefined;
+  /**
+   * The name of the grid, which names its search and its menu of the columns, for a grid among
+   * several on its screen — three searches of the same name would not be told apart —; none for a
+   * grid alone.
+   */
+  readonly grid?: string | undefined;
 }
 
 /** The search on the labels, sent when entered. */
 function SearchField({
   search,
   onSearch,
+  grid,
 }: {
   readonly search: string | undefined;
   readonly onSearch: (search: string) => void;
+  readonly grid: string | undefined;
 }) {
   const t = useTranslations("grid.search");
+  const label = grid === undefined ? t("label") : t("labelIn", { grid });
   const [text, setText] = useState(search ?? "");
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSearch(text);
   };
   return (
-    <form role="search" aria-label={t("label")} onSubmit={submit} className="relative w-64">
+    <form role="search" aria-label={label} onSubmit={submit} className="relative w-64">
       <Search
         aria-hidden="true"
         className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -88,7 +97,7 @@ function SearchField({
         type="search"
         value={text}
         maxLength={SEARCH_LENGTH}
-        aria-label={t("label")}
+        aria-label={label}
         placeholder={t("placeholder")}
         onChange={(event) => {
           setText(event.target.value);
@@ -153,20 +162,33 @@ function OutlineMenu({ outline }: { readonly outline: GridOutline }) {
 }
 
 /** Render the bar of a grid. */
-export function GridToolbar({ columns, search, onSearch, undoable, outline }: GridToolbarProps) {
+export function GridToolbar({
+  columns,
+  search,
+  onSearch,
+  undoable,
+  outline,
+  grid,
+}: GridToolbarProps) {
   const t = useTranslations("grid.columnsMenu");
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* A search the address changed — back in the history — sets the field anew. */}
       {onSearch === undefined ? null : (
-        <SearchField key={search ?? ""} search={search} onSearch={onSearch} />
+        <SearchField key={search ?? ""} search={search} onSearch={onSearch} grid={grid} />
       )}
       <div className="flex-1" />
       {undoable === true ? <UndoCommands /> : null}
       {outline === undefined ? null : <OutlineMenu outline={outline} />}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={grid === undefined ? undefined : t("openIn", { grid })}
+            className="h-7 text-xs"
+          >
             <Columns3 aria-hidden="true" />
             {t("open")}
           </Button>

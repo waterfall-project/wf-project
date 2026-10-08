@@ -243,6 +243,9 @@ export interface Examples {
     200: "remaining_reestimated";
   };
   "PUT /reference/cost-categories/{cost_category_id}/hourly-rates/{year}": {
-    200: "hourly_rate_corrected" | "hourly_rate_entered";
+    200: "hourly_rate_added_year" | "hourly_rate_corrected" | "hourly_rate_entered";
+  };
+  "PUT /reference/resource-roles/{resource_role_id}/activation": {
+    200: "resource_role_reactivated";
   };
 }

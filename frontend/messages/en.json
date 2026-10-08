@@ -122,6 +122,9 @@
       "risks": "Risk register",
       "actualCosts": "Actual costs",
       "hourlyRates": "Hourly rate grid",
+      "orgNodes": "Organisation tree",
+      "resourceRoles": "Resource roles",
+      "calendars": "Calendars",
       "portfolioProjects": "Portfolio projects",
       "remaining": "Remaining to commit grid"
     },
@@ -159,6 +162,20 @@
       "passthrough": "Columns kept from the file",
       "code": "Code",
       "hourlyRate": "Hourly rate",
+      "level": "Level",
+      "orgNode": "Organisation node",
+      "costCategory": "Cost category",
+      "calendar": "Calendar",
+      "monthlyHours": "Hours a month",
+      "headcount": "Headcount",
+      "monday": "Mon",
+      "tuesday": "Tue",
+      "wednesday": "Wed",
+      "thursday": "Thu",
+      "friday": "Fri",
+      "saturday": "Sat",
+      "sunday": "Sun",
+      "defaultCalendar": "Default",
       "referenceBudget": "Reference budget",
       "currentEstimate": "Current estimate",
       "winProbability": "Win probability",
@@ -191,6 +208,7 @@
     "empty": "No row matches the request.",
     "search": {
       "label": "Search a label",
+      "labelIn": "Search in “{grid}”",
       "placeholder": "Search a label"
     },
     "undo": {
@@ -209,6 +227,7 @@
     },
     "columnsMenu": {
       "open": "Columns",
+      "openIn": "Columns of “{grid}”",
       "title": "Columns shown"
     },
     "fold": {
@@ -973,7 +992,13 @@
     "currency": "Amounts in {currency}, the single currency of the installation.",
     "state": {
       "active": "Active",
-      "inactive": "Deactivated"
+      "inactive": "Deactivated",
+      "reactivate": "Reactivate “{name}”",
+      "reactivateShort": "Reactivate"
+    },
+    "inactive": {
+      "show": "Show the deactivated ones too",
+      "hide": "Hide the deactivated ones"
     },
     "columns": {
       "code": "Code",
@@ -981,7 +1006,16 @@
       "state": "State"
     },
     "rates": {
-      "caption": "Hourly rates in {currency}"
+      "caption": "Hourly rates in {currency}",
+      "addYear": {
+        "label": "Add a year to the grid",
+        "year": "Year",
+        "submit": "Add the column",
+        "remove": "Remove the column {year}",
+        "added": "Column {year} added: it stays empty until its first rate, which entering a cell records.",
+        "present": "The year {year} already has its column in the grid.",
+        "outOfRange": "A year runs from {min} to {max}."
+      }
     },
     "costTypes": {
       "title": "Cost types",
@@ -996,33 +1030,22 @@
     },
     "orgNodes": {
       "title": "Organisation tree",
-      "level": "Level",
       "choice": "{code} · {label}",
-      "none": "No organisation node."
+      "none": "No organisation node.",
+      "count": "{count, plural, one {# node} other {# nodes}}"
     },
     "resourceRoles": {
       "title": "Resource roles",
-      "orgNode": "Organisation node",
-      "costCategory": "Cost category",
-      "calendar": "Calendar",
-      "monthlyHours": "Hours a month",
-      "headcount": "Headcount",
-      "none": "No resource role."
+      "none": "No resource role.",
+      "orgNodeFilter": "Organisation node",
+      "everyNode": "Every node",
+      "count": "{count, plural, one {# role} other {# roles}}"
     },
     "calendars": {
       "title": "Calendars",
-      "days": {
-        "monday": "Mon",
-        "tuesday": "Tue",
-        "wednesday": "Wed",
-        "thursday": "Thu",
-        "friday": "Fri",
-        "saturday": "Sat",
-        "sunday": "Sun"
-      },
-      "default": "Default",
       "isDefault": "Default calendar",
-      "none": "No calendar."
+      "none": "No calendar.",
+      "count": "{count, plural, one {# calendar} other {# calendars}}"
     },
     "durationUnits": {
       "title": "Units of duration",

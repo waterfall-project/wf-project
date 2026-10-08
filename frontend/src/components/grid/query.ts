@@ -8,6 +8,11 @@
  * change the address. The rows come back in the order the server gives, with the totals of
  * what it retained: the front orders nothing, sums nothing, filters nothing (WF-ARC-0020).
  *
+ * A grid alone on its screen writes them under the names of the contract; one among several — the
+ * organisation, the roles and the calendars of the settings of the resources — writes them after
+ * a prefix of its own (`prefixedAddress`), so that a sort or a search of one never reads as the
+ * other's, and its page asks the API under the names of the contract.
+ *
  * Pure, and neither server nor client: the page reads, the grid writes.
  */
 import type { components } from "@/api/generated/schema";
@@ -39,6 +44,39 @@ export const SEARCH = "search";
  */
 export const OFFSET = "offset";
 
+/**
+ * The names under which a grid writes its sort, its search and the first row of its page in the
+ * address.
+ */
+export interface GridAddress {
+  readonly search: string;
+  readonly sortBy: string;
+  readonly sortOrder: string;
+  readonly offset: string;
+}
+
+/** The names of the contract, for a grid alone on its screen. */
+export const CONTRACT_ADDRESS: GridAddress = {
+  search: SEARCH,
+  sortBy: SORT_BY,
+  sortOrder: SORT_ORDER,
+  offset: OFFSET,
+};
+
+/**
+ * The names of a grid among several on its screen: those of the contract after its prefix —
+ * `role_search`, `role_sort_by` for the prefix `role_` —, its page too (`role_offset`), so that a
+ * sort or a search of one grid takes back to its first page only its own list.
+ */
+export function prefixedAddress(prefix: string): GridAddress {
+  return {
+    search: `${prefix}${SEARCH}`,
+    sortBy: `${prefix}${SORT_BY}`,
+    sortOrder: `${prefix}${SORT_ORDER}`,
+    offset: `${prefix}${OFFSET}`,
+  };
+}
+
 /** The longest search the contract accepts. */
 export const SEARCH_LENGTH = 200;
 
@@ -63,21 +101,23 @@ function sortOf<Sort extends string>(
  * unless the address says descending — the default of the contract —; a search of the length
  * the contract accepts. Anything else in the address is not asked: the API would refuse it.
  * The address is the truth of the screen: the sort the account keeps for the grid serves only
- * when the address says nothing of the sort (WF-IHM-0060).
+ * when the address says nothing of the sort (WF-IHM-0060). A grid among several reads them under
+ * its own names (`names`).
  */
 export function readGridQuery<Sort extends string>(
   search: SearchParameters,
   sortable: readonly Sort[],
   kept?: KeptSort | null,
+  names: GridAddress = CONTRACT_ADDRESS,
 ): GridQuery<Sort> {
-  const text = search.get(SEARCH) ?? "";
-  const by = search.get(SORT_BY);
+  const text = search.get(names.search) ?? "";
+  const by = search.get(names.sortBy);
   return {
     // `sort_by` empty is a sort lifted: the order of the plan, whatever the account keeps.
     sort:
       by === ""
         ? undefined
-        : (sortOf(sortable, by, search.get(SORT_ORDER)) ??
+        : (sortOf(sortable, by, search.get(names.sortOrder)) ??
           sortOf(sortable, kept?.column, kept?.order)),
     search: text === "" || text.length > SEARCH_LENGTH ? undefined : text,
   };
@@ -93,14 +133,15 @@ export function sortHref<Sort extends string>(
   pathname: string,
   query: URLSearchParams,
   sort: GridSort<Sort> | undefined,
+  names: GridAddress = CONTRACT_ADDRESS,
 ): string {
   const next = new URLSearchParams(query);
-  next.delete(SORT_BY);
-  next.delete(SORT_ORDER);
-  next.delete(OFFSET);
-  next.set(SORT_BY, sort?.column ?? "");
+  next.delete(names.sortBy);
+  next.delete(names.sortOrder);
+  next.delete(names.offset);
+  next.set(names.sortBy, sort?.column ?? "");
   if (sort !== undefined) {
-    next.set(SORT_ORDER, sort.order);
+    next.set(names.sortOrder, sort.order);
   }
   return address(pathname, next);
 }
@@ -109,14 +150,19 @@ export function sortHref<Sort extends string>(
  * The address of the same screen with the search changed — or lifted when empty —, back to its
  * first page, the rest kept.
  */
-export function searchHref(pathname: string, query: URLSearchParams, search: string): string {
+export function searchHref(
+  pathname: string,
+  query: URLSearchParams,
+  search: string,
+  names: GridAddress = CONTRACT_ADDRESS,
+): string {
   const next = new URLSearchParams(query);
-  next.delete(OFFSET);
+  next.delete(names.offset);
   const text = search.trim();
   if (text === "") {
-    next.delete(SEARCH);
+    next.delete(names.search);
   } else {
-    next.set(SEARCH, text);
+    next.set(names.search, text);
   }
   return address(pathname, next);
 }

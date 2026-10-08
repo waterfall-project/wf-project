@@ -469,24 +469,58 @@ en attente —, il mène à leur première page.
 Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/components/reference/`,
 US-0250) sont hors projet, aux routes de leurs fonctions. Les paramètres de coûts disent la devise
 de l'installation et présentent la grille des taux horaires — une configuration de plus de la
-grille dense (`rate-grid.tsx`), une ligne par catégorie de main-d'œuvre, une colonne par année de
-la réponse, dont l'en-tête est l'année elle-même (`GridColumn.heading`) —, cherchée par le serveur
-(`search`) et sans tri ; une cellule saisie part seule par `setHourlyRate`, sans version au premier
-taux d'une année, avec celle du taux lu pour une correction, et le taux répondu prend sa place. La
-saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`). À côté,
-les natures et les catégories de coût — l'écran ne remplit la fenêtre qu'à partir de la grande
-largeur (`Screen`, `fillWide`) : en fenêtre étroite, la grille et les listes s'empilent et la page
-défile ; les paramètres de ressources présentent l'organisation,
-les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice et la
-zone de chaque case, placée par son rang dans l'ordre du contrat, ceux
-
-défile ; les paramètres de ressources présentent l'organisation — en arbre, dans l'ordre de
-`listOrgNodes`, chaque nœud par son code, son libellé décalé de sa profondeur (`level`) et son
-niveau —,
-les rôles, les calendriers et les unités de durée, ceux des risques les bornes de la matrice, ceux
-des indicateurs les seuils des indices et le délai entre deux revues. Un objet rattaché se nomme
+grille dense (`rate-grid.tsx`), une ligne par catégorie de main-d'œuvre, son état, une colonne par
+année de la réponse, dont l'en-tête est l'année elle-même (`GridColumn.heading`) —, cherchée par
+le serveur (`search`) et sans tri ; une cellule saisie part seule par `setHourlyRate`, sans version
+au premier taux d'une année, avec celle du taux lu pour une correction, et le taux répondu prend sa
+place. La saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`),
+comme l'ajout de la colonne d'une année que la grille n'a pas (WF-REF-0060, #299) : le contrat n'a
+aucune opération pour la créer — une année entre dans la grille par son premier taux —, si bien
+que la colonne est celle de la grille, vide, à sa place parmi les années, jusqu'à ce que la
+saisie d'une de ses cellules écrive ce premier taux, et elle se retire tant qu'aucun taux n'y est
+saisi ni en cours d'écriture ; une année déjà présente, ou hors des bornes de `Year`, est refusée
+dans la page. À côté, les natures et les catégories de coût — l'écran ne
+remplit la fenêtre qu'à partir de la grande largeur (`Screen`, `fillWide`) : en fenêtre étroite, la
+grille et les listes s'empilent et la page défile. Les paramètres de ressources présentent trois
+grilles denses (#301, #511) : l'organisation, une grille arborescente qui ne se trie pas, dans
+l'ordre de `listOrgNodes`, chaque nœud par son libellé décalé de sa profondeur (`level`), qui plie
+ce qui est sous lui comme les grilles de tâches (`GridTree.parent`, `fold.tsx`), son code et son
+niveau ; les rôles, triés par le serveur sur chacune de leurs colonnes et restreints au nœud que
+l'adresse nomme, offert dans l'ordre de l'arbre entier (`org_node_id`) ; les calendriers, triés
+sur leur libellé, leur marque de calendrier par défaut et leur état — le contrat ne trie que sur
+les heures de la semaine entière, qu'aucune colonne ne montre, et les heures d'un jour ne se
+trient pas ; les filtres des autres colonnes, que le contrat ne porte pas, et ce tri sont #533.
+Chacune est cherchée par le serveur, a sa clé de préférences, et écrit son tri et sa
+recherche dans l'adresse sous ses propres noms, ceux du contrat après son préfixe (`org_`,
+`role_`, `calendar_` : `role_search`, `role_sort_by`, `role_sort_order` et, pour la pagination à
+venir, `role_offset` ; `prefixedAddress` de `query.ts`, `GridConfig.address`) : trois grilles
+d'un même écran ne se lisent pas l'une l'autre, et la page demande l'API sous les noms du
+contrat ; l'arbre entier est relu quand une recherche le restreint, pour le filtre des rôles. Les
+unités de durée suivent. Les paramètres des risques présentent les bornes de la matrice et la zone
+de chaque case, placée par son rang dans l'ordre du contrat, ceux des indicateurs les seuils des
+indices et le délai entre deux revues : des matrices de taille fixe, qui restent des tables
+simples, sans tri ni filtre (décision de l'auteur du 2026-10-08, #508). Un objet rattaché se nomme
 par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
 listes dans le front ; une section se nomme par `aria-label` (#251).
+
+Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
+le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de
+l'écran écrit ou lève par un lien (`InactiveSwitch`) — à une session seulement qui porte la
+permission de lecture de leur partie du référentiel, sans laquelle le contrat le refuse (403,
+`inactiveQuery` d'`address.ts`), comme les listes du devis (#351). Un objet désactivé s'y dit par
+une marque et un mot, et, pour qui peut modifier cette partie (`platformOffer`), s'y réactive par
+la commande d'activation de sa nature (`reactivate`, une action serveur, depuis la version lue),
+puis la page relit ses listes ; le refus se dit au-dessus de la liste (`Reactivations`), qu'une
+cellule de grille n'a pas la place de dire, jusqu'à ce qu'on ferme l'avis — un succès après lui
+ne l'efface pas, et le focus revient à la cellule active de la grille, ou à la liste —, et
+seulement tant que la liste se lit comme au moment de la commande : les paramètres qu'elle lit
+(`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Écart : WF-REF-0080 ne réactive un nœud que sous un parent
+actif, et un rôle que sous un nœud actif ; le contrat ne déclare ni ce refus ni la disponibilité
+de la commande (#532), qui est donc offerte sur tout objet désactivé, et un refus du serveur,
+statut déclaré ou non, se dit comme tout autre. Dans une grille, la commande est hors de la
+tabulation, et Entrée sur sa cellule la presse (`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back
+ignorant `include_inactive` et ne gardant rien, les tests éprouvent ce que l'écran demande ; le
+service le tiendra en EP-05.
 
 Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
 `frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule : les

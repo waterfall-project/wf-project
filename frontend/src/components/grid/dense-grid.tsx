@@ -71,6 +71,7 @@ import {
   formatCell,
   type GridColumn,
   type GridConfig,
+  type GridName,
   headingOf,
 } from "./columns";
 import { CellEditor } from "./cell-editor";
@@ -610,6 +611,17 @@ function toggledColumns<Row extends RowData, Sort extends string, Totals>(
   });
 }
 
+/**
+ * The name of a grid among several on its screen — one that writes the address under its own
+ * names —, which names its search and its menu of the columns; none for a grid alone.
+ */
+function sharedName(
+  config: { readonly address?: unknown; readonly name: GridName },
+  named: (name: GridName) => string,
+): string | undefined {
+  return config.address === undefined ? undefined : named(config.name);
+}
+
 /** The grid, held by what its screen puts around it, if anything. */
 function held<Row>(
   grid: ReactNode,
@@ -669,7 +681,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const changeSort = (next: GridSort<Sort> | undefined) => {
     startTransition(() => {
       showSort(next);
-      request((query) => sortHref(pathname, query, next));
+      request((query) => sortHref(pathname, query, next, config.address));
     });
     keptSort.current = next === undefined ? null : { column: next.column, order: next.order };
     writer.recordShown(() =>
@@ -679,7 +691,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
   const search = (text: string) => {
     writer.flush();
     startTransition(() => {
-      request((query) => searchHref(pathname, query, text));
+      request((query) => searchHref(pathname, query, text, config.address));
     });
   };
   // The rows as the cells written left them: each row the server answered in place of the one read.
@@ -797,6 +809,7 @@ export function DenseGrid<Row extends RowData, Sort extends string, Totals>({
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
         outline={folding.outline}
+        grid={sharedName(config, (name) => t(`names.${name}`))}
         columns={toggledColumns(table, config, (column) =>
           headingOf(column, (key) => t(`columns.${key}`)),
         )}
