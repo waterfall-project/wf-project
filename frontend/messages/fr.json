@@ -818,6 +818,15 @@
       "active": "Actif",
       "inactive": "Désactivé"
     },
+    "workBreakdown": {
+      "title": "Lotissement",
+      "none": "Ce projet n’a aucun poste.",
+      "orderItem": "Poste",
+      "workPackage": "Lot",
+      "deliverables": "Livrables",
+      "noWorkPackage": "Aucun lot",
+      "noDeliverable": "Aucun"
+    },
     "transitions": {
       "title": "Historique des états",
       "none": "Aucune transition n’est inscrite.",

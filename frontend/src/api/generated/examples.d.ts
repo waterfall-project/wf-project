@@ -143,6 +143,9 @@ export interface Examples {
   "GET /projects/{project_id}/timelines": {
     200: "timelines" | "timelines_empty";
   };
+  "GET /projects/{project_id}/work-breakdown": {
+    200: "work_breakdown" | "work_breakdown_default";
+  };
   "GET /projects/{project_id}/workload": {
     200: "workload" | "workload_marked_remaining" | "workload_org_node" | "workload_reference_budget";
   };

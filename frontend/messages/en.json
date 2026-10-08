@@ -818,6 +818,15 @@
       "active": "Active",
       "inactive": "Deactivated"
     },
+    "workBreakdown": {
+      "title": "Work breakdown",
+      "none": "This project has no order item.",
+      "orderItem": "Order item",
+      "workPackage": "Work package",
+      "deliverables": "Deliverables",
+      "noWorkPackage": "No work package",
+      "noDeliverable": "None"
+    },
     "transitions": {
       "title": "History of states",
       "none": "No transition is recorded.",

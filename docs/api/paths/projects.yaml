@@ -224,6 +224,9 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/WorkBreakdown }
+            examples:
+              witness: { $ref: ../../../fixtures/api/work_breakdown.json }
+              default: { $ref: ../../../fixtures/api/work_breakdown_default.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
   put:

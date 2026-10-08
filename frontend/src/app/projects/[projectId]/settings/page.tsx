@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of a project (FBS-4.2, US-0210), under the banner of its reading context
- * (WF-IHM-0020): its inflation rate and its probability of winning, its sub-projects and its
- * contributors, each list a section of the screen under its own title — the ergonomics gathers
- * the leaves of the function on one screen. Read only: the forms that modify them belong to the
- * epic of their domain.
+ * (WF-IHM-0020): its inflation rate and its probability of winning, its work breakdown, its
+ * sub-projects and its contributors, each list a section of the screen under its own title — the
+ * ergonomics gathers the leaves of the function on one screen. Read only: the forms that modify
+ * them belong to the epic of their domain.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -14,7 +14,11 @@ import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { SettingsFacts } from "@/components/projects/project-facts";
-import { ContributorList, SubprojectList } from "@/components/projects/project-tables";
+import {
+  ContributorList,
+  SubprojectList,
+  WorkBreakdownList,
+} from "@/components/projects/project-tables";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 
@@ -48,13 +52,14 @@ function SettingsHeader() {
   );
 }
 
-/** Render the settings of a project, its sub-projects and its contributors. */
+/** Render the settings of a project, its work breakdown, its sub-projects and its contributors. */
 export default async function SettingsPage(props: ProjectPageProps) {
   const address = await projectAddress(props, "settings");
   const path = { params: { path: { project_id: address.projectId } } };
   const client = serverClient();
-  const [read, subprojects, contributors] = await Promise.all([
+  const [read, breakdown, subprojects, contributors] = await Promise.all([
     readProjectScreen(address),
+    readOrFail("getWorkBreakdown", () => client.GET("/projects/{project_id}/work-breakdown", path)),
     readOrFail("listSubprojects", () => client.GET("/projects/{project_id}/subprojects", path)),
     readOrFail("listContributors", () => client.GET("/projects/{project_id}/contributors", path)),
   ]);
@@ -64,6 +69,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
       <Screen density={FUNCTION_DENSITY.project_settings}>
         <SettingsHeader />
         <SettingsFacts project={read.project} />
+        <WorkBreakdownList breakdown={breakdown} />
         <SubprojectList subprojects={subprojects} />
         <ContributorList contributors={contributors.items} />
       </Screen>

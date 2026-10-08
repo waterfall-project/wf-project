@@ -203,7 +203,7 @@ IDENTIFIERS = (
     Family("nœuds de la structure", 500, 599),
     Family("lignées, celle du nœud 5nn en 6nn", 600, 699),
     Family("rôles d'habilitation", 700, 709),
-    Family("postes et lots du lotissement", 710, 749),
+    Family("postes, lots et livrables du lotissement", 710, 749),
     Family("risques", 750, 799),
     Family("sous-projets", 800, 899),
     Family("sauvegardes", 900, 919),
@@ -226,9 +226,11 @@ Every example keeps to it (#287, C16): EP-02/L25 moved the background tasks off 
 the backups (901 to 905, now 931 to 935), and the pastes and the correlations onto theirs (911 to
 913, now 971 to 973; 921 to 927, now 975 to 982). The order item 711, « Fourniture et montage des
 armoires », is the one order item of the witness, which the lot « Poste de commande » bears
-(WF-PLA-0130); its work package 712, « Armoires », is borne by no task: only the refusal to attach
-it outside the subtree of the task of its order item speaks of it
-(`task_attach_outside_order_item`).
+(WF-PLA-0130); its work package 712, « Armoires », is borne by no task: the refusal to attach it
+outside the subtree of the task of its order item speaks of it
+(`task_attach_outside_order_item`), and the work breakdown names it, with its one deliverable 713
+(`work_breakdown`, WF-PRJ-0020). The order item 714 and its work package 715 make the work breakdown
+of a project whose order was not entered (`work_breakdown_default`).
 """
 
 # --- The roles, their calendars ---------------------------------------------------------------
@@ -352,16 +354,43 @@ class Task:
 
 
 @dataclass(frozen=True, slots=True)
+class WorkPackage:
+    """A work package of an order item of the work breakdown, and its deliverables."""
+
+    identifier: str
+    label: str
+    deliverables: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class OrderItem:
     """An order item of the work breakdown of the witness, which a summary bears."""
 
     identifier: str
     label: str
+    work_packages: tuple[WorkPackage, ...] = ()
 
 
-ASSEMBLY = OrderItem(universe(711), "Fourniture et montage des armoires")
+CABINETS = WorkPackage(
+    universe(712),
+    "Armoires",
+    ((universe(713), "Procès-verbal de réception usine des armoires"),),
+)
+"""The one work package of the witness, which no task bears (WF-PLA-0130), and its deliverable."""
+
+ASSEMBLY = OrderItem(universe(711), "Fourniture et montage des armoires", (CABINETS,))
 """The one order item of the witness, which the lot « Poste de commande » bears (WF-PLA-0130),
 and whose total the estimate presents (`estimate_indicators_breakdown`, WF-DEV-0060)."""
+
+WORK_BREAKDOWN = (ASSEMBLY,)
+"""The work breakdown of the witness, as its order was entered (WF-PRJ-0020)."""
+
+DEFAULT_BREAKDOWN = (
+    OrderItem(universe(714), "Commande", (WorkPackage(universe(715), "Lot unique"),)),
+)
+"""The work breakdown of a project whose order was not entered: one order item holding one work
+package without a deliverable (WF-PRJ-0020). The document names neither: these labels are the
+example's."""
 
 STEERING = universe(1000)
 CUSTOMER = universe(1001)

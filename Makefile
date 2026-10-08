@@ -38,7 +38,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
 	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
-	requirements-release reuse lint-workflows \
+	requirements-release screens reuse lint-workflows \
 	lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
@@ -130,6 +130,9 @@ requirements: ## Report which F0 requirements the tests cover (WF-QUA-0010)
 requirements-release: ## Same, and fail on an F0 requirement no test covers
 	@$(WFTOOLS).coverage --release
 
+screens: ## Each leaf of the FBS has its route in the table of the front, answered by a page (EP-02/L3)
+	@$(WFTOOLS).screens
+
 reuse: ## Check that every file declares its copyright and licence
 	@uv run --frozen --project $(TOOLS) reuse lint
 
@@ -157,7 +160,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 check-all: check-repo check-spec check-contract check-back check-front check-roadmap ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
-	requirements lint-tools typecheck-tools test-tools ## Checks that run on any change
+	requirements screens lint-tools typecheck-tools test-tools ## Checks that run on any change
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
