@@ -90,7 +90,7 @@ Le contrat cite **184 des 209 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/audit-events` | Journal d'audit | WF-ADM-0100, WF-ADM-0110, WF-SEC-0030 |
+| GET | `/audit-events` | Journal d'audit | WF-ADM-0100, WF-ADM-0110, WF-ADM-0160, WF-SEC-0030 |
 
 ## Référentiel commun
 

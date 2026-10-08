@@ -2492,7 +2492,7 @@ la produit (EP-03, US-0410).
   ne dirait ni le marquage ni la désignation de la référence en vigueur. `test_mockaudit.py` tient
   la complétude : chaque révision marquée a son `revision_mark` à son `marked_at`, et la référence
   son `reference_designate`.
-- **La restauration face au journal** (hypothèse du contrat, question de spécification #539) : le
+- **La restauration face au journal** (WF-ADM-0160, tranché par l'auteur sur #539) : le
   journal est hors du périmètre qu'une restauration remplace — il est conservé aussi longtemps que
   les projets, et une restauration qui le ramènerait à la date de la sauvegarde effacerait ce
   qu'elle doit inscrire —, et l'inscription `restore` s'écrit une fois la restauration faite. Les
@@ -2524,7 +2524,7 @@ la produit (EP-03, US-0410).
   inversé dans l'ordre décroissant ; la pagination est celle des autres listes (`limit`, `offset`,
   `PaginationMeta`).
 - **La permission** est une consultation, `audit_log.read`, nommée comme celles des fonctions
-  (`<fonction>.read`), de la fonction que #518 propose d'ajouter sous l'administration, FBS-1.5
+  (`<fonction>.read`), de la fonction que #518 ajoute sous l'administration, FBS-1.5
   « Journal d'audit » : `listPermissions` la range après les sauvegardes, `fbs_code` à `FBS-1.5`.
   Elle n'a pas de permission de modifier, le journal ne se modifiant pas — c'est la seule fonction
   du catalogue dans ce cas, et le front ne la compte pas parmi les fonctions de la navigation tant
@@ -2533,11 +2533,9 @@ la produit (EP-03, US-0410).
   du portefeuille nomment les projets qu'elles comptent ; le lien vers l'objet ne vaut que pour qui
   peut le consulter (WF-ADM-0110). Les exemples l'accordent au rôle prédéfini d'administrateur et à
   « Direction de projet », qui porte tout le catalogue, donc aux sessions de Camille Martin.
-  **Point ouvert**, que #518 tranchera et que l'auteur relit : l'attribution de cette permission au
-  rôle d'administrateur ; la fonction FBS-1.5 elle-même ; et l'écart à WF-ADM-0100, qui donne à
-  chaque fonction de second niveau ses deux permissions, consulter et modifier, quand celle-ci n'a
-  que la première — la recommandation, portée sur #518, est qu'une fonction en lecture seule n'ait
-  que sa permission de consulter. D'ici là le contrat les prend telles que #518 les propose. L'écran
+  La spécification révisée par #518, relue et acceptée par l'auteur, porte la fonction FBS-1.5, et
+  WF-ADM-0100 admet qu'une fonction en lecture seule n'ait que sa permission de consulter.
+  L'attribution de cette permission aux rôles prédéfinis reste celle des exemples. L'écran
   des rôles nomme le groupe de cette permission par le catalogue (« Journal d'audit »), jamais par
   un code de la FBS, qu'aucun écran ne montre (décision de l'auteur).
 - **Pas de volume** au §4.6.2 : le tableau des volumes ne compte pas le journal, et la convention ne

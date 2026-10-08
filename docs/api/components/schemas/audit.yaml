@@ -100,7 +100,7 @@ AuditEvent:
     tâche de fond qui l'a produite, celui des journaux de la plateforme (WF-OBS-0020). Une
     inscription n'est ni modifiable ni supprimable : aucune opération ne le permet, et une
     restauration ne la touche pas — le journal est hors du périmètre qu'elle remplace, et son
-    inscription `restore` s'écrit une fois la restauration faite (hypothèse du contrat, #539).
+    inscription `restore` s'écrit une fois la restauration faite (WF-ADM-0160, #539).
     Une action qui en produit d'autres les inscrit toutes, au même instant et sous la même
     corrélation : la fusion d'un avenant inscrit `amendment_merge` sur sa structure, puis
     `revision_mark` et `reference_designate` sur la révision qui en résulte (WF-REV-0050).

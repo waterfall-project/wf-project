@@ -252,6 +252,9 @@
         <mxCell id="gVRlwLGwSYEDeYzQaK_8-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="lC_kxlb7W-8RPVtd7Ju3-2" target="gVRlwLGwSYEDeYzQaK_8-3" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
+        <mxCell id="fbs15-journal-audit-edge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="lC_kxlb7W-8RPVtd7Ju3-2" target="fbs15-journal-audit" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="lC_kxlb7W-8RPVtd7Ju3-2" value="FBS-1&#xa;Administration" style="whiteSpace=wrap;strokeWidth=2;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=#006EAF;" parent="1" vertex="1">
           <mxGeometry x="400" y="1680" width="200" height="40" as="geometry" />
         </mxCell>
@@ -413,6 +416,9 @@
         </mxCell>
         <mxCell id="gVRlwLGwSYEDeYzQaK_8-3" value="FBS-1.4&#xa;Sauvegarde et restauration" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
           <mxGeometry x="480" y="2002" width="200" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="fbs15-journal-audit" value="FBS-1.5&#xa;Journal d’audit" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+          <mxGeometry x="480" y="2082" width="200" height="38" as="geometry" />
         </mxCell>
         <mxCell id="gVRlwLGwSYEDeYzQaK_8-5" value="FBS-2.4&#xa;Structure des coûts du portefeuille" style="whiteSpace=wrap;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
           <mxGeometry x="120" y="2002" width="200" height="38" as="geometry" />

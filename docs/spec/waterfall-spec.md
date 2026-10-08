@@ -1045,7 +1045,7 @@ Ce chapitre spécifie les fonctions de Waterfall une à une, dans l’ordre d’
 
 Quatre blocs le composent :
 
-- L’administration (FBS-1) porte l’exploitation de la plateforme : les comptes, les droits, la surveillance, les sauvegardes.
+- L’administration (FBS-1) porte l’exploitation de la plateforme : les comptes, les droits, la surveillance, les sauvegardes, le journal d’audit.
 
 - Le portefeuille (FBS-2) porte les vues qui traversent les projets.
 
@@ -1101,6 +1101,7 @@ flowchart LR
     FBS_3_3_Parametres_de_risques["FBS-3.3<br>Paramètres de risques"]
     FBS_3_4_Parametres_d_indicateurs["FBS-3.4<br>Paramètres d'indicateurs"]
     FBS_1_4_Sauvegarde_et_restauration["FBS-1.4<br>Sauvegarde et restauration"]
+    FBS_1_5_Journal_d_audit["FBS-1.5<br>Journal d’audit"]
     FBS_2_4_Structure_des_couts_du_portefeuille["FBS-2.4<br>Structure des coûts du portefeuille"]
     FBS_2_5_Risques_du_portefeuille["FBS-2.5<br>Risques du portefeuille"]
     FBS_2_6_Courbe_en_S_du_portefeuille["FBS-2.6<br>Courbe en S du portefeuille"]
@@ -1114,6 +1115,7 @@ flowchart LR
     FBS_1_Administration --> FBS_1_2_Gestion_des_roles_d_habilitation
     FBS_1_Administration --> FBS_1_3_Surveillance_de_l_etat_du_systeme
     FBS_1_Administration --> FBS_1_4_Sauvegarde_et_restauration
+    FBS_1_Administration --> FBS_1_5_Journal_d_audit
     FBS_2_Portefeuille --> FBS_2_1_Portefeuille_de_projets
     FBS_2_Portefeuille --> FBS_2_2_Plan_de_charge_agrege
     FBS_2_Portefeuille --> FBS_2_3_Performance_du_portefeuille
@@ -1143,14 +1145,14 @@ flowchart LR
     classDef c1 fill:#1ba1e2,stroke:#006EAF
     class FBS_1_Administration,FBS_2_Portefeuille,FBS_3_1_Parametres_de_couts,FBS_3_2_Parametres_de_ressources,FBS_3_3_Parametres_de_risques,FBS_3_4_Parametres_d_indicateurs,FBS_3_Parametres_applicatifs,FBS_4_2_Parametres_de_projets,FBS_4_3_Planification,FBS_4_4_Chiffrage_et_devis,FBS_4_5_Estimation_du_reste_a_engager,FBS_4_6_Gestion_des_risques,FBS_4_8_Indicateurs_projets,FBS_4_Projets,Waterfall c1
     classDef c2 fill:#dae8fc,stroke:#6c8ebf
-    class FBS_1_1_Gestion_des_utilisateurs,FBS_1_2_Gestion_des_roles_d_habilitation,FBS_1_3_Surveillance_de_l_etat_du_systeme,FBS_1_4_Sauvegarde_et_restauration,FBS_2_1_Portefeuille_de_projets,FBS_2_2_Plan_de_charge_agrege,FBS_2_3_Performance_du_portefeuille,FBS_2_4_Structure_des_couts_du_portefeuille,FBS_2_5_Risques_du_portefeuille,FBS_2_6_Courbe_en_S_du_portefeuille,FBS_2_7_Sante_du_pilotage,FBS_3_1_1_Nature_et_categories_de_couts,FBS_3_1_2_Taux_horaires,FBS_3_2_1_Arbre_d_organisation,FBS_3_2_2_Roles_de_ressources,FBS_3_2_3_Calendriers,FBS_4_1_Gestion_des_revisions,FBS_4_7_Couts_reels,FBS_4_9_Cycle_de_vie_du_projet c2
+    class FBS_1_1_Gestion_des_utilisateurs,FBS_1_2_Gestion_des_roles_d_habilitation,FBS_1_3_Surveillance_de_l_etat_du_systeme,FBS_1_4_Sauvegarde_et_restauration,FBS_1_5_Journal_d_audit,FBS_2_1_Portefeuille_de_projets,FBS_2_2_Plan_de_charge_agrege,FBS_2_3_Performance_du_portefeuille,FBS_2_4_Structure_des_couts_du_portefeuille,FBS_2_5_Risques_du_portefeuille,FBS_2_6_Courbe_en_S_du_portefeuille,FBS_2_7_Sante_du_pilotage,FBS_3_1_1_Nature_et_categories_de_couts,FBS_3_1_2_Taux_horaires,FBS_3_2_1_Arbre_d_organisation,FBS_3_2_2_Roles_de_ressources,FBS_3_2_3_Calendriers,FBS_4_1_Gestion_des_revisions,FBS_4_7_Couts_reels,FBS_4_9_Cycle_de_vie_du_projet c2
 ```
 
 *Figure 9 — Arborescence fonctionnelle*
 
 ### 3.4.2. FBS-1 : Administration
 
-Ce bloc porte les fonctions d’exploitation de la plateforme : qui peut s’y connecter, ce que chacun a le droit d’y faire, et si elle fonctionne. Aucune d’elles ne modifie une donnée de projet en particulier ; la restauration les remplace toutes ensemble, sans en distinguer aucune.
+Ce bloc porte les fonctions d’exploitation de la plateforme : qui peut s’y connecter, ce que chacun a le droit d’y faire, ce qui s’y est fait, et si elle fonctionne. Aucune d’elles ne modifie une donnée de projet en particulier ; la restauration les remplace toutes ensemble, sans en distinguer aucune.
 
 Le système de droits repose sur deux mécanismes qui ne se substituent pas l’un à l’autre. Les **rôles d’habilitation** disent ce qu’un utilisateur a le droit de faire ; la **liste des contributeurs** de chaque projet dit sur quels projets il le fait (WF-PRJ-0060). Le premier est administré ici ; la seconde appartient au projet.
 
@@ -1305,9 +1307,9 @@ titre: "Catalogue des permissions"
 flexibilite: "F0"
 fbs: "FBS-1.2"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.3, PBS-3.1"
-corps: "Les permissions sont définies par fonction de second niveau de l’arborescence fonctionnelle (FBS-x.y), à deux niveaux — consulter, modifier —, la permission d’une fonction couvrant ses sous-fonctions. Pour les fonctions d’administration et de référentiel (FBS-1 et FBS-3), la permission de modifier tient lieu de permission de gérer. S’y ajoutent des permissions distinctes pour les actions irréversibles ou structurantes : créer un projet, marquer une révision, abandonner une révision en cours, désigner la révision de référence, fusionner un différentiel (WF-REV-0050), déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût du périmètre suivi, restaurer la plateforme, et la permission de consulter tous les projets (WF-PRJ-0060). La déclaration de survenance d’un risque emporte la fusion qu’elle déclenche et n’exige pas la permission de fusionner. Le catalogue est livré avec la plateforme et n’est pas modifiable."
+corps: "Les permissions sont définies par fonction de second niveau de l’arborescence fonctionnelle (FBS-x.y), à deux niveaux — consulter, modifier —, la permission d’une fonction couvrant ses sous-fonctions. Une fonction en lecture seule, comme la consultation du journal d’audit (FBS-1.5), n’a que la permission de consulter. Pour les fonctions d’administration et de référentiel (FBS-1 et FBS-3), la permission de modifier tient lieu de permission de gérer. S’y ajoutent des permissions distinctes pour les actions irréversibles ou structurantes : créer un projet, marquer une révision, abandonner une révision en cours, désigner la révision de référence, fusionner un différentiel (WF-REV-0050), déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût du périmètre suivi, restaurer la plateforme, et la permission de consulter tous les projets (WF-PRJ-0060). La déclaration de survenance d’un risque emporte la fusion qu’elle déclenche et n’exige pas la permission de fusionner. Le catalogue est livré avec la plateforme et n’est pas modifiable."
 motif: "Deux niveaux par fonction suffisent au quotidien et gardent le catalogue lisible. Les actions irréversibles méritent une permission propre parce qu’on veut pouvoir les confier à moins de monde que la saisie : un chiffreur modifie le devis sans pour autant marquer la révision. Un catalogue fixe est ce qui garantit qu’une permission a le même sens sur toutes les installations."
-verification: "Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions. Un rôle disposant de la modification du chiffrage mais non du marquage permet de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais non de la fusion refuse de fusionner un différentiel. Un utilisateur sans la permission de créer un projet n’en crée pas. Aucun écran ne permet de créer une permission."
+verification: "Chaque fonction de second niveau de l’arborescence est représentée par ses deux permissions, ou par la seule permission de consulter pour une fonction en lecture seule. Un rôle disposant de la modification du chiffrage mais non du marquage permet de modifier un devis et refuse de marquer la révision ; un rôle disposant du marquage mais non de la fusion refuse de fusionner un différentiel. Un utilisateur sans la permission de créer un projet n’en crée pas. Aucun écran ne permet de créer une permission."
 ```
 
 ```yaml exigence
@@ -1373,9 +1375,9 @@ titre: "Restauration"
 flexibilite: "F0"
 fbs: "FBS-1.4"
 pbs: "PBS-1.1, PBS-2.1, PBS-2.2, PBS-2.3, PBS-3.1, PBS-3.3"
-corps: "Un utilisateur habilité peut restaurer la plateforme depuis une sauvegarde de la liste, ou depuis une sauvegarde copiée hors de la plateforme. La restauration remplace l’intégralité des deux bases — Waterfall et fournisseur d’identité — par leur contenu sauvegardé, déconnecte les utilisateurs pendant sa durée, et n’est appliquée qu’après une confirmation qui énonce la date de la sauvegarde et le caractère irréversible de l’opération. Elle ne porte pas sur un projet isolé."
+corps: "Un utilisateur habilité peut restaurer la plateforme depuis une sauvegarde de la liste, ou depuis une sauvegarde copiée hors de la plateforme. La restauration remplace l’intégralité des deux bases — Waterfall et fournisseur d’identité — par leur contenu sauvegardé, déconnecte les utilisateurs pendant sa durée, et n’est appliquée qu’après une confirmation qui énonce la date de la sauvegarde et le caractère irréversible de l’opération. Elle ne porte pas sur un projet isolé. Le journal d’audit est hors de ce qu’elle remplace : il garde les inscriptions postérieures à la sauvegarde, et la restauration s’y inscrit une fois faite (WF-SEC-0030)."
 motif: "Une restauration est l’acte le plus destructeur de la plateforme : tout ce qui a été saisi après la sauvegarde disparaît. La confirmation doit dire ce qu’on perd. Restaurer un seul projet supposerait de réconcilier son référentiel avec celui du reste de la plateforme, ce qui n’est pas un acte d’exploitation mais une reprise de données."
-verification: "Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur. La confirmation nomme la date de la sauvegarde. Aucune restauration partielle n’est proposée."
+verification: "Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, qui garde ses inscriptions et nomme la restauration. La confirmation nomme la date de la sauvegarde. Aucune restauration partielle n’est proposée."
 ```
 
 ```yaml exigence
@@ -1389,6 +1391,10 @@ corps: "Les sauvegardes peuvent être planifiées à une fréquence et une heure
 motif: "Une sauvegarde qu’il faut penser à lancer n’est pas faite le jour où l’on en a besoin. La rétention borne l’espace consommé ; les sauvegardes marquées — avant une migration, à la clôture d’un exercice — échappent à la rotation parce qu’on sait déjà qu’on y reviendra."
 verification: "Une sauvegarde planifiée quotidiennement est présente chaque jour dans la liste. Avec une rétention de sept, la huitième supprime la plus ancienne non marquée. Une sauvegarde marquée survit à la rotation. Une sauvegarde planifiée avec copie externe se retrouve sur l’emplacement paramétré. Un échec planifié, de sauvegarde ou de copie, apparaît comme alerte sur l’écran d’état."
 ```
+
+#### 3.4.2.5. FBS-1.5 : Journal d’audit
+
+Le journal d’audit garde la trace des actions irréversibles ou structurantes ; ce qu’il inscrit, et combien de temps il le conserve, sont fixés par WF-SEC-0030. Cette fonction en est la consultation : un utilisateur habilité parcourt les inscriptions du journal et les filtre par période, auteur, action, projet et objet. Elle est en lecture seule : elle ne modifie ni ne supprime jamais une inscription.
 
 ### 3.4.3. FBS-2 : Portefeuille
 
@@ -4132,7 +4138,7 @@ section: "4.6.1"
 id: "WF-SEC-0030-A"
 titre: "Journal d'audit des actions irréversibles ou structurantes"
 flexibilite: "F0"
-fbs: "FBS-1"
+fbs: "FBS-1.5"
 pbs: "PBS-3.1, PBS-4.2"
 corps: "Chaque action irréversible ou structurante est inscrite dans un journal d'audit : le marquage d'une révision, la désignation de la révision de référence, la contractualisation d'un avenant, la déclaration d'un risque survenu, la sortie du cycle de vie d'un projet, l'exclusion ou la réintégration d'une ligne de coût, l'application d'un import, la création et la modification des comptes, des rôles et de leurs attributions, la sauvegarde et la restauration. Chaque inscription porte la date, l'auteur, l'objet concerné et le projet s'il y en a un. Le journal n'est ni modifiable ni supprimable depuis la plateforme, et il est conservé aussi longtemps que les projets."
 motif: "Ce sont les actions dont la trace est demandée après coup, quand un budget de référence n'est pas celui qu'on croyait ou qu'une ligne de coût a disparu du périmètre suivi. Les colonnes d'audit (WF-DAT-0070) disent qui a touché une ligne en dernier ; elles ne disent pas l'histoire, et une ligne écrasée efface la précédente. Un journal que la plateforme peut réécrire ne prouve rien. Le journal d'audit ne remplace pas le journal des imports de WF-CRE-0050 : celui-ci est une donnée du projet, consultable avec ses coûts réels, celui-là une trace d'exploitation que la plateforme ne peut pas réécrire."

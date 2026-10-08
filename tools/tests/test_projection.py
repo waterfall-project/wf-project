@@ -165,7 +165,8 @@ class TestTheDocument:
             "FBS-4",
         ]
         leaves = {fn.code: fn.label for fn in projection.leaves(tree)}
-        assert len(leaves) == 48
+        assert len(leaves) == 49
+        assert leaves["FBS-1.5"] == "Journal d'audit"
         assert leaves["FBS-4.9"] == "Cycle de vie du projet"
         assert leaves["FBS-4.3.5"] == "Arborescence de tâches (WBS)"
         assert "FBS-4.3" not in leaves
@@ -176,7 +177,7 @@ class TestTheDocument:
         text = projection.PROJECTION.read_text(encoding="utf-8")
         children = Counter(child for _parent, child in projection.arrows(text))
         below = [fn.code for fn in projection.read_functions() if "." in fn.code]
-        assert len(below) == 56
+        assert len(below) == 57
         assert {code: children[code] for code in below} == dict.fromkeys(below, 1)
         assert sum(children.values()) == len(below)
 
