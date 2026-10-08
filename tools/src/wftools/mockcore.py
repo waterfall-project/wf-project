@@ -699,12 +699,12 @@ def subtree(rows: list[Row], root: int, kinds: frozenset[str] | None = None) -> 
         if row.parent in below:
             below.add(row.number)
     retained = [row for row in rows if row.number in below]
-    return _answer(retained, [], kinds)
+    return _answer(rows, retained, [], kinds)
 
 
 def whole(rows: list[Row]) -> JsonObject:
     """Return the reading of the whole structure, without a filter: every node, every total."""
-    return _answer(rows, [])
+    return _answer(rows, rows, [])
 
 
 def search(rows: list[Row], text: str) -> JsonObject:
@@ -722,7 +722,7 @@ def search(rows: list[Row], text: str) -> JsonObject:
             parent = by_number[parent].parent
     retained = [row for row in rows if row.number in found]
     readable = [row for row in rows if row.number in ancestors]
-    return _answer(retained, readable)
+    return _answer(rows, retained, readable)
 
 
 def summaries(rows: list[Row], max_level: int) -> JsonObject:
@@ -740,7 +740,7 @@ def summaries(rows: list[Row], max_level: int) -> JsonObject:
         and cast("JsonObject", row.node["task"])["is_summary"]
         and cast("int", row.node["level"]) <= max_level
     ]
-    return _answer(_with_lines(rows, retained), [], _TASK_ONLY)
+    return _answer(rows, _with_lines(rows, retained), [], _TASK_ONLY)
 
 
 def timeline(rows: list[Row], timeline_id: str) -> JsonObject:
@@ -753,7 +753,7 @@ def timeline(rows: list[Row], timeline_id: str) -> JsonObject:
     retained = [
         row for row in rows if row.kind == TASK and timeline_id in INSCRIBED.get(row.number, ())
     ]
-    return _answer(_with_lines(rows, retained), [], _TASK_ONLY)
+    return _answer(rows, _with_lines(rows, retained), [], _TASK_ONLY)
 
 
 _TASK_ONLY = frozenset({TASK})
@@ -803,13 +803,18 @@ def startable(rows: list[Row]) -> JsonObject:
 
 
 def _answer(
-    retained: list[Row], readable: list[Row], kinds: frozenset[str] | None = None
+    structure: list[Row],
+    retained: list[Row],
+    readable: list[Row],
+    kinds: frozenset[str] | None = None,
 ) -> JsonObject:
-    """Return the answer of listNodes: the nodes in the order of the plan, and the totals.
+    """Return the answer of listNodes: the nodes in the order of the plan, the totals, the meta.
 
     The totals count the retained nodes and sum the retained lines (`NodeTotals`), never the
     amounts of the tasks, which would count the lines twice. ``kinds`` chooses what is rendered,
-    never what is summed: a reading of the tasks alone has the totals of the full one (#487).
+    never what is summed: a reading of the tasks alone has the totals of the full one (#487). The
+    meta says what the structure read holds whatever the reading retains: the level of its deepest
+    summary, which the task tree offers down to (`NodeListMeta`, #494).
     """
     shown = sorted(
         (row for row in [*retained, *readable] if kinds is None or row.kind in kinds),
@@ -825,7 +830,23 @@ def _answer(
             "hours": decimal(sum((row.hours for row in lines), Decimal(0))),
             **amounts.rendered(),
         },
+        "meta": {"summary_depth": summary_depth(structure)},
     }
+
+
+def summary_depth(rows: Iterable[Row]) -> int:
+    """Return the level of the deepest summary of a structure: 0 for one without a summary.
+
+    The first level is that of the tasks without a parent (`Node.level`, WF-PLA-0110).
+    """
+    return max(
+        (
+            cast("int", row.node["level"])
+            for row in rows
+            if row.kind == TASK and cast("JsonObject", row.node["task"])["is_summary"]
+        ),
+        default=0,
+    )
 
 
 # --- What a computed value depends on ---------------------------------------------------------

@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mocktext
 from wftools.mockcalendar import START_TO_START
+from wftools.mockids import universe
 from wftools.mockstructure import (
     LABOR,
     NON_LABOR,
@@ -70,7 +71,6 @@ from wftools.mockwitness import (
     reference,
     reference_provision,
     rewritten,
-    universe,
 )
 
 if TYPE_CHECKING:

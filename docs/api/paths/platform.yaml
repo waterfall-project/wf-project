@@ -106,7 +106,9 @@
     tags: [platform]
     summary: Planification et rétention des sauvegardes
     description: >-
-      Fréquence, heure et nombre de sauvegardes conservées (WF-ADM-0170).
+      Fréquence, heure et nombre de sauvegardes conservées, et la copie automatique de
+      chaque sauvegarde planifiée vers un emplacement externe déclaré par l'installation
+      (WF-ADM-0170).
     responses:
       '200':
         description: Planification courante (WF-ADM-0170).
@@ -125,7 +127,11 @@
     summary: Régler la planification et la rétention
     description: >-
       Au-delà du nombre conservé, les plus anciennes sont supprimées, sauf celles
-      marquées à conserver. Un échec est signalé sur l'écran d'état (WF-ADM-0170).
+      marquées à conserver. La copie externe, si elle est réglée, nomme un emplacement que
+      l'installation déclare et un dossier relatif dans cet emplacement, et garde au moins
+      autant de copies que la plateforme garde de sauvegardes (WF-EXP-0050). Un échec, de la
+      sauvegarde ou de sa copie, est signalé sur l'écran d'état (WF-ADM-0170, WF-OBS-0030).
+      Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
     requestBody:
       required: true
       content:
@@ -137,9 +143,100 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Une copie externe refusée, `VALIDATION_FAILED`, `fields` désignant le champ en
+          défaut : un emplacement que l'installation ne déclare pas
+          (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est
+          pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une
+          rétention moindre que celle de la plateforme (`/external_copy/retained_count`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum`, WF-EXP-0050).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              unknown_location: { $ref: ../../../fixtures/api/backup_schedule_unknown_location.json }
+              path_invalid: { $ref: ../../../fixtures/api/backup_schedule_path_invalid.json }
+              retention_too_short: { $ref: ../../../fixtures/api/backup_schedule_retention_too_short.json }
+
+/external-backup-locations:
+  get:
+    operationId: listExternalBackupLocations
+    tags: [platform]
+    summary: Emplacements externes des sauvegardes
+    description: >-
+      Les emplacements où une sauvegarde planifiée peut être copiée automatiquement
+      (WF-ADM-0170), tels que l'installation les déclare dans sa configuration de
+      déploiement, dans l'ordre de leurs noms : leur nom, leur nature et leur description,
+      jamais leurs identifiants ni aucun secret. Le serveur les atteint seul. Aucune opération
+      ne les crée ni ne les modifie : leur déclaration est une affaire d'exploitation.
+      Lisible sous la permission de consulter les sauvegardes (`backups.read`, WF-ADM-0100).
+    responses:
+      '200':
+        description: Emplacements déclarés ; une liste vide quand l'installation n'en déclare aucun.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/schemas/platform.yaml#/ExternalBackupLocation }
+            examples:
+              witness: { $ref: ../../../fixtures/api/external_backup_locations.json }
+              none: { $ref: ../../../fixtures/api/external_backup_locations_none.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+
+/external-backup-locations/{location_name}/test:
+  post:
+    operationId: testExternalBackupLocation
+    tags: [platform]
+    summary: Éprouver un emplacement externe des sauvegardes
+    description: >-
+      Le serveur écrit puis efface un fichier témoin dans l'emplacement, à sa racine ou dans
+      le dossier donné, avec les identifiants de la configuration, et rend l'issue : réussie,
+      ou le motif de l'échec, en code (WF-ADM-0170, WF-ARC-0110). Rien n'est conservé : le
+      test n'a pas d'état, et un échec n'est pas une alerte, que seule une copie planifiée
+      déclenche (WF-OBS-0030). Le test attend un emplacement qui ne répond pas trente secondes
+      au plus, et dit leur dépassement comme un échec (`timed_out`). Sous la permission de modifier les
+      sauvegardes (`backups.write`, WF-ADM-0100).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ExternalBackupLocationName
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform.yaml#/ExternalBackupLocationTestRequest }
+    responses:
+      '200':
+        description: Issue du test, réussi ou non.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/ExternalBackupLocationTest }
+            examples:
+              succeeded: { $ref: ../../../fixtures/api/external_backup_location_tested.json }
+              access_denied: { $ref: ../../../fixtures/api/external_backup_location_test_failed.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404':
+        description: >-
+          Emplacement que l'installation ne déclare pas, ou lecture des sauvegardes refusée,
+          sans distinction (WF-ADM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '422':
+        description: >-
+          Un dossier qui n'est pas relatif ou qui sort de l'emplacement : `VALIDATION_FAILED`,
+          `fields` désignant `/path` par `PATH_INVALID`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              path_invalid: { $ref: ../../../fixtures/api/external_backup_location_test_path_invalid.json }
 
 /restores:
   post:

@@ -1,5 +1,5 @@
 {
-  "summary": "L'état de l'installation au 3 juin 2026 à 14 h 05 : tous les composants disponibles, l'annuaire relu et la plateforme sauvegardée dans la nuit, le dernier test de restauration du 1er juin réussi, aucune alerte (WF-ADM-0130).",
+  "summary": "L'état de l'installation au 3 juin 2026 à 14 h 05 : tous les composants disponibles, l'annuaire relu, la plateforme sauvegardée dans la nuit et sa sauvegarde copiée vers le site de secours, le dernier test de restauration du 1er juin réussi, aucune alerte (WF-ADM-0130, WF-EXP-0050).",
   "value": {
     "version": "1.0.0",
     "components": [
@@ -57,6 +57,11 @@
     },
     "last_backup": {
       "at": "2026-06-03T01:00:00Z",
+      "succeeded": true,
+      "problem": null
+    },
+    "last_backup_copy": {
+      "at": "2026-06-03T01:14:00Z",
       "succeeded": true,
       "problem": null
     },

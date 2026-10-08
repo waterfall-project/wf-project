@@ -19,6 +19,7 @@ from functools import cache
 from typing import Any, cast
 
 from wftools import mockhistory, mocktoday
+from wftools.mockids import PROJECTS, RISKS, identifier, universe
 from wftools.mockstructure import (
     CENT,
     JsonObject,
@@ -27,14 +28,11 @@ from wftools.mockstructure import (
     draw,
     money,
 )
+from wftools.mocktext import PAGE
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
-    PROJECTS,
-    RISKS,
     TODAY,
     fixture,
-    identifier,
-    universe,
 )
 
 AS_OF = TODAY.date()
@@ -130,10 +128,6 @@ def portfolio() -> JsonObject:
         # The whole portfolio in one page: the largest page the contract allows.
         "meta": {"limit": 500, "offset": 0, "total": PROJECT_COUNT},
     }
-
-
-PAGE = 50
-"""The projects of a page of the list asked by pages: the second one, of the volume."""
 
 
 def portfolio_page(answer: JsonObject) -> JsonObject:

@@ -1,0 +1,17 @@
+{
+  "summary": "La planification enregistrée aujourd'hui avec une copie vers un emplacement que l'installation ne déclare pas : refusée, le champ de l'emplacement désigné par son motif (WF-ADM-0170).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/external_copy/location",
+        "code": "UNKNOWN_EXTERNAL_BACKUP_LOCATION",
+        "params": {
+          "location": "secours-paris"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000989"
+  }
+}

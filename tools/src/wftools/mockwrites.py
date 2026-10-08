@@ -25,6 +25,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
 from wftools import REPOSITORY, mockcore, mocktext, mockwitness
+from wftools.mockids import universe
 from wftools.mockstructure import (
     CATEGORY_LABELS,
     NETWORK,
@@ -45,7 +46,6 @@ from wftools.mockwitness import (
     N,
     Task,
     fixture,
-    universe,
 )
 
 if TYPE_CHECKING:

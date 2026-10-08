@@ -64,9 +64,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 from wftools import (
     REPOSITORY,
+    mockaudit,
     mockcore,
     mockcosts,
     mockhistory,
+    mockids,
     mockportfoliotime,
     mocktext,
     mocktoday,
@@ -74,9 +76,9 @@ from wftools import (
     mockwrites,
     paths,
 )
+from wftools.mockids import CATEGORIES, identifier
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
-    PAGE,
     PROJECT_COUNT,
     UNOPENABLE_EVERY,
     WATCH_THRESHOLD,
@@ -104,9 +106,9 @@ from wftools.mockstructure import (
     hourly_rate,
     money,
 )
+from wftools.mocktext import PAGE
 from wftools.mockwitness import (
     ASSEMBLY,
-    CATEGORIES,
     COMMISSIONING,
     CONTROL_STATION,
     CORE,
@@ -125,7 +127,6 @@ from wftools.mockwitness import (
     WORK_BREAKDOWN,
     N,
     fixture,
-    identifier,
 )
 
 if TYPE_CHECKING:
@@ -333,8 +334,9 @@ def named() -> dict[str, JsonObject]:
     """Return the named examples of the witness, by file name.
 
     Its readings, its writes, its history — its revisions compared and its risks —, its
-    indicators today, its actual costs with the journal of their imports; and the views of the
-    portfolio over time that sum it with the other projects (``mockportfoliotime``).
+    indicators today, its actual costs with the journal of their imports; the views of the
+    portfolio over time that sum it with the other projects (``mockportfoliotime``); and the
+    journal of audit of the universe (``mockaudit``).
     """
     return {
         **readings(),
@@ -343,6 +345,7 @@ def named() -> dict[str, JsonObject]:
         **mocktoday.examples(),
         **mockcosts.examples(),
         **mockportfoliotime.examples(),
+        **mockaudit.examples(),
     }
 
 
@@ -484,16 +487,19 @@ def readings() -> dict[str, JsonObject]:
             f"le lot « Poste de commande » rangé sous elle —, que le front dessine sous le nœud "
             f"du projet ; ni le sous-arbre fusionné par la survenance, récapitulative du "
             f"troisième niveau, ni aucune feuille ni aucun jalon ; les totaux sont ceux de ces "
-            f"récapitulatives et des lignes qu'elles portent elles-mêmes, aucune (WF-PLA-0110, "
-            f"#487).",
+            f"récapitulatives et des lignes qu'elles portent elles-mêmes, aucune (#487). La "
+            f"plus profonde récapitulative de la structure est au troisième niveau, quel que soit "
+            f"celui demandé (meta.summary_depth) : l'arborescence offre les trois niveaux qui "
+            f"existent (WF-PLA-0110, #494).",
             mockcore.summaries(mockcore.alone(nested()), 2),
         ),
         "nodes_summaries_leaves.json": _example(
             f"Variante contrefactuelle : l'arborescence de tâches d'un planning composé "
             f"uniquement de tâches feuilles — les tâches du cœur du témoin sans leurs "
             f"récapitulatives —, demandée au niveau 2 (kinds=task, summaries_only, max_level=2) "
-            f"le {day} : aucune récapitulative, rien n'est rendu, et le front dessine une "
-            f"arborescence réduite au nœud du projet ; les totaux sont nuls (WF-PLA-0110).",
+            f"le {day} : aucune récapitulative, rien n'est rendu, la structure n'en portant "
+            f"aucune (meta.summary_depth à 0), et le front dessine une arborescence réduite au "
+            f"nœud du projet, sans niveau à choisir ; les totaux sont nuls (WF-PLA-0110, #494).",
             mockcore.summaries(
                 [
                     row
@@ -782,7 +788,7 @@ def _structure_summary(answer: JsonObject) -> str:
     items = cast("list[dict[str, Any]]", answer["items"])
     tasks = [item for item in items if item["kind"] == "task"]
     lines = [item for item in items if item["kind"] == "estimate_line"]
-    drawn = [task for task in tasks if not task["node_id"].startswith(mockwitness.PREFIX + "0000")]
+    drawn = [task for task in tasks if not task["node_id"].startswith(mockids.PREFIX + "0000")]
     count = Counter(
         "milestone" if task["task"]["is_milestone"] else task["level"]
         for task in drawn

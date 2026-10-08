@@ -257,7 +257,10 @@ PermissionCode:
     plateforme —, et « consulter tous les projets », qui ouvre à la consultation les
     projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La
     déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige
-    pas `structure_merge` (WF-ADM-0100). L'énumération est le catalogue : une permission
+    pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit
+    (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification doit lui
+    donner sous l'administration (FBS-1.5, #518) ; le journal ne se modifiant pas, elle n'a
+    pas de permission de modifier. L'énumération est le catalogue : une permission
     nouvelle est une modification du contrat.
   enum:
     # FBS-1 — Administration.
@@ -269,6 +272,7 @@ PermissionCode:
     - system_status.write
     - backups.read
     - backups.write
+    - audit_log.read
     # FBS-2 — Portefeuille.
     - portfolio_projects.read
     - portfolio_projects.write

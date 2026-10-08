@@ -189,12 +189,26 @@ function sameRun(one: Permission, other: Permission): boolean {
 }
 
 /**
+ * The runs of permissions whose function the table of the navigation does not hold yet, by the
+ * code of their head: named by a key of the catalogues — the consultation of the journal of audit,
+ * whose screen and function are to come (#517, #518).
+ */
+const UNLISTED: Readonly<Partial<Record<Permission["code"], "admin.permissions.auditLog">>> = {
+  "audit_log.read": "admin.permissions.auditLog",
+};
+
+/**
  * What heads a run: the name of its function — never its code of the FBS, an internal key the user
  * has no use for (decision of the author on #515, 2026-10-08) —, or the kind of its actions; a
- * function the navigation does not know is named by the kind of its permission.
+ * function the navigation does not know yet is named by the catalogue when it has a name there
+ * (`UNLISTED`), by the kind of its permission otherwise.
  */
 function RunHeading({ head }: { readonly head: Permission }) {
   const t = useTranslations();
+  const unlisted = UNLISTED[head.code];
+  if (unlisted !== undefined) {
+    return t(unlisted);
+  }
   const fbs = head.fbs_code ?? null;
   const fn = fbs === null ? undefined : functionAt(fbs);
   return fn === undefined ? t(`enums.Permission.kind.${head.kind}`) : t(fn.label);

@@ -23,7 +23,8 @@ from wftools import (
     mocktoday,
     mockwitness,
 )
-from wftools.mockwitness import COMMISSIONING, ELECTRICAL_ENGINEERING, universe
+from wftools.mockids import universe
+from wftools.mockwitness import COMMISSIONING, ELECTRICAL_ENGINEERING
 
 type Node = dict[str, Any]
 

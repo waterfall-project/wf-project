@@ -1,0 +1,14 @@
+{
+  "summary": "La planification enregistrée aujourd'hui avec une copie dans un dossier qui remonterait hors de l'emplacement (« ../sauvegardes ») : refusée, le champ du chemin désigné par son motif (WF-ADM-0170).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/external_copy/path",
+        "code": "PATH_INVALID"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000000988"
+  }
+}

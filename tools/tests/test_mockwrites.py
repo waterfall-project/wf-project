@@ -12,8 +12,18 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockcore, mockdata, mockstructure, mocktext, mockwitness, mockwrites
-from wftools.mockwitness import CABLE_FITTER, CORE, universe
+from wftools import (
+    REPOSITORY,
+    mockcore,
+    mockdata,
+    mockids,
+    mockstructure,
+    mocktext,
+    mockwitness,
+    mockwrites,
+)
+from wftools.mockids import universe
+from wftools.mockwitness import CABLE_FITTER, CORE
 
 type Node = dict[str, Any]
 
@@ -61,7 +71,7 @@ def numbered(nodes: list[Node]) -> dict[int, Node]:
     return {
         int(node["node_id"][-3:]): node
         for node in nodes
-        if node["node_id"].startswith(mockwitness.PREFIX + "0000")
+        if node["node_id"].startswith(mockids.PREFIX + "0000")
     }
 
 

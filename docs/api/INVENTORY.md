@@ -6,8 +6,8 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**159 opérations sur 123 chemins, dans 12 familles.**
-Le contrat cite **183 des 209 exigences** de la spécification.
+**162 opérations sur 126 chemins, dans 13 familles.**
+Le contrat cite **184 des 209 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -19,7 +19,7 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 | GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-INTF-0160 |
 | GET | `/health/ready` | Sonde de préparation | WF-EXP-0040 |
 | GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010 |
-| GET | `/system/status` | Écran d'état du système | WF-ADM-0130 |
+| GET | `/system/status` | Écran d'état du système | WF-ADM-0130, WF-ADM-0170, WF-OBS-0030 |
 | GET | `/tasks` | Tâches de fond de l'appelant | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}` | Avancement d'une tâche de fond | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}/result` | Résultat d'une tâche de fond | WF-DAT-0120 |
@@ -69,7 +69,7 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 
 ## Sauvegarde et restauration
 
-`paths/platform.yaml` — 8 opérations
+`paths/platform.yaml` — 10 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -79,8 +79,18 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 | PATCH | `/backups/{backup_id}` | Marquer une sauvegarde à conserver | WF-ADM-0170 |
 | GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0150 |
 | GET | `/backup-schedule` | Planification et rétention des sauvegardes | WF-ADM-0170 |
-| PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0170 |
+| PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050, WF-OBS-0030 |
+| GET | `/external-backup-locations` | Emplacements externes des sauvegardes | WF-ADM-0100, WF-ADM-0170 |
+| POST | `/external-backup-locations/{location_name}/test` | Éprouver un emplacement externe des sauvegardes | WF-ADM-0100, WF-ADM-0170, WF-ARC-0110, WF-OBS-0030 |
 | POST | `/restores` | Restaurer la plateforme | WF-ADM-0160, WF-DAT-0130 |
+
+## Journal d'audit
+
+`paths/audit.yaml` — 1 opération
+
+| Méthode | Chemin | Opération | Exigences citées |
+|---|---|---|---|
+| GET | `/audit-events` | Journal d'audit | WF-ADM-0100, WF-ADM-0110, WF-SEC-0030 |
 
 ## Référentiel commun
 
@@ -254,7 +264,7 @@ Le contrat cite **183 des 209 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-26 sur 209. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+25 sur 209. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -262,7 +272,7 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | ARC | WF-ARC-0010, WF-ARC-0040, WF-ARC-0050, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
 | CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
-| EXP | WF-EXP-0010, WF-EXP-0030, WF-EXP-0050 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
+| EXP | WF-EXP-0010, WF-EXP-0030 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
 | IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |

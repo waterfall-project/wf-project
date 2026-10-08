@@ -1,0 +1,15 @@
+{
+  "summary": "Les emplacements externes que l'installation déclare dans sa configuration de déploiement, par leur nom : le partage réseau du siège, monté sur le serveur, et le compartiment S3 du site de secours de Lyon, où la planification copie chaque sauvegarde ; aucun identifiant ni aucun secret (WF-ADM-0170).",
+  "value": [
+    {
+      "name": "nas-siege",
+      "kind": "mounted_share",
+      "description": "Partage du NAS du siège, monté sur le serveur de la plateforme."
+    },
+    {
+      "name": "secours-lyon",
+      "kind": "s3",
+      "description": "Compartiment S3 du site de secours de Lyon, hors du centre de données de la plateforme."
+    }
+  ]
+}

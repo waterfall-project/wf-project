@@ -1613,8 +1613,9 @@ atteint son point fixe (ce que la commande engendre se passe en mémoire, jamais
 les lectures et les écritures de la grille (`mockcore`, `mockwrites`), l'histoire et les risques
 (`mockhistory`), les indicateurs, les courbes et le plan de charge d'aujourd'hui (`mockindicators`,
 `mockcurves`, `mocktoday`), les coûts réels (`mockcosts`), les volumes du §4.6.2 et le portefeuille
-(`mockstructure`, `mockportfolio`, `mockportfoliotime`). Les formules sont simples et dites dans
-chaque générateur, en attendant le noyau d'EP-06 à EP-11. Reste écrit à la main ce qui ne se
+(`mockstructure`, `mockportfolio`, `mockportfoliotime`), et le journal d'audit (`mockaudit`,
+EP-02/L42). Les formules sont simples et dites dans chaque générateur, en attendant le noyau
+d'EP-06 à EP-11. Reste écrit à la main ce qui ne se
 déduit pas — sessions, comptes, permissions, référentiel, le projet, ses révisions et ses
 transitions, imports et comptes rendus, tâches de fond, état du système et sauvegardes, erreurs,
 variantes contrefactuelles — : les générateurs le lisent, et `tools/tests/test_mockhistory.py` et
@@ -1653,7 +1654,7 @@ de cet état, un instant antérieur de la même chronologie, la suite d'une écr
 aujourd'hui, ou une variante contrefactuelle déclarée.
 
 **Une famille d'identifiants par nature d'objet, sur des plages disjointes**
-(`mockwitness.IDENTIFIERS`, C16) : les identifiants écrits à la main par centaines — projets,
+(`mockids.IDENTIFIERS`, C16) : les identifiants écrits à la main par centaines — projets,
 révisions, structures, comptes, référentiel, nœuds et lignées, rôles d'habilitation, postes du
 lotissement, risques, sous-projets, sauvegardes, tâches de fond, collages et corrélations —, ceux
 qu'ils écrivent en hexadécimal — imports et téléversements (…0a01), lignes de coût réel (…0c01),
@@ -2182,7 +2183,7 @@ la référence, des coûts importés depuis, la réception des études terminée
 réception usine attendue le 30 juin — il n'a que sa revue en retard, de dix-sept semaines, et non
 plus le jalon que l'exemple écrit à la main disait dépassé. Pour les autres projets, les risques non
 réexaminés, les coûts non importés et les jalons dépassés sont tirés ; un jalon dépassé est nommé
-par une lignée de la famille engendrée « jalons du portefeuille » (`mockwitness.IDENTIFIERS`).
+par une lignée de la famille engendrée « jalons du portefeuille » (`mockids.IDENTIFIERS`).
 Zones : un jalon dépassé en alerte, les trois autres signaux en vigilance — WF-IHM-0070 ne fixe pas
 de niveau.
 
@@ -2366,6 +2367,210 @@ motif d'exclusion, colonnes conservées, libellés des tables plates — se comp
 points de code Unicode (#292), où « Z » vient avant « É » et « 100 » avant « 20 ». Le lot ne tranche
 ni l'un ni l'autre.
 
+## La profondeur des récapitulatives, la copie externe des sauvegardes, le journal d'audit (EP-02/L42)
+
+Trois constats de contrat encore sans lot, rangés dans EP-02/L42 (#507) sur la décision de l'auteur
+du 2026-10-08 ; cette partie, L42b, les ferme. Le front n'en adopte que ce qu'il faut pour rester
+juste et vert : l'arborescence de tâches abandonne son heuristique, l'écran des sauvegardes lit la
+copie externe, et rien ne lit encore le journal d'audit, dont l'écran est L41e (#517).
+
+**`listNodes` dit la profondeur des récapitulatives de la structure** (#494 ; WF-PLA-0110). La
+réponse porte désormais un `meta` exigé, `NodeListMeta`, et sa seule propriété, `summary_depth` :
+le niveau de la plus profonde récapitulative de la structure lue, le premier étant celui des tâches
+sans parent, quels que soient les filtres — `max_level` compris —, la recherche, `kinds` et
+`fields` ; 0 pour une structure sans récapitulative. L'arborescence de tâches, qui lit les seules
+récapitulatives jusqu'au niveau demandé, ne pouvait savoir s'il en existait une plus profonde :
+elle offrait les niveaux de la réponse, et le suivant quand une récapitulative était au niveau
+demandé — on n'allait pas du niveau 2 au niveau 4 d'un geste, et un arbre de N niveaux en offrait
+un N+1 qui montrait le même arbre. Elle offre désormais exactement les niveaux de 1 à
+`summary_depth`, et montre le niveau demandé, ou le plus profond qui existe quand on lui en demande
+un au-delà. Un objet `meta` plutôt qu'un champ de premier niveau : il dit la structure, et non les
+nœuds rendus, et accueillera ce qu'une lecture dira d'autre de la structure. Écarté : une opération
+à part, une lecture de plus pour un entier que le serveur calcule en rendant l'arbre. Chaque
+exemple de `listNodes`, engendré, le porte : 2 pour la structure du témoin et son cœur, 3 pour la
+variante à quatre niveaux (`nodes_nested`, `nodes_summaries`, demandée au niveau 2), 0 pour le
+planning de feuilles seules (`nodes_summaries_leaves`). Le faux back rendant la même réponse quel
+que soit le niveau demandé, la profondeur qu'il dit reste juste, et le filtre que le front applique
+encore à la réponse (EP-02/L36) n'y touche pas.
+
+**La copie externe des sauvegardes planifiées nomme un emplacement que l'installation déclare**
+(#488, proposition retenue avec l'auteur le 2026-10-08 ; WF-ADM-0170, WF-ADM-0150, WF-OBS-0030).
+L'emplacement est atteint par le serveur, jamais par le navigateur : un compartiment S3 d'un autre
+site, ou un partage réseau monté sur le serveur ; ses identifiants vivent dans la configuration de
+déploiement et ne se saisissent jamais à l'écran. Ainsi :
+
+- `ExternalBackupLocation`, en lecture seule, lu par `listExternalBackupLocations`
+  (`GET /external-backup-locations`) : les emplacements que l'installation déclare, dans l'ordre de
+  leurs noms, chacun avec son nom, sa nature (`ExternalBackupLocationKind` : `s3`,
+  `mounted_share`) et sa description, nulle quand la configuration n'en dit rien ; aucun secret,
+  aucun identifiant, aucune adresse qui en porterait. Aucune opération ne les crée ni ne les
+  modifie. Le nom est la clé de configuration (`ExternalBackupLocationName`, minuscules, chiffres,
+  `_` et `-`) : un objet que le serveur ne crée pas n'a pas d'UUID, comme un code de permission.
+  La nature se nomme `kind`, le mot du contrat pour la nature d'un objet, et non `type` ;
+- `BackupSchedule.external_copy`, facultatif (`BackupExternalCopy`) : `is_enabled`, `location`,
+  `path` et `retained_count`, ces deux noms repris de `BackupSchedule` plutôt que les `enabled` et
+  `retention` de la proposition, pour qu'un même mot ait un même nom dans le même objet. Absent,
+  aucune copie n'est réglée ; une planification enregistrée sans lui retire la copie, `PUT` portant
+  la planification entière. `path` est un chemin relatif (`ExternalBackupPath`) : des segments
+  séparés par `/`, sans `/` en tête ni en fin, chacun commençant par une lettre, un chiffre ou `_`,
+  ce qui exclut `.`, `..` et le segment vide. Le motif s'applique au texte entier, jusqu'à sa fin :
+  `"a\n"` est refusé — un service qui l'éprouve par une expression dont `$` admet un retour à la
+  ligne final la compare au texte entier. Un chemin qui ne s'y conforme pas est refusé par champ,
+  comme #293 l'a décidé pour une valeur que l'utilisateur saisit : 422 `VALIDATION_FAILED`, `fields`
+  désignant `/external_copy/path` (ou `/path` pour un test), motif `PATH_INVALID`, nouveau au
+  catalogue, aucun motif existant ne disant un chemin (exemples `backup_schedule_path_invalid` et
+  `external_backup_location_test_path_invalid`) ;
+  le 400 reste à une requête que le serveur ne sait pas lire. Un nom d'emplacement que
+  l'installation ne déclare pas est refusé de même, motif `UNKNOWN_EXTERNAL_BACKUP_LOCATION` sur
+  `/external_copy/location`, `params.location` le nommant (exemple
+  `backup_schedule_unknown_location`). `retained_count` borne les copies gardées dans ce dossier de
+  l'emplacement, au moins autant que la plateforme garde de sauvegardes : WF-EXP-0050 veut les
+  sauvegardes « conservées hors de la plateforme selon une rétention au moins égale à celle
+  configurée sur la plateforme ». Un nombre moindre est refusé, motif `VALUE_OUT_OF_RANGE` sur
+  `/external_copy/retained_count`, `params.minimum` disant la rétention de la plateforme (exemple
+  `backup_schedule_retention_too_short`), paramètre que la description de `Problem.params` déclare
+  et que le front dit (« Valeur minimale : 7. ») ; `test_mockuniverse.py` tient que chaque exemple garde au
+  moins autant de copies. Le marquage à conserver ne vaut que pour les sauvegardes de la
+  plateforme. Seule une sauvegarde
+  planifiée se copie d'elle-même, comme WF-ADM-0170 le dit ; une manuelle sort de la plateforme par
+  son téléchargement (WF-ADM-0150) ;
+- `testExternalBackupLocation` (`POST /external-backup-locations/{location_name}/test`) : le
+  serveur écrit puis efface un fichier témoin, à la racine de l'emplacement ou dans le dossier
+  donné, et rend l'issue (`ExternalBackupLocationTest`) : le motif de l'échec en code, nul pour un
+  test réussi (`ExternalBackupFailure` : injoignable, accès refusé, écriture ou effacement refusés,
+  espace épuisé, délai dépassé ; WF-ARC-0110) — un drapeau `succeeded` le doublait, et deux champs
+  qui disent la même chose peuvent se contredire (revue d'EP-02/L42b). Un verbe dans le chemin,
+  comme `mark` et `merge` : un test n'est pas un état, et ne laisse rien. Il répond en 200 et non
+  par une tâche de fond : il attend trente secondes au plus un emplacement qui ne répond pas, et dit
+  leur dépassement comme un échec (`timed_out`). Un échec de test n'est pas une alerte ;
+- l'échec d'une copie planifiée est une alerte de l'état du système, comme celui d'une sauvegarde :
+  `Alert.code` gagne `scheduled_backup_copy_failed`, ses `params` nommant la sauvegarde
+  (`backup_id`), l'emplacement (`location`) et le motif (`failure`) ; la sauvegarde elle-même a
+  réussi, et `last_backup` le dit. Une alerte distincte de `scheduled_backup_failed` : l'exploitant
+  n'a pas la même chose à faire d'une base non sauvegardée et d'une copie qui n'est pas partie.
+  Elle disparaît à la copie réussie suivante. L'écran d'état dit aussi la dernière copie,
+  `SystemStatus.last_backup_copy` (`OperationOutcome`, nulle sans copie réglée ou faite) : la copie
+  hors plateforme se vérifie ainsi (WF-EXP-0050, « sa copie hors plateforme est vérifiée »). Le
+  motif d'une copie échouée est dans l'alerte, et non dans `problem`, le catalogue des erreurs ne
+  nommant pas les refus d'un emplacement. Exemple `system_status_copy_failed`, au même instant que
+  les autres, chacun avec sa dernière copie — celle de la veille quand la sauvegarde de la nuit a
+  échoué ;
+- permissions : celles de l'écran des sauvegardes, `backups.read` pour la liste des emplacements,
+  `backups.write` pour le test et la planification (WF-ADM-0100).
+
+Exemples, écrits à la main comme l'état du système et les sauvegardes (« L'univers témoin ») :
+`external_backup_locations` (le partage du NAS du siège et le compartiment du site de secours de
+Lyon), `external_backup_locations_none`, `external_backup_location_tested` (le compartiment de Lyon
+éprouvé aujourd'hui à 14 h 05) et `external_backup_location_test_failed` (variante
+contrefactuelle : le partage du siège, accès refusé) ; `backup_schedule` copie chaque sauvegarde
+vers Lyon, dossier `waterfall/sauvegardes`, trente copies gardées, `backup_schedule_disabled` garde
+ce réglage, `backup_schedule_weekly` n'en a pas. `test_mockuniverse.py` tient que chacun nomme un
+emplacement déclaré, et que l'alerte suit la dernière sauvegarde planifiée de la liste. L'écran des
+sauvegardes dit la copie en lecture ; le formulaire qui la règle et le test viennent avec L43
+(#519). La déclaration des emplacements dans Compose et dans Helm, et la copie elle-même, reviennent
+à EP-13.
+
+**Le journal d'audit se lit, et ne s'écrit que par les actions qu'il consigne** (#516 ;
+WF-SEC-0030). `listAuditEvents` (`GET /audit-events`), en lecture seule, rend les inscriptions de
+tous les projets et de la plateforme : `AuditEvent`, son identifiant, sa date (`occurred_at`,
+l'instant où l'action a pris effet — celui où une tâche de fond a abouti, la date d'une
+sauvegarde), son auteur (`ActorRef` : un compte, son identifiant et son nom affiché, ou `platform`
+pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé par
+l'annuaire ou à sa première connexion —, et pour ce que l'installation crée), son action
+(`AuditAction`), l'objet (`AuditObject` : sa nature, son identifiant, son libellé au moment de
+l'action, nul pour une sauvegarde qui n'en a pas), le projet s'il y en a un (`AuditProject` :
+identifiant, code, libellé), et l'identifiant de corrélation de la requête qui l'a produite
+(WF-OBS-0020). Le libellé est gardé dans l'inscription, et non relu de l'objet : le journal d'un
+projet terminé depuis cinq ans doit se lire tel quel, quand l'objet a changé de nom ou n'est plus
+consultable. Aucune opération n'inscrit, ne modifie ni ne supprime une inscription : seule l'action
+la produit (EP-03, US-0410).
+
+- **Une action qui en produit d'autres les inscrit toutes**, au même instant et sous la même
+  corrélation (décision de la revue d'EP-02/L42b) : la fusion d'un avenant inscrit
+  `amendment_merge` sur la structure du différentiel, puis `revision_mark` et `reference_designate`
+  sur la révision qui en résulte, que WF-REV-0050 marque et fait référence. Sans elles, le journal
+  ne dirait ni le marquage ni la désignation de la référence en vigueur. `test_mockaudit.py` tient
+  la complétude : chaque révision marquée a son `revision_mark` à son `marked_at`, et la référence
+  son `reference_designate`.
+- **La restauration face au journal** (hypothèse du contrat, question de spécification #539) : le
+  journal est hors du périmètre qu'une restauration remplace — il est conservé aussi longtemps que
+  les projets, et une restauration qui le ramènerait à la date de la sauvegarde effacerait ce
+  qu'elle doit inscrire —, et l'inscription `restore` s'écrit une fois la restauration faite. Les
+  descriptions d'`AuditEvent` et de `listAuditEvents` le disent. L'objet d'une restauration est la
+  sauvegarde de la liste (`backup`, `backup_id`), ou le dépôt d'une sauvegarde copiée hors de la
+  plateforme (`external_backup_upload`, l'identifiant du dépôt que `RestoreRequest` nomme,
+  `external_backup_upload_id`, son libellé le nom du fichier déposé) : une nature à elle, le
+  dépôt n'étant pas une sauvegarde de la liste, et le nom du champ de la requête qui le désigne.
+- **Une préférence n'est pas une modification de compte** : le compte de la session a été modifié
+  aujourd'hui par sa titulaire, ses préférences d'affichage, et le journal n'en dit rien.
+  WF-SEC-0030 nomme les comptes qu'on crée et modifie, ce qu'un administrateur fait d'un compte,
+  non ce qu'un utilisateur choisit pour lui-même ; `test_mockaudit.py` le tient.
+
+- **Les actions** (`AuditAction`) suivent l'énumération de WF-SEC-0030, dans son ordre et dans les
+  mots du catalogue des permissions et des tâches de fond : `revision_mark`, `reference_designate`,
+  `amendment_merge` — la contractualisation d'un avenant, que la fusion de son différentiel réalise
+  (WF-REV-0050) —, `risk_occurrence`, `project_exit`, `cost_line_exclude` et `cost_line_reinstate`,
+  `import_apply`, `user_create`, `user_update`, `user_deactivate`, `user_reactivate`,
+  `password_link_create` — le lien de mot de passe, que `createPasswordSetupLink` disait déjà
+  inscrit, sans son jeton —, `access_role_create`, `access_role_update`, `access_role_delete`,
+  `user_access_roles_set` — l'attribution des rôles —, `backup` et `restore`. La suppression d'un
+  rôle est rangée avec sa modification, une désactivation de compte avec la sienne : WF-SEC-0030 dit
+  « la création et la modification ».
+- **Les filtres** se combinent : la période (`from` compris, `to` exclu), l'auteur (`user_id`), sa
+  nature, un compte ou la plateforme (`actor_kind`, `AuditActorKind`), les actions (`actions`, une liste, au pluriel comme les autres filtres à plusieurs valeurs), le projet
+  (`project_id`), la nature et l'identifiant de l'objet (`object_kind`, `object_id`) ; une période
+  inversée est refusée par 422 comme celle des coûts réels. Le tri est celui des dates, décroissant
+  par défaut (`sort_order`), deux inscriptions d'un même instant dans l'ordre de leur inscription,
+  inversé dans l'ordre décroissant ; la pagination est celle des autres listes (`limit`, `offset`,
+  `PaginationMeta`).
+- **La permission** est une consultation, `audit_log.read`, nommée comme celles des fonctions
+  (`<fonction>.read`), de la fonction que #518 propose d'ajouter sous l'administration, FBS-1.5
+  « Journal d'audit » : `listPermissions` la range après les sauvegardes, `fbs_code` à `FBS-1.5`.
+  Elle n'a pas de permission de modifier, le journal ne se modifiant pas — c'est la seule fonction
+  du catalogue dans ce cas, et le front ne la compte pas parmi les fonctions de la navigation tant
+  qu'elle n'y a pas d'écran (`FunctionPermission`, #517). Elle ouvre le journal entier : un projet
+  s'y nomme par son code et son libellé, que l'appelant en soit contributeur ou non, comme les vues
+  du portefeuille nomment les projets qu'elles comptent ; le lien vers l'objet ne vaut que pour qui
+  peut le consulter (WF-ADM-0110). Les exemples l'accordent au rôle prédéfini d'administrateur et à
+  « Direction de projet », qui porte tout le catalogue, donc aux sessions de Camille Martin.
+  **Point ouvert**, que #518 tranchera et que l'auteur relit : l'attribution de cette permission au
+  rôle d'administrateur ; la fonction FBS-1.5 elle-même ; et l'écart à WF-ADM-0100, qui donne à
+  chaque fonction de second niveau ses deux permissions, consulter et modifier, quand celle-ci n'a
+  que la première — la recommandation, portée sur #518, est qu'une fonction en lecture seule n'ait
+  que sa permission de consulter. D'ici là le contrat les prend telles que #518 les propose. L'écran
+  des rôles nomme le groupe de cette permission par le catalogue (« Journal d'audit »), jamais par
+  un code de la FBS, qu'aucun écran ne montre (décision de l'auteur).
+- **Pas de volume** au §4.6.2 : le tableau des volumes ne compte pas le journal, et la convention ne
+  crée un volume que pour une grandeur qu'il nomme.
+
+Exemples engendrés par `make mock-data` (`wftools.mockaudit`), à partir de la chronologie du
+témoin et des exemples écrits à la main qui datent chaque compte, chaque rôle et chaque sauvegarde,
+sans rien inventer qu'un autre exemple ne dise : `audit_events`, le journal de l'installation le
+3 juin 2026, trente-quatre inscriptions, les plus récentes d'abord — les rôles et les comptes de
+l'installation, par la plateforme, chaque rôle avant les comptes qui le portent, les rôles composés
+par Camille Martin et celui qu'elle s'attribue une fois créé, les comptes créés ensuite, Alix Moreau
+désactivée, le marquage de l'offre, sa désignation comme référence, la fusion de l'avenant 1 avec
+le marquage et la désignation de la référence qu'elle produit, la survenance de 752, les cinq
+imports de coûts réels appliqués, l'exclusion de la réception du client, la sauvegarde manuelle du
+30 janvier et les sept planifiées ; `audit_events_page`, sa deuxième page de dix ; `audit_events_project`, le
+journal du témoin ; `audit_events_exited`, ce journal juste après la sortie du cycle de vie confirmée
+aujourd'hui (`project_completed`), la sortie en tête ; `audit_events_empty`, les restaurations,
+aucune. Deux familles d'identifiants engendrés naissent avec eux, les inscriptions et leurs
+corrélations, une par requête (`mockids.IDENTIFIERS`, familles 7 et 8 ; les familles d'identifiants
+quittent `mockwitness.py` pour `mockids.py`). L'auteur d'une inscription n'est lu dans l'audit de
+son objet que là où cet audit a été modifié en dernier par l'action même, à son instant — le
+marquage de l'offre, la fusion pour la référence, la survenance de 752 — : un audit dit qui a
+modifié l'objet en dernier, pas forcément l'auteur de l'action inscrite. La désignation de l'offre
+et l'exclusion de la réception du client, qu'un audit modifié depuis ne date plus, sont les gestes
+de l'acteur du témoin, le créateur du projet, comme sa chronologie les a ; un import est de
+l'auteur que nomme son journal (revue n° 2 d'EP-02/L42b). Ce que la même commande écrit — le
+registre des risques, le journal des imports — est lu en mémoire, jamais sur le disque, pour que
+`make mock-data` atteigne son point fixe en une passe ; un test tient que `mockaudit` ne lit par
+`fixture` aucun exemple que `tools/paths.toml` déclare engendré. `test_mockaudit.py` tient aussi
+chaque inscription à l'exemple qui dit son action, l'instant de l'audit dont son auteur vient, et
+son auteur existant et actif à son instant. La page d'une liste est une seule constante,
+`mocktext.PAGE`, lue du défaut de `Limit`. Le client est régénéré ; l'écran est L41e (#517).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
@@ -2387,7 +2592,7 @@ une modification comme une autre, qui passe par l'API et s'inscrit dans l'audit.
 
 ## Organisation des fichiers
 
-**Les schémas sont groupés par famille**, douze fichiers, et non un fichier par schéma —
+**Les schémas sont groupés par famille**, un fichier par famille, et non un fichier par schéma —
 l'ancien contrat en avait cent quatre-vingt-un. Cent quarante-sept fichiers d'une douzaine
 de lignes se relisent moins bien qu'une douzaine de fichiers cohérents, et les schémas
 d'une même famille se citent entre eux.

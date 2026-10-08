@@ -21,7 +21,9 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
 from wftools.mockhistory import stamp
+from wftools.mockids import hex_identifier
 from wftools.mockstructure import money
+from wftools.mocktext import PAGE
 from wftools.mockwitness import (
     APRIL,
     APRIL_AGAIN,
@@ -36,7 +38,6 @@ from wftools.mockwitness import (
     CostImport,
     CostLine,
     fixture,
-    hex_identifier,
 )
 
 if TYPE_CHECKING:
@@ -44,9 +45,6 @@ if TYPE_CHECKING:
     from datetime import date, datetime
 
     from wftools.mockstructure import JsonObject, JsonValue
-
-PAGE = 50
-"""The page of the consultation and of the journal when none is asked (`Limit`)."""
 
 
 def imputed(line: CostLine) -> str | None:

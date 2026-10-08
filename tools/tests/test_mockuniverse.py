@@ -23,18 +23,18 @@ from wftools import (
     mockcosts,
     mockcurves,
     mockhistory,
+    mockids,
     mockindicators,
     mockwitness,
 )
+from wftools.mockids import PREFIX, universe
 from wftools.mockwitness import (
     COSTS,
     JOURNAL,
     PAYMENT_DELAY,
-    PREFIX,
     STUDIES_LINE,
     TODAY,
     fixture,
-    universe,
 )
 
 type Node = dict[str, Any]
@@ -240,7 +240,7 @@ def test_each_line_is_dated_in_the_period_of_each_import_that_brought_it_and_bef
 def test_each_import_of_the_journal_is_an_import_of_the_exchanges_applied_before_it() -> None:
     imports = {item["import_id"]: item for item in fixture("imports")["items"]}
     for entry in JOURNAL:
-        applied = imports[mockwitness.hex_identifier(entry.exchange)]
+        applied = imports[mockids.hex_identifier(entry.exchange)]
         assert (applied["kind"], applied["status"]) == ("actual_costs", "applied")
         assert _instant(applied["created_at"]) < entry.event.instant
     assert [item["status"] for item in imports.values() if item["kind"] == "actual_costs"].count(
@@ -347,6 +347,63 @@ def test_the_state_of_the_system_is_read_now_and_names_the_last_backup_of_the_li
         checked = {_instant(each["checked_at"]) for each in status["components"]}
         assert all(at.date() == TODAY.date() and at <= TODAY for at in checked), name
         assert status["last_backup"]["at"] == scheduled, name
+
+
+def test_the_external_copy_names_a_location_the_installation_declares() -> None:
+    # #488: the schedule, the test of a location and the alert of a copy failed each name a
+    # location of `external_backup_locations`, never one of their own; an installation without a
+    # location has none to name.
+    declared = {each["name"] for each in fixture("external_backup_locations")}
+    assert fixture("external_backup_locations_none") == []
+    for name in ("backup_schedule", "backup_schedule_disabled"):
+        assert fixture(name)["external_copy"]["location"] in declared, name
+    assert "external_copy" not in fixture("backup_schedule_weekly")
+    for name in ("external_backup_location_tested", "external_backup_location_test_failed"):
+        tested = fixture(name)
+        assert tested["location"] in declared, name
+        assert _instant(tested["tested_at"]) == TODAY, name
+    assert fixture("external_backup_location_tested")["failure"] is None
+    refused = fixture("backup_schedule_unknown_location")["fields"][0]
+    assert refused["params"]["location"] not in declared
+    # The copy that failed is that of the last scheduled backup, which succeeded: the alert says
+    # the copy, not the backup, and comes after it.
+    status = fixture("system_status_copy_failed")
+    [alert] = status["alerts"]
+    backups = {each["backup_id"]: each for each in fixture("backups")["items"]}
+    copied = backups[alert["params"]["backup_id"]]
+    assert alert["code"] == "scheduled_backup_copy_failed"
+    assert alert["params"]["location"] == fixture("backup_schedule")["external_copy"]["location"]
+    assert copied["taken_at"] == status["last_backup"]["at"]
+    assert status["last_backup"]["succeeded"] is True
+    assert copied["taken_at"] < alert["since"] <= mockhistory.stamp(TODAY)
+    assert status["last_backup_copy"] == {"at": alert["since"], "succeeded": False, "problem": None}
+
+
+def test_the_copies_outside_the_platform_keep_at_least_its_retention() -> None:
+    # WF-EXP-0050: « une rétention au moins égale à celle configurée sur la plateforme ». Every
+    # schedule that copies keeps as many copies; the refusal names the retention of the platform.
+    for name in ("backup_schedule", "backup_schedule_disabled", "backup_schedule_weekly"):
+        schedule = fixture(name)
+        copy = schedule.get("external_copy")
+        assert copy is None or copy["retained_count"] >= schedule["retained_count"], name
+    [refused] = fixture("backup_schedule_retention_too_short")["fields"]
+    assert refused["params"]["minimum"] == fixture("backup_schedule")["retained_count"]
+
+
+def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
+    # The copy of a scheduled backup is made after it; a night without a backup has no copy, and
+    # the last one is the day before's.
+    backups = sorted(each["taken_at"] for each in fixture("backups")["items"])
+    for name in ("system_status", "system_status_storage_full", "system_status_backup_failed"):
+        status = fixture(name)
+        copy = status["last_backup_copy"]
+        assert copy["succeeded"] is True, name
+        copied = max(at for at in backups if at < copy["at"])
+        assert copied[:10] == copy["at"][:10], name
+        if status["last_backup"]["succeeded"]:
+            assert copied == status["last_backup"]["at"], name
+        else:
+            assert copied < status["last_backup"]["at"], name
 
 
 def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() -> None:

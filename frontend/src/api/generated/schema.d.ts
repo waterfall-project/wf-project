@@ -73,7 +73,7 @@ export interface paths {
         };
         /**
          * Écran d'état du système
-         * @description Disponibilité de chaque composant, espace de stockage, version installée, dernières synchronisation, sauvegarde et test de restauration, et alertes en cours. Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
+         * @description Disponibilité de chaque composant, espace de stockage, version installée, dernières synchronisation, sauvegarde et test de restauration, et alertes en cours, dont l'échec d'une sauvegarde planifiée ou de sa copie externe (WF-OBS-0030, WF-ADM-0170). Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
          */
         get: operations["getSystemStatus"];
         put?: never;
@@ -673,15 +673,55 @@ export interface paths {
         };
         /**
          * Planification et rétention des sauvegardes
-         * @description Fréquence, heure et nombre de sauvegardes conservées (WF-ADM-0170).
+         * @description Fréquence, heure et nombre de sauvegardes conservées, et la copie automatique de chaque sauvegarde planifiée vers un emplacement externe déclaré par l'installation (WF-ADM-0170).
          */
         get: operations["getBackupSchedule"];
         /**
          * Régler la planification et la rétention
-         * @description Au-delà du nombre conservé, les plus anciennes sont supprimées, sauf celles marquées à conserver. Un échec est signalé sur l'écran d'état (WF-ADM-0170).
+         * @description Au-delà du nombre conservé, les plus anciennes sont supprimées, sauf celles marquées à conserver. La copie externe, si elle est réglée, nomme un emplacement que l'installation déclare et un dossier relatif dans cet emplacement, et garde au moins autant de copies que la plateforme garde de sauvegardes (WF-EXP-0050). Un échec, de la sauvegarde ou de sa copie, est signalé sur l'écran d'état (WF-ADM-0170, WF-OBS-0030). Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
          */
         put: operations["setBackupSchedule"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/external-backup-locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Emplacements externes des sauvegardes
+         * @description Les emplacements où une sauvegarde planifiée peut être copiée automatiquement (WF-ADM-0170), tels que l'installation les déclare dans sa configuration de déploiement, dans l'ordre de leurs noms : leur nom, leur nature et leur description, jamais leurs identifiants ni aucun secret. Le serveur les atteint seul. Aucune opération ne les crée ni ne les modifie : leur déclaration est une affaire d'exploitation. Lisible sous la permission de consulter les sauvegardes (`backups.read`, WF-ADM-0100).
+         */
+        get: operations["listExternalBackupLocations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/external-backup-locations/{location_name}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Éprouver un emplacement externe des sauvegardes
+         * @description Le serveur écrit puis efface un fichier témoin dans l'emplacement, à sa racine ou dans le dossier donné, avec les identifiants de la configuration, et rend l'issue : réussie, ou le motif de l'échec, en code (WF-ADM-0170, WF-ARC-0110). Rien n'est conservé : le test n'a pas d'état, et un échec n'est pas une alerte, que seule une copie planifiée déclenche (WF-OBS-0030). Le test attend un emplacement qui ne répond pas trente secondes au plus, et dit leur dépassement comme un échec (`timed_out`). Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
+         */
+        post: operations["testExternalBackupLocation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -702,6 +742,26 @@ export interface paths {
          * @description Remplace l'intégralité de la base par son contenu sauvegardé, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après confirmation (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé.
          */
         post: operations["startRestore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Journal d'audit
+         * @description Les inscriptions du journal d'audit, chacune avec sa date, son auteur, son action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030) : les actions irréversibles ou structurantes, de tous les projets et de la plateforme. Le journal est conservé aussi longtemps que les projets : celui d'un projet terminé depuis des années se lit comme celui d'un projet en cours, par le même filtre. Il ne se lit qu'ici : aucune opération n'inscrit, ne modifie ni ne supprime une inscription, que seule l'action elle-même produit, et une restauration ne le remplace pas : il est hors du périmètre qu'elle restaure, et l'inscription de la restauration s'écrit une fois celle-ci faite (hypothèse du contrat, #539). Les filtres se combinent ; le tri est celui des dates, les plus récentes d'abord par défaut, deux inscriptions de même instant dans l'ordre de leur inscription, inversé dans l'ordre décroissant ; le serveur pagine. Lisible sous la permission de consulter le journal (`audit_log.read`, WF-ADM-0100), qui ouvre le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en soit contributeur ou non ; le lien vers l'objet ne vaut que pour qui peut le consulter (WF-ADM-0110).
+         */
+        get: operations["listAuditEvents"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1631,7 +1691,7 @@ export interface paths {
          * Arbre commun de la structure
          * @description Les mêmes tâches, vues du côté du temps ou du côté de l'argent : une tâche porte ses lignes de devis (§3.5.1, WF-DEV-0020). `row_number` et `level` sont calculés à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et grille de devis (WF-DEV-0050) — et des chronologies, qui n'en lisent que les tâches inscrites (WF-PLA-0140).
          *     La structure est rendue entière, sans pagination : une révision porte au plus dix mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien : le tri ordonne les nœuds frères entre eux sans défaire l'arbre. Un filtre sur une tâche — avancement, criticité, sous-arbre, récapitulative, niveau, chronologie — retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140). Les totaux sont ceux des lignes retenues. `kinds` n'est pas un filtre : il choisit ce que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent pas avec lui.
-         *     L'arborescence de tâches lit `kinds=task`, `summaries_only` et `max_level` : les seules récapitulatives, jusqu'au niveau demandé, sous le nœud du projet que le front dessine (WF-PLA-0110) ; une chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le front ne trie ni ne sélectionne rien de ce qu'il reçoit.
+         *     L'arborescence de tâches lit `kinds=task`, `summaries_only` et `max_level` : les seules récapitulatives, jusqu'au niveau demandé, sous le nœud du projet que le front dessine (WF-PLA-0110), et offre les niveaux que `meta.summary_depth` dit exister, celui de la plus profonde récapitulative de la structure, quels que soient les filtres ; une chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le front ne trie ni ne sélectionne rien de ce qu'il reçoit.
          *     `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche et le tri, et un prédécesseur est nommé par le sien même quand la lecture ne le rend pas (`predecessor_row_number`, WF-PLA-0080).
          *     `fields` choisit ce que la lecture rend de chaque nœud : une grille n'en demande que ce qu'elle affiche, sans quoi six mille nœuds entiers pèsent plusieurs mégaoctets (§4.6.2). Chaque nom est une propriété de `Node` — une facette nommée ainsi est rendue entière — ou une propriété d'une facette, `task.<propriété>` ou `estimate_line.<propriété>`, qui rend la facette avec ses seules propriétés nommées ; `node_id`, `row_number`, `level` et `lock_version` sont toujours rendus. Une facette dont rien n'est nommé est omise. Sans `fields`, chaque nœud est rendu entier. Les propriétés que `Node` et ses facettes exigent le sont d'une lecture sans `fields` : une lecture qui en nomme ne rend que ce qu'elle nomme.
          */
@@ -2600,7 +2660,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "INVALID_CREDENTIALS" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "DEFAULT_CALENDAR_REQUIRED" | "HAS_ACTUAL_COSTS" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "WIN_PROBABILITY_FROZEN" | "REFERENCE_INCOMPLETE" | "PASSWORD_RESET_TOKEN_INVALID" | "ACCOUNT_LOCKED" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_RESOURCE_ROLE" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "UPLOAD_PURPOSE_MISMATCH" | "PROVISION_CATEGORY_RESERVED" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "WORK_PACKAGE_OUTSIDE_ORDER_ITEM" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2618,7 +2678,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040). */
+            /** @description Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version`, `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) ; `resource_role_ids` et `tasks` pour une saisie qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, et les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`). Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `attached_node_id`, la tâche qui porte déjà le poste ou le lot qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0130) ; `order_item_node_id` et `work_package_node_ids`, la tâche du poste et celles de ses lots qui sortiraient de son sous-arbre (`WORK_PACKAGE_OUTSIDE_ORDER_ITEM`, WF-PLA-0130), et `work_package_id`, le lot, quand c'est le lotissement qui le range sous un autre poste (`setWorkBreakdown`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170). */
             params?: {
                 state_enum?: components["schemas"]["StateEnumeration"];
             } & {
@@ -2660,17 +2720,32 @@ export interface components {
          * @enum {string}
          */
         AlertZone: "nominal" | "watch" | "alert";
+        /**
+         * Format: uuid
+         * @description Identifiant engendré par le serveur, ordonné dans le temps (WF-DAT-0060).
+         */
+        Uuid: string;
+        /** @description Nom d'un emplacement externe, tel que la configuration de déploiement le déclare : une clé de configuration, et non un objet que le serveur crée, d'où un nom plutôt qu'un UUID. */
+        ExternalBackupLocationName: string;
+        /**
+         * @description Pourquoi un emplacement externe a refusé une écriture : injoignable — compartiment ou partage absent, réseau coupé —, accès refusé à ses identifiants, écriture ou effacement du fichier refusés, espace épuisé, ou délai dépassé (WF-ARC-0110). Le motif d'un test (`ExternalBackupLocationTest`) comme celui d'une copie échouée (`Alert.params`).
+         * @enum {string}
+         */
+        ExternalBackupFailure: "location_unreachable" | "access_denied" | "write_failed" | "delete_failed" | "storage_full" | "timed_out";
         /** @description Alerte en cours, sur une situation qui a une conséquence pour les utilisateurs (WF-OBS-0030). Elle disparaît dès que sa cause cesse. */
         Alert: {
             /** @enum {string} */
-            code: "component_unavailable" | "task_queue_stalled" | "scheduled_backup_failed" | "directory_sync_failed" | "storage_nearly_full" | "error_rate_abnormal";
+            code: "component_unavailable" | "task_queue_stalled" | "scheduled_backup_failed" | "scheduled_backup_copy_failed" | "directory_sync_failed" | "storage_nearly_full" | "error_rate_abnormal";
             since: components["schemas"]["Timestamp"];
             severity: components["schemas"]["AlertZone"];
-            /** @description Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où l'alerte s'est déclenchée. Les autres codes n'en portent pas : la sauvegarde échouée et la synchronisation échouée disent leur motif dans `last_backup` et `last_directory_sync`. */
+            /** @description Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où l'alerte s'est déclenchée ; `scheduled_backup_copy_failed`, la sauvegarde planifiée que la copie n'a pas atteinte, `backup_id`, l'emplacement, `location`, et le motif, `failure` (WF-ADM-0170) ; elle disparaît à la copie réussie suivante. Les autres codes n'en portent pas : la sauvegarde échouée et la synchronisation échouée disent leur motif dans `last_backup` et `last_directory_sync`. */
             params?: {
                 component?: components["schemas"]["PlatformComponent"];
                 used_bytes?: number;
                 available_bytes?: number;
+                backup_id?: components["schemas"]["Uuid"];
+                location?: components["schemas"]["ExternalBackupLocationName"];
+                failure?: components["schemas"]["ExternalBackupFailure"];
             };
         };
         /** @description Écran d'état, accessible sans qu'aucun projet ne soit ouvert. Il ne présente que des valeurs issues des métriques (WF-ADM-0130, WF-OBS-0010). */
@@ -2680,6 +2755,8 @@ export interface components {
             storage: components["schemas"]["StorageUsage"];
             last_directory_sync?: components["schemas"]["OperationOutcome"] | null;
             last_backup?: components["schemas"]["OperationOutcome"] | null;
+            /** @description Date et résultat de la dernière copie externe d'une sauvegarde planifiée, que la planification règle (`BackupSchedule.external_copy`) : la copie hors plateforme se vérifie ainsi (WF-ADM-0170, WF-EXP-0050). Nulle quand aucune copie n'est réglée ou n'a encore été faite. Le motif d'une copie échouée est dans l'alerte en cours (`scheduled_backup_copy_failed`), et non dans `problem`, le catalogue des erreurs ne nommant pas les refus d'un emplacement. */
+            last_backup_copy: components["schemas"]["OperationOutcome"] | null;
             /** @description Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130). */
             last_restore_test?: components["schemas"]["OperationOutcome"] | null;
             alerts: components["schemas"]["Alert"][];
@@ -2702,11 +2779,6 @@ export interface components {
          * @enum {string}
          */
         BackgroundTaskStatus: "queued" | "running" | "succeeded" | "failed";
-        /**
-         * Format: uuid
-         * @description Identifiant engendré par le serveur, ordonné dans le temps (WF-DAT-0060).
-         */
-        Uuid: string;
         /** @description Référence d'une tâche de fond. Une requête qui déclenche un traitement long rend la main immédiatement en renvoyant cette référence (WF-ARC-0090, WF-IHM-0080). */
         BackgroundTaskRef: {
             task_id: components["schemas"]["Uuid"];
@@ -2820,10 +2892,10 @@ export interface components {
             display_preferences?: components["schemas"]["DisplayPreferences"];
         };
         /**
-         * @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, consulter et modifier, la permission d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou structurante — créer un projet, marquer une révision, abandonner une révision en cours, désigner la révision de référence, fusionner un différentiel, déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la plateforme —, et « consulter tous les projets », qui ouvre à la consultation les projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100). L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
+         * @description Code du catalogue, livré et non modifiable : deux permissions par fonction de second niveau, consulter et modifier, la permission d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou structurante — créer un projet, marquer une révision, abandonner une révision en cours, désigner la révision de référence, fusionner un différentiel, déclarer une sortie du cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la plateforme —, et « consulter tous les projets », qui ouvre à la consultation les projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification doit lui donner sous l'administration (FBS-1.5, #518) ; le journal ne se modifiant pas, elle n'a pas de permission de modifier. L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
          * @enum {string}
          */
-        PermissionCode: "users.read" | "users.write" | "access_roles.read" | "access_roles.write" | "system_status.read" | "system_status.write" | "backups.read" | "backups.write" | "portfolio_projects.read" | "portfolio_projects.write" | "portfolio_workload.read" | "portfolio_workload.write" | "portfolio_performance.read" | "portfolio_performance.write" | "portfolio_cost_structure.read" | "portfolio_cost_structure.write" | "portfolio_risks.read" | "portfolio_risks.write" | "portfolio_cost_curve.read" | "portfolio_cost_curve.write" | "portfolio_pilot_health.read" | "portfolio_pilot_health.write" | "cost_settings.read" | "cost_settings.write" | "resource_settings.read" | "resource_settings.write" | "risk_settings.read" | "risk_settings.write" | "indicator_settings.read" | "indicator_settings.write" | "revisions.read" | "revisions.write" | "project_settings.read" | "project_settings.write" | "planning.read" | "planning.write" | "estimate.read" | "estimate.write" | "remaining.read" | "remaining.write" | "risks.read" | "risks.write" | "actual_costs.read" | "actual_costs.write" | "project_indicators.read" | "project_indicators.write" | "lifecycle.read" | "lifecycle.write" | "revision_mark" | "revision_abandon" | "reference_designate" | "structure_merge" | "project_exit" | "risk_occurrence" | "cost_line_exclude" | "platform_restore" | "project_create" | "all_projects_read";
+        PermissionCode: "users.read" | "users.write" | "access_roles.read" | "access_roles.write" | "system_status.read" | "system_status.write" | "backups.read" | "backups.write" | "audit_log.read" | "portfolio_projects.read" | "portfolio_projects.write" | "portfolio_workload.read" | "portfolio_workload.write" | "portfolio_performance.read" | "portfolio_performance.write" | "portfolio_cost_structure.read" | "portfolio_cost_structure.write" | "portfolio_risks.read" | "portfolio_risks.write" | "portfolio_cost_curve.read" | "portfolio_cost_curve.write" | "portfolio_pilot_health.read" | "portfolio_pilot_health.write" | "cost_settings.read" | "cost_settings.write" | "resource_settings.read" | "resource_settings.write" | "risk_settings.read" | "risk_settings.write" | "indicator_settings.read" | "indicator_settings.write" | "revisions.read" | "revisions.write" | "project_settings.read" | "project_settings.write" | "planning.read" | "planning.write" | "estimate.read" | "estimate.write" | "remaining.read" | "remaining.write" | "risks.read" | "risks.write" | "actual_costs.read" | "actual_costs.write" | "project_indicators.read" | "project_indicators.write" | "lifecycle.read" | "lifecycle.write" | "revision_mark" | "revision_abandon" | "reference_designate" | "structure_merge" | "project_exit" | "risk_occurrence" | "cost_line_exclude" | "platform_restore" | "project_create" | "all_projects_read";
         /** @description Session conservée en base, révocable immédiatement (WF-SEC-0020). Les permissions effectives sont évaluées à chaque requête et renvoyées ici pour que le front sache quoi présenter (WF-ADM-0110, WF-IHM-0090). */
         Session: {
             user: components["schemas"]["UserSelf"];
@@ -2925,6 +2997,19 @@ export interface components {
         BackupRetain: {
             is_retained: boolean;
         };
+        /** @description Chemin relatif dans un emplacement externe : des segments séparés par `/`, sans `/` en tête ni en fin, chacun commençant par une lettre, un chiffre ou `_` — ni `.` ni `..`, qui sortiraient du dossier visé, ni segment vide. Le motif s'applique au texte entier, jusqu'à sa fin : un retour à la ligne final (`a\n`) le rompt. Un chemin qui ne s'y conforme pas est refusé par champ, 422 `VALIDATION_FAILED`, motif `PATH_INVALID`. */
+        ExternalBackupPath: string;
+        /** @description Copie externe automatique des sauvegardes planifiées (WF-ADM-0170) : après chaque sauvegarde planifiée et vérifiée, le serveur la copie vers un emplacement que l'installation déclare dans sa configuration de déploiement (`ExternalBackupLocation`), nommé ici et jamais décrit : aucun identifiant ni secret ne se saisit à l'écran. L'échec d'une copie est une alerte de l'état du système, comme celui de la sauvegarde (`scheduled_backup_copy_failed`, WF-OBS-0030). Une sauvegarde manuelle se copie hors de la plateforme par son téléchargement (WF-ADM-0150). */
+        BackupExternalCopy: {
+            /** @description Faux, la copie est suspendue et son réglage gardé, comme `BackupSchedule.is_enabled`. */
+            is_enabled: boolean;
+            /** @description Le nom d'un emplacement déclaré par l'installation (`listExternalBackupLocations`) ; un nom qu'elle ne déclare pas est refusé par 422 `VALIDATION_FAILED`, motif `UNKNOWN_EXTERNAL_BACKUP_LOCATION` sur `/external_copy/location`. */
+            location: components["schemas"]["ExternalBackupLocationName"];
+            /** @description Le dossier, ou le préfixe, où les copies sont écrites dans l'emplacement ; un chemin qui n'est pas relatif ou qui sort du dossier est refusé par 422 `VALIDATION_FAILED`, motif `PATH_INVALID` sur `/external_copy/path`. */
+            path: components["schemas"]["ExternalBackupPath"];
+            /** @description Le nombre de copies gardées sur l'emplacement, au moins celui des sauvegardes gardées sur la plateforme (`BackupSchedule.retained_count`) : les sauvegardes sont conservées hors de la plateforme selon une rétention au moins égale (WF-EXP-0050). Un nombre moindre est refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/external_copy/retained_count`, `params.minimum` disant la rétention de la plateforme. Au-delà, la plus ancienne copie de ce dossier est supprimée ; le marquage à conserver ne vaut que pour les sauvegardes de la plateforme. */
+            retained_count: number;
+        };
         /** @description Planification et rétention des sauvegardes (WF-ADM-0170). */
         BackupSchedule: {
             is_enabled: boolean;
@@ -2935,7 +3020,35 @@ export interface components {
             /** @description Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. */
             weekday?: number | null;
             retained_count: number;
+            /** @description La copie automatique de chaque sauvegarde planifiée vers un emplacement externe (WF-ADM-0170) ; absente, aucune copie n'est réglée — une installation qui ne déclare aucun emplacement n'en offre pas. Une planification enregistrée sans elle retire la copie réglée. */
+            external_copy?: components["schemas"]["BackupExternalCopy"];
             lock_version: components["schemas"]["LockVersion"];
+        };
+        /**
+         * @description Ce qu'est un emplacement externe : un compartiment S3, d'un autre site, ou un partage réseau monté sur le serveur. Le serveur l'atteint seul, jamais le navigateur.
+         * @enum {string}
+         */
+        ExternalBackupLocationKind: "s3" | "mounted_share";
+        /** @description Un emplacement externe où copier les sauvegardes (WF-ADM-0170), déclaré par l'installation dans sa configuration de déploiement — compartiment, point de montage, identifiants — et lu ici sans aucun de ses secrets : ni identifiant, ni clé, ni adresse qui en porterait. Il ne se crée ni ne se modifie par l'API. */
+        ExternalBackupLocation: {
+            name: components["schemas"]["ExternalBackupLocationName"];
+            kind: components["schemas"]["ExternalBackupLocationKind"];
+            /** @description Ce que la configuration en dit pour l'administrateur, telle qu'elle est écrite ; nulle quand elle n'en dit rien. */
+            description: string | null;
+        };
+        /** @description Ce que le test éprouve : l'emplacement, à la racine, ou dans le dossier que la copie emploierait. */
+        ExternalBackupLocationTestRequest: {
+            /** @description Le dossier où écrire le fichier témoin ; absent, la racine de l'emplacement. */
+            path?: components["schemas"]["ExternalBackupPath"];
+        };
+        /** @description L'issue d'un test d'un emplacement externe : le serveur y a écrit puis effacé un fichier témoin, avec les identifiants de la configuration (WF-ADM-0170). Réussi quand `failure` est nul. */
+        ExternalBackupLocationTest: {
+            location: components["schemas"]["ExternalBackupLocationName"];
+            /** @description Le dossier éprouvé ; nul pour la racine de l'emplacement. */
+            path: components["schemas"]["ExternalBackupPath"] | null;
+            tested_at: components["schemas"]["Timestamp"];
+            /** @description Le motif de l'échec ; nul quand le fichier a été écrit puis effacé. */
+            failure: components["schemas"]["ExternalBackupFailure"] | null;
         };
         /** @description Restauration : elle remplace l'intégralité de la base, déconnecte les utilisateurs, vide le cache, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). */
         RestoreRequest: {
@@ -2947,6 +3060,48 @@ export interface components {
             /** @constant */
             confirmed: true;
         } & (unknown | unknown);
+        /**
+         * @description L'auteur d'une inscription, un compte ou la plateforme, comme `ActorRef.kind` le dit : nommé pour filtrer le journal.
+         * @enum {string}
+         */
+        AuditActorKind: "user" | "platform";
+        /**
+         * @description Ce qu'une inscription du journal d'audit consigne : chacune des actions irréversibles ou structurantes que WF-SEC-0030 énumère, dans son ordre — le marquage d'une révision, la désignation de la révision de référence, la contractualisation d'un avenant, qui fusionne son différentiel (`amendment_merge`, WF-REV-0050), la déclaration d'un risque survenu, la sortie du cycle de vie d'un projet, l'exclusion et la réintégration d'une ligne de coût, l'application d'un import, la création et la modification des comptes — dont leur désactivation et leur réactivation, et le lien qui fixe un mot de passe, sans son jeton (WF-ADM-0140) —, la création, la modification et la suppression des rôles, l'attribution des rôles aux comptes, la sauvegarde et la restauration. Une action nouvelle est une modification du contrat.
+         * @enum {string}
+         */
+        AuditAction: "revision_mark" | "reference_designate" | "amendment_merge" | "risk_occurrence" | "project_exit" | "cost_line_exclude" | "cost_line_reinstate" | "import_apply" | "user_create" | "user_update" | "user_deactivate" | "user_reactivate" | "password_link_create" | "access_role_create" | "access_role_update" | "access_role_delete" | "user_access_roles_set" | "backup" | "restore";
+        /**
+         * @description La nature de l'objet qu'une inscription concerne : le projet d'une sortie du cycle de vie, la révision marquée ou désignée, le différentiel d'un avenant, le risque survenu, la ligne de coût exclue ou réintégrée, l'import appliqué, le compte, le rôle, la sauvegarde prise ou restaurée, et le dépôt d'une sauvegarde copiée hors de la plateforme qu'une restauration remet en place (`external_backup_upload`, l'identifiant du dépôt, `RestoreRequest.external_backup_upload_id` ; WF-SEC-0030, WF-ADM-0160).
+         * @enum {string}
+         */
+        AuditObjectKind: "project" | "revision" | "cost_structure" | "risk" | "cost_line" | "import" | "user" | "access_role" | "backup" | "external_backup_upload";
+        /** @description L'objet concerné, tel qu'il était au moment de l'action : son libellé est celui de ce moment, gardé dans l'inscription, et non relu de l'objet, qui a pu changer de nom depuis — ou ne plus être lisible : le journal reste consultable aussi longtemps que les projets (WF-SEC-0030). */
+        AuditObject: {
+            kind: components["schemas"]["AuditObjectKind"];
+            object_id: components["schemas"]["Uuid"];
+            /** @description Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription. */
+            label: string | null;
+        };
+        /** @description Le projet de l'objet, par son identifiant, son code et son libellé au moment de l'action. */
+        AuditProject: {
+            project_id: components["schemas"]["Uuid"];
+            code: string;
+            label: string;
+        };
+        /** @description Une inscription du journal d'audit : la date, l'auteur, l'action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030), et l'identifiant de corrélation de la requête ou de la tâche de fond qui l'a produite, celui des journaux de la plateforme (WF-OBS-0020). Une inscription n'est ni modifiable ni supprimable : aucune opération ne le permet, et une restauration ne la touche pas — le journal est hors du périmètre qu'elle remplace, et son inscription `restore` s'écrit une fois la restauration faite (hypothèse du contrat, #539). Une action qui en produit d'autres les inscrit toutes, au même instant et sous la même corrélation : la fusion d'un avenant inscrit `amendment_merge` sur sa structure, puis `revision_mark` et `reference_designate` sur la révision qui en résulte (WF-REV-0050). */
+        AuditEvent: {
+            audit_event_id: components["schemas"]["Uuid"];
+            /** @description L'instant où l'action a pris effet : pour une action confiée au worker — marquage, fusion, survenance, application d'un import, restauration —, celui où la tâche a abouti ; pour une sauvegarde, sa date (`Backup.taken_at`), l'instant de l'état qu'elle copie. */
+            occurred_at: components["schemas"]["Timestamp"];
+            /** @description L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa désactivation (WF-ADM-0060) ; `platform` pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur d'identité ou par la lecture de l'annuaire —, et ce que l'installation crée. */
+            actor: components["schemas"]["ActorRef"];
+            action: components["schemas"]["AuditAction"];
+            object: components["schemas"]["AuditObject"];
+            /** @description Le projet de l'objet ; nul pour un objet de la plateforme — compte, rôle, sauvegarde. */
+            project: components["schemas"]["AuditProject"] | null;
+            /** @description L'identifiant de corrélation de la requête qui a demandé l'action, que la tâche de fond qu'elle déclenche reprend (WF-OBS-0020) : il mène aux journaux de la plateforme. */
+            correlation_id: string;
+        };
         /** @description Référentiel minimal exigé pour créer un projet (WF-CYC-0120). Le refus nomme chaque prérequis manquant. */
         ReferenceReadiness: {
             is_complete: boolean;
@@ -3699,6 +3854,11 @@ export interface components {
             budgeted_amount: components["schemas"]["Money"];
             reestimated_amount: components["schemas"]["Money"];
             inflated_amount: components["schemas"]["Money"];
+        };
+        /** @description Ce que la lecture dit de la structure lue elle-même, et non des nœuds qu'elle rend : les filtres, la recherche, `kinds` et `fields` n'y changent rien. */
+        NodeListMeta: {
+            /** @description Le niveau (`level`) de la plus profonde récapitulative de la structure, le premier niveau étant celui des tâches sans parent, quels que soient les filtres — `max_level` compris —, la recherche et `kinds` ; 0 pour une structure sans récapitulative. L'arborescence de tâches offre ainsi exactement les niveaux qui existent, du premier à celui-ci, sans en deviner un de plus ni en cacher un au-delà du niveau qu'elle lit (WF-PLA-0110). */
+            summary_depth: number;
         };
         /** @description Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100). Le rattachement à un poste ou à un lot est accepté de toute tâche et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée (`NodeCreate.parent_id`) disant si la tâche d'un lot reste sous celle de son poste. */
         TaskFacetWrite: {
@@ -4647,6 +4807,8 @@ export interface components {
         UserId: components["schemas"]["Uuid"];
         AccessRoleId: components["schemas"]["Uuid"];
         BackupId: components["schemas"]["Uuid"];
+        /** @description Le nom d'un emplacement externe que l'installation déclare. */
+        ExternalBackupLocationName: components["schemas"]["ExternalBackupLocationName"];
         OrgNodeId: components["schemas"]["Uuid"];
         ResourceRoleId: components["schemas"]["Uuid"];
         CalendarId: components["schemas"]["Uuid"];
@@ -5823,9 +5985,89 @@ export interface operations {
                     "application/json": components["schemas"]["BackupSchedule"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             412: components["responses"]["PreconditionFailed"];
+            /** @description Une copie externe refusée, `VALIDATION_FAILED`, `fields` désignant le champ en défaut : un emplacement que l'installation ne déclare pas (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une rétention moindre que celle de la plateforme (`/external_copy/retained_count`, `VALUE_OUT_OF_RANGE`, `params.minimum`, WF-EXP-0050). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listExternalBackupLocations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Emplacements déclarés ; une liste vide quand l'installation n'en déclare aucun. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalBackupLocation"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    testExternalBackupLocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Le nom d'un emplacement externe que l'installation déclare. */
+                location_name: components["parameters"]["ExternalBackupLocationName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ExternalBackupLocationTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Issue du test, réussi ou non. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalBackupLocationTest"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Emplacement que l'installation ne déclare pas, ou lecture des sauvegardes refusée, sans distinction (WF-ADM-0110). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Un dossier qui n'est pas relatif ou qui sort de l'emplacement : `VALIDATION_FAILED`, `fields` désignant `/path` par `PATH_INVALID`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     startRestore: {
@@ -5855,6 +6097,61 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             /** @description Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAuditEvents: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                /** @description Retient les inscriptions faites à cet instant ou après lui. */
+                from?: components["schemas"]["Timestamp"];
+                /** @description Retient les inscriptions faites avant cet instant, exclu. */
+                to?: components["schemas"]["Timestamp"];
+                /** @description Retient les inscriptions dont l'auteur est ce compte, désactivé compris (WF-ADM-0060). */
+                user_id?: components["schemas"]["Uuid"];
+                /** @description Retient les inscriptions d'un compte (`user`) ou de la plateforme (`platform`) ; absent, les deux. */
+                actor_kind?: components["schemas"]["AuditActorKind"];
+                /** @description Retient les inscriptions de ces actions ; absent, toutes. */
+                actions?: components["schemas"]["AuditAction"][];
+                /** @description Retient les inscriptions de ce projet ; un projet qui n'en a aucune, ou qui n'existe pas, ne retient rien. */
+                project_id?: components["schemas"]["Uuid"];
+                /** @description Retient les inscriptions dont l'objet est de cette nature. */
+                object_kind?: components["schemas"]["AuditObjectKind"];
+                /** @description Retient les inscriptions de cet objet — l'histoire d'une révision, d'une ligne de coût, d'un compte. */
+                object_id?: components["schemas"]["Uuid"];
+                /** @description Sens du tri des dates ; absent, décroissant : les inscriptions les plus récentes d'abord. */
+                sort_order?: components["schemas"]["SortOrder"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Inscriptions retenues, une page, et leur nombre. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AuditEvent"][];
+                        meta: components["schemas"]["PaginationMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description `VALIDATION_FAILED` : une période dont la fin précède le début, désignée dans `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`). Aucune liste vide ne tient lieu de refus. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7741,7 +8038,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœuds, en parcours profondeur d'abord, et leurs totaux. */
+            /** @description Nœuds, en parcours profondeur d'abord, leurs totaux, et ce que la lecture dit de la structure elle-même. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7750,6 +8047,7 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["Node"][];
                         totals: components["schemas"]["NodeTotals"];
+                        meta: components["schemas"]["NodeListMeta"];
                     };
                 };
             };

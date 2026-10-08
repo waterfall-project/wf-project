@@ -423,8 +423,10 @@ demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `ma
 chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
 chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre
 idempotent, qui ne change rien contre un serveur qui les tient, écart temporaire d'EP-02 retiré
-avec le back d'EP-03. Le contrat ne disant pas jusqu'où vont les récapitulatives, l'arborescence
-offre les niveaux de la réponse, et le suivant quand une récapitulative est au niveau demandé.
+avec le back d'EP-03. L'arborescence offre exactement les niveaux que la structure a, du premier à
+celui de sa plus profonde récapitulative, que le serveur dit quels que soient les filtres
+(`meta.summary_depth`, #494), et montre le niveau demandé, ou le plus profond quand on lui en
+demande un au-delà (`depthShown`).
 
 L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de
 ses opérations dans la révision de sa route (`revision_id`) : les totaux des provisions des
@@ -875,7 +877,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `wftools.mockcurves`) ; ses coûts réels et le journal de leurs imports (`wftools.mockcosts`) ;
   et les vues du portefeuille dans le temps — plan de charge agrégé, courbe en S et sa variante
   au 31 décembre 2025, santé du pilotage —, qui somment le témoin à ses propres lectures et les autres projets par des
-  formules simples (`wftools.mockportfoliotime`).
+  formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de
+  la chronologie du témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes
+  (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule

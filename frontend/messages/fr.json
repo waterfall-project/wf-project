@@ -1153,7 +1153,8 @@
       "function": "Fonction",
       "permission": "Permission",
       "held": "Accordée",
-      "notHeld": "Non accordée"
+      "notHeld": "Non accordée",
+      "auditLog": "Journal d’audit"
     },
     "status": {
       "version": "Version installée : {version}",
@@ -1168,6 +1169,7 @@
       "used": "Utilisé",
       "free": "Disponible",
       "storageDetail": "{used} employés, {available} libres",
+      "copyDetail": "{location} : {failure}",
       "operations": "Dernières opérations",
       "operation": "Opération",
       "at": "Date",
@@ -1178,6 +1180,7 @@
       "never": "Jamais effectuée",
       "directorySync": "Lecture des comptes du fournisseur d’identité",
       "backup": "Sauvegarde",
+      "backupCopy": "Copie externe de la sauvegarde",
       "restoreTest": "Test de restauration",
       "alerts": "Alertes en cours",
       "alert": "Alerte",
@@ -1207,6 +1210,10 @@
       "universalTime": "{time} UTC",
       "retained": "Rétention",
       "count": "{count, plural, one {# sauvegarde conservée} other {# sauvegardes conservées}}",
+      "externalCopy": "Copie externe",
+      "externalCopyNone": "Aucune",
+      "externalCopyTo": "Vers {location}, dossier {path} — {count, plural, one {# copie gardée} other {# copies gardées}}",
+      "externalCopySuspended": "Suspendue — vers {location}, dossier {path}, {count, plural, one {# copie gardée} other {# copies gardées}}",
       "weekdays": {
         "monday": "Lundi",
         "tuesday": "Mardi",
@@ -1310,6 +1317,8 @@
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
+    "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
+    "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
@@ -1323,6 +1332,7 @@
     "missing_prerequisites": "À compléter : {prerequisites}.",
     "projectState": "État du projet : {state}.",
     "max_columns": "La grille accepte au plus {max_columns, plural, one {# colonne} other {# colonnes}} à partir de cette cellule.",
+    "minimum": "Valeur minimale : {minimum}.",
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
     "expected_version": "Version attendue : {version}."
@@ -1343,6 +1353,9 @@
     "backups": {
       "read": "Consulter les sauvegardes",
       "write": "Modifier les sauvegardes"
+    },
+    "audit_log": {
+      "read": "Consulter le journal d’audit"
     },
     "portfolio_projects": {
       "read": "Consulter le portefeuille de projets",
@@ -1455,6 +1468,7 @@
         "component_unavailable": "Composant indisponible",
         "task_queue_stalled": "File des traitements bloquée",
         "scheduled_backup_failed": "Échec de la sauvegarde planifiée",
+        "scheduled_backup_copy_failed": "Échec de la copie externe d’une sauvegarde planifiée",
         "directory_sync_failed": "Échec de la synchronisation de l’annuaire",
         "storage_nearly_full": "Stockage presque plein",
         "error_rate_abnormal": "Taux d’erreur anormal"
@@ -1542,6 +1556,55 @@
         "daily": "Quotidienne",
         "weekly": "Hebdomadaire"
       }
+    },
+    "ExternalBackupLocationKind": {
+      "s3": "Compartiment S3",
+      "mounted_share": "Partage réseau monté"
+    },
+    "ExternalBackupFailure": {
+      "location_unreachable": "Emplacement injoignable",
+      "access_denied": "Accès refusé",
+      "write_failed": "Écriture refusée",
+      "delete_failed": "Effacement refusé",
+      "storage_full": "Espace épuisé",
+      "timed_out": "Délai dépassé"
+    },
+    "AuditAction": {
+      "revision_mark": "Marquage d’une révision",
+      "reference_designate": "Désignation de la référence",
+      "amendment_merge": "Contractualisation d’un avenant",
+      "risk_occurrence": "Survenance d’un risque",
+      "project_exit": "Sortie du cycle de vie",
+      "cost_line_exclude": "Exclusion d’une ligne de coût",
+      "cost_line_reinstate": "Réintégration d’une ligne de coût",
+      "import_apply": "Application d’un import",
+      "user_create": "Création d’un compte",
+      "user_update": "Modification d’un compte",
+      "user_deactivate": "Désactivation d’un compte",
+      "user_reactivate": "Réactivation d’un compte",
+      "password_link_create": "Lien de mot de passe engendré",
+      "access_role_create": "Création d’un rôle",
+      "access_role_update": "Modification d’un rôle",
+      "access_role_delete": "Suppression d’un rôle",
+      "user_access_roles_set": "Attribution des rôles d’un compte",
+      "backup": "Sauvegarde",
+      "restore": "Restauration"
+    },
+    "AuditActorKind": {
+      "user": "Un compte",
+      "platform": "La plateforme"
+    },
+    "AuditObjectKind": {
+      "project": "Projet",
+      "revision": "Révision",
+      "cost_structure": "Structure de coûts",
+      "risk": "Risque",
+      "cost_line": "Ligne de coût",
+      "import": "Import",
+      "user": "Compte",
+      "access_role": "Rôle d’habilitation",
+      "backup": "Sauvegarde",
+      "external_backup_upload": "Sauvegarde déposée"
     },
     "ReferenceReadiness": {
       "missing": {

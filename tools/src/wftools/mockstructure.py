@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from wftools.mockids import universe
 from wftools.mockwitness import (
     CABLE_FITTER,
     COMMISSIONING,
@@ -47,7 +48,6 @@ from wftools.mockwitness import (
     N,
     Task,
     fixture,
-    universe,
 )
 
 if TYPE_CHECKING:
