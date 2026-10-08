@@ -31,19 +31,19 @@ export function readValues<Value extends string>(
 }
 
 /**
- * The address of the same screen with one filter set — or lifted, for none —, the rest of its query
- * kept, and back to the first page of its list when the server pages it (`page`, the parameter of
- * its page).
+ * The address of the same screen with one filter set — or lifted, for none or an empty value —, the
+ * rest of its query kept, and back to the first page of each list the server pages that it reads
+ * (`pages`, the parameter of its page, or of the pages of the lists of a screen).
  */
 export function filterHref(
   pathname: string,
   query: URLSearchParams,
   name: string,
   value: string | undefined,
-  page?: string,
+  pages: string | readonly string[] = [],
 ): string {
   const next = new URLSearchParams(query);
-  if (page !== undefined) {
+  for (const page of typeof pages === "string" ? [pages] : pages) {
     next.delete(page);
   }
   if (value === undefined || value === "") {
@@ -55,19 +55,35 @@ export function filterHref(
   return text === "" ? pathname : `${pathname}?${text}`;
 }
 
+/** A filter of a list on the values of a column, as the address writes it. */
+export interface ValuesAddress<Value extends string> {
+  /** The parameter of the address, as the contract names it. */
+  readonly name: string;
+  /** The values of the contract, in its order. */
+  readonly values: readonly Value[];
+  /** The parameter of the page of a list the server pages, which a filter takes back to its first. */
+  readonly page?: string | undefined;
+  /**
+   * Whether every row holds one of the values, every one chosen then retaining every row: the
+   * filter is lifted. Not so of the zones of the indices, which a project without an index is in
+   * none of: every zone chosen still filters.
+   */
+  readonly exhaustive?: boolean | undefined;
+}
+
 /**
- * The address of the same screen filtered on other values of a column — none, or every one, lifts
- * the filter, the list then holding every value —, written in the order of the contract, back to
- * the first page of a list the server pages.
+ * The address of the same screen filtered on other values of a column — none lifts the filter, and
+ * every one too when every row holds one (`exhaustive`) —, written in the order of the contract,
+ * back to the first page of a list the server pages.
  */
 export function valuesHref<Value extends string>(
   pathname: string,
   query: URLSearchParams,
-  filter: { readonly name: string; readonly values: readonly Value[]; readonly page?: string },
+  filter: ValuesAddress<Value>,
   chosen: readonly Value[],
 ): string {
   const kept = filter.values.filter((value) => chosen.includes(value));
-  const every = kept.length === filter.values.length;
+  const every = filter.exhaustive !== false && kept.length === filter.values.length;
   return filterHref(pathname, query, filter.name, every ? undefined : kept.join(","), filter.page);
 }
 

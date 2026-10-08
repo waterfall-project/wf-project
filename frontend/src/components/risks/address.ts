@@ -3,9 +3,9 @@
 /**
  * What the screen of the risks reads of its address, besides the sort and the search of its grid
  * (`query.ts`): the states it filters on, under the name and in the form of the contract —
- * `states`, its values separated by commas (`explode: false`) —, which the server filters by; and
- * the risk whose detail it shows, `risk`. A header clicked, a state chosen, a risk opened only
- * change the address, and the page reads anew: the front filters nothing (WF-ARC-0020).
+ * `states`, its values separated by commas (`explode: false`, `filters.ts`) —, which the server
+ * filters by; and the risk whose detail it shows, `risk`. A header clicked, a state chosen, a risk
+ * opened only change the address, and the page reads anew: the front filters nothing (WF-ARC-0020).
  *
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
@@ -37,16 +37,6 @@ export const RISK_STATES = Object.keys(EVERY_STATE) as readonly RiskState[];
 /** An identifier the API may know: anything else names no risk, and is not asked. */
 const IDENTIFIER = /^[\w-]+$/;
 
-/**
- * The states the address filters on, in the order of the contract, each once; none when it
- * filters on none — every state, as the server reads no filter. A value that is no state of the
- * contract is not asked: the API would refuse it.
- */
-export function readStates(search: SearchParameters): readonly RiskState[] {
-  const asked = new Set((search.get(STATES) ?? "").split(","));
-  return RISK_STATES.filter((state) => asked.has(state));
-}
-
 /** The risk whose detail the address asks for; none when it names none the API may know. */
 export function readRisk(search: SearchParameters): string | undefined {
   const risk = search.get(RISK);
@@ -57,25 +47,6 @@ export function readRisk(search: SearchParameters): string | undefined {
 function address(pathname: string, query: URLSearchParams): string {
   const text = query.toString();
   return text === "" ? pathname : `${pathname}?${text}`;
-}
-
-/**
- * The address of the same screen filtered on other states — none lifts the filter —, the rest of
- * its query kept: the reading context, the sort, the search, the risk opened.
- */
-export function statesHref(
-  pathname: string,
-  query: URLSearchParams,
-  states: readonly RiskState[],
-): string {
-  const next = new URLSearchParams(query);
-  const kept = RISK_STATES.filter((state) => states.includes(state));
-  if (kept.length === 0) {
-    next.delete(STATES);
-  } else {
-    next.set(STATES, kept.join(","));
-  }
-  return address(pathname, next);
 }
 
 /**

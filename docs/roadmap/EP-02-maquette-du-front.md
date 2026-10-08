@@ -1419,6 +1419,16 @@ du journal entier, et les filtres s'appuient sur `listUsers` et `listProjects` (
 session d'auditeur, qui consulte le journal sans lire les comptes (`session_auditor`, rôle composé
 « Auditeur »), porte les réglages gardés de sa grille.
 
+EP-02/L41, sa partie L41f (#506), regroupe les filtres en double (#537) sans changer ce que
+chaque écran offre : un seul filtre par valeurs (`ValuesFilter`) pour les états des risques, ceux
+de l'accueil et les zones du portefeuille — choisir toutes les valeurs d'une liste exhaustive lève
+le filtre —, une seule liste de choix (`ChoiceFilter`) pour le référentiel, le journal, le
+sous-projet des coûts réels et la vue du portefeuille, et une seule adresse de filtre
+(`filterHref`). Les formulaires datés par l'adresse (`useDatedEntry`) — période des coûts réels,
+dates du portefeuille, période du journal, code du référentiel — gardent le focus après
+application et oublient une saisie abandonnée quand l'adresse change ; la recherche et les bornes
+des grilles suivent (#553).
+
 ## US-0260 — Écran d'import en deux temps
 
 - **statut** : fini

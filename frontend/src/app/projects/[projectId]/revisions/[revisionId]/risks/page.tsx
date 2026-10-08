@@ -22,9 +22,10 @@ import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
+import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
-import { readRisk, readStates, type RiskState } from "@/components/risks/address";
+import { readRisk, RISK_STATES, type RiskState, STATES } from "@/components/risks/address";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { RiskDetail } from "@/components/risks/risk-detail";
@@ -163,7 +164,7 @@ export default async function RisksPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "risks");
-  const states = readStates(at.address);
+  const states = readValues(at.address, STATES, RISK_STATES);
   const settings = requestSession().then(
     (session) => session?.user.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
   );

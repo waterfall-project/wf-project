@@ -58,6 +58,16 @@ test("reads the actual costs of a project: the lines and their three totals, the
     "aria-pressed",
     "true",
   );
+  // A period applied: the form stays once the address arrives, and the focus on its button (#537).
+  const period = page.getByRole("form", { name: "Période des pièces" });
+  await period.getByLabel("Pièces du").fill("2026-04-01");
+  const apply = period.getByRole("button", { name: "Filtrer" });
+  await apply.click();
+  await expect(page).toHaveURL(
+    `${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false&from=2026-04-01`,
+    { timeout: WORKING },
+  );
+  await expect(apply).toBeFocused();
 });
 
 test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) [WF-CRE-0040-A]", async ({

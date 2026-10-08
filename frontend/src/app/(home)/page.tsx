@@ -19,6 +19,7 @@ import type { ReactNode } from "react";
 
 import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { readGridQuery } from "@/components/grid/query";
 import { ContributorFilter, ProjectList } from "@/components/projects/project-list";
@@ -36,7 +37,7 @@ import {
   isContributorFiltered,
   mayLiftContributorFilter,
   PROJECT_STATES,
-  readHomeStates,
+  STATES_PARAMETER,
 } from "@/navigation/home";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
 import { requestSession } from "@/session/request";
@@ -69,7 +70,7 @@ export default async function HomePage({
   const raw = await searchParams;
   const search = pageSearch(raw);
   const offset = offsetOf(search.get(OFFSET_PARAMETER));
-  const states = readHomeStates(search);
+  const states = readValues(search, STATES_PARAMETER, PROJECT_STATES);
   const client = serverClient();
   const session = await requestSession();
   const permissions = session?.permissions ?? [];

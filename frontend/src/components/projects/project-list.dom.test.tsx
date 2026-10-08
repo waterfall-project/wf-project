@@ -188,4 +188,16 @@ describe("the filter of the list by state", () => {
     await user.click(screen.getByRole("button", { name: "Tous les états" }));
     expect(await lastAddress()).toBe("/");
   });
+
+  it("lifts the filter when the last state is chosen too: every state is every project", async () => {
+    const user = userEvent.setup();
+    page.search = "states=created%2Cpricing%2Cin_progress%2Ccompleted%2Clost&sort_by=code";
+    render(
+      inFrench(
+        <ProjectStateFilter states={["created", "pricing", "in_progress", "completed", "lost"]} />,
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "Abandonné" }));
+    expect(await lastAddress()).toBe("/?sort_by=code");
+  });
 });

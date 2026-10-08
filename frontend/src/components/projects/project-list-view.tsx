@@ -12,24 +12,14 @@
  */
 "use client";
 
-import { Circle, CircleCheck, ListFilter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { ListPages } from "@/components/costs/cost-pages";
 import { DenseGrid } from "@/components/grid/dense-grid";
-import { usePendingAddress } from "@/components/grid/pending-address";
-import type { GridQuery } from "@/components/grid/query";
+import { type GridQuery, OFFSET } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
-import { parametersHref } from "@/components/portfolio/address";
-import { Button } from "@/components/ui/button";
-import {
-  HOME,
-  homeStatesValue,
-  PROJECT_STATES,
-  type ProjectState,
-  readHomeStates,
-  STATES_PARAMETER,
-} from "@/navigation/home";
+import { ValuesFilter } from "@/components/grid/values-filter";
+import { PROJECT_STATES, type ProjectState, STATES_PARAMETER } from "@/navigation/home";
 
 import {
   type ListedProjectPage,
@@ -39,54 +29,21 @@ import {
 } from "./project-list-grid";
 import { ProjectStateBadge } from "./project-state-badge";
 
-/** Render the filter of the list by state, the states the address retains pressed. */
+/** Render the filter of the list by state, each by its badge, those the address retains pressed. */
 export function ProjectStateFilter({ states }: { readonly states: readonly ProjectState[] }) {
   const t = useTranslations("projectList.filter");
-  const { request } = usePendingAddress();
-  /** Retain the states a change makes of those last asked, back to the first page. */
-  const filter = (change: (asked: readonly ProjectState[]) => readonly ProjectState[]) => {
-    request((query) =>
-      parametersHref(HOME, query, {
-        [STATES_PARAMETER]: homeStatesValue(change(readHomeStates(query))),
-      }),
-    );
-  };
-  const every = states.length === 0;
   return (
-    <div role="group" aria-label={t("states")} className="flex flex-wrap items-center gap-1.5">
-      <Button
-        size="sm"
-        variant={every ? "default" : "outline"}
-        aria-pressed={every}
-        onClick={() => {
-          filter(() => []);
-        }}
-      >
-        <ListFilter aria-hidden="true" className="size-4" />
-        {t("everyState")}
-      </Button>
-      {PROJECT_STATES.map((state) => {
-        // Pressed as the address shows it; a change goes on from the states last asked.
-        const pressed = states.includes(state);
-        const Icon = pressed ? CircleCheck : Circle;
-        return (
-          <Button
-            key={state}
-            size="sm"
-            variant={pressed ? "default" : "outline"}
-            aria-pressed={pressed}
-            onClick={() => {
-              filter((asked) =>
-                asked.includes(state) ? asked.filter((each) => each !== state) : [...asked, state],
-              );
-            }}
-          >
-            <Icon aria-hidden="true" className="size-4" />
-            <ProjectStateBadge state={state} />
-          </Button>
-        );
-      })}
-    </div>
+    <ValuesFilter
+      name={STATES_PARAMETER}
+      label={t("states")}
+      every={t("everyState")}
+      values={PROJECT_STATES.map((state) => ({
+        value: state,
+        text: <ProjectStateBadge state={state} />,
+      }))}
+      chosen={states}
+      page={OFFSET}
+    />
   );
 }
 

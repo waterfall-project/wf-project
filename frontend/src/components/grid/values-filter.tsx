@@ -3,28 +3,30 @@
 /**
  * The filter of a list on the values of one of its columns (WF-IHM-0130), beside its grid: a button
  * for each value of the contract, pressed when the address filters on it, and one for every value —
- * the origins of the accounts, the capacities of the contributors. A value chosen only changes the
- * address, under the name of the contract (`filters.ts`); the page reads the list anew, which the
- * server filters. A value chosen goes on from the address last asked (`usePendingAddress`): a second
- * value chosen before the first has arrived, or right after a sort, keeps them.
+ * the states of the risks and of the projects, the zones of the indices, the origins of the
+ * accounts, the capacities of the contributors. A value chosen only changes the address, under the
+ * name of the contract (`filters.ts`); the page reads the list anew, which the server filters. A
+ * value chosen goes on from the address last asked (`usePendingAddress`): a second value chosen
+ * before the first has arrived, or right after a sort, keeps them.
  *
- * Every prop is data — the texts are given translated —, never a function: a server component
- * hands it over (défaut n° 12 de `typescript.md`).
+ * Every prop is data — the texts are given translated, or drawn already, as a badge —, never a
+ * function: a server component hands it over (défaut n° 12 de `typescript.md`).
  */
 "use client";
 
 import { Circle, CircleCheck, ListFilter } from "lucide-react";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 
-import { readValues, valuesHref } from "./filters";
+import { readValues, type ValuesAddress, valuesHref } from "./filters";
 import { usePendingAddress } from "./pending-address";
 
-/** A value a list may be filtered on, with the text that names it. */
+/** A value a list may be filtered on, with what names it: a text, or a badge drawn. */
 export interface FilterValue<Value extends string> {
   readonly value: Value;
-  readonly text: string;
+  readonly text: ReactNode;
 }
 
 /** Render the filter of a list on the values of a column, those the address names pressed. */
@@ -35,9 +37,9 @@ export function ValuesFilter<Value extends string>({
   values,
   chosen,
   page,
-}: {
-  /** The parameter of the address the filter writes, as the contract names it. */
-  readonly name: string;
+  exhaustive,
+  shaded = false,
+}: Pick<ValuesAddress<Value>, "name" | "page" | "exhaustive"> & {
   /** The name of the group of buttons: what the filter filters on. */
   readonly label: string;
   /** The text of the button that lifts the filter. */
@@ -46,16 +48,15 @@ export function ValuesFilter<Value extends string>({
   readonly values: readonly FilterValue<Value>[];
   /** The values the address filters on. */
   readonly chosen: readonly Value[];
-  /** The parameter of the page of a list the server pages, which a filter takes back to its first. */
-  readonly page?: string;
+  /**
+   * Whether a value pressed shows by a shade rather than filled: a value named by a colour of its
+   * own — the signal of a zone — keeps it, pressed by its mark and its shade, never by a colour alone.
+   */
+  readonly shaded?: boolean;
 }) {
   const pathname = usePathname();
   const { request } = usePendingAddress();
-  const filter = {
-    name,
-    values: values.map(({ value }) => value),
-    ...(page === undefined ? {} : { page }),
-  };
+  const filter = { name, values: values.map(({ value }) => value), page, exhaustive };
   /** Filter on the values a change makes of those last asked. */
   const change = (make: (asked: readonly Value[]) => readonly Value[]) => {
     request((query) =>
@@ -84,8 +85,9 @@ export function ValuesFilter<Value extends string>({
           <Button
             key={value}
             size="sm"
-            variant={pressed ? "default" : "outline"}
+            variant={pressed && !shaded ? "default" : "outline"}
             aria-pressed={pressed}
+            className={pressed && shaded ? "bg-accent text-accent-foreground" : undefined}
             onClick={() => {
               change((asked) =>
                 asked.includes(value) ? asked.filter((each) => each !== value) : [...asked, value],

@@ -83,30 +83,6 @@ export function levelOf(search: SearchParameters, name: string): number | undefi
 }
 
 /**
- * The address of the same screen with one parameter set, or taken away for none, and back to the
- * first page of each list the server pages whose page is given (`pages`).
- */
-export function parameterHref(
-  pathname: string,
-  query: URLSearchParams,
-  name: string,
-  value: string | undefined,
-  pages: readonly string[] = [],
-): string {
-  const next = new URLSearchParams(query);
-  for (const page of pages) {
-    next.delete(page);
-  }
-  if (value === undefined) {
-    next.delete(name);
-  } else {
-    next.set(name, value);
-  }
-  const text = next.toString();
-  return text === "" ? pathname : `${pathname}?${text}`;
-}
-
-/**
  * The parameters of the address a list of the reference data reads: whether it shows the
  * deactivated objects, the sort, the search and the page of its grid, and its own filters — what a
  * refusal of a reactivation is told on (`Reactivations`). A list without a grid of its own reads the
