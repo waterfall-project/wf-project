@@ -137,7 +137,15 @@ describe("undo and redo, placed in the grids", () => {
     // The reason is read by everyone, beside them.
     expect(screen.getByText(REASON)).toBeVisible();
     expect(client.calls).toEqual([]);
-    await expectAccessible(document.body);
+    // The bar that holds them: the grid around them is checked by estimate.dom.test.tsx, and the
+    // first check of a file, on the whole grid, took longer than the test may last under load
+    // (EP-02/L46).
+    const bar = screen.getByRole("button", { name: "Annuler" }).parentElement;
+    if (bar === null) {
+      throw new Error("the command Undo stands in no bar");
+    }
+    expect(bar).toContainElement(screen.getByText(REASON));
+    await expectAccessible(bar);
   });
 
   it("places them in the menu of a cell, opened by Shift+F10, with their shortcuts, unavailable and saying why", async () => {
