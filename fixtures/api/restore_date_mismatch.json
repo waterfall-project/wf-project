@@ -1,0 +1,14 @@
+{
+  "summary": "La restauration de la plateforme depuis la sauvegarde de la nuit du 3 juin, confirmée avec la date de celle du 2 juin : la confirmation n'énonce pas la date de la sauvegarde désignée, et le champ de la date confirmée est refusé ; rien n'est mis en file (WF-ADM-0160).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/acknowledged_backup_taken_at",
+        "code": "BACKUP_DATE_MISMATCH"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001048"
+  }
+}

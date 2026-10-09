@@ -42,9 +42,20 @@
     tags: [reference]
     summary: Régler les paramètres communs
     description: >-
-      La devise est choisie à l'installation et n'est pas modifiable (WF-REF-0140).
-      Le seuil d'alerte de chaque indice reste inférieur à son seuil de vigilance
-      (WF-REF-0170).
+      La devise est choisie à l'installation et n'est pas modifiable (WF-REF-0140). Chaque
+      champ relève de la permission de sa fonction (WF-ADM-0100) : la matrice de risques
+      (`risk_matrix`) de `risk_settings.write` (WF-REF-0160), les seuils des indices et le
+      délai entre deux revues (`index_thresholds`, `max_weeks_between_reviews`)
+      d'`indicator_settings.write` (WF-REF-0170, WF-REF-0180). Une requête ne porte que ce
+      qu'elle écrit, avec le compteur lu, commun à tous les paramètres : un champ absent reste
+      tel qu'il est. Un champ dont la session ne porte pas la permission est refusé par 403,
+      même si la requête en porte un autre qu'elle pourrait écrire ; rien n'est écrit. Les six
+      bornes de la matrice sont ordonnées, strictement croissantes sur chaque axe
+      (WF-REF-0160), et le seuil d'alerte de chaque indice reste strictement inférieur à son
+      seuil de vigilance (WF-REF-0170) : une borne ou un seuil qui ne le sont pas sont refusés
+      par champ (422). La langue par défaut de l'installation (`default_language`,
+      WF-INTF-0160) ne relève d'aucune des deux fonctions et ne s'écrit pas ici : aucun écran
+      du référentiel ne l'écrit, et elle s'écrira là où EP-03 le décidera.
     requestBody:
       required: true
       content:
@@ -52,14 +63,50 @@
           schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettingsWrite }
     responses:
       '200':
-        description: Paramètres enregistrés.
+        description: Paramètres enregistrés, entiers, avec leur compteur suivant.
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettings }
+            examples:
+              thresholds_updated: { $ref: ../../../fixtures/api/reference_settings_thresholds_updated.json }
+              matrix_updated: { $ref: ../../../fixtures/api/reference_settings_matrix_updated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '403':
+        description: >-
+          Un champ dont la session ne porte pas la permission de la fonction :
+          `PERMISSION_MISSING`, `params.missing_permission` la nommant — `risk_settings.write`
+          pour la matrice, `indicator_settings.write` pour les seuils et le délai (WF-ADM-0100,
+          WF-ADM-0110) ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              permission_missing: { $ref: ../../../fixtures/api/reference_settings_permission_missing.json }
+      '412':
+        description: >-
+          `lock_version` périmé : les paramètres ont été modifiés depuis leur lecture, par l'un
+          ou l'autre écran, et rien n'est écrit. `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` la version courante (WF-IHM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/reference_settings_stale.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : une borne de la
+          matrice qui n'est pas strictement supérieure à la précédente,
+          `/risk_matrix/probability_bounds/<rang>` ou `/risk_matrix/severity_bounds/<rang>` par
+          `BOUNDS_NOT_ORDERED`, le rang celui de la borne qui rompt l'ordre (WF-REF-0160) ; un
+          seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice,
+          `/index_thresholds/cost_alert` ou `/index_thresholds/schedule_alert` par
+          `THRESHOLD_NOT_BELOW_WATCH` (WF-REF-0170). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              bounds_not_ordered: { $ref: ../../../fixtures/api/reference_settings_bounds_refused.json }
+              thresholds_not_below_watch: { $ref: ../../../fixtures/api/reference_settings_thresholds_refused.json }
 
 /reference/org-nodes:
   get:

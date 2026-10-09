@@ -73,16 +73,16 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/backups` | Sauvegardes | WF-ADM-0150 |
-| POST | `/backups` | Déclencher une sauvegarde | WF-ADM-0150, WF-ARC-0090 |
-| GET | `/backups/{backup_id}` | Une sauvegarde | WF-ADM-0150 |
-| PATCH | `/backups/{backup_id}` | Marquer une sauvegarde à conserver | WF-ADM-0170 |
-| GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0100, WF-ADM-0150 |
+| GET | `/backups` | Sauvegardes | WF-ADM-0100, WF-ADM-0150, WF-ADM-0170, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130 |
+| POST | `/backups` | Déclencher une sauvegarde | WF-ADM-0100, WF-ADM-0150, WF-ARC-0090 |
+| GET | `/backups/{backup_id}` | Une sauvegarde | WF-ADM-0150, WF-IHM-0090 |
+| PATCH | `/backups/{backup_id}` | Marquer une sauvegarde à conserver | WF-ADM-0100, WF-ADM-0170, WF-IHM-0090 |
+| GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0100, WF-ADM-0150, WF-IHM-0090 |
 | GET | `/backup-schedule` | Planification et rétention des sauvegardes | WF-ADM-0170 |
 | PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050, WF-OBS-0030 |
 | GET | `/external-backup-locations` | Emplacements externes des sauvegardes | WF-ADM-0100, WF-ADM-0170 |
 | POST | `/external-backup-locations/{location_name}/test` | Éprouver un emplacement externe des sauvegardes | WF-ADM-0100, WF-ADM-0170, WF-ARC-0110, WF-OBS-0030 |
-| POST | `/restores` | Restaurer la plateforme | WF-ADM-0160, WF-DAT-0130 |
+| POST | `/restores` | Restaurer la plateforme | WF-ADM-0100, WF-ADM-0160, WF-ARC-0090, WF-DAT-0130, WF-IHM-0090 |
 
 ## Journal d'audit
 
@@ -101,7 +101,7 @@ Le contrat cite **186 des 211 exigences** de la spécification.
 |---|---|---|---|
 | GET | `/reference/readiness` | Référentiel minimal exigé pour créer un projet | WF-CYC-0120 |
 | GET | `/reference/settings` | Devise, langue par défaut, matrice de risques, seuils et délai de revue | WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
-| PATCH | `/reference/settings` | Régler les paramètres communs | WF-REF-0140, WF-REF-0170 |
+| PATCH | `/reference/settings` | Régler les paramètres communs | WF-ADM-0100, WF-INTF-0160, WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | GET | `/reference/org-nodes` | Arbre d'organisation | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0070, WF-REF-0080 |
 | POST | `/reference/org-nodes` | Créer un nœud d'organisation | WF-REF-0070, WF-REF-0080 |
 | PATCH | `/reference/org-nodes/{org_node_id}` | Modifier un nœud d'organisation | WF-REF-0070, WF-REF-0080, WF-REF-0130 |

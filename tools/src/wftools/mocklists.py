@@ -4,8 +4,9 @@
 
 The lists written by hand — the projects of the home (``projects``), the subprojects
 (``subprojects``) and the contributors of the witness (``contributors``) (#536), the accounts
-(``users``) and the access roles (``access_roles``) (#560) —, and the work breakdown of the witness,
-which the generator writes (``work_breakdown``), read as their screens ask them:
+(``users``) and the access roles (``access_roles``) (#560), the backups (``backups``) (#588) —, and
+the work breakdown of the witness, which the generator writes (``work_breakdown``), read as their
+screens ask them:
 
 - ``projects_default_states.json``, ``listProjects`` without `states`: the projects in progress
   alone, the default of the perimeter of the portfolio (WF-PTF-0010), which the answer names
@@ -23,7 +24,12 @@ which the generator writes (``work_breakdown``), read as their screens ask them:
 - ``access_roles_composed.json``, ``listAccessRoles`` restricted to the roles composed since the
   installation; ``access_roles_unheld.json``, to those no account holds, an upper bound of none;
 - ``work_breakdown_search.json``, ``getWorkBreakdown`` searched: an order item, without what it
-  holds; ``work_breakdown_work_packages.json``, its work packages alone, under their order item.
+  holds; ``work_breakdown_work_packages.json``, its work packages alone, under their order item;
+- ``backups_reader.json``, ``listBackups`` read by a session that may neither modify the backups
+  nor restore the platform: no command; ``backups_during_backup.json``, read while a backup runs:
+  the restoration unavailable on each; ``backups_manual.json``, the manual backups alone;
+  ``backups_retained.json``, those marked to be kept; ``backups_period.json``, those taken within
+  a period; ``backups_by_size.json``, sorted by size, the lightest first.
 
 Each list written by hand is in the order of the list without sort. A sort here is stable — two
 rows of one value keep that order, as every sort of the contract breaks a tie (DECISIONS,
@@ -80,6 +86,19 @@ SEARCHED_LABEL = "Montage"
 
 BREAKDOWN_KINDS = ("order_item", "work_package", "deliverable")
 """The kinds of an element of a work breakdown in the order of `WorkBreakdownKind`."""
+
+BACKUP_ORIGINS = ("manual", "scheduled")
+"""The origins of a backup in the order of `BackupOrigin`: by hand first."""
+
+BACKUP_VERIFICATIONS = ("pending", "passed", "failed")
+"""The outcomes of the verification of a backup in the order of `BackupVerification`."""
+
+BACKUP_PERIOD = (datetime(2026, 5, 31, 22, tzinfo=UTC), datetime(2026, 6, 30, 22, tzinfo=UTC))
+"""The period of ``backups_period``: June in Paris, as the screen asks it from the days of its
+reader, two hours ahead of universal time in summer, the end excluded."""
+
+RUNNING_BACKUP = "no_backup_running"
+"""The condition the restoration lacks while a backup runs (`CommandCondition`)."""
 
 type Key = Callable[[JsonObject], JsonValue]
 """The key of a column: its value in a row, a text, a number or a truth value; none for no value."""
@@ -145,10 +164,13 @@ def modified_at(project: JsonObject) -> datetime:
     return datetime.fromisoformat(cast("str", cast("JsonObject", project["audit"])["updated_at"]))
 
 
-def modified_within(
-    projects: Iterable[JsonObject], start: datetime | None, end: datetime | None
+def within(
+    rows: Iterable[JsonObject],
+    at: Callable[[JsonObject], datetime],
+    start: datetime | None,
+    end: datetime | None,
 ) -> list[JsonObject]:
-    """Return the projects last modified within a period (`from` included, `to` excluded).
+    """Return the rows whose instant is within a period (`from` included, `to` excluded).
 
     As the journal of audit reads its period (`listAuditEvents`): instants, the screen turning the
     days of its reader into them. A period whose end precedes its start is refused.
@@ -158,10 +180,16 @@ def modified_within(
         raise ValueError(message)
     return [
         each
-        for each in projects
-        if (start is None or modified_at(each) >= start)
-        and (end is None or modified_at(each) < end)
+        for each in rows
+        if (start is None or at(each) >= start) and (end is None or at(each) < end)
     ]
+
+
+def modified_within(
+    projects: Iterable[JsonObject], start: datetime | None, end: datetime | None
+) -> list[JsonObject]:
+    """Return the projects last modified within a period (`from` included, `to` excluded)."""
+    return within(projects, modified_at, start, end)
 
 
 def by_default(projects: Iterable[JsonObject]) -> list[JsonObject]:
@@ -266,11 +294,14 @@ def in_state(users: Iterable[JsonObject], *, active: bool) -> list[JsonObject]:
     return [each for each in users if each["is_active"] is active]
 
 
-def user_page(users: Sequence[JsonObject], limit: int = mocktext.PAGE) -> JsonObject:
-    """Return the first page of the accounts retained, which `meta.total` counts."""
+def user_page(rows: Sequence[JsonObject], limit: int = mocktext.PAGE) -> JsonObject:
+    """Return the first page of the rows retained, which `meta.total` counts.
+
+    The page of the accounts, and of every list paged the same way, the backups among them.
+    """
     return {
-        "items": cast("list[JsonValue]", list(users[:limit])),
-        "meta": {"limit": limit, "offset": 0, "total": len(users)},
+        "items": cast("list[JsonValue]", list(rows[:limit])),
+        "meta": {"limit": limit, "offset": 0, "total": len(rows)},
     }
 
 
@@ -295,6 +326,75 @@ def held_within(
         if (minimum is None or cast("int", each["holder_count"]) >= minimum)
         and (maximum is None or cast("int", each["holder_count"]) <= maximum)
     ]
+
+
+# --- The backups --------------------------------------------------------------------------------
+
+BACKUP_KEYS: dict[str, Key] = {
+    "taken_at": lambda row: row["taken_at"],
+    "size_bytes": lambda row: row["size_bytes"],
+    "verification": lambda row: BACKUP_VERIFICATIONS.index(cast("str", row["verification"])),
+    "origin": lambda row: BACKUP_ORIGINS.index(cast("str", row["origin"])),
+    "is_retained": first_true("is_retained"),
+}
+"""The columns `listBackups` sorts by, each by its key: the enumerations in their order, the
+backups marked to be kept first."""
+
+
+def taken_at(backup: JsonObject) -> datetime:
+    """Return the instant a backup was taken (`taken_at`)."""
+    return datetime.fromisoformat(cast("str", backup["taken_at"]))
+
+
+def taken_within(
+    backups: Iterable[JsonObject], start: datetime | None, end: datetime | None
+) -> list[JsonObject]:
+    """Return the backups taken within a period (`from` included, `to` excluded)."""
+    return within(backups, taken_at, start, end)
+
+
+def of_origins(backups: Iterable[JsonObject], origins: Sequence[str]) -> list[JsonObject]:
+    """Return the backups of some origins (`origins` of `listBackups`); any, when none is named."""
+    unknown = set(origins) - set(BACKUP_ORIGINS)
+    if unknown:
+        message = f"no origin of a backup: {sorted(unknown)}"
+        raise ValueError(message)
+    return [each for each in backups if not origins or each["origin"] in origins]
+
+
+def marked(backups: Iterable[JsonObject], *, retained: bool) -> list[JsonObject]:
+    """Return the backups marked to be kept, or the others (`is_retained` of `listBackups`)."""
+    return [each for each in backups if each["is_retained"] is retained]
+
+
+def _with_commands(backup: JsonObject, commands: Callable[[JsonObject], JsonObject]) -> JsonObject:
+    """Return a backup, each of its commands as a function reads it."""
+    found = cast("list[JsonObject]", backup["available_commands"])
+    return {**backup, "available_commands": cast("list[JsonValue]", [commands(c) for c in found])}
+
+
+def without_commands(backups: Iterable[JsonObject]) -> list[JsonObject]:
+    """Return the backups as a session that may exercise no command reads them: none listed.
+
+    Who reads the backups without `backups.write` nor `platform_restore` (WF-IHM-0090).
+    """
+    return [{**each, "available_commands": []} for each in backups]
+
+
+def while_backup_runs(backups: Iterable[JsonObject]) -> list[JsonObject]:
+    """Return the backups as read while a backup runs: the restoration of each unavailable.
+
+    `no_backup_running` joins the conditions the restoration lacks; the marking and the download
+    stay as they were (`BackupCommand`).
+    """
+
+    def read(command: JsonObject) -> JsonObject:
+        if command["command"] != "restore":
+            return command
+        missing = [*cast("list[JsonValue]", command["missing_conditions"]), RUNNING_BACKUP]
+        return {**command, "is_available": False, "missing_conditions": missing}
+
+    return [_with_commands(each, read) for each in backups]
 
 
 # --- The work breakdown -------------------------------------------------------------------------
@@ -435,6 +535,62 @@ def administration() -> dict[str, JsonObject]:
     }
 
 
+def _dates(rows: Iterable[JsonObject]) -> str:
+    """Say backups by the day they were taken."""
+    return mocktext.listed([_day(taken_at(row).date()) for row in rows])
+
+
+def backups() -> dict[str, JsonObject]:
+    """Return the readings of the backups — filtered, sorted, without command —, by file name."""
+    found = cast("list[JsonObject]", fixture("backups")["items"])
+    manual = of_origins(found, ("manual",))
+    kept = marked(found, retained=True)
+    start, end = BACKUP_PERIOD
+    period = taken_within(found, start, end)
+    by_size = ordered(found, BACKUP_KEYS["size_bytes"])
+    return {
+        "backups_reader.json": _example(
+            f"Les sauvegardes lues par une session qui ne peut ni les modifier ni restaurer la "
+            f"plateforme : les {len(found)} du témoin, sans aucune commande — la liste est vide "
+            f"pour qui n'a que la permission de consulter (WF-IHM-0090, WF-ADM-0100).",
+            user_page(without_commands(found)),
+        ),
+        "backups_during_backup.json": _example(
+            f"Les sauvegardes lues pendant que la sauvegarde manuelle mise en file à 14 h 04 "
+            f"s'exécute (task_backup_queued) : la restauration est indisponible sur chacune des "
+            f"{len(found)}, {RUNNING_BACKUP} manquante ; le marquage et le téléchargement restent "
+            f"disponibles (WF-ADM-0160, WF-IHM-0090).",
+            user_page(while_backup_runs(found)),
+        ),
+        "backups_manual.json": _example(
+            f"Les sauvegardes manuelles seules (origins=manual) : celle du {_dates(manual)}, "
+            f"marquée à conserver ; les planifiées sont écartées, et meta.total compte les "
+            f"retenues (WF-ADM-0150, WF-IHM-0130).",
+            user_page(manual),
+        ),
+        "backups_retained.json": _example(
+            f"Les sauvegardes marquées à conserver (is_retained=true), qui échappent à la "
+            f"rotation : celle du {_dates(kept)} ; les autres sont écartées (WF-ADM-0170, "
+            f"WF-IHM-0130).",
+            user_page(kept),
+        ),
+        "backups_period.json": _example(
+            f"Les sauvegardes prises en juin 2026 à Paris : de {_stamp(start)}, inclus, à "
+            f"{_stamp(end)}, exclu (from, to), les jours du lecteur en instants : celles des "
+            f"{_dates(period)}, les plus récentes d'abord ; celles de mai et de janvier sont "
+            f"écartées (WF-IHM-0130).",
+            user_page(period),
+        ),
+        "backups_by_size.json": _example(
+            f"Les sauvegardes triées par taille, croissante (sort_by=size_bytes) : la manuelle du "
+            f"{_dates(by_size[:1])}, la plus légère, d'abord, puis les planifiées de la plus "
+            f"ancienne à la plus récente, chacune plus lourde que la veille ; la liste sans tri "
+            f"les range par date, les plus récentes d'abord (WF-IHM-0060).",
+            user_page(by_size),
+        ),
+    }
+
+
 def breakdowns() -> dict[str, JsonObject]:
     """Return the readings of the work breakdown of the witness, filtered, by file name."""
     breakdown = work_breakdown(WORK_BREAKDOWN, 1)
@@ -530,5 +686,6 @@ def examples() -> dict[str, JsonObject]:
             contributor_list(contributors, inactive, filtered=True),
         ),
         **administration(),
+        **backups(),
         **breakdowns(),
     }

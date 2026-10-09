@@ -1,16 +1,16 @@
 {
-  "summary": "La sauvegarde planifiée de la nuit du 3 juin, marquée à conserver aujourd'hui : elle échappe désormais à la rotation (WF-ADM-0170).",
+  "summary": "La sauvegarde planifiée de la nuit du 3 juin 2026, lue seule par une session qui peut modifier les sauvegardes et restaurer la plateforme : vérifiée, ses trois commandes disponibles (WF-ADM-0150, WF-IHM-0090).",
   "value": {
     "backup_id": "01926f3a-7c00-7000-8000-000000000907",
     "taken_at": "2026-06-03T01:00:00Z",
     "size_bytes": 1313656012,
     "verification": "passed",
-    "is_retained": true,
+    "is_retained": false,
     "scope": "database",
     "origin": "scheduled",
     "available_commands": [
       {
-        "command": "release",
+        "command": "retain",
         "is_available": true,
         "missing_conditions": []
       },

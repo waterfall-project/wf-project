@@ -1574,6 +1574,9 @@
     "COMPLETION_DATE_REQUIRED": "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
     "UNKNOWN_EXTERNAL_BACKUP_LOCATION": "Emplacement externe inconnu de l’installation.",
     "PATH_INVALID": "Chemin invalide : il doit être relatif, sans « .. ».",
+    "BACKUP_DATE_MISMATCH": "La date confirmée n’est pas celle de la sauvegarde désignée.",
+    "BOUNDS_NOT_ORDERED": "Les bornes doivent être strictement croissantes.",
+    "THRESHOLD_NOT_BELOW_WATCH": "Le seuil d’alerte doit être inférieur au seuil de vigilance.",
     "UNKNOWN_WORK_BREAKDOWN_ITEM": "Ce poste ou ce lot n’existe pas dans le lotissement du projet.",
     "WORK_BREAKDOWN_ITEMS_EXCLUSIVE": "Une tâche porte un poste ou un lot, jamais les deux.",
     "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED": "Ce poste ou ce lot est déjà porté par une autre tâche.",
@@ -1793,18 +1796,24 @@
       }
     },
     "Backup": {
-      "verification": {
-        "pending": "Vérification en attente",
-        "passed": "Vérifiée",
-        "failed": "Vérification échouée"
-      },
       "scope": {
         "database": "Base de données"
-      },
-      "origin": {
-        "manual": "Manuelle",
-        "scheduled": "Planifiée"
       }
+    },
+    "BackupVerification": {
+      "pending": "Vérification en attente",
+      "passed": "Vérifiée",
+      "failed": "Vérification échouée"
+    },
+    "BackupOrigin": {
+      "manual": "Manuelle",
+      "scheduled": "Planifiée"
+    },
+    "BackupCommand": {
+      "retain": "Conserver",
+      "release": "Ne plus conserver",
+      "download": "Télécharger",
+      "restore": "Restaurer la plateforme"
     },
     "BackupSchedule": {
       "frequency": {
@@ -1929,7 +1938,10 @@
       "cost_category_unrated": "catégorie sans taux horaire",
       "cost_type_not_last_provision": "une autre nature provision active portant une catégorie active",
       "cost_category_not_last_provision": "une autre catégorie active sous une nature provision active",
-      "last_administrator": "un autre compte actif portant les permissions d’administration"
+      "last_administrator": "un autre compte actif portant les permissions d’administration",
+      "backup_verified": "sauvegarde vérifiée",
+      "no_backup_running": "aucune sauvegarde en cours",
+      "no_restore_running": "aucune restauration en cours"
     },
     "ProjectExit": {
       "to_state": {

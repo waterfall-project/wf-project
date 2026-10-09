@@ -1,0 +1,18 @@
+{
+  "summary": "Les seuils écrits aujourd'hui avec l'alerte de l'indice de coût à 0,9, égale à sa vigilance, et l'alerte de l'indice de délai à 0,95, au-dessus de sa vigilance à 0,9 : chaque seuil d'alerte est refusé à son champ, désigné par /index_thresholds/cost_alert et /index_thresholds/schedule_alert ; rien n'est écrit (WF-REF-0170).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/index_thresholds/cost_alert",
+        "code": "THRESHOLD_NOT_BELOW_WATCH"
+      },
+      {
+        "pointer": "/index_thresholds/schedule_alert",
+        "code": "THRESHOLD_NOT_BELOW_WATCH"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001050"
+  }
+}

@@ -134,6 +134,16 @@ CommandCondition:
     `setUserActivation` la nomme dans son 409. Le retrait de l'une de ces permissions par
     `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
     dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
+    Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`,
+    `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une
+    sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ;
+    `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la
+    production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —,
+    à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running`
+    manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des
+    utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage
+    (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment
+    dans leur 409.
   enum:
     - is_contributor
     - is_project_manager
@@ -165,6 +175,9 @@ CommandCondition:
     - cost_type_not_last_provision
     - cost_category_not_last_provision
     - last_administrator
+    - backup_verified
+    - no_backup_running
+    - no_restore_running
 
 ProjectCommand:
   type: string

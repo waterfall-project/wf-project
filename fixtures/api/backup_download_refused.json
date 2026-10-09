@@ -1,0 +1,11 @@
+{
+  "summary": "Le téléchargement de la sauvegarde manuelle prise à 14 h 04 min 50 s (backup_pending) demandé avant que sa vérification n'aboutisse, malgré sa commande download indisponible : refusé, backup_verified manquante ; rien n'est transmis (WF-ADM-0150, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "backup_verified"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001045"
+  }
+}

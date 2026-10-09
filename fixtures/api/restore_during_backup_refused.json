@@ -1,0 +1,11 @@
+{
+  "summary": "La restauration de la plateforme depuis la sauvegarde de la nuit confirmée à 14 h 04 min 20 s, pendant que la sauvegarde manuelle mise en file à 14 h 04 s'exécute (task_backup_queued), malgré sa commande restore indisponible : refusée, no_backup_running manquante ; rien n'est mis en file (WF-ADM-0160, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "no_backup_running"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001046"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "summary": "Les sauvegardes demandées entre 1 300 000 000 et 1 000 000 000 octets : la borne supérieure précède la borne inférieure, et size_bytes_max est refusée, désignée par /query/size_bytes_max, la borne inférieure nommée, un entier comme la colonne (WF-IHM-0130).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/size_bytes_max",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "minimum": 1300000000
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001041"
+  }
+}

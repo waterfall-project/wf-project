@@ -21,7 +21,10 @@ export interface Examples {
     200: "backup_schedule" | "backup_schedule_disabled" | "backup_schedule_weekly";
   };
   "GET /backups": {
-    200: "backups" | "backups_beyond" | "backups_empty";
+    200: "backups" | "backups_beyond" | "backups_by_size" | "backups_during_backup" | "backups_empty" | "backups_manual" | "backups_period" | "backups_reader" | "backups_retained";
+  };
+  "GET /backups/{backup_id}": {
+    200: "backup" | "backup_pending";
   };
   "GET /external-backup-locations": {
     200: "external_backup_locations" | "external_backup_locations_none";
@@ -245,6 +248,9 @@ export interface Examples {
   "PATCH /reference/resource-roles/{resource_role_id}": {
     200: "resource_role_updated";
   };
+  "PATCH /reference/settings": {
+    200: "reference_settings_matrix_updated" | "reference_settings_thresholds_updated";
+  };
   "POST /backups": {
     202: "task_backup_queued";
   };
@@ -301,6 +307,9 @@ export interface Examples {
   };
   "POST /session": {
     201: "session";
+  };
+  "PUT /backup-schedule": {
+    200: "backup_schedule_set";
   };
   "PUT /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope": {
     200: "actual_cost_excluded" | "actual_cost_reinstated";
