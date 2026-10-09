@@ -1109,7 +1109,7 @@ traîne dans une procédure, et que la relancer soit sans danger.
 - **statut** : à faire
 - **exigences** : `WF-ARC-0050-A`
 - **opérations** : aucune en propre — l'empaquetage déploie celles que sert le service
-- **issue** :
+- **issue** : #564
 
 **En tant qu'**exploitant, **je veux** déployer Waterfall sur une machine seule, à partir
 d'images que la chaîne publie, derrière un frontal HTTPS, **afin de** montrer le produit
@@ -1149,7 +1149,7 @@ services, la mise à jour sans interruption — EP-13.
 - **exigences** : `WF-ADM-0150-A`, `WF-ADM-0160-A`, `WF-DAT-0120-A`
 - **opérations** : `listBackups`, `startBackup`, `getBackup`, `downloadBackup`, `startRestore`,
   `uploadFile`
-- **issue** :
+- **issue** : #565
 
 **En tant qu'**administrateur, **je veux** sauvegarder la plateforme, télécharger la
 sauvegarde, et la restaurer ici ou sur une autre installation, **afin de** remettre une
