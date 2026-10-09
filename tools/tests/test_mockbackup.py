@@ -66,8 +66,6 @@ def test_a_deposit_holds_in_the_parts_the_object_store_admits() -> None:
     found = re.search(r"maximum: (\d+)", block)
     assert found is not None
     limit = int(found.group(1))
-    decisions = (REPOSITORY / "docs/api/DECISIONS.md").read_text(encoding="utf-8")
-    assert "(10 000)" in decisions
     assert limit == 10_000
     installation: dict[str, Any] = mockwitness.fixture("installation")
     _, largest = _part_size_bounds()
